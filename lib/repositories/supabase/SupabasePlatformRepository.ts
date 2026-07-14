@@ -6,6 +6,7 @@ import type {
   PlatformPost,
   CreatePlatformConnectionInput,
   CreatePlatformPostInput,
+  Platform,
 } from '../interfaces/IPlatformRepository';
 
 export class SupabasePlatformRepository implements IPlatformRepository {
@@ -15,7 +16,7 @@ export class SupabasePlatformRepository implements IPlatformRepository {
     return {
       id: row.id as string,
       workspaceId: row.workspace_id as string,
-      platform: row.platform as 'linkedin' | 'x' | 'threads',
+      platform: row.platform as Platform,
       platformUserId: row.platform_user_id as string,
       username: row.username as string,
       accessTokenEncrypted: row.access_token_encrypted as string,
@@ -46,7 +47,7 @@ export class SupabasePlatformRepository implements IPlatformRepository {
     return this.mapConnectionRow(data);
   }
 
-  async findByWorkspaceAndPlatform(workspaceId: string, platform: 'linkedin' | 'x' | 'threads'): Promise<PlatformConnection | null> {
+  async findByWorkspaceAndPlatform(workspaceId: string, platform: Platform): Promise<PlatformConnection | null> {
     const { data, error } = await this.supabase
       .from('platform_connections')
       .select('*')

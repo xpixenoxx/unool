@@ -20,6 +20,26 @@ const configSchema = z.object({
   UPSTASH_REDIS_URL: z.string().url().optional().default('http://localhost:6379'),
   UPSTASH_REDIS_TOKEN: z.string().optional().default('test-token'),
   MAGIC_LINK_EXPIRY_MINUTES: z.coerce.number().default(15),
+
+  // LinkedIn OAuth
+  LINKEDIN_CLIENT_ID: z.string().optional(),
+  LINKEDIN_CLIENT_SECRET: z.string().optional(),
+  LINKEDIN_REDIRECT_URI: z.string().url().optional(),
+
+  // Meta (Threads/Facebook) OAuth
+  META_CLIENT_ID: z.string().optional(),
+  META_CLIENT_SECRET: z.string().optional(),
+  META_REDIRECT_URI: z.string().url().optional(),
+
+  // X (Twitter) OAuth
+  X_CLIENT_ID: z.string().optional(),
+  X_CLIENT_SECRET: z.string().optional(),
+  X_REDIRECT_URI: z.string().url().optional(),
+
+  // Webhook secrets
+  LINKEDIN_WEBHOOK_SECRET: z.string().optional(),
+  X_WEBHOOK_SECRET: z.string().optional(),
+  META_WEBHOOK_SECRET: z.string().optional(),
 });
 
 export type Config = z.infer<typeof configSchema>;

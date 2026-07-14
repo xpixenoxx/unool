@@ -1,7 +1,9 @@
+export type Platform = 'linkedin' | 'x' | 'threads' | 'manual';
+
 export interface PlatformConnection {
   id: string;
   workspaceId: string;
-  platform: 'linkedin' | 'x' | 'threads';
+  platform: Platform;
   platformUserId: string;
   username: string | null;
   accessTokenEncrypted: string;
@@ -27,7 +29,7 @@ export interface PlatformPost {
 
 export interface CreatePlatformConnectionInput {
   workspaceId: string;
-  platform: 'linkedin' | 'x' | 'threads';
+  platform: Platform;
   platformUserId: string;
   username?: string;
   accessToken: string;
@@ -38,7 +40,7 @@ export interface CreatePlatformConnectionInput {
 
 export interface IPlatformRepository {
   findById(id: string): Promise<PlatformConnection | null>;
-  findByWorkspaceAndPlatform(workspaceId: string, platform: 'linkedin' | 'x' | 'threads'): Promise<PlatformConnection | null>;
+  findByWorkspaceAndPlatform(workspaceId: string, platform: Platform): Promise<PlatformConnection | null>;
   findByWorkspaceId(workspaceId: string): Promise<PlatformConnection[]>;
   create(input: CreatePlatformConnectionInput): Promise<PlatformConnection>;
   update(id: string, data: Partial<PlatformConnection>): Promise<PlatformConnection>;
