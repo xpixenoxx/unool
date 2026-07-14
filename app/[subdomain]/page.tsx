@@ -76,6 +76,16 @@ function getProofIcon(type: ProofPoint['type']) {
   }
 }
 
+// Defense-in-depth: sanitize plain text content (React escapes by default, but explicit)
+function sanitizePlainText(text: string): string {
+  return text
+    .replace(/&/g, '&')
+    .replace(/</g, '<')
+    .replace(/>/g, '>')
+    .replace(/"/g, '"')
+    .replace(/'/g, '&#039;');
+}
+
 export default function PublicProfilePage({ params }: { params: Promise<{ subdomain: string }> }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -155,7 +165,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ subdom
         {/* Bio */}
         {bio && (
           <div className={`prose prose-sm dark:prose-invert max-w-none mb-10 ${styles.text}`}>
-            <p>{bio}</p>
+            <p>{sanitizePlainText(bio)}</p>
           </div>
         )}
 

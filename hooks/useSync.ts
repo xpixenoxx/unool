@@ -9,6 +9,12 @@ interface SyncEvent<T = unknown> {
   timestamp: string;
 }
 
+interface SyncPayload {
+  traceId?: string;
+  timestamp: string;
+  payload: unknown;
+}
+
 interface UseSyncOptions {
   workspaceId?: string;
   profileId?: string;
@@ -16,7 +22,6 @@ interface UseSyncOptions {
   onPostUpdate?: (data: unknown) => void;
   onVariantUpdate?: (data: unknown) => void;
   onEngagementUpdate?: (data: unknown) => void;
-  onPresenceUpdate?: (data: unknown) => void;
   enabled?: boolean;
 }
 
@@ -27,14 +32,13 @@ export function useSync({
   onPostUpdate,
   onVariantUpdate,
   onEngagementUpdate,
-  onPresenceUpdate,
   enabled = true,
 }: UseSyncOptions) {
   const [connected, setConnected] = useState(false);
   const [lastEvent, setLastEvent] = useState<SyncEvent | null>(null);
   const [error, setError] = useState<string | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectAttempts = useRef(0);
 
   const connect = useCallback(() => {
@@ -50,7 +54,7 @@ export function useSync({
     const params = new URLSearchParams();
     if (workspaceId) params.set('workspaceId', workspaceId);
     if (profileId) params.set('profileId', profileId);
-    params.set('events', 'profile,posts,variants,engagement,presence');
+    params.set('events', 'profile,posts,variants,engagement');
 
     const url = `/api/sync?${params.toString()}`;
     const es = new EventSource(url);
@@ -77,34 +81,29 @@ export function useSync({
     };
 
     // Handle specific event types
+    // SSE sends { traceId, timestamp, payload } directly, so use data.payload
     es.addEventListener('profile:updated', (event) => {
-      const data = JSON.parse(event.data);
+      const data = JSON.parse(event.data) as SyncPayload;
       setLastEvent({ type: 'profile:updated', data, traceId: data.traceId, timestamp: data.timestamp });
       onProfileUpdate?.(data.payload);
     });
 
     es.addEventListener('post:updated', (event) => {
-      const data = JSON.parse(event.data);
+      const data = JSON.parse(event.data) as SyncPayload;
       setLastEvent({ type: 'post:updated', data, traceId: data.traceId, timestamp: data.timestamp });
       onPostUpdate?.(data.payload);
     });
 
     es.addEventListener('variant:updated', (event) => {
-      const data = JSON.parse(event.data);
+      const data = JSON.parse(event.data) as SyncPayload;
       setLastEvent({ type: 'variant:updated', data, traceId: data.traceId, timestamp: data.timestamp });
       onVariantUpdate?.(data.payload);
     });
 
     es.addEventListener('engagement:updated', (event) => {
-      const data = JSON.parse(event.data);
+      const data = JSON.parse(event.data) as SyncPayload;
       setLastEvent({ type: 'engagement:updated', data, traceId: data.traceId, timestamp: data.timestamp });
       onEngagementUpdate?.(data.payload);
-    });
-
-    es.addEventListener('presence:updated', (event) => {
-      const data = JSON.parse(event.data);
-      setLastEvent({ type: 'presence:updated', data, traceId: data.traceId, timestamp: data.timestamp });
-      onPresenceUpdate?.(data.payload);
     });
 
     es.addEventListener('heartbeat', (event) => {
@@ -116,7 +115,7 @@ export function useSync({
       const data = JSON.parse(event.data);
       setLastEvent({ type: 'connected', data, timestamp: data.timestamp });
     });
-  }, [enabled, workspaceId, profileId, onProfileUpdate, onPostUpdate, onVariantUpdate, onEngagementUpdate, onPresenceUpdate]);
+  }, [enabled, workspaceId, profileId, onProfileUpdate, onPostUpdate, onVariantUpdate, onEngagementUpdate]);
 
   const disconnect = useCallback(() => {
     if (eventSourceRef.current) {
@@ -138,60 +137,6 @@ export function useSync({
     error,
     reconnect: connect,
     disconnect,
-  };
-}
-
-// Hook for tracking presence
-export function usePresence(userId: string, workspaceId: string) {
-  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
-  const [ownStatus, setOwnStatus] = useState<'online' | 'away' | 'offline'>('online');
-
-  useEffect(() => {
-    if (!userId || !workspaceId) return;
-
-    // Track own presence
-    const updatePresence = async (status: 'online' | 'away' | 'offline') => {
-      setOwnStatus(status);
-      try {
-        await fetch('/api/presence', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId, workspaceId, status }),
-        });
-      } catch {}
-    };
-
-    // Mark online
-    updatePresence('online');
-
-    // Handle visibility change
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        updatePresence('away');
-      } else {
-        updatePresence('online');
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    // Heartbeat
-    const heartbeat = setInterval(() => {
-      updatePresence('online');
-    }, 60_000);
-
-    // Cleanup
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      clearInterval(heartbeat);
-      updatePresence('offline');
-    };
-  }, [userId, workspaceId]);
-
-  return {
-    onlineUsers,
-    ownStatus,
-    isOnline: (id: string) => onlineUsers.has(id),
   };
 }
 

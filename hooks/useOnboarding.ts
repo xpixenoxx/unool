@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { OnboardingChecklist, OnboardingStep } from '@/lib/onboarding/types';
 
 export interface UseOnboardingOptions {
@@ -16,6 +16,9 @@ export function useOnboarding({ workspaceId, userId, autoFetch = true }: UseOnbo
   const [progress, setProgress] = useState(0);
   const [nextStep, setNextStep] = useState<OnboardingStep | null>(null);
   const [isComplete, setIsComplete] = useState(false);
+
+  // Request counter to handle race conditions on rapid step completion
+  const requestCounter = useRef(0);
 
   const fetchChecklist = useCallback(async () => {
     if (!workspaceId || !userId) return;
@@ -48,6 +51,9 @@ export function useOnboarding({ workspaceId, userId, autoFetch = true }: UseOnbo
   const completeStep = useCallback(async (stepId: string, metadata?: Record<string, unknown>) => {
     if (!workspaceId || !userId) return;
 
+    // Increment counter to track this request
+    const currentRequestId = ++requestCounter.current;
+
     try {
       const response = await fetch('/api/onboarding', {
         method: 'POST',
@@ -61,10 +67,14 @@ export function useOnboarding({ workspaceId, userId, autoFetch = true }: UseOnbo
       if (!response.ok) throw new Error('Failed to complete step');
 
       const data = await response.json();
-      setChecklist(data.checklist);
-      setProgress(data.progress);
-      setNextStep(data.nextStep);
-      setIsComplete(data.isComplete);
+
+      // Only update state if this is still the latest request
+      if (currentRequestId === requestCounter.current) {
+        setChecklist(data.checklist);
+        setProgress(data.progress);
+        setNextStep(data.nextStep);
+        setIsComplete(data.isComplete);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to complete step');
     }

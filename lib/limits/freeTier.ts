@@ -70,24 +70,24 @@ export function checkLimit(
   limits: FreeTierLimits
 ): LimitCheckResult {
   const limit = limits[type];
-  const used = usage[camelCase(type)];
+  const usageKey = camelCase(type);
+  const used = usage[usageKey] ?? 0;
   const remaining = Math.max(0, limit - used);
   const allowed = used < limit;
 
   let resetAt: Date;
+  const now = new Date();
   if (type.includes('Month')) {
-    const nextMonth = new Date();
-    nextMonth.setMonth(nextMonth.getMonth() + 1);
-    nextMonth.setDate(1);
-    nextMonth.setHours(0, 0, 0, 0);
+    // Use UTC to avoid DST issues
+    const nextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0, 0));
     resetAt = nextMonth;
   } else if (type.includes('Day')) {
-    resetAt = new Date();
-    resetAt.setDate(resetAt.getDate() + 1);
-    resetAt.setHours(0, 0, 0, 0);
+    // Use UTC midnight
+    const tomorrow = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0, 0));
+    resetAt = tomorrow;
   } else {
-    // For static limits like connectedAccounts
-    resetAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30); // 30 days
+    // For static limits like connectedAccounts - 30 days from now in UTC
+    resetAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30);
   }
 
   return {
@@ -101,7 +101,9 @@ export function checkLimit(
 }
 
 function camelCase(str: string): keyof UsageSnapshot {
-  return str.replace(/([A-Z])/g, '_$1').toLowerCase() as keyof UsageSnapshot;
+  const key = str.replace(/([A-Z])/g, '_$1').toLowerCase();
+  const validKeys: (keyof UsageSnapshot)[] = ['postsThisMonth', 'aiTokensThisMonth', 'connectedAccounts', 'scheduledPosts', 'teamMembers', 'apiCallsToday'];
+  return validKeys.includes(key as keyof UsageSnapshot) ? key as keyof UsageSnapshot : 'postsThisMonth';
 }
 
 // Async function to fetch current usage
@@ -146,7 +148,7 @@ export async function getCurrentUsage(
       .select('id', { count: 'exact', head: true })
       .eq('workspace_id', workspaceId)
       .eq('status', 'scheduled')
-      .gte('scheduled_at', dayStart.toISOString()),
+      .gte('scheduled_at', monthStart.toISOString()),
 
     supabase
       .from('workspace_members')

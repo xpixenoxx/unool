@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { config as appConfig } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
-import { checkRateLimit, rateLimitHeaders } from '@/lib/rate-limit';
+import { checkRateLimit, rateLimitHeaders, RateLimitAction } from '@/lib/rate-limit';
 
 const publicPaths = [
   '/',
@@ -65,11 +65,19 @@ export async function middleware(request: NextRequest) {
 
   // Rate limiting for API routes
   if (pathname.startsWith('/api/')) {
-    const rateLimitAction = pathname.startsWith('/api/auth') ? 'magicLink' :
-                           pathname.includes('adapt') || pathname.includes('generate') ? 'aiGeneration' :
-                           pathname.includes('publish') ? 'publish' : 'magicLink';
+    let rateLimitAction: RateLimitAction = 'magicLink';
 
-    const { success, remaining, reset } = await checkRateLimit(request, rateLimitAction as any);
+    if (pathname.startsWith('/api/auth/') || pathname === '/api/auth/magic-link') {
+      rateLimitAction = 'magicLink';
+    } else if (pathname.startsWith('/api/composer/adapt') || pathname.startsWith('/api/composer/generate')) {
+      rateLimitAction = 'aiGeneration';
+    } else if (pathname.startsWith('/api/publish')) {
+      rateLimitAction = 'publish';
+    } else if (pathname.startsWith('/api/profile/')) {
+      rateLimitAction = 'profileView';
+    }
+
+    const { success, remaining, reset } = await checkRateLimit(request, rateLimitAction);
     if (!success) {
       return NextResponse.json(
         { error: 'Rate limit exceeded. Please try again later.' },

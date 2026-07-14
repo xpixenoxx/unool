@@ -5,16 +5,47 @@ import { logger } from '@/lib/logger';
 
 const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
 
+const ALLOWED_EVENT_TYPES = ['posts', 'profile', 'variants', 'engagement'] as const;
+type AllowedEventType = typeof ALLOWED_EVENT_TYPES[number];
+
+function isValidUUID(id: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(id);
+}
+
+function validateAndFilterEventTypes(eventTypes: string[]): AllowedEventType[] {
+  return eventTypes.filter((t): t is AllowedEventType => ALLOWED_EVENT_TYPES.includes(t as AllowedEventType));
+}
+
 export const runtime = 'edge';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const workspaceId = searchParams.get('workspaceId');
   const profileId = searchParams.get('profileId');
-  const eventTypes = searchParams.get('events')?.split(',') || ['posts', 'profile', 'variants', 'engagement'];
+  const rawEventTypes = searchParams.get('events')?.split(',') || ['posts', 'profile', 'variants', 'engagement'];
 
   if (!workspaceId && !profileId) {
     return NextResponse.json({ error: 'workspaceId or profileId required' }, { status: 400 });
+  }
+
+  // Validate IDs are UUIDs to prevent filter injection
+  if (workspaceId && !isValidUUID(workspaceId)) {
+    return NextResponse.json({ error: 'Invalid workspaceId format' }, { status: 400 });
+  }
+  if (profileId && !isValidUUID(profileId)) {
+    return NextResponse.json({ error: 'Invalid profileId format' }, { status: 400 });
+  }
+
+  const eventTypes = validateAndFilterEventTypes(rawEventTypes);
+  if (eventTypes.length === 0) {
+    return NextResponse.json({ error: 'No valid event types specified' }, { status: 400 });
+  }
+
+  // Check authentication - middleware doesn't protect /api/sync
+  const authHeader = request.headers.get('authorization');
+  if (!authHeader) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const traceId = request.headers.get('x-trace-id') || crypto.randomUUID();
@@ -31,10 +62,16 @@ export async function GET(request: NextRequest) {
       // Send initial connection event
       sendEvent('connected', { traceId, timestamp: new Date().toISOString() });
 
-      // Heartbeat to keep connection alive
-      const heartbeat = setInterval(() => {
-        sendEvent('heartbeat', { timestamp: new Date().toISOString() });
-      }, 30_000);
+      // Heartbeat with jitter (45-55s) to avoid proxy timeout boundary
+      const getHeartbeatInterval = () => 45_000 + Math.random() * 10_000;
+      let heartbeatTimer: ReturnType<typeof setTimeout> | null = null;
+      const scheduleHeartbeat = () => {
+        heartbeatTimer = setTimeout(() => {
+          sendEvent('heartbeat', { timestamp: new Date().toISOString() });
+          scheduleHeartbeat();
+        }, getHeartbeatInterval());
+      };
+      scheduleHeartbeat();
 
       // Track subscriptions
       const subscriptions: ReturnType<typeof supabase.channel>[] = [];
@@ -54,7 +91,7 @@ export async function GET(request: NextRequest) {
               },
               (payload) => {
                 logger.debug('Profile change received', { traceId, payload });
-                sendEvent('profile:updated', { ...payload, traceId });
+                sendEvent('profile:updated', { payload, traceId, timestamp: new Date().toISOString() });
               }
             )
             .subscribe();
@@ -75,7 +112,7 @@ export async function GET(request: NextRequest) {
                 filter: `workspace_id=eq.${workspaceId}`,
               },
               (payload) => {
-                sendEvent('post:updated', { ...payload, traceId });
+                sendEvent('post:updated', { payload, traceId, timestamp: new Date().toISOString() });
               }
             )
             .subscribe();
@@ -96,7 +133,7 @@ export async function GET(request: NextRequest) {
                 filter: `post_id=in.(select id from posts where workspace_id=eq.${workspaceId})`,
               },
               (payload) => {
-                sendEvent('variant:updated', { ...payload, traceId });
+                sendEvent('variant:updated', { payload, traceId, timestamp: new Date().toISOString() });
               }
             )
             .subscribe();
@@ -117,7 +154,7 @@ export async function GET(request: NextRequest) {
                 filter: `platform_connection_id=in.(select id from platform_connections where workspace_id=eq.${workspaceId})`,
               },
               (payload) => {
-                sendEvent('engagement:updated', { ...payload, traceId });
+                sendEvent('engagement:updated', { payload, traceId, timestamp: new Date().toISOString() });
               }
             )
             .subscribe();
@@ -127,7 +164,7 @@ export async function GET(request: NextRequest) {
 
         // Handle client disconnect
         request.signal.addEventListener('abort', () => {
-          clearInterval(heartbeat);
+          if (heartbeatTimer) clearTimeout(heartbeatTimer);
           subscriptions.forEach(s => s.unsubscribe());
           controller.close();
           logger.debug('SSE connection closed', { traceId });
@@ -136,8 +173,8 @@ export async function GET(request: NextRequest) {
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
         logger.error('SSE stream error', { traceId, error: err });
-        sendEvent('error', { message: err.message, traceId });
-        clearInterval(heartbeat);
+        sendEvent('error', { message: err.message, traceId, timestamp: new Date().toISOString() });
+        if (heartbeatTimer) clearTimeout(heartbeatTimer);
         subscriptions.forEach(s => s.unsubscribe());
         controller.close();
       }
