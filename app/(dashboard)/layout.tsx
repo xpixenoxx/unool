@@ -7,10 +7,11 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { LayoutDashboard, PenTool, Globe, Settings, LogOut, ChevronLeft, Plus } from 'lucide-react';
+import { LayoutDashboard, PenTool, Globe, Settings, LogOut, ChevronLeft, Plus, FileText } from 'lucide-react';
 
 const navigation = [
   { name: 'Presence', href: '/dashboard', icon: Globe },
+  { name: 'Composer', href: '/dashboard/composer', icon: FileText },
   { name: 'Publish', href: '/dashboard/publish', icon: PenTool },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ];
