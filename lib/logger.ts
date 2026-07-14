@@ -1,5 +1,3 @@
-import { randomUUID } from 'crypto';
-
 export interface LogContext {
   traceId?: string;
   userId?: string;
@@ -16,7 +14,7 @@ export function getTraceId(request?: Request | { headers: Headers }): string {
   if (request) {
     const existing = request.headers.get('x-trace-id');
     if (existing) return existing;
-    const newId = randomUUID();
+    const newId = crypto.randomUUID();
     request.headers.set('x-trace-id', newId);
     return newId;
   }

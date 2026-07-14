@@ -13,12 +13,45 @@ const publicPaths = [
   '/api/health',
 ];
 
+// Check if hostname is a subdomain of unool.co (or localhost equivalent)
+function isProfileSubdomain(hostname: string): string | null {
+  const rootDomain = appConfig.NEXT_PUBLIC_APP_URL?.replace(/^https?:\/\//, '') || 'unool.co';
+
+  // Handle localhost development: lvh.me subdomains or .localhost
+  if (hostname.includes('lvh.me') || hostname === 'localhost') {
+    const subdomain = hostname.split('.')[0];
+    if (subdomain && subdomain !== 'www' && subdomain !== 'localhost' && subdomain !== 'lvh') {
+      return subdomain;
+    }
+    return null;
+  }
+
+  // Production: check for *.unool.co
+  if (hostname.endsWith(`.${rootDomain}`)) {
+    const subdomain = hostname.replace(`.${rootDomain}`, '');
+    if (subdomain && subdomain !== 'www') {
+      return subdomain;
+    }
+  }
+
+  return null;
+}
+
 export async function middleware(request: NextRequest) {
   const traceId = crypto.randomUUID();
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-trace-id', traceId);
 
-  const { pathname } = request.nextUrl;
+  const { pathname, hostname } = request.nextUrl;
+
+  // Check for profile subdomain
+  const subdomain = isProfileSubdomain(hostname);
+  if (subdomain && !pathname.startsWith('/_next') && !pathname.startsWith('/favicon') && !pathname.includes('.')) {
+    // Rewrite to profile page
+    const url = request.nextUrl.clone();
+    url.pathname = `/${subdomain}`;
+    return NextResponse.rewrite(url, { request: { headers: requestHeaders } });
+  }
 
   // Skip middleware for static assets and public paths
   if (
