@@ -1,66 +1,63 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
-
-type WebhookSecretKey = 'LINKEDIN_WEBHOOK_SECRET' | 'X_WEBHOOK_SECRET' | 'META_WEBHOOK_SECRET';
-
-function getWebhookSecret(platform: string): string | undefined {
-  const secretMap: Record<string, WebhookSecretKey> = {
-    linkedin: 'LINKEDIN_WEBHOOK_SECRET',
-    x: 'X_WEBHOOK_SECRET',
-    threads: 'META_WEBHOOK_SECRET',
-  };
-  const key = secretMap[platform.toLowerCase()];
-  return key ? config[key] : undefined;
-}
-
-function verifyWebhookSignature(
-  payload: string,
-  signature: string,
-  secret: string
-): boolean {
-  // In production, implement HMAC verification per platform
-  // This is a simplified version
-  void payload;
-  void signature;
-  void secret;
-  return true;
-}
+import { verifyWebhookSignature, extractWebhookSignature, type Platform } from '@/lib/webhooks/verify';
 
 export async function POST(request: NextRequest) {
   try {
-    const platform = request.nextUrl.searchParams.get('platform');
-    const signature = request.headers.get('x-signature') || request.headers.get('x-hub-signature-256');
+    const platformParam = request.nextUrl.searchParams.get('platform');
     const body = await request.text();
 
-    if (!platform) {
+    if (!platformParam) {
       return NextResponse.json({ error: 'Platform parameter required' }, { status: 400 });
     }
 
-    // Verify webhook signature
-    const secret = getWebhookSecret(platform);
-    if (secret && signature) {
-      if (!verifyWebhookSignature(body, signature, secret)) {
-        logger.warn('Invalid webhook signature', { platform });
-        return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
-      }
+    const platform = platformParam.toLowerCase() as Platform;
+    const validPlatforms: Platform[] = ['linkedin', 'x', 'threads'];
+
+    if (!validPlatforms.includes(platform)) {
+      return NextResponse.json({ error: 'Unsupported platform' }, { status: 400 });
     }
 
-    const data = JSON.parse(body);
+    // Extract and verify webhook signature
+    const signature = extractWebhookSignature(request, platform);
+    if (!signature) {
+      logger.warn('Missing webhook signature', { platform });
+      return NextResponse.json({ error: 'Missing signature' }, { status: 401 });
+    }
+
+    const isValid = await verifyWebhookSignature(body, signature, platform);
+    if (!isValid) {
+      logger.warn('Invalid webhook signature', { platform });
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+    }
+
+    let data: Record<string, unknown>;
+    try {
+      data = JSON.parse(body);
+    } catch {
+      logger.warn('Invalid webhook payload JSON', { platform });
+      return NextResponse.json({ error: 'Invalid JSON payload' }, { status: 400 });
+    }
 
     // Handle different platform webhook payloads
-    switch (platform.toLowerCase()) {
-      case 'linkedin':
-        await handleLinkedInWebhook(data);
-        break;
-      case 'x':
-        await handleXWebhook(data);
-        break;
-      case 'threads':
-        await handleThreadsWebhook(data);
-        break;
-      default:
-        return NextResponse.json({ error: 'Unsupported platform' }, { status: 400 });
+    try {
+      switch (platform) {
+        case 'linkedin':
+          await handleLinkedInWebhook(data);
+          break;
+        case 'x':
+          await handleXWebhook(data);
+          break;
+        case 'threads':
+          await handleThreadsWebhook(data);
+          break;
+      }
+    } catch (handlerError) {
+      const err = handlerError instanceof Error ? handlerError : new Error(String(handlerError));
+      logger.error('Webhook handler error', { platform, error: err });
+      // Still return 200 to avoid webhook retries for handler errors
+      // but log the error for investigation
+      return NextResponse.json({ success: true, warning: 'Handler error logged' });
     }
 
     return NextResponse.json({ success: true });
@@ -75,14 +72,17 @@ async function handleLinkedInWebhook(data: Record<string, unknown>): Promise<voi
   // LinkedIn webhook payload format varies
   // Example: { value: { object: 'post', elementId: 'urn:li:share:...', ... } }
   logger.info('LinkedIn webhook received', { data });
+  // TODO: Process LinkedIn webhook events (post published, comments, etc.)
 }
 
 async function handleXWebhook(data: Record<string, unknown>): Promise<void> {
   // Twitter Account Activity API webhook
   logger.info('X webhook received', { data });
+  // TODO: Process X webhook events (tweet create, DM, etc.)
 }
 
 async function handleThreadsWebhook(data: Record<string, unknown>): Promise<void> {
   // Threads webhook (via Meta Graph API subscriptions)
   logger.info('Threads webhook received', { data });
+  // TODO: Process Threads webhook events (post published, etc.)
 }

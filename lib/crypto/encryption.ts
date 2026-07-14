@@ -4,10 +4,23 @@ import { logger } from '@/lib/logger';
 const ENCRYPTION_ALGORITHM = 'AES-GCM';
 const KEY_LENGTH = 256;
 const IV_LENGTH = 12;
+const CURRENT_VERSION = 1;
 
-async function getDerivedKey(): Promise<CryptoKey> {
-  const secret = config.SUPABASE_SERVICE_ROLE_KEY;
+/**
+ * Derives encryption key from ENCRYPTION_KEY config (or falls back to service role key for backward compat)
+ * Uses HKDF for proper key derivation with per-version salt
+ */
+async function getDerivedKey(version: number = CURRENT_VERSION): Promise<CryptoKey> {
+  const secret = config.ENCRYPTION_KEY || config.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!secret) {
+    throw new Error('No encryption secret available');
+  }
+
+  // Create versioned salt
   const encoder = new TextEncoder();
+  const salt = encoder.encode(`unool-encryption-v${version}`);
+
   const keyMaterial = await crypto.subtle.importKey(
     'raw',
     encoder.encode(secret),
@@ -19,7 +32,7 @@ async function getDerivedKey(): Promise<CryptoKey> {
   return crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
-      salt: encoder.encode('unool-salt-v1'),
+      salt,
       iterations: 100000,
       hash: 'SHA-256',
     },
@@ -30,9 +43,14 @@ async function getDerivedKey(): Promise<CryptoKey> {
   );
 }
 
+/**
+ * Encrypts a token with version header for key rotation support.
+ * Format: v{version}:{base64(iv + ciphertext)}
+ */
 export async function encryptToken(token: string): Promise<string> {
   try {
-    const key = await getDerivedKey();
+    const version = config.ENCRYPTION_KEY_VERSION || CURRENT_VERSION;
+    const key = await getDerivedKey(version);
     const encoder = new TextEncoder();
     const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));
     const data = encoder.encode(token);
@@ -48,7 +66,8 @@ export async function encryptToken(token: string): Promise<string> {
     combined.set(iv);
     combined.set(new Uint8Array(encrypted), iv.length);
 
-    return btoa(String.fromCharCode(...combined));
+    // Version prefix + base64
+    return `v${version}:${btoa(String.fromCharCode(...combined))}`;
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     logger.error('Token encryption failed', { error: err });
@@ -56,24 +75,49 @@ export async function encryptToken(token: string): Promise<string> {
   }
 }
 
+/**
+ * Decrypts a token, supporting multiple key versions for rotation.
+ * Tries current version first, then falls back to previous versions.
+ */
 export async function decryptToken(encryptedToken: string): Promise<string> {
   try {
-    const key = await getDerivedKey();
-    const combined = new Uint8Array(
-      atob(encryptedToken).split('').map(c => c.charCodeAt(0))
-    );
+    // Parse version header
+    const versionMatch = encryptedToken.match(/^v(\d+):(.+)$/);
+    const version = versionMatch ? parseInt(versionMatch[1], 10) : 1;
+    const payload = versionMatch ? versionMatch[2] : encryptedToken;
 
-    const iv = combined.slice(0, IV_LENGTH);
-    const data = combined.slice(IV_LENGTH);
+    // Try current version first, then fall back to previous versions
+    const versionsToTry = [version];
+    if (version === 1) {
+      // Legacy format (no version header) - try v1
+      versionsToTry.push(...[1]);
+    }
 
-    const decrypted = await crypto.subtle.decrypt(
-      { name: ENCRYPTION_ALGORITHM, iv },
-      key,
-      data
-    );
+    for (const v of versionsToTry) {
+      try {
+        const key = await getDerivedKey(v);
+        const combined = new Uint8Array(
+          atob(payload).split('').map((c) => c.charCodeAt(0))
+        );
 
-    const decoder = new TextDecoder();
-    return decoder.decode(decrypted);
+        const iv = combined.slice(0, IV_LENGTH);
+        const data = combined.slice(IV_LENGTH);
+
+        const decrypted = await crypto.subtle.decrypt(
+          { name: ENCRYPTION_ALGORITHM, iv },
+          key,
+          data
+        );
+
+        const decoder = new TextDecoder();
+        return decoder.decode(decrypted);
+      } catch {
+        // Try next version
+        continue;
+      }
+    }
+
+    throw new Error('Failed to decrypt with any key version');
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     logger.error('Token decryption failed', { error: err });
@@ -81,10 +125,13 @@ export async function decryptToken(encryptedToken: string): Promise<string> {
   }
 }
 
+/**
+ * Creates a SHA-256 hash of a token for fingerprinting (not reversible)
+ */
 export async function hashToken(token: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(token);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 }

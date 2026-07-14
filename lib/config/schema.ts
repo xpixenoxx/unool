@@ -21,6 +21,10 @@ const configSchema = z.object({
   UPSTASH_REDIS_TOKEN: z.string().optional().default('test-token'),
   MAGIC_LINK_EXPIRY_MINUTES: z.coerce.number().default(15),
 
+  // Encryption key for token encryption (32-byte base64, required in production)
+  ENCRYPTION_KEY: z.string().optional(),
+  ENCRYPTION_KEY_VERSION: z.coerce.number().default(1),
+
   // LinkedIn OAuth
   LINKEDIN_CLIENT_ID: z.string().optional(),
   LINKEDIN_CLIENT_SECRET: z.string().optional(),

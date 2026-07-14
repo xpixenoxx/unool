@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPlatformAdapter } from '@/lib/platforms';
-import { logger } from '@/lib/logger';
+import { generateOAuthState, storeOAuthState, createOAuthCookie } from '@/lib/auth/oauth-state';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const platform = searchParams.get('platform');
   const workspaceId = searchParams.get('workspaceId');
-  const state = searchParams.get('state');
 
-  if (!platform || !workspaceId || !state) {
+  if (!platform || !workspaceId) {
     return NextResponse.redirect(
       new URL('/dashboard/settings?error=missing_params', request.url)
     );
@@ -21,16 +20,31 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Verify state matches stored value (in production, store in secure cookie or session)
-  // For now, we'll use the state as a composite key
-  const expectedState = `oauth_${workspaceId}_${platform}`;
-  if (state !== expectedState) {
-    logger.warn('OAuth state mismatch', { state, expected: expectedState });
-    return NextResponse.redirect(
-      new URL('/dashboard/settings?error=invalid_state', request.url)
-    );
+  // Generate cryptographically secure state
+  const state = generateOAuthState(workspaceId, platform);
+
+  // Store in Redis with TTL
+  await storeOAuthState(state, workspaceId, platform);
+
+  // Handle PKCE for X/Twitter - getAuthUrl can return string or {url, pkceCookie}
+  const authUrlResult = adapter.getAuthUrl(state);
+
+  let authUrl: string;
+  const cookies: string[] = [createOAuthCookie(state)];
+
+  if (typeof authUrlResult === 'string') {
+    authUrl = authUrlResult;
+  } else {
+    // Promise<{ url: string; pkceCookie?: string }>
+    const result = await authUrlResult;
+    authUrl = result.url;
+    if (result.pkceCookie) {
+      cookies.push(result.pkceCookie);
+    }
   }
 
-  const authUrl = adapter.getAuthUrl(state);
-  return NextResponse.redirect(authUrl);
+  const response = NextResponse.redirect(authUrl);
+  cookies.forEach((cookie) => response.headers.append('Set-Cookie', cookie));
+
+  return response;
 }

@@ -3,6 +3,7 @@ import { generateWithFallback } from './provider';
 import { Result, ok, err } from '@/lib/shared/Result';
 import { logger } from '@/lib/logger';
 import { config } from '@/lib/config/schema';
+import { validateUrlForFetch, isAllowedExtractionDomain } from '@/lib/utils/url-validation';
 
 export const ExtractedProfileSchema = z.object({
   name: z.string().min(1).max(100),
@@ -47,6 +48,19 @@ export class ProfileExtractor {
 
     try {
       logger.info('Starting profile extraction', { url });
+
+      // Validate URL before fetching (SSRF protection)
+      const validation = await validateUrlForFetch(url);
+      if (!validation.allowed) {
+        logger.warn('URL validation failed', { url, reason: validation.reason });
+        return err(new Error(`Invalid URL: ${validation.reason}`));
+      }
+
+      // Optional: check against allowed domains
+      if (!isAllowedExtractionDomain(url)) {
+        logger.warn('URL not in allowed extraction domains', { url });
+        // Don't fail, just log - allowlist is optional
+      }
 
       // Fetch the page content
       const pageContent = await this.fetchPageContent(url);
@@ -96,7 +110,8 @@ export class ProfileExtractor {
           'User-Agent': 'UnoolBot/1.0 (+https://unool.co/bot)',
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         },
-        signal: AbortSignal.timeout(10000),
+        signal: AbortSignal.timeout(5000), // Reduced from 10s to 5s
+        redirect: 'follow',
       });
 
       if (!response.ok) {
@@ -104,9 +119,15 @@ export class ProfileExtractor {
         return null;
       }
 
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('text/html') && !contentType.includes('application/xhtml')) {
+        logger.warn('Non-HTML content type', { url, contentType });
+        return null;
+      }
+
       const html = await response.text();
 
-      // Simple HTML to text extraction (in production, use a proper library like cheerio)
+      // Simple HTML to text extraction
       return this.extractTextFromHtml(html);
     } catch (error: unknown) {
       const errObj = error instanceof Error ? error : new Error(String(error));
@@ -116,8 +137,7 @@ export class ProfileExtractor {
   }
 
   private static extractTextFromHtml(html: string): string {
-    // Remove scripts, styles, and other non-content elements
-    const text = html
+    return html
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
       .replace(/<noscript[^>]*>[\s\S]*?<\/noscript>/gi, '')
@@ -125,7 +145,5 @@ export class ProfileExtractor {
       .replace(/<[^>]+>/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
-
-    return text;
   }
 }

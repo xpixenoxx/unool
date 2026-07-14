@@ -36,8 +36,8 @@ export interface PlatformAdapter {
   readonly platform: 'linkedin' | 'x' | 'threads' | 'manual';
   readonly authConfig: PlatformAuthConfig;
 
-  getAuthUrl(state: string): string;
-  exchangeCodeForToken(code: string): Promise<TokenResponse>;
+  getAuthUrl(state: string): string | Promise<{ url: string; pkceCookie?: string }>;
+  exchangeCodeForToken(code: string, codeVerifier?: string): Promise<TokenResponse>;
   refreshAccessToken(refreshToken: string): Promise<TokenResponse>;
   getUserProfile(accessToken: string): Promise<UserProfile>;
   publish(accessToken: string, input: PublishInput): Promise<PublishResult>;
