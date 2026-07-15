@@ -17,6 +17,33 @@ function validateAndFilterEventTypes(eventTypes: string[]): AllowedEventType[] {
   return eventTypes.filter((t): t is AllowedEventType => ALLOWED_EVENT_TYPES.includes(t as AllowedEventType));
 }
 
+/**
+ * Verifies Supabase JWT token from Authorization header
+ * Returns userId if valid, null if invalid
+ */
+async function verifyAuthToken(authHeader: string | null): Promise<string | null> {
+  if (!authHeader) return null;
+
+  const parts = authHeader.split(' ');
+  if (parts.length !== 2 || parts[0].toLowerCase() !== 'bearer') {
+    return null;
+  }
+
+  const token = parts[1];
+  try {
+    const { data, error } = await supabase.auth.getUser(token);
+    if (error || !data.user) {
+      logger.warn('JWT verification failed', { error: error?.message });
+      return null;
+    }
+    return data.user.id;
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error('JWT verification error', { error: err });
+    return null;
+  }
+}
+
 export const runtime = 'edge';
 
 export async function GET(request: NextRequest) {
@@ -42,11 +69,15 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'No valid event types specified' }, { status: 400 });
   }
 
-  // Check authentication - middleware doesn't protect /api/sync
+  // Verify JWT authentication
   const authHeader = request.headers.get('authorization');
-  if (!authHeader) {
+  const userId = await verifyAuthToken(authHeader);
+  if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  // Optional: Verify user has access to the requested workspace/profile
+  // This would require a DB query to check membership
 
   const traceId = request.headers.get('x-trace-id') || crypto.randomUUID();
 
@@ -60,7 +91,7 @@ export async function GET(request: NextRequest) {
       };
 
       // Send initial connection event
-      sendEvent('connected', { traceId, timestamp: new Date().toISOString() });
+      sendEvent('connected', { traceId, timestamp: new Date().toISOString(), userId });
 
       // Heartbeat with jitter (45-55s) to avoid proxy timeout boundary
       const getHeartbeatInterval = () => 45_000 + Math.random() * 10_000;
@@ -165,9 +196,9 @@ export async function GET(request: NextRequest) {
         // Handle client disconnect
         request.signal.addEventListener('abort', () => {
           if (heartbeatTimer) clearTimeout(heartbeatTimer);
-          subscriptions.forEach(s => s.unsubscribe());
+          subscriptions.forEach((s) => s.unsubscribe());
           controller.close();
-          logger.debug('SSE connection closed', { traceId });
+          logger.debug('SSE connection closed', { traceId, userId });
         });
 
       } catch (error) {
@@ -175,7 +206,7 @@ export async function GET(request: NextRequest) {
         logger.error('SSE stream error', { traceId, error: err });
         sendEvent('error', { message: err.message, traceId, timestamp: new Date().toISOString() });
         if (heartbeatTimer) clearTimeout(heartbeatTimer);
-        subscriptions.forEach(s => s.unsubscribe());
+        subscriptions.forEach((s) => s.unsubscribe());
         controller.close();
       }
     },

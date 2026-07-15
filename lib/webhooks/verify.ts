@@ -1,7 +1,6 @@
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
-
-export type Platform = 'linkedin' | 'x' | 'threads';
+import { Platform } from '@/lib/repositories/interfaces/IPlatformRepository';
 
 /**
  * Verifies webhook signature using platform-specific HMAC verification
@@ -42,6 +41,7 @@ function getWebhookSecret(platform: Platform): string | undefined {
     linkedin: config.LINKEDIN_WEBHOOK_SECRET,
     x: config.X_WEBHOOK_SECRET,
     threads: config.META_WEBHOOK_SECRET,
+    manual: undefined,
   };
   return secretMap[platform];
 }
@@ -52,12 +52,11 @@ function getWebhookSecret(platform: Platform): string | undefined {
  * Algorithm: HMAC-SHA256 of raw body
  * Format: sha256=<hex>
  */
-async function verifyLinkedInSignature(
+export async function verifyLinkedInSignature(
   payload: string,
   signature: string,
   secret: string
 ): Promise<boolean> {
-  // LinkedIn sends: sha256=<hex>
   const expectedPrefix = 'sha256=';
   if (!signature.startsWith(expectedPrefix)) {
     return false;
@@ -75,12 +74,11 @@ async function verifyLinkedInSignature(
  * Algorithm: HMAC-SHA256 of raw body
  * Format: sha256=<hex>
  */
-async function verifyXSignature(
+export async function verifyXSignature(
   payload: string,
   signature: string,
   secret: string
 ): Promise<boolean> {
-  // X sends: sha256=<hex>
   const expectedPrefix = 'sha256=';
   if (!signature.startsWith(expectedPrefix)) {
     return false;
@@ -98,12 +96,11 @@ async function verifyXSignature(
  * Algorithm: HMAC-SHA256 of raw body
  * Format: sha256=<hex>
  */
-async function verifyMetaSignature(
+export async function verifyMetaSignature(
   payload: string,
   signature: string,
   secret: string
 ): Promise<boolean> {
-  // Meta sends: sha256=<hex>
   const expectedPrefix = 'sha256=';
   if (!signature.startsWith(expectedPrefix)) {
     return false;
@@ -118,7 +115,7 @@ async function verifyMetaSignature(
 /**
  * Computes HMAC-SHA256 hex digest
  */
-async function hmacSha256Hex(message: string, secret: string): Promise<string> {
+export async function hmacSha256Hex(message: string, secret: string): Promise<string> {
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey(
     'raw',
@@ -136,7 +133,7 @@ async function hmacSha256Hex(message: string, secret: string): Promise<string> {
 /**
  * Timing-safe string comparison
  */
-function timingSafeEqual(a: string, b: string): boolean {
+export function timingSafeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) {
     return false;
   }
@@ -156,6 +153,7 @@ export function extractWebhookSignature(request: Request, platform: Platform): s
     linkedin: ['x-li-signature', 'x-linkedin-signature'],
     x: ['x-twitter-webhooks-signature', 'x-twitter-signature'],
     threads: ['x-hub-signature-256', 'x-hub-signature'],
+    manual: [],
   };
 
   for (const header of headerMap[platform]) {

@@ -70,7 +70,7 @@ export function checkLimit(
   limits: FreeTierLimits
 ): LimitCheckResult {
   const limit = limits[type];
-  const usageKey = camelCase(type);
+  const usageKey = mapLimitTypeToUsageKey(type);
   const used = usage[usageKey] ?? 0;
   const remaining = Math.max(0, limit - used);
   const allowed = used < limit;
@@ -100,10 +100,16 @@ export function checkLimit(
   };
 }
 
-function camelCase(str: string): keyof UsageSnapshot {
-  const key = str.replace(/([A-Z])/g, '_$1').toLowerCase();
-  const validKeys: (keyof UsageSnapshot)[] = ['postsThisMonth', 'aiTokensThisMonth', 'connectedAccounts', 'scheduledPosts', 'teamMembers', 'apiCallsToday'];
-  return validKeys.includes(key as keyof UsageSnapshot) ? key as keyof UsageSnapshot : 'postsThisMonth';
+function mapLimitTypeToUsageKey(type: keyof FreeTierLimits): keyof UsageSnapshot {
+  const mapping: Record<keyof FreeTierLimits, keyof UsageSnapshot> = {
+    postsPerMonth: 'postsThisMonth',
+    aiTokensPerMonth: 'aiTokensThisMonth',
+    connectedAccounts: 'connectedAccounts',
+    scheduledPosts: 'scheduledPosts',
+    teamMembers: 'teamMembers',
+    apiCallsPerDay: 'apiCallsToday',
+  };
+  return mapping[type] ?? 'postsThisMonth';
 }
 
 // Async function to fetch current usage

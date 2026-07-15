@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
-import { verifyWebhookSignature, extractWebhookSignature, type Platform } from '@/lib/webhooks/verify';
+import { verifyWebhookSignature, extractWebhookSignature } from '@/lib/webhooks/verify';
+import { Platform } from '@/lib/repositories/interfaces/IPlatformRepository';
 
 export async function POST(request: NextRequest) {
   try {

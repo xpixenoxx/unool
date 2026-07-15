@@ -8,6 +8,7 @@ import {
   type PublishInput,
 } from '@/lib/platforms';
 import type { Platform } from '@/lib/repositories/interfaces/IPostRepository';
+import { TokenExpiredError } from '@/lib/utils/retry';
 
 const platformRepository = new SupabasePlatformRepository();
 const postRepository = new SupabasePostRepository();
@@ -61,56 +62,77 @@ export class PublishService {
       firstComment: variant.firstCommentHint || undefined,
     };
 
-    try {
-      logger.info('Publishing post', {
-        platform: input.platform,
-        postVariantId: input.postVariantId,
-        workspaceId: input.workspaceId,
-      });
+    // Attempt publish with automatic token refresh on 401
+    const attemptPublish = async (currentAccessToken: string, hasRetried: boolean): Promise<PublishJobResult> => {
+      try {
+        const result = await adapter.publish(currentAccessToken, publishInput);
 
-      const result = await adapter.publish(accessToken, publishInput);
+        // Save platform post record
+        await platformRepository.createPlatformPost({
+          postVariantId: input.postVariantId,
+          platformConnectionId: connection.id,
+          platformPostId: result.platformPostId,
+          platformUrl: result.platformUrl,
+          engagement: {},
+        });
 
-      // Save platform post record
-      await platformRepository.createPlatformPost({
-        postVariantId: input.postVariantId,
-        platformConnectionId: connection.id,
-        platformPostId: result.platformPostId,
-        platformUrl: result.platformUrl,
-        engagement: {},
-      });
+        // Update variant status
+        await postRepository.updateVariant(input.postVariantId, {
+          status: 'published',
+          platformPostId: result.platformPostId,
+        });
 
-      // Update variant status
-      await postRepository.updateVariant(input.postVariantId, {
-        status: 'published',
-        platformPostId: result.platformPostId,
-      });
+        logger.info('Post published successfully', {
+          platform: input.platform,
+          platformPostId: result.platformPostId,
+          platformUrl: result.platformUrl,
+        });
 
-      logger.info('Post published successfully', {
-        platform: input.platform,
-        platformPostId: result.platformPostId,
-        platformUrl: result.platformUrl,
-      });
+        return {
+          success: true,
+          platformPostId: result.platformPostId,
+          platformUrl: result.platformUrl,
+        };
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
 
-      return ok({
-        success: true,
-        platformPostId: result.platformPostId,
-        platformUrl: result.platformUrl,
-      });
-    } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      logger.error('Publish failed', { error: err, platform: input.platform });
+        // Check if this is a token expiry error and we haven't retried yet
+        if (!hasRetried && err instanceof TokenExpiredError) {
+          logger.info('Token expired, attempting refresh', { platform: input.platform, connectionId: connection.id });
 
-      // Update variant with error
-      await postRepository.updateVariant(input.postVariantId, {
-        status: 'failed',
-        error: { code: 'PUBLISH_FAILED', message: err.message },
-      });
+          const refreshResult = await this.refreshPlatformToken(connection.id);
+          if (refreshResult.ok) {
+            // Retry with new token
+            try {
+              const newAccessToken = await decryptToken(refreshResult.value);
+              return await attemptPublish(newAccessToken, true);
+            } catch (decryptError) {
+              const decryptErr = decryptError instanceof Error ? decryptError : new Error(String(decryptError));
+              logger.error('Failed to decrypt refreshed token', { error: decryptErr });
+            }
+          } else {
+            logger.error('Token refresh failed', { error: refreshResult.error, connectionId: connection.id });
+            // Mark connection as error
+            await platformRepository.updateStatus(connection.id, 'error');
+          }
+        }
 
-      return ok({
-        success: false,
-        error: err.message,
-      });
-    }
+        // Update variant with error
+        await postRepository.updateVariant(input.postVariantId, {
+          status: 'failed',
+          error: { code: 'PUBLISH_FAILED', message: err.message },
+        });
+
+        logger.error('Publish failed', { error: err, platform: input.platform });
+
+        return {
+          success: false,
+          error: err.message,
+        };
+      }
+    };
+
+    return ok(await attemptPublish(accessToken, false));
   }
 
   async publishToAllPlatforms(
