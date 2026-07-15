@@ -145,4 +145,14 @@ export class SupabasePlatformRepository implements IPlatformRepository {
     if (error) throw error;
     return this.mapPostRow(data);
   }
+
+  async findPlatformPostByPlatformPostId(platformPostId: string): Promise<PlatformPost | null> {
+    const { data, error } = await this.supabase
+      .from('platform_posts')
+      .select('*')
+      .eq('platform_post_id', platformPostId)
+      .single();
+    if (error) { if (error.code === 'PGRST116') return null; throw error; }
+    return this.mapPostRow(data);
+  }
 }
