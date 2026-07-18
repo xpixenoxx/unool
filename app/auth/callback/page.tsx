@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -11,10 +11,29 @@ function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get('redirect') || '/dashboard';
-  const error = searchParams.get('error');
+  const [errorMessage, setErrorMessage] = useState<string | null>(searchParams.get('error'));
 
   useEffect(() => {
-    if (error) return; // Error handled by UI below
+    // Check for error in hash fragment (Supabase often puts OAuth/Magic Link errors here)
+    const hash = window.location.hash;
+    if (hash && hash.includes('error=')) {
+      const hashParams = new URLSearchParams(hash.substring(1));
+      const hashError = hashParams.get('error_description') || hashParams.get('error');
+      if (hashError) {
+        setErrorMessage(hashError.replace(/\+/g, ' '));
+        return;
+      }
+    }
+
+    if (errorMessage) return;
+
+    const code = searchParams.get('code');
+    if (!code) {
+      // If we don't have a code and we didn't find an error in the hash, 
+      // something is wrong.
+      setErrorMessage('Missing authorization code');
+      return;
+    }
 
     const exchangeCode = async () => {
       try {
@@ -22,7 +41,7 @@ function AuthCallbackContent() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            code: searchParams.get('code'),
+            code,
             redirectTo: `${window.location.origin}${redirect}`,
           }),
         });
@@ -30,16 +49,19 @@ function AuthCallbackContent() {
         if (res.ok) {
           router.push(redirect);
           router.refresh();
+        } else {
+          const data = await res.json().catch(() => ({}));
+          setErrorMessage(data.error || 'Failed to authenticate');
         }
-      } catch {
-        // Error handled by fallback UI
+      } catch (err) {
+        setErrorMessage('Network error occurred during authentication');
       }
     };
 
     exchangeCode();
-  }, [searchParams, redirect, router, error]);
+  }, [searchParams, redirect, router, errorMessage]);
 
-  if (error) {
+  if (errorMessage) {
     return (
       <div className="min-h-screen flex items-center justify-center py-12 px-4">
         <Card className="w-full max-w-md">
@@ -48,7 +70,7 @@ function AuthCallbackContent() {
               <Loader2 className="w-6 h-6 text-red-600" />
             </div>
             <h2 className="text-xl font-semibold mb-2">Authentication Failed</h2>
-            <p className="text-muted-foreground mb-6">{error}</p>
+            <p className="text-muted-foreground mb-6">{errorMessage}</p>
             <Button onClick={() => router.push('/signup')} variant="outline">
               <ArrowRight className="mr-2 h-4 w-4" />
               Try Again
