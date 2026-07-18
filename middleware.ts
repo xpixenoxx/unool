@@ -123,36 +123,14 @@ export async function middleware(request: NextRequest) {
   });
 
   if (isProtectedRoute && supabaseConfigured) {
-    // DEBUG: Log what we're doing
+    // DEBUG: Return immediately to see values
     const debugResponse = NextResponse.next({ request: { headers: requestHeaders } });
     debugResponse.headers.set('x-debug-path', 'auth-block-entered');
     debugResponse.headers.set('x-debug-devAuthEnabled', String(devAuthEnabled));
     debugResponse.headers.set('x-debug-devBypassCookie', String(devBypassCookie));
     debugResponse.headers.set('x-debug-supabaseConfigured', String(supabaseConfigured));
-
-    // Check if we should return early or continue
-    if (!devAuthEnabled && !devBypassCookie) {
-      debugResponse.headers.set('x-debug-path', 'no-dev-auth-no-bypass-cookie');
-      return debugResponse;
-    }
-
-    // Create Supabase client with response for cookie handling
-    const supabase = createServerClient(
-      appConfig.SUPABASE_URL,
-      appConfig.SUPABASE_ANON_KEY,
-      {
-        cookies: {
-          getAll() {
-            return request.cookies.getAll().map(c => ({ name: c.name, value: c.value }));
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              debugResponse.cookies.set(name, value, options);
-            });
-          },
-        },
-      }
-    );
+    debugResponse.headers.set('x-debug-cookies', JSON.stringify(Array.from(request.cookies.getAll().map(c => c.name))));
+    return debugResponse;
 
     // Dev bypass: if enabled and dev bypass cookie present, inject dev user headers
     if (devAuthEnabled && devBypassCookie) {
