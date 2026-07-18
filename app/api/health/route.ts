@@ -26,10 +26,16 @@ async function checkSupabase(): Promise<HealthCheck> {
 async function checkRedis(): Promise<HealthCheck> {
   const start = Date.now();
   try {
+    // Check if Redis is configured (not using localhost defaults)
+    const redisUrl = config.UPSTASH_REDIS_URL;
+    const redisToken = config.UPSTASH_REDIS_TOKEN;
+    if (!redisUrl || !redisToken || redisUrl.includes('localhost') || redisToken === 'test-token') {
+      return { name: 'redis', healthy: true, latencyMs: Date.now() - start, details: { configured: false } };
+    }
     const { Redis } = await import('@upstash/redis');
     const redis = new Redis({
-      url: config.UPSTASH_REDIS_URL,
-      token: config.UPSTASH_REDIS_TOKEN,
+      url: redisUrl,
+      token: redisToken,
     });
     await redis.ping();
     return { name: 'redis', healthy: true, latencyMs: Date.now() - start };
@@ -45,6 +51,8 @@ async function checkAnthropic(): Promise<HealthCheck> {
     if (!config.ANTHROPIC_API_KEY) {
       return { name: 'anthropic', healthy: true, latencyMs: Date.now() - start, details: { configured: false } };
     }
+    // Use the configured model from env (default in schema is correct)
+    const model = config.AI_DEFAULT_MODEL || 'claude-3-5-haiku-20241022';
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -53,13 +61,13 @@ async function checkAnthropic(): Promise<HealthCheck> {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-3-haiku-20240307',
+        model,
         max_tokens: 1,
         messages: [{ role: 'user', content: 'Hi' }],
       }),
       signal: AbortSignal.timeout(5000),
     });
-    return { name: 'anthropic', healthy: response.ok, latencyMs: Date.now() - start, details: { status: response.status } };
+    return { name: 'anthropic', healthy: response.ok, latencyMs: Date.now() - start, details: { status: response.status, model } };
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     return { name: 'anthropic', healthy: false, latencyMs: Date.now() - start, error: err.message };
