@@ -76,8 +76,10 @@ export async function POST(request: NextRequest) {
 
     // Use anon key client to call signInWithOtp which SENDS the email
     // admin.generateLink only generates the link but does NOT send email
-    const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
-
+    // IMPORTANT: Enforce PKCE flow so Supabase redirects with ?code= instead of #access_token=
+    const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
+      auth: { flowType: 'pkce' },
+    });
     logger.info('Calling signInWithOtp', {
       traceId,
       email,
