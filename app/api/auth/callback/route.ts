@@ -38,9 +38,7 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       logger.error('Auth callback error', { error, traceId });
-      const errorUrl = new URL('/signup', config.NEXT_PUBLIC_APP_URL);
-      errorUrl.searchParams.set('error', 'Invalid or expired magic link');
-      return NextResponse.redirect(errorUrl);
+      return NextResponse.json({ error: error.message || 'Invalid or expired magic link' }, { status: 400 });
     }
 
     const { data: { user } } = await supabase.auth.getUser();
@@ -56,13 +54,10 @@ export async function POST(request: NextRequest) {
 
     logger.info('Auth callback success', { traceId, userId: user?.id });
 
-    const successUrl = new URL(redirectTo || `${config.NEXT_PUBLIC_APP_URL}/dashboard`, config.NEXT_PUBLIC_APP_URL);
-    return NextResponse.redirect(successUrl);
+    return NextResponse.json({ success: true, redirectTo: redirectTo || '/dashboard' });
   } catch (err) {
     const error = err instanceof Error ? err : new Error('Unknown error');
     logger.error('Auth callback endpoint error', { error, traceId });
-    const errorUrl = new URL('/signup', config.NEXT_PUBLIC_APP_URL);
-    errorUrl.searchParams.set('error', 'Something went wrong. Please try again.');
-    return NextResponse.redirect(errorUrl);
+    return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 });
   }
 }

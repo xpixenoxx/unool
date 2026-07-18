@@ -47,8 +47,12 @@ function AuthCallbackContent() {
         });
 
         if (res.ok) {
-          router.push(redirect);
-          router.refresh();
+          const data = await res.json().catch(() => ({}));
+          const target = data.redirectTo || redirect;
+          
+          // Use window.location for hard redirect to ensure cookies are sent properly
+          // and state is completely clean after auth
+          window.location.href = target;
         } else {
           const data = await res.json().catch(() => ({}));
           setErrorMessage(data.error || 'Failed to authenticate');
