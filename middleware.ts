@@ -131,16 +131,21 @@ export async function middleware(request: NextRequest) {
       requestHeaders.set('x-user-email', 'dev@unool.local');
       requestHeaders.set('x-workspace-id', DEV_WORKSPACE_ID);
     } else {
-      // Wrap Supabase auth check in timeout to prevent hanging
+      // Wrap Supabase auth check in timeout to prevent hanging (increased for production latency)
       const sessionPromise = supabase.auth.getSession();
       const timeoutPromise = new Promise<{ data: { session: null } }>((resolve) =>
-        setTimeout(() => resolve({ data: { session: null } }), 3000)
+        setTimeout(() => resolve({ data: { session: null } }), 15000)
       );
       const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]);
 
       if (!session) {
         if (pathname.startsWith('/api/')) {
-          return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+          const errorResponse = NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+          errorResponse.headers.set('x-middleware-debug', 'auth-check');
+          errorResponse.headers.set('x-middleware-supabase-configured', String(supabaseConfigured));
+          errorResponse.headers.set('x-middleware-dev-auth-enabled', String(devAuthEnabled));
+          errorResponse.headers.set('x-middleware-dev-bypass-cookie', String(devBypassCookie));
+          return errorResponse;
         }
         const loginUrl = new URL('/signup', request.url);
         loginUrl.searchParams.set('redirect', pathname);
