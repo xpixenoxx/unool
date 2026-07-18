@@ -42,6 +42,7 @@ export async function middleware(request: NextRequest) {
   const traceId = typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : `trace-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-trace-id', traceId);
+  requestHeaders.set('x-middleware-entry', 'yes');
 
   const { pathname, hostname } = request.nextUrl;
 
