@@ -188,12 +188,12 @@ export async function middleware(request: NextRequest) {
   });
 
   // Debug headers
-  finalResponse.headers.set('x-unool-debug', debugInfo.debug);
-  finalResponse.headers.set('x-unool-supabase-configured', debugInfo.supabaseConfigured);
-  finalResponse.headers.set('x-unool-dev-auth-enabled', debugInfo.devAuthEnabled);
-  finalResponse.headers.set('x-unool-dev-bypass-cookie', debugInfo.devBypassCookie);
-  finalResponse.headers.set('x-unool-anon-key', debugInfo.anonKey);
-  finalResponse.headers.set('x-unool-project-id', debugInfo.projectId);
+  finalResponse.headers.set('x-debug-middleware', debugInfo.debug);
+  finalResponse.headers.set('x-debug-supabase-configured', debugInfo.supabaseConfigured);
+  finalResponse.headers.set('x-debug-dev-auth-enabled', debugInfo.devAuthEnabled);
+  finalResponse.headers.set('x-debug-dev-bypass-cookie', debugInfo.devBypassCookie);
+  finalResponse.headers.set('x-debug-anon-key', debugInfo.anonKey);
+  finalResponse.headers.set('x-debug-project-id', debugInfo.projectId);
 
   // Security headers
   finalResponse.headers.set('X-Content-Type-Options', 'nosniff');
