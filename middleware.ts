@@ -86,12 +86,6 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Create response early to preserve cookies
-  const response = NextResponse.next({ request: { headers: requestHeaders } });
-
-  // IMMEDIATE debug header
-  response.headers.set('x-unool-middleware-start', 'true');
-
   // Check auth for protected routes
   const isProtectedRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/api/v1/') || pathname.startsWith('/api/profile');
   // /api/profile/extract is intentionally unprotected for dev testing - dev bypass in middleware not working
@@ -99,13 +93,15 @@ export async function middleware(request: NextRequest) {
   const devAuthEnabled = isDevAuthEnabled();
   const devBypassCookie = request.cookies.has('dev-auth-bypass') || request.cookies.has(`sb-${appConfig.SUPABASE_PROJECT_ID || 'local'}-auth-token`);
 
-  // Debug headers
-  response.headers.set('x-unool-debug', 'auth-check');
-  response.headers.set('x-unool-supabase-configured', String(supabaseConfigured));
-  response.headers.set('x-unool-dev-auth-enabled', String(devAuthEnabled));
-  response.headers.set('x-unool-dev-bypass-cookie', String(devBypassCookie));
-  response.headers.set('x-unool-anon-key', appConfig.SUPABASE_ANON_KEY ? 'SET' : 'NOT_SET');
-  response.headers.set('x-unool-project-id', appConfig.SUPABASE_PROJECT_ID || 'NOT_SET');
+  // Debug headers added to response at the end
+  const debugInfo = {
+    debug: 'auth-check',
+    supabaseConfigured: String(supabaseConfigured),
+    devAuthEnabled: String(devAuthEnabled),
+    devBypassCookie: String(devBypassCookie),
+    anonKey: appConfig.SUPABASE_ANON_KEY ? 'SET' : 'NOT_SET',
+    projectId: appConfig.SUPABASE_PROJECT_ID || 'NOT_SET',
+  };
 
   if (isProtectedRoute && supabaseConfigured) {
     // Create Supabase client only if configured
@@ -118,13 +114,17 @@ export async function middleware(request: NextRequest) {
             return request.cookies.getAll().map(c => ({ name: c.name, value: c.value }));
           },
           setAll(cookiesToSet) {
+            // We'll apply cookies to response later
             cookiesToSet.forEach(({ name, value, options }) => {
-              response.cookies.set(name, value, options);
+              // Store for later
+              (globalThis as any).__middlewareCookies = (globalThis as any).__middlewareCookies || [];
+              (globalThis as any).__middlewareCookies.push({ name, value, options });
             });
           },
         },
       }
     );
+
     // Dev bypass: if enabled and dev bypass cookie present, inject dev user headers
     if (devAuthEnabled && devBypassCookie) {
       // Use deterministic UUIDs matching lib/auth/dev/bypass.ts and dev-bypass endpoint
@@ -144,10 +144,12 @@ export async function middleware(request: NextRequest) {
       if (!session) {
         if (pathname.startsWith('/api/')) {
           const errorResponse = NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-          errorResponse.headers.set('x-unool-debug', 'auth-check');
-          errorResponse.headers.set('x-unool-supabase-configured', String(supabaseConfigured));
-          errorResponse.headers.set('x-unool-dev-auth-enabled', String(devAuthEnabled));
-          errorResponse.headers.set('x-unool-dev-bypass-cookie', String(devBypassCookie));
+          errorResponse.headers.set('x-unool-debug', debugInfo.debug);
+          errorResponse.headers.set('x-unool-supabase-configured', debugInfo.supabaseConfigured);
+          errorResponse.headers.set('x-unool-dev-auth-enabled', debugInfo.devAuthEnabled);
+          errorResponse.headers.set('x-unool-dev-bypass-cookie', debugInfo.devBypassCookie);
+          errorResponse.headers.set('x-unool-anon-key', debugInfo.anonKey);
+          errorResponse.headers.set('x-unool-project-id', debugInfo.projectId);
           return errorResponse;
         }
         const loginUrl = new URL('/signup', request.url);
@@ -160,6 +162,17 @@ export async function middleware(request: NextRequest) {
       requestHeaders.set('x-user-email', session.user.email || '');
     }
   }
+
+  // Create response with final headers
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+
+  // Debug headers
+  response.headers.set('x-unool-debug', debugInfo.debug);
+  response.headers.set('x-unool-supabase-configured', debugInfo.supabaseConfigured);
+  response.headers.set('x-unool-dev-auth-enabled', debugInfo.devAuthEnabled);
+  response.headers.set('x-unool-dev-bypass-cookie', debugInfo.devBypassCookie);
+  response.headers.set('x-unool-anon-key', debugInfo.anonKey);
+  response.headers.set('x-unool-project-id', debugInfo.projectId);
 
   // Security headers
   response.headers.set('X-Content-Type-Options', 'nosniff');
