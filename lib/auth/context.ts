@@ -1,7 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { config } from '@/lib/config/schema';
-import { getDevAuthContextAsync, isDevAuthEnabled } from '@/lib/auth/dev/bypass';
 
 export interface AuthContext {
   userId: string;
@@ -14,10 +13,24 @@ export interface AuthContext {
  */
 export async function getAuthContext(): Promise<AuthContext | null> {
   // Development bypass: use dev user without requiring real auth
-  if (isDevAuthEnabled()) {
-    const devContext = await getDevAuthContextAsync();
-    if (devContext) {
-      return devContext;
+  // Only activate in actual dev runtime, never during production builds.
+  // During `next build`, NODE_ENV is 'production' regardless of .env settings,
+  // but DEV_AUTH_BYPASS might still be 'true' if set in the environment.
+  // We guard against this by checking NODE_ENV explicitly.
+  if (config.NODE_ENV === 'development' || (config.DEV_AUTH_BYPASS === true && process.env.NODE_ENV !== 'production')) {
+    try {
+      // Dynamic import to prevent the module from being loaded/evaluated
+      // during production builds (tree-shaking won't help with side effects)
+      const { getDevAuthContextAsync, isDevAuthEnabled } = await import('@/lib/auth/dev/bypass');
+      if (isDevAuthEnabled()) {
+        const devContext = await getDevAuthContextAsync();
+        if (devContext) {
+          return devContext;
+        }
+      }
+    } catch (err) {
+      // Dev bypass unavailable — fall through to normal auth
+      console.warn('[Auth] Dev bypass import failed (expected in production):', err instanceof Error ? err.message : err);
     }
   }
 

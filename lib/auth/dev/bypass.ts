@@ -21,11 +21,11 @@ import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import { cookies } from 'next/headers';
 
+// Check dev mode safely — do NOT throw at module load time.
+// Throwing here crashes the Vercel production build because Next.js
+// statically analyzes imports and loads this module even in production
+// when it's referenced by getAuthContext().
 const isDev = config.NODE_ENV === 'development' || config.DEV_AUTH_BYPASS === true;
-
-if (!isDev) {
-  throw new Error('Dev auth bypass loaded in non-development environment. Check NODE_ENV/DEV_AUTH_BYPASS.');
-}
 
 // Deterministic dev identifiers (stable across restarts - must match middleware.ts)
 const DEV_USER_ID = '00000000-0000-0000-0000-000000000001';
@@ -34,92 +34,122 @@ const DEV_EMAIL = 'dev@unool.local';
 const DEV_FULL_NAME = 'Dev User';
 const DEV_WORKSPACE_NAME = 'Development Workspace';
 
-const supabaseAdmin = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+/**
+ * Create Supabase admin client lazily (only when actually needed).
+ * This prevents errors during build when env vars may not be fully available.
+ */
+function getSupabaseAdmin() {
+  return createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+}
 
 /**
  * Ensure the dev user and workspace exist in Supabase with fixed UUIDs.
  * Idempotent - safe to call multiple times.
  */
 export async function ensureDevUserAndWorkspace(): Promise<{ userId: string; workspaceId: string }> {
+  if (!isDev) {
+    throw new Error('ensureDevUserAndWorkspace called in non-development environment');
+  }
+
+  const supabaseAdmin = getSupabaseAdmin();
+
   // 1. Ensure user exists in auth.users (via admin API) with fixed UUID
   const { data: existingUser, error: userError } = await supabaseAdmin.auth.admin.getUserById(DEV_USER_ID);
-  console.log('[DEBUG DevBypass] User query result:', { existingUser: existingUser?.user?.id, userError });
+  
+  if (userError) {
+    console.warn('[DevBypass] getUserById error (non-fatal):', userError.message);
+  }
+  
   if (!existingUser?.user) {
-    console.log('[DEBUG DevBypass] Creating new user');
-    const { error: createUserError } = await supabaseAdmin.auth.admin.createUser({
+    // Try to create the user. If email already exists with different ID,
+    // look up by email and use that user instead.
+    const { data: createdUser, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
       id: DEV_USER_ID,
       email: DEV_EMAIL,
       email_confirm: true,
       user_metadata: { full_name: DEV_FULL_NAME },
     });
-    console.log('[DEBUG DevBypass] User create result:', { createUserError });
+
+    if (createUserError) {
+      if (createUserError.message?.includes('already been registered')) {
+        // User exists with this email but different ID — find and use that user
+        const { data: { users } } = await supabaseAdmin.auth.admin.listUsers();
+        const existingByEmail = users?.find(u => u.email === DEV_EMAIL);
+        if (existingByEmail) {
+          console.log('[DevBypass] Using existing user with email:', DEV_EMAIL, 'id:', existingByEmail.id);
+          // Use the existing user's ID instead of the hardcoded one
+          return ensureDevWorkspace(supabaseAdmin, existingByEmail.id);
+        }
+      }
+      console.warn('[DevBypass] createUser error (non-fatal):', createUserError.message);
+    } else {
+      console.log('[DevBypass] Created dev user:', createdUser?.user?.id);
+    }
   }
 
-  // 2. Ensure user profile in public.users
-  console.log('[DEBUG DevBypass] Checking/upserting user profile');
-  // First check if a user with this email exists
-  const { data: existingUserProfile } = await supabaseAdmin
-    .from('users')
+  return ensureDevWorkspace(supabaseAdmin, DEV_USER_ID);
+}
+
+/**
+ * Ensure workspace and membership exist for the given user ID.
+ */
+async function ensureDevWorkspace(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  admin: ReturnType<typeof getSupabaseAdmin>,
+  userId: string
+): Promise<{ userId: string; workspaceId: string }> {
+  const { error: userUpsertError } = await admin.from('users').upsert({
+    id: userId,
+    email: DEV_EMAIL,
+    full_name: DEV_FULL_NAME,
+  }, { onConflict: 'id' });
+  
+  if (userUpsertError) {
+    console.warn('[DevBypass] User upsert error (non-fatal):', userUpsertError.message);
+  }
+
+  // 3. Ensure workspace exists
+  const { data: existingWs } = await admin
+    .from('workspaces')
     .select('id')
-    .eq('email', DEV_EMAIL)
+    .eq('id', DEV_WORKSPACE_ID)
     .single();
 
-  if (existingUserProfile) {
-    // User exists with this email - update to use our DEV_USER_ID
-    console.log('[DEBUG DevBypass] User exists with email, updating ID:', existingUserProfile.id);
-    const { error: updateError } = await supabaseAdmin
-      .from('users')
-      .update({ id: DEV_USER_ID, full_name: DEV_FULL_NAME })
-      .eq('email', DEV_EMAIL);
-    console.log('[DEBUG DevBypass] User update result:', { updateError });
-  } else {
-    // No user with this email - upsert
-    const { error: userUpsertError } = await supabaseAdmin.from('users').upsert({
-      id: DEV_USER_ID,
-      email: DEV_EMAIL,
-      full_name: DEV_FULL_NAME,
-    }, { onConflict: 'id' });
-    console.log('[DEBUG DevBypass] User upsert result:', { userUpsertError });
-  }
-
-  // 3. Ensure workspace exists with fixed UUID
-  const { data: existingWs, error: wsError } = await supabaseAdmin.from('workspaces').select('id').eq('id', DEV_WORKSPACE_ID).single();
-  console.log('[DEBUG DevBypass] Workspace query result:', { existingWs, wsError });
   if (!existingWs) {
-    console.log('[DEBUG DevBypass] Creating new workspace');
-    const { error: wsInsertError } = await supabaseAdmin.from('workspaces').insert({
+    const { error: wsInsertError } = await admin.from('workspaces').insert({
       id: DEV_WORKSPACE_ID,
-      owner_id: DEV_USER_ID,
+      owner_id: userId,
       name: DEV_WORKSPACE_NAME,
       plan: 'pro',
     });
-    console.log('[DEBUG DevBypass] Workspace insert result:', { wsInsertError });
-  } else {
-    console.log('[DEBUG DevBypass] Workspace already exists:', existingWs);
+    if (wsInsertError) {
+      console.warn('[DevBypass] Workspace insert error (non-fatal):', wsInsertError.message);
+    }
   }
 
   // 4. Ensure workspace membership
-  await supabaseAdmin.from('workspace_members').upsert({
+  const { error: memberError } = await admin.from('workspace_members').upsert({
     workspace_id: DEV_WORKSPACE_ID,
-    user_id: DEV_USER_ID,
+    user_id: userId,
     role: 'owner',
   }, { onConflict: 'workspace_id,user_id' });
 
-  // 5. Ensure a default profile exists for the dev user
-  const { data: existingProfile } = await supabaseAdmin
+  if (memberError) {
+    console.warn('[DevBypass] Membership upsert error (non-fatal):', memberError.message);
+  }
+
+  // 5. Ensure a default profile exists
+  const { data: existingProfile } = await admin
     .from('profiles')
     .select('id')
-    .eq('user_id', DEV_USER_ID)
+    .eq('user_id', userId)
     .eq('workspace_id', DEV_WORKSPACE_ID)
     .single();
 
-  console.log('[DEBUG DevBypass] Profile query result:', { existingProfile });
-
   if (!existingProfile) {
-    console.log('[DEBUG DevBypass] Creating new profile');
-    const { error: profileError } = await supabaseAdmin.from('profiles').insert({
+    const { error: profileError } = await admin.from('profiles').insert({
       workspace_id: DEV_WORKSPACE_ID,
-      user_id: DEV_USER_ID,
+      user_id: userId,
       subdomain: 'dev',
       name: 'Dev User',
       headline: 'Building Unool locally',
@@ -130,12 +160,12 @@ export async function ensureDevUserAndWorkspace(): Promise<{ userId: string; wor
       proof_points: [],
       theme: { preset: 'minimal' },
     });
-    console.log('[DEBUG DevBypass] Profile insert result:', { profileError });
-  } else {
-    console.log('[DEBUG DevBypass] Profile already exists:', existingProfile);
+    if (profileError) {
+      console.warn('[DevBypass] Profile insert error (non-fatal):', profileError.message);
+    }
   }
 
-  return { userId: DEV_USER_ID, workspaceId: DEV_WORKSPACE_ID };
+  return { userId, workspaceId: DEV_WORKSPACE_ID };
 }
 
 /**
