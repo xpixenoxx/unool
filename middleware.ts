@@ -46,16 +46,12 @@ export async function middleware(request: NextRequest) {
 
   const { pathname, hostname } = request.nextUrl;
 
-  // IMMEDIATE DEBUG: Add header to confirm middleware runs
-  const debugResponse = NextResponse.next({ request: { headers: requestHeaders } });
-  debugResponse.headers.set('x-middleware-run', 'true');
-  debugResponse.headers.set('x-middleware-path', pathname);
-
   // Check for profile path /u/[subdomain]
   const subdomain = isProfilePath(pathname);
   if (subdomain) {
-    // Rewrite to /u/[subdomain] page - already at correct path, just pass through
-    // The /u/[subdomain]/page.tsx will handle the profile rendering
+    const debugResponse = NextResponse.next({ request: { headers: requestHeaders } });
+    debugResponse.headers.set('x-middleware-run', 'true');
+    debugResponse.headers.set('x-middleware-path', pathname);
     return debugResponse;
   }
 
@@ -66,6 +62,9 @@ export async function middleware(request: NextRequest) {
     pathname.includes('.') ||
     publicPaths.some(p => pathname.startsWith(p))
   ) {
+    const debugResponse = NextResponse.next({ request: { headers: requestHeaders } });
+    debugResponse.headers.set('x-middleware-run', 'true');
+    debugResponse.headers.set('x-middleware-path', pathname);
     return debugResponse;
   }
 
@@ -109,178 +108,28 @@ export async function middleware(request: NextRequest) {
     projectId: appConfig.SUPABASE_PROJECT_ID || 'NOT_SET',
   };
 
-  // DEBUG: Return immediately with debug values
-  const debugResponse2 = NextResponse.next({ request: { headers: requestHeaders } });
-  debugResponse2.headers.set('x-debug-path', 'after-rate-limit');
-  debugResponse2.headers.set('x-debug-isProtectedRoute', String(isProtectedRoute));
-  debugResponse2.headers.set('x-debug-devAuthEnabled', String(devAuthEnabled));
-  debugResponse2.headers.set('x-debug-devBypassCookie', String(devBypassCookie));
-  debugResponse2.headers.set('x-debug-supabaseConfigured', String(supabaseConfigured));
-  debugResponse2.headers.set('x-debug-cookies', JSON.stringify(Array.from(request.cookies.getAll().map(c => c.name))));
-  return debugResponse2;
+  // DEBUG: Check if we enter the auth block
+  if (isProtectedRoute) {
+    const debugResponse = NextResponse.json({
+      debug: 'auth-block-entered',
+      isProtectedRoute,
+      devAuthEnabled,
+      devBypassCookie,
+      supabaseConfigured,
+      cookies: Array.from(request.cookies.getAll().map(c => c.name)),
+    }, { status: 200 });
+    debugResponse.headers.set('x-debug-path', 'auth-block-entered');
+    debugResponse.headers.set('x-debug-devAuthEnabled', String(devAuthEnabled));
+    debugResponse.headers.set('x-debug-devBypassCookie', String(devBypassCookie));
+    debugResponse.headers.set('x-debug-supabaseConfigured', String(supabaseConfigured));
+    return debugResponse;
+  }
 
-  // Original auth logic below - temporarily disabled for debugging
-  // if (isProtectedRoute && supabaseConfigured) {
-  //   // Create Supabase client with response for cookie handling
-  //   const response = NextResponse.next({ request: { headers: requestHeaders } });
-  //   const supabase = createServerClient(
-  //     appConfig.SUPABASE_URL,
-  //     appConfig.SUPABASE_ANON_KEY,
-  //     {
-  //       cookies: {
-  //         getAll() {
-  //           return request.cookies.getAll().map(c => ({ name: c.name, value: c.value }));
-  //         },
-  //         setAll(cookiesToSet) {
-  //           cookiesToSet.forEach(({ name, value, options }) => {
-  //             response.cookies.set(name, value, options);
-  //           });
-  //         },
-  //       },
-  //     }
-  //   );
-
-  //   // Dev bypass: if enabled and dev bypass cookie present, inject dev user headers
-  //   if (devAuthEnabled && devBypassCookie) {
-  //     // Use deterministic UUIDs matching lib/auth/dev/bypass.ts and dev-bypass endpoint
-  //     const DEV_USER_ID = '00000000-0000-0000-0000-000000000001';
-  //     const DEV_WORKSPACE_ID = '00000000-0000-0000-0000-000000000001';
-  //     requestHeaders.set('x-user-id', DEV_USER_ID);
-  //     requestHeaders.set('x-user-email', 'dev@unool.local');
-  //     requestHeaders.set('x-workspace-id', DEV_WORKSPACE_ID);
-  //   } else {
-  //     // Wrap Supabase auth check in timeout to prevent hanging (increased for production latency)
-  //     const sessionPromise = supabase.auth.getSession();
-  //     const timeoutPromise = new Promise<{ data: { session: null } }>((resolve) =>
-  //       setTimeout(() => resolve({ data: { session: null } }), 15000)
-  //     );
-  //     const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]);
-
-  //     if (!session) {
-  //       if (pathname.startsWith('/api/')) {
-  //         const errorResponse = NextResponse.json({
-  //           error: 'Unauthorized',
-  //           debug: {
-  //             devAuthEnabled,
-  //             devBypassCookie,
-  //             supabaseConfigured,
-  //             cookieNames: Array.from(request.cookies.getAll().map(c => c.name)),
-  //           }
-  //         }, { status: 401 });
-  //         errorResponse.headers.set('x-debug-devAuthEnabled', String(devAuthEnabled));
-  //         errorResponse.headers.set('x-debug-devBypassCookie', String(devBypassCookie));
-  //         errorResponse.headers.set('x-debug-supabaseConfigured', String(supabaseConfigured));
-  //         return errorResponse;
-  //       }
-  //       const loginUrl = new URL('/signup', request.url);
-  //       loginUrl.searchParams.set('redirect', pathname);
-  //       return NextResponse.redirect(loginUrl);
-  //     }
-
-  //     // Add user info to headers for downstream use
-  //     requestHeaders.set('x-user-id', session.user.id);
-  //     requestHeaders.set('x-user-email', session.user.email || '');
-  //   }
-  // }
-
-  // // Create FINAL response with updated headers for downstream
-  // const finalResponse = NextResponse.next({ request: { headers: requestHeaders } });
-
-  // // Copy cookies from the early response (Supabase may have set them)
-  // response.cookies.getAll().forEach(cookie => {
-  //   finalResponse.cookies.set(cookie.name, cookie.value, cookie);
-  // });
-
-  // // DEBUG: Log what we're sending
-  // console.log('[Middleware Debug] Sending debug headers', {
-  //   devAuthEnabled: debugInfo.devAuthEnabled,
-  //   devBypassCookie: debugInfo.devBypassCookie,
-  // });
-
-  // // Debug headers
-  // finalResponse.headers.set('x-debug-middleware', debugInfo.debug);
-  // finalResponse.headers.set('x-debug-supabase-configured', debugInfo.supabaseConfigured);
-  // finalResponse.headers.set('x-debug-dev-auth-enabled', debugInfo.devAuthEnabled);
-  // finalResponse.headers.set('x-debug-dev-bypass-cookie', debugInfo.devBypassCookie);
-  // finalResponse.headers.set('x-debug-anon-key', debugInfo.anonKey);
-  // finalResponse.headers.set('x-debug-project-id', debugInfo.projectId);
-
-  // // Security headers
-  // finalResponse.headers.set('X-Content-Type-Options', 'nosniff');
-  // finalResponse.headers.set('X-Frame-Options', 'DENY');
-  // finalResponse.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  // finalResponse.headers.set('X-DNS-Prefetch-Control', 'off');
-  // finalResponse.headers.set('X-Download-Options', 'noopen');
-  // finalResponse.headers.set('X-Permitted-Cross-Domain-Policies', 'none');
-  // finalResponse.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
-  // finalResponse.headers.set('Cross-Origin-Resource-Policy', 'same-origin');
-  // finalResponse.headers.set('Cross-Origin-Embedder-Policy', 'require-corp');
-
-  // // HSTS (only in production)
-  // if (appConfig.NODE_ENV === 'production' && appConfig.ENABLE_HSTS) {
-  //   finalResponse.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
-  // }
-
-  // // Permissions Policy
-  // finalResponse.headers.set('Permissions-Policy', [
-  //   'accelerometer=()',
-  //   'ambient-light-sensor=()',
-  //   'autoplay=()',
-  //   'battery=()',
-  //   'camera=()',
-  //   'cross-origin-isolated=()',
-  //   'display-capture=()',
-  //   'document-domain=()',
-  //   'encrypted-media=()',
-  //   'execution-while-not-rendered=()',
-  //   'execution-while-out-of-viewport=()',
-  //   'fullscreen=()',
-  //   'geolocation=()',
-  //   'gyroscope=()',
-  //   'hid=()',
-  //   'identity-credentials-get=()',
-  //   'idle-detection=()',
-  //   'keyboard-map=()',
-  //   'local-fonts=()',
-  //   'magnetometer=()',
-  //   'microphone=()',
-  //   'midi=()',
-  //   'otp-credentials-get=()',
-  //   'payment=()',
-  //   'picture-in-picture=()',
-  //   'publickey-credentials-create=()',
-  //   'publickey-credentials-get=()',
-  //   'screen-wake-lock=()',
-  //   'serial=()',
-  //   'speaker-selection=()',
-  //   'sync-xhr=()',
-  //   'usb=()',
-  //   'web-share=()',
-  //   'window-management=()',
-  //   'xr-spatial-tracking=()',
-  // ].join(', '));
-
-  // // Content Security Policy
-  // const cspDirectives = [
-  //   "default-src 'self'",
-  //   "script-src 'self' 'wasm-unsafe-eval' 'inline-speculation-rules'",
-  //   "style-src 'self' 'unsafe-inline'",
-  //   "img-src 'self' data: https: blob:",
-  //   "font-src 'self' data:",
-  //   "connect-src 'self' wss://*.supabase.co https://*.supabase.co https://*.anthropic.com https://api.openai.com https://*.upstash.io",
-  //   "frame-ancestors 'none'",
-  //   "base-uri 'self'",
-  //   "form-action 'self'",
-  //   "object-src 'none'",
-  // ];
-
-  // if (appConfig.CSP_REPORT_URI) {
-  //   cspDirectives.push(`report-uri ${appConfig.CSP_REPORT_URI}`);
-  // }
-
-  // finalResponse.headers.set('Content-Security-Policy', cspDirectives.join('; '));
-
-  // return finalResponse;
+  // If not protected route, pass through
+  const passThroughResponse = NextResponse.next({ request: { headers: requestHeaders } });
+  passThroughResponse.headers.set('x-middleware-run', 'true');
+  passThroughResponse.headers.set('x-middleware-path', pathname);
+  return passThroughResponse;
 }
 
 export const config = {
