@@ -57,7 +57,7 @@ function AuthCallbackContent() {
           const data = await res.json().catch(() => ({}));
           setErrorMessage(data.error || 'Failed to authenticate');
         }
-      } catch (err) {
+      } catch {
         setErrorMessage('Network error occurred during authentication');
       }
     };
