@@ -27,7 +27,6 @@ function isSupabaseConfigured(): boolean {
 
 // Check if path is a profile path /u/[subdomain]
 function isProfilePath(pathname: string): string | null {
-  // Check for /u/[subdomain] path
   const match = pathname.match(/^\/u\/([^/]+)(?:\/|$)/);
   if (match) {
     const subdomain = match[1];
@@ -44,15 +43,15 @@ export async function middleware(request: NextRequest) {
   requestHeaders.set('x-trace-id', traceId);
   requestHeaders.set('x-middleware-entry', 'yes');
 
-  const { pathname, hostname } = request.nextUrl;
+  const { pathname } = request.nextUrl;
 
-  // Check for profile path /u/[subdomain]
+  // Check for profile path /u/[subdomain] - pass through
   const subdomain = isProfilePath(pathname);
   if (subdomain) {
-    const debugResponse = NextResponse.next({ request: { headers: requestHeaders } });
-    debugResponse.headers.set('x-middleware-run', 'true');
-    debugResponse.headers.set('x-middleware-path', pathname);
-    return debugResponse;
+    const response = NextResponse.next({ request: { headers: requestHeaders } });
+    response.headers.set('x-middleware-run', 'true');
+    response.headers.set('x-middleware-path', pathname);
+    return response;
   }
 
   // Skip middleware for static assets and public paths
@@ -62,10 +61,10 @@ export async function middleware(request: NextRequest) {
     pathname.includes('.') ||
     publicPaths.some(p => pathname.startsWith(p))
   ) {
-    const debugResponse = NextResponse.next({ request: { headers: requestHeaders } });
-    debugResponse.headers.set('x-middleware-run', 'true');
-    debugResponse.headers.set('x-middleware-path', pathname);
-    return debugResponse;
+    const response = NextResponse.next({ request: { headers: requestHeaders } });
+    response.headers.set('x-middleware-run', 'true');
+    response.headers.set('x-middleware-path', pathname);
+    return response;
   }
 
   // Rate limiting for API routes
@@ -93,43 +92,73 @@ export async function middleware(request: NextRequest) {
 
   // Check auth for protected routes
   const isProtectedRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/api/v1/') || pathname.startsWith('/api/profile');
-  // /api/profile/extract is intentionally unprotected for dev testing - dev bypass in middleware not working
   const supabaseConfigured = isSupabaseConfigured();
   const devAuthEnabled = isDevAuthEnabled();
   const devBypassCookie = request.cookies.has('dev-auth-bypass') || request.cookies.has(`sb-${appConfig.SUPABASE_PROJECT_ID || 'local'}-auth-token`);
 
-  // Debug info for headers
-  const debugInfo = {
-    debug: 'auth-check',
-    supabaseConfigured: String(supabaseConfigured),
-    devAuthEnabled: String(devAuthEnabled),
-    devBypassCookie: String(devBypassCookie),
-    anonKey: appConfig.SUPABASE_ANON_KEY ? 'SET' : 'NOT_SET',
-    projectId: appConfig.SUPABASE_PROJECT_ID || 'NOT_SET',
-  };
+  // DEBUG: Add debug headers to trace execution
+  requestHeaders.set('x-debug-supabaseConfigured', String(supabaseConfigured));
+  requestHeaders.set('x-debug-devAuthEnabled', String(devAuthEnabled));
+  requestHeaders.set('x-debug-devBypassCookie', String(devBypassCookie));
+  requestHeaders.set('x-debug-isProtectedRoute', String(isProtectedRoute));
+  requestHeaders.set('x-debug-cookies', Array.from(request.cookies.getAll().map(c => c.name)).join(','));
 
-  // DEBUG: Check if we enter the auth block
-  if (isProtectedRoute) {
-    const debugResponse = NextResponse.json({
-      debug: 'auth-block-entered',
-      isProtectedRoute,
-      devAuthEnabled,
-      devBypassCookie,
-      supabaseConfigured,
-      cookies: Array.from(request.cookies.getAll().map(c => c.name)),
-    }, { status: 200 });
-    debugResponse.headers.set('x-debug-path', 'auth-block-entered');
-    debugResponse.headers.set('x-debug-devAuthEnabled', String(devAuthEnabled));
-    debugResponse.headers.set('x-debug-devBypassCookie', String(devBypassCookie));
-    debugResponse.headers.set('x-debug-supabaseConfigured', String(supabaseConfigured));
-    return debugResponse;
+  // Dev authentication bypass - set user/workspace headers if dev mode
+  if (isProtectedRoute && devAuthEnabled && devBypassCookie) {
+    const devContext = getDevAuthContext();
+    if (devContext) {
+      requestHeaders.set('x-user-id', devContext.userId);
+      requestHeaders.set('x-workspace-id', devContext.workspaceId);
+      requestHeaders.set('x-dev-auth', 'true');
+    }
   }
 
-  // If not protected route, pass through
-  const passThroughResponse = NextResponse.next({ request: { headers: requestHeaders } });
-  passThroughResponse.headers.set('x-middleware-run', 'true');
-  passThroughResponse.headers.set('x-middleware-path', pathname);
-  return passThroughResponse;
+  // For protected routes without dev bypass, check Supabase session
+  if (isProtectedRoute && supabaseConfigured && !(devAuthEnabled && devBypassCookie)) {
+    // Create Supabase client in middleware to validate session
+    const response = NextResponse.next({ request: { headers: requestHeaders } });
+
+    const supabase = createServerClient(
+      appConfig.SUPABASE_URL,
+      appConfig.SUPABASE_ANON_KEY,
+      {
+        cookies: {
+          get(name: string) {
+            return request.cookies.get(name)?.value;
+          },
+          set(name: string, value: string, options: CookieOptions) {
+            requestHeaders.set('Set-Cookie', `${name}=${value}; Path=${options.path || '/'}; Max-Age=${options.maxAge || 0}; ${options.httpOnly ? 'HttpOnly;' : ''} ${options.secure ? 'Secure;' : ''} ${options.sameSite ? `SameSite=${options.sameSite};` : ''}`);
+          },
+          remove(name: string, options: CookieOptions) {
+            requestHeaders.set('Set-Cookie', `${name}=; Path=${options.path || '/'}; Max-Age=0; ${options.httpOnly ? 'HttpOnly;' : ''} ${options.secure ? 'Secure;' : ''} ${options.sameSite ? `SameSite=${options.sameSite};` : ''}`);
+          },
+        },
+      }
+    );
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      requestHeaders.set('x-user-id', user.id);
+      // Try to get workspace from user metadata or profile
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('workspace_id')
+        .eq('user_id', user.id)
+        .single();
+      if (profile) {
+        requestHeaders.set('x-workspace-id', profile.workspace_id);
+      }
+    }
+    response.headers.set('x-middleware-run', 'true');
+    response.headers.set('x-middleware-path', pathname);
+    return response;
+  }
+
+  // Pass through for all other cases
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  response.headers.set('x-middleware-run', 'true');
+  response.headers.set('x-middleware-path', pathname);
+  return response;
 }
 
 export const config = {
