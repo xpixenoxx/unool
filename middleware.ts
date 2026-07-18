@@ -45,12 +45,17 @@ export async function middleware(request: NextRequest) {
 
   const { pathname, hostname } = request.nextUrl;
 
+  // IMMEDIATE DEBUG: Add header to confirm middleware runs
+  const debugResponse = NextResponse.next({ request: { headers: requestHeaders } });
+  debugResponse.headers.set('x-middleware-run', 'true');
+  debugResponse.headers.set('x-middleware-path', pathname);
+
   // Check for profile path /u/[subdomain]
   const subdomain = isProfilePath(pathname);
   if (subdomain) {
     // Rewrite to /u/[subdomain] page - already at correct path, just pass through
     // The /u/[subdomain]/page.tsx will handle the profile rendering
-    return NextResponse.next({ request: { headers: requestHeaders } });
+    return debugResponse;
   }
 
   // Skip middleware for static assets and public paths
@@ -60,7 +65,7 @@ export async function middleware(request: NextRequest) {
     pathname.includes('.') ||
     publicPaths.some(p => pathname.startsWith(p))
   ) {
-    return NextResponse.next({ request: { headers: requestHeaders } });
+    return debugResponse;
   }
 
   // Rate limiting for API routes
