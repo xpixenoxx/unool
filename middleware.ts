@@ -93,7 +93,7 @@ export async function middleware(request: NextRequest) {
   const devAuthEnabled = isDevAuthEnabled();
   const devBypassCookie = request.cookies.has('dev-auth-bypass') || request.cookies.has(`sb-${appConfig.SUPABASE_PROJECT_ID || 'local'}-auth-token`);
 
-  // Debug headers added to response at the end
+  // Debug info for headers
   const debugInfo = {
     debug: 'auth-check',
     supabaseConfigured: String(supabaseConfigured),
@@ -103,8 +103,11 @@ export async function middleware(request: NextRequest) {
     projectId: appConfig.SUPABASE_PROJECT_ID || 'NOT_SET',
   };
 
+  // Create response early for cookie handling
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+
   if (isProtectedRoute && supabaseConfigured) {
-    // Create Supabase client only if configured
+    // Create Supabase client with response for cookie handling
     const supabase = createServerClient(
       appConfig.SUPABASE_URL,
       appConfig.SUPABASE_ANON_KEY,
@@ -114,11 +117,8 @@ export async function middleware(request: NextRequest) {
             return request.cookies.getAll().map(c => ({ name: c.name, value: c.value }));
           },
           setAll(cookiesToSet) {
-            // We'll apply cookies to response later
             cookiesToSet.forEach(({ name, value, options }) => {
-              // Store for later
-              (globalThis as any).__middlewareCookies = (globalThis as any).__middlewareCookies || [];
-              (globalThis as any).__middlewareCookies.push({ name, value, options });
+              response.cookies.set(name, value, options);
             });
           },
         },
@@ -133,6 +133,9 @@ export async function middleware(request: NextRequest) {
       requestHeaders.set('x-user-id', DEV_USER_ID);
       requestHeaders.set('x-user-email', 'dev@unool.local');
       requestHeaders.set('x-workspace-id', DEV_WORKSPACE_ID);
+
+      // Update response with new headers
+      response.headers.set('x-middleware-forward-headers', 'true');
     } else {
       // Wrap Supabase auth check in timeout to prevent hanging (increased for production latency)
       const sessionPromise = supabase.auth.getSession();
@@ -160,11 +163,11 @@ export async function middleware(request: NextRequest) {
       // Add user info to headers for downstream use
       requestHeaders.set('x-user-id', session.user.id);
       requestHeaders.set('x-user-email', session.user.email || '');
+
+      // Update response with new headers
+      response.headers.set('x-middleware-forward-headers', 'true');
     }
   }
-
-  // Create response with final headers
-  const response = NextResponse.next({ request: { headers: requestHeaders } });
 
   // Debug headers
   response.headers.set('x-unool-debug', debugInfo.debug);
