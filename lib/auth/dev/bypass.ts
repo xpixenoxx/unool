@@ -53,38 +53,32 @@ export async function ensureDevUserAndWorkspace(): Promise<{ userId: string; wor
 
   const supabaseAdmin = getSupabaseAdmin();
 
-  // 1. Ensure user exists in auth.users (via admin API) with fixed UUID
-  const { data: existingUser, error: userError } = await supabaseAdmin.auth.admin.getUserById(DEV_USER_ID);
-  
-  if (userError) {
-    console.warn('[DevBypass] getUserById error (non-fatal):', userError.message);
+  // 1. Check if user with FIXED UUID exists
+  const { data: existingById } = await supabaseAdmin.auth.admin.getUserById(DEV_USER_ID);
+  if (existingById?.user) {
+    return ensureDevWorkspace(supabaseAdmin, DEV_USER_ID);
   }
-  
-  if (!existingUser?.user) {
-    // Try to create the user. If email already exists with different ID,
-    // look up by email and use that user instead.
-    const { data: createdUser, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
-      id: DEV_USER_ID,
-      email: DEV_EMAIL,
-      email_confirm: true,
-      user_metadata: { full_name: DEV_FULL_NAME },
-    });
 
-    if (createUserError) {
-      if (createUserError.message?.includes('already been registered')) {
-        // User exists with this email but different ID — find and use that user
-        const { data: { users } } = await supabaseAdmin.auth.admin.listUsers();
-        const existingByEmail = users?.find(u => u.email === DEV_EMAIL);
-        if (existingByEmail) {
-          console.log('[DevBypass] Using existing user with email:', DEV_EMAIL, 'id:', existingByEmail.id);
-          // Use the existing user's ID instead of the hardcoded one
-          return ensureDevWorkspace(supabaseAdmin, existingByEmail.id);
-        }
-      }
-      console.warn('[DevBypass] createUser error (non-fatal):', createUserError.message);
-    } else {
-      console.log('[DevBypass] Created dev user:', createdUser?.user?.id);
-    }
+  // 2. Check if user with dev email exists (wrong UUID) - DELETE it
+  const { data: { users } } = await supabaseAdmin.auth.admin.listUsers();
+  const existingByEmail = users?.find(u => u.email === DEV_EMAIL);
+  if (existingByEmail && existingByEmail.id !== DEV_USER_ID) {
+    console.log('[DevBypass] Deleting existing user with wrong UUID:', existingByEmail.id);
+    await supabaseAdmin.auth.admin.deleteUser(existingByEmail.id);
+  }
+
+  // 3. Create user with FIXED UUID
+  const { data: createdUser, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
+    id: DEV_USER_ID,
+    email: DEV_EMAIL,
+    email_confirm: true,
+    user_metadata: { full_name: DEV_FULL_NAME },
+  });
+
+  if (createUserError) {
+    console.warn('[DevBypass] createUser error (non-fatal):', createUserError.message);
+  } else {
+    console.log('[DevBypass] Created dev user:', createdUser?.user?.id);
   }
 
   return ensureDevWorkspace(supabaseAdmin, DEV_USER_ID);
