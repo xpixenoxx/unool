@@ -50,6 +50,28 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
+  // Check auth configuration at runtime
+  const isProtectedRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/api/v1/') || pathname.startsWith('/api/profile');
+  const supabaseConfigured = isSupabaseConfigured();
+  const devAuthEnabled = isDevAuthEnabledRuntime();
+  const devBypassCookie = request.cookies.has('dev-auth-bypass') || request.cookies.has(`sb-${appConfig.SUPABASE_PROJECT_ID || 'local'}-auth-token`);
+
+  // DEBUG: Prepare debug headers (available for all return paths)
+  const debugHeaders = new Headers();
+  debugHeaders.set('x-debug-supabaseConfigured', String(supabaseConfigured));
+  debugHeaders.set('x-debug-devAuthEnabled', String(devAuthEnabled));
+  debugHeaders.set('x-debug-devBypassCookie', String(devBypassCookie));
+  debugHeaders.set('x-debug-isProtectedRoute', String(isProtectedRoute));
+  debugHeaders.set('x-debug-nodeEnv', process.env.NODE_ENV || 'unset');
+  debugHeaders.set('x-debug-devAuthBypassEnv', process.env.DEV_AUTH_BYPASS || 'unset');
+  debugHeaders.set('x-debug-cookies', Array.from(request.cookies.getAll().map(c => c.name)).join(','));
+
+  // Helper to add debug headers to response
+  const addDebugHeaders = (response: NextResponse) => {
+    debugHeaders.forEach((value, key) => response.headers.set(key, value));
+    return response;
+  };
+
   // Check for profile path /u/[subdomain] - pass through
   const subdomain = isProfilePath(pathname);
   if (subdomain) {
@@ -71,51 +93,6 @@ export async function middleware(request: NextRequest) {
     response.headers.set('x-middleware-path', pathname);
     return addDebugHeaders(response);
   }
-
-  // Rate limiting for API routes
-  if (pathname.startsWith('/api/')) {
-    let rateLimitAction: RateLimitAction = 'magicLink';
-
-    if (pathname.startsWith('/api/auth/') || pathname === '/api/auth/magic-link') {
-      rateLimitAction = 'magicLink';
-    } else if (pathname.startsWith('/api/composer/adapt') || pathname.startsWith('/api/composer/generate')) {
-      rateLimitAction = 'aiGeneration';
-    } else if (pathname.startsWith('/api/publish')) {
-      rateLimitAction = 'publish';
-    } else if (pathname.startsWith('/api/profile/')) {
-      rateLimitAction = 'profileView';
-    }
-
-    const { success, remaining, reset } = await checkRateLimit(request, rateLimitAction);
-    if (!success) {
-      return NextResponse.json(
-        { error: 'Rate limit exceeded. Please try again later.' },
-        { status: 429, headers: rateLimitHeaders(remaining, reset) }
-      );
-    }
-  }
-
-  // Check auth for protected routes
-  const isProtectedRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/api/v1/') || pathname.startsWith('/api/profile');
-  const supabaseConfigured = isSupabaseConfigured();
-  const devAuthEnabled = isDevAuthEnabledRuntime();
-  const devBypassCookie = request.cookies.has('dev-auth-bypass') || request.cookies.has(`sb-${appConfig.SUPABASE_PROJECT_ID || 'local'}-auth-token`);
-
-  // DEBUG: Add debug headers to trace execution
-  const debugHeaders = new Headers();
-  debugHeaders.set('x-debug-supabaseConfigured', String(supabaseConfigured));
-  debugHeaders.set('x-debug-devAuthEnabled', String(devAuthEnabled));
-  debugHeaders.set('x-debug-devBypassCookie', String(devBypassCookie));
-  debugHeaders.set('x-debug-isProtectedRoute', String(isProtectedRoute));
-  debugHeaders.set('x-debug-nodeEnv', process.env.NODE_ENV || 'unset');
-  debugHeaders.set('x-debug-devAuthBypassEnv', process.env.DEV_AUTH_BYPASS || 'unset');
-  debugHeaders.set('x-debug-cookies', Array.from(request.cookies.getAll().map(c => c.name)).join(','));
-
-  // Helper to add debug headers to response
-  const addDebugHeaders = (response: NextResponse) => {
-    debugHeaders.forEach((value, key) => response.headers.set(key, value));
-    return response;
-  };
 
   // Dev authentication bypass - set user/workspace headers if dev mode
   if (isProtectedRoute && devAuthEnabled && devBypassCookie) {
