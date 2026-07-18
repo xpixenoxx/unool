@@ -103,7 +103,7 @@ export async function middleware(request: NextRequest) {
     projectId: appConfig.SUPABASE_PROJECT_ID || 'NOT_SET',
   };
 
-  // Create response early for cookie handling
+  // Create response early for cookie handling (Supabase needs it)
   const response = NextResponse.next({ request: { headers: requestHeaders } });
 
   if (isProtectedRoute && supabaseConfigured) {
@@ -133,9 +133,6 @@ export async function middleware(request: NextRequest) {
       requestHeaders.set('x-user-id', DEV_USER_ID);
       requestHeaders.set('x-user-email', 'dev@unool.local');
       requestHeaders.set('x-workspace-id', DEV_WORKSPACE_ID);
-
-      // Update response with new headers
-      response.headers.set('x-middleware-forward-headers', 'true');
     } else {
       // Wrap Supabase auth check in timeout to prevent hanging (increased for production latency)
       const sessionPromise = supabase.auth.getSession();
@@ -163,38 +160,43 @@ export async function middleware(request: NextRequest) {
       // Add user info to headers for downstream use
       requestHeaders.set('x-user-id', session.user.id);
       requestHeaders.set('x-user-email', session.user.email || '');
-
-      // Update response with new headers
-      response.headers.set('x-middleware-forward-headers', 'true');
     }
   }
 
+  // Create FINAL response with updated headers for downstream
+  const finalResponse = NextResponse.next({ request: { headers: requestHeaders } });
+
+  // Copy cookies from the early response (Supabase may have set them)
+  response.cookies.getAll().forEach(cookie => {
+    finalResponse.cookies.set(cookie.name, cookie.value, cookie);
+  });
+
   // Debug headers
-  response.headers.set('x-unool-debug', debugInfo.debug);
-  response.headers.set('x-unool-supabase-configured', debugInfo.supabaseConfigured);
-  response.headers.set('x-unool-dev-auth-enabled', debugInfo.devAuthEnabled);
-  response.headers.set('x-unool-dev-bypass-cookie', debugInfo.devBypassCookie);
-  response.headers.set('x-unool-anon-key', debugInfo.anonKey);
-  response.headers.set('x-unool-project-id', debugInfo.projectId);
+  finalResponse.headers.set('x-unool-debug', debugInfo.debug);
+  finalResponse.headers.set('x-unool-supabase-configured', debugInfo.supabaseConfigured);
+  finalResponse.headers.set('x-unool-dev-auth-enabled', debugInfo.devAuthEnabled);
+  finalResponse.headers.set('x-unool-dev-bypass-cookie', debugInfo.devBypassCookie);
+  finalResponse.headers.set('x-unool-anon-key', debugInfo.anonKey);
+  finalResponse.headers.set('x-unool-project-id', debugInfo.projectId);
 
   // Security headers
-  response.headers.set('X-Content-Type-Options', 'nosniff');
-  response.headers.set('X-Frame-Options', 'DENY');
-  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  response.headers.set('X-DNS-Prefetch-Control', 'off');
-  response.headers.set('X-Download-Options', 'noopen');
-  response.headers.set('X-Permitted-Cross-Domain-Policies', 'none');
-  response.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
-  response.headers.set('Cross-Origin-Resource-Policy', 'same-origin');
-  response.headers.set('Cross-Origin-Embedder-Policy', 'require-corp');
+  finalResponse.headers.set('X-Content-Type-Options', 'nosniff');
+  finalResponse.headers.set('X-Frame-Options', 'DENY');
+  finalResponse.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  finalResponse.headers.set('X-DNS-Prefetch-Control', 'off');
+  finalResponse.headers.set('X-Download-Options', 'noopen');
+  finalResponse.headers.set('X-Permitted-Cross-Domain-Policies', 'none');
+  finalResponse.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
+  finalResponse.headers.set('Cross-Origin-Resource-Policy', 'same-origin');
+  finalResponse.headers.set('Cross-Origin-Embedder-Policy', 'require-corp');
 
   // HSTS (only in production)
   if (appConfig.NODE_ENV === 'production' && appConfig.ENABLE_HSTS) {
-    response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+    finalResponse.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
   }
 
   // Permissions Policy
-  response.headers.set('Permissions-Policy', [
+  finalResponse.headers.set('Permissions-Policy', [
     'accelerometer=()',
     'ambient-light-sensor=()',
     'autoplay=()',
@@ -217,7 +219,7 @@ export async function middleware(request: NextRequest) {
     'magnetometer=()',
     'microphone=()',
     'midi=()',
-    'otp-credentials=()',
+    'otp-credentials-get=()',
     'payment=()',
     'picture-in-picture=()',
     'publickey-credentials-create=()',
@@ -250,9 +252,9 @@ export async function middleware(request: NextRequest) {
     cspDirectives.push(`report-uri ${appConfig.CSP_REPORT_URI}`);
   }
 
-  response.headers.set('Content-Security-Policy', cspDirectives.join('; '));
+  finalResponse.headers.set('Content-Security-Policy', cspDirectives.join('; '));
 
-  return response;
+  return finalResponse;
 }
 
 export const config = {
