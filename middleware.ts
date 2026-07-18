@@ -4,7 +4,7 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { config as appConfig } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
 import { checkRateLimit, rateLimitHeaders, RateLimitAction } from '@/lib/rate-limit';
-import { getDevAuthContext, isDevAuthEnabled } from '@/lib/auth/dev/bypass';
+import { getDevAuthContext } from '@/lib/auth/dev/bypass';
 
 const publicPaths = [
   '/',
@@ -23,6 +23,11 @@ function isSupabaseConfigured(): boolean {
     url !== 'https://your-project.supabase.co' &&
     key !== 'your-anon-key' &&
     url.startsWith('https://'));
+}
+
+// Check dev auth bypass at RUNTIME (not module load time - crucial for Vercel edge)
+function isDevAuthEnabledRuntime(): boolean {
+  return process.env.NODE_ENV === 'development' || process.env.DEV_AUTH_BYPASS === 'true';
 }
 
 // Check if path is a profile path /u/[subdomain]
@@ -51,7 +56,7 @@ export async function middleware(request: NextRequest) {
     const response = NextResponse.next({ request: { headers: requestHeaders } });
     response.headers.set('x-middleware-run', 'true');
     response.headers.set('x-middleware-path', pathname);
-    return response;
+    return addDebugHeaders(response);
   }
 
   // Skip middleware for static assets and public paths
@@ -64,7 +69,7 @@ export async function middleware(request: NextRequest) {
     const response = NextResponse.next({ request: { headers: requestHeaders } });
     response.headers.set('x-middleware-run', 'true');
     response.headers.set('x-middleware-path', pathname);
-    return response;
+    return addDebugHeaders(response);
   }
 
   // Rate limiting for API routes
@@ -93,15 +98,24 @@ export async function middleware(request: NextRequest) {
   // Check auth for protected routes
   const isProtectedRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/api/v1/') || pathname.startsWith('/api/profile');
   const supabaseConfigured = isSupabaseConfigured();
-  const devAuthEnabled = isDevAuthEnabled();
+  const devAuthEnabled = isDevAuthEnabledRuntime();
   const devBypassCookie = request.cookies.has('dev-auth-bypass') || request.cookies.has(`sb-${appConfig.SUPABASE_PROJECT_ID || 'local'}-auth-token`);
 
   // DEBUG: Add debug headers to trace execution
-  requestHeaders.set('x-debug-supabaseConfigured', String(supabaseConfigured));
-  requestHeaders.set('x-debug-devAuthEnabled', String(devAuthEnabled));
-  requestHeaders.set('x-debug-devBypassCookie', String(devBypassCookie));
-  requestHeaders.set('x-debug-isProtectedRoute', String(isProtectedRoute));
-  requestHeaders.set('x-debug-cookies', Array.from(request.cookies.getAll().map(c => c.name)).join(','));
+  const debugHeaders = new Headers();
+  debugHeaders.set('x-debug-supabaseConfigured', String(supabaseConfigured));
+  debugHeaders.set('x-debug-devAuthEnabled', String(devAuthEnabled));
+  debugHeaders.set('x-debug-devBypassCookie', String(devBypassCookie));
+  debugHeaders.set('x-debug-isProtectedRoute', String(isProtectedRoute));
+  debugHeaders.set('x-debug-nodeEnv', process.env.NODE_ENV || 'unset');
+  debugHeaders.set('x-debug-devAuthBypassEnv', process.env.DEV_AUTH_BYPASS || 'unset');
+  debugHeaders.set('x-debug-cookies', Array.from(request.cookies.getAll().map(c => c.name)).join(','));
+
+  // Helper to add debug headers to response
+  const addDebugHeaders = (response: NextResponse) => {
+    debugHeaders.forEach((value, key) => response.headers.set(key, value));
+    return response;
+  };
 
   // Dev authentication bypass - set user/workspace headers if dev mode
   if (isProtectedRoute && devAuthEnabled && devBypassCookie) {
@@ -151,14 +165,14 @@ export async function middleware(request: NextRequest) {
     }
     response.headers.set('x-middleware-run', 'true');
     response.headers.set('x-middleware-path', pathname);
-    return response;
+    return addDebugHeaders(response);
   }
 
   // Pass through for all other cases
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set('x-middleware-run', 'true');
   response.headers.set('x-middleware-path', pathname);
-  return response;
+  return addDebugHeaders(response);
 }
 
 export const config = {
