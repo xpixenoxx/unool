@@ -90,7 +90,7 @@ export async function middleware(request: NextRequest) {
   const response = NextResponse.next({ request: { headers: requestHeaders } });
 
   // Check auth for protected routes
-  const isProtectedRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/api/v1/');
+  const isProtectedRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/api/v1/') || pathname.startsWith('/api/profile');
   // /api/profile/extract is intentionally unprotected for dev testing - dev bypass in middleware not working
   const supabaseConfigured = isSupabaseConfigured();
   const devAuthEnabled = isDevAuthEnabled();
