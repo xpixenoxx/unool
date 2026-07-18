@@ -97,12 +97,12 @@ export async function middleware(request: NextRequest) {
   const devBypassCookie = request.cookies.has('dev-auth-bypass') || request.cookies.has(`sb-${appConfig.SUPABASE_PROJECT_ID || 'local'}-auth-token`);
 
   // Debug headers
-  response.headers.set('x-middleware-debug', 'auth-check');
-  response.headers.set('x-middleware-supabase-configured', String(supabaseConfigured));
-  response.headers.set('x-middleware-dev-auth-enabled', String(devAuthEnabled));
-  response.headers.set('x-middleware-dev-bypass-cookie', String(devBypassCookie));
-  response.headers.set('x-middleware-anon-key', appConfig.SUPABASE_ANON_KEY ? 'SET' : 'NOT_SET');
-  response.headers.set('x-middleware-project-id', appConfig.SUPABASE_PROJECT_ID || 'NOT_SET');
+  response.headers.set('x-unool-debug', 'auth-check');
+  response.headers.set('x-unool-supabase-configured', String(supabaseConfigured));
+  response.headers.set('x-unool-dev-auth-enabled', String(devAuthEnabled));
+  response.headers.set('x-unool-dev-bypass-cookie', String(devBypassCookie));
+  response.headers.set('x-unool-anon-key', appConfig.SUPABASE_ANON_KEY ? 'SET' : 'NOT_SET');
+  response.headers.set('x-unool-project-id', appConfig.SUPABASE_PROJECT_ID || 'NOT_SET');
 
   if (isProtectedRoute && supabaseConfigured) {
     // Create Supabase client only if configured
@@ -141,10 +141,10 @@ export async function middleware(request: NextRequest) {
       if (!session) {
         if (pathname.startsWith('/api/')) {
           const errorResponse = NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-          errorResponse.headers.set('x-middleware-debug', 'auth-check');
-          errorResponse.headers.set('x-middleware-supabase-configured', String(supabaseConfigured));
-          errorResponse.headers.set('x-middleware-dev-auth-enabled', String(devAuthEnabled));
-          errorResponse.headers.set('x-middleware-dev-bypass-cookie', String(devBypassCookie));
+          errorResponse.headers.set('x-unool-debug', 'auth-check');
+          errorResponse.headers.set('x-unool-supabase-configured', String(supabaseConfigured));
+          errorResponse.headers.set('x-unool-dev-auth-enabled', String(devAuthEnabled));
+          errorResponse.headers.set('x-unool-dev-bypass-cookie', String(devBypassCookie));
           return errorResponse;
         }
         const loginUrl = new URL('/signup', request.url);
