@@ -106,6 +106,16 @@ export async function middleware(request: NextRequest) {
   // Create response early for cookie handling (Supabase needs it)
   const response = NextResponse.next({ request: { headers: requestHeaders } });
 
+  // DEBUG: Log to see if middleware is executing and what values we have
+  console.log('[Middleware Debug]', {
+    pathname,
+    isProtectedRoute,
+    supabaseConfigured,
+    devAuthEnabled,
+    devBypassCookie,
+    cookieNames: Array.from(request.cookies.getAll().map(c => c.name)),
+  });
+
   if (isProtectedRoute && supabaseConfigured) {
     // Create Supabase client with response for cookie handling
     const supabase = createServerClient(
@@ -169,6 +179,12 @@ export async function middleware(request: NextRequest) {
   // Copy cookies from the early response (Supabase may have set them)
   response.cookies.getAll().forEach(cookie => {
     finalResponse.cookies.set(cookie.name, cookie.value, cookie);
+  });
+
+  // DEBUG: Log what we're sending
+  console.log('[Middleware Debug] Sending debug headers', {
+    devAuthEnabled: debugInfo.devAuthEnabled,
+    devBypassCookie: debugInfo.devBypassCookie,
   });
 
   // Debug headers
