@@ -89,6 +89,9 @@ export async function middleware(request: NextRequest) {
   // Create response early to preserve cookies
   const response = NextResponse.next({ request: { headers: requestHeaders } });
 
+  // IMMEDIATE debug header
+  response.headers.set('x-unool-middleware-start', 'true');
+
   // Check auth for protected routes
   const isProtectedRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/api/v1/') || pathname.startsWith('/api/profile');
   // /api/profile/extract is intentionally unprotected for dev testing - dev bypass in middleware not working
