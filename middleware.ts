@@ -158,13 +158,18 @@ export async function middleware(request: NextRequest) {
 
       if (!session) {
         if (pathname.startsWith('/api/')) {
-          const errorResponse = NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-          errorResponse.headers.set('x-unool-debug', debugInfo.debug);
-          errorResponse.headers.set('x-unool-supabase-configured', debugInfo.supabaseConfigured);
-          errorResponse.headers.set('x-unool-dev-auth-enabled', debugInfo.devAuthEnabled);
-          errorResponse.headers.set('x-unool-dev-bypass-cookie', debugInfo.devBypassCookie);
-          errorResponse.headers.set('x-unool-anon-key', debugInfo.anonKey);
-          errorResponse.headers.set('x-unool-project-id', debugInfo.projectId);
+          const errorResponse = NextResponse.json({
+            error: 'Unauthorized',
+            debug: {
+              devAuthEnabled,
+              devBypassCookie,
+              supabaseConfigured,
+              cookieNames: Array.from(request.cookies.getAll().map(c => c.name)),
+            }
+          }, { status: 401 });
+          errorResponse.headers.set('x-debug-devAuthEnabled', String(devAuthEnabled));
+          errorResponse.headers.set('x-debug-devBypassCookie', String(devBypassCookie));
+          errorResponse.headers.set('x-debug-supabaseConfigured', String(supabaseConfigured));
           return errorResponse;
         }
         const loginUrl = new URL('/signup', request.url);
