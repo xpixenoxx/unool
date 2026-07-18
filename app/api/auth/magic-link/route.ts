@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { createServerClient } from '@supabase/ssr';
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
 import { checkRateLimit, rateLimitHeaders } from '@/lib/rate-limit';
+import { cookies } from 'next/headers';
 
 // GET: Diagnostic endpoint to check SMTP/email delivery health
 export async function GET() {
@@ -77,9 +79,24 @@ export async function POST(request: NextRequest) {
     // Use anon key client to call signInWithOtp which SENDS the email
     // admin.generateLink only generates the link but does NOT send email
     // IMPORTANT: Enforce PKCE flow so Supabase redirects with ?code= instead of #access_token=
-    const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
-      auth: { flowType: 'pkce' },
-    });
+    // We MUST use createServerClient so the PKCE code_verifier is stored in the browser's cookies!
+    const cookieStore = await cookies();
+    const supabase = createServerClient(
+      config.SUPABASE_URL,
+      config.SUPABASE_ANON_KEY,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            );
+          },
+        },
+      }
+    );
     logger.info('Calling signInWithOtp', {
       traceId,
       email,
