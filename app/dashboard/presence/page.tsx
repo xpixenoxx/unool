@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Globe, PenTool, Loader2, Sparkles, Trash2, Palette, Link as LinkIcon, ExternalLink, Plus } from 'lucide-react';
+import { Globe, PenTool, Loader2, Sparkles, Trash2, Palette, Link as LinkIcon, ExternalLink, Plus, CheckCircle, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 
 type TabValue = 'profile' | 'links' | 'design';
 type Preset = 'minimal' | 'bold' | 'corporate' | 'creative' | 'technical';
@@ -30,6 +31,7 @@ interface ProfileTheme {
 }
 
 interface Profile {
+  id?: string;
   name: string;
   headline: string;
   bio: string;
@@ -38,52 +40,175 @@ interface Profile {
   links: ProfileLink[];
   proofPoints: ProofPoint[];
   theme: ProfileTheme;
+  subdomain?: string;
+}
+
+interface ExtractedProfile {
+  name: string;
+  headline: string;
+  bio: string;
+  role: string;
+  company: string;
+  links: Array<{ label: string; url: string; type: string }>;
+  proofPoints: Array<{ type: string; value: string; url?: string }>;
 }
 
 export default function PresencePage() {
   const [activeTab, setActiveTab] = useState<TabValue>('profile');
   const [generating, setGenerating] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [sourceUrl, setSourceUrl] = useState('');
+  const [subdomain, setSubdomain] = useState('');
+  const [subdomainAvailable, setSubdomainAvailable] = useState<boolean | null>(null);
+  const [claimedSubdomain, setClaimedSubdomain] = useState<string | null>(null);
 
-  // Mock profile data
   const [profile, setProfile] = useState<Profile>({
-    name: 'Sarah Chen',
-    headline: 'Founder & CEO @ DataFlow',
-    bio: 'Building the future of data infrastructure. Previously VP Eng at ScaleAI. Stanford CS. Angel investor.',
-    role: 'Founder & CEO',
-    company: 'DataFlow',
-    links: [
-      { label: 'Website', url: 'https://dataflow.io', type: 'website' },
-      { label: 'LinkedIn', url: 'https://linkedin.com/in/sarahchen', type: 'linkedin' },
-      { label: 'Twitter', url: 'https://twitter.com/sarahchen', type: 'twitter' },
-    ],
-    proofPoints: [
-      { type: 'metric', value: '$2.4M ARR', url: '' },
-      { type: 'customer', value: '500+ companies', url: '' },
-      { type: 'team', value: '12 people', url: '' },
-    ],
+    name: '',
+    headline: '',
+    bio: '',
+    role: '',
+    company: '',
+    links: [],
+    proofPoints: [],
     theme: { preset: 'minimal' },
   });
 
+  // Load existing profile on mount
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  const loadProfile = async () => {
+    try {
+      const res = await fetch('/api/profile', { credentials: 'include' });
+      const data = await res.json();
+      if (data.profile) {
+        setProfile({
+          id: data.profile.id,
+          name: data.profile.name || '',
+          headline: data.profile.headline || '',
+          bio: data.profile.bio || '',
+          role: data.profile.role || '',
+          company: data.profile.company || '',
+          links: data.profile.links || [],
+          proofPoints: data.profile.proof_points || [],
+          theme: data.profile.theme || { preset: 'minimal' },
+          subdomain: data.profile.subdomain,
+        });
+        if (data.profile.subdomain) {
+          setClaimedSubdomain(data.profile.subdomain);
+        }
+      }
+    } catch {
+      // Ignore - user might not have a profile yet
+    }
+  };
+
+  const checkSubdomainAvailability = async (value: string) => {
+    if (!value || value.length < 2) {
+      setSubdomainAvailable(null);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/profile/${value}`, { credentials: 'include' });
+      setSubdomainAvailable(res.status === 404); // 404 means available
+    } catch {
+      setSubdomainAvailable(null);
+    }
+  };
+
   const handleGenerate = async () => {
-    if (!sourceUrl) return;
+    if (!sourceUrl.trim()) return;
     setGenerating(true);
-    // Simulate AI generation
-    await new Promise(r => setTimeout(r, 2000));
-    setProfile(prev => ({
-      ...prev,
-      name: 'Sarah Chen',
-      headline: 'Founder & CEO @ DataFlow',
-      bio: 'Building the future of data infrastructure. Previously VP Eng at ScaleAI. Stanford CS. Angel investor.',
-      role: 'Founder & CEO',
-      company: 'DataFlow',
-    }));
-    setGenerating(false);
+
+    try {
+      const res = await fetch('/api/profile/extract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ url: sourceUrl }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Extraction failed');
+      }
+
+      const extracted: ExtractedProfile = data.profile;
+
+      setProfile(prev => ({
+        ...prev,
+        name: extracted.name || prev.name,
+        headline: extracted.headline || prev.headline,
+        bio: extracted.bio || prev.bio,
+        role: extracted.role || prev.role,
+        company: extracted.company || prev.company,
+        links: [
+          ...prev.links,
+          ...(extracted.links || []).map(l => ({ label: l.label, url: l.url, type: l.type })),
+        ],
+        proofPoints: [
+          ...prev.proofPoints,
+          ...(extracted.proofPoints || []).map(p => ({ type: p.type, value: p.value, url: p.url || '' })),
+        ],
+      }));
+
+      toast.success('Profile generated from URL');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to generate profile');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!profile.name.trim()) {
+      toast.error('Name is required');
+      return;
+    }
+
+    if (subdomain && !subdomainAvailable) {
+      toast.error('Subdomain is not available');
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          ...profile,
+          subdomain: subdomain || profile.subdomain,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Save failed');
+      }
+
+      setProfile(data.profile);
+      if (data.profile.subdomain) {
+        setClaimedSubdomain(data.profile.subdomain);
+      }
+      toast.success('Profile saved');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleTabChange = (value: string) => {
     setActiveTab(value as TabValue);
   };
+
+  const liveUrl = claimedSubdomain ? `https://${claimedSubdomain}.unool.co` : null;
 
   return (
     <div className="space-y-8">
@@ -93,17 +218,21 @@ export default function PresencePage() {
           <h1 className="text-3xl font-bold">Presence (One Link)</h1>
           <p className="text-muted-foreground">Your intelligent public profile page</p>
         </div>
-        <div className="flex gap-2">
-          <Badge variant="outline" className="gap-1">
-            <Globe className="h-3 w-3" />
-            sarah.unool.co
-          </Badge>
-          <Button variant="outline" asChild>
-            <Link href="/sarah.unool.co" target="_blank">
-              <ExternalLink className="mr-2 h-4 w-4" />
-              View Live
-            </Link>
-          </Button>
+        <div className="flex flex-wrap gap-2">
+          {claimedSubdomain && (
+            <Badge variant="outline" className="gap-1">
+              <Globe className="h-3 w-3" />
+              {claimedSubdomain}.unool.co
+            </Badge>
+          )}
+          {claimedSubdomain && liveUrl && (
+            <Button variant="outline" asChild>
+              <Link href={liveUrl} target="_blank">
+                <ExternalLink className="mr-2 h-4 w-4" />
+                View Live
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -126,7 +255,7 @@ export default function PresencePage() {
               onChange={e => setSourceUrl(e.target.value)}
               className="flex-1"
             />
-            <Button onClick={handleGenerate} disabled={generating || !sourceUrl}>
+            <Button onClick={handleGenerate} disabled={generating || !sourceUrl.trim()}>
               {generating ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -140,6 +269,64 @@ export default function PresencePage() {
               )}
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Subdomain Claim */}
+      <Card className="border-primary/20 bg-primary/5">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Globe className="h-5 w-5 text-primary" />
+            Claim Your Subdomain
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Choose a unique subdomain for your public profile (e.g., yourname.unool.co)
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex items-center gap-2 flex-1">
+              <Input
+                placeholder="yourname"
+                value={subdomain}
+                onChange={e => {
+                  const v = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+                  setSubdomain(v);
+                  checkSubdomainAvailability(v);
+                }}
+                disabled={!!claimedSubdomain}
+                className="flex-1"
+              />
+              <span className="text-muted-foreground">.unool.co</span>
+            </div>
+            <Button
+              onClick={handleSave}
+              disabled={!subdomain || subdomainAvailable === false || saving || !!claimedSubdomain}
+              variant={claimedSubdomain ? 'secondary' : 'default'}
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : claimedSubdomain ? (
+                <>
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Claimed
+                </>
+              ) : (
+                <>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Claim
+                </>
+              )}
+            </Button>
+          </div>
+          <p className="text-sm">
+            {subdomainAvailable === true && <span className="text-green-600"><CheckCircle className="mr-1 h-3 w-3 inline" /> Available</span>}
+            {subdomainAvailable === false && <span className="text-red-600"><AlertCircle className="mr-1 h-3 w-3 inline" /> Taken</span>}
+            {subdomainAvailable === null && subdomain && <span className="text-muted-foreground">Checking...</span>}
+          </p>
         </CardContent>
       </Card>
 
@@ -160,11 +347,19 @@ export default function PresencePage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <Label htmlFor="name">Name</Label>
-                  <Input id="name" value={profile.name} onChange={e => setProfile(p => ({ ...p, name: e.target.value }))} />
+                  <Input
+                    id="name"
+                    value={profile.name}
+                    onChange={e => setProfile(p => ({ ...p, name: e.target.value }))}
+                  />
                 </div>
                 <div>
                   <Label htmlFor="headline">Headline</Label>
-                  <Input id="headline" value={profile.headline} onChange={e => setProfile(p => ({ ...p, headline: e.target.value }))} />
+                  <Input
+                    id="headline"
+                    value={profile.headline}
+                    onChange={e => setProfile(p => ({ ...p, headline: e.target.value }))}
+                  />
                 </div>
                 <div className="md:col-span-2">
                   <Label htmlFor="bio">Bio</Label>
@@ -178,11 +373,19 @@ export default function PresencePage() {
                 </div>
                 <div>
                   <Label htmlFor="role">Role</Label>
-                  <Input id="role" value={profile.role} onChange={e => setProfile(p => ({ ...p, role: e.target.value }))} />
+                  <Input
+                    id="role"
+                    value={profile.role}
+                    onChange={e => setProfile(p => ({ ...p, role: e.target.value }))}
+                  />
                 </div>
                 <div>
                   <Label htmlFor="company">Company</Label>
-                  <Input id="company" value={profile.company} onChange={e => setProfile(p => ({ ...p, company: e.target.value }))} />
+                  <Input
+                    id="company"
+                    value={profile.company}
+                    onChange={e => setProfile(p => ({ ...p, company: e.target.value }))}
+                  />
                 </div>
               </div>
             </CardContent>
@@ -212,6 +415,8 @@ export default function PresencePage() {
                       <option value="customer">Customer</option>
                       <option value="team">Team</option>
                       <option value="funding">Funding</option>
+                      <option value="press">Press</option>
+                      <option value="product">Product</option>
                     </select>
                     <Input
                       value={point.value}
@@ -221,6 +426,15 @@ export default function PresencePage() {
                       }))}
                       placeholder="e.g., $2.4M ARR"
                     />
+                    <Input
+                      value={point.url}
+                      onChange={e => setProfile(p => ({
+                        ...p,
+                        proofPoints: p.proofPoints.map((pt, idx) => idx === i ? { ...pt, url: e.target.value } : pt)
+                      }))}
+                      placeholder="Optional URL"
+                      className="w-64"
+                    />
                     <Button variant="ghost" size="icon" onClick={() => setProfile(p => ({
                       ...p,
                       proofPoints: p.proofPoints.filter((_, idx) => idx !== i)
@@ -229,6 +443,11 @@ export default function PresencePage() {
                     </Button>
                   </div>
                 ))}
+                {profile.proofPoints.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No proof points yet. Add metrics, customers, team size, or funding.
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -287,6 +506,11 @@ export default function PresencePage() {
                     </Button>
                   </div>
                 ))}
+                {profile.links.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No links yet. Add your website, LinkedIn, GitHub, etc.
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -324,6 +548,20 @@ export default function PresencePage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Save Button */}
+      <div className="flex justify-end pt-4 border-t">
+        <Button onClick={handleSave} disabled={saving} size="lg">
+          {saving ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Saving Profile...
+            </>
+          ) : (
+            'Save Profile'
+          )}
+        </Button>
+      </div>
     </div>
   );
 }

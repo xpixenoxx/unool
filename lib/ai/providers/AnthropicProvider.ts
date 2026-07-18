@@ -2,6 +2,7 @@ import { AIProvider, AIResponse, AIError, GenerationOptions } from '../types';
 import { Result, ok, err } from '@/lib/shared/Result';
 import { logger } from '@/lib/logger';
 import { z } from 'zod';
+import { config } from '@/lib/config/schema';
 
 export class AnthropicProvider implements AIProvider {
   name = 'anthropic';
@@ -14,12 +15,13 @@ export class AnthropicProvider implements AIProvider {
   }
 
   async generateText(prompt: string, options?: GenerationOptions): Promise<Result<AIResponse, AIError>> {
-    const model = options?.model || 'claude-3-5-haiku-20241022';
+    const model = options?.model || config.ANTHROPIC_MODEL || config.AI_DEFAULT_MODEL;
     const systemPrompt = options?.systemPrompt || '';
     const maxTokens = options?.maxTokens || 4000;
     const temperature = options?.temperature ?? 0.7;
 
     try {
+      console.log('[DEBUG AnthropicProvider] Sending request:', { model, maxTokens, temperature, promptLength: prompt.length });
       const response = await fetch(`${this.baseUrl}/messages`, {
         method: 'POST',
         headers: {
@@ -37,6 +39,7 @@ export class AnthropicProvider implements AIProvider {
       });
 
       const data = await response.json();
+      console.log('[DEBUG AnthropicProvider] Response:', { ok: response.ok, status: response.status, data: JSON.stringify(data).slice(0, 500) });
 
       if (!response.ok) {
         return err({
@@ -89,7 +92,16 @@ export class AnthropicProvider implements AIProvider {
     if (!result.ok) return err(result.error);
 
     try {
-      const parsed = JSON.parse(result.value.text);
+      // Strip markdown code fences if present
+      let text = result.value.text.trim();
+
+      // Remove opening fence (```json, ```javascript, ``` or any ```lang)
+      text = text.replace(/^```[a-zA-Z]*\n?/, '');
+      // Remove closing fence (```)
+      text = text.replace(/\n?```$/, '');
+      text = text.trim();
+
+      const parsed = JSON.parse(text);
       const validated = schema.parse(parsed);
       return ok(validated);
     } catch (parseError: unknown) {

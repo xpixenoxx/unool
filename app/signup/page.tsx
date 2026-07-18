@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { Mail, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -105,10 +106,27 @@ function SignupForm() {
 
           <p className="text-xs text-center text-muted-foreground">
             By signing in, you agree to our{' '}
-            <a href="/terms" className="underline">Terms of Service</a>{' '}
+            <Link href="/terms" className="underline">Terms of Service</Link>{' '}
             and{' '}
-            <a href="/privacy" className="underline">Privacy Policy</a>.
+            <Link href="/privacy" className="underline">Privacy Policy</Link>.
           </p>
+
+          {/* Dev bypass - only show in development */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-t from-card/90 to-transparent z-10 pointer-events-none h-8 bottom-0" />
+              <Button
+                variant="outline"
+                className="w-full mt-4 text-xs text-muted-foreground"
+                onClick={async () => {
+                  const res = await fetch('/api/auth/dev-bypass', { method: 'GET', credentials: 'include' });
+                  if (res.ok) window.location.href = '/dashboard';
+                }}
+              >
+                🛠️ Dev Login (Bypass Magic Link)
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

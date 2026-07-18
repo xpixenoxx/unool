@@ -142,3 +142,28 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to complete step' }, { status: 500 });
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const userId = request.headers.get('x-user-id');
+    const workspaceId = request.nextUrl.searchParams.get('workspaceId');
+
+    if (!userId || !workspaceId) {
+      return NextResponse.json({ error: 'Missing userId or workspaceId' }, { status: 400 });
+    }
+
+    const { error } = await supabase
+      .from('onboarding_checklists')
+      .delete()
+      .eq('workspace_id', workspaceId)
+      .eq('user_id', userId);
+
+    if (error) throw error;
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error('Reset onboarding checklist failed', { error: err });
+    return NextResponse.json({ error: 'Failed to reset onboarding' }, { status: 500 });
+  }
+}

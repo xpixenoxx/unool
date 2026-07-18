@@ -8,8 +8,10 @@ const configSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional().default('test-service-key'),
   SUPABASE_PROJECT_ID: z.string().optional().default('local'),
   ANTHROPIC_API_KEY: z.string().optional(),
+  ANTHROPIC_MODEL: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
   AI_DEFAULT_MODEL: z.string().default('claude-3-5-haiku-20241022'),
+  AI_OPENAI_MODEL: z.string().default('gpt-4o-mini'),
   AI_MAX_TOKENS_PER_REQUEST: z.coerce.number().default(4000),
   AI_DAILY_TOKEN_BUDGET: z.coerce.number().default(50000),
   RATE_LIMIT_AI_PER_MIN: z.coerce.number().default(20),
@@ -24,6 +26,12 @@ const configSchema = z.object({
   // Encryption key for token encryption (32-byte base64, required in production)
   ENCRYPTION_KEY: z.string().optional(),
   ENCRYPTION_KEY_VERSION: z.coerce.number().default(1),
+
+  // Dev auth bypass
+  DEV_AUTH_BYPASS: z.coerce.boolean().optional().default(false),
+
+  // Sentry
+  SENTRY_DSN: z.string().url().optional(),
 
   // LinkedIn OAuth
   LINKEDIN_CLIENT_ID: z.string().optional(),
@@ -44,6 +52,11 @@ const configSchema = z.object({
   LINKEDIN_WEBHOOK_SECRET: z.string().optional(),
   X_WEBHOOK_SECRET: z.string().optional(),
   META_WEBHOOK_SECRET: z.string().optional(),
+
+  // Security hardening
+  ENABLE_HSTS: z.coerce.boolean().default(true),
+  CSP_REPORT_URI: z.string().url().optional(),
+  ALLOWED_ORIGINS: z.string().optional().default(''),
 });
 
 export type Config = z.infer<typeof configSchema>;

@@ -5,33 +5,46 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Globe, PenTool, CheckCircle, Link as LinkIcon, Plus, ExternalLink } from 'lucide-react';
-import { format } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
+import { PlatformConnections } from '@/components/dashboard/PlatformConnections';
+import { OnboardingChecklist } from '@/components/onboarding/OnboardingChecklist';
 
-export default function DashboardPage() {
-  // Mock data - will be replaced with real data from Supabase
-  const profile = {
-    subdomain: 'founder',
-    name: 'Sarah Chen',
-    headline: 'Founder & CEO @ DataFlow',
-    status: 'published',
-    updatedAt: new Date(),
-    links: [
-      { label: 'Website', url: 'https://dataflow.io', type: 'website' },
-      { label: 'LinkedIn', url: 'https://linkedin.com/in/sarahchen', type: 'linkedin' },
-      { label: 'Twitter', url: 'https://twitter.com/sarahchen', type: 'twitter' },
-    ],
-    proofPoints: [
-      { type: 'metric', value: '$2.4M ARR' },
-      { type: 'customer', value: '500+ companies' },
-      { type: 'team', value: '12 people' },
-    ],
-  };
+interface Profile {
+  subdomain: string | null;
+  name: string | null;
+  headline: string | null;
+  status: 'published' | 'draft';
+  updatedAt: string | null;
+  links: Array<{ label: string; url: string; type: string }>;
+  proofPoints: Array<{ type: string; value: string }>;
+}
 
-  const recentPosts = [
-    { id: '1', content: 'Just launched v2...', status: 'published', platform: 'linkedin', createdAt: new Date('2024-01-15') },
-    { id: '2', content: 'Building in public...', status: 'draft', platform: 'x', createdAt: new Date() },
-    { id: '3', content: 'Our Series A...', status: 'published', platform: 'threads', createdAt: new Date('2024-01-10') },
-  ];
+interface Post {
+  id: string;
+  content: string;
+  status: 'draft' | 'scheduled' | 'published' | 'failed';
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface UsageStats {
+  postsThisMonth: number;
+  postsLimit: number;
+  profileViews: number;
+  linkClicks: number;
+}
+
+interface DashboardData {
+  profile: Profile | null;
+  recentPosts: Post[];
+  usageStats: UsageStats;
+  planTier: 'free' | 'pro' | 'enterprise';
+  userId: string;
+  workspaceId: string;
+}
+
+export default function DashboardClient({ data }: { data: DashboardData }) {
+  const { profile, recentPosts, usageStats, planTier } = data;
 
   return (
     <div className="space-y-8">
@@ -49,7 +62,7 @@ export default function DashboardPage() {
             </Link>
           </Button>
           <Button variant="outline" asChild>
-            <Link href={`/${profile.subdomain}.unool.co`} target="_blank">
+            <Link href={`/${(profile?.subdomain || 'yourname')}.unool.co`} target="_blank">
               <ExternalLink className="mr-2 h-4 w-4" />
               View Profile
             </Link>
@@ -66,16 +79,16 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2 mb-2">
-              <Badge variant={profile.status === 'published' ? 'default' : 'secondary'}>
+              <Badge variant={profile?.status === 'published' ? 'default' : 'secondary'}>
                 <CheckCircle className="mr-1 h-3 w-3" />
-                {profile.status === 'published' ? 'Live' : 'Draft'}
+                {profile?.status === 'published' ? 'Live' : 'Draft'}
               </Badge>
               <span className="text-sm text-muted-foreground">
-                {profile.subdomain}.unool.co
+                {profile?.subdomain ? `${profile.subdomain}.unool.co` : 'Not claimed'}
               </span>
             </div>
-            <p className="text-2xl font-bold">{profile.name}</p>
-            <p className="text-sm text-muted-foreground">{profile.headline}</p>
+            <p className="text-2xl font-bold">{profile?.name || 'Your Name'}</p>
+            <p className="text-sm text-muted-foreground">{profile?.headline || 'Add a headline'}</p>
           </CardContent>
         </Card>
 
@@ -86,11 +99,14 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold">3</span>
-              <span className="text-sm text-muted-foreground">/ 12 limit (Free)</span>
+              <span className="text-3xl font-bold">{usageStats.postsThisMonth}</span>
+              <span className="text-sm text-muted-foreground">/ {usageStats.postsLimit} limit ({planTier})</span>
             </div>
             <div className="mt-2 h-2 bg-muted rounded-full overflow-hidden">
-              <div className="h-full bg-primary w-1/4" />
+              <div
+                className="h-full bg-primary"
+                style={{ width: `${Math.min(100, (usageStats.postsThisMonth / usageStats.postsLimit) * 100)}%` }}
+              />
             </div>
           </CardContent>
         </Card>
@@ -102,10 +118,9 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold">1,234</span>
-              <span className="text-sm text-muted-foreground">+12% vs last month</span>
+              <span className="text-3xl font-bold">{usageStats.profileViews.toLocaleString()}</span>
+              <span className="text-sm text-muted-foreground">This month</span>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">This month</p>
           </CardContent>
         </Card>
 
@@ -116,10 +131,9 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold">89</span>
-              <span className="text-sm text-muted-foreground">7.2% CTR</span>
+              <span className="text-3xl font-bold">{usageStats.linkClicks.toLocaleString()}</span>
+              <span className="text-sm text-muted-foreground">Total clicks</span>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">This month</p>
           </CardContent>
         </Card>
       </div>
@@ -136,12 +150,12 @@ export default function DashboardPage() {
           <CardContent className="flex flex-col gap-4">
             <div className="flex items-center gap-3 p-3 bg-background rounded-lg border">
               <span className="text-muted-foreground">unool.co/</span>
-              <span className="font-mono font-medium">{profile.subdomain}</span>
-              <Badge variant="outline">Live</Badge>
+              <span className="font-mono font-medium">{profile?.subdomain || 'not-claimed'}</span>
+              <Badge variant="outline">{profile?.status === 'published' ? 'Live' : 'Draft'}</Badge>
             </div>
             <div className="flex gap-2">
               <Button asChild>
-                <Link href={`/${profile.subdomain}.unool.co`} target="_blank">
+                <Link href={`/${(profile?.subdomain || 'yourname')}.unool.co`} target="_blank">
                   <ExternalLink className="mr-2 h-4 w-4" />
                   View Profile
                 </Link>
@@ -177,6 +191,14 @@ export default function DashboardPage() {
         </Card>
       </div>
 
+      {/* Onboarding Checklist */}
+      {data.profile && (
+        <OnboardingChecklist
+          workspaceId={data.workspaceId}
+          userId={data.userId}
+        />
+      )}
+
       {/* Recent Activity */}
       <Card>
         <CardHeader>
@@ -184,22 +206,23 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {recentPosts.map((post) => (
-              <div key={post.id} className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent transition-colors">
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate">{post.content}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {post.platform} • {format(post.createdAt, 'MMM d, yyyy')}
-                  </p>
+            {recentPosts.length > 0 ? (
+              recentPosts.map((post) => (
+                <div key={post.id} className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{post.content}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={post.status === 'published' ? 'default' : 'secondary'}>
+                      {post.status}
+                    </Badge>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant={post.status === 'published' ? 'default' : 'secondary'}>
-                    {post.status}
-                  </Badge>
-                </div>
-              </div>
-            ))}
-            {recentPosts.length === 0 && (
+              ))
+            ) : (
               <div className="text-center py-8 text-muted-foreground">
                 <PenTool className="mx-auto h-12 w-12 mb-4 text-muted-foreground/50" />
                 <p>No posts yet. Create your first post to get started!</p>
@@ -208,6 +231,9 @@ export default function DashboardPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Platform Connections */}
+      <PlatformConnections workspaceId={data.workspaceId} />
     </div>
   );
 }

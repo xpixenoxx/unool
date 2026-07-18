@@ -8,6 +8,10 @@ const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
 const ALLOWED_EVENT_TYPES = ['posts', 'profile', 'variants', 'engagement'] as const;
 type AllowedEventType = typeof ALLOWED_EVENT_TYPES[number];
 
+// Dev auth bypass constants (must match lib/auth/dev/bypass.ts)
+const DEV_USER_ID = '00000000-0000-0000-0000-000000000001';
+const DEV_TOKEN_PREFIX = 'dev-token-dev@unool.local';
+
 function isValidUUID(id: string): boolean {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   return uuidRegex.test(id);
@@ -18,30 +22,49 @@ function validateAndFilterEventTypes(eventTypes: string[]): AllowedEventType[] {
 }
 
 /**
- * Verifies Supabase JWT token from Authorization header
+ * Verifies Supabase JWT token from Authorization header or dev auth cookie
  * Returns userId if valid, null if invalid
  */
-async function verifyAuthToken(authHeader: string | null): Promise<string | null> {
-  if (!authHeader) return null;
+async function verifyAuthToken(request: NextRequest): Promise<string | null> {
+  // 1. Check Authorization header (Bearer token)
+  const authHeader = request.headers.get('authorization');
+  if (authHeader) {
+    const parts = authHeader.split(' ');
+    if (parts.length === 2 && parts[0].toLowerCase() === 'bearer') {
+      const token = parts[1];
 
-  const parts = authHeader.split(' ');
-  if (parts.length !== 2 || parts[0].toLowerCase() !== 'bearer') {
-    return null;
-  }
+      // Handle dev auth bypass token
+      if (config.NODE_ENV === 'development' && token.startsWith(DEV_TOKEN_PREFIX)) {
+        return DEV_USER_ID;
+      }
 
-  const token = parts[1];
-  try {
-    const { data, error } = await supabase.auth.getUser(token);
-    if (error || !data.user) {
-      logger.warn('JWT verification failed', { error: error?.message });
-      return null;
+      // Normal Supabase JWT verification
+      try {
+        const { data, error } = await supabase.auth.getUser(token);
+        if (error || !data.user) {
+          logger.warn('JWT verification failed', { error: error?.message });
+          return null;
+        }
+        return data.user.id;
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        logger.error('JWT verification error', { error: err });
+        return null;
+      }
     }
-    return data.user.id;
-  } catch (error) {
-    const err = error instanceof Error ? error : new Error(String(error));
-    logger.error('JWT verification error', { error: err });
-    return null;
   }
+
+  // 2. Check dev auth cookie (for SSE connections from browser)
+  if (config.NODE_ENV === 'development') {
+    const projectRef = config.SUPABASE_PROJECT_ID || 'local';
+    const cookieName = `sb-${projectRef}-auth-token`;
+    const devCookie = request.cookies.get(cookieName);
+    if (devCookie?.value?.startsWith(DEV_TOKEN_PREFIX)) {
+      return DEV_USER_ID;
+    }
+  }
+
+  return null;
 }
 
 export const runtime = 'edge';
@@ -70,8 +93,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Verify JWT authentication
-  const authHeader = request.headers.get('authorization');
-  const userId = await verifyAuthToken(authHeader);
+  const userId = await verifyAuthToken(request);
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }

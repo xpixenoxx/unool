@@ -2,7 +2,6 @@ import { z } from 'zod';
 import { generateWithFallback } from './provider';
 import { Result, ok, err } from '@/lib/shared/Result';
 import { logger } from '@/lib/logger';
-import { config } from '@/lib/config/schema';
 
 export const PlatformType = z.enum(['linkedin', 'x', 'threads']);
 export type PlatformType = z.infer<typeof PlatformType>;
@@ -12,7 +11,7 @@ export const AdaptedPostSchema = z.object({
   characterCount: z.number(),
   hashtags: z.array(z.string()).max(10),
   mediaSuggestions: z.array(z.string()).max(5),
-  firstCommentHint: z.string().optional(),
+  firstCommentHint: z.string().nullable().optional(),
 });
 
 export type AdaptedPost = z.infer<typeof AdaptedPostSchema>;
@@ -85,7 +84,6 @@ ${context ? `**Author Context:** ${context.profileName} - ${context.profileHeadl
         {
           temperature: 0.7,
           maxTokens: 2000,
-          model: config.AI_DEFAULT_MODEL,
         },
         AdaptedPostSchema
       );

@@ -48,13 +48,19 @@ export async function checkRateLimit(
     prefix: `rl:unool:${action}`,
   });
 
-  const { success, remaining, reset } = await limiter.limit(identifier);
+  try {
+    const { success, remaining, reset } = await limiter.limit(identifier);
 
-  if (!success) {
-    logger.warn('Rate limit exceeded', { action, identifier, remaining, reset });
+    if (!success) {
+      logger.warn('Rate limit exceeded', { action, identifier, remaining, reset });
+    }
+
+    return { success, remaining, reset };
+  } catch (error) {
+    // Fail open: if Redis is unavailable, allow the request
+    logger.warn('Rate limiter error, failing open', { action, error: String(error) });
+    return { success: true, remaining: limit, reset: Date.now() + 60000 };
   }
-
-  return { success, remaining, reset };
 }
 
 export function rateLimitHeaders(remaining: number, reset: number): HeadersInit {

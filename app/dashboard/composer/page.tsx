@@ -1,13 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CheckCircle, Loader2, Sparkles, Send, X, Linkedin, Twitter, MessageSquare } from 'lucide-react';
-import { PostAdapter, type PlatformType, type AdaptedPost } from '@/lib/ai/PostAdapter';
+import { toast } from 'sonner';
+import Link from 'next/link';
 
 const PLATFORM_CONFIG: Record<PlatformType, { icon: React.ElementType; name: string; maxChars: number; color: string }> = {
   linkedin: { icon: Linkedin, name: 'LinkedIn', maxChars: 3000, color: 'bg-blue-600' },
@@ -15,13 +16,38 @@ const PLATFORM_CONFIG: Record<PlatformType, { icon: React.ElementType; name: str
   threads: { icon: MessageSquare, name: 'Threads', maxChars: 500, color: 'bg-black' },
 };
 
+type PlatformType = 'linkedin' | 'x' | 'threads';
+
 interface PlatformDraft {
   platform: PlatformType;
   content: string;
   characterCount: number;
   hashtags: string[];
+  firstCommentHint?: string;
   status: 'idle' | 'generating' | 'ready' | 'error';
   error?: string;
+}
+
+interface AdaptedPost {
+  content: string;
+  characterCount: number;
+  hashtags: string[];
+  firstCommentHint?: string;
+}
+
+interface AdaptResponse {
+  postId: string;
+  variants: Record<PlatformType, AdaptedPost>;
+  results?: Record<string, { success: boolean; platformUrl?: string; error?: string }>;
+}
+
+interface Profile {
+  id: string;
+  name: string;
+  headline: string;
+  bio: string;
+  role: string;
+  company: string;
 }
 
 export default function ComposerPage() {
@@ -32,46 +58,81 @@ export default function ComposerPage() {
     { platform: 'threads', content: '', characterCount: 0, hashtags: [], status: 'idle' },
   ]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [postId, setPostId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<PlatformType>('linkedin');
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+
+  // Load user's profile on mount
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  const loadProfile = async () => {
+    try {
+      const res = await fetch('/api/profile', { credentials: 'include' });
+      const data = await res.json();
+      if (data.profile) {
+        setProfile({
+          id: data.profile.id,
+          name: data.profile.name || '',
+          headline: data.profile.headline || '',
+          bio: data.profile.bio || '',
+          role: data.profile.role || '',
+          company: data.profile.company || '',
+        });
+      }
+    } catch {
+      // Ignore - profile might not exist yet
+    } finally {
+      setProfileLoading(false);
+    }
+  };
 
   const generateDrafts = async () => {
-    if (!sourceContent.trim()) return;
+    if (!sourceContent.trim() || !profile) {
+      toast.error('Please complete your profile first in the Presence tab');
+      return;
+    }
 
     setIsGenerating(true);
     setDrafts(d => d.map(d => ({ ...d, status: 'generating' })));
 
     try {
-      const results = await PostAdapter.adaptForAllPlatforms(sourceContent, {
-        profileName: 'Founder',
-        profileHeadline: 'Founder at Startup',
+      const res = await fetch('/api/composer/adapt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ content: sourceContent, profileId: profile.id }),
       });
+
+      const data: AdaptResponse = await res.json();
+
+      if (!res.ok) {
+        const errorData = data as { error?: string };
+        throw new Error(errorData.error || 'Failed to generate drafts');
+      }
+
+      setPostId(data.postId);
 
       const platforms: PlatformType[] = ['linkedin', 'x', 'threads'];
       setDrafts(platforms.map(platform => {
-        const result = results[platform];
-        if (result.ok) {
-          const adapted: AdaptedPost = result.value;
-          return {
-            platform,
-            content: adapted.content,
-            characterCount: adapted.characterCount,
-            hashtags: adapted.hashtags,
-            status: 'ready' as const,
-          };
-        } else {
-          return {
-            platform,
-            content: '',
-            characterCount: 0,
-            hashtags: [],
-            status: 'error' as const,
-            error: result.error.message,
-          };
-        }
+        const result = data.variants[platform];
+        return {
+          platform,
+          content: result.content,
+          characterCount: result.characterCount,
+          hashtags: result.hashtags,
+          firstCommentHint: result.firstCommentHint,
+          status: 'ready' as const,
+        };
       }));
-    } catch (error) {
-      console.error('Failed to generate drafts:', error);
-      setDrafts(d => d.map(d => ({ ...d, status: 'error', error: 'Failed to generate draft' })));
+
+      toast.success('Generated drafts for 3 platforms');
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to generate drafts';
+      toast.error(errorMsg);
+      setDrafts(d => d.map(d => ({ ...d, status: 'error', error: errorMsg })));
     } finally {
       setIsGenerating(false);
     }
@@ -83,6 +144,51 @@ export default function ComposerPage() {
     ));
   };
 
+  const handlePublish = async () => {
+    if (!postId) return;
+
+    const readyDrafts = drafts.filter(d => d.status === 'ready');
+    if (readyDrafts.length === 0) {
+      toast.error('No drafts ready to publish');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ postId, workspaceId: profile?.id }), // Note: will need workspaceId from auth context
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Publish failed');
+      }
+
+      toast.success('Published successfully!');
+
+      // Show results
+      const results = (data as AdaptResponse).results;
+      if (results) {
+        for (const [platform, result] of Object.entries(results)) {
+          if (result.success) {
+            toast.success(`${platform}: Published`, { description: result.platformUrl });
+          } else {
+            toast.error(`${platform}: Failed`, { description: result.error });
+          }
+        }
+      }
+
+      // Navigate to Publish page to see detailed results
+      window.location.href = `/dashboard/publish?postId=${postId}`;
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Publish failed';
+      toast.error(errorMsg);
+    }
+  };
+
   return (
     <div className="space-y-8 max-w-4xl">
       {/* Header */}
@@ -91,22 +197,36 @@ export default function ComposerPage() {
           <h1 className="text-3xl font-bold">Composer</h1>
           <p className="text-muted-foreground">Write once. AI adapts. You review. One click publishes everywhere.</p>
         </div>
-        <Button
-          onClick={generateDrafts}
-          disabled={isGenerating || !sourceContent.trim()}
-          size="lg"
-        >
-          <Sparkles className="mr-2 h-4 w-4" />
-          {isGenerating ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Adapting for 3 Platforms...
-            </>
-          ) : (
-            'Generate Platform Drafts'
-          )}
+        <Button onClick={handlePublish} disabled={isGenerating || !postId || !drafts.some(d => d.status === 'ready')} size="lg">
+          <Send className="mr-2 h-4 w-4" />
+          Publish All
         </Button>
       </div>
+
+      {/* Profile Context */}
+      {profileLoading && <div className="text-sm text-muted-foreground">Loading profile...</div>}
+      {profile && !profileLoading && (
+        <Card className="bg-green-50 border-green-200">
+          <CardContent className="flex items-center gap-3 py-2">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <span className="text-sm text-green-800">
+              Using profile: <strong>{profile.name}</strong> — {profile.headline}
+            </span>
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/dashboard/presence">Edit Profile</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+      {!profile && !profileLoading && (
+        <Card className="bg-yellow-50 border-yellow-200">
+          <CardContent className="flex items-center gap-3 py-2">
+            <span className="text-sm text-yellow-800">
+              No profile found. Complete your profile in the <Button variant="ghost" size="sm" asChild><Link href="/dashboard/presence">Presence</Link></Button> tab first.
+            </span>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Step 1: Source Input */}
       <Card>
@@ -124,9 +244,24 @@ export default function ComposerPage() {
             className="min-h-[120px] mb-4"
             rows={4}
           />
-          <div className="text-sm text-muted-foreground">
+          <div className="text-sm text-muted-foreground mb-4">
             {sourceContent.length} characters
           </div>
+          <Button
+            onClick={generateDrafts}
+            disabled={isGenerating || !sourceContent.trim() || !profile}
+            size="lg"
+          >
+            <Sparkles className="mr-2 h-4 w-4" />
+            {isGenerating ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Adapting for 3 Platforms...
+              </>
+            ) : (
+              'Generate Platform Drafts'
+            )}
+          </Button>
         </CardContent>
       </Card>
 
@@ -209,7 +344,11 @@ export default function ComposerPage() {
                         className={`min-h-[120px] ${isOverLimit ? 'border-destructive' : ''}`}
                         rows={5}
                         disabled={draft?.status !== 'ready'}
-                        placeholder={draft?.status === 'generating' ? 'Generating...' : draft?.status === 'idle' ? 'Generate drafts first' : 'Your adapted content will appear here'}
+                        placeholder={
+                          draft?.status === 'generating' ? 'Generating...' :
+                          draft?.status === 'idle' ? 'Generate drafts first' :
+                          'Your adapted content will appear here'
+                        }
                       />
 
                       {draft && isOverLimit && (
@@ -227,13 +366,16 @@ export default function ComposerPage() {
                         </div>
                       )}
 
+                      {draft && draft.firstCommentHint && (
+                        <div className="mt-3 p-3 bg-muted rounded-lg text-sm">
+                          <strong>First comment hint:</strong> {draft.firstCommentHint}
+                        </div>
+                      )}
+
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => {
-                          // In real app, this would regenerate just this platform
-                          generateDrafts();
-                        }}
+                        onClick={generateDrafts}
                         disabled={draft?.status !== 'ready'}
                       >
                         <Sparkles className="mr-1 h-3 w-3" />
@@ -264,7 +406,7 @@ export default function ComposerPage() {
                   </p>
                 </div>
               </div>
-              <Button size="lg" onClick={() => alert('Publish functionality coming in Week 4!')}>
+              <Button size="lg" onClick={handlePublish} disabled={isGenerating}>
                 <Send className="mr-2 h-4 w-4" />
                 Publish All
               </Button>
