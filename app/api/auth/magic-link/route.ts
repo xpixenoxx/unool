@@ -27,13 +27,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+    // Use anon key client to call signInWithOtp which SENDS the email
+    // admin.generateLink only generates the link but does NOT send email
+    const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
 
-    const { error } = await supabase.auth.admin.generateLink({
-      type: 'magiclink',
+    const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        redirectTo: redirectTo || `${config.NEXT_PUBLIC_APP_URL}/auth/callback?redirect=/dashboard`,
+        emailRedirectTo: redirectTo || `${config.NEXT_PUBLIC_APP_URL}/auth/callback?redirect=/dashboard`,
       },
     });
 
