@@ -4,7 +4,6 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { config as appConfig } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
 import { checkRateLimit, rateLimitHeaders, RateLimitAction } from '@/lib/rate-limit';
-import { getDevAuthContext } from '@/lib/auth/dev/bypass';
 
 const publicPaths = [
   '/',
@@ -96,12 +95,12 @@ export async function middleware(request: NextRequest) {
 
   // Dev authentication bypass - set user/workspace headers if dev mode
   if (isProtectedRoute && devAuthEnabled && devBypassCookie) {
-    const devContext = getDevAuthContext();
-    if (devContext) {
-      requestHeaders.set('x-user-id', devContext.userId);
-      requestHeaders.set('x-workspace-id', devContext.workspaceId);
-      requestHeaders.set('x-dev-auth', 'true');
-    }
+    // Use deterministic dev IDs directly (bypass config module which was evaluated at build time)
+    const DEV_USER_ID = '00000000-0000-0000-0000-000000000001';
+    const DEV_WORKSPACE_ID = '00000000-0000-0000-0000-000000000001';
+    requestHeaders.set('x-user-id', DEV_USER_ID);
+    requestHeaders.set('x-workspace-id', DEV_WORKSPACE_ID);
+    requestHeaders.set('x-dev-auth', 'true');
   }
 
   // For protected routes without dev bypass, check Supabase session
