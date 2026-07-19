@@ -101,6 +101,7 @@ export async function middleware(request: NextRequest) {
     requestHeaders.set('x-user-id', DEV_USER_ID);
     requestHeaders.set('x-workspace-id', DEV_WORKSPACE_ID);
     requestHeaders.set('x-dev-auth', 'true');
+    debugHeaders.set('x-debug-dev-context', 'set');
   }
 
   // For protected routes without dev bypass, check Supabase session
