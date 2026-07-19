@@ -94,6 +94,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Dev authentication bypass - set user/workspace headers if dev mode
+  debugHeaders.set('x-debug-before-dev-bypass', 'yes');
   if (isProtectedRoute && devAuthEnabled && devBypassCookie) {
     // Use deterministic dev IDs directly (bypass config module which was evaluated at build time)
     const DEV_USER_ID = '00000000-0000-0000-0000-000000000001';
@@ -105,6 +106,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // For protected routes without dev bypass, check Supabase session
+  debugHeaders.set('x-debug-after-dev-bypass', 'yes');
   if (isProtectedRoute && supabaseConfigured && !(devAuthEnabled && devBypassCookie)) {
     // Create Supabase client in middleware to validate session
     const response = NextResponse.next({ request: { headers: requestHeaders } });
