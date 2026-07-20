@@ -239,3 +239,12 @@ export function getDevAuthContext(): { userId: string; workspaceId: string } | n
 export function isDevAuthEnabled(): boolean {
   return isDev;
 }
+
+/**
+ * Async version that returns actual IDs (for use in context.ts and server.ts)
+ * Now returns static IDs immediately instead of querying the database on every request.
+ */
+export async function getDevAuthContextAsync(): Promise<{ userId: string; workspaceId: string } | null> {
+  if (!isDev) return null;
+  return { userId: DEV_USER_ID, workspaceId: DEV_WORKSPACE_ID };
+}
