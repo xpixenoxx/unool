@@ -13,13 +13,27 @@ export async function getCurrentAuth(request: NextRequest): Promise<AuthContext 
   // Priority 1: Check for secure headers injected by middleware.ts
   // This handles both the production session via cookies and the local dev bypass
   const headerUserId = request.headers.get('x-user-id');
-  const headerWorkspaceId = request.headers.get('x-workspace-id');
+  let headerWorkspaceId = request.headers.get('x-workspace-id');
 
-  if (headerUserId && headerWorkspaceId) {
-    return {
-      userId: headerUserId,
-      workspaceId: headerWorkspaceId,
-    };
+  if (headerUserId) {
+    if (!headerWorkspaceId) {
+      // User is authenticated but middleware didn't find a workspace in profiles.
+      // Fetch it directly from workspace_members.
+      const { data: member } = await supabase
+        .from('workspace_members')
+        .select('workspace_id')
+        .eq('user_id', headerUserId)
+        .single();
+      
+      headerWorkspaceId = member?.workspace_id || null;
+    }
+
+    if (headerWorkspaceId) {
+      return {
+        userId: headerUserId,
+        workspaceId: headerWorkspaceId,
+      };
+    }
   }
 
   // Priority 2: Fallback to direct Bearer token (useful for external API clients)
