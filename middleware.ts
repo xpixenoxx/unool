@@ -16,12 +16,13 @@ const publicPaths = [
 
 // Check if Supabase is properly configured (not placeholder values)
 function isSupabaseConfigured(): boolean {
-  const url = appConfig.SUPABASE_URL;
-  const key = appConfig.SUPABASE_ANON_KEY;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || appConfig.SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || appConfig.SUPABASE_ANON_KEY;
   return !!(url && key &&
     url !== 'https://your-project.supabase.co' &&
     key !== 'your-anon-key' &&
-    url.startsWith('https://'));
+    key !== 'test-anon-key' &&
+    (url.startsWith('https://') || url.startsWith('http://')));
 }
 
 // Check dev auth bypass at RUNTIME (not module load time - crucial for Vercel edge)
@@ -113,7 +114,8 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon') ||
     pathname.includes('.') ||
-    publicPaths.some(p => pathname.startsWith(p))
+    pathname === '/' ||
+    publicPaths.filter(p => p !== '/').some(p => pathname.startsWith(p))
   ) {
     const response = NextResponse.next({ request: { headers: requestHeaders } });
     response.headers.set('x-middleware-run', 'true');
