@@ -25,7 +25,8 @@ export async function getCurrentAuth(request: NextRequest): Promise<AuthContext 
         .eq('user_id', headerUserId)
         .single();
       
-      headerWorkspaceId = member?.workspace_id || null;
+      // Fallback to userId if no workspace exists (single-user mode fallback, mirrors context.ts)
+      headerWorkspaceId = member?.workspace_id || headerUserId;
     }
 
     if (headerWorkspaceId) {
