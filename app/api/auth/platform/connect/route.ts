@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPlatformAdapter } from '@/lib/platforms';
-import { generateOAuthState, storeOAuthState, createOAuthCookie } from '@/lib/auth/oauth-state';
+import { generateOAuthState, storeOAuthState, createOAuthCookie, RedisConfigError } from '@/lib/auth/oauth-state';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -24,7 +24,16 @@ export async function GET(request: NextRequest) {
   const state = generateOAuthState(workspaceId, platform);
 
   // Store in Redis with TTL
-  await storeOAuthState(state, workspaceId, platform);
+  try {
+    await storeOAuthState(state, workspaceId, platform);
+  } catch (error) {
+    if (error instanceof RedisConfigError || (error as Error).name === 'RedisConfigError') {
+      return NextResponse.redirect(
+        new URL('/dashboard/settings?error=redis_unconfigured', request.url)
+      );
+    }
+    throw error;
+  }
 
   // Handle PKCE for X/Twitter - getAuthUrl can return string or {url, pkceCookie}
   const authUrlResult = adapter.getAuthUrl(state);

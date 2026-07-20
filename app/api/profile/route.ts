@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getCurrentAuth } from '@/lib/auth/server';
 import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseProfileRepository';
 import { logger } from '@/lib/logger';
 
@@ -6,15 +7,13 @@ const profileRepository = new SupabaseProfileRepository();
 
 export async function GET(request: NextRequest) {
   try {
-    const userId = request.headers.get('x-user-id');
-    const workspaceId = request.headers.get('x-workspace-id');
-
-    if (!userId || !workspaceId) {
+    const auth = await getCurrentAuth(request);
+    if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Get profile for this workspace
-    const profile = await profileRepository.findByWorkspaceId(workspaceId);
+    const profile = await profileRepository.findByWorkspaceId(auth.workspaceId);
 
     if (!profile) {
       return NextResponse.json({ profile: null });
@@ -30,12 +29,12 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const userId = request.headers.get('x-user-id');
-    const workspaceId = request.headers.get('x-workspace-id');
-
-    if (!userId || !workspaceId) {
+    const auth = await getCurrentAuth(request);
+    if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const { userId, workspaceId } = auth;
 
     const body = await request.json();
     const { name, headline, bio, role, company, links, proofPoints, theme, subdomain } = body;

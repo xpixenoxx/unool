@@ -17,10 +17,9 @@ const configSchema = z.object({
   RATE_LIMIT_AI_PER_MIN: z.coerce.number().default(20),
   RATE_LIMIT_PUBLISH_PER_MIN: z.coerce.number().default(10),
   RATE_LIMIT_AUTH_PER_HOUR: z.coerce.number().default(5),
-  UPSTASH_QSTASH_URL: z.string().url().optional().default('http://localhost:8080'),
-  UPSTASH_QSTASH_TOKEN: z.string().optional().default('test-token'),
-  UPSTASH_REDIS_URL: z.string().url().optional().default('http://localhost:6379'),
-  UPSTASH_REDIS_TOKEN: z.string().optional().default('test-token'),
+  // Upstash Redis (for rate limiting, OAuth state, etc.) - use REST API URL from .env.local
+  UPSTASH_REDIS_REST_URL: z.string().url().optional(),
+  UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
   MAGIC_LINK_EXPIRY_MINUTES: z.coerce.number().default(15),
 
   // Encryption key for token encryption (32-byte base64, required in production)

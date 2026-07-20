@@ -79,7 +79,7 @@ export async function getAuthContext(): Promise<AuthContext | null> {
     // User has no workspace - create a default one for them
     const { data: workspace } = await adminClient
       .from('workspaces')
-      .insert({ owner_id: user.id, name: 'Personal Workspace', plan_tier: 'free' })
+      .insert({ owner_id: user.id, name: 'Personal Workspace', plan: 'free' })
       .select('id')
       .single();
 

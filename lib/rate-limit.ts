@@ -4,8 +4,8 @@ import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
 
 const redis = new Redis({
-  url: config.UPSTASH_REDIS_URL,
-  token: config.UPSTASH_REDIS_TOKEN,
+  url: config.UPSTASH_REDIS_REST_URL,
+  token: config.UPSTASH_REDIS_REST_TOKEN,
 });
 
 export const ratelimit = new Ratelimit({

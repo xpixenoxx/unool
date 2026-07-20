@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { LayoutDashboard, PenTool, Globe, Settings, LogOut, ChevronLeft, Plus, FileText } from 'lucide-react';
+import { UserProvider, useUserContext } from '@/lib/hooks/use-user-context';
 
 const navigation = [
   { name: 'Presence', href: '/dashboard', icon: Globe },
@@ -16,8 +17,8 @@ const navigation = [
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ];
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+function DashboardSidebar({ sidebarOpen, setSidebarOpen }: { sidebarOpen: boolean; setSidebarOpen: (v: boolean) => void }) {
+  const { user, profile, loading } = useUserContext();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -26,25 +27,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (res.ok) router.push('/signup');
   };
 
-  return (
-    <div className="min-h-screen bg-background">
-      {/* Mobile sidebar overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+  const displayName = profile?.name || user?.fullName || 'User';
+  const displayEmail = user?.email || '';
 
-      {/* Sidebar */}
-      <aside
-        className={cn(
-          'fixed inset-y-0 left-0 z-50 w-64 bg-card border-r transition-transform duration-200 lg:translate-x-0',
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        )}
-      >
+  const sidebarClass = cn(
+    'fixed inset-y-0 left-0 z-50 w-64 bg-card border-r transition-transform duration-200 lg:translate-x-0',
+    sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+  );
+
+  if (loading) {
+    return (
+      <aside className={sidebarClass}>
         <div className="flex h-full flex-col">
-          {/* Header */}
           <div className="flex h-16 items-center justify-between px-4 border-b">
             <Link href="/dashboard" className="flex items-center gap-2 font-semibold text-lg">
               <span className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
@@ -52,15 +46,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </span>
               Unool
             </Link>
-            <button
-              className="lg:hidden p-2 rounded-md hover:bg-accent"
-              onClick={() => setSidebarOpen(false)}
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
           </div>
-
-          {/* Navigation */}
           <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
             {navigation.map((item) => {
               const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
@@ -82,49 +68,128 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               );
             })}
           </nav>
-
-          {/* Footer with user menu */}
-          <div className="p-4 border-t">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="w-full justify-start gap-3" size="sm">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src="/avatars/shadcn.jpg" alt="" />
-                    <AvatarFallback>U</AvatarFallback>
-                  </Avatar>
-                  <div className="text-left flex-1">
-                    <p className="font-medium text-sm">Founder</p>
-                    <p className="text-xs text-muted-foreground truncate">@founder.startup.com</p>
-                  </div>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end">
-                <DropdownMenuLabel className="font-normal">Account</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Sign out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+          <div className="p-4 border-t animate-pulse">
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 rounded-full bg-muted" />
+              <div className="flex-1">
+                <div className="h-4 w-24 bg-muted rounded" />
+                <div className="h-3 w-32 bg-muted rounded mt-1" />
+              </div>
+            </div>
           </div>
         </div>
       </aside>
+    );
+  }
 
-      {/* Mobile menu button */}
-      <button
-        className="lg:hidden fixed bottom-4 right-4 z-50 p-2 bg-primary text-primary-foreground rounded-full shadow-lg"
-        onClick={() => setSidebarOpen(true)}
-      >
-        <LayoutDashboard className="w-6 h-6" />
-      </button>
-
-      {/* Main content */}
-      <main className="lg:pl-64 min-h-screen">
-        <div className="p-4 lg:p-8">
-          {children}
+  return (
+    <aside className={sidebarClass}>
+      <div className="flex h-full flex-col">
+        {/* Header */}
+        <div className="flex h-16 items-center justify-between px-4 border-b">
+          <Link href="/dashboard" className="flex items-center gap-2 font-semibold text-lg">
+            <span className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+              <Plus className="w-5 h-5 text-primary-foreground" />
+            </span>
+            Unool
+          </Link>
+          <button
+            className="lg:hidden p-2 rounded-md hover:bg-accent"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
         </div>
-      </main>
-    </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+          {navigation.map((item) => {
+            const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.name}
+                href={item.href}
+                className={cn(
+                  'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                  isActive
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                )}
+              >
+                <Icon className="w-5 h-5" />
+                {item.name}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Footer with user menu */}
+        <div className="p-4 border-t">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="w-full justify-start gap-3" size="sm">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={user?.avatarUrl || undefined} alt={displayName} />
+                  <AvatarFallback>{displayName.charAt(0).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <div className="text-left flex-1 min-w-0">
+                  <p className="font-medium text-sm truncate">{displayName}</p>
+                  <p className="text-xs text-muted-foreground truncate">{profile?.subdomain ? `@${profile.subdomain}.unool.co` : displayEmail}</p>
+                </div>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56" align="end">
+              <DropdownMenuLabel className="font-normal">Account</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleSignOut}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+function DashboardMobileMenuButton({ setSidebarOpen }: { setSidebarOpen: (v: boolean) => void }) {
+  return (
+    <button
+      className="lg:hidden fixed bottom-4 right-4 z-50 p-2 bg-primary text-primary-foreground rounded-full shadow-lg"
+      onClick={() => setSidebarOpen(true)}
+    >
+      <LayoutDashboard className="w-6 h-6" />
+    </button>
+  );
+}
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  return (
+    <UserProvider>
+      <div className="min-h-screen bg-background">
+        {/* Mobile sidebar overlay */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+        <DashboardSidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+
+        {/* Mobile menu button */}
+        <DashboardMobileMenuButton setSidebarOpen={setSidebarOpen} />
+
+        {/* Main content */}
+        <main className="lg:pl-64 min-h-screen">
+          <div className="p-4 lg:p-8">
+            {children}
+          </div>
+        </main>
+      </div>
+    </UserProvider>
   );
 }

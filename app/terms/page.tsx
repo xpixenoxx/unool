@@ -28,7 +28,7 @@ export default function TermsPage() {
             </CardHeader>
             <CardContent className="space-y-4 text-muted-foreground">
               <p>
-                By accessing or using Unool (<strong>unool.vercel.app</strong> and associated services), you agree to these Terms.
+                By accessing or using Unool (<strong>unool.co</strong> and associated services), you agree to these Terms.
                 If you disagree, do not use the service.
               </p>
               <p>

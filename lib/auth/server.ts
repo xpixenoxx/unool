@@ -1,7 +1,6 @@
 import { NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
-import { getDevAuthContextAsync, isDevAuthEnabled } from '@/lib/auth/dev/bypass';
 
 export interface AuthContext {
   userId: string;
@@ -11,14 +10,19 @@ export interface AuthContext {
 const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
 
 export async function getCurrentAuth(request: NextRequest): Promise<AuthContext | null> {
-  // Development bypass: use dev user without requiring real auth
-  if (isDevAuthEnabled()) {
-    const devContext = await getDevAuthContextAsync();
-    if (devContext) {
-      return devContext;
-    }
+  // Priority 1: Check for secure headers injected by middleware.ts
+  // This handles both the production session via cookies and the local dev bypass
+  const headerUserId = request.headers.get('x-user-id');
+  const headerWorkspaceId = request.headers.get('x-workspace-id');
+
+  if (headerUserId && headerWorkspaceId) {
+    return {
+      userId: headerUserId,
+      workspaceId: headerWorkspaceId,
+    };
   }
 
+  // Priority 2: Fallback to direct Bearer token (useful for external API clients)
   const authHeader = request.headers.get('authorization');
   if (!authHeader?.startsWith('Bearer ')) {
     return null;

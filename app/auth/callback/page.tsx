@@ -12,6 +12,7 @@ function AuthCallbackContent() {
   const searchParams = useSearchParams();
   const redirect = searchParams.get('redirect') || '/dashboard';
   const [errorMessage, setErrorMessage] = useState<string | null>(searchParams.get('error'));
+  const [isExchanging, setIsExchanging] = useState(false);
 
   useEffect(() => {
     // Check for error in hash fragment (Supabase often puts OAuth/Magic Link errors here)
@@ -29,13 +30,14 @@ function AuthCallbackContent() {
 
     const code = searchParams.get('code');
     if (!code) {
-      // If we don't have a code and we didn't find an error in the hash, 
+      // If we don't have a code and we didn't find an error in the hash,
       // something is wrong.
       setErrorMessage('Missing authorization code');
       return;
     }
 
     const exchangeCode = async () => {
+      setIsExchanging(true);
       try {
         const res = await fetch('/api/auth/callback', {
           method: 'POST',
@@ -49,16 +51,19 @@ function AuthCallbackContent() {
         if (res.ok) {
           const data = await res.json().catch(() => ({}));
           const target = data.redirectTo || redirect;
-          
-          // Use window.location for hard redirect to ensure cookies are sent properly
-          // and state is completely clean after auth
-          window.location.href = target;
+
+          // Use router.push for client-side navigation if possible,
+          // but fall back to window.location for hard redirect
+          // This ensures cookies are sent properly and state is clean
+          router.push(target);
         } else {
           const data = await res.json().catch(() => ({}));
           setErrorMessage(data.error || 'Failed to authenticate');
         }
       } catch {
         setErrorMessage('Network error occurred during authentication');
+      } finally {
+        setIsExchanging(false);
       }
     };
 
@@ -93,7 +98,7 @@ function AuthCallbackContent() {
             <Loader2 className="w-6 h-6 text-primary animate-spin" />
           </div>
           <h2 className="text-xl font-semibold mb-2">Completing Sign In</h2>
-          <p className="text-muted-foreground">Please wait while we verify your magic link...</p>
+          <p className="text-muted-foreground">{isExchanging ? 'Verifying your magic link...' : 'Please wait while we verify your magic link...'}</p>
         </CardContent>
       </Card>
     </div>

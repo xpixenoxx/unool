@@ -239,11 +239,3 @@ export function getDevAuthContext(): { userId: string; workspaceId: string } | n
 export function isDevAuthEnabled(): boolean {
   return isDev;
 }
-
-/**
- * Async version that returns actual IDs (for use in server.ts)
- */
-export async function getDevAuthContextAsync(): Promise<{ userId: string; workspaceId: string } | null> {
-  if (!isDev) return null;
-  return ensureDevUserAndWorkspace();
-}

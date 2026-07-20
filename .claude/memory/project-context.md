@@ -1,12 +1,12 @@
 ---
 name: project-context
-description: unool project context - hosted at unool.vercel.app, preparing for real user usage
+description: unool project context - hosted at unool.co, preparing for real user usage
 metadata:
   type: project
 ---
 
 **Project: unool**
-- Live at: https://unool.vercel.app/
+- Live at: https://unool.co/
 - Current phase: Setting up for real user usage / production readiness
 - Goal: Fix everything for real user usage / production readiness
 - Current status: Week 6 P2 complete (webhooks for LinkedIn, X, Threads); Week 6 P1 security fixes done; Next.js 15.5.18

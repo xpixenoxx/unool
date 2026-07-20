@@ -27,9 +27,9 @@ async function checkRedis(): Promise<HealthCheck> {
   const start = Date.now();
   try {
     // Check if Redis is configured (not using localhost defaults)
-    const redisUrl = config.UPSTASH_REDIS_URL;
-    const redisToken = config.UPSTASH_REDIS_TOKEN;
-    if (!redisUrl || !redisToken || redisUrl.includes('localhost') || redisToken === 'test-token') {
+    const redisUrl = config.UPSTASH_REDIS_REST_URL;
+    const redisToken = config.UPSTASH_REDIS_REST_TOKEN;
+    if (!redisUrl || !redisToken) {
       return { name: 'redis', healthy: true, latencyMs: Date.now() - start, details: { configured: false } };
     }
     const { Redis } = await import('@upstash/redis');

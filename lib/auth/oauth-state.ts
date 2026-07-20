@@ -3,8 +3,8 @@ import { Redis } from '@upstash/redis';
 import { logger } from '@/lib/logger';
 
 const redis = new Redis({
-  url: config.UPSTASH_REDIS_URL,
-  token: config.UPSTASH_REDIS_TOKEN,
+  url: config.UPSTASH_REDIS_REST_URL,
+  token: config.UPSTASH_REDIS_REST_TOKEN,
 });
 
 const STATE_TTL_SECONDS = 600; // 10 minutes
@@ -32,6 +32,13 @@ export function generateOAuthState(_workspaceId: string, _platform: string): str
   return `oauth_${randomPart}`;
 }
 
+export class RedisConfigError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'RedisConfigError';
+  }
+}
+
 /**
  * Stores OAuth state in Redis with TTL
  */
@@ -43,8 +50,13 @@ export async function storeOAuthState(state: string, workspaceId: string, platfo
     createdAt: Date.now(),
   };
 
-  await redis.set(key, JSON.stringify(data), { ex: STATE_TTL_SECONDS });
-  logger.debug('OAuth state stored', { state: state.slice(0, 8) + '...', workspaceId, platform });
+  try {
+    await redis.set(key, JSON.stringify(data), { ex: STATE_TTL_SECONDS });
+    logger.debug('OAuth state stored', { state: state.slice(0, 8) + '...', workspaceId, platform });
+  } catch (error) {
+    logger.error('Failed to store OAuth state in Redis. Check UPSTASH_REDIS_* env vars.', { error });
+    throw new RedisConfigError('Upstash Redis is not properly configured.');
+  }
 }
 
 /**

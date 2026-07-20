@@ -16,8 +16,7 @@ type TabValue = 'account' | 'security' | 'notifications' | 'appearance' | 'dange
 interface Workspace {
   id: string;
   name: string;
-  plan_tier: string;
-  plan_status: string;
+  plan: string;
 }
 
 export default function SettingsPage() {
@@ -34,7 +33,7 @@ export default function SettingsPage() {
 
   const loadWorkspace = async () => {
     try {
-      const res = await fetch('/api/profile', { credentials: 'include' });
+      const res = await fetch('/api/workspace', { credentials: 'include' });
       const data = await res.json();
       if (data.workspace) {
         setWorkspace(data.workspace);
@@ -132,7 +131,7 @@ export default function SettingsPage() {
                   <Label htmlFor="plan-tier">Plan</Label>
                   <Input
                     id="plan-tier"
-                    value={workspace?.plan_tier || 'free'}
+                    value={workspace?.plan || 'free'}
                     disabled
                     className="bg-muted"
                   />
