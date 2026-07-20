@@ -54,7 +54,8 @@ export async function storeOAuthState(state: string, workspaceId: string, platfo
     await redis.set(key, JSON.stringify(data), { ex: STATE_TTL_SECONDS });
     logger.debug('OAuth state stored', { state: state.slice(0, 8) + '...', workspaceId, platform });
   } catch (error) {
-    logger.error('Failed to store OAuth state in Redis. Check UPSTASH_REDIS_* env vars.', { error });
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error('Failed to store OAuth state in Redis. Check UPSTASH_REDIS_* env vars.', { error: err });
     throw new RedisConfigError('Upstash Redis is not properly configured.');
   }
 }
