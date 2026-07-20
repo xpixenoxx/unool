@@ -58,8 +58,11 @@ export async function middleware(request: NextRequest) {
 
   // Check auth configuration at runtime
   // Inverted logic: everything is protected UNLESS it's explicitly public.
-  // Public API paths: /api/auth (login flows), /api/health, /api/webhooks, /api/profile/[subdomain] (public profile view)
-  const isPublicApiRoute = pathname.startsWith('/api/auth') || pathname.startsWith('/api/health') || pathname.startsWith('/api/webhooks');
+  // Public API paths: /api/auth (login flows), /api/health, /api/webhooks
+  // Public profile view: GET /api/profile/[subdomain] (public profile page)
+  // HEAD is also allowed for public profile to support link previews/curl -I
+  const isPublicProfileRead = (request.method === 'GET' || request.method === 'HEAD') && pathname.startsWith('/api/profile/');
+  const isPublicApiRoute = pathname.startsWith('/api/auth') || pathname.startsWith('/api/health') || pathname.startsWith('/api/webhooks') || isPublicProfileRead;
   const isProtectedRoute = (pathname.startsWith('/dashboard') || pathname.startsWith('/api/')) && !isPublicApiRoute;
   const supabaseConfigured = isSupabaseConfigured();
   const devAuthEnabled = isDevAuthEnabledRuntime();
@@ -71,6 +74,9 @@ export async function middleware(request: NextRequest) {
   debugHeaders.set('x-debug-devAuthEnabled', String(devAuthEnabled));
   debugHeaders.set('x-debug-devBypassCookie', String(hasDevBypassCookie));
   debugHeaders.set('x-debug-isProtectedRoute', String(isProtectedRoute));
+  debugHeaders.set('x-debug-isPublicProfileRead', String(isPublicProfileRead));
+  debugHeaders.set('x-debug-requestMethod', request.method);
+  debugHeaders.set('x-debug-pathname', pathname);
   debugHeaders.set('x-debug-nodeEnv', process.env.NODE_ENV || 'unset');
   debugHeaders.set('x-debug-devAuthBypassEnv', process.env.DEV_AUTH_BYPASS || 'unset');
   debugHeaders.set('x-debug-cookies', Array.from(request.cookies.getAll().map(c => c.name)).join(','));
@@ -87,8 +93,12 @@ export async function middleware(request: NextRequest) {
 
   if (hostname.endsWith('.unool.co') && hostname !== 'unool.co' && hostname !== 'www.unool.co') {
     hostSubdomain = hostname.replace('.unool.co', '');
-  } else if (hostname.endsWith('.localhost:3000') && hostname !== 'localhost:3000') {
-    hostSubdomain = hostname.replace('.localhost:3000', '');
+  } else if (hostname.includes('.localhost:')) {
+    // Match any localhost port: subdomain.localhost:PORT
+    const match = hostname.match(/^([^.]+)\.localhost:\d+$/);
+    if (match) {
+      hostSubdomain = match[1];
+    }
   }
 
   if (hostSubdomain && !pathname.startsWith('/u/')) {

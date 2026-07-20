@@ -208,7 +208,11 @@ export default function PresencePage() {
     setActiveTab(value as TabValue);
   };
 
-  const liveUrl = claimedSubdomain ? `https://${claimedSubdomain}.unool.co` : null;
+  const liveUrl = claimedSubdomain
+    ? (process.env.NODE_ENV === 'development'
+        ? `/u/${claimedSubdomain}`
+        : `https://${claimedSubdomain}.unool.co`)
+    : null;
 
   return (
     <div className="space-y-8">
@@ -222,7 +226,9 @@ export default function PresencePage() {
           {claimedSubdomain && (
             <Badge variant="outline" className="gap-1">
               <Globe className="h-3 w-3" />
-              {claimedSubdomain}.unool.co
+              {process.env.NODE_ENV === 'development'
+                ? `/u/${claimedSubdomain}`
+                : `${claimedSubdomain}.unool.co`}
             </Badge>
           )}
           {claimedSubdomain && liveUrl && (

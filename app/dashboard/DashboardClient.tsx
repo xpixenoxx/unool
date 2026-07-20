@@ -62,7 +62,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             </Link>
           </Button>
           <Button variant="outline" asChild>
-            <Link href={`/${(profile?.subdomain || 'yourname')}.unool.co`} target="_blank">
+            <Link href={`/u/${profile?.subdomain || 'yourname'}`} target="_blank">
               <ExternalLink className="mr-2 h-4 w-4" />
               View Profile
             </Link>
@@ -155,7 +155,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             </div>
             <div className="flex gap-2">
               <Button asChild>
-                <Link href={`/${(profile?.subdomain || 'yourname')}.unool.co`} target="_blank">
+                <Link href={`/u/${(profile?.subdomain || 'yourname')}`} target="_blank">
                   <ExternalLink className="mr-2 h-4 w-4" />
                   View Profile
                 </Link>
