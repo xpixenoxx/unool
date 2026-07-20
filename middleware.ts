@@ -56,7 +56,10 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Check auth configuration at runtime
-  const isProtectedRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/api/v1/') || pathname.startsWith('/api/profile');
+  // Inverted logic: everything is protected UNLESS it's explicitly public.
+  // Public API paths: /api/auth (login flows), /api/health, /api/webhooks, /api/profile/[subdomain] (public profile view)
+  const isPublicApiRoute = pathname.startsWith('/api/auth') || pathname.startsWith('/api/health') || pathname.startsWith('/api/webhooks');
+  const isProtectedRoute = (pathname.startsWith('/dashboard') || pathname.startsWith('/api/')) && !isPublicApiRoute;
   const supabaseConfigured = isSupabaseConfigured();
   const devAuthEnabled = isDevAuthEnabledRuntime();
   const hasDevBypassCookie = request.cookies.has('dev-auth-bypass') || request.cookies.has(`sb-${appConfig.SUPABASE_PROJECT_ID || 'local'}-auth-token`);
@@ -152,9 +155,9 @@ export async function middleware(request: NextRequest) {
 
   // For protected routes without dev bypass, check Supabase session
   if (isProtectedRoute && supabaseConfigured && !(devAuthEnabled && hasDevBypassCookie)) {
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (userError || !user) {
       if (pathname.startsWith('/api/')) {
         return addDebugHeaders(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }));
       }
@@ -164,19 +167,32 @@ export async function middleware(request: NextRequest) {
     }
 
     // Add user info to headers for downstream use
-    requestHeaders.set('x-user-id', session.user.id);
-    requestHeaders.set('x-user-email', session.user.email || '');
+    requestHeaders.set('x-user-id', user.id);
+    requestHeaders.set('x-user-email', user.email || '');
 
-    // Try to get workspace from user metadata or profile
+    // Try to get workspace from profiles first, then workspace_members
+    let workspaceId: string | null = null;
+
     const { data: profile } = await supabase
       .from('profiles')
       .select('workspace_id')
-      .eq('user_id', session.user.id)
+      .eq('user_id', user.id)
       .single();
 
     if (profile) {
-      requestHeaders.set('x-workspace-id', profile.workspace_id);
+      workspaceId = profile.workspace_id;
+    } else {
+      // Fallback: check workspace_members table
+      const { data: member } = await supabase
+        .from('workspace_members')
+        .select('workspace_id')
+        .eq('user_id', user.id)
+        .single();
+      workspaceId = member?.workspace_id || null;
     }
+
+    // Ultimate fallback: use userId as workspaceId (single-user mode)
+    requestHeaders.set('x-workspace-id', workspaceId || user.id);
   }
 
   // Rate limiting for API routes

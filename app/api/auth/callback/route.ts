@@ -50,6 +50,35 @@ export async function POST(request: NextRequest) {
         email: user.email,
         full_name: user.user_metadata?.full_name,
       }, { onConflict: 'id' });
+
+      // Ensure workspace exists for this user
+      const { data: existingMember } = await adminClient
+        .from('workspace_members')
+        .select('workspace_id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!existingMember) {
+        // Create a new workspace for the user
+        const { data: newWorkspace } = await adminClient
+          .from('workspaces')
+          .insert({
+            owner_id: user.id,
+            name: 'Personal Workspace',
+            plan: 'free',
+          })
+          .select('id')
+          .single();
+
+        if (newWorkspace) {
+          await adminClient.from('workspace_members').insert({
+            workspace_id: newWorkspace.id,
+            user_id: user.id,
+            role: 'owner',
+          });
+          logger.info('Created workspace for new user', { userId: user.id, workspaceId: newWorkspace.id, traceId });
+        }
+      }
     }
 
     logger.info('Auth callback success', { traceId, userId: user?.id });
