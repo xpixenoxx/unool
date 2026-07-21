@@ -1,0 +1,2 @@
+[{"domain":"localhost","path":"/","httpOnly":true,"secure":false,"sameSite":"Lax","name":"dev-auth-bypass","value":"true"},{"domain":"localhost","path":"/","httpOnly":true,"secure":false,"sameSite":"Lax","name":"sb-knwygechmmbvxayertcc-auth-token","value":"{\"access_token\":\"dev-token-dev@unool.local\",\"refresh_token\":\"dev-refresh-dev@unool.local\",\"expires_at\":1784560581,\"user\":{\"id\":\"00000000-0000-0000-0000-000000000001\",\"email\":\"dev@unool.local\",\"user_metadata\":{\"full_name\":\"Dev User\"}}}"
+}]

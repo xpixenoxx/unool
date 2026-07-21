@@ -87,7 +87,7 @@ export async function middleware(request: NextRequest) {
     return response;
   };
 
-  // Host-based Subdomain Routing
+  // Host-based Subdomain Routing — ONLY applies when visiting a subdomain (not root domain)
   const hostname = request.headers.get('host') || '';
   let hostSubdomain: string | null = null;
 
@@ -101,12 +101,24 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  if (hostSubdomain && !pathname.startsWith('/u/')) {
+  // On subdomain hosts, rewrite ALL paths (except /u/ and /api/) to /u/[subdomain]
+  // This includes the root "/" which should show the public profile
+  const isApiRoute = pathname.startsWith('/api/');
+  if (hostSubdomain && !pathname.startsWith('/u/') && !isApiRoute) {
     const url = request.nextUrl.clone();
     url.pathname = `/u/${hostSubdomain}${pathname === '/' ? '' : pathname}`;
     const response = NextResponse.rewrite(url, { request: { headers: requestHeaders } });
     response.headers.set('x-middleware-run', 'true');
     response.headers.set('x-middleware-path', url.pathname);
+    return addDebugHeaders(response);
+  }
+
+  // On root domain, skip middleware for public paths (landing page, signup, etc.)
+  const isPublicPath = publicPaths.some(p => pathname === p || pathname.startsWith(p + '/'));
+  if (!hostSubdomain && isPublicPath) {
+    const response = NextResponse.next({ request: { headers: requestHeaders } });
+    response.headers.set('x-middleware-run', 'true');
+    response.headers.set('x-middleware-path', pathname);
     return addDebugHeaders(response);
   }
 

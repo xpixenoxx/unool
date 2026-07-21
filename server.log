@@ -1,0 +1,140 @@
+
+> unool@0.1.0 dev
+> next dev
+
+ ⚠ Port 3000 is in use by process 12628, using available port 3006 instead.
+   ▲ Next.js 15.5.18
+   - Local:        http://localhost:3006
+   - Network:      http://192.168.1.2:3006
+   - Environments: .env.local
+   - Experiments (use with caution):
+     · serverActions
+
+ ✓ Starting...
+ ○ Compiling /instrumentation ...
+ ✓ Compiled /instrumentation in 31.3s (1407 modules)
+ ✓ Ready in 56.7s
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 23.2s (734 modules)
+ ⨯ [Error: ENOENT: no such file or directory, open 'D:\unool\.next\server\edge-instrumentation.js']
+ ○ Compiling /_error ...
+[Error: ENOENT: no such file or directory, stat 'D:\unool\.next\cache\webpack\client-development\4.pack.gz'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: 'D:\\unool\\.next\\cache\\webpack\\client-development\\4.pack.gz'
+}
+ ⨯ unhandledRejection: [Error: ENOENT: no such file or directory, stat 'D:\unool\.next\cache\webpack\client-development\4.pack.gz'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: 'D:\\unool\\.next\\cache\\webpack\\client-development\\4.pack.gz'
+}
+ ⨯ unhandledRejection:  [Error: ENOENT: no such file or directory, stat 'D:\unool\.next\cache\webpack\client-development\4.pack.gz'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: 'D:\\unool\\.next\\cache\\webpack\\client-development\\4.pack.gz'
+}
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, stat 'D:\unool\.next\cache\webpack\client-development\4.pack.gz'
+ ✓ Compiled /_error in 15.1s (1270 modules)
+ ⨯ [Error: ENOENT: no such file or directory, open 'D:\unool\.next\routes-manifest.json'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'D:\\unool\\.next\\routes-manifest.json'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'D:\unool\.next\server\edge-instrumentation.js']
+ ⨯ [Error: ENOENT: no such file or directory, open 'D:\unool\.next\routes-manifest.json'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'D:\\unool\\.next\\routes-manifest.json'
+}
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 21.9s (2629 modules)
+ ⨯ [Error: ENOENT: no such file or directory, open 'D:\unool\.next\routes-manifest.json'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'D:\\unool\\.next\\routes-manifest.json'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'D:\unool\.next\routes-manifest.json'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'D:\\unool\\.next\\routes-manifest.json'
+}
+[Error: ENOENT: no such file or directory, open 'D:\unool\.next\routes-manifest.json'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'D:\\unool\\.next\\routes-manifest.json'
+}
+[Error: ENOENT: no such file or directory, open 'D:\unool\.next\routes-manifest.json'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'D:\\unool\\.next\\routes-manifest.json'
+}
+ ✓ Compiled in 1018ms (2615 modules)
+ ⨯ [Error: ENOENT: no such file or directory, open 'D:\unool\.next\routes-manifest.json'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'D:\\unool\\.next\\routes-manifest.json'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'D:\unool\.next\routes-manifest.json'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'D:\\unool\\.next\\routes-manifest.json'
+}
+[Error: ENOENT: no such file or directory, open 'D:\unool\.next\routes-manifest.json'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'D:\\unool\\.next\\routes-manifest.json'
+}
+[Error: ENOENT: no such file or directory, open 'D:\unool\.next\routes-manifest.json'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'D:\\unool\\.next\\routes-manifest.json'
+}
+ GET /signup 500 in 1470ms
+ GET /signup 500 in 1470ms
+ ⨯ [Error: ENOENT: no such file or directory, open 'D:\unool\.next\server\edge-instrumentation.js']
+ ⨯ [Error: ENOENT: no such file or directory, open 'D:\unool\.next\routes-manifest.json'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'D:\\unool\\.next\\routes-manifest.json'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'D:\unool\.next\routes-manifest.json'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'D:\\unool\\.next\\routes-manifest.json'
+}
+[Error: ENOENT: no such file or directory, open 'D:\unool\.next\routes-manifest.json'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'D:\\unool\\.next\\routes-manifest.json'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'D:\unool\.next\routes-manifest.json'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'D:\\unool\\.next\\routes-manifest.json'
+}
+[Error: ENOENT: no such file or directory, open 'D:\unool\.next\routes-manifest.json'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'D:\\unool\\.next\\routes-manifest.json'
+}
+ GET /signup 500 in 326ms
+ ✓ Compiled in 317.7s (734 modules)
+ ✓ Compiled in 40.9s (734 modules)
