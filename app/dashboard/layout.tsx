@@ -11,7 +11,7 @@ import { LayoutDashboard, PenTool, Globe, Settings, LogOut, ChevronLeft, Plus, F
 import { UserProvider, useUserContext } from '@/lib/hooks/use-user-context';
 
 const navigation = [
-  { name: 'Presence', href: '/dashboard', icon: Globe },
+  { name: 'Presence', href: '/dashboard/presence', icon: Globe },
   { name: 'Composer', href: '/dashboard/composer', icon: FileText },
   { name: 'Publish', href: '/dashboard/publish', icon: PenTool },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },

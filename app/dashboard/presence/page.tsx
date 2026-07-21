@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -57,10 +57,15 @@ export default function PresencePage() {
   const [activeTab, setActiveTab] = useState<TabValue>('profile');
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [claimingSubdomain, setClaimingSubdomain] = useState(false);
   const [sourceUrl, setSourceUrl] = useState('');
   const [subdomain, setSubdomain] = useState('');
   const [subdomainAvailable, setSubdomainAvailable] = useState<boolean | null>(null);
   const [claimedSubdomain, setClaimedSubdomain] = useState<string | null>(null);
+  const [lastCheckedSubdomain, setLastCheckedSubdomain] = useState<string>('');
+
+  // Debounce ref for subdomain check
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
   const [profile, setProfile] = useState<Profile>({
     name: '',
@@ -97,6 +102,8 @@ export default function PresencePage() {
         });
         if (data.profile.subdomain) {
           setClaimedSubdomain(data.profile.subdomain);
+          setSubdomain(data.profile.subdomain);
+          setSubdomainAvailable(true);
         }
       }
     } catch {
@@ -104,17 +111,40 @@ export default function PresencePage() {
     }
   };
 
-  const checkSubdomainAvailability = async (value: string) => {
-    if (!value || value.length < 2) {
+  const checkSubdomainAvailability = useCallback(async (value: string) => {
+    const sanitized = value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+    if (!sanitized || sanitized.length < 2) {
       setSubdomainAvailable(null);
+      setLastCheckedSubdomain('');
       return;
     }
-    try {
-      const res = await fetch(`/api/profile/${value}`, { credentials: 'include' });
-      setSubdomainAvailable(res.status === 404); // 404 means available
-    } catch {
-      setSubdomainAvailable(null);
+
+    // Skip if already checked this value
+    if (sanitized === lastCheckedSubdomain) return;
+
+    // Clear existing debounce
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
     }
+
+    // Debounce 300ms
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/profile/${sanitized}`, { credentials: 'include' });
+        const available = res.status === 404; // 404 = available
+        setSubdomainAvailable(available);
+        setLastCheckedSubdomain(sanitized);
+      } catch {
+        setSubdomainAvailable(null);
+        setLastCheckedSubdomain('');
+      }
+    }, 300);
+  }, [lastCheckedSubdomain]);
+
+  const handleSubdomainChange = (value: string) => {
+    const sanitized = value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+    setSubdomain(sanitized);
+    checkSubdomainAvailability(sanitized);
   };
 
   const handleGenerate = async () => {
@@ -162,13 +192,50 @@ export default function PresencePage() {
     }
   };
 
-  const handleSave = async () => {
+  // Separate handler for CLAIM SUBDOMAIN only
+  const handleClaimSubdomain = async () => {
+    if (!subdomain || subdomainAvailable === false || claimingSubdomain || !!claimedSubdomain) {
+      return;
+    }
+
+    setClaimingSubdomain(true);
+
+    try {
+      // Only update the subdomain field, nothing else
+      const res = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          ...profile,
+          subdomain: subdomain,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to claim subdomain');
+      }
+
+      setProfile(data.profile);
+      setClaimedSubdomain(data.profile.subdomain);
+      toast.success(`Subdomain claimed: ${data.profile.subdomain}.unool.co`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to claim subdomain');
+    } finally {
+      setClaimingSubdomain(false);
+    }
+  };
+
+  // Handler for SAVE ENTIRE PROFILE
+  const handleSaveProfile = async () => {
     if (!profile.name.trim()) {
       toast.error('Name is required');
       return;
     }
 
-    if (subdomain && !subdomainAvailable) {
+    if (subdomain && subdomainAvailable === false) {
       toast.error('Subdomain is not available');
       return;
     }
@@ -196,7 +263,7 @@ export default function PresencePage() {
       if (data.profile.subdomain) {
         setClaimedSubdomain(data.profile.subdomain);
       }
-      toast.success('Profile saved');
+      toast.success('Profile saved successfully');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to save');
     } finally {
@@ -295,25 +362,26 @@ export default function PresencePage() {
               <Input
                 placeholder="yourname"
                 value={subdomain}
-                onChange={e => {
-                  const v = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
-                  setSubdomain(v);
-                  checkSubdomainAvailability(v);
-                }}
+                onChange={e => handleSubdomainChange(e.target.value)}
                 disabled={!!claimedSubdomain}
                 className="flex-1"
               />
               <span className="text-muted-foreground">.unool.co</span>
             </div>
             <Button
-              onClick={handleSave}
-              disabled={!subdomain || subdomainAvailable === false || saving || !!claimedSubdomain}
+              onClick={handleClaimSubdomain}
+              disabled={
+                !subdomain ||
+                subdomainAvailable === false ||
+                claimingSubdomain ||
+                !!claimedSubdomain
+              }
               variant={claimedSubdomain ? 'secondary' : 'default'}
             >
-              {saving ? (
+              {claimingSubdomain ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
+                  Claiming...
                 </>
               ) : claimedSubdomain ? (
                 <>
@@ -329,9 +397,24 @@ export default function PresencePage() {
             </Button>
           </div>
           <p className="text-sm">
-            {subdomainAvailable === true && <span className="text-green-600"><CheckCircle className="mr-1 h-3 w-3 inline" /> Available</span>}
-            {subdomainAvailable === false && <span className="text-red-600"><AlertCircle className="mr-1 h-3 w-3 inline" /> Taken</span>}
-            {subdomainAvailable === null && subdomain && <span className="text-muted-foreground">Checking...</span>}
+            {subdomainAvailable === true && (
+              <span className="text-green-600 flex items-center gap-1">
+                <CheckCircle className="h-3 w-3" /> Available
+              </span>
+            )}
+            {subdomainAvailable === false && (
+              <span className="text-red-600 flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" /> Taken
+              </span>
+            )}
+            {subdomainAvailable === null && subdomain && (
+              <span className="text-muted-foreground flex items-center gap-1">
+                <Loader2 className="h-3 w-3 animate-spin" /> Checking...
+              </span>
+            )}
+            {!subdomain && (
+              <span className="text-muted-foreground">Enter a subdomain to check availability</span>
+            )}
           </p>
         </CardContent>
       </Card>
@@ -352,11 +435,12 @@ export default function PresencePage() {
             <CardContent className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <Label htmlFor="name">Name</Label>
+                  <Label htmlFor="name">Name <span className="text-red-500">*</span></Label>
                   <Input
                     id="name"
                     value={profile.name}
                     onChange={e => setProfile(p => ({ ...p, name: e.target.value }))}
+                    required
                   />
                 </div>
                 <div>
@@ -400,7 +484,10 @@ export default function PresencePage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Proof Points</CardTitle>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={() => setProfile(p => ({
+                ...p,
+                proofPoints: [...p.proofPoints, { type: 'metric', value: '', url: '' }]
+              }))}>
                 <Plus className="mr-1 h-3 w-3" />
                 Add Proof Point
               </Button>
@@ -463,7 +550,10 @@ export default function PresencePage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Social & Important Links</CardTitle>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={() => setProfile(p => ({
+                ...p,
+                links: [...p.links, { label: '', url: '', type: 'website' }]
+              }))}>
                 <Plus className="mr-1 h-3 w-3" />
                 Add Link
               </Button>
@@ -555,9 +645,9 @@ export default function PresencePage() {
         </TabsContent>
       </Tabs>
 
-      {/* Save Button */}
+      {/* Save Profile Button - saves everything including subdomain */}
       <div className="flex justify-end pt-4 border-t">
-        <Button onClick={handleSave} disabled={saving} size="lg">
+        <Button onClick={handleSaveProfile} disabled={saving} size="lg">
           {saving ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
