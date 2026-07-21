@@ -54,11 +54,11 @@ async function getDashboardData(): Promise<{
   // Fetch workspace for plan tier
   const { data: workspace } = await supabaseAdmin
     .from('workspaces')
-    .select('plan_tier, profile_views, link_clicks')
+    .select('plan')
     .eq('id', workspaceId)
     .single();
 
-  const tier = (workspace?.plan_tier as Tier) || 'free';
+  const tier = (workspace?.plan as Tier) || 'free';
   const limits = getLimitsForTier(tier);
 
   // Fetch profile
@@ -93,8 +93,8 @@ async function getDashboardData(): Promise<{
     usageStats: {
       postsThisMonth: usage.postsThisMonth,
       postsLimit: limits.postsPerMonth,
-      profileViews: workspace?.profile_views || 0,
-      linkClicks: workspace?.link_clicks || 0,
+      profileViews: 0,
+      linkClicks: 0,
     },
     planTier: tier,
     userId,
