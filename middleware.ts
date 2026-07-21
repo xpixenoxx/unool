@@ -217,7 +217,9 @@ export async function middleware(request: NextRequest) {
       rateLimitAction = 'aiGeneration';
     } else if (pathname.startsWith('/api/publish')) {
       rateLimitAction = 'publish';
-    } else if (pathname.startsWith('/api/profile/')) {
+    } else if (pathname.startsWith('/api/profile/') || pathname === '/api/profile') {
+      rateLimitAction = 'profileView';
+    } else if (pathname.startsWith('/api/onboarding') || pathname.startsWith('/api/workspace') || pathname.startsWith('/api/composer') || pathname.startsWith('/api/user') || pathname.startsWith('/api/platform') || pathname.startsWith('/api/sync')) {
       rateLimitAction = 'profileView';
     }
 
