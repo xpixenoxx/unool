@@ -30,12 +30,12 @@ function SettingsContent() {
   const [workspaceName, setWorkspaceName] = useState('');
   const [oauthBanner, setOauthBanner] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
+  const connected = searchParams.get('connected');
+  const error = searchParams.get('error');
+  const description = searchParams.get('description');
+
   // Handle OAuth callback result from URL params
   useEffect(() => {
-    const connected = searchParams.get('connected');
-    const error = searchParams.get('error');
-    const description = searchParams.get('description');
-
     if (connected) {
       const platformName = connected.charAt(0).toUpperCase() + connected.slice(1);
       setOauthBanner({ type: 'success', message: `${platformName} connected successfully!` });
@@ -51,7 +51,7 @@ function SettingsContent() {
       setOauthBanner({ type: 'error', message: msg });
       toast.error('Connection failed', { description: msg });
     }
-  }, [searchParams]);
+  }, [connected, error, description]);
 
   // Load workspace data on mount
   useEffect(() => {
