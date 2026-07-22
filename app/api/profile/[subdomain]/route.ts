@@ -59,7 +59,7 @@ export async function GET(
     return NextResponse.json({
       ...profile,
       links: profile.links || [],
-      proof_points: profile.proof_points || [],
+      proofPoints: profile.proof_points || [],
       theme: profile.theme || { preset: 'minimal' },
     });
   } catch (error) {

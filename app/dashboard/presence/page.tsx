@@ -96,7 +96,7 @@ export default function PresencePage() {
           role: data.profile.role || '',
           company: data.profile.company || '',
           links: data.profile.links || [],
-          proofPoints: data.profile.proof_points || [],
+          proofPoints: data.profile.proofPoints || [],
           theme: data.profile.theme || { preset: 'minimal' },
           subdomain: data.profile.subdomain,
         });

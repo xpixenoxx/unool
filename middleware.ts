@@ -27,7 +27,7 @@ function isSupabaseConfigured(): boolean {
 
 // Check dev auth bypass at RUNTIME (not module load time - crucial for Vercel edge)
 function isDevAuthEnabledRuntime(): boolean {
-  return process.env.NODE_ENV === 'development' || process.env.DEV_AUTH_BYPASS === 'true';
+  return process.env.DEV_AUTH_BYPASS === 'true';
 }
 
 // Check if path is a profile path /u/[subdomain]

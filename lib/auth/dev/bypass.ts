@@ -25,7 +25,7 @@ import { cookies } from 'next/headers';
 // Throwing here crashes the Vercel production build because Next.js
 // statically analyzes imports and loads this module even in production
 // when it's referenced by getAuthContext().
-const isDev = config.NODE_ENV === 'development' || config.DEV_AUTH_BYPASS === true;
+const isDev = config.DEV_AUTH_BYPASS === true;
 
 // Deterministic dev identifiers (stable across restarts - must match middleware.ts)
 const DEV_USER_ID = '00000000-0000-0000-0000-000000000001';

@@ -16,8 +16,8 @@ export async function getAuthContext(): Promise<AuthContext | null> {
   // Only activate in actual dev runtime, never during production builds.
   // During `next build`, NODE_ENV is 'production' regardless of .env settings,
   // but DEV_AUTH_BYPASS might still be 'true' if set in the environment.
-  // We guard against this by checking NODE_ENV explicitly.
-  if (config.NODE_ENV === 'development' || config.DEV_AUTH_BYPASS === true) {
+  // We guard against this by checking DEV_AUTH_BYPASS explicitly.
+  if (config.DEV_AUTH_BYPASS === true) {
     try {
       // Dynamic import to prevent the module from being loaded/evaluated
       // during production builds (tree-shaking won't help with side effects)
