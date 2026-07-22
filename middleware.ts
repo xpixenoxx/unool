@@ -12,6 +12,8 @@ const publicPaths = [
   '/api/auth',
   '/api/health',
   '/u',
+  '/privacy',
+  '/terms',
 ];
 
 // Check if Supabase is properly configured (not placeholder values)
