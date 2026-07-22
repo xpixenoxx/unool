@@ -76,7 +76,6 @@ function getProofIcon(type: ProofPoint['type']) {
   }
 }
 
-// Defense-in-depth: sanitize plain text content (React escapes by default, but explicit)
 function sanitizePlainText(text: string): string {
   return text
     .replace(/&/g, '&')
@@ -92,27 +91,43 @@ export default function PublicProfilePage({ params }: { params: Promise<{ subdom
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function fetchProfile() {
       const { subdomain } = await params;
+      console.log('[PublicProfile] Fetching profile for:', subdomain);
       try {
-        const response = await fetch(`/api/profile/${subdomain}`);
+        const response = await fetch(`/api/profile/${subdomain}`, {
+          cache: 'no-store',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        console.log('[PublicProfile] Response status:', response.status);
         if (!response.ok) {
           if (response.status === 404) {
-            setError('Profile not found');
+            if (!cancelled) setError('Profile not found');
           } else {
-            setError('Failed to load profile');
+            const text = await response.text();
+            console.error('[PublicProfile] Error response:', text);
+            if (!cancelled) setError('Failed to load profile');
           }
           return;
         }
         const data = await response.json();
-        setProfile(data);
-      } catch {
-        setError('Failed to load profile');
+        console.log('[PublicProfile] Profile data received:', { subdomain: data.subdomain, name: data.name });
+        if (!cancelled) setProfile(data);
+      } catch (err) {
+        console.error('[PublicProfile] Fetch error:', err);
+        if (!cancelled) setError('Failed to load profile');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
+
     fetchProfile();
+
+    return () => {
+      cancelled = true;
+    };
   }, [params]);
 
   if (loading) {
