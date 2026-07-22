@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Key, Shield, Bell, Palette, Trash2, User, Lock, LogOut } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Loader2, Key, Shield, Bell, Palette, Trash2, User, Lock, LogOut, CheckCircle, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 type TabValue = 'account' | 'security' | 'notifications' | 'appearance' | 'danger';
@@ -20,15 +22,41 @@ interface Workspace {
 }
 
 export default function SettingsPage() {
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<TabValue>('account');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [workspaceName, setWorkspaceName] = useState('');
+  const [oauthBanner, setOauthBanner] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // Handle OAuth callback result from URL params
+  useEffect(() => {
+    const connected = searchParams.get('connected');
+    const error = searchParams.get('error');
+    const description = searchParams.get('description');
+
+    if (connected) {
+      const platformName = connected.charAt(0).toUpperCase() + connected.slice(1);
+      setOauthBanner({ type: 'success', message: `${platformName} connected successfully!` });
+      toast.success(`${platformName} connected!`);
+    } else if (error) {
+      const msg = description
+        ? decodeURIComponent(description)
+        : error === 'redis_unconfigured'
+          ? 'Redis (Upstash) is not configured. Platform connections require Redis for OAuth state.'
+          : error === 'invalid_state'
+            ? 'OAuth session expired. Please try connecting again.'
+            : `Connection failed: ${error}`;
+      setOauthBanner({ type: 'error', message: msg });
+      toast.error('Connection failed', { description: msg });
+    }
+  }, [searchParams]);
 
   // Load workspace data on mount
   useEffect(() => {
     loadWorkspace();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadWorkspace = async () => {
@@ -98,6 +126,15 @@ export default function SettingsPage() {
         <p className="text-muted-foreground">Manage your account, workspace, and preferences</p>
       </div>
 
+      {/* OAuth Result Banner */}
+      {oauthBanner && (
+        <Alert variant={oauthBanner.type === 'error' ? 'destructive' : 'default'} className={oauthBanner.type === 'success' ? 'border-green-500 bg-green-50 text-green-800' : ''}>
+          {oauthBanner.type === 'success'
+            ? <CheckCircle className="h-4 w-4 text-green-600" />
+            : <AlertCircle className="h-4 w-4" />}
+          <AlertDescription>{oauthBanner.message}</AlertDescription>
+        </Alert>
+      )}
       <Tabs value={activeTab} onValueChange={(value: string) => setActiveTab(value as TabValue)} className="w-full">
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="account"><User className="mr-2 h-4 w-4" /> Account</TabsTrigger>

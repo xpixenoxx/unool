@@ -22,7 +22,8 @@ export class LinkedInAdapter implements PlatformAdapter {
     clientId: config.LINKEDIN_CLIENT_ID || '',
     clientSecret: config.LINKEDIN_CLIENT_SECRET || '',
     redirectUri: config.LINKEDIN_REDIRECT_URI || '',
-    scopes: ['r_liteprofile', 'w_member_social', 'rw_organization_admin'],
+    // r_liteprofile was deprecated in 2023. Use OpenID Connect scopes.
+    scopes: ['openid', 'profile', 'email', 'w_member_social'],
   };
 
   getAuthUrl(state: string): string {
@@ -101,36 +102,25 @@ export class LinkedInAdapter implements PlatformAdapter {
 
   async getUserProfile(accessToken: string): Promise<UserProfile> {
     return platformFetch('linkedin', async () => {
-      // Get basic profile
-      const profileResponse = await fetchWithRetry(`${LINKEDIN_API_BASE}/me`, {
+      // Use OpenID Connect userinfo endpoint (works with openid, profile, email scopes)
+      const profileResponse = await fetchWithRetry('https://api.linkedin.com/v2/userinfo', {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
 
       if (!profileResponse.ok) {
         const error = await profileResponse.text();
-        logger.error('LinkedIn profile fetch failed', { errorMessage: error, status: profileResponse.status });
-        throw new Error(`LinkedIn profile fetch failed: ${error}`);
+        logger.error('LinkedIn userinfo fetch failed', { errorMessage: error, status: profileResponse.status });
+        throw new Error(`LinkedIn userinfo fetch failed: ${error}`);
       }
 
       const profile = await profileResponse.json();
 
-      // Get email - requires r_emailaddress scope
-      let email: string | undefined;
-      const emailResponse = await fetchWithRetry(
-        `${LINKEDIN_API_BASE}/emailAddress?q=members&projection=(elements*(handle~))`,
-        { headers: { Authorization: `Bearer ${accessToken}` } }
-      );
-      if (emailResponse.ok) {
-        const emailData = await emailResponse.json();
-        email = emailData.elements?.[0]?.['handle~']?.emailAddress;
-      }
-
       return {
-        platformUserId: profile.id,
-        username: email || profile.id,
-        displayName: `${profile.firstName?.localized?.en_US || ''} ${profile.lastName?.localized?.en_US || ''}`.trim(),
-        profileUrl: `https://www.linkedin.com/in/${profile.id}`,
-        avatarUrl: profile.profilePicture?.['displayImage~']?.elements?.[0]?.identifiers?.[0]?.identifier,
+        platformUserId: profile.sub, // OpenID Connect standard field
+        username: profile.email || profile.sub,
+        displayName: profile.name || `${profile.given_name || ''} ${profile.family_name || ''}`.trim(),
+        profileUrl: `https://www.linkedin.com/in/${profile.sub}`,
+        avatarUrl: profile.picture,
       };
     });
   }
