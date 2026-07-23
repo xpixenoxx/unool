@@ -8,7 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Globe, PenTool, Loader2, Sparkles, Trash2, Palette, Link as LinkIcon, ExternalLink, Plus, CheckCircle, AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Globe, PenTool, Loader2, Sparkles, Trash2, Palette, Link as LinkIcon, ExternalLink, Plus, CheckCircle, AlertCircle, Trash } from 'lucide-react';
 import { toast } from 'sonner';
 
 type TabValue = 'profile' | 'links' | 'design';
@@ -228,6 +230,45 @@ export default function PresencePage() {
     }
   };
 
+  // Handler for DELETE SUBDOMAIN
+  const [deletingSubdomain, setDeletingSubdomain] = useState(false);
+
+  const handleDeleteSubdomain = async () => {
+    if (!claimedSubdomain) return;
+
+    if (!confirm('Permanently delete your subdomain? This will make your public profile inaccessible and cannot be undone.')) {
+      return;
+    }
+
+    setDeletingSubdomain(true);
+
+    try {
+      // Delete the profile (which includes the subdomain)
+      const res = await fetch('/api/profile', {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to delete subdomain');
+      }
+
+      // Clear local state
+      setProfile(prev => ({ ...prev, subdomain: null }));
+      setClaimedSubdomain(null);
+      setSubdomain('');
+      setSubdomainAvailable(null);
+      setLastCheckedSubdomain('');
+
+      toast.success('Subdomain deleted successfully');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete subdomain');
+    } finally {
+      setDeletingSubdomain(false);
+    }
+  };
+
   // Handler for SAVE ENTIRE PROFILE
   const handleSaveProfile = async () => {
     if (!profile.name.trim()) {
@@ -347,11 +388,32 @@ export default function PresencePage() {
 
       {/* Subdomain Claim */}
       <Card className="border-primary/20 bg-primary/5">
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <Globe className="h-5 w-5 text-primary" />
             Claim Your Subdomain
           </CardTitle>
+          {claimedSubdomain && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleDeleteSubdomain}
+              disabled={deletingSubdomain}
+              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+            >
+              {deletingSubdomain ? (
+                <>
+                  <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash className="mr-2 h-3 w-3" />
+                  Delete Subdomain
+                </>
+              )}
+            </Button>
+          )}
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">

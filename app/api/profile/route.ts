@@ -104,3 +104,29 @@ export async function POST(request: NextRequest) {
   // Alias to PUT for creation
   return PUT(request);
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const auth = await getCurrentAuth(request);
+    if (!auth) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { workspaceId } = auth;
+
+    // Get the profile first
+    const profile = await profileRepository.findByWorkspaceId(workspaceId);
+    if (!profile) {
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    }
+
+    // Delete the profile
+    await profileRepository.delete(profile.id);
+
+    return NextResponse.json({ success: true, message: 'Profile deleted successfully' });
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error('Delete profile failed', { error: err });
+    return NextResponse.json({ error: 'Failed to delete profile' }, { status: 500 });
+  }
+}

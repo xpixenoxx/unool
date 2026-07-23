@@ -10,7 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Key, Shield, Bell, Palette, Trash2, User, Lock, LogOut, CheckCircle, AlertCircle } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Loader2, Key, Shield, Bell, Palette, Trash2, User, Lock, LogOut, CheckCircle, AlertCircle, Copy, Eye, EyeOff, ChevronDown, ChevronUp, Trash, Check } from 'lucide-react';
 import { toast } from 'sonner';
 
 type TabValue = 'account' | 'security' | 'notifications' | 'appearance' | 'danger';
@@ -21,6 +23,28 @@ interface Workspace {
   plan: string;
 }
 
+interface ApiKey {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  scopes: string[];
+  lastUsedAt: string | null;
+  expiresAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+  revoked: boolean;
+}
+
+type ApiKeyScope = 'posts:read' | 'posts:write' | 'analytics:read' | 'profile:write' | 'webhooks:manage';
+
+const ALL_SCOPES: { value: ApiKeyScope; label: string; description: string }[] = [
+  { value: 'posts:read', label: 'Posts: Read', description: 'Read posts and drafts' },
+  { value: 'posts:write', label: 'Posts: Write', description: 'Create, update, publish posts' },
+  { value: 'analytics:read', label: 'Analytics: Read', description: 'View analytics and engagement data' },
+  { value: 'profile:write', label: 'Profile: Write', description: 'Update profile, links, proof points' },
+  { value: 'webhooks:manage', label: 'Webhooks: Manage', description: 'Configure and manage webhook endpoints' },
+];
+
 function SettingsContent() {
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<TabValue>('account');
@@ -30,11 +54,22 @@ function SettingsContent() {
   const [workspaceName, setWorkspaceName] = useState('');
   const [oauthBanner, setOauthBanner] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
+  // API Keys state
+  const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
+  const [apiKeysLoading, setApiKeysLoading] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [creatingKey, setCreatingKey] = useState(false);
+  const [newKeyName, setNewKeyName] = useState('');
+  const [newKeyScopes, setNewKeyScopes] = useState<ApiKeyScope[]>(['posts:read', 'posts:write']);
+  const [newKeyExpiresDays, setNewKeyExpiresDays] = useState('');
+  const [showNewKey, setShowNewKey] = useState<string | null>(null);
+  const [newKeyPlaintext, setNewKeyPlaintext] = useState<string>('');
+  const [copiedKeyId, setCopiedKeyId] = useState<string | null>(null);
+
   const connected = searchParams.get('connected');
   const error = searchParams.get('error');
   const description = searchParams.get('description');
 
-  // Handle OAuth callback result from URL params
   useEffect(() => {
     if (connected) {
       const platformName = connected.charAt(0).toUpperCase() + connected.slice(1);
@@ -53,10 +88,9 @@ function SettingsContent() {
     }
   }, [connected, error, description]);
 
-  // Load workspace data on mount
   useEffect(() => {
     loadWorkspace();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    loadApiKeys();
   }, []);
 
   const loadWorkspace = async () => {
@@ -71,6 +105,21 @@ function SettingsContent() {
       // Ignore errors
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadApiKeys = async () => {
+    setApiKeysLoading(true);
+    try {
+      const res = await fetch('/api/keys', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setApiKeys(data.keys || []);
+      }
+    } catch {
+      // Ignore errors
+    } finally {
+      setApiKeysLoading(false);
     }
   };
 
@@ -93,6 +142,101 @@ function SettingsContent() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleCreateKey = async () => {
+    if (!newKeyName.trim()) {
+      toast.error('Key name is required');
+      return;
+    }
+    if (newKeyScopes.length === 0) {
+      toast.error('Select at least one scope');
+      return;
+    }
+
+    setCreatingKey(true);
+    try {
+      const expiresAt = newKeyExpiresDays ? new Date(Date.now() + parseInt(newKeyExpiresDays) * 24 * 60 * 60 * 1000).toISOString() : undefined;
+
+      const res = await fetch('/api/keys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: newKeyName,
+          scopes: newKeyScopes,
+          expiresAt,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to create key');
+      }
+
+      // Show the plaintext key in a dialog
+      setNewKeyPlaintext(data.plaintextKey);
+      setShowNewKey(data.key.id);
+      setNewKeyName('');
+      setNewKeyScopes(['posts:read', 'posts:write']);
+      setNewKeyExpiresDays('');
+      setCreateDialogOpen(false);
+      await loadApiKeys();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to create key');
+    } finally {
+      setCreatingKey(false);
+    }
+  };
+
+  const handleRevokeKey = async (keyId: string) => {
+    if (!confirm('Revoke this API key? This cannot be undone.')) return;
+
+    try {
+      const res = await fetch(`/api/keys/${keyId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ action: 'revoke' }),
+      });
+
+      if (res.ok) {
+        toast.success('API key revoked');
+        await loadApiKeys();
+      } else {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to revoke key');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to revoke key');
+    }
+  };
+
+  const handleDeleteKey = async (keyId: string) => {
+    if (!confirm('Permanently delete this API key? This cannot be undone.')) return;
+
+    try {
+      const res = await fetch(`/api/keys/${keyId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (res.ok) {
+        toast.success('API key deleted');
+        await loadApiKeys();
+      } else {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to delete key');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete key');
+    }
+  };
+
+  const handleCopyKey = (key: string) => {
+    navigator.clipboard.writeText(key);
+    toast.success('Key copied to clipboard');
   };
 
   const handleSignOut = async () => {
@@ -135,6 +279,7 @@ function SettingsContent() {
           <AlertDescription>{oauthBanner.message}</AlertDescription>
         </Alert>
       )}
+
       <Tabs value={activeTab} onValueChange={(value: string) => setActiveTab(value as TabValue)} className="w-full">
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="account"><User className="mr-2 h-4 w-4" /> Account</TabsTrigger>
@@ -196,15 +341,210 @@ function SettingsContent() {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Manage your API keys for integrating with Unool. Keys are shown only once upon creation.
+                Manage your API keys for programmatic access to Unool.
               </p>
-              <div className="flex gap-2">
-                <Button variant="outline">Create New Key</Button>
-                <Button variant="ghost">View Existing Keys</Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                API key management will be available in v1.1. Contact support for enterprise API access.
-              </p>
+
+              {/* Create Key Dialog */}
+              <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline">
+                    <Key className="mr-2 h-4 w-4" />
+                    Create New Key
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Create API Key</DialogTitle>
+                    <DialogDescription>
+                      Give your key a name and select the permissions it needs. The full key will only be shown once.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-2">
+                    <div>
+                      <Label htmlFor="key-name">Key Name</Label>
+                      <Input
+                        id="key-name"
+                        value={newKeyName}
+                        onChange={(e) => setNewKeyName(e.target.value)}
+                        placeholder="e.g., Production Server, CI/CD Pipeline"
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label>Scopes (Permissions)</Label>
+                      <div className="space-y-2 mt-1">
+                        {ALL_SCOPES.map((scope) => (
+                          <label
+                            key={scope.value}
+                            className="flex items-center gap-2 p-2 border rounded-lg hover:bg-accent cursor-pointer transition-colors"
+                          >
+                            <Checkbox
+                              checked={newKeyScopes.includes(scope.value)}
+                              onCheckedChange={(checked) =>
+                                setNewKeyScopes(checked
+                                  ? [...newKeyScopes, scope.value]
+                                  : newKeyScopes.filter((s) => s !== scope.value))
+                              }
+                            />
+                            <div className="flex-1">
+                              <p className="font-medium text-sm">{scope.label}</p>
+                              <p className="text-xs text-muted-foreground">{scope.description}</p>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <Label htmlFor="key-expires">Expires In (Days, Optional)</Label>
+                      <Input
+                        id="key-expires"
+                        type="number"
+                        min="1"
+                        max="365"
+                        value={newKeyExpiresDays}
+                        onChange={(e) => setNewKeyExpiresDays(e.target.value)}
+                        placeholder="Never expires"
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setCreateDialogOpen(false)} disabled={creatingKey}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleCreateKey} disabled={creatingKey}>
+                      {creatingKey ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Creating...
+                        </>
+                      ) : (
+                        'Create Key'
+                      )}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              {/* Show New Key Dialog */}
+              {showNewKey && (
+                <Dialog open={!!showNewKey} onOpenChange={() => setShowNewKey(null)}>
+                  <DialogContent className="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Your New API Key</DialogTitle>
+                      <DialogDescription className="text-destructive">
+                        <AlertCircle className="mr-1 h-3 w-3 inline" />
+                        This is the only time this key will be displayed. Save it securely now.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-2">
+                      <div className="flex items-center gap-2 p-3 bg-muted rounded-lg font-mono text-sm break-all">
+                        <span className="flex-1">{newKeyPlaintext}</span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleCopyKey(newKeyPlaintext)}
+                          disabled={copiedKeyId === showNewKey}
+                        >
+                          {copiedKeyId === showNewKey ? (
+                            <Check className="h-4 w-4 text-green-600" />
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2 text-center">
+                        Keys are prefixed with <code>uk_live_</code> for identification.
+                      </p>
+                    </div>
+                    <DialogFooter>
+                      <Button onClick={() => setShowNewKey(null)}>I've Saved This Key</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              )}
+
+              {/* API Keys List */}
+              {apiKeysLoading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="p-3 border rounded-lg animate-pulse bg-muted" />
+                  ))}
+                </div>
+              ) : apiKeys.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Key className="mx-auto h-12 w-12 mb-4 text-muted-foreground/50" />
+                  <p>No API keys yet.</p>
+                  <Button asChild className="mt-2">
+                    <DialogTrigger><Dialog><DialogTrigger>Create your first key</DialogTrigger></Dialog></DialogTrigger>
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {apiKeys.map((key) => (
+                    <div
+                      key={key.id}
+                      className={`border rounded-xl p-4 transition-all ${
+                        key.revoked ? 'bg-muted/50 border-dashed opacity-60' : 'bg-card'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <span className="px-2 py-1 bg-primary/10 text-primary rounded-lg font-mono text-xs">
+                              {key.keyPrefix}••••••••
+                            </span>
+                            <h4 className="font-medium truncate">{key.name}</h4>
+                            {key.revoked && (
+                              <Badge variant="secondary">Revoked</Badge>
+                            )}
+                            {key.expiresAt && !key.revoked && new Date(key.expiresAt) < new Date() && (
+                              <Badge variant="destructive">Expired</Badge>
+                            )}
+                            {!key.revoked && !key.expiresAt && <Badge variant="outline">Active</Badge>}
+                            {!key.revoked && key.expiresAt && new Date(key.expiresAt) >= new Date() && (
+                              <Badge variant="default">Active</Badge>
+                            )}
+                          </div>
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {key.scopes.map((scope) => (
+                              <Badge key={scope} variant="outline" className="text-xs">
+                                {scope}
+                              </Badge>
+                            ))}
+                          </div>
+                          <div className="mt-2 text-xs text-muted-foreground flex items-center gap-4">
+                            <span>Created: {new Date(key.createdAt).toLocaleDateString()}</span>
+                            {key.lastUsedAt && <span>Last used: {new Date(key.lastUsedAt).toLocaleDateString()}</span>}
+                            {key.expiresAt && <span>Expires: {new Date(key.expiresAt).toLocaleDateString()}</span>}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {key.revoked ? (
+                            <Button variant="ghost" size="icon" onClick={() => handleDeleteKey(key.id)} className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                              <Trash className="h-4 w-4" />
+                            </Button>
+                          ) : (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleRevokeKey(key.id)}
+                                className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
+                              >
+                                Revoke
+                              </Button>
+                              <Button variant="ghost" size="icon" onClick={() => handleDeleteKey(key.id)} className="text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+                                <Trash className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -242,8 +582,7 @@ function SettingsContent() {
                 </div>
                 <Button variant="ghost" size="sm">View Sessions</Button>
               </div>
-            </CardContent>
-          </Card>
+            </CardContent          </Card>
 
           <Card>
             <CardHeader>
