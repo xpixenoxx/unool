@@ -8,8 +8,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Globe, PenTool, Loader2, Sparkles, Trash2, Palette, Link as LinkIcon, ExternalLink, Plus, CheckCircle, AlertCircle, Trash } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -42,7 +40,7 @@ interface Profile {
   links: ProfileLink[];
   proofPoints: ProofPoint[];
   theme: ProfileTheme;
-  subdomain?: string;
+  subdomain?: string | null;
 }
 
 interface ExtractedProfile {

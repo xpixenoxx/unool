@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, Key, Shield, Bell, Palette, Trash2, User, Lock, LogOut, CheckCircle, AlertCircle, Copy, Eye, EyeOff, ChevronDown, ChevronUp, Trash, Check } from 'lucide-react';
+import { Loader2, Key, Shield, Bell, Palette, Trash2, User, Lock, LogOut, CheckCircle, AlertCircle, Copy, Trash, Check } from 'lucide-react';
 import { toast } from 'sonner';
 
 type TabValue = 'account' | 'security' | 'notifications' | 'appearance' | 'danger';
@@ -234,9 +234,10 @@ function SettingsContent() {
     }
   };
 
-  const handleCopyKey = (key: string) => {
+  const handleCopyKey = (key: string, keyId?: string) => {
     navigator.clipboard.writeText(key);
     toast.success('Key copied to clipboard');
+    if (keyId) setCopiedKeyId(keyId);
   };
 
   const handleSignOut = async () => {
@@ -443,7 +444,7 @@ function SettingsContent() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleCopyKey(newKeyPlaintext)}
+                          onClick={() => handleCopyKey(newKeyPlaintext, showNewKey as string)}
                           disabled={copiedKeyId === showNewKey}
                         >
                           {copiedKeyId === showNewKey ? (
@@ -458,7 +459,7 @@ function SettingsContent() {
                       </p>
                     </div>
                     <DialogFooter>
-                      <Button onClick={() => setShowNewKey(null)}>I've Saved This Key</Button>
+                      <Button onClick={() => setShowNewKey(null)}>I&apos;ve Saved This Key</Button>
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
@@ -582,7 +583,8 @@ function SettingsContent() {
                 </div>
                 <Button variant="ghost" size="sm">View Sessions</Button>
               </div>
-            </CardContent          </Card>
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>

@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthContext } from '@/lib/auth/server';
+import { getCurrentAuth } from '@/lib/auth/server';
 import { SupabaseApiKeyRepository } from '@/lib/repositories/supabase/SupabaseApiKeyRepository';
+import type { ApiKeyScope } from '@/lib/repositories/interfaces/IApiKeyRepository';
 import { config } from '@/lib/config/schema';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 
 const apiKeyRepository = new SupabaseApiKeyRepository();
-const adminClient = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
 
 const KEY_PREFIX = 'uk_live_';
 const KEY_LENGTH = 32; // 32 bytes = 256 bits
@@ -20,22 +20,22 @@ function hashApiKey(key: string): string {
   return crypto.createHash('sha256').update(key).digest('hex');
 }
 
-function encryptApiKey(key: string): string {
+function encryptApiKey(plaintextKey: string): string {
   const encryptionKey = config.ENCRYPTION_KEY;
   if (!encryptionKey) {
     throw new Error('ENCRYPTION_KEY not configured');
   }
-  const key = Buffer.from(encryptionKey, 'base64');
+  const derivedKey = Buffer.from(encryptionKey, 'base64');
   const iv = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
-  const encrypted = Buffer.concat([cipher.update(key, 'utf8'), cipher.final()]);
+  const cipher = crypto.createCipheriv('aes-256-gcm', derivedKey, iv);
+  const encrypted = Buffer.concat([cipher.update(plaintextKey, 'utf8'), cipher.final()]);
   const authTag = cipher.getAuthTag();
   return `${iv.toString('base64')}:${encrypted.toString('base64')}:${authTag.toString('base64')}`;
 }
 
 export async function GET(request: NextRequest) {
   try {
-    const auth = await getAuthContext(request);
+    const auth = await getCurrentAuth(request);
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await getAuthContext(request);
+    const auth = await getCurrentAuth(request);
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
       'workspace:write',
     ];
 
-    const providedScopes = (scopes || []).filter((s) => validScopes.includes(s));
+    const providedScopes = (scopes || []).filter((s): s is ApiKeyScope => validScopes.includes(s));
     if (providedScopes.length === 0) {
       return NextResponse.json({ error: 'At least one valid scope is required' }, { status: 400 });
     }

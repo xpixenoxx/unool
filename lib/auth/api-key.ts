@@ -2,10 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SupabaseApiKeyRepository } from '@/lib/repositories/supabase/SupabaseApiKeyRepository';
 import { config } from '@/lib/config/schema';
 import crypto from 'crypto';
-import { createClient } from '@supabase/supabase-js';
 
 const apiKeyRepository = new SupabaseApiKeyRepository();
-const adminClient = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
 
 export interface ApiKeyAuthContext {
   apiKeyId: string;
