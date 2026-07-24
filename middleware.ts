@@ -255,7 +255,7 @@ export async function middleware(request: NextRequest) {
       rateLimitAction = 'publish';
     } else if (pathname.startsWith('/api/profile/') || pathname === '/api/profile') {
       rateLimitAction = 'profileView';
-    } else if (pathname.startsWith('/api/onboarding') || pathname.startsWith('/api/workspace') || pathname.startsWith('/api/composer') || pathname.startsWith('/api/user') || pathname.startsWith('/api/platform') || pathname.startsWith('/api/sync')) {
+    } else if (pathname.startsWith('/api/onboarding') || pathname.startsWith('/api/workspace') || pathname.startsWith('/api/composer') || pathname.startsWith('/api/user') || pathname.startsWith('/api/platform') || pathname.startsWith('/api/sync') || pathname.startsWith('/api/subdomains')) {
       rateLimitAction = 'profileView';
     }
 
