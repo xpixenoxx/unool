@@ -53,7 +53,7 @@ export interface UpdateProfileInput {
   links?: ProfileLink[];
   proofPoints?: ProofPoint[];
   theme?: ProfileTheme;
-  subdomain?: string;
+  subdomain?: string | null;
 }
 
 export interface IProfileRepository {
