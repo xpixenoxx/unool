@@ -53,6 +53,8 @@ export interface UsageSnapshot {
   scheduledPosts: number;
   teamMembers: number;
   apiCallsToday: number;
+  profileViews: number;
+  linkClicks: number;
 }
 
 export interface LimitCheckResult {
@@ -130,6 +132,8 @@ export async function getCurrentUsage(
     { count: scheduledPosts },
     { count: teamMembers },
     { count: apiCallsToday },
+    { count: profileViews },
+    { count: linkClicks },
   ] = await Promise.all([
     supabase
       .from('posts')
@@ -166,6 +170,18 @@ export async function getCurrentUsage(
       .select('id', { count: 'exact', head: true })
       .eq('workspace_id', workspaceId)
       .gte('created_at', dayStart.toISOString()),
+
+    supabase
+      .from('profile_views')
+      .select('id', { count: 'exact', head: true })
+      .eq('workspace_id', workspaceId)
+      .gte('created_at', monthStart.toISOString()),
+
+    supabase
+      .from('link_clicks')
+      .select('id', { count: 'exact', head: true })
+      .eq('workspace_id', workspaceId)
+      .gte('created_at', monthStart.toISOString()),
   ]);
 
   const aiTokensThisMonth = aiUsage?.reduce((sum: number, u: { tokens_in?: number; tokens_out?: number }) => sum + (u.tokens_in || 0) + (u.tokens_out || 0), 0) || 0;
@@ -177,5 +193,7 @@ export async function getCurrentUsage(
     scheduledPosts: scheduledPosts || 0,
     teamMembers: teamMembers || 0,
     apiCallsToday: apiCallsToday || 0,
+    profileViews: profileViews || 0,
+    linkClicks: linkClicks || 0,
   };
 }

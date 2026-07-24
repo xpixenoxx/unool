@@ -1,11 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Loader2, ArrowRight } from 'lucide-react';
+import { Loader2, ArrowRight, CheckCircle, AlertCircle, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Suspense } from 'react';
+import { Flex, Box, Text, Display } from '@/components/ui/layout';
+import { MotionBox, spring } from '@/components/ui/motion';
+import { Container, Section } from '@/components/ui/layout';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { Transition } from 'framer-motion';
 
 function AuthCallbackContent() {
   const router = useRouter();
@@ -13,6 +17,8 @@ function AuthCallbackContent() {
   const redirect = searchParams.get('redirect') || '/dashboard';
   const [errorMessage, setErrorMessage] = useState<string | null>(searchParams.get('error'));
   const [isExchanging, setIsExchanging] = useState(false);
+  const reducedMotion = useReducedMotion();
+  const springConfig: Transition = reducedMotion ? { type: 'tween', duration: 0.01 } : spring.snappy;
 
   useEffect(() => {
     // Check for error in hash fragment (Supabase often puts OAuth/Magic Link errors here)
@@ -72,43 +78,75 @@ function AuthCallbackContent() {
 
   if (errorMessage) {
     return (
-      <div className="min-h-screen flex items-center justify-center py-12 px-4">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6 text-center">
-            <div className="mx-auto w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center mb-4">
-              <Loader2 className="w-6 h-6 text-red-600" />
-            </div>
-            <h2 className="text-xl font-semibold mb-2">Authentication Failed</h2>
-            <p className="text-muted-foreground mb-6">{errorMessage}</p>
-            <Button onClick={() => router.push('/signup')} variant="outline">
-              <ArrowRight className="mr-2 h-4 w-4" />
-              Try Again
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+      <Section size="lg" className="flex items-center justify-center">
+        <Container size="sm">
+          <MotionBox variant="slide-up">
+            <Card className="border-destructive/30 bg-destructive/5">
+              <CardContent className="pt-8 text-center">
+                <MotionBox variant="scale" delay={0.1} initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={springConfig}>
+                  <div className="mx-auto w-14 h-14 bg-destructive/10 rounded-2xl flex items-center justify-center mb-4">
+                    <AlertCircle className="w-7 h-7 text-destructive" />
+                  </div>
+                </MotionBox>
+                <Display size="md" weight="bold" className="mb-2">Authentication Failed</Display>
+                <Text color="muted" className="mb-6 max-w-sm mx-auto">{errorMessage}</Text>
+                <MotionBox variant="scale" delay={0.2}>
+                  <Button onClick={() => router.push('/signup')} variant="outline" size="lg" className="w-full sm:w-auto">
+                    <ArrowRight className="mr-2 h-4 w-4" />
+                    Try Again
+                  </Button>
+                </MotionBox>
+              </CardContent>
+            </Card>
+          </MotionBox>
+        </Container>
+      </Section>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center py-12 px-4">
-      <Card className="w-full max-w-md">
-        <CardContent className="pt-6 text-center">
-          <div className="mx-auto w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mb-4">
-            <Loader2 className="w-6 h-6 text-primary animate-spin" />
-          </div>
-          <h2 className="text-xl font-semibold mb-2">Completing Sign In</h2>
-          <p className="text-muted-foreground">{isExchanging ? 'Verifying your magic link...' : 'Please wait while we verify your magic link...'}</p>
-        </CardContent>
-      </Card>
-    </div>
+    <Section size="lg" className="flex items-center justify-center">
+      <Container size="sm">
+        <MotionBox variant="slide-up">
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="pt-8 text-center">
+              <MotionBox variant="scale" delay={0.1} initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={springConfig}>
+                <div className="mx-auto w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center mb-4">
+                  <Loader2 className="w-7 h-7 text-primary animate-spin" />
+                </div>
+              </MotionBox>
+              <Display size="md" weight="bold" className="mb-2">Completing Sign In</Display>
+              <Text color="muted" className="mb-6 max-w-sm mx-auto">
+                {isExchanging ? 'Verifying your magic link...' : 'Please wait while we verify your magic link...'}
+              </Text>
+              <MotionBox variant="slide-up" delay={0.3}>
+                <Flex center gap={2} className="text-xs text-muted-foreground">
+                  <Mail className="w-3 h-3" />
+                  <span>Sent to your inbox</span>
+                </Flex>
+              </MotionBox>
+            </CardContent>
+          </Card>
+        </MotionBox>
+      </Container>
+    </Section>
   );
 }
 
 export default function AuthCallbackPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
-      <AuthCallbackContent />
+    <Suspense fallback={
+      <Section size="lg" className="flex items-center justify-center">
+        <Container size="sm">
+          <div className="text-center">
+            <Loader2 className="mx-auto w-8 h-8 text-primary animate-spin" />
+          </div>
+        </Container>
+      </Section>
+    }>
+      <MotionBox variant="fade">
+        <AuthCallbackContent />
+      </MotionBox>
     </Suspense>
   );
 }

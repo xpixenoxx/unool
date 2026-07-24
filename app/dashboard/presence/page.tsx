@@ -1,15 +1,21 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
+import React from 'react';
 import Link from 'next/link';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { motion, AnimatePresence, Transition } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Globe, PenTool, Loader2, Sparkles, Trash2, Palette, Link as LinkIcon, ExternalLink, Plus, CheckCircle, AlertCircle, Trash } from 'lucide-react';
+import { Globe, PenTool, Loader2, Sparkles, Trash2, Palette, Link as LinkIcon, ExternalLink, Plus, CheckCircle, AlertCircle, Trash, ArrowRight, Zap, Shield, Globe as GlobeIcon } from 'lucide-react';
 import { toast } from 'sonner';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Flex, Box, Stack, Text, Display, Divider } from '@/components/ui/layout';
+import { MotionBox, MotionStack, spring, stagger } from '@/components/ui/motion';
+import { cn } from '@/lib/utils';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 type TabValue = 'profile' | 'links' | 'design';
 type Preset = 'minimal' | 'bold' | 'corporate' | 'creative' | 'technical';
@@ -27,7 +33,7 @@ interface ProofPoint {
 }
 
 interface ProfileTheme {
-  preset: Preset;
+  template: string;
 }
 
 interface Profile {
@@ -53,18 +59,49 @@ interface ExtractedProfile {
   proofPoints: Array<{ type: string; value: string; url?: string }>;
 }
 
-export default function PresencePage() {
+const TEMPLATE_CONFIG: Record<string, { name: string; category: string; description: string }> = {
+  'essential-minimal': { name: 'Minimal', category: 'Essential', description: 'Clean, whitespace-driven, content-first' },
+  'essential-light': { name: 'Light', category: 'Essential', description: 'Airy with subtle accents' },
+  'essential-standard': { name: 'Standard', category: 'Essential', description: 'Balanced, professional default' },
+  'essential-bold': { name: 'Bold', category: 'Essential', description: 'High contrast, strong hierarchy' },
+  'essential-max': { name: 'Max', category: 'Essential', description: 'Dense, feature-rich layout' },
+  'professional-minimal': { name: 'Minimal', category: 'Professional', description: 'Reserved, executive presence' },
+  'professional-light': { name: 'Light', category: 'Professional', description: 'Approachable authority' },
+  'professional-standard': { name: 'Standard', category: 'Professional', description: 'Corporate standard' },
+  'professional-bold': { name: 'Bold', category: 'Professional', description: 'Confident leadership' },
+  'professional-max': { name: 'Max', category: 'Professional', description: 'Comprehensive executive profile' },
+  'creative-minimal': { name: 'Minimal', category: 'Creative', description: 'Artistic restraint' },
+  'creative-light': { name: 'Light', category: 'Creative', description: 'Playful whitespace' },
+  'creative-standard': { name: 'Standard', category: 'Creative', description: 'Expressive balance' },
+  'creative-bold': { name: 'Bold', category: 'Creative', description: 'Vibrant, asymmetric' },
+  'creative-max': { name: 'Max', category: 'Creative', description: 'Immersive portfolio' },
+  'technical-minimal': { name: 'Minimal', category: 'Technical', description: 'Terminal aesthetic' },
+  'technical-light': { name: 'Light', category: 'Technical', description: 'Code-centric light' },
+  'technical-standard': { name: 'Standard', category: 'Technical', description: 'Developer default' },
+  'technical-bold': { name: 'Bold', category: 'Technical', description: 'High-contrast hacker' },
+  'technical-max': { name: 'Max', category: 'Technical', description: 'Full spec sheet' },
+  'social-minimal': { name: 'Minimal', category: 'Social', description: 'Link-focused clean' },
+  'social-light': { name: 'Light', category: 'Social', description: 'Airy social hub' },
+  'social-standard': { name: 'Standard', category: 'Social', description: 'Balanced creator' },
+  'social-bold': { name: 'Bold', category: 'Social', description: 'Vibrant personality' },
+  'social-max': { name: 'Max', category: 'Social', description: 'All-in-one creator hub' },
+};
+
+function PresencePage() {
+  const reducedMotion = useReducedMotion();
+  const springConfig: Transition = reducedMotion ? { type: 'tween', duration: 0.01 } : spring.standard;
+
   const [activeTab, setActiveTab] = useState<TabValue>('profile');
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [claimingSubdomain, setClaimingSubdomain] = useState(false);
+  const [deletingSubdomain, setDeletingSubdomain] = useState(false);
   const [sourceUrl, setSourceUrl] = useState('');
   const [subdomain, setSubdomain] = useState('');
   const [subdomainAvailable, setSubdomainAvailable] = useState<boolean | null>(null);
   const [claimedSubdomain, setClaimedSubdomain] = useState<string | null>(null);
   const [lastCheckedSubdomain, setLastCheckedSubdomain] = useState<string>('');
 
-  // Debounce ref for subdomain check
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
   const [profile, setProfile] = useState<Profile>({
@@ -75,7 +112,7 @@ export default function PresencePage() {
     company: '',
     links: [],
     proofPoints: [],
-    theme: { preset: 'minimal' },
+    theme: { template: 'essential-standard' },
   });
 
   // Load existing profile on mount
@@ -88,230 +125,168 @@ export default function PresencePage() {
       const res = await fetch('/api/profile', { credentials: 'include' });
       const data = await res.json();
       if (data.profile) {
-        setProfile({
-          id: data.profile.id,
-          name: data.profile.name || '',
-          headline: data.profile.headline || '',
-          bio: data.profile.bio || '',
-          role: data.profile.role || '',
-          company: data.profile.company || '',
-          links: data.profile.links || [],
-          proofPoints: data.profile.proofPoints || [],
-          theme: data.profile.theme || { preset: 'minimal' },
-          subdomain: data.profile.subdomain,
-        });
+        setProfile(data.profile);
         if (data.profile.subdomain) {
           setClaimedSubdomain(data.profile.subdomain);
-          setSubdomain(data.profile.subdomain);
-          setSubdomainAvailable(true);
         }
       }
-    } catch {
-      // Ignore - user might not have a profile yet
+    } catch (error) {
+      console.error('Failed to load profile:', error);
     }
-  };
-
-  const checkSubdomainAvailability = useCallback(async (value: string) => {
-    const sanitized = value.toLowerCase().replace(/[^a-z0-9-]/g, '');
-    if (!sanitized || sanitized.length < 2) {
-      setSubdomainAvailable(null);
-      setLastCheckedSubdomain('');
-      return;
-    }
-
-    // Skip if already checked this value
-    if (sanitized === lastCheckedSubdomain) return;
-
-    // Clear existing debounce
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
-
-    // Debounce 300ms
-    debounceRef.current = setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/profile/${sanitized}`, { credentials: 'include' });
-        const available = res.status === 404; // 404 = available
-        setSubdomainAvailable(available);
-        setLastCheckedSubdomain(sanitized);
-      } catch {
-        setSubdomainAvailable(null);
-        setLastCheckedSubdomain('');
-      }
-    }, 300);
-  }, [lastCheckedSubdomain]);
-
-  const handleSubdomainChange = (value: string) => {
-    const sanitized = value.toLowerCase().replace(/[^a-z0-9-]/g, '');
-    setSubdomain(sanitized);
-    checkSubdomainAvailability(sanitized);
   };
 
   const handleGenerate = async () => {
     if (!sourceUrl.trim()) return;
     setGenerating(true);
-
     try {
-      const res = await fetch('/api/profile/extract', {
+      const res = await fetch('/api/profile/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ url: sourceUrl }),
       });
-
+      if (!res.ok) throw new Error('Failed to generate profile');
       const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Extraction failed');
+      if (data.profile) {
+        const extracted = data.profile as ExtractedProfile;
+        setProfile(prev => ({
+          ...prev,
+          name: extracted.name || prev.name,
+          headline: extracted.headline || prev.headline,
+          bio: extracted.bio || prev.bio,
+          role: extracted.role || prev.role,
+          company: extracted.company || prev.company,
+          links: extracted.links || prev.links,
+          proofPoints: extracted.proofPoints.map(p => ({ type: p.type, value: p.value, url: p.url || '' })) || prev.proofPoints,
+        }));
+        toast.success('Profile generated from URL');
       }
-
-      const extracted: ExtractedProfile = data.profile;
-
-      setProfile(prev => ({
-        ...prev,
-        name: extracted.name || prev.name,
-        headline: extracted.headline || prev.headline,
-        bio: extracted.bio || prev.bio,
-        role: extracted.role || prev.role,
-        company: extracted.company || prev.company,
-        links: [
-          ...prev.links,
-          ...(extracted.links || []).map(l => ({ label: l.label, url: l.url, type: l.type })),
-        ],
-        proofPoints: [
-          ...prev.proofPoints,
-          ...(extracted.proofPoints || []).map(p => ({ type: p.type, value: p.value, url: p.url || '' })),
-        ],
-      }));
-
-      toast.success('Profile generated from URL');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to generate profile');
+    } catch (error) {
+      toast.error('Failed to generate profile');
     } finally {
       setGenerating(false);
     }
   };
 
-  // Separate handler for CLAIM SUBDOMAIN only
-  const handleClaimSubdomain = async () => {
-    if (!subdomain || subdomainAvailable === false || claimingSubdomain || !!claimedSubdomain) {
+  const checkSubdomainAvailability = useCallback(async (value: string) => {
+    if (!value || value.length < 3) {
+      setSubdomainAvailable(null);
       return;
     }
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/subdomains/check?subdomain=${value}`, { credentials: 'include' });
+        const data = await res.json();
+        setSubdomainAvailable(data.available === true);
+        setLastCheckedSubdomain(value);
+      } catch {
+        setSubdomainAvailable(null);
+      }
+    }, 300);
+  }, []);
 
+  const handleSubdomainChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+    setSubdomain(value);
+    checkSubdomainAvailability(value);
+  };
+
+  const handleClaimSubdomain = async () => {
+    if (!subdomain || subdomainAvailable !== true) return;
     setClaimingSubdomain(true);
-
     try {
-      // Only update the subdomain field, nothing else
-      const res = await fetch('/api/profile', {
-        method: 'PUT',
+      const res = await fetch('/api/subdomains/claim', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
-          ...profile,
-          subdomain: subdomain,
-        }),
+        body: JSON.stringify({ subdomain }),
       });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to claim subdomain');
-      }
-
-      setProfile(data.profile);
-      setClaimedSubdomain(data.profile.subdomain);
-      toast.success(`Subdomain claimed: ${data.profile.subdomain}.unool.co`);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to claim subdomain');
+      if (!res.ok) throw new Error('Failed to claim subdomain');
+      setClaimedSubdomain(subdomain);
+      toast.success(`Subdomain ${subdomain}.unool.co claimed!`);
+    } catch {
+      toast.error('Failed to claim subdomain');
     } finally {
       setClaimingSubdomain(false);
     }
   };
 
-  // Handler for DELETE SUBDOMAIN
-  const [deletingSubdomain, setDeletingSubdomain] = useState(false);
-
   const handleDeleteSubdomain = async () => {
     if (!claimedSubdomain) return;
-
-    if (!confirm('Permanently delete your subdomain? This will make your public profile inaccessible and cannot be undone.')) {
-      return;
-    }
-
     setDeletingSubdomain(true);
-
     try {
-      // Delete the profile (which includes the subdomain)
-      const res = await fetch('/api/profile', {
+      const res = await fetch(`/api/subdomains/${claimedSubdomain}`, {
         method: 'DELETE',
         credentials: 'include',
       });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to delete subdomain');
-      }
-
-      // Clear local state
-      setProfile(prev => ({ ...prev, subdomain: null }));
+      if (!res.ok) throw new Error('Failed to delete subdomain');
       setClaimedSubdomain(null);
-      setSubdomain('');
-      setSubdomainAvailable(null);
-      setLastCheckedSubdomain('');
-
-      toast.success('Subdomain deleted successfully');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to delete subdomain');
+      toast.success('Subdomain deleted');
+    } catch {
+      toast.error('Failed to delete subdomain');
     } finally {
       setDeletingSubdomain(false);
     }
   };
 
-  // Handler for SAVE ENTIRE PROFILE
-  const handleSaveProfile = async () => {
-    if (!profile.name.trim()) {
-      toast.error('Name is required');
-      return;
-    }
-
-    if (subdomain && subdomainAvailable === false) {
-      toast.error('Subdomain is not available');
-      return;
-    }
-
+  const handleSave = async () => {
     setSaving(true);
-
     try {
       const res = await fetch('/api/profile', {
-        method: 'PUT',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
           ...profile,
-          subdomain: subdomain || profile.subdomain,
+          subdomain: claimedSubdomain,
         }),
       });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Save failed');
-      }
-
-      setProfile(data.profile);
-      if (data.profile.subdomain) {
-        setClaimedSubdomain(data.profile.subdomain);
-      }
-      toast.success('Profile saved successfully');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to save');
+      if (!res.ok) throw new Error('Failed to save profile');
+      toast.success('Profile saved');
+    } catch {
+      toast.error('Failed to save profile');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleTabChange = (value: string) => {
-    setActiveTab(value as TabValue);
+  const handleLinkAdd = (type: string) => {
+    const newLink: ProfileLink = { label: '', url: '', type };
+    setProfile(prev => ({ ...prev, links: [...prev.links, newLink] }));
+  };
+
+  const handleLinkUpdate = (index: number, field: 'label' | 'url' | 'type', value: string) => {
+    setProfile(prev => {
+      const newLinks = [...prev.links];
+      if (newLinks[index]) {
+        newLinks[index] = { ...newLinks[index], [field]: value };
+      }
+      return { ...prev, links: newLinks };
+    });
+  };
+
+  const handleLinkRemove = (index: number) => {
+    setProfile(prev => ({ ...prev, links: prev.links.filter((_, i) => i !== index) }));
+  };
+
+  const handleProofPointAdd = () => {
+    const newPoint: ProofPoint = { type: '', value: '', url: '' };
+    setProfile(prev => ({ ...prev, proofPoints: [...prev.proofPoints, newPoint] }));
+  };
+
+  const handleProofPointUpdate = (index: number, field: 'type' | 'value' | 'url', value: string) => {
+    setProfile(prev => {
+      const newPoints = [...prev.proofPoints];
+      if (newPoints[index]) {
+        newPoints[index] = { ...newPoints[index], [field]: value };
+      }
+      return { ...prev, proofPoints: newPoints };
+    });
+  };
+
+  const handleProofPointRemove = (index: number) => {
+    setProfile(prev => ({ ...prev, proofPoints: prev.proofPoints.filter((_, i) => i !== index) }));
   };
 
   const liveUrl = claimedSubdomain
@@ -320,18 +295,23 @@ export default function PresencePage() {
         : `https://${claimedSubdomain}.unool.co`)
     : null;
 
+  const handleTemplateSelect = (templateId: string) => {
+    setProfile(prev => ({ ...prev, theme: { template: templateId } }));
+    toast.success(`Template set to ${TEMPLATE_CONFIG[templateId]?.name || templateId}`);
+  };
+
   return (
-    <div className="space-y-8">
+    <Box className="space-y-8 max-w-4xl mx-auto px-4 py-8">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Presence (One Link)</h1>
-          <p className="text-muted-foreground">Your intelligent public profile page</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+      <Flex between wrap gap={4}>
+        <Box>
+          <Display size="xl" weight="bold">Presence (One Link)</Display>
+          <Text size="lg" color="muted">Your intelligent public profile page</Text>
+        </Box>
+        <Flex wrap gap={2}>
           {claimedSubdomain && (
             <Badge variant="outline" className="gap-1">
-              <Globe className="h-3 w-3" />
+              <GlobeIcon className="h-3 w-3" />
               {process.env.NODE_ENV === 'development'
                 ? `/u/${claimedSubdomain}`
                 : `${claimedSubdomain}.unool.co`}
@@ -345,379 +325,459 @@ export default function PresencePage() {
               </Link>
             </Button>
           )}
-        </div>
-      </div>
+        </Flex>
+      </Flex>
 
       {/* AI Generation Card */}
-      <Card className="bg-gradient-to-r from-primary/5 to-purple-500/5 border-primary/20">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            Generate Profile from URL
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col sm:flex-row gap-4">
-          <p className="text-sm text-muted-foreground flex-1 self-center">
-            Paste your website, LinkedIn, or GitHub URL. Unool extracts your role, company, metrics, links, and proof points automatically.
-          </p>
-          <div className="flex gap-2 w-full sm:w-auto">
-            <Input
-              placeholder="https://yourwebsite.com or https://linkedin.com/in/yourname"
-              value={sourceUrl}
-              onChange={e => setSourceUrl(e.target.value)}
-              className="flex-1"
-            />
-            <Button onClick={handleGenerate} disabled={generating || !sourceUrl.trim()}>
-              {generating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Generate
-                </>
-              )}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <MotionBox variant="slide-up" delay={0.05}>
+        <Card className="bg-gradient-to-r from-primary/5 to-purple-500/5 border-primary/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              Generate Profile from URL
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Flex column gap={4} className="sm:flex-row">
+              <Text size="sm" color="muted" className="flex-1 self-center sm:self-start">
+                Paste your website, LinkedIn, or GitHub URL. Unool extracts your role, company, metrics, links, and proof points automatically.
+              </Text>
+              <Flex gap={2} className="w-full sm:w-auto">
+                <Input
+                  placeholder="https://yourwebsite.com or https://linkedin.com/in/yourname"
+                  value={sourceUrl}
+                  onChange={e => setSourceUrl(e.target.value)}
+                  className="flex-1"
+                />
+                <Button onClick={handleGenerate} disabled={generating || !sourceUrl.trim()} size="lg">
+                  {generating ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-2 h-4 w-4" />
+                      Generate
+                    </>
+                  )}
+                </Button>
+              </Flex>
+            </Flex>
+          </CardContent>
+        </Card>
+      </MotionBox>
 
       {/* Subdomain Claim */}
-      <Card className="border-primary/20 bg-primary/5">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <Globe className="h-5 w-5 text-primary" />
-            Claim Your Subdomain
-          </CardTitle>
-          {claimedSubdomain && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleDeleteSubdomain}
-              disabled={deletingSubdomain}
-              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-            >
-              {deletingSubdomain ? (
-                <>
-                  <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                <>
-                  <Trash className="mr-2 h-3 w-3" />
-                  Delete Subdomain
-                </>
+      <MotionBox variant="slide-up" delay={0.1}>
+        <Card className="border-primary/20 bg-primary/5">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Globe className="h-5 w-5 text-primary" />
+              Claim Your Subdomain
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Flex column gap={2} className="sm:flex-row">
+              <Box className="relative flex-1">
+                <Input
+                  placeholder="yourname"
+                  value={subdomain}
+                  onChange={handleSubdomainChange}
+                  disabled={!!claimedSubdomain || claimingSubdomain}
+                  className="pl-10"
+                />
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">unool.co/</span>
+                {subdomainAvailable !== null && lastCheckedSubdomain === subdomain && subdomain.length >= 3 && (
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-sm">
+                    {subdomainAvailable ? (
+                      <>
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                        <span className="text-green-600">Available</span>
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="h-4 w-4 text-red-500" />
+                        <span className="text-red-600">Taken</span>
+                      </>
+                    )}
+                  </span>
+                )}
+              </Box>
+              <Button onClick={handleClaimSubdomain} disabled={!subdomain || subdomainAvailable !== true || claimingSubdomain} size="lg">
+                {claimingSubdomain ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Claiming...
+                  </>
+                ) : (
+                  <>
+                    <Globe className="mr-2 h-4 w-4" />
+                    Claim
+                  </>
+                )}
+              </Button>
+              {claimedSubdomain && (
+                <Button variant="destructive" onClick={handleDeleteSubdomain} disabled={deletingSubdomain} size="lg">
+                  {deletingSubdomain ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <Trash className="mr-2 h-4 w-4" />
+                      Delete Subdomain
+                    </>
+                  )}
+                </Button>
               )}
-            </Button>
-          )}
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Choose a unique subdomain for your public profile (e.g., yourname.unool.co)
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="flex items-center gap-2 flex-1">
-              <Input
-                placeholder="yourname"
-                value={subdomain}
-                onChange={e => handleSubdomainChange(e.target.value)}
-                disabled={!!claimedSubdomain}
-                className="flex-1"
-              />
-              <span className="text-muted-foreground">.unool.co</span>
-            </div>
-            <Button
-              onClick={handleClaimSubdomain}
-              disabled={
-                !subdomain ||
-                subdomainAvailable === false ||
-                claimingSubdomain ||
-                !!claimedSubdomain
-              }
-              variant={claimedSubdomain ? 'secondary' : 'default'}
-            >
-              {claimingSubdomain ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Claiming...
-                </>
-              ) : claimedSubdomain ? (
-                <>
-                  <CheckCircle className="mr-2 h-4 w-4" />
-                  Claimed
-                </>
-              ) : (
-                <>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Claim
-                </>
-              )}
-            </Button>
-          </div>
-          <p className="text-sm">
-            {subdomainAvailable === true && (
-              <span className="text-green-600 flex items-center gap-1">
-                <CheckCircle className="h-3 w-3" /> Available
-              </span>
+            </Flex>
+            {claimedSubdomain && (
+              <Text size="sm" color="muted">
+                Your profile will be live at:{' '}
+                <a href={liveUrl ?? '#'} target="_blank" className="underline text-primary hover:text-primary/80">
+                  {liveUrl}
+                </a>
+              </Text>
             )}
-            {subdomainAvailable === false && (
-              <span className="text-red-600 flex items-center gap-1">
-                <AlertCircle className="h-3 w-3" /> Taken
-              </span>
-            )}
-            {subdomainAvailable === null && subdomain && (
-              <span className="text-muted-foreground flex items-center gap-1">
-                <Loader2 className="h-3 w-3 animate-spin" /> Checking...
-              </span>
-            )}
-            {!subdomain && (
-              <span className="text-muted-foreground">Enter a subdomain to check availability</span>
-            )}
-          </p>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </MotionBox>
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+      {/* Main Tabs */}
+      <Tabs value={activeTab} onValueChange={(value: string) => setActiveTab(value as TabValue)} className="w-full">
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="profile"><PenTool className="mr-2 h-4 w-4" /> Profile</TabsTrigger>
-          <TabsTrigger value="links"><LinkIcon className="mr-2 h-4 w-4" /> Links</TabsTrigger>
-          <TabsTrigger value="design"><Palette className="mr-2 h-4 w-4" /> Design</TabsTrigger>
+          <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="links">Links</TabsTrigger>
+          <TabsTrigger value="design">Design</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="profile" className="mt-6 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Profile Content</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <Label htmlFor="name">Name <span className="text-red-500">*</span></Label>
-                  <Input
-                    id="name"
-                    value={profile.name}
-                    onChange={e => setProfile(p => ({ ...p, name: e.target.value }))}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="headline">Headline</Label>
-                  <Input
-                    id="headline"
-                    value={profile.headline}
-                    onChange={e => setProfile(p => ({ ...p, headline: e.target.value }))}
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <Label htmlFor="bio">Bio</Label>
-                  <textarea
-                    id="bio"
-                    value={profile.bio}
-                    onChange={e => setProfile(p => ({ ...p, bio: e.target.value }))}
-                    className="w-full min-h-[100px] p-2 border rounded-md"
-                    rows={4}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="role">Role</Label>
-                  <Input
-                    id="role"
-                    value={profile.role}
-                    onChange={e => setProfile(p => ({ ...p, role: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="company">Company</Label>
-                  <Input
-                    id="company"
-                    value={profile.company}
-                    onChange={e => setProfile(p => ({ ...p, company: e.target.value }))}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Proof Points</CardTitle>
-              <Button variant="outline" size="sm" onClick={() => setProfile(p => ({
-                ...p,
-                proofPoints: [...p.proofPoints, { type: 'metric', value: '', url: '' }]
-              }))}>
-                <Plus className="mr-1 h-3 w-3" />
-                Add Proof Point
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {profile.proofPoints.map((point, i) => (
-                  <div key={i} className="flex gap-2 p-3 border rounded-lg">
-                    <select
-                      value={point.type}
-                      onChange={e => setProfile(p => ({
-                        ...p,
-                        proofPoints: p.proofPoints.map((pt, idx) => idx === i ? { ...pt, type: e.target.value as ProofPoint['type'] } : pt)
-                      }))}
-                      className="w-32 border rounded px-2 py-1"
-                    >
-                      <option value="metric">Metric</option>
-                      <option value="customer">Customer</option>
-                      <option value="team">Team</option>
-                      <option value="funding">Funding</option>
-                      <option value="press">Press</option>
-                      <option value="product">Product</option>
-                    </select>
+        {/* Profile Tab */}
+        <TabsContent value="profile" className="mt-4 space-y-6">
+          <MotionBox variant="slide-up">
+            <Card variant="elevated">
+              <CardHeader>
+                <CardTitle>Profile Information</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Stack space={4}>
+                  <Box className="space-y-2">
+                    <Label htmlFor="name">Name</Label>
                     <Input
-                      value={point.value}
-                      onChange={e => setProfile(p => ({
-                        ...p,
-                        proofPoints: p.proofPoints.map((pt, idx) => idx === i ? { ...pt, value: e.target.value } : pt)
-                      }))}
-                      placeholder="e.g., $2.4M ARR"
+                      id="name"
+                      value={profile.name}
+                      onChange={e => setProfile({ ...profile, name: e.target.value })}
+                      placeholder="Your Name"
                     />
+                  </Box>
+                  <Box className="space-y-2">
+                    <Label htmlFor="headline">Headline</Label>
                     <Input
-                      value={point.url}
-                      onChange={e => setProfile(p => ({
-                        ...p,
-                        proofPoints: p.proofPoints.map((pt, idx) => idx === i ? { ...pt, url: e.target.value } : pt)
-                      }))}
-                      placeholder="Optional URL"
-                      className="w-64"
+                      id="headline"
+                      value={profile.headline}
+                      onChange={e => setProfile({ ...profile, headline: e.target.value })}
+                      placeholder="Founder @ Company"
                     />
-                    <Button variant="ghost" size="icon" onClick={() => setProfile(p => ({
-                      ...p,
-                      proofPoints: p.proofPoints.filter((_, idx) => idx !== i)
-                    }))}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-                {profile.proofPoints.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    No proof points yet. Add metrics, customers, team size, or funding.
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                  </Box>
+                  <Box className="space-y-2">
+                    <Label htmlFor="bio">Bio</Label>
+                    <textarea
+                      id="bio"
+                      value={profile.bio}
+                      onChange={e => setProfile({ ...profile, bio: e.target.value })}
+                      placeholder="Tell the world about yourself"
+                      className="w-full min-h-[100px] p-3 border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                      rows={4}
+                    />
+                  </Box>
+                  <Flex gap={4} wrap>
+                    <Box className="space-y-2 flex-1 min-w-[200px]">
+                      <Label htmlFor="role">Role</Label>
+                      <Input
+                        id="role"
+                        value={profile.role}
+                        onChange={e => setProfile({ ...profile, role: e.target.value })}
+                        placeholder="CEO, Founder, Developer"
+                      />
+                    </Box>
+                    <Box className="space-y-2 flex-1 min-w-[200px]">
+                      <Label htmlFor="company">Company</Label>
+                      <Input
+                        id="company"
+                        value={profile.company}
+                        onChange={e => setProfile({ ...profile, company: e.target.value })}
+                        placeholder="Company Name"
+                      />
+                    </Box>
+                  </Flex>
+                </Stack>
+              </CardContent>
+            </Card>
+          </MotionBox>
         </TabsContent>
 
-        <TabsContent value="links" className="mt-6 space-y-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Social & Important Links</CardTitle>
-              <Button variant="outline" size="sm" onClick={() => setProfile(p => ({
-                ...p,
-                links: [...p.links, { label: '', url: '', type: 'website' }]
-              }))}>
-                <Plus className="mr-1 h-3 w-3" />
-                Add Link
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {profile.links.map((link, i) => (
-                  <div key={i} className="flex gap-2 p-3 border rounded-lg">
-                    <select
-                      value={link.type}
-                      onChange={e => setProfile(p => ({
-                        ...p,
-                        links: p.links.map((l, idx) => idx === i ? { ...l, type: e.target.value as ProfileLink['type'] } : l)
-                      }))}
-                      className="w-32 border rounded px-2 py-1"
-                    >
-                      <option value="website">Website</option>
-                      <option value="linkedin">LinkedIn</option>
-                      <option value="twitter">Twitter/X</option>
-                      <option value="github">GitHub</option>
-                      <option value="calendly">Calendly</option>
-                      <option value="other">Other</option>
-                    </select>
-                    <Input
-                      value={link.label}
-                      onChange={e => setProfile(p => ({
-                        ...p,
-                        links: p.links.map((l, idx) => idx === i ? { ...l, label: e.target.value } : l)
-                      }))}
-                      placeholder="Label"
-                      className="w-32"
-                    />
-                    <Input
-                      value={link.url}
-                      onChange={e => setProfile(p => ({
-                        ...p,
-                        links: p.links.map((l, idx) => idx === i ? { ...l, url: e.target.value } : l)
-                      }))}
-                      placeholder="https://..."
-                    />
-                    <Button variant="ghost" size="icon" onClick={() => setProfile(p => ({
-                      ...p,
-                      links: p.links.filter((_, idx) => idx !== i)
-                    }))}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-                {profile.links.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    No links yet. Add your website, LinkedIn, GitHub, etc.
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="design" className="mt-6 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Theme & Layout</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-4">
-                Choose a professional theme. Custom domains and advanced customization coming in v1.1.
-              </p>
-              <div className="grid gap-4 md:grid-cols-5">
-                {(['minimal', 'bold', 'corporate', 'creative', 'technical'] as const).map(preset => (
-                  <Button
-                    key={preset}
-                    variant={profile.theme.preset === preset ? 'default' : 'outline'}
-                    className="flex flex-col items-center gap-2 py-4"
-                    onClick={() => setProfile(p => ({ ...p, theme: { ...p.theme, preset } }))}
-                  >
-                    <div className="w-full h-20 border rounded-lg bg-background relative">
-                      {preset === 'minimal' && <div className="absolute top-4 left-4 w-12 h-4 bg-primary rounded" />}
-                      {preset === 'bold' && <div className="absolute top-4 left-4 w-16 h-5 bg-primary rounded" />}
-                      {preset === 'corporate' && <div className="absolute top-4 left-4 w-20 h-4 bg-blue-600 rounded" />}
-                      {preset === 'creative' && <div className="absolute top-4 left-4 w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded" />}
-                      {preset === 'technical' && <div className="absolute top-4 left-4 w-14 h-3 bg-green-600 rounded" />}
-                    </div>
-                    <span className="capitalize text-sm">{preset}</span>
+        {/* Links Tab */}
+        <TabsContent value="links" className="mt-4 space-y-6">
+          <MotionBox variant="slide-up">
+            <Card variant="elevated">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Links</CardTitle>
+                <Flex gap={2}>
+                  <Button variant="outline" size="sm" onClick={() => handleLinkAdd('social')}>
+                    <Plus className="mr-1 h-3 w-3" />
+                    Social
                   </Button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                  <Button variant="outline" size="sm" onClick={() => handleLinkAdd('custom')}>
+                    <Plus className="mr-1 h-3 w-3" />
+                    Custom
+                  </Button>
+                </Flex>
+              </CardHeader>
+              <CardContent>
+                {profile.links.length === 0 ? (
+                  <Text color="muted" className="py-8 text-center">No links added yet. Add your social profiles and custom links.</Text>
+                ) : (
+                  <Stack space={3}>
+                    {profile.links.map((link, index) => (
+                      <motion.div
+                        key={index}
+                        className="flex gap-2 p-3 border rounded-lg bg-background"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={springConfig}
+                      >
+                        <Box className="w-20">
+                          <Label className="text-xs text-muted-foreground">Label</Label>
+                          <Input
+                            value={link.label}
+                            onChange={e => handleLinkUpdate(index, 'label', e.target.value)}
+                            placeholder="Twitter"
+                            className="h-8 text-sm"
+                          />
+                        </Box>
+                        <Box className="flex-1">
+                          <Label className="text-xs text-muted-foreground">URL</Label>
+                          <Input
+                            value={link.url}
+                            onChange={e => handleLinkUpdate(index, 'url', e.target.value)}
+                            placeholder="https://twitter.com/username"
+                            className="h-8 text-sm"
+                          />
+                        </Box>
+                        <Box className="w-24">
+                          <Label className="text-xs text-muted-foreground">Type</Label>
+                          <select
+                            value={link.type}
+                            onChange={e => handleLinkUpdate(index, 'type', e.target.value)}
+                            className="w-full h-8 text-sm border rounded bg-background"
+                          >
+                            <option value="social">Social</option>
+                            <option value="custom">Custom</option>
+                            <option value="primary">Primary CTA</option>
+                          </select>
+                        </Box>
+                        <Button variant="ghost" size="icon" onClick={() => handleLinkRemove(index)} className="text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </motion.div>
+                    ))}
+                  </Stack>
+                )}
+              </CardContent>
+            </Card>
+          </MotionBox>
+
+          {/* Proof Points */}
+          <MotionBox variant="slide-up" delay={0.05}>
+            <Card variant="elevated">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Proof Points</CardTitle>
+                <Button variant="outline" size="sm" onClick={handleProofPointAdd}>
+                  <Plus className="mr-1 h-3 w-3" />
+                  Add Proof Point
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {profile.proofPoints.length === 0 ? (
+                  <Text color="muted" className="py-8 text-center">No proof points added. Showcase your achievements, metrics, and credentials.</Text>
+                ) : (
+                  <Stack space={3}>
+                    {profile.proofPoints.map((point, index) => (
+                      <motion.div
+                        key={index}
+                        className="flex gap-2 p-3 border rounded-lg bg-background"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={springConfig}
+                      >
+                        <Box className="w-40">
+                          <Label className="text-xs text-muted-foreground">Type</Label>
+                          <Input
+                            value={point.type}
+                            onChange={e => handleProofPointUpdate(index, 'type', e.target.value)}
+                            placeholder="Revenue"
+                            className="h-8 text-sm"
+                          />
+                        </Box>
+                        <Box className="flex-1">
+                          <Label className="text-xs text-muted-foreground">Value</Label>
+                          <Input
+                            value={point.value}
+                            onChange={e => handleProofPointUpdate(index, 'value', e.target.value)}
+                            placeholder="$10M ARR"
+                            className="h-8 text-sm"
+                          />
+                        </Box>
+                        <Box className="w-48">
+                          <Label className="text-xs text-muted-foreground">URL (optional)</Label>
+                          <Input
+                            value={point.url}
+                            onChange={e => handleProofPointUpdate(index, 'url', e.target.value)}
+                            placeholder="https://..."
+                            className="h-8 text-sm"
+                          />
+                        </Box>
+                        <Button variant="ghost" size="icon" onClick={() => handleProofPointRemove(index)} className="text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </motion.div>
+                    ))}
+                  </Stack>
+                )}
+              </CardContent>
+            </Card>
+          </MotionBox>
+        </TabsContent>
+
+        {/* Design Tab */}
+        <TabsContent value="design" className="mt-4 space-y-6">
+          <MotionBox variant="slide-up">
+            <Card variant="elevated">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Palette className="h-5 w-5 text-primary" />
+                  Design Template
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Text size="sm" color="muted" className="mb-4">Choose a design template for your public profile page. 25 templates across 5 categories.</Text>
+                <MotionGrid cols={{ base: 1, sm: 2, lg: 3, xl: 5 }} gap={4} stagger={stagger.normal}>
+                  {Object.entries(TEMPLATE_CONFIG).map(([templateId, config]) => (
+                    <motion.button
+                      key={templateId}
+                      onClick={() => handleTemplateSelect(templateId)}
+                      className={cn(
+                        'relative aspect-[4/3] border-2 rounded-lg overflow-hidden transition-all',
+                        profile.theme.template === templateId
+                          ? 'border-primary ring-2 ring-primary ring-offset-2'
+                          : 'border-muted/50 hover:border-primary/50'
+                      )}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={springConfig}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <Box className="absolute inset-0 bg-muted/50" />
+                      <Box className="absolute inset-0 bg-gradient-to-br from-primary/10 to-primary/5" />
+                      <Box className="relative h-full w-full flex items-center justify-center">
+                        <Display size="sm" weight="bold" className="text-center px-2" style={{ color: 'var(--primary)' }}>
+                          {config.category[0]}
+                        </Display>
+                      </Box>
+                      <Box className="absolute bottom-2 left-2 right-2 text-white text-sm font-medium">
+                        {config.name}
+                      </Box>
+                      <Box className="absolute top-2 right-2 text-xs text-muted-foreground/80 bg-background/80 px-1.5 py-0.5 rounded">
+                        {config.category}
+                      </Box>
+                      {profile.theme.template === templateId && (
+                        <CheckCircle className="absolute top-2 right-2 h-5 w-5 text-primary bg-primary/10 rounded-full" />
+                      )}
+                    </motion.button>
+                  ))}
+                </MotionGrid>
+              </CardContent>
+            </Card>
+          </MotionBox>
         </TabsContent>
       </Tabs>
 
-      {/* Save Profile Button - saves everything including subdomain */}
-      <div className="flex justify-end pt-4 border-t">
-        <Button onClick={handleSaveProfile} disabled={saving} size="lg">
-          {saving ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Saving Profile...
-            </>
-          ) : (
-            'Save Profile'
-          )}
-        </Button>
-      </div>
-    </div>
+      {/* Save Button */}
+      <MotionBox variant="slide-up" delay={0.2}>
+        <Flex end>
+          <Button onClick={handleSave} disabled={saving} size="lg">
+            {saving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <CheckCircle className="mr-2 h-4 w-4" />
+                Save Profile
+              </>
+            )}
+          </Button>
+        </Flex>
+      </MotionBox>
+    </Box>
   );
 }
+
+function TemplateSelectorDemo() {
+  return null;
+}
+
+export default function PresencePageWrapper() {
+  return (
+    <Suspense fallback={
+      <Box className="space-y-8 max-w-4xl mx-auto px-4 py-8">
+        <Flex between wrap gap={4}>
+          <Box>
+            <Display size="xl" weight="bold">Presence (One Link)</Display>
+            <Text size="lg" color="muted">Your intelligent public profile page</Text>
+          </Box>
+        </Flex>
+        <Card>
+          <CardContent className="min-h-[300px] flex items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </CardContent>
+        </Card>
+      </Box>
+    }>
+      <PresencePage />
+    </Suspense>
+  );
+}
+
+// Helper component for responsive grid
+function MotionGrid({ children, cols = { base: 1, sm: 2, lg: 3, xl: 5 }, gap = 4, stagger: staggerDelay = 0.06, ...props }: any) {
+  const childArray = Array.isArray(children) ? children : [children];
+  const reducedMotion = useReducedMotion();
+  const springConfig: Transition = reducedMotion ? { type: 'tween', duration: 0.01 } : spring.standard;
+
+  return (
+    <motion.div
+      className="grid"
+      style={{
+        gridTemplateColumns: `repeat(${cols.lg || 3}, 1fr)`,
+        gap: typeof gap === 'number' ? `${gap}px` : gap,
+      }}
+      variants={{}}
+      initial="hidden"
+      animate="visible"
+      {...props}
+    >
+      {childArray.map((child, index) =>
+        React.isValidElement(child)
+          ? React.cloneElement(child as React.ReactElement<any>, {
+              key: index,
+              variants: { initial: { opacity: 0, scale: 0.95 }, visible: { opacity: 1, scale: 1, transition: springConfig } },
+            })
+          : child
+      )}
+    </motion.div>
+  );
+}
+

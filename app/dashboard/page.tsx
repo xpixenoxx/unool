@@ -93,8 +93,8 @@ async function getDashboardData(): Promise<{
     usageStats: {
       postsThisMonth: usage.postsThisMonth,
       postsLimit: limits.postsPerMonth,
-      profileViews: 0,
-      linkClicks: 0,
+      profileViews: usage.profileViews || 0,
+      linkClicks: usage.linkClicks || 0,
     },
     planTier: tier,
     userId,

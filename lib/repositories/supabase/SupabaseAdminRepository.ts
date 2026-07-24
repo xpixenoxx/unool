@@ -29,20 +29,6 @@ function buildPagination<T>(data: T[], total: number, page: number, pageSize: nu
   };
 }
 
-function applyFilters(query: any, filters: Record<string, any>) {
-  Object.entries(filters).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== '') {
-      if (key.endsWith('_search')) {
-        const column = key.replace('_search', '');
-        query = query.ilike(column, `%${value}%`);
-      } else {
-        query = query.eq(key, value);
-      }
-    }
-  });
-  return query;
-}
-
 function applySorting(query: any, sortBy?: string, sortOrder: 'asc' | 'desc' = 'desc') {
   if (sortBy) {
     query = query.order(sortBy, { ascending: sortOrder === 'asc' });
@@ -386,7 +372,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
     };
   }
 
-  async getAnalyticsEvents(workspaceId?: string, eventType?: string, days: number = 30, limit: number = 100): Promise<any[]> {
+  async getAnalyticsEvents(workspaceId?: string, eventType?: string, days: number = 30, limit: number = 100): Promise<Record<string, unknown>[]> {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
@@ -477,15 +463,19 @@ export class SupabaseAdminRepository implements IAdminRepository {
         .select('user_id, workspaces ( plan )')
         .in('user_id', userIds);
 
-      wm?.forEach((row: any) => {
+      (wm || []).forEach((row: { user_id: string; workspaces?: { plan: string }[] }) => {
         const current = workspacesByUser.get(row.user_id) || { count: 0, plans: [] };
         current.count++;
-        if (row.workspaces?.plan) current.plans.push(row.workspaces.plan);
+        if (row.workspaces?.length) {
+          row.workspaces.forEach(w => current.plans.push(w.plan));
+        }
         workspacesByUser.set(row.user_id, current);
       });
     }
 
-    const data = (users?.users || []).map((user) => {
+    // Note: Auth admin listUsers doesn't return total count, use users.length as approximation
+    const userArray = users?.users || [];
+    const data = userArray.map((user) => {
       const ws = workspacesByUser.get(user.id) || { count: 0, plans: [] };
       return {
         id: user.id,
@@ -496,7 +486,10 @@ export class SupabaseAdminRepository implements IAdminRepository {
       };
     });
 
-    return buildPagination(data, users?.total || 0, page, pageSize);
+    // Estimate total based on page and pageSize since auth API doesn't return total
+    const total = userArray.length === pageSize ? (page * pageSize) + 1 : (page - 1) * pageSize + userArray.length;
+
+    return buildPagination(data, total, page, pageSize);
   }
 
   async suspendUser(userId: string, adminUserId: string, reason: string): Promise<boolean> {
@@ -523,19 +516,19 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
   // ===== Mappers =====
 
-  private mapAdminUser(row: any): AdminUser {
+  private mapAdminUser(row: { id: string; email: string; role: 'super_admin' | 'admin' | 'support'; permissions: Record<string, unknown>; last_login_at: string | null; created_at: string; updated_at: string }): AdminUser {
     return {
       id: row.id,
       email: row.email,
       role: row.role,
-      permissions: row.permissions || {},
+      permissions: row.permissions as Record<string, boolean>,
       lastLoginAt: row.last_login_at,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
   }
 
-  private mapPlan(row: any): Plan {
+  private mapPlan(row: { id: string; name: string; description: string | null; price_monthly_usd: number; price_yearly_usd: number; features: Record<string, unknown>; limits: Record<string, unknown>; is_active: boolean; sort_order: number; created_at: string; updated_at: string }): Plan {
     return {
       id: row.id,
       name: row.name,
@@ -551,7 +544,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
     };
   }
 
-  private mapWorkspace(row: any): WorkspaceAdminView {
+  private mapWorkspace(row: { id: string; name: string; plan: string; plan_status: string; plan_expires_at: string | null; stripe_customer_id: string | null; stripe_subscription_id: string | null; trial_ends_at: string | null; member_count: number | null; posts_this_month: number | null; profile_count: number | null; created_at: string; updated_at: string }): WorkspaceAdminView {
     return {
       id: row.id,
       name: row.name,
@@ -569,7 +562,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
     };
   }
 
-  private mapAuditLog(row: any): AdminAuditLog {
+  private mapAuditLog(row: { id: string; admin_user_id: string; action: string; target_type: string; target_id: string | null; metadata: Record<string, unknown>; ip_hash: string | null; user_agent: string | null; created_at: string }): AdminAuditLog {
     return {
       id: row.id,
       adminUserId: row.admin_user_id,

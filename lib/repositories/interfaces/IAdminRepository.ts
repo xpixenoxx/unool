@@ -158,13 +158,13 @@ export interface IAdminRepository {
 
   // Analytics
   getAnalyticsSummary(workspaceId?: string, days?: number): Promise<AnalyticsSummary>;
-  getAnalyticsEvents(workspaceId?: string, eventType?: string, days?: number, limit?: number): Promise<any[]>;
+  getAnalyticsEvents(workspaceId?: string, eventType?: string, days?: number, limit?: number): Promise<Record<string, unknown>[]>;
 
   // Audit Log
   getAuditLog(adminUserId?: string, limit?: number): Promise<AdminAuditLog[]>;
   logAdminAction(adminUserId: string, action: string, targetType: string, targetId: string | null, metadata: Record<string, unknown>, ipHash?: string, userAgent?: string): Promise<void>;
 
-  // User Impersonation / Management
+  // User Management
   getUserById(userId: string): Promise<{ id: string; email: string; createdAt: string } | null>;
   listAllUsers(params?: ListUsersParams): Promise<PaginatedResult<{ id: string; email: string; createdAt: string; workspaceCount: number; plan: string }>>;
   suspendUser(userId: string, adminUserId: string, reason: string): Promise<boolean>;
@@ -192,7 +192,7 @@ export interface IAnalyticsRepository {
     endDate?: Date;
     limit?: number;
     offset?: number;
-  }): Promise<any[]>;
+  }): Promise<Record<string, unknown>[]>;
 
   getSummary(params: {
     workspaceId?: string;

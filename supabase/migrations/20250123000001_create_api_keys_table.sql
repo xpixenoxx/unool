@@ -10,10 +10,10 @@ CREATE TABLE IF NOT EXISTS api_keys (
     workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
-    key_hash TEXT NOT NULL, -- SHA-256 hash for lookup
-    key_prefix TEXT NOT NULL, -- First 8 chars for display (e.g., "uk_abc123")
-    encrypted_key TEXT NOT NULL, -- Full encrypted key (AES-GCM)
-    scopes TEXT[] NOT NULL DEFAULT '{}', -- Array of scopes: posts:read, posts:write, analytics:read, profile:write, webhooks:manage
+    key_hash TEXT NOT NULL,
+    key_prefix TEXT NOT NULL,
+    encrypted_key TEXT NOT NULL,
+    scopes TEXT[] NOT NULL DEFAULT '{}',
     last_used_at TIMESTAMPTZ,
     expires_at TIMESTAMPTZ,
     revoked_at TIMESTAMPTZ,
@@ -27,8 +27,13 @@ CREATE INDEX IF NOT EXISTS idx_api_keys_user_id ON api_keys(user_id);
 CREATE INDEX IF NOT EXISTS idx_api_keys_key_hash ON api_keys(key_hash);
 CREATE INDEX IF NOT EXISTS idx_api_keys_revoked_at ON api_keys(revoked_at) WHERE revoked_at IS NOT NULL;
 
--- RLS Policies
+-- RLS Policies (drop existing first to make idempotent)
 ALTER TABLE api_keys ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view workspace API keys" ON api_keys;
+DROP POLICY IF EXISTS "Users can create workspace API keys" ON api_keys;
+DROP POLICY IF EXISTS "Users can revoke workspace API keys" ON api_keys;
+DROP POLICY IF EXISTS "Users can delete own API keys" ON api_keys;
 
 -- Users can only see their workspace's API keys
 CREATE POLICY "Users can view workspace API keys" ON api_keys
@@ -73,13 +78,14 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+DROP TRIGGER IF EXISTS update_api_keys_updated_at ON api_keys;
 CREATE TRIGGER update_api_keys_updated_at
     BEFORE UPDATE ON api_keys
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
--- Comment
+-- Comments
 COMMENT ON TABLE api_keys IS 'API keys for programmatic access to Unool API';
-COMMENT ON COLUMN api_keys.scopes IS 'Array of permission scopes: posts:read, posts:write, analytics:read, profile:write, webhooks:manage';
+COMMENT ON COLUMN api_keys.scopes IS 'Array of permission scopes: posts_read, posts_write, analytics_read, profile_write, webhooks_manage';
 COMMENT ON COLUMN api_keys.key_prefix IS 'First 8 characters of key for display (e.g., uk_abc123)';
 COMMENT ON COLUMN api_keys.encrypted_key IS 'Full key encrypted with AES-GCM for retrieval';

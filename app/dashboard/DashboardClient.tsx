@@ -1,13 +1,19 @@
 'use client';
 
+import React from 'react';
 import Link from 'next/link';
+import { motion, Transition } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Globe, PenTool, CheckCircle, Link as LinkIcon, Plus, ExternalLink } from 'lucide-react';
+import { Globe, PenTool, CheckCircle, Link as LinkIcon, Plus, ExternalLink, TrendingUp, Users, Clock, Activity, BarChart2, Zap, Shield, Send } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { PlatformConnections } from '@/components/dashboard/PlatformConnections';
 import { OnboardingChecklist } from '@/components/onboarding/OnboardingChecklist';
+import { Flex, Box, Stack, Text, Display, Divider } from '@/components/ui/layout';
+import { MotionBox, spring, stagger } from '@/components/ui/motion';
+import { cn } from '@/lib/utils';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 interface Profile {
   subdomain: string | null;
@@ -43,197 +49,318 @@ interface DashboardData {
   workspaceId: string;
 }
 
+const statusStyles: Record<Post['status'], { bg: string; text: string; border: string; icon: React.ElementType }> = {
+  published: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200', icon: CheckCircle },
+  draft: { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-200', icon: Clock },
+  scheduled: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', icon: Clock },
+  failed: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', icon: Activity },
+};
+
+const darkStatusStyles: Record<Post['status'], { bg: string; text: string; border: string }> = {
+  published: { bg: 'dark:bg-green-900/20', text: 'dark:text-green-400', border: 'dark:border-green-900' },
+  draft: { bg: 'dark:bg-yellow-900/20', text: 'dark:text-yellow-400', border: 'dark:border-yellow-900' },
+  scheduled: { bg: 'dark:bg-blue-900/20', text: 'dark:text-blue-400', border: 'dark:border-blue-900' },
+  failed: { bg: 'dark:bg-red-900/20', text: 'dark:text-red-400', border: 'dark:border-red-900' },
+};
+
 export default function DashboardClient({ data }: { data: DashboardData }) {
+  const reducedMotion = useReducedMotion();
+  const springConfig: Transition = reducedMotion ? { type: 'tween', duration: 0.01 } : spring.snappy;
   const { profile, recentPosts, usageStats, planTier } = data;
 
   return (
-    <div className="space-y-8">
+    <MotionBox className="space-y-8" variant="fade">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">Manage your One Link and One Click workflows</p>
-        </div>
-        <div className="flex gap-2">
+      <Flex between wrap gap={4}>
+        <Box>
+          <Display size="xl" weight="bold">Dashboard</Display>
+          <Text size="lg" color="muted">Manage your One Link and One Click workflows</Text>
+        </Box>
+        <Flex wrap gap={2}>
+          <Button asChild variant="outline">
+            <Link href="/dashboard/presence">
+              <PenTool className="mr-2 h-4 w-4" />
+              Edit Profile
+            </Link>
+          </Button>
           <Button asChild>
             <Link href="/dashboard/publish">
               <Plus className="mr-2 h-4 w-4" />
               New Post
             </Link>
           </Button>
-          <Button variant="outline" asChild>
-            <Link href={`/u/${profile?.subdomain || 'yourname'}`} target="_blank">
-              <ExternalLink className="mr-2 h-4 w-4" />
-              View Profile
-            </Link>
-          </Button>
-        </div>
-      </div>
+        </Flex>
+      </Flex>
 
       {/* Stats Overview */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">One Link Status</CardTitle>
-            <Globe className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2 mb-2">
-              <Badge variant={profile?.status === 'published' ? 'default' : 'secondary'}>
-                <CheckCircle className="mr-1 h-3 w-3" />
-                {profile?.status === 'published' ? 'Live' : 'Draft'}
-              </Badge>
-              <span className="text-sm text-muted-foreground">
-                {profile?.subdomain ? `${profile.subdomain}.unool.co` : 'Not claimed'}
-              </span>
-            </div>
-            <p className="text-2xl font-bold">{profile?.name || 'Your Name'}</p>
-            <p className="text-sm text-muted-foreground">{profile?.headline || 'Add a headline'}</p>
-          </CardContent>
-        </Card>
+      <ResponsiveMotionGrid cols={{ base: 1, sm: 2, lg: 4 }} gap={4} stagger={stagger.fast}>
+        <StatCard
+          title="One Link Status"
+          icon={Globe}
+          iconColor="text-primary"
+          iconBg="bg-primary/10"
+        >
+          <Flex between wrap gap={2} className="mb-2">
+            <Badge
+              variant={profile?.status === 'published' ? 'default' : 'secondary'}
+              className="gap-1"
+            >
+              <CheckCircle className="h-3 w-3" />
+              {profile?.status === 'published' ? 'Live' : 'Draft'}
+            </Badge>
+            <Text size="sm" color="muted">
+              {profile?.subdomain ? `${profile.subdomain}.unool.co` : 'Not claimed'}
+            </Text>
+          </Flex>
+          <Text size="2xl" weight="bold">{profile?.name || 'Your Name'}</Text>
+          <Text size="sm" color="muted">{profile?.headline || 'Add a headline'}</Text>
+        </StatCard>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Posts This Month</CardTitle>
-            <PenTool className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold">{usageStats.postsThisMonth}</span>
-              <span className="text-sm text-muted-foreground">/ {usageStats.postsLimit} limit ({planTier})</span>
-            </div>
-            <div className="mt-2 h-2 bg-muted rounded-full overflow-hidden">
-              <div
-                className="h-full bg-primary"
-                style={{ width: `${Math.min(100, (usageStats.postsThisMonth / usageStats.postsLimit) * 100)}%` }}
-              />
-            </div>
-          </CardContent>
-        </Card>
+        <StatCard
+          title="Posts This Month"
+          icon={PenTool}
+          iconColor="text-blue-500"
+          iconBg="bg-blue-500/10"
+        >
+          <Flex center gap={2} className="items-baseline">
+            <Text size="3xl" weight="bold">{usageStats.postsThisMonth}</Text>
+            <Text size="sm" color="muted">/ {usageStats.postsLimit} limit ({planTier})</Text>
+          </Flex>
+          <Box className="mt-2 h-2 bg-muted rounded-full overflow-hidden">
+            <Box
+              className="h-full bg-primary transition-all duration-500"
+              style={{
+                width: `${Math.min(100, (usageStats.postsThisMonth / usageStats.postsLimit) * 100)}%`,
+              }}
+            />
+          </Box>
+        </StatCard>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Profile Views</CardTitle>
-            <LinkIcon className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold">{usageStats.profileViews.toLocaleString()}</span>
-              <span className="text-sm text-muted-foreground">This month</span>
-            </div>
-          </CardContent>
-        </Card>
+        <StatCard
+          title="Profile Views"
+          icon={TrendingUp}
+          iconColor="text-green-500"
+          iconBg="bg-green-500/10"
+        >
+          <Flex center gap={2} className="items-baseline">
+            <Text size="3xl" weight="bold">{usageStats.profileViews.toLocaleString()}</Text>
+            <Text size="sm" color="muted">This month</Text>
+          </Flex>
+        </StatCard>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Link Clicks</CardTitle>
-            <ExternalLink className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold">{usageStats.linkClicks.toLocaleString()}</span>
-              <span className="text-sm text-muted-foreground">Total clicks</span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+        <StatCard
+          title="Link Clicks"
+          icon={ExternalLink}
+          iconColor="text-purple-500"
+          iconBg="bg-purple-500/10"
+        >
+          <Flex center gap={2} className="items-baseline">
+            <Text size="3xl" weight="bold">{usageStats.linkClicks.toLocaleString()}</Text>
+            <Text size="sm" color="muted">Total clicks</Text>
+          </Flex>
+        </StatCard>
+      </ResponsiveMotionGrid>
 
       {/* Quick Actions */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Globe className="h-5 w-5 text-primary" />
-              Your Public Profile
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            <div className="flex items-center gap-3 p-3 bg-background rounded-lg border">
-              <span className="text-muted-foreground">unool.co/</span>
-              <span className="font-mono font-medium">{profile?.subdomain || 'not-claimed'}</span>
-              <Badge variant="outline">{profile?.status === 'published' ? 'Live' : 'Draft'}</Badge>
-            </div>
-            <div className="flex gap-2">
-              <Button asChild>
-                <Link href={`/u/${(profile?.subdomain || 'yourname')}`} target="_blank">
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  View Profile
-                </Link>
-              </Button>
-              <Button variant="outline" asChild>
-                <Link href="/dashboard/presence">
-                  <PenTool className="mr-2 h-4 w-4" />
-                  Edit Profile
-                </Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+      <ResponsiveMotionGrid cols={{ base: 1, md: 2 }} gap={4} stagger={stagger.normal}>
+        <ActionCard
+          icon={Globe}
+          iconColor="text-primary"
+          iconBg="bg-primary/10"
+          title="Your Public Profile"
+          description="Manage your one-link profile page with links, proof points, and design themes."
+          primaryAction={{ label: 'View Profile', href: `/u/${profile?.subdomain || 'yourname'}`, external: true }}
+          secondaryAction={{ label: 'Edit Profile', href: '/dashboard/presence' }}
+          gradient="from-primary/5 to-primary/10 border-primary/20"
+        />
 
-        <Card className="bg-gradient-to-br from-blue-500/5 to-blue-500/10 border-blue-500/20">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <PenTool className="h-5 w-5 text-blue-500" />
-              Write & Publish
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            <p className="text-sm text-muted-foreground">
-              Write once. AI adapts for LinkedIn, X, Threads. You review. One click publishes.
-            </p>
-            <Button asChild size="lg">
-              <Link href="/dashboard/publish">
-                <Plus className="mr-2 h-4 w-4" />
-                Create New Post
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+        <ActionCard
+          icon={PenTool}
+          iconColor="text-blue-500"
+          iconBg="bg-blue-500/10"
+          title="Write & Publish"
+          description="Write once. AI adapts for LinkedIn, X, Threads. You review. One click publishes."
+          primaryAction={{ label: 'Create New Post', href: '/dashboard/publish' }}
+          secondaryAction={{ label: 'Edit Profile', href: '/dashboard/presence' }}
+          gradient="from-blue-500/5 to-blue-500/10 border-blue-500/20"
+        />
+      </ResponsiveMotionGrid>
 
       {/* Onboarding Checklist */}
       {data.profile && (
-        <OnboardingChecklist
-          workspaceId={data.workspaceId}
-          userId={data.userId}
-        />
+        <MotionBox variant="slide-up" delay={0.15}>
+          <OnboardingChecklist workspaceId={data.workspaceId} userId={data.userId} />
+        </MotionBox>
       )}
 
-      {/* Recent Activity */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Posts</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {recentPosts.length > 0 ? (
-              recentPosts.map((post) => (
-                <div key={post.id} className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent transition-colors">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{post.content}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={post.status === 'published' ? 'default' : 'secondary'}>
-                      {post.status}
-                    </Badge>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <PenTool className="mx-auto h-12 w-12 mb-4 text-muted-foreground/50" />
-                <p>No posts yet. Create your first post to get started!</p>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Recent Posts */}
+      <MotionBox variant="slide-up" delay={0.2}>
+        <Card variant="elevated">
+          <CardHeader>
+            <Flex between wrap gap={4}>
+              <CardTitle>
+                <Flex center gap={2}>
+                  <Activity className="h-5 w-5 text-primary" />
+                  Recent Posts
+                </Flex>
+              </CardTitle>
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/dashboard/publish">
+                  <Plus className="mr-1 h-3 w-3" />
+                  New Post
+                </Link>
+              </Button>
+            </Flex>
+          </CardHeader>
+          <CardContent>
+            <Stack space={2}>
+              {recentPosts.length > 0 ? (
+                recentPosts.map((post) => {
+                  const styles = statusStyles[post.status];
+                  const darkStyles = darkStatusStyles[post.status];
+                  const Icon = styles.icon;
+                  return (
+                    <motion.div
+                      key={post.id}
+                      className={cn('flex items-center justify-between p-3 rounded-lg border hover:bg-accent transition-colors', styles.bg, styles.text, styles.border, darkStyles.bg, darkStyles.text, darkStyles.border)}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={springConfig}
+                    >
+                      <Flex center gap={3}>
+                        <Icon className={cn('h-4 w-4', styles.text)} />
+                        <Box className="flex-1 min-w-0">
+                          <Text weight="medium" className="truncate">{post.content || 'Untitled post'}</Text>
+                          <Text size="sm" color="muted">
+                            {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
+                          </Text>
+                        </Box>
+                      </Flex>
+                      <Badge variant={post.status === 'published' ? 'default' : post.status === 'failed' ? 'destructive' : 'secondary'}>
+                        {post.status}
+                      </Badge>
+                    </motion.div>
+                  );
+                })
+              ) : (
+                <Box className="flex flex-col items-center gap-4 text-center py-8 text-muted-foreground">
+                  <PenTool className="mx-auto h-12 w-12 text-muted-foreground/50" />
+                  <Text>No posts yet. Create your first post to get started!</Text>
+                  <Button asChild size="sm">
+                    <Link href="/dashboard/publish">Create Post</Link>
+                  </Button>
+                </Box>
+              )}
+            </Stack>
+          </CardContent>
+        </Card>
+      </MotionBox>
 
       {/* Platform Connections */}
-      <PlatformConnections workspaceId={data.workspaceId} />
-    </div>
+      <MotionBox variant="slide-up" delay={0.25}>
+        <PlatformConnections workspaceId={data.workspaceId} />
+      </MotionBox>
+    </MotionBox>
+  );
+}
+
+// Helper components
+function StatCard({ title, icon: Icon, iconColor, iconBg, children }: {
+  title: string;
+  icon: React.ElementType;
+  iconColor: string;
+  iconBg: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Card variant="elevated" className={cn('relative', iconBg === 'bg-primary/10' && 'border-primary/20 bg-primary/5')}>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        <Box className={cn('p-2 rounded-lg', iconBg, iconColor)}>
+          <Icon className="h-4 w-4" />
+        </Box>
+      </CardHeader>
+      <CardContent>{children}</CardContent>
+    </Card>
+  );
+}
+
+function ActionCard({
+  icon: Icon,
+  iconColor,
+  iconBg,
+  title,
+  description,
+  primaryAction,
+  secondaryAction,
+  gradient,
+}: {
+  icon: React.ElementType;
+  iconColor: string;
+  iconBg: string;
+  title: string;
+  description: string;
+  primaryAction: { label: string; href: string; external?: boolean };
+  secondaryAction: { label: string; href: string };
+  gradient: string;
+}) {
+  return (
+    <Card className={cn(gradient)}>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Box className={cn('p-2 rounded-lg', iconBg, iconColor)}>
+            <Icon className="h-5 w-5" />
+          </Box>
+          {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        <Text size="sm" color="muted">{description}</Text>
+        <Flex gap={2}>
+          <Button asChild size="lg" className="w-full sm:w-auto">
+            <Link href={primaryAction.href} target={primaryAction.external ? '_blank' : undefined} rel={primaryAction.external ? 'noopener noreferrer' : undefined}>
+              <ExternalLink className={cn('mr-2 h-4 w-4', primaryAction.external && 'block')} />
+              {primaryAction.label}
+            </Link>
+          </Button>
+          <Button variant="outline" asChild size="lg" className="w-full sm:w-auto">
+            <Link href={secondaryAction.href}>
+              <PenTool className="mr-2 h-4 w-4" />
+              {secondaryAction.label}
+            </Link>
+          </Button>
+        </Flex>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ResponsiveMotionGrid helper
+function ResponsiveMotionGrid({ children, cols = { base: 1, sm: 2, lg: 3, xl: 4 }, gap = 4, stagger: staggerDelay = 0.06, ...props }: any) {
+  const childArray = Array.isArray(children) ? children : [children];
+  const reducedMotion = useReducedMotion();
+  const springConfig = reducedMotion ? { type: 'tween', duration: 0.01 } : spring.snappy;
+
+  return (
+    <motion.div
+      className="grid"
+      style={{
+        gridTemplateColumns: `repeat(${cols.lg || 3}, 1fr)`,
+        gap: typeof gap === 'number' ? `${gap}px` : gap,
+      }}
+      variants={{}}
+      initial="hidden"
+      animate="visible"
+      {...props}
+    >
+      {childArray.map((child, index) =>
+        React.isValidElement(child)
+          ? React.cloneElement(child as React.ReactElement<any>, {
+              key: index,
+              variants: { initial: { opacity: 0, scale: 0.95 }, visible: { opacity: 1, scale: 1, transition: springConfig } },
+            })
+          : child
+      )}
+    </motion.div>
   );
 }

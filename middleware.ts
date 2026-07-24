@@ -16,6 +16,17 @@ const publicPaths = [
   '/terms',
 ];
 
+// Admin routes that require admin authentication
+const adminPaths = [
+  '/admin',
+  '/api/admin',
+];
+
+// Webhook paths that don't need auth
+const webhookPaths = [
+  '/api/webhooks',
+];
+
 // Check if Supabase is properly configured (not placeholder values)
 function isSupabaseConfigured(): boolean {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || appConfig.SUPABASE_URL;
@@ -184,12 +195,23 @@ export async function middleware(request: NextRequest) {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      if (pathname.startsWith('/api/')) {
+      // Check if this is an admin route - use admin auth instead
+      if (pathname.startsWith('/admin') || pathname.startsWith('/api/admin')) {
+        // Allow admin routes to pass through - they handle their own auth via Bearer token
+        // Add a header to indicate this is an admin route
+        requestHeaders.set('x-admin-route', 'true');
+      } else if (pathname.startsWith('/api/')) {
         return addDebugHeaders(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }));
+      } else {
+        const loginUrl = new URL('/signup', request.url);
+        loginUrl.searchParams.set('redirect', pathname);
+        return addDebugHeaders(NextResponse.redirect(loginUrl));
       }
-      const loginUrl = new URL('/signup', request.url);
-      loginUrl.searchParams.set('redirect', pathname);
-      return addDebugHeaders(NextResponse.redirect(loginUrl));
+    }
+
+    // TypeScript doesn't narrow user here, ensure it's not null
+    if (!user) {
+      return addDebugHeaders(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }));
     }
 
     // Add user info to headers for downstream use

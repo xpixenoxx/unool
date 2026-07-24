@@ -3,9 +3,9 @@ import { ProfileExtractor, ExtractedProfile } from '@/lib/ai/ProfileExtractor';
 import { logger } from '@/lib/logger';
 import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
-import { getCurrentUsage, checkLimit, getLimitsForTier, Tier } from '@/lib/limits/freeTier';
 import { trackAiUsage } from '@/lib/limits/enforcer';
 import { cookies } from 'next/headers';
+import { withPlanEnforcement } from '@/lib/middleware/plan-enforcement';
 
 const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
 
@@ -14,7 +14,7 @@ const isDevAuthEnabled = config.NODE_ENV === 'development' || config.DEV_AUTH_BY
 const DEV_USER_ID = '00000000-0000-0000-0000-000000000001';
 const DEV_WORKSPACE_ID = '00000000-0000-0000-0000-000000000001';
 
-export async function POST(request: NextRequest) {
+async function handleExtract(request: NextRequest) {
   const traceId = crypto.randomUUID();
 
   try {
@@ -41,25 +41,6 @@ export async function POST(request: NextRequest) {
 
     if (!url || typeof url !== 'string') {
       return NextResponse.json({ error: 'URL is required' }, { status: 400 });
-    }
-
-    // Check free tier AI token limit
-    const { data: workspace } = await supabase
-      .from('workspaces')
-      .select('plan_tier')
-      .eq('id', workspaceId)
-      .single();
-
-    const tier = (workspace?.plan_tier as Tier) || 'free';
-    const limits = getLimitsForTier(tier);
-    const usage = await getCurrentUsage(supabase, workspaceId, userId);
-    const limitResult = checkLimit('aiTokensPerMonth', usage, limits);
-
-    if (!limitResult.allowed) {
-      return NextResponse.json(
-        { error: 'AI token limit exceeded', limit: limitResult },
-        { status: 429 }
-      );
     }
 
     logger.info('Profile extraction requested', { traceId, url, workspaceId });
@@ -89,3 +70,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Extraction failed' }, { status: 500 });
   }
 }
+
+export const POST = withPlanEnforcement(handleExtract, { action: 'use_ai' });

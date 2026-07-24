@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
+import { analytics, extractTrackingFromRequest } from '@/lib/analytics/track';
 
 const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ subdomain: string }> }
 ) {
   try {
@@ -55,6 +56,19 @@ export async function GET(
     } catch {
       // Ignore view count errors
     }
+
+    // Track profile view analytics (fire-and-forget)
+    const { ipHash, referrer, userAgent } = extractTrackingFromRequest(request);
+    const resolvedIpHash = await ipHash;
+    analytics.profileView({
+      workspaceId: profile.workspace_id,
+      profileId: profile.id,
+      userId: profile.user_id,
+      sessionId: request.headers.get('x-session-id') || undefined,
+      referrer: referrer || undefined,
+      userAgent: userAgent || undefined,
+      ipHash: resolvedIpHash || undefined,
+    });
 
     return NextResponse.json({
       ...profile,

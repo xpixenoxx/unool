@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAdmin, requireAdmin } from '@/lib/auth/admin';
 import { adminRepository } from '@/lib/repositories/supabase/SupabaseAdminRepository';
+import { createClient } from '@supabase/supabase-js';
+import { config } from '@/lib/config/schema';
 import type { CreateAdminUserInput, UpdateAdminUserInput, ListUsersParams } from '@/lib/repositories/interfaces/IAdminRepository';
 
 // GET /api/admin/users - List all admin users
@@ -10,12 +12,14 @@ export async function GET(request: NextRequest) {
 
   try {
     const { searchParams } = new URL(request.url);
+    const sortBy = searchParams.get('sortBy') as ListUsersParams['sortBy'] || 'createdAt';
+    const sortOrder = searchParams.get('sortOrder') as ListUsersParams['sortOrder'] || 'desc';
     const params: ListUsersParams = {
       page: parseInt(searchParams.get('page') || '1'),
       pageSize: parseInt(searchParams.get('pageSize') || '20'),
       search: searchParams.get('search') || undefined,
-      sortBy: (searchParams.get('sortBy') as any) || 'createdAt',
-      sortOrder: (searchParams.get('sortOrder') as any) || 'desc',
+      sortBy,
+      sortOrder,
     };
 
     const result = await adminRepository.listAdminUsers(params);
@@ -46,13 +50,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Create auth user first, then admin record
-    const { createClient } = await import('@supabase/supabase-js');
-    const { config } = await import('@/lib/config/schema');
-    const supabaseAdmin = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+    const adminClient = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
 
     const adminUser = await adminRepository.createAdminUser(
       { email, role, permissions },
-      supabaseAdmin
+      adminClient
     );
 
     // Log audit
