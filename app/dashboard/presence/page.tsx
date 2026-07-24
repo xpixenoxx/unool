@@ -220,12 +220,15 @@ function PresencePage() {
         method: 'DELETE',
         credentials: 'include',
       });
-      if (!res.ok) throw new Error('Failed to delete subdomain');
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to delete subdomain');
+      }
       // Reload profile to get updated subdomain
       await loadProfile();
       toast.success('Subdomain deleted');
-    } catch {
-      toast.error('Failed to delete subdomain');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete subdomain');
     } finally {
       setDeletingSubdomain(false);
     }
@@ -243,10 +246,13 @@ function PresencePage() {
           subdomain: claimedSubdomain,
         }),
       });
-      if (!res.ok) throw new Error('Failed to save profile');
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to save profile');
+      }
       toast.success('Profile saved');
-    } catch {
-      toast.error('Failed to save profile');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save profile');
     } finally {
       setSaving(false);
     }
