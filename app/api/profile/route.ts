@@ -20,7 +20,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ profile: null });
     }
 
-    return NextResponse.json({ profile });
+    // Normalize field names for templates
+    const normalizedProfile = {
+      ...profile,
+      proofs: profile.proofPoints || [],
+    };
+
+    return NextResponse.json({ profile: normalizedProfile });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     logger.error('Get profile failed', { error: err });

@@ -73,7 +73,7 @@ export async function GET(
     return NextResponse.json({
       ...profile,
       links: profile.links || [],
-      proofPoints: profile.proof_points || [],
+      proofs: profile.proof_points || [],
       theme: profile.theme || { preset: 'minimal' },
     });
   } catch (error) {

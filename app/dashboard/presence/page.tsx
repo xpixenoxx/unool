@@ -221,7 +221,8 @@ function PresencePage() {
         credentials: 'include',
       });
       if (!res.ok) throw new Error('Failed to delete subdomain');
-      setClaimedSubdomain(null);
+      // Reload profile to get updated subdomain
+      await loadProfile();
       toast.success('Subdomain deleted');
     } catch {
       toast.error('Failed to delete subdomain');
