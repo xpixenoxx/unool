@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
-import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseProfileRepository';
+import { createClient } from '@supabase/supabase-js';
+import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
 
-const profileRepository = new SupabaseProfileRepository();
+const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
 
 export async function GET(request: NextRequest) {
   try {
@@ -34,9 +35,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ available: false, error: 'Reserved subdomain' }, { status: 400 });
     }
 
-    // Check if subdomain is taken
-    const existing = await profileRepository.findBySubdomain(subdomain);
-    const available = !existing;
+    // Check if subdomain is taken - use direct query for reliability
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('subdomain', subdomain)
+      .maybeSingle();
+
+    if (error) {
+      logger.error('Subdomain check query failed', { error, subdomain });
+      return NextResponse.json({ error: 'Failed to check subdomain' }, { status: 500 });
+    }
+
+    const available = !data;
 
     return NextResponse.json({ available });
   } catch (error) {
