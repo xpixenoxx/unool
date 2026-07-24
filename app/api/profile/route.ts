@@ -59,7 +59,7 @@ export async function PUT(request: NextRequest) {
         links,
         proofPoints,
         theme,
-        subdomain,
+        subdomain: subdomain || undefined,
       }, profile.version);
     } else {
       // Creating a new profile - generate a temporary subdomain if none provided

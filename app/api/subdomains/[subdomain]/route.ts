@@ -28,8 +28,9 @@ export async function DELETE(
       return NextResponse.json({ error: 'Subdomain mismatch' }, { status: 400 });
     }
 
-    // Clear the subdomain (set to null)
-    await profileRepository.update(profile.id, { subdomain: null }, profile.version);
+    // Clear the subdomain (set to a temporary string instead of null because of NOT NULL constraint)
+    const tempSubdomain = `user-${auth.userId.substring(0, 8)}-${Date.now().toString(36)}`;
+    await profileRepository.update(profile.id, { subdomain: tempSubdomain }, profile.version);
 
     return NextResponse.json({ success: true, message: 'Subdomain deleted successfully' });
   } catch (error) {

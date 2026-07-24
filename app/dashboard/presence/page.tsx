@@ -126,8 +126,10 @@ function PresencePage() {
       const data = await res.json();
       if (data.profile) {
         setProfile(data.profile);
-        if (data.profile.subdomain) {
+        if (data.profile.subdomain && !data.profile.subdomain.startsWith('user-')) {
           setClaimedSubdomain(data.profile.subdomain);
+        } else {
+          setClaimedSubdomain('');
         }
       }
     } catch (error) {
