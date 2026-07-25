@@ -237,7 +237,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
     const to = from + pageSize - 1;
 
     let query = adminClient
-      .from('workspace_admin_view')
+      .from('workspaces')
       .select('*', { count: 'exact' });
 
     if (params?.search) {
@@ -270,7 +270,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
   async getWorkspaceById(id: string): Promise<WorkspaceAdminView | null> {
     const { data, error } = await adminClient
-      .from('workspace_admin_view')
+      .from('workspaces')
       .select('*')
       .eq('id', id)
       .single();
