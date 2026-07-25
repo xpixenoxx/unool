@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 export interface BoxProps extends React.HTMLAttributes<HTMLDivElement> {
   as?: React.ElementType;
   display?: 'block' | 'flex' | 'inline-flex' | 'grid' | 'inline-grid' | 'contents' | 'none';
-  flexDirection?: 'row' | 'col' | 'row-reverse' | 'col-reverse';
+  flexDirection?: 'row' | 'column' | 'row-reverse' | 'column-reverse';
   alignItems?: 'start' | 'center' | 'end' | 'stretch' | 'baseline';
   justifyContent?: 'start' | 'center' | 'end' | 'between' | 'around' | 'evenly';
   flexWrap?: 'wrap' | 'nowrap' | 'wrap-reverse';
@@ -25,7 +25,7 @@ export interface BoxProps extends React.HTMLAttributes<HTMLDivElement> {
   flexBasis?: string | number;
   gridTemplateColumns?: string;
   gridTemplateRows?: string;
-  gridAutoFlow?: 'row' | 'col' | 'dense' | 'row-dense' | 'col-dense';
+  gridAutoFlow?: 'row' | 'column' | 'dense' | 'row-dense' | 'column-dense';
   gridColumn?: string;
   gridRow?: string;
   position?: 'static' | 'relative' | 'absolute' | 'fixed' | 'sticky';
@@ -439,7 +439,7 @@ export interface GridProps extends Omit<BoxProps, 'display' | 'gridTemplateColum
   cols?: number | { base?: number; sm?: number; md?: number; lg?: number; xl?: number };
   rows?: number | string;
   gap?: number | string;
-  flow?: 'row' | 'col' | 'dense' | 'row-dense' | 'col-dense';
+  flow?: 'row' | 'column' | 'dense' | 'row-dense' | 'column-dense';
 }
 
 export const Grid = React.forwardRef<HTMLDivElement, GridProps>(
