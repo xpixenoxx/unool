@@ -92,7 +92,7 @@ export async function verifyAndConsumeOAuthState(state: string): Promise<{ works
 
     return { workspaceId: data.workspaceId, platform: data.platform };
   } catch (error) {
-    logger.error('Invalid OAuth state data', { state: state.slice(0, 8) + '...', error: String(error) });
+    logger.error('Invalid OAuth state data', { state: state.slice(0, 8) + '...', error: error instanceof Error ? error : new Error(String(error)) });
     return null;
   }
 }
