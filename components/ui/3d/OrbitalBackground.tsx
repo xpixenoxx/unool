@@ -89,6 +89,21 @@ const DEFAULT_CONFIG = {
 };
 
 /**
+ * Resolves a CSS variable to its actual value, or returns the original string if not a var.
+ */
+function resolveColor(colorStr: string): string {
+  if (typeof window === 'undefined') return colorStr;
+  if (colorStr.startsWith('var(')) {
+    const match = colorStr.match(/var\(([^)]+)\)/);
+    if (match && match[1]) {
+      const resolved = getComputedStyle(document.documentElement).getPropertyValue(match[1]).trim();
+      return resolved || colorStr;
+    }
+  }
+  return colorStr;
+}
+
+/**
  * Generates orbital particles with orbital spring dynamics
  */
 function generateParticles(count: number, colors: string[], radius: number, speed: number): OrbitalParticle[] {
@@ -96,6 +111,8 @@ function generateParticles(count: number, colors: string[], radius: number, spee
   const radiusVariance = radius * 0.3; // ±30% variance
   const sizeRange = { min: radius * 0.15, max: radius * 0.35 };
   const opacityRange = { min: 0.15, max: 0.45 };
+  
+  const resolvedColors = colors.map(resolveColor);
 
   for (let i = 0; i < count; i++) {
     // Distribute particles evenly around the circle with orbital phase offset
@@ -116,7 +133,7 @@ function generateParticles(count: number, colors: string[], radius: number, spee
       angle: baseAngle,
       radius: orbitRadius,
       speed: orbitSpeed,
-      color: colors[i % colors.length],
+      color: resolvedColors[i % resolvedColors.length],
       size: sizeRange.min + Math.random() * (sizeRange.max - sizeRange.min),
       opacity: opacityRange.min + Math.random() * (opacityRange.max - opacityRange.min),
       phase: phaseOffset,
@@ -232,26 +249,33 @@ function CanvasOrbitals({
 
             ctx.beginPath();
             ctx.arc(tx, ty, trailSize, 0, Math.PI * 2);
-            ctx.fillStyle = p.color.replace(/oklch\(([^)]+)\)/, 'oklch($1 / $' + trailOpacity + ')')
-              || p.color.replace(/\)$/, ` / ${trailOpacity})`);
+            ctx.globalAlpha = trailOpacity;
+            ctx.fillStyle = p.color;
             ctx.fill();
+            ctx.globalAlpha = 1.0;
           }
         }
 
-        // Draw main orb with glow
-        const gradient = ctx.createRadialGradient(x, y, 0, x, y, size);
-        gradient.addColorStop(0, p.color.replace(/\)$/, ` / ${opacity})`));
-        gradient.addColorStop(1, p.color.replace(/\)$/, ` / 0)`));
-
+        // Draw main orb (fuzzy edge using globalAlpha and shadow or just solid with alpha)
+        // Since parsing color to add opacity is fragile with CSS vars, we'll use a simpler approach
         ctx.beginPath();
         ctx.arc(x, y, size, 0, Math.PI * 2);
-        ctx.fillStyle = gradient;
+        
+        // Use shadow to create the glow effect without needing transparent gradients
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = size;
+        
+        ctx.globalAlpha = opacity;
+        ctx.fillStyle = p.color;
         ctx.fill();
+        
+        ctx.shadowBlur = 0; // reset shadow
+        ctx.globalAlpha = 1.0; // reset alpha
 
         // Inner glow highlight
         ctx.beginPath();
         ctx.arc(x - size * 0.2, y - size * 0.2, size * 0.3, 0, Math.PI * 2);
-        ctx.fillStyle = 'oklch(1 0 0 / 0.15)';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
         ctx.fill();
       }
 
