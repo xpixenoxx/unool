@@ -74,49 +74,11 @@ export interface BoxProps extends React.HTMLAttributes<HTMLDivElement> {
   pointerEvents?: 'auto' | 'none';
   userSelect?: 'auto' | 'none' | 'text' | 'contain' | 'all';
 }
-
 const stylePropMap: Record<string, string> = {
-  flexDirection: 'flex-direction',
-  alignItems: 'align-items',
-  justifyContent: 'justify-content',
-  flexWrap: 'flex-wrap',
-  alignSelf: 'align-self',
-  justifySelf: 'justify-self',
-  flexGrow: 'flex-grow',
-  flexShrink: 'flex-shrink',
-  flexBasis: 'flex-basis',
-  gridTemplateColumns: 'grid-template-columns',
-  gridTemplateRows: 'grid-template-rows',
-  gridColumn: 'grid-column',
-  gridRow: 'grid-row',
-  overflowX: 'overflow-x',
-  overflowY: 'overflow-y',
-  minWidth: 'min-width',
-  minHeight: 'min-height',
-  maxWidth: 'max-width',
-  maxHeight: 'max-height',
-  aspectRatio: 'aspect-ratio',
-  paddingX: 'padding-inline',
-  paddingY: 'padding-block',
-  paddingTop: 'padding-top',
-  paddingRight: 'padding-right',
-  paddingBottom: 'padding-bottom',
-  paddingLeft: 'padding-left',
-  marginX: 'margin-inline',
-  marginY: 'margin-block',
-  marginTop: 'margin-top',
-  marginRight: 'margin-right',
-  marginBottom: 'margin-bottom',
-  marginLeft: 'margin-left',
-  borderTop: 'border-top',
-  borderRight: 'border-right',
-  borderBottom: 'border-bottom',
-  borderLeft: 'border-left',
-  borderRadius: 'border-radius',
-  borderColor: 'border-color',
-  backgroundColor: 'background-color',
-  pointerEvents: 'pointer-events',
-  userSelect: 'user-select',
+  paddingX: 'paddingInline',
+  paddingY: 'paddingBlock',
+  marginX: 'marginInline',
+  marginY: 'marginBlock',
 };
 
 const cssVarProps = [
@@ -268,21 +230,21 @@ export const Box = React.forwardRef<HTMLDivElement, BoxProps>(
     // Direct CSS property mapping
     Object.entries(propMap).forEach(([key, value]) => {
       if (value !== undefined) {
-        const cssKey = stylePropMap[key] || key.replace(/([A-Z])/g, '-$1').toLowerCase();
-        (computedStyle as Record<string, React.CSSProperties[keyof React.CSSProperties]>)[cssKey] = value as React.CSSProperties[keyof React.CSSProperties];
+        const cssKey = stylePropMap[key] || key;
+        (computedStyle as any)[cssKey] = value;
       }
     });
 
     // CSS variable props (use var(--space-*) for spacing)
     Object.entries(rest).forEach(([key, value]) => {
       if (value !== undefined && cssVarProps.includes(key as typeof cssVarProps[number])) {
-        const cssKey = stylePropMap[key] || key.replace(/([A-Z])/g, '-$1').toLowerCase();
+        const cssKey = stylePropMap[key] || key;
         if (typeof value === 'number') {
-          (computedStyle as Record<string, React.CSSProperties[keyof React.CSSProperties]>)[cssKey] = `${value}px` as React.CSSProperties[keyof React.CSSProperties];
+          (computedStyle as any)[cssKey] = `${value}px`;
         } else if (typeof value === 'string' && /^\d+$/.test(value)) {
-          (computedStyle as Record<string, React.CSSProperties[keyof React.CSSProperties]>)[cssKey] = `var(--space-${value})` as React.CSSProperties[keyof React.CSSProperties];
+          (computedStyle as any)[cssKey] = `var(--space-${value})`;
         } else {
-          (computedStyle as Record<string, React.CSSProperties[keyof React.CSSProperties]>)[cssKey] = value as React.CSSProperties[keyof React.CSSProperties];
+          (computedStyle as any)[cssKey] = value;
         }
       }
     });
