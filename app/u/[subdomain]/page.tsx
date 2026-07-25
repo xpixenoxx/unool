@@ -15,7 +15,11 @@ interface Profile {
   company: string | null;
   links: any[];
   proofPoints: any[];
+  proofs?: any[];
+  proof_points?: any[];
   theme: any;
+  socialHandles?: any;
+  seo?: any;
   sourceUrl: string | null;
   extractionPromptVersion: string | null;
   version: number;
