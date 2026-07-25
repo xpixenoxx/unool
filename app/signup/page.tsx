@@ -189,7 +189,7 @@ function SignupForm() {
                   {/* Dev bypass - only show in development */}
                   {process.env.NODE_ENV === 'development' && (
                     <MotionBox variant="slide-up" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={springConfig}>
-                      <Flex className="relative" flexDirection="col" gap={2}>
+                      <Flex className="relative" flexDirection="column" gap={2}>
                         <div className="relative">
                           <div className="absolute inset-0 bg-gradient-to-t from-card/90 to-transparent z-10 pointer-events-none h-8 bottom-0" />
                           <Button
