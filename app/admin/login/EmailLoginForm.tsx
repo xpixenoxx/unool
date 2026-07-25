@@ -22,7 +22,7 @@ export function EmailLoginForm() {
     setError(null);
 
     try {
-      const credentials = Buffer.from(`${email}:${password}`).toString('base64');
+      const credentials = btoa(`${email}:${password}`);
       const response = await fetch('/admin/api/login', {
         method: 'POST',
         headers: {
