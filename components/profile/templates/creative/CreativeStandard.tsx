@@ -14,7 +14,7 @@ import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 export function CreativeStandardTemplate({ profile, accentColor, isPreview, onLinkClick }: TemplateProps) {
   const reducedMotion = useReducedMotion();
-  const accent = accentColor || 'var(--primary)';
+  const accent = accentColor || 'var(--color-primary)';
   const secondaryAccent = 'oklch(0.65 0.28 320)'; // Creative purple-magenta
 
   return (

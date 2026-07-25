@@ -15,7 +15,7 @@ import { Star, Sparkles, Zap, Target, Award, TrendingUp, Users, Globe, Music, Pa
 
 export function CreativeMaxTemplate({ profile, accentColor, isPreview, onLinkClick }: TemplateProps) {
   const reducedMotion = useReducedMotion();
-  const accent = accentColor || 'var(--primary)';
+  const accent = accentColor || 'var(--color-primary)';
   const secondaryAccent = 'oklch(0.6 0.32 340)'; // Max creative magenta
   const tertiaryAccent = 'oklch(0.68 0.28 60)'; // Creative gold
   const quaternaryAccent = 'oklch(0.55 0.28 280)'; // Creative purple
@@ -772,7 +772,7 @@ function CreativeMaxBadge({
         style={{
           fontFamily: 'var(--font-syne)',
           fontSize: '0.9375rem',
-          background: gradient || `linear-gradient(135deg, var(--primary), var(--primary))`,
+          background: gradient || `linear-gradient(135deg, var(--color-primary), var(--color-primary))`,
           ...style,
         }}
       >
@@ -803,7 +803,7 @@ function CreativeMaxBadge({
       className={cn('gap-2', style)}
       style={{
         fontFamily: 'var(--font-syne)',
-        color: textColor || 'var(--primary)',
+        color: textColor || 'var(--color-primary)',
         ...style,
       }}
     >

@@ -143,7 +143,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ subdom
     theme: {
       template: templateId,
       preset: profile.theme?.preset || 'minimal',
-      accentColor: profile.theme?.accentColor || 'var(--primary)',
+      accentColor: profile.theme?.accentColor || 'var(--color-primary)',
       customCss: profile.theme?.customCss || null,
     },
     socialHandles: profile.socialHandles || {},

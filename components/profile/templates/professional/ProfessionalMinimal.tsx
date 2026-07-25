@@ -14,7 +14,7 @@ import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 export function ProfessionalMinimalTemplate({ profile, accentColor, isPreview, onLinkClick }: TemplateProps) {
   const reducedMotion = useReducedMotion();
-  const accent = accentColor || 'var(--primary)';
+  const accent = accentColor || 'var(--color-primary)';
   const secondaryAccent = 'oklch(0.55 0.15 250)';
 
   return (

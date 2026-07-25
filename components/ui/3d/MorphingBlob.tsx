@@ -5,21 +5,12 @@ import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { spring } from '@/components/ui/motion';
 
-const BLOB_PATHS = [
-  'M40,20 C60,20 60,40 40,60 C20,60 20,40 40,20',
-  'M60,30 C80,30 80,70 60,70 C40,70 40,30 60,30',
-  'M30,50 C50,50 50,80 30,80 C10,80 10,50 30,50',
-  'M50,10 C70,10 70,50 50,50 C30,50 30,10 50,10',
-];
-
-let blobIdCounter = 0;
-
 interface MorphingBlobProps {
   className?: string;
   colors?: string[];
   /** @deprecated Use `colors` array instead */
   color?: string;
-  /** Opacity of the blob (default: 0.6 / colors.length) */
+  /** Opacity of the blob */
   opacity?: number;
   /** Number of complexity iterations for morphing (default: 3) */
   complexity?: number;
@@ -29,7 +20,7 @@ interface MorphingBlobProps {
 
 export function MorphingBlob({
   className,
-  colors = ['var(--purple)', 'var(--primary)'],
+  colors = ['var(--color-purple)', 'var(--color-primary)'],
   color,
   opacity,
   complexity,
@@ -38,55 +29,44 @@ export function MorphingBlob({
 }: MorphingBlobProps) {
   // Support deprecated `color` prop alias
   const finalColors = color ? [color] : colors;
-  const blobCount = Math.max(finalColors.length, complexity ?? 3);
+  const finalOpacity = opacity ?? 0.15;
 
-  const baseMorphTransition = { ...spring.gentle, duration: speed, repeat: Infinity, repeatType: 'reverse' as const };
-  const baseColorTransition = { ...spring.bouncy, duration: speed * 2, repeat: Infinity, repeatType: 'reverse' as const };
-  const finalOpacity = opacity ?? 0.6 / finalColors.length;
-
-  // Unique filter ID per instance to avoid SVG filter collisions
-  const filterId = React.useRef(`gooey-${++blobIdCounter}`).current;
-
+  // Use CSS-based blobs instead of SVG filters to avoid the black rendering bug
   return (
-    <motion.svg
+    <div
       className={cn('relative pointer-events-none', className)}
-      viewBox={`0 0 ${size} ${size}`}
       style={{ width: size, height: size }}
       aria-hidden="true"
     >
-      <defs>
-        <filter id={filterId} colorInterpolationFilters="sRGB">
-          <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur" />
-          <feColorMatrix
-            in="blur"
-            mode="matrix"
-            values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 12 -5"
-            result="goo"
-          />
-          <feComposite in="SourceGraphic" in2="goo" operator="atop" />
-        </filter>
-      </defs>
-
-      <g filter={`url(#${filterId})`}>
-        {finalColors.map((color, i) => (
-          <motion.path
-            key={i}
-            d={BLOB_PATHS[i % BLOB_PATHS.length]}
-            fill={color}
-            fillOpacity={finalOpacity}
-            style={{ transformOrigin: 'center center' }}
-            animate={{
-              d: BLOB_PATHS.map((_, j) => BLOB_PATHS[(i + j) % BLOB_PATHS.length]),
-              fill: finalColors.map((_, j) => finalColors[(i + j) % finalColors.length]),
-            }}
-            transition={{
-              d: { ...baseMorphTransition, delay: i * 0.1 },
-              fill: { ...baseColorTransition, delay: i * 0.2 },
-            }}
-          />
-        ))}
-      </g>
-    </motion.svg>
+      {finalColors.map((c, i) => (
+        <motion.div
+          key={i}
+          className="absolute rounded-full"
+          style={{
+            width: size * (0.5 + (i * 0.15)),
+            height: size * (0.5 + (i * 0.15)),
+            background: c,
+            opacity: finalOpacity,
+            filter: `blur(${size * 0.15}px)`,
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+          }}
+          animate={{
+            x: [0, size * 0.1, -size * 0.05, 0],
+            y: [0, -size * 0.05, size * 0.1, 0],
+            scale: [1, 1.15, 0.9, 1],
+            borderRadius: ['50%', '40% 60% 60% 40%', '60% 40% 40% 60%', '50%'],
+          }}
+          transition={{
+            duration: (speed > 0 ? 1 / speed : 10) * 2,
+            repeat: Infinity,
+            ease: 'easeInOut',
+            delay: i * 0.5,
+          }}
+        />
+      ))}
+    </div>
   );
 }
 

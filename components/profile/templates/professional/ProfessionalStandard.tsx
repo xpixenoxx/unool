@@ -14,7 +14,7 @@ import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 export function ProfessionalStandardTemplate({ profile, accentColor, isPreview, onLinkClick }: TemplateProps) {
   const reducedMotion = useReducedMotion();
-  const accent = accentColor || 'var(--primary)';
+  const accent = accentColor || 'var(--color-primary)';
   const secondaryAccent = 'oklch(0.5 0.18 260)'; // Deep executive purple-blue
 
   return (

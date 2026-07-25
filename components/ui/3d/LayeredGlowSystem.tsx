@@ -14,7 +14,7 @@ export type { LayeredGlowSystemProps };
 
 export function LayeredGlowSystem({
   layers = 3,
-  baseColor = 'var(--primary)',
+  baseColor = 'var(--color-primary)',
   className = '',
 }: LayeredGlowSystemProps) {
   const reducedMotion = useReducedMotion();

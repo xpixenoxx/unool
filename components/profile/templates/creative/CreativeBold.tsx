@@ -15,7 +15,7 @@ import { Star, Sparkles, Zap, Target } from 'lucide-react';
 
 export function CreativeBoldTemplate({ profile, accentColor, isPreview, onLinkClick }: TemplateProps) {
   const reducedMotion = useReducedMotion();
-  const accent = accentColor || 'var(--primary)';
+  const accent = accentColor || 'var(--color-primary)';
   const secondaryAccent = 'oklch(0.62 0.3 340)'; // Bold creative magenta
   const tertiaryAccent = 'oklch(0.7 0.28 60)'; // Creative gold/orange
 

@@ -87,7 +87,7 @@ export function ProfilePreview({
   className
 }: ProfilePreviewProps) {
   const [mounted, setMounted] = React.useState(false);
-  const accentColor = profile?.theme?.accentColor || 'var(--primary)';
+  const accentColor = profile?.theme?.accentColor || 'var(--color-primary)';
 
   React.useEffect(() => {
     setMounted(true);

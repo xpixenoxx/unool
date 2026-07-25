@@ -14,7 +14,7 @@ import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 export function EssentialMaxTemplate({ profile, accentColor, isPreview, onLinkClick }: TemplateProps) {
   const reducedMotion = useReducedMotion();
-  const accent = accentColor || 'var(--primary)';
+  const accent = accentColor || 'var(--color-primary)';
   const secondaryAccent = 'oklch(0.65 0.18 280)';
 
   return (

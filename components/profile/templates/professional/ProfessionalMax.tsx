@@ -16,7 +16,7 @@ import { ChevronLeft, ChevronRight, Star, TrendingUp, Users, Target, Zap } from 
 
 export function ProfessionalMaxTemplate({ profile, accentColor, isPreview, onLinkClick }: TemplateProps) {
   const reducedMotion = useReducedMotion();
-  const accent = accentColor || 'var(--primary)';
+  const accent = accentColor || 'var(--color-primary)';
   const secondaryAccent = 'oklch(0.5 0.22 275)'; // Deep executive purple-blue
 
   // Compute aggregated stats

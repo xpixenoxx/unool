@@ -9,6 +9,12 @@
      ============================================================ */
 
   :root {
+    /* Fully resolved colors for inline styles and JS templates */
+    --color-primary: hsl(195 100% 60%);
+    --color-purple: hsl(295 70% 62%);
+    --color-foreground: hsl(247.8 10% 12%);
+    --color-background: hsl(0 0% 98.5%);
+
     /* ----- Color: Neutral (Light) ----- */
     --background: 0 0% 98.5%;
     --foreground: 247.8 10% 12%;

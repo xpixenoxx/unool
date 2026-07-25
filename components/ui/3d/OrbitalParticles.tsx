@@ -24,7 +24,7 @@ export function OrbitalParticles({
   particleCount,
   size = 2,
   sizeRange = [0.5, 3.5],
-  color = 'var(--primary)',
+  color = 'var(--color-primary)',
   colors,
   opacity = 0.3,
   opacityRange = [0.1, 0.5],

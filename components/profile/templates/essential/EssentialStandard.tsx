@@ -14,7 +14,7 @@ import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 export function EssentialStandardTemplate({ profile, accentColor, isPreview, onLinkClick }: TemplateProps) {
   const reducedMotion = useReducedMotion();
-  const accent = accentColor || 'var(--primary)';
+  const accent = accentColor || 'var(--color-primary)';
 
   return (
     <div

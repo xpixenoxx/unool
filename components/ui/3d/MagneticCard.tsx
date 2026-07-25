@@ -102,7 +102,7 @@ export function MagneticCard({
       <motion.div
         className="absolute inset-0 rounded-xl pointer-events-none"
         style={{
-          background: 'linear-gradient(135deg, var(--purple)/0, var(--purple)/0.15)',
+          background: 'linear-gradient(135deg, var(--color-purple)/0, var(--color-purple)/0.15)',
           opacity: glow,
           borderRadius: 'inherit',
         }}

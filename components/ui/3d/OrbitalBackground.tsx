@@ -21,7 +21,7 @@ import { designTokens } from '@/lib/design/tokens';
  * ```tsx
  * <OrbitalBackground
  *   count={8}
- *   colors={['var(--purple)', 'var(--primary)', 'var(--success)']}
+ *   colors={['var(--color-purple)', 'var(--color-primary)', 'var(--success)']}
  *   radius={60}
  *   speed={0.8}
  *   className="fixed inset-0 -z-10"
@@ -33,7 +33,7 @@ export interface OrbitalBackgroundProps {
   count?: number;
   /** @deprecated Use `count` instead */
   orbCount?: number;
-  /** Theme-aware color tokens (default: ['var(--purple)', 'var(--primary)']) */
+  /** Theme-aware color tokens (default: ['var(--color-purple)', 'var(--color-primary)']) */
   colors?: string[];
   /** Orbital radius in pixels (default: 40) */
   radius?: number;
@@ -362,7 +362,7 @@ function SVGOrbitals({
 export function OrbitalBackground({
   count: userCount = DEFAULT_CONFIG.count,
   orbCount,
-  colors = ['var(--purple)', 'var(--primary)'],
+  colors = ['var(--color-purple)', 'var(--color-primary)'],
   radius = DEFAULT_CONFIG.radius,
   orbSizes,
   speed = DEFAULT_CONFIG.speed,

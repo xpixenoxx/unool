@@ -31,7 +31,7 @@ const mockTestimonials: Testimonial[] = [
 
 export function ProfessionalBoldTemplate({ profile, accentColor, isPreview, onLinkClick }: TemplateProps) {
   const reducedMotion = useReducedMotion();
-  const accent = accentColor || 'var(--primary)';
+  const accent = accentColor || 'var(--color-primary)';
   const secondaryAccent = 'oklch(0.5 0.2 270)'; // Bold executive purple
   const [currentTestimonial, setCurrentTestimonial] = React.useState(0);
 
@@ -321,7 +321,7 @@ export function ProfessionalBoldTemplate({ profile, accentColor, isPreview, onLi
                               {[...Array(5)].map((_, i) => (
                                 <Star
                                   key={i}
-                                  className={i < (mockTestimonials[currentTestimonial].rating || 5) ? 'h-5 w-5 fill-[var(--primary)] text-[var(--primary)]' : 'h-5 w-5 text-muted/30'}
+                                  className={i < (mockTestimonials[currentTestimonial].rating || 5) ? 'h-5 w-5 fill-[var(--color-primary)] text-[var(--color-primary)]' : 'h-5 w-5 text-muted/30'}
                                 />
                               ))}
                             </Flex>
