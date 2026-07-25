@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { LayoutDashboard, Users, Building2, CreditCard, BarChart3, ClipboardList, Settings, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Box, Flex, Text, Avatar, AvatarImage, AvatarFallback, Button } from '@/components/ui';
 import { MotionBox } from '@/components/ui/motion';
@@ -20,6 +20,7 @@ const navigation = [
 
 export function AdminSidebar({ collapsed = false, onToggle }: { collapsed?: boolean; onToggle: () => void }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [isCollapsed, setIsCollapsed] = React.useState(collapsed);
 
   React.useEffect(() => {
@@ -29,6 +30,12 @@ export function AdminSidebar({ collapsed = false, onToggle }: { collapsed?: bool
   const handleToggle = () => {
     setIsCollapsed(!isCollapsed);
     onToggle();
+  };
+
+  const handleLogout = async () => {
+    await fetch('/admin/api/logout', { method: 'POST' });
+    router.push('/admin/login');
+    router.refresh();
   };
 
   return (
@@ -113,8 +120,8 @@ export function AdminSidebar({ collapsed = false, onToggle }: { collapsed?: bool
                   super_admin
                 </Text>
               </Box>
-              <Button variant="ghost" size="sm" asChild>
-                <a href="/api/auth/signout">Log Out <LogOut className="ml-1 h-3 w-3" /></a>
+              <Button variant="ghost" size="sm" onClick={handleLogout}>
+                Log Out <LogOut className="ml-1 h-3 w-3" />
               </Button>
             </Flex>
           </Box>
@@ -129,7 +136,14 @@ interface AdminLayoutProps {
 }
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
+  const router = useRouter();
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
+
+  const handleLogout = async () => {
+    await fetch('/admin/api/logout', { method: 'POST' });
+    router.push('/admin/login');
+    router.refresh();
+  };
 
   return (
     <Box className="min-h-screen bg-background">
@@ -155,8 +169,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                   </svg>
                 </a>
               </Button>
-              <Button variant="ghost" size="sm" asChild>
-                <a href="/api/auth/signout">Sign Out</a>
+              <Button variant="ghost" size="sm" onClick={handleLogout}>
+                Log Out <LogOut className="ml-1 h-3 w-3" />
               </Button>
             </Flex>
           </Box>

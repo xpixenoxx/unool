@@ -22,6 +22,38 @@ const adminPaths = [
   '/api/admin',
 ];
 
+// Public admin paths (login page)
+const publicAdminPaths = [
+  '/admin/login',
+];
+
+// Simple admin credentials (username: asd@asd.com, password: asd@asd.com)
+const ADMIN_CREDENTIALS = {
+  username: 'asd@asd.com',
+  password: 'asd@asd.com',
+};
+
+// Simple in-memory session validation for admin (cookie-based)
+function validateAdminAuth(request: NextRequest): boolean {
+  // Check for admin session cookie
+  const adminSession = request.cookies.get('admin_session')?.value;
+  if (adminSession === 'authenticated') {
+    return true;
+  }
+
+  // Check Basic Auth header
+  const authHeader = request.headers.get('authorization');
+  if (authHeader && authHeader.startsWith('Basic ')) {
+    const credentials = Buffer.from(authHeader.slice(6), 'base64').toString();
+    const [username, password] = credentials.split(':');
+    if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 // Webhook paths that don't need auth
 const webhookPaths = [
   '/api/webhooks',
@@ -142,6 +174,36 @@ export async function middleware(request: NextRequest) {
     response.headers.set('x-middleware-run', 'true');
     response.headers.set('x-middleware-path', pathname);
     return addDebugHeaders(response);
+  }
+
+  // Admin auth check - protect all /admin routes except login page and login API
+  if (pathname.startsWith('/admin') && !pathname.startsWith('/admin/login') && !pathname.startsWith('/admin/api/login')) {
+    const isAdminAuthed = validateAdminAuth(request);
+    if (!isAdminAuthed) {
+      // Redirect to login page
+      const loginUrl = new URL('/admin/login', request.url);
+      loginUrl.searchParams.set('redirect', pathname);
+      return addDebugHeaders(NextResponse.redirect(loginUrl));
+    }
+    // Set admin auth cookie if authenticated via Basic Auth
+    const authHeader = request.headers.get('authorization');
+    if (authHeader && authHeader.startsWith('Basic ')) {
+      const credentials = Buffer.from(authHeader.slice(6), 'base64').toString();
+      const [username, password] = credentials.split(':');
+      if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
+        const response = NextResponse.next({ request: { headers: requestHeaders } });
+        response.cookies.set('admin_session', 'authenticated', {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: 60 * 60 * 24 * 7, // 7 days
+          path: '/admin',
+        });
+        response.headers.set('x-middleware-run', 'true');
+        response.headers.set('x-middleware-path', pathname);
+        return addDebugHeaders(response);
+      }
+    }
   }
 
   // Skip middleware for static assets and public paths
