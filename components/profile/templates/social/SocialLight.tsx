@@ -13,7 +13,7 @@ import { spring } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { ChevronRight, Github, Linkedin, Twitter, Zap, Heart, MessageCircle, Share2, Users, Star } from 'lucide-react';
 
-export function SocialLightTemplate({ profile, accentColor, isPreview, onLinkClick }: TemplateProps) {
+export function SocialLightTemplate({ profile, accentColor, isPreview }: TemplateProps) {
   const reducedMotion = useReducedMotion();
   const accent = accentColor || '#8b5cf6'; // Purple for social
   const secondaryAccent = '#ec4899'; // Pink
@@ -21,15 +21,6 @@ export function SocialLightTemplate({ profile, accentColor, isPreview, onLinkCli
   const socialBg = 'oklch(0.97 0.01 300)';
   const socialCardBg = 'oklch(1 0 0)';
   const socialBorder = 'oklch(0.88 0.02 300)';
-
-  // Mock followers for avatar stack
-  const followers = [
-    { name: 'Alex', color: '#8b5cf6' },
-    { name: 'Sam', color: '#ec4899' },
-    { name: 'Jordan', color: '#06b6d4' },
-    { name: 'Casey', color: '#fbbf24' },
-    { name: 'Morgan', color: '#22c55e' },
-  ];
 
   return (
     <div
@@ -118,35 +109,13 @@ export function SocialLightTemplate({ profile, accentColor, isPreview, onLinkCli
 
               {/* Follower avatar stack with pulse rings */}
               <div className="absolute bottom-0 left-1/2 -translate-x-1/2 flex items-center justify-center -space-x-2 mt-3">
-                {followers.map((follower, i) => (
-                  <motion.div
-                    key={follower.name}
-                    initial={reducedMotion ? {} : { opacity: 0, scale: 0.5, y: 20 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    transition={{ ...spring.bouncy, delay: 0.3 + i * 0.08 }}
-                    className="relative"
-                  >
-                    <Avatar className="h-10 w-10 ring-2" ringColor={socialCardBg}>
-                      <AvatarFallback style={{ fontSize: '0.75rem', fontWeight: 600, fontFamily: 'var(--font-syne)', background: `linear-gradient(135deg, ${follower.color}20, ${follower.color}10)`, color: follower.color }}>
-                        {follower.name.charAt(0)}
-                      </AvatarFallback>
-                    </Avatar>
-                    {/* Pulse ring */}
-                    <motion.div
-                      className="absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2"
-                      style={{ background: follower.color, borderColor: socialCardBg }}
-                      animate={{ scale: [1, 1.3, 1], opacity: [1, 0.4, 1] }}
-                      transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut', delay: i * 0.2 }}
-                    />
-                  </motion.div>
-                ))}
                 <motion.div
                   initial={reducedMotion ? {} : { opacity: 0, scale: 0.5 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  transition={{ ...spring.bouncy, delay: 0.3 + followers.length * 0.08 }}
+                  transition={{ ...spring.bouncy, delay: 0.3 }}
                 >
                   <Badge variant="outline" className="h-10 w-10 flex items-center justify-center text-xs px-0" style={{ fontFamily: 'var(--font-geist)', borderColor: accent, color: accent }}>
-                    +{profile.links.reduce((sum, l) => sum + l.clicks, 0) > 1000 ? '1.2k' : profile.links.reduce((sum, l) => sum + l.clicks, 0) + 128}
+                    +{profile.links.filter(l => l.isVisible).length + 128}
                   </Badge>
                 </motion.div>
               </div>
@@ -230,8 +199,10 @@ export function SocialLightTemplate({ profile, accentColor, isPreview, onLinkCli
                       boxShadow: '0 2px 12px 0 oklch(0.68 0.18 280 / 0.08)',
                     }}
                   >
-                    <motion.button
-                      onClick={() => onLinkClick?.(link)}
+                    <motion.a
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       initial={reducedMotion ? {} : { opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ ...spring.gentle, delay: 0.8 + index * 0.04 }}
@@ -284,7 +255,7 @@ export function SocialLightTemplate({ profile, accentColor, isPreview, onLinkCli
                       >
                         {link.clicks.toLocaleString()}
                       </motion.span>
-                    </motion.button>
+                    </motion.a>
                   </MagneticCard>
                 ))}
             </Stack>

@@ -1,19 +1,19 @@
 'use client';
 
 import * as React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { TemplateProps } from '../types';
-import { OrbitalBackground, MorphingBlob, MagneticCard, TiltCard, ParallaxLayers, PerspectiveFlip } from '@/components/ui/3d';
+import { OrbitalBackground, MorphingBlob, MagneticCard, TiltCard, ParallaxLayers } from '@/components/ui/3d';
 import { Flex, Stack, Box, Grid } from '@/components/ui/layout';
 import { Text } from '@/components/ui/typography';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { spring } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { Heart, MessageCircle, Share2, ChevronRight, MoreHorizontal } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 
-export function SocialStandardTemplate({ profile, accentColor, isPreview, onLinkClick }: TemplateProps) {
+export function SocialStandardTemplate({ profile, accentColor, isPreview }: TemplateProps) {
   const reducedMotion = useReducedMotion();
   const accent = accentColor || '#8b5cf6'; // Purple for social
   const secondaryAccent = '#ec4899'; // Pink
@@ -21,48 +21,6 @@ export function SocialStandardTemplate({ profile, accentColor, isPreview, onLink
   const socialBg = 'oklch(0.97 0.015 300)';
   const socialCardBg = 'oklch(1 0 0)';
   const socialBorder = 'oklch(0.88 0.02 300)';
-
-  // Mock social posts with rich data
-  const mockPosts = [
-    {
-      id: '1',
-      content: 'Just shipped the new profile template system! 🚀 25+ templates across 5 categories. The 3D orbital backgrounds with Framer Motion springs are my favorite part. Built with Next.js 15, Supabase, and pure TypeScript.',
-      time: '2h ago',
-      likes: 234,
-      replies: 18,
-      reposts: 42,
-      avatar: profile.avatarUrl,
-      name: profile.name,
-      verified: true,
-    },
-    {
-      id: '2',
-      content: 'Working on something exciting for creators. Magnetic hover effects + tilt cards + parallax layers = ✨ pure magic. The new design system with OKLCH color tokens changes everything.',
-      time: '1d ago',
-      likes: 512,
-      replies: 34,
-      reposts: 89,
-      avatar: profile.avatarUrl,
-      name: profile.name,
-      verified: true,
-    },
-    {
-      id: '3',
-      content: 'The new design tokens in OKLCH are a game changer. Perceptual uniformity for the win! 🎨 No more guessing with hex colors. Every template adapts perfectly to any accent color.',
-      time: '3d ago',
-      likes: 189,
-      replies: 12,
-      reposts: 28,
-      avatar: profile.avatarUrl,
-      name: profile.name,
-      verified: true,
-    },
-  ];
-
-  const formatCount = (count: number) => {
-    if (count >= 1000) return (count / 1000).toFixed(1) + 'k';
-    return count.toString();
-  };
 
   return (
     <div
@@ -196,18 +154,18 @@ export function SocialStandardTemplate({ profile, accentColor, isPreview, onLink
                 </Flex>
                 <Flex column gap={0.25} align="center">
                   <Text size="sm" weight="bold" style={{ fontFamily: 'var(--font-geist-mono)', color: secondaryAccent }}>
-                    1.2K
+                    {profile.links.reduce((sum, l) => sum + l.clicks, 0).toLocaleString()}
                   </Text>
                   <Text size="xs" style={{ fontFamily: 'var(--font-geist)', color: 'oklch(0.5 0.02 300)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Followers
+                    Total Clicks
                   </Text>
                 </Flex>
                 <Flex column gap={0.25} align="center">
                   <Text size="sm" weight="bold" style={{ fontFamily: 'var(--font-geist-mono)', color: tertiaryAccent }}>
-                    342
+                    {profile.proofs.length}
                   </Text>
                   <Text size="xs" style={{ fontFamily: 'var(--font-geist)', color: 'oklch(0.5 0.02 300)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Following
+                    Proofs
                   </Text>
                 </Flex>
               </Flex>
@@ -235,96 +193,12 @@ export function SocialStandardTemplate({ profile, accentColor, isPreview, onLink
           </motion.div>
         )}
 
-        {/* SOCIAL FEED - Posts with TiltCard */}
-        <motion.div
-          initial={reducedMotion ? {} : { opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ ...spring.standard, delay: 0.7 }}
-        >
-          <div style={{ height: '1px', background: socialBorder, marginBottom: '1rem' }} />
-          <Stack space={3}>
-            <AnimatePresence mode="wait">
-              {mockPosts.map((post, index) => (
-                <TiltCard key={post.id} maxTilt={4} scale={1.01}>
-                  <motion.div
-                    initial={reducedMotion ? {} : { opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    transition={{ ...spring.gentle, delay: index * 0.08 }}
-                    className="relative"
-                    style={{ background: socialCardBg, border: `1px solid ${socialBorder}`, borderRadius: '16px', overflow: 'hidden' }}
-                  >
-                    {/* Post Header */}
-                    <div className="flex items-start gap-3 p-5">
-                      <Avatar className="h-10 w-10" style={{ borderColor: accent }}>
-                        <AvatarImage src={post.avatar} alt={post.name} className="object-cover" />
-                        <AvatarFallback style={{ fontFamily: 'var(--font-syne)', fontWeight: 700, fontSize: '0.875rem', color: accent }}>
-                          {post.name.charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <Flex column gap={0.5} flex={1} className="min-w-0">
-                        <Flex align="center" gap={1.5}>
-                          <Text weight="medium" style={{ fontFamily: 'var(--font-geist)' }}>{post.name}</Text>
-                          {post.verified && (
-                            <motion.span
-                              animate={{ rotate: [0, 5, -5, 0] }}
-                              transition={{ duration: 2, repeat: Infinity }}
-                              style={{ color: '#3b82f6', fontSize: '0.75rem' }}
-                            >
-                              ✓
-                            </motion.span>
-                          )}
-                        </Flex>
-                        <Text size="xs" style={{ fontFamily: 'var(--font-geist-mono)', color: 'oklch(0.5 0.02 300)' }}>
-                          {post.time}
-                        </Text>
-                      </Flex>
-                      <MagneticCard radius={60} strength={0.1} className="p-1" style={{ background: 'transparent', border: 'none' }}>
-                        <button className="p-2 rounded-full hover:bg-primary/10 transition-colors" style={{ color: 'oklch(0.5 0.02 300)' }}>
-                          <MoreHorizontal className="h-5 w-5" />
-                        </button>
-                      </MagneticCard>
-                    </div>
-
-                    {/* Post Content */}
-                    <div className="px-5 pb-2">
-                      <motion.p
-                        initial={reducedMotion ? {} : { opacity: 0, y: 5 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ ...spring.gentle, delay: 0.1 + index * 0.08 }}
-                        style={{ fontFamily: 'var(--font-geist)', fontSize: '1rem', lineHeight: 1.6, color: 'oklch(0.25 0.02 300)' }}
-                      >
-                        {post.content}
-                      </motion.p>
-                    </div>
-
-                    {/* Engagement Bar */}
-                    <div className="flex items-center justify-between px-5 py-4 border-t" style={{ borderColor: socialBorder }}>
-                      <Flex gap={5}>
-                        <EngagementButton icon={MessageCircle} count={post.replies} color="oklch(0.5 0.02 300)" hoverColor="#3b82f6" iconText="Replies" />
-                        <EngagementButton icon={Heart} count={post.likes} color="oklch(0.5 0.02 300)" hoverColor="#ef4444" iconText="Likes" />
-                        <EngagementButton icon={Share2} count={post.reposts} color="oklch(0.5 0.02 300)" hoverColor="#22c55e" iconText="Reposts" />
-                      </Flex>
-                      <MagneticCard radius={60} strength={0.12} className="px-3 py-1.5" style={{ background: 'transparent', border: 'none' }}>
-                        <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium hover:bg-primary/10 transition-colors" style={{ fontFamily: 'var(--font-geist)', color: accent }}>
-                          <Share2 className="h-3.5 w-3.5" />
-                          Share
-                        </button>
-                      </MagneticCard>
-                    </div>
-                  </motion.div>
-                </TiltCard>
-              ))}
-            </AnimatePresence>
-          </Stack>
-        </motion.div>
-
         {/* LINKS - MagneticCard with Animated Accent */}
         {profile.links.length > 0 && (
           <motion.div
             initial={reducedMotion ? {} : { opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ ...spring.standard, delay: 0.9 }}
+            transition={{ ...spring.standard, delay: 0.7 }}
           >
             <div style={{ height: '1px', background: socialBorder, marginBottom: '1rem' }} />
             <Stack space={2}>
@@ -344,8 +218,10 @@ export function SocialStandardTemplate({ profile, accentColor, isPreview, onLink
                       padding: '0.5rem',
                     }}
                   >
-                    <motion.button
-                      onClick={() => onLinkClick?.(link)}
+                    <motion.a
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       initial={reducedMotion ? {} : { opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ ...spring.gentle, delay: 1 + index * 0.04 }}
@@ -398,7 +274,7 @@ export function SocialStandardTemplate({ profile, accentColor, isPreview, onLink
                       >
                         {link.clicks.toLocaleString()}
                       </motion.span>
-                    </motion.button>
+                    </motion.a>
                   </MagneticCard>
                 ))}
             </Stack>

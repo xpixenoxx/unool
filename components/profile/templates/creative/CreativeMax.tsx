@@ -13,7 +13,7 @@ import { spring } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { Star, Sparkles, Zap, Target, Award, TrendingUp, Users, Globe, Music, Palette, Zap as ZapIcon } from 'lucide-react';
 
-export function CreativeMaxTemplate({ profile, accentColor, isPreview, onLinkClick }: TemplateProps) {
+export function CreativeMaxTemplate({ profile, accentColor, isPreview }: TemplateProps) {
   const reducedMotion = useReducedMotion();
   const accent = accentColor || 'var(--color-primary)';
   const secondaryAccent = 'oklch(0.6 0.32 340)'; // Max creative magenta
@@ -370,7 +370,7 @@ export function CreativeMaxTemplate({ profile, accentColor, isPreview, onLinkCli
                                   boxShadow: `0 0 0 2px ${accent}15, 0 20px 80px -20px ${accent}35`,
                                 }}
                               >
-                                <CreativeMaxLinkCard link={link} accent={accent} secondaryAccent={secondaryAccent} tertiaryAccent={tertiaryAccent} index={index} onClick={onLinkClick} isPreview={isPreview} variant="tilt-1" reducedMotion={reducedMotion} />
+                                <CreativeMaxLinkCard link={link} accent={accent} secondaryAccent={secondaryAccent} tertiaryAccent={tertiaryAccent} index={index} isPreview={isPreview} variant="tilt-1" reducedMotion={reducedMotion} />
                               </TiltCard>
                             );
                           }
@@ -387,7 +387,7 @@ export function CreativeMaxTemplate({ profile, accentColor, isPreview, onLinkCli
                                   boxShadow: `0 12px 48px -12px ${accent}20`,
                                 }}
                               >
-                                <CreativeMaxLinkCard link={link} accent={accent} secondaryAccent={secondaryAccent} tertiaryAccent={tertiaryAccent} index={index} onClick={onLinkClick} isPreview={isPreview} variant="magnetic" reducedMotion={reducedMotion} />
+                                <CreativeMaxLinkCard link={link} accent={accent} secondaryAccent={secondaryAccent} tertiaryAccent={tertiaryAccent} index={index} isPreview={isPreview} variant="magnetic" reducedMotion={reducedMotion} />
                               </MagneticCard>
                             );
                           }
@@ -406,7 +406,7 @@ export function CreativeMaxTemplate({ profile, accentColor, isPreview, onLinkCli
                                       boxShadow: `0 0 0 2px ${tertiaryAccent}15, 0 16px 64px -16px ${secondaryAccent}25`,
                                     }}
                                   >
-                                    <CreativeMaxLinkCard link={link} accent={accent} secondaryAccent={secondaryAccent} tertiaryAccent={tertiaryAccent} index={index} onClick={onLinkClick} isPreview={isPreview} variant="perspective" reducedMotion={reducedMotion} />
+                                    <CreativeMaxLinkCard link={link} accent={accent} secondaryAccent={secondaryAccent} tertiaryAccent={tertiaryAccent} index={index} isPreview={isPreview} variant="perspective" reducedMotion={reducedMotion} />
                                   </TiltCard>
                                 </div>
                               </PerspectiveFlip>
@@ -426,7 +426,7 @@ export function CreativeMaxTemplate({ profile, accentColor, isPreview, onLinkCli
                                     boxShadow: `0 0 0 2px ${quaternaryAccent}15, 0 12px 48px -12px ${accent}20`,
                                   }}
                                 >
-                                  <CreativeMaxLinkCard link={link} accent={accent} secondaryAccent={secondaryAccent} tertiaryAccent={tertiaryAccent} index={index} onClick={onLinkClick} isPreview={isPreview} variant="featured" reducedMotion={reducedMotion} />
+                                  <CreativeMaxLinkCard link={link} accent={accent} secondaryAccent={secondaryAccent} tertiaryAccent={tertiaryAccent} index={index} isPreview={isPreview} variant="featured" reducedMotion={reducedMotion} />
                                 </MagneticCard>
                               </div>
                             </PerspectiveFlip>
@@ -556,7 +556,6 @@ function CreativeMaxLinkCard({
   secondaryAccent,
   tertiaryAccent,
   index,
-  onClick,
   isPreview = false,
   variant,
   reducedMotion,
@@ -566,7 +565,6 @@ function CreativeMaxLinkCard({
   secondaryAccent: string;
   tertiaryAccent: string;
   index: number;
-  onClick?: (link: TemplateProps['profile']['links'][0]) => void;
   isPreview?: boolean;
   variant: 'tilt-1' | 'magnetic' | 'perspective' | 'featured';
   reducedMotion: boolean;
@@ -575,10 +573,12 @@ function CreativeMaxLinkCard({
   const color = colors[variant];
 
   return (
-    <button
-      onClick={() => onClick?.(link)}
-      className="relative w-full h-full px-6 py-6 text-left group overflow-hidden"
-      style={{ borderRadius: '18px', fontFamily: 'var(--font-syne)' }}
+    <a
+      href={link.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="relative w-full h-full px-6 py-6 text-left group overflow-hidden no-underline"
+      style={{ borderRadius: '18px', fontFamily: 'var(--font-syne)', display: 'flex', flexDirection: 'column' }}
     >
       {/* Animated left accent bar */}
       <motion.div
@@ -665,7 +665,7 @@ function CreativeMaxLinkCard({
           </Badge>
         </Flex>
       </Flex>
-    </button>
+    </a>
   );
 }
 

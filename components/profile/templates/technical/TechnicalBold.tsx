@@ -1,19 +1,18 @@
 'use client';
 
 import * as React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { TemplateProps } from '../types';
 import { OrbitalBackground, MorphingBlob, MagneticCard, TiltCard, ParallaxLayers, PerspectiveFlip } from '@/components/ui/3d';
-import { Flex, Stack, Box, Grid } from '@/components/ui/layout';
+import { Flex, Stack } from '@/components/ui/layout';
 import { Text } from '@/components/ui/typography';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { spring } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { Server, Database, Zap, Github, GitCommit, Terminal, ChevronRight, Zap as ZapIcon2, BarChart3, Activity } from 'lucide-react';
 
-export function TechnicalBoldTemplate({ profile, accentColor, isPreview, onLinkClick }: TemplateProps) {
+export function TechnicalBoldTemplate({ profile, accentColor, isPreview }: TemplateProps) {
   const reducedMotion = useReducedMotion();
   const accent = accentColor || '#22c55e';
   const secondaryAccent = '#06b6d4';
@@ -22,32 +21,6 @@ export function TechnicalBoldTemplate({ profile, accentColor, isPreview, onLinkC
   const terminalCardBg = 'oklch(0.09 0.02 240)';
   const terminalHeaderBg = 'oklch(0.11 0.02 240)';
   const terminalBorder = 'oklch(0.18 0.02 240)';
-
-  // Live commit data
-  const commits = [
-    { hash: 'a1b2c3d', msg: `feat: update ${profile.name.toLowerCase().replace(/\s+/g, '-')}.profile.ts`, time: '2m ago', type: 'feat' },
-    { hash: 'e4f5g6h', msg: 'chore: add new links configuration', time: '15m ago', type: 'chore' },
-    { hash: 'i7j8k9l', msg: 'fix: resolve type definitions for proofs', time: '1h ago', type: 'fix' },
-    { hash: 'm0n1o2p', msg: 'docs: update readme with new template', time: '3h ago', type: 'docs' },
-    { hash: 'q3r4s5t', msg: 'refactor: optimize magnetic hover animations', time: '1d ago', type: 'refactor' },
-    { hash: 'u6v7w8x', msg: 'perf: lazy-load heavy 3D components', time: '2d ago', type: 'perf' },
-    { hash: 'y9z0a1b', msg: 'test: add vitest coverage for profile hooks', time: '1w ago', type: 'test' },
-    { hash: 'c2d3e4f', msg: 'ci: add production deployment workflow', time: '1w ago', type: 'ci' },
-  ];
-
-  const getCommitColor = (type: string) => {
-    switch (type) {
-      case 'feat': return accent;
-      case 'fix': return '#ef4444';
-      case 'chore': return '#64748b';
-      case 'docs': return '#3b82f6';
-      case 'refactor': return accentPurple;
-      case 'perf': return '#fbbf24';
-      case 'test': return '#ec4899';
-      case 'ci': return '#06b6d4';
-      default: return accent;
-    }
-  };
 
   return (
     <div
@@ -129,7 +102,7 @@ export function TechnicalBoldTemplate({ profile, accentColor, isPreview, onLinkC
       </ParallaxLayers>
 
       <Stack space={8} className="relative max-w-[900px] mx-auto px-4 py-16" style={{ fontFamily: 'var(--font-geist-mono)' }}>
-        {/* TERMINAL HEADER - git log --oneline */}
+        {/* TERMINAL HEADER - Bold Terminal Style */}
         <motion.div
           initial={reducedMotion ? {} : { opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -145,29 +118,21 @@ export function TechnicalBoldTemplate({ profile, accentColor, isPreview, onLinkC
               <Stack space={1.5}>
                 <Flex gap={2} align="center">
                   <Text size="sm" style={{ color: accent, fontFamily: 'var(--font-geist-mono)' }}>$</Text>
-                  <Text size="sm" style={{ color: '#a855f7', fontFamily: 'var(--font-geist-mono)' }}>git</Text>
-                  <Text size="sm" style={{ color: accent, fontFamily: 'var(--font-geist-mono)' }}>log</Text>
-                  <Text size="sm" style={{ color: '#3b82f6', fontFamily: 'var(--font-geist-mono)' }}>--oneline</Text>
-                  <Text size="sm" style={{ color: secondaryAccent, fontFamily: 'var(--font-geist-mono)' }}>-8</Text>
+                  <Text size="sm" style={{ color: '#a855f7', fontFamily: 'var(--font-geist-mono)' }}>cat</Text>
+                  <Text size="sm" style={{ color: accent, fontFamily: 'var(--font-geist-mono)' }}>profile.json</Text>
                 </Flex>
                 <div style={{ height: '1px', background: terminalBorder, margin: '0.5rem 0' }} />
                 <Stack space={1} style={{ marginLeft: '1.5rem' }}>
-                  {commits.slice(0, 5).map((commit, i) => (
-                    <motion.div
-                      key={commit.hash}
-                      initial={reducedMotion ? {} : { opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ ...spring.gentle, delay: 0.3 + i * 0.08 }}
-                      className="flex items-center gap-2"
-                    >
-                      <Text size="sm" style={{ color: accent, fontFamily: 'var(--font-geist-mono)' }}>{commit.hash}</Text>
-                      <Text size="sm" style={{ color: getCommitColor(commit.type), fontFamily: 'var(--font-geist-mono)' }}>
-                        {commit.type}:
-                      </Text>
-                      <Text size="sm" style={{ color: 'oklch(0.7 0.02 240)', fontFamily: 'var(--font-geist-mono)' }}>{commit.msg}</Text>
-                      <Text size="sm" style={{ color: 'oklch(0.4 0.02 240)', fontFamily: 'var(--font-geist-mono)' }}>{commit.time}</Text>
-                    </motion.div>
-                  ))}
+                  <Text size="sm" style={{ color: 'oklch(0.7 0.02 240)', fontFamily: 'var(--font-geist-mono)' }}>
+                    {{
+                      name: "{profile.name}",
+                      headline: "{profile.headline || ''}",
+                      links: profile.links.filter(l => l.isVisible).length,
+                      proofs: profile.proofs.length,
+                      subdomain: "{profile.subdomain}",
+                      theme: "technical-bold"
+                    }}
+                  </Text>
                 </Stack>
               </Stack>
             </div>
@@ -261,46 +226,6 @@ export function TechnicalBoldTemplate({ profile, accentColor, isPreview, onLinkC
           </motion.div>
         )}
 
-        {/* LIVE COMMIT TICKER - AnimatePresence */}
-        <motion.div
-          initial={reducedMotion ? {} : { opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ ...spring.standard, delay: 0.8 }}
-        >
-          <div style={{ height: '1px', background: terminalBorder, marginBottom: '1rem' }} />
-          <div className="relative" style={{ background: terminalCardBg, border: `1px solid ${terminalBorder}`, borderRadius: '10px', overflow: 'hidden' }}>
-            <div className="flex items-center gap-2 px-3 py-2" style={{ background: terminalHeaderBg, borderBottom: `1px solid ${terminalBorder}` }}>
-              <Text size="xs" style={{ color: 'oklch(0.5 0.02 240)', fontFamily: 'var(--font-geist-mono)' }}>activity.log</Text>
-              <Text size="xs" style={{ color: accent, fontFamily: 'var(--font-geist-mono)' }}>live feed</Text>
-              <motion.div className="w-1.5 h-1.5 rounded-full ml-auto" style={{ background: accent }} animate={{ scale: [1, 1.3, 1] }} transition={{ duration: 0.8, repeat: Infinity }} />
-            </div>
-            <div className="p-4 max-h-80 overflow-y-auto" style={{ fontFamily: 'var(--font-geist-mono)' }}>
-              <Stack space={2}>
-                <AnimatePresence mode="wait">
-                  {commits.map((commit, index) => (
-                    <motion.div
-                      key={commit.hash}
-                      initial={reducedMotion ? {} : { opacity: 0, x: -30, height: 0 }}
-                      animate={{ opacity: 1, x: 0, height: 'auto' }}
-                      exit={{ opacity: 0, x: 30, height: 0 }}
-                      transition={{ ...spring.gentle, delay: index * 0.05 }}
-                      className="flex items-center gap-3 py-1.5"
-                      style={{ borderLeft: `2px solid ${getCommitColor(commit.type)}`, paddingLeft: '0.75rem' }}
-                    >
-                      <Text size="sm" style={{ color: accent, fontFamily: 'var(--font-geist-mono)', fontVariantNumeric: 'tabular-nums' }}>{commit.hash}</Text>
-                      <Text size="xs" style={{ color: getCommitColor(commit.type), fontFamily: 'var(--font-geist-mono)', fontWeight: 600, textTransform: 'uppercase' }}>
-                        {commit.type}
-                      </Text>
-                      <Text size="sm" style={{ color: 'oklch(0.7 0.02 240)', fontFamily: 'var(--font-geist-mono)' }}>{commit.msg}</Text>
-                      <Text size="xs" className="ml-auto" style={{ color: 'oklch(0.4 0.02 240)', fontFamily: 'var(--font-geist-mono)' }}>{commit.time}</Text>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              </Stack>
-            </div>
-          </div>
-        </motion.div>
-
         {/* LINKS - Alternating TiltCard/MagneticCard (every 2nd = TiltCard) */}
         {profile.links.length > 0 && (
           <motion.div
@@ -329,8 +254,10 @@ export function TechnicalBoldTemplate({ profile, accentColor, isPreview, onLinkC
                         background: terminalCardBg,
                       }}
                     >
-                      <button
-                        onClick={() => onLinkClick?.(link)}
+                      <motion.a
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="w-full flex items-center gap-3 px-4 py-4 text-left relative overflow-hidden"
                         style={{ fontFamily: 'var(--font-geist-mono)' }}
                       >
@@ -377,7 +304,7 @@ export function TechnicalBoldTemplate({ profile, accentColor, isPreview, onLinkC
                         >
                           {isTilt ? 'TILT' : 'MAG'}
                         </Badge>
-                      </button>
+                      </motion.a>
                     </Card>
                   );
                 })}

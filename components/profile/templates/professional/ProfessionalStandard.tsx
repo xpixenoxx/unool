@@ -322,7 +322,7 @@ export function ProfessionalStandardTemplate({ profile, accentColor, isPreview, 
                             boxShadow: `0 4px 20px -4px ${accent}12`,
                           }}
                         >
-                          <ProfessionalLinkButton link={link} accent={accent} index={index} onClick={onLinkClick} isPreview={isPreview} variant="tilt" />
+                          <ProfessionalLinkButton link={link} accent={accent} index={index} isPreview={isPreview} variant="tilt" />
                         </TiltCard>
                       ) : (
                         <MagneticCard
@@ -336,7 +336,7 @@ export function ProfessionalStandardTemplate({ profile, accentColor, isPreview, 
                             boxShadow: '0 2px 12px -2px oklch(0.12 0.02 247.8 / 0.08), 0 1px 4px -1px oklch(0.12 0.02 247.8 / 0.08)',
                           }}
                         >
-                          <ProfessionalLinkButton link={link} accent={accent} index={index} onClick={onLinkClick} isPreview={isPreview} variant="magnetic" />
+                          <ProfessionalLinkButton link={link} accent={accent} index={index} isPreview={isPreview} variant="magnetic" />
                         </MagneticCard>
                       )}
                     </motion.div>
@@ -464,24 +464,24 @@ function ProfessionalLinkButton({
   link,
   accent,
   index,
-  onClick,
   isPreview = false,
   variant,
 }: {
   link: TemplateProps['profile']['links'][0];
   accent: string;
   index: number;
-  onClick?: (link: TemplateProps['profile']['links'][0]) => void;
   isPreview?: boolean;
   variant: 'magnetic' | 'tilt';
 }) {
   const reducedMotion = useReducedMotion();
 
   return (
-    <button
-      onClick={() => onClick?.(link)}
-      className="relative w-full px-6 py-4.5 text-left group overflow-hidden"
-      style={{ borderRadius: '12px', fontFamily: 'var(--font-geist)' }}
+    <a
+      href={link.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="relative w-full px-6 py-4.5 text-left group overflow-hidden no-underline"
+      style={{ borderRadius: '12px', fontFamily: 'var(--font-geist)', display: 'flex' }}
     >
       {/* Animated left accent bar */}
       <motion.div
@@ -517,7 +517,7 @@ function ProfessionalLinkButton({
         />
       )}
 
-      <Flex align="center" gap={4} className="relative z-10">
+      <Flex align="center" gap={4} className="relative z-10 flex-1">
         <motion.div
           initial={reducedMotion ? {} : { scale: 0, rotate: -12 }}
           animate={{ scale: 1, rotate: 0 }}
@@ -580,7 +580,7 @@ function ProfessionalLinkButton({
           </Badge>
         </Flex>
       </Flex>
-    </button>
+    </a>
   );
 }
 

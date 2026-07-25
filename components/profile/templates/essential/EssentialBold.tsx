@@ -235,7 +235,7 @@ export function EssentialBoldTemplate({ profile, accentColor, isPreview, onLinkC
                           boxShadow: `0 0 0 1px ${accent}15, 0 8px 32px -8px ${accent}20`,
                         }}
                       >
-                        <BoldLinkButton link={link} accent={accent} index={index} onClick={onLinkClick} isPreview={isPreview} />
+                        <BoldLinkButton link={link} accent={accent} index={index} isPreview={isPreview} />
                       </TiltCard>
                     ) : (
                       <MagneticCard
@@ -249,7 +249,7 @@ export function EssentialBoldTemplate({ profile, accentColor, isPreview, onLinkC
                           boxShadow: `0 0 0 1px ${accent}10, 0 4px 24px -4px ${accent}15`,
                         }}
                       >
-                        <BoldLinkButton link={link} accent={accent} index={index} onClick={onLinkClick} isPreview={isPreview} />
+                        <BoldLinkButton link={link} accent={accent} index={index} isPreview={isPreview} />
                       </MagneticCard>
                     )}
                   </motion.div>
@@ -351,22 +351,22 @@ function BoldLinkButton({
   link,
   accent,
   index,
-  onClick,
   isPreview = false,
 }: {
   link: TemplateProps['profile']['links'][0];
   accent: string;
   index: number;
-  onClick?: (link: TemplateProps['profile']['links'][0]) => void;
   isPreview?: boolean;
 }) {
   const reducedMotion = useReducedMotion();
 
   return (
-    <button
-      onClick={() => onClick?.(link)}
-      className="relative w-full px-7 py-6 text-left group overflow-hidden"
-      style={{ borderRadius: '16px', fontFamily: 'var(--font-geist)' }}
+    <a
+      href={link.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="relative w-full px-7 py-6 text-left group overflow-hidden no-underline"
+      style={{ borderRadius: '16px', fontFamily: 'var(--font-geist)', display: 'flex' }}
     >
       {/* Accent bar on left */}
       <motion.div
@@ -467,7 +467,7 @@ function BoldLinkButton({
           </Badge>
         </Flex>
       </Flex>
-    </button>
+    </a>
   );
 }
 

@@ -12,7 +12,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { spring, slideUp, fadeIn } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { Progress } from '@/components/ui/progress';
-import { ChevronLeft, ChevronRight, Star, TrendingUp, Users, Target, Zap } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Star, TrendingUp, Users, Target, Zap, MousePointer, Link2, Award, Eye, ArrowRight } from 'lucide-react';
 
 export function ProfessionalMaxTemplate({ profile, accentColor, isPreview, onLinkClick }: TemplateProps) {
   const reducedMotion = useReducedMotion();
@@ -171,7 +171,6 @@ export function ProfessionalMaxTemplate({ profile, accentColor, isPreview, onLin
                         { label: 'Total Clicks', value: totalClicks.toLocaleString(), icon: <MousePointer className="h-4 w-4" /> },
                         { label: 'Active Links', value: activeLinks, icon: <Link2 className="h-4 w-4" /> },
                         { label: 'Proof Points', value: activeProofs, icon: <Award className="h-4 w-4" /> },
-                        { label: 'Profile Views', value: '12.4K', icon: <Eye className="h-4 w-4" /> },
                       ].map((stat) => (
                         <div key={stat.label} className="text-center">
                           <Flex center gap={1.5} className="mb-1">
@@ -420,9 +419,11 @@ export function ProfessionalMaxTemplate({ profile, accentColor, isPreview, onLin
                                   background: 'transparent',
                                 }}
                               >
-                                <button
-                                  onClick={() => onLinkClick?.(link)}
-                                  className="relative flex items-center gap-3 px-1 py-1 text-left"
+                                <a
+                                  href={link.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="relative flex items-center gap-3 px-1 py-1 text-left no-underline"
                                   style={{ borderRadius: '10px', fontFamily: 'var(--font-geist)' }}
                                 >
                                   <motion.div
@@ -460,7 +461,7 @@ export function ProfessionalMaxTemplate({ profile, accentColor, isPreview, onLin
                                       {link.url}
                                     </Text>
                                   </Flex>
-                                </button>
+                                </a>
                               </MagneticCard>
                             </td>
                             <td className="px-5 py-4">
@@ -474,14 +475,16 @@ export function ProfessionalMaxTemplate({ profile, accentColor, isPreview, onLin
                               </Badge>
                             </td>
                             <td className="px-5 py-4">
-                              <button
-                                onClick={() => onLinkClick?.(link)}
+                              <a
+                                href={link.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 className="p-2 rounded-xl hover:bg-primary/5 transition-colors"
                                 style={{ fontFamily: 'var(--font-geist)' }}
                                 aria-label="Open link"
                               >
-                                <span className="h-4 w-4 text-muted-foreground hover:text-primary transition-colors" aria-hidden="true">→</span>
-                              </button>
+                                <ArrowRight className="h-4 w-4 text-muted-foreground hover:text-primary transition-colors" aria-hidden="true" />
+                              </a>
                             </td>
                           </tr>
                         ))}
@@ -714,7 +717,7 @@ function ExecutiveShape({ type, x, y, size, color, delay, reducedMotion }: { typ
 }
 
 // Icon components
-function MousePointer({ className }: { className?: string }) {
+function MousePointerIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect x="5" y="2" width="14" height="20" rx="7" />
@@ -723,7 +726,7 @@ function MousePointer({ className }: { className?: string }) {
   );
 }
 
-function Link2({ className }: { className?: string }) {
+function Link2Icon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
@@ -732,7 +735,7 @@ function Link2({ className }: { className?: string }) {
   );
 }
 
-function Award({ className }: { className?: string }) {
+function AwardIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="8" r="7" />
@@ -741,7 +744,7 @@ function Award({ className }: { className?: string }) {
   );
 }
 
-function Eye({ className }: { className?: string }) {
+function EyeIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />

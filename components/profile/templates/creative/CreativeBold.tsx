@@ -13,7 +13,7 @@ import { spring } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { Star, Sparkles, Zap, Target } from 'lucide-react';
 
-export function CreativeBoldTemplate({ profile, accentColor, isPreview, onLinkClick }: TemplateProps) {
+export function CreativeBoldTemplate({ profile, accentColor, isPreview }: TemplateProps) {
   const reducedMotion = useReducedMotion();
   const accent = accentColor || 'var(--color-primary)';
   const secondaryAccent = 'oklch(0.62 0.3 340)'; // Bold creative magenta
@@ -397,7 +397,7 @@ export function CreativeBoldTemplate({ profile, accentColor, isPreview, onLinkCl
                               boxShadow: `0 0 0 2px ${accent}15, 0 16px 64px -16px ${accent}30`,
                             }}
                           >
-                            <CreativeBoldLinkButton link={link} accent={accent} secondaryAccent={secondaryAccent} tertiaryAccent={tertiaryAccent} index={index} onClick={onLinkClick} isPreview={isPreview} variant="tilt" reducedMotion={reducedMotion} />
+                            <CreativeBoldLinkButton link={link} accent={accent} secondaryAccent={secondaryAccent} tertiaryAccent={tertiaryAccent} index={index} isPreview={isPreview} variant="tilt" reducedMotion={reducedMotion} />
                           </TiltCard>
                         ) : (
                           <MagneticCard
@@ -411,7 +411,7 @@ export function CreativeBoldTemplate({ profile, accentColor, isPreview, onLinkCl
                               boxShadow: `0 8px 32px -8px ${accent}15`,
                             }}
                           >
-                            <CreativeBoldLinkButton link={link} accent={accent} secondaryAccent={secondaryAccent} tertiaryAccent={tertiaryAccent} index={index} onClick={onLinkClick} isPreview={isPreview} variant="magnetic" reducedMotion={reducedMotion} />
+                            <CreativeBoldLinkButton link={link} accent={accent} secondaryAccent={secondaryAccent} tertiaryAccent={tertiaryAccent} index={index} isPreview={isPreview} variant="magnetic" reducedMotion={reducedMotion} />
                           </MagneticCard>
                         )}
                       </motion.div>
@@ -433,7 +433,6 @@ function CreativeBoldLinkButton({
   secondaryAccent,
   tertiaryAccent,
   index,
-  onClick,
   isPreview = false,
   variant,
   reducedMotion,
@@ -443,16 +442,17 @@ function CreativeBoldLinkButton({
   secondaryAccent: string;
   tertiaryAccent: string;
   index: number;
-  onClick?: (link: TemplateProps['profile']['links'][0]) => void;
   isPreview?: boolean;
   variant: 'magnetic' | 'tilt';
   reducedMotion: boolean;
 }) {
   return (
-    <button
-      onClick={() => onClick?.(link)}
-      className="relative w-full px-5 py-4 text-left group overflow-hidden"
-      style={{ borderRadius: '14px', fontFamily: 'var(--font-syne)' }}
+    <a
+      href={link.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="relative w-full px-5 py-4 text-left group overflow-hidden no-underline"
+      style={{ borderRadius: '14px', fontFamily: 'var(--font-syne)', display: 'flex' }}
     >
       {/* Animated left accent bar - triple gradient */}
       <motion.div
@@ -560,7 +560,7 @@ function CreativeBoldLinkButton({
           </Badge>
         </Flex>
       </Flex>
-    </button>
+    </a>
   );
 }
 

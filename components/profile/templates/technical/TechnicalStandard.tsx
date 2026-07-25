@@ -13,14 +13,15 @@ import { spring } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { Terminal, ChevronRight, Zap, Github, Linkedin, Twitter, Code, Server, Database, Zap as ZapIcon, BarChart3, Zap as ZapIcon2 } from 'lucide-react';
 
+const terminalBg = 'oklch(0.08 0.02 240)';
+const terminalCardBg = 'oklch(0.1 0.02 240)';
+const terminalHeaderBg = 'oklch(0.12 0.02 240)';
+const terminalBorder = 'oklch(0.2 0.02 240)';
+
 export function TechnicalStandardTemplate({ profile, accentColor, isPreview, onLinkClick }: TemplateProps) {
   const reducedMotion = useReducedMotion();
   const accent = accentColor || '#22c55e'; // Terminal green
   const secondaryAccent = '#06b6d4'; // Cyan
-  const terminalBg = 'oklch(0.08 0.02 240)';
-  const terminalCardBg = 'oklch(0.1 0.02 240)';
-  const terminalHeaderBg = 'oklch(0.12 0.02 240)';
-  const terminalBorder = 'oklch(0.2 0.02 240)';
 
   return (
     <div
@@ -345,7 +346,10 @@ export function TechnicalStandardTemplate({ profile, accentColor, isPreview, onL
                         background: terminalCardBg,
                       }}
                     >
-                      <button
+                      <motion.a
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         onClick={() => onLinkClick?.(link)}
                         className="w-full flex items-center gap-3 px-4 py-3.5 text-left relative overflow-hidden"
                         style={{ fontFamily: 'var(--font-geist-mono)' }}
@@ -393,7 +397,7 @@ export function TechnicalStandardTemplate({ profile, accentColor, isPreview, onL
                         >
                           {isTilt ? 'TILT' : 'MAG'}
                         </Badge>
-                      </button>
+                      </motion.a>
                     </Card>
                   );
                 })}

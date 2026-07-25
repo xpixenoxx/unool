@@ -194,7 +194,7 @@ export function EssentialStandardTemplate({ profile, accentColor, isPreview, onL
                             background: `linear-gradient(145deg, var(--card) 0%, ${accent}05 100%)`,
                           }}
                         >
-                          <LinkButton link={link} accent={accent} index={index} onClick={onLinkClick} isPreview={isPreview} />
+                          <LinkButton link={link} accent={accent} index={index} isPreview={isPreview} />
                         </TiltCard>
                       ) : (
                         <MagneticCard
@@ -207,7 +207,7 @@ export function EssentialStandardTemplate({ profile, accentColor, isPreview, onL
                             background: `linear-gradient(145deg, var(--card) 0%, ${accent}05 100%)`,
                           }}
                         >
-                          <LinkButton link={link} accent={accent} index={index} onClick={onLinkClick} isPreview={isPreview} />
+                          <LinkButton link={link} accent={accent} index={index} isPreview={isPreview} />
                         </MagneticCard>
                       )}
                     </motion.div>
@@ -307,22 +307,22 @@ function LinkButton({
   link,
   accent,
   index,
-  onClick,
   isPreview = false,
 }: {
   link: TemplateProps['profile']['links'][0];
   accent: string;
   index: number;
-  onClick?: (link: TemplateProps['profile']['links'][0]) => void;
   isPreview?: boolean;
 }) {
   const reducedMotion = useReducedMotion();
 
   return (
-    <button
-      onClick={() => onClick?.(link)}
-      className="relative w-full px-6 py-5 text-left group overflow-hidden"
-      style={{ borderRadius: '14px', fontFamily: 'var(--font-geist)' }}
+    <a
+      href={link.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="relative w-full px-6 py-5 text-left group overflow-hidden no-underline"
+      style={{ borderRadius: '14px', fontFamily: 'var(--font-geist)', display: 'flex' }}
     >
       {/* Animated background sweep */}
       <motion.div
@@ -345,7 +345,7 @@ function LinkButton({
         transition={{ duration: 0.3 }}
       />
 
-      <Flex align="center" gap={5} className="relative z-10">
+      <Flex align="center" gap={5} className="relative z-10 flex-1">
         <motion.div
           initial={reducedMotion ? {} : { scale: 0, rotate: -15 }}
           animate={{ scale: 1, rotate: 0 }}
@@ -408,7 +408,7 @@ function LinkButton({
           </Badge>
         </Flex>
       </Flex>
-    </button>
+    </a>
   );
 }
 

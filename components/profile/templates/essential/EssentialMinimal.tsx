@@ -162,12 +162,15 @@ export function EssentialMinimalTemplate({ profile, accentColor, isPreview, onLi
                       background: 'var(--card)',
                     }}
                   >
-                    <button
-                      onClick={() => onLinkClick?.(link)}
-                      className="relative w-full px-5 py-4.5 text-left overflow-hidden"
+                    <a
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="relative w-full px-5 py-4.5 text-left overflow-hidden no-underline"
                       style={{
                         borderRadius: '10px',
                         fontFamily: 'var(--font-geist)',
+                        display: 'flex',
                       }}
                     >
                       {/* Glow on hover */}
@@ -180,12 +183,12 @@ export function EssentialMinimalTemplate({ profile, accentColor, isPreview, onLi
                         transition={{ duration: 0.3 }}
                       />
 
-                      <Flex align="center" gap={4} className="relative z-10">
+                      <Flex align="center" gap={4} className="relative z-10 flex-1">
                         <motion.div
                           initial={reducedMotion ? {} : { scale: 0 }}
                           animate={{ scale: 1 }}
                           transition={{ ...spring.bouncy, delay: index * 0.04 }}
-                          className="flex-shrink-0"
+                          className="flex-shrink-0 group-hover:scale-110 transition-transform duration-300"
                           style={{
                             width: 48,
                             height: 48,
@@ -204,7 +207,7 @@ export function EssentialMinimalTemplate({ profile, accentColor, isPreview, onLi
                         </motion.div>
 
                         <Flex column gap={1.5} flex={1} className="min-w-0">
-                          <Text weight="medium" className="truncate" style={{ fontFamily: 'var(--font-geist)', fontSize: '1.05rem' }}>
+                          <Text weight="medium" className="truncate group-hover:text-primary transition-colors" style={{ fontFamily: 'var(--font-geist)', fontSize: '1.05rem' }}>
                             {link.label}
                           </Text>
                           <Text size="sm" color="muted" className="truncate font-mono" style={{ fontFamily: 'var(--font-geist-mono)' }}>
@@ -226,12 +229,12 @@ export function EssentialMinimalTemplate({ profile, accentColor, isPreview, onLi
                           >
                             {link.clicks.toLocaleString()}
                           </motion.span>
-                          <Badge variant="ghost" size="sm" style={{ fontSize: '0.65rem', fontFamily: 'var(--font-geist)' }}>
+                          <Badge variant="ghost" size="sm" className="group-hover:bg-primary/10 transition-colors" style={{ fontSize: '0.65rem', fontFamily: 'var(--font-geist)' }}>
                             #{index + 1}
                           </Badge>
                         </Flex>
                       </Flex>
-                    </button>
+                    </a>
                   </MagneticCard>
                 ))}
             </Stack>

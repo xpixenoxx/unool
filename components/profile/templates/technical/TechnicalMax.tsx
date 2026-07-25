@@ -1,19 +1,18 @@
 'use client';
 
 import * as React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { TemplateProps } from '../types';
 import { OrbitalBackground, MorphingBlob, MagneticCard, TiltCard, PerspectiveFlip, OrbitalParticles, LayeredGlowSystem } from '@/components/ui/3d';
-import { Flex, Stack, Box, Grid } from '@/components/ui/layout';
+import { Flex, Stack, Grid } from '@/components/ui/layout';
 import { Text } from '@/components/ui/typography';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { spring } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Separator } from '@/components/ui/separator';
-import { Server, Database, Zap, Github, GitCommit, Terminal, ChevronRight, Zap as ZapIcon2, BarChart3, Activity, Code, FileCode, FileText, Settings, Folder, Layers } from 'lucide-react';
+import { FileCode, FileText, Settings, Layers, Code, BarChart3 } from 'lucide-react';
 
 const terminalBg = 'oklch(0.05 0.02 240)';
 const terminalSidebarBg = 'oklch(0.07 0.02 240)';
@@ -23,56 +22,30 @@ const terminalBorder = 'oklch(0.15 0.02 240)';
 const terminalAccentBg = 'oklch(0.1 0.02 240)';
 const terminalHeaderBg = 'oklch(0.09 0.02 240)';
 
-export function TechnicalMaxTemplate({ profile, accentColor, isPreview, onLinkClick }: TemplateProps) {
+export function TechnicalMaxTemplate({ profile, accentColor, isPreview }: TemplateProps) {
   const reducedMotion = useReducedMotion();
   const accent = accentColor || '#22c55e';
   const secondaryAccent = '#06b6d4';
   const accentPurple = '#a855f7';
 
-  // Live commit data
-  const commits = [
-    { hash: 'a1b2c3d', msg: `feat(profile): update ${profile.name.toLowerCase().replace(/\s+/g, '-')}.tsx`, time: '2m ago', type: 'feat' },
-    { hash: 'e4f5g6h', msg: 'chore(links): add new configuration schema', time: '15m ago', type: 'chore' },
-    { hash: 'i7j8k9l', msg: 'fix(types): resolve proof point definitions', time: '1h ago', type: 'fix' },
-    { hash: 'm0n1o2p', msg: 'docs(template): add technical-max documentation', time: '3h ago', type: 'docs' },
-    { hash: 'q3r4s5t', msg: 'refactor(3d): optimize magnetic hover animations', time: '1d ago', type: 'refactor' },
-    { hash: 'u6v7w8x', msg: 'perf(components): lazy-load heavy 3D primitives', time: '2d ago', type: 'perf' },
-    { hash: 'y9z0a1b', msg: 'test(hooks): add vitest coverage for profile', time: '1w ago', type: 'test' },
-    { hash: 'c2d3e4f', msg: 'ci(deploy): add production deployment workflow', time: '1w ago', type: 'ci' },
+  // Dynamic file tree from profile data
+  const profileFiles = [
+    { name: 'profile.tsx', icon: FileCode, active: true },
+    { name: 'links.ts', icon: FileText, active: false },
+    { name: 'proofs.ts', icon: FileText, active: false },
+    { name: 'theme.css', icon: Settings, active: false },
+    { name: 'config.json', icon: Settings, active: false },
   ];
 
-  const getCommitColor = (type: string) => {
-    switch (type) {
-      case 'feat': return accent;
-      case 'fix': return '#ef4444';
-      case 'chore': return '#64748b';
-      case 'docs': return '#3b82f6';
-      case 'refactor': return accentPurple;
-      case 'perf': return '#fbbf24';
-      case 'test': return '#ec4899';
-      case 'ci': return '#06b6d4';
-      default: return accent;
-    }
-  };
-
-  // Files for sidebar
-  const files = [
-    { name: 'profile.tsx', icon: FileCode, active: true, type: 'tsx' },
-    { name: 'links.ts', icon: FileText, active: false, type: 'ts' },
-    { name: 'proofs.ts', icon: FileText, active: false, type: 'ts' },
-    { name: 'theme.css', icon: Settings, active: false, type: 'css' },
-    { name: 'config.json', icon: Settings, active: false, type: 'json' },
-    { name: 'components/', icon: Folder, active: false, type: 'dir' },
-    { name: 'hooks/', icon: Folder, active: false, type: 'dir' },
-    { name: 'utils/', icon: Folder, active: false, type: 'dir' },
-  ];
-
-  const deps = [
-    { name: 'framer-motion', version: '^11.0.0', icon: Layers },
-    { name: 'lucide-react', version: '^0.400.0', icon: Code },
-    { name: 'tailwindcss', version: '^3.4.0', icon: Settings },
-    { name: '@radix-ui/*', version: 'latest', icon: Layers },
-  ];
+  // Dynamic dependencies from profile links
+  const profileDeps = profile.links
+    .filter(l => l.isVisible)
+    .slice(0, 5)
+    .map((link, index) => ({
+      name: link.label.toLowerCase().replace(/\s+/g, '-'),
+      version: `^${index + 1}.0.0`,
+      icon: index % 2 === 0 ? Layers : Code,
+    }));
 
   return (
     <div
@@ -195,7 +168,7 @@ export function TechnicalMaxTemplate({ profile, accentColor, isPreview, onLinkCl
             <Text size="xs" weight="medium" color="muted" className="px-2" style={{ fontFamily: 'var(--font-geist-mono)', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'oklch(0.5 0.02 240)' }}>
               Sources
             </Text>
-            {files.map((file, index) => (
+            {profileFiles.map((file, index) => (
               <motion.button
                 key={file.name}
                 initial={reducedMotion ? {} : { opacity: 0, x: -20 }}
@@ -224,7 +197,7 @@ export function TechnicalMaxTemplate({ profile, accentColor, isPreview, onLinkCl
             <Text size="xs" weight="medium" color="muted" className="px-2 mt-4" style={{ fontFamily: 'var(--font-geist-mono)', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'oklch(0.5 0.02 240)' }}>
               Dependencies
             </Text>
-            {deps.map((dep, index) => (
+            {profileDeps.map((dep, index) => (
               <motion.div
                 key={dep.name}
                 initial={reducedMotion ? {} : { opacity: 0, x: -20 }}
@@ -290,9 +263,6 @@ export function TechnicalMaxTemplate({ profile, accentColor, isPreview, onLinkCl
                 </TabsTrigger>
                 <TabsTrigger value="theme" className="data-[state=active]:bg-transparent data-[state=active]:text-[var(--profile-accent)] data-[state=active]:shadow-none">
                   <Settings className="h-3.5 w-3.5 mr-1.5" /> theme.css
-                </TabsTrigger>
-                <TabsTrigger value="activity" className="data-[state=active]:bg-transparent data-[state=active]:text-[var(--profile-accent)] data-[state=active]:shadow-none">
-                  <Activity className="h-3.5 w-3.5 mr-1.5" /> activity.log
                 </TabsTrigger>
               </TabsList>
 
@@ -378,8 +348,10 @@ export function TechnicalMaxTemplate({ profile, accentColor, isPreview, onLinkCl
                               padding: '0.5rem',
                             }}
                           >
-                            <motion.button
-                              onClick={() => onLinkClick?.(link)}
+                            <motion.a
+                              href={link.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
                               initial={reducedMotion ? {} : { opacity: 0, x: -10 }}
                               animate={{ opacity: 1, x: 0 }}
                               transition={{ ...spring.gentle, delay: 0.7 + index * 0.03 }}
@@ -413,7 +385,7 @@ export function TechnicalMaxTemplate({ profile, accentColor, isPreview, onLinkCl
                               <Text size="xs" style={{ color: accent, fontFamily: 'var(--font-geist-mono)', fontVariantNumeric: 'tabular-nums' }}>
                                 {link.clicks.toLocaleString()}
                               </Text>
-                            </motion.button>
+                            </motion.a>
                           </MagneticCard>
                         ))}
                     </div>
@@ -671,47 +643,6 @@ export const theme = {
   },
 };`}</code>
                 </motion.pre>
-              </TabsContent>
-
-              {/* ACTIVITY TAB - Live Commit Ticker with AnimatePresence */}
-              <TabsContent value="activity" className="flex-1 p-6 overflow-y-auto" style={{ fontFamily: 'var(--font-geist-mono)' }}>
-                <motion.div
-                  initial={reducedMotion ? {} : { opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ ...spring.standard, delay: 0.4 }}
-                  className="relative"
-                  style={{ background: terminalAccentBg, border: `1px solid ${terminalBorder}`, borderRadius: '12px', overflow: 'hidden' }}
-                >
-                  <div className="flex items-center gap-2 px-4 py-3" style={{ background: terminalHeaderBg, borderBottom: `1px solid ${terminalBorder}` }}>
-                    <Text size="xs" style={{ color: 'oklch(0.5 0.02 240)', fontFamily: 'var(--font-geist-mono)' }}>activity.log</Text>
-                    <Text size="xs" style={{ color: accent, fontFamily: 'var(--font-geist-mono)' }}>live feed</Text>
-                    <motion.div className="w-1.5 h-1.5 rounded-full ml-auto" style={{ background: accent }} animate={{ scale: [1, 1.3, 1] }} transition={{ duration: 0.8, repeat: Infinity }} />
-                  </div>
-                  <div className="p-5 max-h-[400px] overflow-y-auto">
-                    <Stack space={2}>
-                      <AnimatePresence mode="wait">
-                        {commits.map((commit, index) => (
-                          <motion.div
-                            key={commit.hash}
-                            initial={reducedMotion ? {} : { opacity: 0, x: -30, height: 0 }}
-                            animate={{ opacity: 1, x: 0, height: 'auto' }}
-                            exit={{ opacity: 0, x: 30, height: 0 }}
-                            transition={{ ...spring.gentle, delay: index * 0.05 }}
-                            className="flex items-center gap-3 py-1.5"
-                            style={{ borderLeft: `2px solid ${getCommitColor(commit.type)}`, paddingLeft: '0.75rem' }}
-                          >
-                            <Text size="sm" style={{ color: accent, fontFamily: 'var(--font-geist-mono)', fontVariantNumeric: 'tabular-nums' }}>{commit.hash}</Text>
-                            <Text size="xs" style={{ color: getCommitColor(commit.type), fontFamily: 'var(--font-geist-mono)', fontWeight: 600, textTransform: 'uppercase' }}>
-                              {commit.type}
-                            </Text>
-                            <Text size="sm" style={{ color: 'oklch(0.7 0.02 240)', fontFamily: 'var(--font-geist-mono)' }}>{commit.msg}</Text>
-                            <Text size="xs" className="ml-auto" style={{ color: 'oklch(0.4 0.02 240)', fontFamily: 'var(--font-geist-mono)' }}>{commit.time}</Text>
-                          </motion.div>
-                        ))}
-                      </AnimatePresence>
-                    </Stack>
-                  </div>
-                </motion.div>
               </TabsContent>
             </Tabs>
           </div>

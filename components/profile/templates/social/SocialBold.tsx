@@ -13,7 +13,7 @@ import { spring } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { Heart, MessageCircle, Share2, ChevronRight, MoreHorizontal, Star, Zap, TrendingUp } from 'lucide-react';
 
-export function SocialBoldTemplate({ profile, accentColor, isPreview, onLinkClick }: TemplateProps) {
+export function SocialBoldTemplate({ profile, accentColor, isPreview }: TemplateProps) {
   const reducedMotion = useReducedMotion();
   const accent = accentColor || '#8b5cf6';
   const secondaryAccent = '#ec4899';
@@ -23,45 +23,6 @@ export function SocialBoldTemplate({ profile, accentColor, isPreview, onLinkClic
   const socialCardBg = 'oklch(0.11 0.02 280)';
   const socialBorder = 'oklch(0.2 0.02 280)';
   const socialHeaderBg = 'oklch(0.13 0.02 280)';
-
-  const mockPosts = [
-    {
-      id: '1',
-      content: 'Just launched the most comprehensive link-in-bio platform with 25+ animated templates! 🎉 Full 3D orbital backgrounds, magnetic hover cards, tilt cards, and real-time analytics. Built with Next.js 15 + Supabase.',
-      time: '2h ago',
-      likes: 1234,
-      replies: 89,
-      reposts: 234,
-      views: 12400,
-    },
-    {
-      id: '2',
-      content: 'The new OKLCH design tokens are a game changer. Perceptual uniformity across all 5 profile themes. No more guessing games with color contrast. Every template adapts perfectly to any accent color instantly.',
-      time: '1d ago',
-      likes: 2156,
-      replies: 134,
-      reposts: 412,
-      views: 28900,
-    },
-    {
-      id: '3',
-      content: 'MagneticCard + TiltCard + PerspectiveFlip = pure magic ✨ The cursor attraction with 3D rotation makes every interaction feel alive. Framer Motion spring configs (snappy, standard, gentle, bouncy, smooth, magnetic, orbital) power it all.',
-      time: '3d ago',
-      likes: 892,
-      replies: 56,
-      reposts: 178,
-      views: 15600,
-    },
-    {
-      id: '4',
-      content: 'Thinking in systems, not pages. The new template registry with 25 templates across Essential, Professional, Creative, Technical, and Social categories. Each with 5 intensity levels: Minimal, Light, Standard, Bold, Max.',
-      time: '5d ago',
-      likes: 645,
-      replies: 41,
-      reposts: 123,
-      views: 9800,
-    },
-  ];
 
   const formatCount = (count: number) => {
     if (count >= 1000000) return (count / 1000000).toFixed(1) + 'M';
@@ -228,18 +189,18 @@ export function SocialBoldTemplate({ profile, accentColor, isPreview, onLinkClic
                 </Flex>
                 <Flex column gap={0.25} align="center">
                   <Text level={2} style={{ fontFamily: 'var(--font-geist-mono)', color: accentGold }}>
-                    1.2K
+                    {profile.links.reduce((sum, l) => sum + l.clicks, 0).toLocaleString()}
                   </Text>
                   <Text size="xs" style={{ fontFamily: 'var(--font-geist)', color: 'oklch(0.5 0.02 280)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Followers
+                    Total Clicks
                   </Text>
                 </Flex>
                 <Flex column gap={0.25} align="center">
                   <Text level={2} style={{ fontFamily: 'var(--font-geist-mono)', color: secondaryAccent }}>
-                    5.4M
+                    {profile.proofs.length}
                   </Text>
                   <Text size="xs" style={{ fontFamily: 'var(--font-geist)', color: 'oklch(0.5 0.02 280)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Total Clicks
+                    Proofs
                   </Text>
                 </Flex>
               </Flex>
@@ -279,106 +240,6 @@ export function SocialBoldTemplate({ profile, accentColor, isPreview, onLinkClic
           </motion.div>
         )}
 
-        {/* FEATURED POSTS - TiltCard with PerspectiveFlip */}
-        <motion.div
-          initial={reducedMotion ? {} : { opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ ...spring.standard, delay: 0.7 }}
-        >
-          <div style={{ height: '1px', background: socialBorder, marginBottom: '1.5rem' }} />
-          <Stack space={4}>
-            <AnimatePresence mode="wait">
-              {mockPosts.map((post, index) => (
-                <PerspectiveFlip
-                  key={post.id}
-                  axis="y"
-                  duration={0.6}
-                  style={{ width: '100%' }}
-                >
-                  <div style={{ position: 'relative' }}>
-                    <TiltCard maxTilt={6} scale={1.01}>
-                      <motion.div
-                        initial={reducedMotion ? {} : { opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                        transition={{ ...spring.gentle, delay: index * 0.08 }}
-                        className="relative"
-                        style={{ background: socialCardBg, border: `1px solid ${socialBorder}`, borderRadius: '20px', overflow: 'hidden' }}
-                      >
-                        {/* Top accent bar */}
-                        <motion.div
-                          className="absolute top-0 left-0 right-0 h-1"
-                          style={{ background: `linear-gradient(90deg, ${accent}, ${secondaryAccent}, ${accentGold})` }}
-                          initial={reducedMotion ? { width: '100%' } : { width: 0 }}
-                          animate={{ width: '100%' }}
-                          transition={{ ...spring.snappy, delay: 0.8 + index * 0.08 }}
-                        />
-                        <div className="p-5">
-                          {/* Post Header */}
-                          <Flex align="center" gap={3} className="mb-3">
-                            <Avatar className="h-12 w-12" style={{ borderColor: accent }}>
-                              <AvatarImage src={profile.avatarUrl} alt={profile.name} className="object-cover" />
-                              <AvatarFallback style={{ fontFamily: 'var(--font-syne)', fontWeight: 700, fontSize: '1.25rem', color: accent }}>
-                                {profile.name.charAt(0).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            <Flex column gap={0.5} flex={1}>
-                              <Flex align="center" gap={1.5}>
-                                <Text weight="semibold" style={{ fontFamily: 'var(--font-syne)' }}>{profile.name}</Text>
-                                <motion.span
-                                  animate={{ rotate: [0, 8, -8, 0] }}
-                                  transition={{ duration: 2.5, repeat: Infinity }}
-                                  style={{ color: '#3b82f6', fontSize: '0.75rem' }}
-                                >
-                                  ✓
-                                </motion.span>
-                              </Flex>
-                              <Text size="xs" style={{ fontFamily: 'var(--font-geist-mono)', color: 'oklch(0.5 0.02 280)' }}>
-                                {post.time}
-                              </Text>
-                            </Flex>
-                            <MagneticCard radius={60} strength={0.1} className="p-1" style={{ background: 'transparent', border: 'none' }}>
-                              <button className="p-2 rounded-full hover:bg-primary/10 transition-colors" style={{ color: 'oklch(0.5 0.02 280)' }}>
-                                <MoreHorizontal className="h-5 w-5" />
-                              </button>
-                            </MagneticCard>
-                          </Flex>
-
-                          {/* Post Content */}
-                          <motion.p
-                            initial={reducedMotion ? {} : { opacity: 0, y: 5 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ ...spring.gentle, delay: 0.9 + index * 0.08 }}
-                            style={{ fontFamily: 'var(--font-geist)', fontSize: '1rem', lineHeight: 1.6, color: 'oklch(0.85 0.02 280)' }}
-                          >
-                            {post.content}
-                          </motion.p>
-
-                          {/* Engagement Bar */}
-                          <div className="flex items-center justify-between pt-4 mt-4 border-t" style={{ borderColor: socialBorder }}>
-                            <Flex gap={6}>
-                              <EngagementButtonBold icon={MessageCircle} count={post.replies} iconText="Replies" accent={accent} />
-                              <EngagementButtonBold icon={Heart} count={post.likes} iconText="Likes" accent={secondaryAccent} />
-                              <EngagementButtonBold icon={Share2} count={post.reposts} iconText="Reposts" accent={tertiaryAccent} />
-                              <EngagementButtonBold icon={TrendingUp} count={post.views} iconText="Views" accent={accentGold} />
-                            </Flex>
-                            <MagneticCard radius={60} strength={0.12} className="px-4 py-2" style={{ background: 'transparent', border: 'none' }}>
-                              <button className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium hover:bg-primary/10 transition-colors" style={{ fontFamily: 'var(--font-geist)', color: accent }}>
-                                <Share2 className="h-4 w-4" />
-                                Share
-                              </button>
-                            </MagneticCard>
-                          </div>
-                        </div>
-                      </motion.div>
-                    </TiltCard>
-                  </div>
-                </PerspectiveFlip>
-              ))}
-            </AnimatePresence>
-          </Stack>
-        </motion.div>
-
         {/* LINKS - TiltCard + MagneticCard Grid */}
         {profile.links.length > 0 && (
           <motion.div
@@ -405,8 +266,10 @@ export function SocialBoldTemplate({ profile, accentColor, isPreview, onLinkClic
                         padding: '0.5rem',
                       }}
                     >
-                      <motion.button
-                        onClick={() => onLinkClick?.(link)}
+                      <motion.a
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         initial={reducedMotion ? {} : { opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ ...spring.gentle, delay: 1 + index * 0.04 }}
@@ -474,7 +337,7 @@ export function SocialBoldTemplate({ profile, accentColor, isPreview, onLinkClic
                             </Badge>
                           </motion.div>
                         </Flex>
-                      </motion.button>
+                      </motion.a>
                     </MagneticCard>
                   </TiltCard>
                 ))}

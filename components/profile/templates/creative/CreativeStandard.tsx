@@ -262,7 +262,7 @@ export function CreativeStandardTemplate({ profile, accentColor, isPreview, onLi
                                     boxShadow: `0 0 0 1px ${accent}10, 0 8px 32px -8px ${accent}20`,
                                   }}
                                 >
-                                  <CreativeStandardLinkButton link={link} accent={accent} secondaryAccent={secondaryAccent} index={index} onClick={onLinkClick} isPreview={isPreview} variant="tilt" reducedMotion={reducedMotion} />
+                                  <CreativeStandardLinkButton link={link} accent={accent} secondaryAccent={secondaryAccent} index={index} isPreview={isPreview} variant="tilt" reducedMotion={reducedMotion} />
                                 </TiltCard>
                               ) : (
                                 <MagneticCard
@@ -276,7 +276,7 @@ export function CreativeStandardTemplate({ profile, accentColor, isPreview, onLi
                                     boxShadow: `0 4px 20px -4px ${accent}10`,
                                   }}
                                 >
-                                  <CreativeStandardLinkButton link={link} accent={accent} secondaryAccent={secondaryAccent} index={index} onClick={onLinkClick} isPreview={isPreview} variant="magnetic" reducedMotion={reducedMotion} />
+                                  <CreativeStandardLinkButton link={link} accent={accent} secondaryAccent={secondaryAccent} index={index} isPreview={isPreview} variant="magnetic" reducedMotion={reducedMotion} />
                                 </MagneticCard>
                               )}
                             </motion.div>
@@ -347,7 +347,6 @@ function CreativeStandardLinkButton({
   accent,
   secondaryAccent,
   index,
-  onClick,
   isPreview = false,
   variant,
   reducedMotion,
@@ -356,16 +355,17 @@ function CreativeStandardLinkButton({
   accent: string;
   secondaryAccent: string;
   index: number;
-  onClick?: (link: TemplateProps['profile']['links'][0]) => void;
   isPreview?: boolean;
   variant: 'magnetic' | 'tilt';
   reducedMotion: boolean;
 }) {
   return (
-    <button
-      onClick={() => onClick?.(link)}
-      className="relative w-full px-5 py-4 text-left group overflow-hidden"
-      style={{ borderRadius: '12px', fontFamily: 'var(--font-syne)' }}
+    <a
+      href={link.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="relative w-full px-5 py-4 text-left group overflow-hidden no-underline"
+      style={{ borderRadius: '12px', fontFamily: 'var(--font-syne)', display: 'flex' }}
     >
       {/* Animated left accent bar - creative gradient */}
       <motion.div
@@ -409,7 +409,7 @@ function CreativeStandardLinkButton({
         />
       )}
 
-      <Flex align="center" gap={3.5} className="relative z-10">
+      <Flex align="center" gap={3.5} className="relative z-10 flex-1">
         <motion.div
           initial={reducedMotion ? {} : { scale: 0, rotate: -15 }}
           animate={{ scale: 1, rotate: 0 }}
@@ -473,7 +473,7 @@ function CreativeStandardLinkButton({
           </Badge>
         </Flex>
       </Flex>
-    </button>
+    </a>
   );
 }
 

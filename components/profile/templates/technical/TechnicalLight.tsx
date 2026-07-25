@@ -5,20 +5,19 @@ import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { TemplateProps } from '../types';
 import { OrbitalBackground, MorphingBlob, MagneticCard, TiltCard, ParallaxLayers } from '@/components/ui/3d';
-import { Flex, Stack, Box, Grid, Divider } from '@/components/ui/layout';
-import { Text, Heading } from '@/components/ui/typography';
+import { Flex, Stack, Grid, Divider } from '@/components/ui/layout';
+import { Text } from '@/components/ui/typography';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { spring } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { Server, Database, Zap, ChevronRight, Github, Linkedin, Twitter } from 'lucide-react';
 
 const terminalBg = 'oklch(0.08 0.02 240)';
 const terminalBorder = 'oklch(0.2 0.02 240)';
 const terminalCardBg = 'oklch(0.1 0.02 240)';
 const terminalHeaderBg = 'oklch(0.12 0.02 240)';
 
-export function TechnicalLightTemplate({ profile, accentColor, isPreview, onLinkClick }: TemplateProps) {
+export function TechnicalLightTemplate({ profile, accentColor, isPreview }: TemplateProps) {
   const reducedMotion = useReducedMotion();
   const accent = accentColor || '#22c55e'; // Terminal green
   const secondaryAccent = '#06b6d4'; // Cyan
@@ -180,40 +179,6 @@ export function TechnicalLightTemplate({ profile, accentColor, isPreview, onLink
           </motion.div>
         )}
 
-        {/* TECH STACK BADGES - MagneticCard grid */}
-        <motion.div
-          initial={reducedMotion ? {} : { opacity: 0, y: 25 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ ...spring.standard, delay: 0.8 }}
-        >
-          <Flex gap={2} wrap align="center" className="justify-center">
-            <MagneticCard radius={60} strength={0.15} className="px-4 py-2.5" style={{ background: terminalCardBg, border: `1px solid ${terminalBorder}` }}>
-              <Flex gap={1.5} align="center">
-                <Server className="h-4 w-4" style={{ color: secondaryAccent }} />
-                <Text size="sm" weight="medium" style={{ fontFamily: 'var(--font-geist-mono)', color: 'oklch(0.9 0.02 240)' }}>Node.js / TypeScript</Text>
-              </Flex>
-            </MagneticCard>
-            <MagneticCard radius={60} strength={0.15} className="px-4 py-2.5" style={{ background: terminalCardBg, border: `1px solid ${terminalBorder}` }}>
-              <Flex gap={1.5} align="center">
-                <Database className="h-4 w-4" style={{ color: accent }} />
-                <Text size="sm" weight="medium" style={{ fontFamily: 'var(--font-geist-mono)', color: 'oklch(0.9 0.02 240)' }}>Supabase / PostgreSQL</Text>
-              </Flex>
-            </MagneticCard>
-            <MagneticCard radius={60} strength={0.15} className="px-4 py-2.5" style={{ background: terminalCardBg, border: `1px solid ${terminalBorder}` }}>
-              <Flex gap={1.5} align="center">
-                <Zap className="h-4 w-4" style={{ color: '#fbbf24' }} />
-                <Text size="sm" weight="medium" style={{ fontFamily: 'var(--font-geist-mono)', color: 'oklch(0.9 0.02 240)' }}>Framer Motion 3D</Text>
-              </Flex>
-            </MagneticCard>
-            <MagneticCard radius={60} strength={0.15} className="px-4 py-2.5" style={{ background: terminalCardBg, border: `1px solid ${terminalBorder}` }}>
-              <Flex gap={1.5} align="center">
-                <ChevronRight className="h-4 w-4" style={{ color: '#a855f7' }} />
-                <Text size="sm" weight="medium" style={{ fontFamily: 'var(--font-geist-mono)', color: 'oklch(0.9 0.02 240)' }}>Next.js 15 App Router</Text>
-              </Flex>
-            </MagneticCard>
-          </Flex>
-        </motion.div>
-
         {/* LINKS - Alternating MagneticCard/TiltCard with animated accents */}
         {profile.links.length > 0 && (
           <motion.div
@@ -242,8 +207,10 @@ export function TechnicalLightTemplate({ profile, accentColor, isPreview, onLink
                         background: terminalCardBg,
                       }}
                     >
-                      <button
-                        onClick={() => onLinkClick?.(link)}
+                      <motion.a
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="w-full flex items-center gap-3 px-4 py-3.5 text-left relative overflow-hidden"
                         style={{ fontFamily: 'var(--font-geist-mono)' }}
                       >
@@ -290,7 +257,7 @@ export function TechnicalLightTemplate({ profile, accentColor, isPreview, onLink
                         >
                           OPEN
                         </Badge>
-                      </button>
+                      </motion.a>
                     </Card>
                   );
                 })}

@@ -182,8 +182,10 @@ export function EssentialLightTemplate({ profile, accentColor, isPreview, onLink
                       background: 'var(--card)',
                     }}
                   >
-                    <button
-                      onClick={() => onLinkClick?.(link)}
+                    <a
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="relative w-full px-6 py-5 text-left group overflow-hidden"
                       style={{ borderRadius: '12px', fontFamily: 'var(--font-geist)' }}
                     >
@@ -259,7 +261,7 @@ export function EssentialLightTemplate({ profile, accentColor, isPreview, onLink
                           </Badge>
                         </Flex>
                       </Flex>
-                    </button>
+                    </a>
                   </MagneticCard>
                 ))}
             </Stack>

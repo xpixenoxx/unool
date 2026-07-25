@@ -233,7 +233,7 @@ export function CreativeLightTemplate({ profile, accentColor, isPreview, onLinkC
                           boxShadow: `0 4px 24px -4px ${accent}20`,
                         }}
                       >
-                        <CreativeLightLinkButton link={link} accent={accent} secondaryAccent={secondaryAccent} index={index} onClick={onLinkClick} isPreview={isPreview} reducedMotion={reducedMotion} />
+                        <CreativeLightLinkButton link={link} accent={accent} secondaryAccent={secondaryAccent} index={index} isPreview={isPreview} reducedMotion={reducedMotion} />
                       </MagneticCard>
                     </motion.div>
                   ))}
@@ -265,7 +265,6 @@ function CreativeLightLinkButton({
   accent,
   secondaryAccent,
   index,
-  onClick,
   isPreview = false,
   reducedMotion,
 }: {
@@ -273,15 +272,16 @@ function CreativeLightLinkButton({
   accent: string;
   secondaryAccent: string;
   index: number;
-  onClick?: (link: TemplateProps['profile']['links'][0]) => void;
   isPreview?: boolean;
   reducedMotion: boolean;
 }) {
   return (
-    <button
-      onClick={() => onClick?.(link)}
-      className="relative w-full px-5 py-4 text-left group overflow-hidden"
-      style={{ borderRadius: '16px', fontFamily: 'var(--font-syne)' }}
+    <a
+      href={link.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="relative w-full px-5 py-4 text-left group overflow-hidden no-underline"
+      style={{ borderRadius: '16px', fontFamily: 'var(--font-syne)', display: 'flex' }}
     >
       {/* Animated top accent bar - creative gradient */}
       <motion.div
@@ -315,7 +315,7 @@ function CreativeLightLinkButton({
         transition={{ duration: 0.3 }}
       />
 
-      <Flex align="center" gap={3.5} className="relative z-10">
+      <Flex align="center" gap={3.5} className="relative z-10 flex-1">
         <motion.div
           initial={reducedMotion ? {} : { scale: 0, rotate: -10 }}
           animate={{ scale: 1, rotate: 0 }}
@@ -373,7 +373,7 @@ function CreativeLightLinkButton({
           </Badge>
         </Flex>
       </Flex>
-    </button>
+    </a>
   );
 }
 

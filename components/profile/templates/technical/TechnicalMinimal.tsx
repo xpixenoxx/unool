@@ -209,12 +209,17 @@ export function TechnicalMinimalTemplate({ profile, accentColor, isPreview, onLi
                       boxShadow: 'none',
                     }}
                   >
-                    <button
+                    <motion.a
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       onClick={() => onLinkClick?.(link)}
                       className="w-full flex items-center gap-3 px-4 py-3 text-left"
                       style={{
                         fontFamily: 'var(--font-geist-mono)',
                         transition: 'background 0.2s',
+                        textDecoration: 'none',
+                        color: 'inherit',
                       }}
                       onMouseEnter={(e) => { e.currentTarget.style.background = 'oklch(0.15 0.02 240)'; }}
                       onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
@@ -254,7 +259,7 @@ export function TechnicalMinimalTemplate({ profile, accentColor, isPreview, onLi
                       >
                         OPEN
                       </Badge>
-                    </button>
+                    </motion.a>
                   </MagneticCard>
                 ))}
             </div>

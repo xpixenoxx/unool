@@ -223,7 +223,7 @@ export function EssentialMaxTemplate({ profile, accentColor, isPreview, onLinkCl
                                 boxShadow: `0 0 0 1px ${accent}20, 0 20px 60px -20px ${accent}30`,
                               }}
                             >
-                              <MaxLinkButton link={link} accent={accent} index={index} onClick={onLinkClick} isPreview={isPreview} variant="tilt" />
+                              <MaxLinkButton link={link} accent={accent} index={index} isPreview={isPreview} variant="tilt" />
                             </TiltCard>
                           </div>
                         </PerspectiveFlip>
@@ -240,7 +240,7 @@ export function EssentialMaxTemplate({ profile, accentColor, isPreview, onLinkCl
                             boxShadow: `0 0 0 1px ${accent}15, 0 16px 48px -16px ${accent}25`,
                           }}
                         >
-                          <MaxLinkButton link={link} accent={accent} index={index} onClick={onLinkClick} isPreview={isPreview} variant="magnetic" />
+                          <MaxLinkButton link={link} accent={accent} index={index} isPreview={isPreview} variant="magnetic" />
                         </MagneticCard>
                       )}
                       {cardType === 2 && (
@@ -257,7 +257,7 @@ export function EssentialMaxTemplate({ profile, accentColor, isPreview, onLinkCl
                                 boxShadow: `0 0 0 1px ${secondaryAccent}20, 0 20px 60px -20px ${secondaryAccent}30`,
                               }}
                             >
-                              <MaxLinkButton link={link} accent={secondaryAccent} index={index} onClick={onLinkClick} isPreview={isPreview} variant="flip" />
+                              <MaxLinkButton link={link} accent={secondaryAccent} index={index} isPreview={isPreview} variant="flip" />
                             </TiltCard>
                           </div>
                         </PerspectiveFlip>
@@ -274,7 +274,7 @@ export function EssentialMaxTemplate({ profile, accentColor, isPreview, onLinkCl
                             boxShadow: `0 0 0 1px ${accent}25, 0 24px 80px -24px ${accent}35`,
                           }}
                         >
-                          <MaxLinkButton link={link} accent={accent} index={index} onClick={onLinkClick} isPreview={isPreview} variant="featured" />
+                          <MaxLinkButton link={link} accent={accent} index={index} isPreview={isPreview} variant="featured" />
                         </MagneticCard>
                       )}
                     </motion.div>
@@ -379,14 +379,12 @@ function MaxLinkButton({
   link,
   accent,
   index,
-  onClick,
   isPreview = false,
   variant,
 }: {
   link: TemplateProps['profile']['links'][0];
   accent: string;
   index: number;
-  onClick?: (link: TemplateProps['profile']['links'][0]) => void;
   isPreview?: boolean;
   variant: 'tilt' | 'magnetic' | 'flip' | 'featured';
 }) {
@@ -394,10 +392,12 @@ function MaxLinkButton({
   const isFeatured = variant === 'featured';
 
   return (
-    <button
-      onClick={() => onClick?.(link)}
-      className="relative w-full px-7 py-6 text-left group overflow-hidden"
-      style={{ borderRadius: '18px', fontFamily: 'var(--font-geist)' }}
+    <a
+      href={link.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="relative w-full px-7 py-6 text-left group overflow-hidden no-underline"
+      style={{ borderRadius: '18px', fontFamily: 'var(--font-geist)', display: 'flex' }}
     >
       {/* Accent bar on left - featured gets gradient */}
       <motion.div
@@ -443,7 +443,7 @@ function MaxLinkButton({
         transition={{ duration: 0.3 }}
       />
 
-      <Flex align="center" gap={7} className="relative z-10">
+      <Flex align="center" gap={7} className="relative z-10 flex-1">
         <motion.div
           initial={reducedMotion ? {} : { scale: 0, rotate: -25 }}
           animate={{ scale: 1, rotate: 0 }}
@@ -506,7 +506,7 @@ function MaxLinkButton({
           </Badge>
         </Flex>
       </Flex>
-    </button>
+    </a>
   );
 }
 

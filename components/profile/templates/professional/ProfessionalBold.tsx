@@ -13,39 +13,10 @@ import { spring, slideUp, fadeIn } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { ChevronLeft, ChevronRight, Star } from 'lucide-react';
 
-interface Testimonial {
-  id: string;
-  quote: string;
-  author: string;
-  role: string;
-  company?: string;
-  avatar?: string;
-  rating?: number;
-}
-
-const mockTestimonials: Testimonial[] = [
-  { id: '1', quote: 'Exceptional vision and execution. This person delivers results that exceed expectations.', author: 'Sarah Chen', role: 'VP Engineering', company: 'TechCorp', rating: 5 },
-  { id: '2', quote: 'A rare combination of technical depth and strategic thinking. Highly recommended.', author: 'Marcus Johnson', role: 'Founder', company: 'StartupXYZ', rating: 5 },
-  { id: '3', quote: 'The kind of leader who elevates everyone around them. Best hire we made this year.', author: 'Emily Rodriguez', role: 'CTO', company: 'ScaleUp', rating: 5 },
-];
-
-export function ProfessionalBoldTemplate({ profile, accentColor, isPreview, onLinkClick }: TemplateProps) {
+export function ProfessionalBoldTemplate({ profile, accentColor, isPreview }: TemplateProps) {
   const reducedMotion = useReducedMotion();
   const accent = accentColor || 'var(--color-primary)';
-  const secondaryAccent = 'oklch(0.5 0.2 270)'; // Bold executive purple
-  const [currentTestimonial, setCurrentTestimonial] = React.useState(0);
-
-  React.useEffect(() => {
-    if (!isPreview) {
-      const interval = setInterval(() => {
-        setCurrentTestimonial((prev) => (prev + 1) % mockTestimonials.length);
-      }, 6000);
-      return () => clearInterval(interval);
-    }
-  }, [isPreview]);
-
-  const nextTestimonial = () => setCurrentTestimonial((prev) => (prev + 1) % mockTestimonials.length);
-  const prevTestimonial = () => setCurrentTestimonial((prev) => (prev - 1 + mockTestimonials.length) % mockTestimonials.length);
+  const secondaryAccent = 'oklch(0.5 0.18 260)'; // Deep executive purple-blue
 
   return (
     <div
@@ -276,105 +247,6 @@ export function ProfessionalBoldTemplate({ profile, accentColor, isPreview, onLi
           </motion.div>
         )}
 
-        {/* Testimonial Carousel - Bold & Interactive */}
-        <motion.div
-          initial={reducedMotion ? {} : { opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ ...spring.standard, delay: 0.6 }}
-        >
-          <Stack space={6} className="max-w-4xl mx-auto">
-            <Flex between className="flex-wrap gap-4" wrap>
-              <Text size="sm" weight="semibold" color="muted" style={{ fontFamily: 'var(--font-geist)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                Trusted By Leaders
-              </Text>
-              <Badge variant="outline" className="gap-1.5" style={{ fontFamily: 'var(--font-geist-mono)', fontSize: '0.75rem', borderColor: `${accent}30` }}>
-                {currentTestimonial + 1} / {mockTestimonials.length}
-              </Badge>
-            </Flex>
-
-            <div className="relative">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={currentTestimonial}
-                  initial={reducedMotion ? {} : { opacity: 0, x: 40, scale: 0.95 }}
-                  animate={{ opacity: 1, x: 0, scale: 1 }}
-                  exit={reducedMotion ? {} : { opacity: 0, x: -40, scale: 0.95 }}
-                  transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-                  className="w-full"
-                >
-                  <PerspectiveFlip axis="y" trigger="hover" duration={0.6}>
-                    <div className="relative w-full" style={{ perspective: 1000 }}>
-                      <TiltCard
-                        maxTilt={4}
-                        scale={1.01}
-                        className="w-full"
-                        style={{
-                          borderRadius: '16px',
-                          border: `1px solid ${accent}35`,
-                          background: `linear-gradient(145deg, var(--card) 0%, ${accent}06 100%)`,
-                          boxShadow: `0 0 0 1px ${accent}15, 0 20px 60px -20px ${accent}20`,
-                        }}
-                      >
-                        <div className="p-7 flex flex-col justify-center">
-                          <Flex between className="mb-4" wrap>
-                            <Flex gap={1}>
-                              {[...Array(5)].map((_, i) => (
-                                <Star
-                                  key={i}
-                                  className={i < (mockTestimonials[currentTestimonial].rating || 5) ? 'h-5 w-5 fill-[var(--color-primary)] text-[var(--color-primary)]' : 'h-5 w-5 text-muted/30'}
-                                />
-                              ))}
-                            </Flex>
-                          </Flex>
-
-                          <Text size="base" color="foreground" className="mb-6 italic" style={{ lineHeight: 1.8, fontFamily: 'var(--font-geist)' }}>
-                            &ldquo;{mockTestimonials[currentTestimonial].quote}&rdquo;
-                          </Text>
-
-                          <Flex align="center" gap={4}>
-                            <Avatar className="h-12 w-12 ring-2" ringColor={accent}>
-                              <AvatarFallback className="text-lg font-medium">{mockTestimonials[currentTestimonial].author.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            <Flex column gap={1}>
-                              <Text weight="semibold" size="sm" style={{ fontFamily: 'var(--font-geist)' }}>
-                                {mockTestimonials[currentTestimonial].author}
-                              </Text>
-                              <Text size="xs" color="muted" style={{ fontFamily: 'var(--font-geist)' }}>
-                                {mockTestimonials[currentTestimonial].role}{mockTestimonials[currentTestimonial].company && `, ${mockTestimonials[currentTestimonial].company}`}
-                              </Text>
-                            </Flex>
-                          </Flex>
-                        </div>
-                      </TiltCard>
-                    </div>
-                  </PerspectiveFlip>
-                </motion.div>
-              </AnimatePresence>
-
-              {/* Carousel Dots - Animated */}
-              <Flex center gap={2} className="mt-6" wrap>
-                {mockTestimonials.map((_, i) => (
-                  <motion.button
-                    key={i}
-                    onClick={() => setCurrentTestimonial(i)}
-                    className="h-2 rounded-full transition-all"
-                    style={{
-                      background: i === currentTestimonial ? accent : 'var(--muted)',
-                      width: i === currentTestimonial ? '1.75rem' : '0.625rem',
-                    }}
-                    aria-label={`Go to testimonial ${i + 1}`}
-                    initial={reducedMotion ? {} : { scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ ...spring.bouncy, delay: 0.8 + i * 0.05 }}
-                    whileHover={{ scale: i === currentTestimonial ? 1.2 : 1.5 }}
-                    whileTap={{ scale: 0.9 }}
-                  />
-                ))}
-              </Flex>
-            </div>
-          </Stack>
-        </motion.div>
-
         {/* Links - Bold Magnetic + Tilt Cards */}
         {profile.links.length > 0 && (
           <motion.div
@@ -407,7 +279,7 @@ export function ProfessionalBoldTemplate({ profile, accentColor, isPreview, onLi
                             boxShadow: `0 0 0 1px ${accent}18, 0 16px 50px -16px ${accent}22`,
                           }}
                         >
-                          <BoldLinkButton link={link} accent={accent} index={index} onClick={onLinkClick} isPreview={isPreview} variant="tilt" />
+                          <BoldLinkButton link={link} accent={accent} index={index} isPreview={isPreview} variant="tilt" />
                         </TiltCard>
                       ) : (
                         <MagneticCard
@@ -421,7 +293,7 @@ export function ProfessionalBoldTemplate({ profile, accentColor, isPreview, onLi
                             boxShadow: `0 0 0 1px ${accent}12, 0 12px 40px -12px ${accent}18`,
                           }}
                         >
-                          <BoldLinkButton link={link} accent={accent} index={index} onClick={onLinkClick} isPreview={isPreview} variant="magnetic" />
+                          <BoldLinkButton link={link} accent={accent} index={index} isPreview={isPreview} variant="magnetic" />
                         </MagneticCard>
                       )}
                     </motion.div>
@@ -528,30 +400,31 @@ function BoldLinkButton({
   link,
   accent,
   index,
-  onClick,
   isPreview = false,
   variant,
 }: {
   link: TemplateProps['profile']['links'][0];
   accent: string;
   index: number;
-  onClick?: (link: TemplateProps['profile']['links'][0]) => void;
   isPreview?: boolean;
   variant: 'magnetic' | 'tilt';
 }) {
   const reducedMotion = useReducedMotion();
+  const secondaryAccent = 'oklch(0.5 0.2 270)';
 
   return (
-    <button
-      onClick={() => onClick?.(link)}
-      className="relative w-full px-7 py-5.5 text-left group overflow-hidden"
-      style={{ borderRadius: '14px', fontFamily: 'var(--font-geist)' }}
+    <a
+      href={link.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="relative w-full px-7 py-5.5 text-left group overflow-hidden no-underline"
+      style={{ borderRadius: '14px', fontFamily: 'var(--font-geist)', display: 'flex' }}
     >
       {/* Anim left accent bar */}
       <motion.div
         className="absolute left-0 top-0 bottom-0 w-1.5"
         style={{
-          background: `linear-gradient(180deg, ${accent}, oklch(0.5 0.2 270))`,
+          background: `linear-gradient(180deg, ${accent}, ${secondaryAccent})`,
           borderRadius: '14px 0 0 14px',
           transformOrigin: 'bottom',
         }}
@@ -581,7 +454,7 @@ function BoldLinkButton({
         />
       )}
 
-      <Flex align="center" gap={6} className="relative z-10">
+      <Flex align="center" gap={6} className="relative z-10 flex-1">
         <motion.div
           initial={reducedMotion ? {} : { scale: 0, rotate: -20 }}
           animate={{ scale: 1, rotate: 0 }}
@@ -591,7 +464,7 @@ function BoldLinkButton({
             width: 56,
             height: 56,
             borderRadius: '14px',
-            background: `linear-gradient(135deg, ${accent}, oklch(0.55 0.18 260))`,
+            background: `linear-gradient(135deg, ${accent}, ${secondaryAccent})`,
             color: 'var(--primary-foreground)',
             display: 'flex',
             alignItems: 'center',
@@ -644,7 +517,7 @@ function BoldLinkButton({
           </Badge>
         </Flex>
       </Flex>
-    </button>
+    </a>
   );
 }
 

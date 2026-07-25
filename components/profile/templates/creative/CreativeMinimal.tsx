@@ -12,7 +12,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { spring } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 
-export function CreativeMinimalTemplate({ profile, accentColor, isPreview, onLinkClick }: TemplateProps) {
+export function CreativeMinimalTemplate({ profile, accentColor, isPreview }: TemplateProps) {
   const reducedMotion = useReducedMotion();
   const accent = accentColor || 'var(--color-primary)';
   const secondaryAccent = 'oklch(0.65 0.22 340)'; // Creative magenta-pink
@@ -263,7 +263,7 @@ export function CreativeMinimalTemplate({ profile, accentColor, isPreview, onLin
                                   boxShadow: `0 0 0 1px ${accent}10, 0 8px 32px -8px ${accent}20`,
                                 }}
                               >
-                                <CreativeLinkButton link={link} accent={accent} secondaryAccent={secondaryAccent} index={index} onClick={onLinkClick} isPreview={isPreview} variant="tilt" reducedMotion={reducedMotion} />
+                                <CreativeLinkButton link={link} accent={accent} secondaryAccent={secondaryAccent} index={index} isPreview={isPreview} variant="tilt" reducedMotion={reducedMotion} />
                               </TiltCard>
                             ) : (
                               <MagneticCard
@@ -277,7 +277,7 @@ export function CreativeMinimalTemplate({ profile, accentColor, isPreview, onLin
                                   boxShadow: `0 4px 20px -4px ${accent}10`,
                                 }}
                               >
-                                <CreativeLinkButton link={link} accent={accent} secondaryAccent={secondaryAccent} index={index} onClick={onLinkClick} isPreview={isPreview} variant="magnetic" reducedMotion={reducedMotion} />
+                                <CreativeLinkButton link={link} accent={accent} secondaryAccent={secondaryAccent} index={index} isPreview={isPreview} variant="magnetic" reducedMotion={reducedMotion} />
                               </MagneticCard>
                             )}
                           </motion.div>
@@ -347,7 +347,6 @@ function CreativeLinkButton({
   accent,
   secondaryAccent,
   index,
-  onClick,
   isPreview = false,
   variant,
   reducedMotion,
@@ -356,16 +355,17 @@ function CreativeLinkButton({
   accent: string;
   secondaryAccent: string;
   index: number;
-  onClick?: (link: TemplateProps['profile']['links'][0]) => void;
   isPreview?: boolean;
   variant: 'magnetic' | 'tilt';
   reducedMotion: boolean;
 }) {
   return (
-    <button
-      onClick={() => onClick?.(link)}
-      className="relative w-full px-5 py-4 text-left group overflow-hidden"
-      style={{ borderRadius: '12px', fontFamily: 'var(--font-syne)' }}
+    <a
+      href={link.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="relative w-full px-5 py-4 text-left group overflow-hidden no-underline"
+      style={{ borderRadius: '12px', fontFamily: 'var(--font-syne)', display: 'flex' }}
     >
       {/* Animated left accent bar - creative gradient */}
       <motion.div
@@ -473,7 +473,7 @@ function CreativeLinkButton({
           </Badge>
         </Flex>
       </Flex>
-    </button>
+    </a>
   );
 }
 
