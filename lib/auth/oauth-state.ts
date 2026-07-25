@@ -79,17 +79,20 @@ export async function verifyAndConsumeOAuthState(state: string): Promise<{ works
   await redis.del(key);
 
   try {
-    const data = JSON.parse(stored as string) as OAuthStateData;
+    // Upstash Redis may automatically parse JSON, so 'stored' might already be an object
+    const data = typeof stored === 'string' 
+      ? JSON.parse(stored) as OAuthStateData 
+      : stored as unknown as OAuthStateData;
 
     // Additional sanity checks
-    if (Date.now() - data.createdAt > STATE_TTL_SECONDS * 1000) {
-      logger.warn('OAuth state expired', { state: state.slice(0, 8) + '...' });
+    if (!data || !data.createdAt || Date.now() - data.createdAt > STATE_TTL_SECONDS * 1000) {
+      logger.warn('OAuth state expired or invalid', { state: state.slice(0, 8) + '...' });
       return null;
     }
 
     return { workspaceId: data.workspaceId, platform: data.platform };
-  } catch {
-    logger.error('Invalid OAuth state data', { state: state.slice(0, 8) + '...' });
+  } catch (error) {
+    logger.error('Invalid OAuth state data', { state: state.slice(0, 8) + '...', error: String(error) });
     return null;
   }
 }
