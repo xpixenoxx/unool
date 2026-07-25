@@ -176,10 +176,20 @@ export async function middleware(request: NextRequest) {
     return addDebugHeaders(response);
   }
 
-  // Admin auth check - protect all /admin routes except login page and login API
-  if (pathname.startsWith('/admin') && !pathname.startsWith('/admin/login') && !pathname.startsWith('/admin/api/login')) {
+  // Admin auth check - protect all /admin routes except login page and login/logout API
+  const isAdminPath = pathname.startsWith('/admin');
+  const isAdminApiPath = pathname.startsWith('/api/admin');
+  const isPublicAdminPath = pathname === '/admin/login' ||
+                            pathname === '/admin/api/login' ||
+                            pathname === '/admin/api/logout';
+
+  if ((isAdminPath || isAdminApiPath) && !isPublicAdminPath) {
     const isAdminAuthed = validateAdminAuth(request);
     if (!isAdminAuthed) {
+      // For API routes, return 401; for pages, redirect to login
+      if (isAdminApiPath) {
+        return addDebugHeaders(NextResponse.json({ error: 'Admin authentication required' }, { status: 401 }));
+      }
       // Redirect to login page
       const loginUrl = new URL('/admin/login', request.url);
       loginUrl.searchParams.set('redirect', pathname);
@@ -197,13 +207,18 @@ export async function middleware(request: NextRequest) {
           secure: process.env.NODE_ENV === 'production',
           sameSite: 'lax',
           maxAge: 60 * 60 * 24 * 7, // 7 days
-          path: '/admin',
+          path: '/',
         });
         response.headers.set('x-middleware-run', 'true');
         response.headers.set('x-middleware-path', pathname);
         return addDebugHeaders(response);
       }
     }
+    // Admin authenticated via cookie - pass through
+    const response = NextResponse.next({ request: { headers: requestHeaders } });
+    response.headers.set('x-middleware-run', 'true');
+    response.headers.set('x-middleware-path', pathname);
+    return addDebugHeaders(response);
   }
 
   // Skip middleware for static assets and public paths
