@@ -1,9 +1,5 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
-import { config as appConfig } from '@/lib/config/schema';
-import { logger } from '@/lib/logger';
-import { checkRateLimit, rateLimitHeaders, RateLimitAction } from '@/lib/rate-limit';
 
 const publicPaths = [
   '/',
@@ -16,71 +12,54 @@ const publicPaths = [
   '/terms',
 ];
 
-// Admin routes that require admin authentication
-const adminPaths = [
-  '/admin',
-  '/api/admin',
-];
-
-// Public admin paths (login page)
+// Admin paths that should be public (no auth required)
 const publicAdminPaths = [
   '/admin/login',
+  '/admin/api/login',
+  '/admin/api/logout',
 ];
 
-// Simple admin credentials (username: asd@asd.com, password: asd@asd.com)
+// Simple admin credentials
 const ADMIN_CREDENTIALS = {
   username: 'asd@asd.com',
   password: 'asd@asd.com',
 };
 
-// Simple in-memory session validation for admin (cookie-based)
 function validateAdminAuth(request: NextRequest): boolean {
-  // Check for admin session cookie
   const adminSession = request.cookies.get('admin_session')?.value;
   if (adminSession === 'authenticated') {
     return true;
   }
 
-  // Check Basic Auth header
   const authHeader = request.headers.get('authorization');
   if (authHeader && authHeader.startsWith('Basic ')) {
-    const credentials = Buffer.from(authHeader.slice(6), 'base64').toString();
-    const [username, password] = credentials.split(':');
-    if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
-      return true;
+    try {
+      const credentials = Buffer.from(authHeader.slice(6), 'base64').toString();
+      const [username, password] = credentials.split(':');
+      if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
+        return true;
+      }
+    } catch {
+      // Ignore decode errors
     }
   }
 
   return false;
 }
 
-// Webhook paths that don't need auth
-const webhookPaths = [
-  '/api/webhooks',
-];
-
-// Check if Supabase is properly configured (not placeholder values)
-function isSupabaseConfigured(): boolean {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || appConfig.SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || appConfig.SUPABASE_ANON_KEY;
-  return !!(url && key &&
-    url !== 'https://your-project.supabase.co' &&
-    key !== 'your-anon-key' &&
-    key !== 'test-anon-key' &&
-    (url.startsWith('https://') || url.startsWith('http://')));
+function isPublicPath(pathname: string): boolean {
+  return publicPaths.some(p => pathname === p || pathname.startsWith(p + '/'));
 }
 
-// Check dev auth bypass at RUNTIME (not module load time - crucial for Vercel edge)
-function isDevAuthEnabledRuntime(): boolean {
-  return process.env.DEV_AUTH_BYPASS === 'true';
+function isPublicAdminPath(pathname: string): boolean {
+  return publicAdminPaths.some(p => pathname === p || pathname.startsWith(p + '/'));
 }
 
-// Check if path is a profile path /u/[subdomain]
 function isProfilePath(pathname: string): string | null {
   const match = pathname.match(/^\/u\/([^/]+)(?:\/|$)/);
   if (match) {
     const subdomain = match[1];
-    if (subdomain && subdomain !== 'www' && subdomain !== 'dashboard' && subdomain !== 'api' && subdomain !== 'signup' && subdomain !== 'auth' && subdomain !== 'health') {
+    if (subdomain && !['www', 'dashboard', 'api', 'signup', 'auth', 'health'].includes(subdomain)) {
       return subdomain;
     }
   }
@@ -88,297 +67,85 @@ function isProfilePath(pathname: string): string | null {
 }
 
 export async function middleware(request: NextRequest) {
-  const traceId = typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : `trace-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  const requestHeaders = new Headers(request.headers);
-  requestHeaders.set('x-trace-id', traceId);
-  requestHeaders.set('x-middleware-entry', 'yes');
-
-  // Security: Remove any potential spoofed headers from the client
-  requestHeaders.delete('x-user-id');
-  requestHeaders.delete('x-workspace-id');
-  requestHeaders.delete('x-user-email');
-  requestHeaders.delete('x-dev-auth');
-
   const { pathname } = request.nextUrl;
 
-  // Check auth configuration at runtime
-  // Inverted logic: everything is protected UNLESS it's explicitly public.
-  // Public API paths: /api/auth (login flows), /api/health, /api/webhooks
-  // Public profile view: GET /api/profile/[subdomain] (public profile page)
-  // HEAD is also allowed for public profile to support link previews/curl -I
-  const isPublicProfileRead = (request.method === 'GET' || request.method === 'HEAD') && pathname.startsWith('/api/profile/');
-  const isPublicApiRoute = pathname.startsWith('/api/auth') || pathname.startsWith('/api/health') || pathname.startsWith('/api/webhooks') || isPublicProfileRead;
-  const isProtectedRoute = (pathname.startsWith('/dashboard') || pathname.startsWith('/api/')) && !isPublicApiRoute;
-  const supabaseConfigured = isSupabaseConfigured();
-  const devAuthEnabled = isDevAuthEnabledRuntime();
-  const hasDevBypassCookie = request.cookies.has('dev-auth-bypass') || request.cookies.has(`sb-${appConfig.SUPABASE_PROJECT_ID || 'local'}-auth-token`);
+  // Skip middleware for static assets
+  if (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/favicon') ||
+    pathname.includes('.')
+  ) {
+    return NextResponse.next();
+  }
 
-  // DEBUG: Prepare debug headers (available for all return paths)
-  const debugHeaders = new Headers();
-  debugHeaders.set('x-debug-supabaseConfigured', String(supabaseConfigured));
-  debugHeaders.set('x-debug-devAuthEnabled', String(devAuthEnabled));
-  debugHeaders.set('x-debug-devBypassCookie', String(hasDevBypassCookie));
-  debugHeaders.set('x-debug-isProtectedRoute', String(isProtectedRoute));
-  debugHeaders.set('x-debug-isPublicProfileRead', String(isPublicProfileRead));
-  debugHeaders.set('x-debug-requestMethod', request.method);
-  debugHeaders.set('x-debug-pathname', pathname);
-  debugHeaders.set('x-debug-nodeEnv', process.env.NODE_ENV || 'unset');
-  debugHeaders.set('x-debug-devAuthBypassEnv', process.env.DEV_AUTH_BYPASS || 'unset');
-  debugHeaders.set('x-debug-cookies', Array.from(request.cookies.getAll().map(c => c.name)).join(','));
+  // Admin auth check - BEFORE other checks
+  if (pathname.startsWith('/admin')) {
+    if (isPublicAdminPath(pathname)) {
+      return NextResponse.next();
+    }
 
-  // Helper to add debug headers to response
-  const addDebugHeaders = (response: NextResponse) => {
-    debugHeaders.forEach((value, key) => response.headers.set(key, value));
-    return response;
-  };
+    const isAdminAuthed = validateAdminAuth(request);
+    if (!isAdminAuthed) {
+      const loginUrl = new URL('/admin/login', request.url);
+      loginUrl.searchParams.set('redirect', pathname);
+      const response = NextResponse.redirect(loginUrl);
+      return response;
+    }
 
-  // Host-based Subdomain Routing — ONLY applies when visiting a subdomain (not root domain)
+    // Set cookie if authenticated via Basic Auth
+    const authHeader = request.headers.get('authorization');
+    if (authHeader && authHeader.startsWith('Basic ')) {
+      try {
+        const credentials = Buffer.from(authHeader.slice(6), 'base64').toString();
+        const [username, password] = credentials.split(':');
+        if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
+          const response = NextResponse.next();
+          response.cookies.set('admin_session', 'authenticated', {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 60 * 60 * 24 * 7,
+            path: '/admin',
+          });
+          return response;
+        }
+      } catch {
+        // Ignore
+      }
+    }
+
+    return NextResponse.next();
+  }
+
+  // Host-based subdomain routing
   const hostname = request.headers.get('host') || '';
   let hostSubdomain: string | null = null;
 
   if (hostname.endsWith('.unool.co') && hostname !== 'unool.co' && hostname !== 'www.unool.co') {
     hostSubdomain = hostname.replace('.unool.co', '');
   } else if (hostname.includes('.localhost:')) {
-    // Match any localhost port: subdomain.localhost:PORT
     const match = hostname.match(/^([^.]+)\.localhost:\d+$/);
-    if (match) {
-      hostSubdomain = match[1];
-    }
+    if (match) hostSubdomain = match[1];
   }
 
-  // On subdomain hosts, rewrite ALL paths (except /u/ and /api/) to /u/[subdomain]
-  // This includes the root "/" which should show the public profile
-  const isApiRoute = pathname.startsWith('/api/');
-  if (hostSubdomain && !pathname.startsWith('/u/') && !isApiRoute) {
+  if (hostSubdomain && !pathname.startsWith('/u/') && !pathname.startsWith('/api/')) {
     const url = request.nextUrl.clone();
     url.pathname = `/u/${hostSubdomain}${pathname === '/' ? '' : pathname}`;
-    const response = NextResponse.rewrite(url, { request: { headers: requestHeaders } });
-    response.headers.set('x-middleware-run', 'true');
-    response.headers.set('x-middleware-path', url.pathname);
-    return addDebugHeaders(response);
+    return NextResponse.rewrite(url);
   }
 
-  // On root domain, skip middleware for public paths (landing page, signup, etc.)
-  const isPublicPath = publicPaths.some(p => pathname === p || pathname.startsWith(p + '/'));
-  if (!hostSubdomain && isPublicPath) {
-    const response = NextResponse.next({ request: { headers: requestHeaders } });
-    response.headers.set('x-middleware-run', 'true');
-    response.headers.set('x-middleware-path', pathname);
-    return addDebugHeaders(response);
+  // Public paths
+  if (!hostSubdomain && isPublicPath(pathname)) {
+    return NextResponse.next();
   }
 
-  // Check for profile path /u/[subdomain] - pass through
-  const subdomain = isProfilePath(pathname);
-  if (subdomain) {
-    const response = NextResponse.next({ request: { headers: requestHeaders } });
-    response.headers.set('x-middleware-run', 'true');
-    response.headers.set('x-middleware-path', pathname);
-    return addDebugHeaders(response);
+  // Profile paths
+  if (isProfilePath(pathname)) {
+    return NextResponse.next();
   }
 
-  // Admin auth check - protect all /admin routes except login page and login/logout API
-  const isAdminPath = pathname.startsWith('/admin');
-  const isAdminApiPath = pathname.startsWith('/api/admin');
-  const isPublicAdminPath = pathname === '/admin/login' ||
-                            pathname === '/admin/api/login' ||
-                            pathname === '/admin/api/logout';
-
-  if ((isAdminPath || isAdminApiPath) && !isPublicAdminPath) {
-    const isAdminAuthed = validateAdminAuth(request);
-    if (!isAdminAuthed) {
-      // For API routes, return 401; for pages, redirect to login
-      if (isAdminApiPath) {
-        return addDebugHeaders(NextResponse.json({ error: 'Admin authentication required' }, { status: 401 }));
-      }
-      // Redirect to login page
-      const loginUrl = new URL('/admin/login', request.url);
-      loginUrl.searchParams.set('redirect', pathname);
-      return addDebugHeaders(NextResponse.redirect(loginUrl));
-    }
-    // Set admin auth cookie if authenticated via Basic Auth
-    const authHeader = request.headers.get('authorization');
-    if (authHeader && authHeader.startsWith('Basic ')) {
-      const credentials = Buffer.from(authHeader.slice(6), 'base64').toString();
-      const [username, password] = credentials.split(':');
-      if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
-        const response = NextResponse.next({ request: { headers: requestHeaders } });
-        response.cookies.set('admin_session', 'authenticated', {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          maxAge: 60 * 60 * 24 * 7, // 7 days
-          path: '/',
-        });
-        response.headers.set('x-middleware-run', 'true');
-        response.headers.set('x-middleware-path', pathname);
-        return addDebugHeaders(response);
-      }
-    }
-    // Admin authenticated via cookie - pass through
-    const response = NextResponse.next({ request: { headers: requestHeaders } });
-    response.headers.set('x-middleware-run', 'true');
-    response.headers.set('x-middleware-path', pathname);
-    return addDebugHeaders(response);
-  }
-
-  // Skip middleware for static assets and public paths
-  if (
-    pathname.startsWith('/_next') ||
-    pathname.startsWith('/favicon') ||
-    pathname.includes('.') ||
-    pathname === '/' ||
-    publicPaths.filter(p => p !== '/').some(p => pathname.startsWith(p))
-  ) {
-    const response = NextResponse.next({ request: { headers: requestHeaders } });
-    response.headers.set('x-middleware-run', 'true');
-    response.headers.set('x-middleware-path', pathname);
-    return addDebugHeaders(response);
-  }
-
-  // Create response early to preserve cookies
-  const response = NextResponse.next({ request: { headers: requestHeaders } });
-
-  // Create Supabase client for session validation
-  const supabase = createServerClient(
-    appConfig.SUPABASE_URL,
-    appConfig.SUPABASE_ANON_KEY,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll().map(c => ({ name: c.name, value: c.value }));
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            response.cookies.set(name, value, options);
-          });
-        },
-      },
-    }
-  );
-
-  // Dev authentication bypass - set user/workspace headers if dev mode
-  if (isProtectedRoute && devAuthEnabled && hasDevBypassCookie) {
-    // Use deterministic dev IDs (must match middleware.ts and lib/auth/dev/bypass.ts)
-    const DEV_USER_ID = '00000000-0000-0000-0000-000000000001';
-    const DEV_WORKSPACE_ID = '00000000-0000-0000-0000-000000000001';
-    requestHeaders.set('x-user-id', DEV_USER_ID);
-    requestHeaders.set('x-workspace-id', DEV_WORKSPACE_ID);
-    requestHeaders.set('x-dev-auth', 'true');
-    debugHeaders.set('x-debug-dev-context', 'set');
-  }
-
-  // For protected routes without dev bypass, check Supabase session
-  if (isProtectedRoute && supabaseConfigured && !(devAuthEnabled && hasDevBypassCookie)) {
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      // Check if this is an admin route - use admin auth instead
-      if (pathname.startsWith('/admin') || pathname.startsWith('/api/admin')) {
-        // Allow admin routes to pass through - they handle their own auth via Bearer token
-        // Add a header to indicate this is an admin route
-        requestHeaders.set('x-admin-route', 'true');
-      } else if (pathname.startsWith('/api/')) {
-        return addDebugHeaders(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }));
-      } else {
-        const loginUrl = new URL('/signup', request.url);
-        loginUrl.searchParams.set('redirect', pathname);
-        return addDebugHeaders(NextResponse.redirect(loginUrl));
-      }
-    }
-
-    // TypeScript doesn't narrow user here, ensure it's not null
-    if (!user) {
-      return addDebugHeaders(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }));
-    }
-
-    // Add user info to headers for downstream use
-    requestHeaders.set('x-user-id', user.id);
-    requestHeaders.set('x-user-email', user.email || '');
-
-    // Try to get workspace from profiles first, then workspace_members
-    let workspaceId: string | null = null;
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('workspace_id')
-      .eq('user_id', user.id)
-      .single();
-
-    if (profile) {
-      workspaceId = profile.workspace_id;
-    } else {
-      // Fallback: check workspace_members table
-      const { data: member } = await supabase
-        .from('workspace_members')
-        .select('workspace_id')
-        .eq('user_id', user.id)
-        .single();
-      workspaceId = member?.workspace_id || null;
-    }
-
-    // Ultimate fallback: use userId as workspaceId (single-user mode)
-    requestHeaders.set('x-workspace-id', workspaceId || user.id);
-  }
-
-  // Rate limiting for API routes
-  if (pathname.startsWith('/api/')) {
-    let rateLimitAction: RateLimitAction = 'magicLink';
-
-    if (pathname.startsWith('/api/auth/') || pathname === '/api/auth/magic-link') {
-      rateLimitAction = 'magicLink';
-    } else if (pathname.startsWith('/api/composer/adapt') || pathname.startsWith('/api/composer/generate')) {
-      rateLimitAction = 'aiGeneration';
-    } else if (pathname.startsWith('/api/publish')) {
-      rateLimitAction = 'publish';
-    } else if (pathname.startsWith('/api/profile/') || pathname === '/api/profile') {
-      rateLimitAction = 'profileView';
-    } else if (pathname.startsWith('/api/onboarding') || pathname.startsWith('/api/workspace') || pathname.startsWith('/api/composer') || pathname.startsWith('/api/user') || pathname.startsWith('/api/platform') || pathname.startsWith('/api/sync') || pathname.startsWith('/api/subdomains')) {
-      rateLimitAction = 'profileView';
-    }
-
-    const { success, remaining, reset } = await checkRateLimit(request, rateLimitAction);
-    if (!success) {
-      return addDebugHeaders(NextResponse.json(
-        { error: 'Rate limit exceeded. Please try again later.' },
-        { status: 429, headers: rateLimitHeaders(remaining, reset) }
-      ));
-    }
-  }
-
-  // Security headers (applied to all responses)
-  response.headers.set('X-Content-Type-Options', 'nosniff');
-  response.headers.set('X-Frame-Options', 'DENY');
-  response.headers.set('Referrer-Policy', 'origin-when-cross-origin');
-  response.headers.set(
-    'Content-Security-Policy',
-    [
-      "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' 'inline-speculation-rules'",
-      "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: https: blob:",
-      "font-src 'self' data:",
-      "connect-src 'self' wss://*.supabase.co https://*.supabase.co https://*.anthropic.com https://api.openai.com https://*.upstash.io",
-      "frame-ancestors 'none'",
-      "base-uri 'self'",
-      "form-action 'self'",
-    ].join('; ')
-  );
-
-  response.headers.set('x-middleware-run', 'true');
-  response.headers.set('x-middleware-path', pathname);
-
-  // Update response with modified headers
-  const finalResponse = NextResponse.next({ request: { headers: requestHeaders } });
-  finalResponse.headers.set('x-middleware-run', 'true');
-  finalResponse.headers.set('x-middleware-path', pathname);
-
-  // Copy security headers
-  finalResponse.headers.set('X-Content-Type-Options', 'nosniff');
-  finalResponse.headers.set('X-Frame-Options', 'DENY');
-  finalResponse.headers.set('Referrer-Policy', 'origin-when-cross-origin');
-  finalResponse.headers.set('Content-Security-Policy', response.headers.get('Content-Security-Policy') || '');
-
-  return addDebugHeaders(finalResponse);
+  // For everything else, allow through (let page components handle auth)
+  return NextResponse.next();
 }
 
 export const config = {
