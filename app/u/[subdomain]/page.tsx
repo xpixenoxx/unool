@@ -106,12 +106,54 @@ export default function PublicProfilePage({ params }: { params: Promise<{ subdom
   }
 
   // Get template from profile theme
-  const templateId = profile.theme?.template || 'essential-standard';
+  const templateId = profile.theme?.template || profile.theme?.preset || 'essential-standard';
+
+  // Normalize raw API data into the PublicProfile shape that templates expect
+  const normalizedProfile = {
+    id: profile.id,
+    subdomain: profile.subdomain,
+    name: profile.name || 'Anonymous',
+    headline: profile.headline || '',
+    bio: profile.bio || '',
+    role: profile.role || '',
+    company: profile.company || '',
+    avatarUrl: '',
+    links: (profile.links || []).map((link: any, i: number) => ({
+      id: link.id || `link-${i}`,
+      label: link.label || link.title || link.url || 'Link',
+      url: link.url || '#',
+      icon: link.icon || null,
+      clicks: link.clicks || 0,
+      order: link.order ?? i,
+      isVisible: link.isVisible !== false,
+    })),
+    proofs: (profile.proofPoints || profile.proofs || profile.proof_points || []).map((proof: any, i: number) => ({
+      id: proof.id || `proof-${i}`,
+      type: proof.type || 'metric',
+      title: proof.title || proof.label || '',
+      value: proof.value || '',
+      description: proof.description || null,
+      icon: proof.icon || null,
+      order: proof.order ?? i,
+    })),
+    theme: {
+      template: templateId,
+      preset: profile.theme?.preset || 'minimal',
+      accentColor: profile.theme?.accentColor || 'var(--primary)',
+      customCss: profile.theme?.customCss || null,
+    },
+    socialHandles: profile.socialHandles || {},
+    seo: profile.seo || {
+      title: profile.name || 'Profile',
+      description: profile.headline || profile.bio || '',
+      image: null,
+    },
+  };
 
   return (
     <ProfilePreview
       templateId={templateId}
-      profile={profile}
+      profile={normalizedProfile}
       isPreview={false}
     />
   );

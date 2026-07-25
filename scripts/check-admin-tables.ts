@@ -10,12 +10,31 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
 
 async function main() {
-  const { data: analyticsData, error: analyticsError } = await supabase.from('analytics_events').select('*').limit(1);
-  if (analyticsError) {
-    console.error('Error fetching analytics_events:', analyticsError);
-  } else {
-    console.log('analytics_events table exists:', analyticsData);
+  // Check all profiles
+  const { data: profiles, error } = await supabase
+    .from('profiles')
+    .select('id, subdomain, name, headline, bio, role, company, links, proof_points, theme, updated_at')
+    .order('updated_at', { ascending: false });
+
+  if (error) {
+    console.error('Error:', error);
+    return;
   }
+
+  console.log('Total profiles:', profiles?.length);
+  profiles?.forEach(p => {
+    console.log('\n--- Profile ---');
+    console.log('Subdomain:', p.subdomain);
+    console.log('Name:', p.name);
+    console.log('Headline:', p.headline);
+    console.log('Bio:', p.bio);
+    console.log('Role:', p.role);
+    console.log('Company:', p.company);
+    console.log('Links count:', p.links?.length || 0);
+    console.log('Proof points count:', p.proof_points?.length || 0);
+    console.log('Theme:', JSON.stringify(p.theme));
+    console.log('Updated:', p.updated_at);
+  });
 }
 
 main();

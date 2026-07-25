@@ -12,6 +12,8 @@ const BLOB_PATHS = [
   'M50,10 C70,10 70,50 50,50 C30,50 30,10 50,10',
 ];
 
+let blobIdCounter = 0;
+
 interface MorphingBlobProps {
   className?: string;
   colors?: string[];
@@ -42,6 +44,9 @@ export function MorphingBlob({
   const baseColorTransition = { ...spring.bouncy, duration: speed * 2, repeat: Infinity, repeatType: 'reverse' as const };
   const finalOpacity = opacity ?? 0.6 / finalColors.length;
 
+  // Unique filter ID per instance to avoid SVG filter collisions
+  const filterId = React.useRef(`gooey-${++blobIdCounter}`).current;
+
   return (
     <motion.svg
       className={cn('relative pointer-events-none', className)}
@@ -50,19 +55,19 @@ export function MorphingBlob({
       aria-hidden="true"
     >
       <defs>
-        <filter id="gooey" colorInterpolationFilters="sRGB">
-          <feGaussianBlur in="SourceGraphic" stdDeviation="15" result="blur" />
+        <filter id={filterId} colorInterpolationFilters="sRGB">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur" />
           <feColorMatrix
             in="blur"
             mode="matrix"
-            values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7"
+            values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 12 -5"
             result="goo"
           />
-          <feBlend in="SourceGraphic" in2="goo" />
+          <feComposite in="SourceGraphic" in2="goo" operator="atop" />
         </filter>
       </defs>
 
-      <g filter="url(#gooey)">
+      <g filter={`url(#${filterId})`}>
         {finalColors.map((color, i) => (
           <motion.path
             key={i}
