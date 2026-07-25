@@ -15,6 +15,12 @@ const BLOB_PATHS = [
 interface MorphingBlobProps {
   className?: string;
   colors?: string[];
+  /** @deprecated Use `colors` array instead */
+  color?: string;
+  /** Opacity of the blob (default: 0.6 / colors.length) */
+  opacity?: number;
+  /** Number of complexity iterations for morphing (default: 3) */
+  complexity?: number;
   speed?: number;
   size?: number;
 }
@@ -22,14 +28,19 @@ interface MorphingBlobProps {
 export function MorphingBlob({
   className,
   colors = ['var(--purple)', 'var(--primary)'],
+  color,
+  opacity,
+  complexity,
   speed = 0.3,
   size = 200,
 }: MorphingBlobProps) {
-  const blobCount = Math.max(colors.length, 3);
-  const paths = Array.from({ length: blobCount }, (_, i) => BLOB_PATHS[i % BLOB_PATHS.length]);
+  // Support deprecated `color` prop alias
+  const finalColors = color ? [color] : colors;
+  const blobCount = Math.max(finalColors.length, complexity ?? 3);
 
   const baseMorphTransition = { ...spring.gentle, duration: speed, repeat: Infinity, repeatType: 'reverse' as const };
   const baseColorTransition = { ...spring.bouncy, duration: speed * 2, repeat: Infinity, repeatType: 'reverse' as const };
+  const finalOpacity = opacity ?? 0.6 / finalColors.length;
 
   return (
     <motion.svg
@@ -52,16 +63,16 @@ export function MorphingBlob({
       </defs>
 
       <g filter="url(#gooey)">
-        {colors.map((color, i) => (
+        {finalColors.map((color, i) => (
           <motion.path
             key={i}
-            d={paths[i % paths.length]}
+            d={BLOB_PATHS[i % BLOB_PATHS.length]}
             fill={color}
-            fillOpacity={0.6 / colors.length}
+            fillOpacity={finalOpacity}
             style={{ transformOrigin: 'center center' }}
             animate={{
-              d: paths.map((_, j) => paths[(i + j) % paths.length]),
-              fill: colors.map((_, j) => colors[(i + j) % colors.length]),
+              d: BLOB_PATHS.map((_, j) => BLOB_PATHS[(i + j) % BLOB_PATHS.length]),
+              fill: finalColors.map((_, j) => finalColors[(i + j) % finalColors.length]),
             }}
             transition={{
               d: { ...baseMorphTransition, delay: i * 0.1 },

@@ -13,15 +13,20 @@ export interface ParallaxLayer {
 }
 
 export interface ParallaxLayersProps {
-  layers: ParallaxLayer[];
+  layers?: ParallaxLayer[];
+  children?: React.ReactNode;
   containerClassName?: string;
+  className?: string; // alias for containerClassName
   containerStyle?: React.CSSProperties;
+  style?: React.CSSProperties; // alias for containerStyle
   mouseFollow?: boolean;
   scrollFollow?: boolean;
   mouseStrength?: number;
   scrollStrength?: number;
   /** Spring config for smoothing parallax motion (uses spring.smooth by default from design tokens; easing.expo available for custom springs) */
   springConfig?: { stiffness?: number; damping?: number; mass?: number };
+  /** Shorthand for mouseStrength + scrollStrength */
+  strength?: number;
 }
 
 const DEFAULT_MOUSE_STRENGTH = 30;
@@ -45,16 +50,35 @@ function getLayerTransform(
 
 export function ParallaxLayers({
   layers,
+  children,
   containerClassName,
+  className,
   containerStyle,
+  style,
   mouseFollow = true,
   scrollFollow = true,
   mouseStrength = DEFAULT_MOUSE_STRENGTH,
   scrollStrength = DEFAULT_SCROLL_STRENGTH,
   springConfig = DEFAULT_SPRING,
+  strength,
 }: ParallaxLayersProps) {
   const reducedMotion = useReducedMotion();
   const containerRef = React.useRef<HTMLDivElement>(null);
+
+  // Support aliases
+  const effectiveContainerClassName = containerClassName ?? className;
+  const effectiveContainerStyle = containerStyle ?? style;
+
+  // Support `strength` shorthand
+  const effectiveMouseStrength = strength !== undefined ? strength : mouseStrength;
+  const effectiveScrollStrength = strength !== undefined ? strength : scrollStrength;
+
+  // Normalize layers: if children provided without layers, wrap as single layer
+  const normalizedLayers = React.useMemo(() => {
+    if (layers && layers.length > 0) return layers;
+    if (children) return [{ depth: 0.2, children }];
+    return [];
+  }, [layers, children]);
 
   // Mouse tracking
   const mouseX = useMotionValue(0);
@@ -115,7 +139,7 @@ export function ParallaxLayers({
   }, [reducedMotion, scrollFollow, scrollY]);
 
   // Render layers with parallax transforms
-  const layerElements = layers.map((layer, index) => {
+  const layerElements = normalizedLayers.map((layer, index) => {
     const depth = Math.max(0, Math.min(1, layer.depth));
     const scale = layer.scale ?? DEFAULT_SCALE_BASE + depth * 0.1;
     const baseZ = -depth * 100;
@@ -125,14 +149,14 @@ export function ParallaxLayers({
       ? 0
       : useTransform(
           [smoothMouseX, smoothScrollY],
-          (values: number[]): number => values[0] * mouseStrength * depth + values[1] * scrollStrength * depth * 0.01
+          (values: number[]): number => values[0] * effectiveMouseStrength * depth + values[1] * effectiveScrollStrength * depth * 0.01
         );
 
     const y = reducedMotion
       ? 0
       : useTransform(
           [smoothMouseY, smoothScrollY],
-          (values: number[]): number => values[0] * mouseStrength * depth + values[1] * scrollStrength * depth * 0.01
+          (values: number[]): number => values[0] * effectiveMouseStrength * depth + values[1] * effectiveScrollStrength * depth * 0.01
         );
 
     const z = reducedMotion ? 0 : baseZ;
@@ -152,13 +176,13 @@ export function ParallaxLayers({
   });
 
   const containerStyles: React.CSSProperties = reducedMotion
-    ? { ...containerStyle, position: 'relative', width: '100%', height: '100%', transform: 'none', willChange: 'auto' }
-    : { position: 'relative', width: '100%', height: '100%', ...containerStyle };
+    ? { ...effectiveContainerStyle, position: 'relative', width: '100%', height: '100%', transform: 'none', willChange: 'auto' }
+    : { position: 'relative', width: '100%', height: '100%', ...effectiveContainerStyle };
 
   return (
     <div
       ref={containerRef}
-      className={cn('relative overflow-hidden', containerClassName)}
+      className={cn('relative overflow-hidden', effectiveContainerClassName)}
       style={containerStyles}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}

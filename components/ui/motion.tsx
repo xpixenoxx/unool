@@ -19,6 +19,7 @@ const spring = {
   gentle: motionTokens.springs.gentle,
   bouncy: motionTokens.springs.bouncy,
   smooth: motionTokens.springs.smooth,
+  magnetic: motionTokens.springs.magnetic,
 } as const;
 
 const duration = {

@@ -4,10 +4,17 @@ import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export type PerspectiveFlipTrigger = "hover" | "click" | "auto";
+export type PerspectiveFlipAxis = "x" | "y";
 
 export interface PerspectiveFlipProps {
-  front: React.ReactNode;
-  back: React.ReactNode;
+  /** Content for the front side (used with back prop) */
+  front?: React.ReactNode;
+  /** Content for the back side (used with front prop) */
+  back?: React.ReactNode;
+  /** Single child content that flips to reveal itself on reverse (alternative to front/back) */
+  children?: React.ReactNode;
+  /** Flip axis: 'x' for vertical flip, 'y' for horizontal flip (default: 'y') */
+  axis?: PerspectiveFlipAxis;
   duration?: number;
   trigger?: PerspectiveFlipTrigger;
   className?: string;
@@ -20,6 +27,8 @@ export interface PerspectiveFlipProps {
 export default function PerspectiveFlip({
   front,
   back,
+  children,
+  axis = "y",
   duration = 0.6,
   trigger = "hover",
   className = "",
@@ -77,6 +86,14 @@ export default function PerspectiveFlip({
     duration,
   };
 
+  // Determine rotate property based on axis
+  const rotateProp = axis === "x" ? "rotateX" : "rotateY";
+  const backRotateValue = axis === "x" ? 180 : -180;
+  const backInitialValue = axis === "x" ? -180 : 180;
+
+  // If using front/back API
+  const hasFrontBack = front !== undefined || back !== undefined;
+
   return (
     <div
       className={className}
@@ -94,9 +111,9 @@ export default function PerspectiveFlip({
         {!isFlipped && (
           <motion.div
             key="front"
-            initial={{ rotateY: 0 }}
-            animate={{ rotateY: isFlipped ? 180 : 0 }}
-            exit={{ rotateY: 180 }}
+            initial={{ [rotateProp]: 0 }}
+            animate={{ [rotateProp]: isFlipped ? 180 : 0 }}
+            exit={{ [rotateProp]: isFlipped ? 180 : 0 }}
             transition={springConfig}
             style={{
               position: "absolute",
@@ -114,7 +131,7 @@ export default function PerspectiveFlip({
                 transform: "rotateY(0deg)",
               }}
             >
-              {front}
+              {hasFrontBack ? front : children}
             </div>
           </motion.div>
         )}
@@ -122,9 +139,9 @@ export default function PerspectiveFlip({
           {isFlipped && (
             <motion.div
               key="back"
-              initial={{ rotateY: -180 }}
-              animate={{ rotateY: 0 }}
-              exit={{ rotateY: 0 }}
+              initial={{ [rotateProp]: backInitialValue }}
+              animate={{ [rotateProp]: 0 }}
+              exit={{ [rotateProp]: 0 }}
               transition={springConfig}
               style={{
                 position: "absolute",
@@ -139,10 +156,10 @@ export default function PerspectiveFlip({
                   width: "100%",
                   height: "100%",
                   backfaceVisibility: "hidden" as const,
-                  transform: "rotateY(180deg)",
+                  transform: `${rotateProp}(${backRotateValue}deg)`,
                 }}
               >
-                {back}
+                {hasFrontBack ? back : children}
               </div>
             </motion.div>
           )}

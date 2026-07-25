@@ -31,10 +31,14 @@ import { designTokens } from '@/lib/design/tokens';
 export interface OrbitalBackgroundProps {
   /** Number of orbital particles (default: 6, auto-scales 8-32 based on viewport) */
   count?: number;
+  /** @deprecated Use `count` instead */
+  orbCount?: number;
   /** Theme-aware color tokens (default: ['var(--purple)', 'var(--primary)']) */
   colors?: string[];
   /** Orbital radius in pixels (default: 40) */
   radius?: number;
+  /** @deprecated Use `radius` instead */
+  orbSizes?: number[];
   /** Orbital speed multiplier (default: 0.5) */
   speed?: number;
   /** Canvas rendering (default: true). Falls back to SVG if false or unsupported */
@@ -357,8 +361,10 @@ function SVGOrbitals({
  */
 export function OrbitalBackground({
   count: userCount = DEFAULT_CONFIG.count,
+  orbCount,
   colors = ['var(--purple)', 'var(--primary)'],
   radius = DEFAULT_CONFIG.radius,
+  orbSizes,
   speed = DEFAULT_CONFIG.speed,
   useCanvas = DEFAULT_CONFIG.useCanvas,
   pauseWhenHidden = DEFAULT_CONFIG.pauseWhenHidden,
@@ -369,9 +375,13 @@ export function OrbitalBackground({
   // Respects prefers-reduced-motion
   const reducedMotion = useReducedMotion() ?? false;
 
+  // Support deprecated alias props
+  const finalCount = orbCount !== undefined ? orbCount : userCount;
+  const finalRadius = orbSizes !== undefined ? Math.max(...orbSizes) : radius;
+
   // Responsive particle count
   const responsiveCount = useResponsiveCount(DEFAULT_CONFIG);
-  const finalCount = userCount === DEFAULT_CONFIG.count ? responsiveCount : userCount;
+  const finalResponsiveCount = finalCount === DEFAULT_CONFIG.count ? responsiveCount : finalCount;
 
   // Container ref for IntersectionObserver
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -381,7 +391,7 @@ export function OrbitalBackground({
   // Animation time (paused when hidden)
   const timeMotion = useMotionValue(0);
   const [particles] = React.useState(() =>
-    generateParticles(finalCount, colors, radius, speed)
+    generateParticles(finalResponsiveCount, colors, finalRadius, speed)
   );
 
   // IntersectionObserver for performance (pause when off-screen)
