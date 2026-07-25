@@ -37,16 +37,28 @@ export async function getCurrentAuth(request: NextRequest): Promise<AuthContext 
     }
   }
 
+  let userObj: any = null;
+
   // Priority 2: Fallback to direct Bearer token (useful for external API clients)
   const authHeader = request.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
-    return null;
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.slice(7);
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    if (!error && user) {
+      userObj = user;
+    }
   }
 
-  const token = authHeader.slice(7);
+  // Priority 3: Fallback to cookie-based session via SSR client
+  if (!userObj) {
+    const { getUser } = await import('@/lib/supabase/server');
+    const user = await getUser();
+    if (user) {
+      userObj = user;
+    }
+  }
 
-  const { data: { user }, error } = await supabase.auth.getUser(token);
-  if (error || !user) {
+  if (!userObj) {
     return null;
   }
 
@@ -54,16 +66,15 @@ export async function getCurrentAuth(request: NextRequest): Promise<AuthContext 
   const { data: member } = await supabase
     .from('workspace_members')
     .select('workspace_id')
-    .eq('user_id', user.id)
-    .eq('role', 'owner')
+    .eq('user_id', userObj.id)
     .single();
 
-  const workspaceId = member?.workspace_id || user.user_metadata?.workspace_id;
+  const workspaceId = member?.workspace_id || userObj.user_metadata?.workspace_id || userObj.id;
   if (!workspaceId) {
     return null;
   }
 
-  return { userId: user.id, workspaceId };
+  return { userId: userObj.id, workspaceId };
 }
 
 export async function getCurrentUser(request: NextRequest) {
