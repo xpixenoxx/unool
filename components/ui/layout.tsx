@@ -362,7 +362,7 @@ export const Flex = React.forwardRef<HTMLDivElement, FlexProps>(
       <Box
         ref={ref}
         display={inline ? 'inline-flex' : 'flex'}
-        flexDirection={column ? 'col' : 'row'}
+        flexDirection={column ? 'column' : 'row'}
         flexWrap={wrap ? 'wrap' : 'nowrap'}
         alignItems={alignItems}
         justifyContent={justifyContent}
