@@ -13,13 +13,16 @@ export interface TemplateFeatures {
 export interface TemplateMeta {
   id: string;
   name: string;
-  category: 'essential' | 'professional' | 'creative' | 'technical' | 'social';
+  category: 'essential' | 'professional' | 'creative' | 'technical' | 'social' | 'persona';
   intensity: 'minimal' | 'light' | 'standard' | 'bold' | 'max';
   preset: 'minimal' | 'corporate' | 'creative' | 'technical' | 'bold';
   description: string;
   tags: string[];
   thumbnail: string;
-  features: TemplateFeatures;
+  features: TemplateFeatures & {
+    performanceBudget?: 'ultra-light' | 'light' | 'medium' | 'heavy';
+  };
+  persona?: 'student' | 'founder' | 'creator' | 'developer' | 'minimalist';
 }
 
 export interface TemplateProps {
@@ -35,6 +38,8 @@ export interface PublicProfile {
   name: string;
   headline: string;
   bio: string;
+  role?: string;
+  company?: string;
   avatarUrl: string;
   links: ProfileLink[];
   proofs: ProfileProof[];

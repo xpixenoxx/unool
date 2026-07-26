@@ -1,0 +1,146 @@
+<svg width="400" height="600" viewBox="0 0 400 600" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgFounder" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#030712"/>
+      <stop offset="50%" style="stop-color:#0c1a2b"/>
+      <stop offset="100%" style="stop-color:#030712"/>
+    </linearGradient>
+    <linearGradient id="accentFounder" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#0ea5e9"/>
+      <stop offset="100%" style="stop-color:#a855f7"/>
+    </linearGradient>
+    <linearGradient id="cardFounder" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#111827"/>
+      <stop offset="100%" style="stop-color:#0f172a"/>
+    </linearGradient>
+    <linearGradient id="kpiBg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e1e2e"/>
+      <stop offset="100%" style="stop-color:#181825"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="400" height="600" fill="url(#bgFounder)"/>
+
+  <!-- Subtle grid pattern -->
+  <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#0ea5e915" stroke-width="0.5"/>
+  </pattern>
+  <rect width="400" height="600" fill="url(#grid)"/>
+
+  <!-- Sidebar -->
+  <rect x="0" y="0" width="200" height="600" fill="url(#cardFounder)" stroke="#1e293b" stroke-width="1"/>
+
+  <!-- Avatar in sidebar -->
+  <circle cx="100" cy="85" r="38" fill="#1e293b" stroke="url(#accentFounder)" stroke-width="2"/>
+  <text x="100" y="95" text-anchor="middle" fill="#94a3b8" font-family="system-ui, sans-serif" font-size="22" font-weight="600">SC</text>
+
+  <!-- Name in sidebar -->
+  <text x="100" y="150" text-anchor="middle" fill="#f8fafc" font-family="system-ui, sans-serif" font-size="18" font-weight="700">Sarah Chen</text>
+  <text x="100" y="172" text-anchor="middle" fill="#0ea5e9" font-family="system-ui, sans-serif" font-size="12" font-weight="500">Founder & CEO @ Unool</text>
+
+  <!-- Company badges in sidebar -->
+  <g font-family="system-ui, sans-serif" font-size="10" font-weight="600">
+    <rect x="30" y="190" width="62" height="20" rx="10" fill="#0ea5e920" stroke="#0ea5e940" stroke-width="1"/>
+    <text x="61" y="203" text-anchor="middle" fill="#0ea5e9">YC W24</text>
+
+    <rect x="108" y="190" width="72" height="20" rx="10" fill="#a855f720" stroke="#a855f740" stroke-width="1"/>
+    <text x="144" y="203" text-anchor="middle" fill="#a855f7">a16z</text>
+
+    <rect x="30" y="218" width="62" height="20" rx="10" fill="#f59e0b20" stroke="#f59e0b40" stroke-width="1"/>
+    <text x="61" y="231" text-anchor="middle" fill="#f59e0b">Forbes 30/30</text>
+  </g>
+
+  <!-- Bio card in sidebar -->
+  <rect x="20" y="255" width="160" height="85" rx="10" fill="#111827" stroke="#1e293b" stroke-width="1"/>
+  <text x="30" y="280" fill="#e5e7eb" font-family="system-ui, sans-serif" font-size="12" line-height="19">Building the link-in-bio platform for the next generation of creators. Previously scaled teams at Stripe and Airbnb.</text>
+
+  <!-- KPI Cards in main area -->
+  <g transform="translate(210, 20)">
+    <!-- KPI 1: Revenue -->
+    <rect x="0" y="0" width="175" height="85" rx="12" fill="url(#kpiBg)" stroke="#0ea5e930" stroke-width="1"/>
+    <text x="15" y="22" fill="#0ea5e9" font-family="ui-monospace, monospace" font-size="10" font-weight="600" letter-spacing="0.1em">REVENUE</text>
+    <text x="15" y="56" fill="#f8fafc" font-family="ui-monospace, monospace" font-size="24" font-weight="800" font-variant-numeric="tabular-nums">$2.4M</text>
+    <text x="15" y="76" fill="#22c55e" font-family="ui-monospace, monospace" font-size="10" font-weight="500">+34% YoY</text>
+
+    <!-- KPI 2: Team -->
+    <rect x="0" y="100" width="175" height="85" rx="12" fill="url(#kpiBg)" stroke="#a855f730" stroke-width="1"/>
+    <text x="15" y="122" fill="#a855f7" font-family="ui-monospace, monospace" font-size="10" font-weight="600" letter-spacing="0.1em">TEAM</text>
+    <text x="15" y="156" fill="#f8fafc" font-family="ui-monospace, monospace" font-size="24" font-weight="800" font-variant-numeric="tabular-nums">24</text>
+    <text x="15" y="176" fill="#0ea5e9" font-family="ui-monospace, monospace" font-size="10" font-weight="500">+5 this quarter</text>
+
+    <!-- KPI 3: Customers -->
+    <rect x="0" y="200" width="175" height="85" rx="12" fill="url(#kpiBg)" stroke="#22c55e30" stroke-width="1"/>
+    <text x="15" y="222" fill="#22c55e" font-family="ui-monospace, monospace" font-size="10" font-weight="600" letter-spacing="0.1em">CUSTOMERS</text>
+    <text x="15" y="256" fill="#f8fafc" font-family="ui-monospace, monospace" font-size="24" font-weight="800" font-variant-numeric="tabular-nums">1,247</text>
+    <text x="15" y="276" fill="#f59e0b" font-family="ui-monospace, monospace" font-size="10" font-weight="500">4.9★ NPS</text>
+  </g>
+
+  <!-- Links in main area -->
+  <g>
+    <!-- Link 1: Unool -->
+    <rect x="210" y="310" width="175" height="52" rx="10" fill="#111827" stroke="#1e293b" stroke-width="1"/>
+    <circle cx="235" cy="336" r="18" fill="url(#accentFounder)"/>
+    <text x="235" y="342" text-anchor="middle" fill="white" font-family="system-ui, sans-serif" font-size="14" font-weight="700">U</text>
+    <text x="265" y="332" fill="#f8fafc" font-family="system-ui, sans-serif" font-size="14" font-weight="600">Unool</text>
+    <text x="265" y="350" fill="#64748b" font-family="ui-monospace, monospace" font-size="10">unool.co</text>
+    <text x="370" y="340" text-anchor="end" fill="#0ea5e9" font-family="system-ui, sans-serif" font-size="16">→</text>
+
+    <!-- Link 2: Twitter -->
+    <rect x="210" y="372" width="175" height="52" rx="10" fill="#111827" stroke="#1e293b" stroke-width="1"/>
+    <circle cx="235" cy="398" r="18" fill="#0ea5e9"/>
+    <text x="235" y="404" text-anchor="middle" fill="white" font-family="system-ui, sans-serif" font-size="14">𝕏</text>
+    <text x="265" y="394" fill="#f8fafc" font-family="system-ui, sans-serif" font-size="14" font-weight="600">Twitter</text>
+    <text x="265" y="412" fill="#64748b" font-family="ui-monospace, monospace" font-size="10">@sarahchen</text>
+    <text x="370" y="402" text-anchor="end" fill="#a855f7" font-family="system-ui, sans-serif" font-size="16">→</text>
+
+    <!-- Link 3: Newsletter -->
+    <rect x="210" y="434" width="175" height="52" rx="10" fill="#111827" stroke="#1e293b" stroke-width="1"/>
+    <circle cx="235" cy="460" r="18" fill="#f59e0b"/>
+    <text x="235" y="466" text-anchor="middle" fill="white" font-family="system-ui, sans-serif" font-size="14">📧</text>
+    <text x="265" y="456" fill="#f8fafc" font-family="system-ui, sans-serif" font-size="14" font-weight="600">Newsletter</text>
+    <text x="265" y="474" fill="#64748b" font-family="ui-monospace, monospace" font-size="10">sarah.substack.com</text>
+    <text x="370" y="464" text-anchor="end" fill="#22c55e" font-family="system-ui, sans-serif" font-size="16">→</text>
+
+    <!-- Link 4: Invest -->
+    <rect x="210" y="496" width="175" height="52" rx="10" fill="#111827" stroke="#1e293b" stroke-width="1"/>
+    <circle cx="235" cy="522" r="18" fill="#22c55e"/>
+    <text x="235" y="528" text-anchor="middle" fill="white" font-family="system-ui, sans-serif" font-size="14">$</text>
+    <text x="265" y="518" fill="#f8fafc" font-family="system-ui, sans-serif" font-size="14" font-weight="600">AngelList</text>
+    <text x="265" y="536" fill="#64748b" font-family="ui-monospace, monospace" font-size="10">angel.co/sarahchen</text>
+    <text x="370" y="526" text-anchor="end" fill="#a855f7" font-family="system-ui, sans-serif" font-size="16">→</text>
+  </g>
+
+  <!-- Testimonial indicators in sidebar -->
+  <g transform="translate(20, 360)">
+    <text x="0" y="20" fill="#0ea5e9" font-family="ui-monospace, monospace" font-size="10" font-weight="600" letter-spacing="0.1em">TESTIMONIALS</text>
+    <rect x="0" y="30" width="160" height="70" rx="8" fill="#111827" stroke="#1e293b" stroke-width="1"/>
+    <text x="10" y="55" fill="#e5e7eb" font-family="system-ui, sans-serif" font-size="11" line-height="16">"Unool transformed our creator economy strategy. Best link-in-bio tool by far."</text>
+    <text x="10" y="85" fill="#0ea5e9" font-family="system-ui, sans-serif" font-size="10" font-weight="500">— Alex K., Partner at a16z</text>
+    <circle cx="150" cy="88" r="4" fill="#0ea5e930"/>
+    <circle cx="160" cy="88" r="4" fill="#0ea5e9"/>
+    <circle cx="170" cy="88" r="4" fill="#0ea5e930"/>
+  </g>
+
+  <!-- Proof badges in sidebar -->
+  <g transform="translate(20, 450)" font-family="ui-monospace, monospace" font-size="8" font-weight="600">
+    <rect x="0" y="0" width="75" height="28" rx="6" fill="#0ea5e915" stroke="#0ea5e930" stroke-width="1"/>
+    <text x="37" y="12" text-anchor="middle" fill="#0ea5e9">$12M ARR</text>
+    <text x="37" y="22" text-anchor="middle" fill="#64748b">Series A</text>
+
+    <rect x="85" y="0" width="75" height="28" rx="6" fill="#a855f715" stroke="#a855f730" stroke-width="1"/>
+    <text x="122" y="12" text-anchor="middle" fill="#a855f7">24 Team</text>
+    <text x="122" y="22" text-anchor="middle" fill="#64748b">Global</text>
+
+    <rect x="0" y="33" width="75" height="28" rx="6" fill="#22c55e15" stroke="#22c55e30" stroke-width="1"/>
+    <text x="37" y="45" text-anchor="middle" fill="#22c55e">4.9★ NPS</text>
+    <text x="37" y="55" text-anchor="middle" fill="#64748b">Verified</text>
+
+    <rect x="85" y="33" width="75" height="28" rx="6" fill="#f59e0b15" stroke="#f59e0b30" stroke-width="1"/>
+    <text x="122" y="45" text-anchor="middle" fill="#f59e0b">Forbes 30/30</text>
+    <text x="122" y="55" text-anchor="middle" fill="#64748b">2024</text>
+  </g>
+
+  <!-- Subdomain -->
+  <text x="200" y="595" text-anchor="middle" fill="#475569" font-family="ui-monospace, monospace" font-size="10">sarahchen.unool.co</text>
+</svg>

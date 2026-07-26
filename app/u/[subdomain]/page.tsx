@@ -109,8 +109,39 @@ export default function PublicProfilePage({ params }: { params: Promise<{ subdom
     return <ProfileNotFound error={error || 'Profile not found'} />;
   }
 
-  // Get template from profile theme
-  const templateId = profile.theme?.template || profile.theme?.preset || 'essential-standard';
+  // Get template from profile theme - map old templates to new persona-driven ones
+  const rawTemplateId = profile.theme?.template || profile.theme?.preset || 'minimalist';
+
+  // Migration map for old template IDs to new persona-driven templates
+  const templateMigrationMap: Record<string, string> = {
+    'essential-minimal': 'minimalist',
+    'essential-light': 'minimalist',
+    'essential-standard': 'minimalist',
+    'essential-bold': 'founder',
+    'essential-max': 'founder',
+    'professional-minimal': 'minimalist',
+    'professional-light': 'minimalist',
+    'professional-standard': 'founder',
+    'professional-bold': 'founder',
+    'professional-max': 'founder',
+    'creative-minimal': 'creator',
+    'creative-light': 'creator',
+    'creative-standard': 'creator',
+    'creative-bold': 'creator',
+    'creative-max': 'creator',
+    'technical-minimal': 'developer',
+    'technical-light': 'developer',
+    'technical-standard': 'developer',
+    'technical-bold': 'developer',
+    'technical-max': 'developer',
+    'social-minimal': 'minimalist',
+    'social-light': 'creator',
+    'social-standard': 'creator',
+    'social-bold': 'creator',
+    'social-max': 'creator',
+  };
+
+  const templateId = templateMigrationMap[rawTemplateId] || rawTemplateId;
 
   // Normalize raw API data into the PublicProfile shape that templates expect
   const normalizedProfile = {

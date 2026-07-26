@@ -15,6 +15,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Flex, Box, Stack, Text, Display, Divider } from '@/components/ui/layout';
 import { MotionBox, MotionStack, spring, stagger } from '@/components/ui/motion';
 import { cn } from '@/lib/utils';
+import { TEMPLATE_REGISTRY } from '@/components/profile/templates/registry';
+import { TemplateGallery } from '@/components/profile/TemplateGallery';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 type TabValue = 'profile' | 'links' | 'design';
@@ -24,6 +26,7 @@ interface ProfileLink {
   label: string;
   url: string;
   type: string;
+  icon?: string;
 }
 
 interface ProofPoint {
@@ -59,33 +62,13 @@ interface ExtractedProfile {
   proofPoints: Array<{ type: string; value: string; url?: string }>;
 }
 
-const TEMPLATE_CONFIG: Record<string, { name: string; category: string; description: string }> = {
-  'essential-minimal': { name: 'Minimal', category: 'Essential', description: 'Clean, whitespace-driven, content-first' },
-  'essential-light': { name: 'Light', category: 'Essential', description: 'Airy with subtle accents' },
-  'essential-standard': { name: 'Standard', category: 'Essential', description: 'Balanced, professional default' },
-  'essential-bold': { name: 'Bold', category: 'Essential', description: 'High contrast, strong hierarchy' },
-  'essential-max': { name: 'Max', category: 'Essential', description: 'Dense, feature-rich layout' },
-  'professional-minimal': { name: 'Minimal', category: 'Professional', description: 'Reserved, executive presence' },
-  'professional-light': { name: 'Light', category: 'Professional', description: 'Approachable authority' },
-  'professional-standard': { name: 'Standard', category: 'Professional', description: 'Corporate standard' },
-  'professional-bold': { name: 'Bold', category: 'Professional', description: 'Confident leadership' },
-  'professional-max': { name: 'Max', category: 'Professional', description: 'Comprehensive executive profile' },
-  'creative-minimal': { name: 'Minimal', category: 'Creative', description: 'Artistic restraint' },
-  'creative-light': { name: 'Light', category: 'Creative', description: 'Playful whitespace' },
-  'creative-standard': { name: 'Standard', category: 'Creative', description: 'Expressive balance' },
-  'creative-bold': { name: 'Bold', category: 'Creative', description: 'Vibrant, asymmetric' },
-  'creative-max': { name: 'Max', category: 'Creative', description: 'Immersive portfolio' },
-  'technical-minimal': { name: 'Minimal', category: 'Technical', description: 'Terminal aesthetic' },
-  'technical-light': { name: 'Light', category: 'Technical', description: 'Code-centric light' },
-  'technical-standard': { name: 'Standard', category: 'Technical', description: 'Developer default' },
-  'technical-bold': { name: 'Bold', category: 'Technical', description: 'High-contrast hacker' },
-  'technical-max': { name: 'Max', category: 'Technical', description: 'Full spec sheet' },
-  'social-minimal': { name: 'Minimal', category: 'Social', description: 'Link-focused clean' },
-  'social-light': { name: 'Light', category: 'Social', description: 'Airy social hub' },
-  'social-standard': { name: 'Standard', category: 'Social', description: 'Balanced creator' },
-  'social-bold': { name: 'Bold', category: 'Social', description: 'Vibrant personality' },
-  'social-max': { name: 'Max', category: 'Social', description: 'All-in-one creator hub' },
-};
+// Use new persona-driven templates from registry
+const TEMPLATE_CONFIG: Record<string, { name: string; category: string; description: string }> = TEMPLATE_REGISTRY.reduce((acc, t) => {
+  acc[t.id] = { name: t.name, category: 'Persona', description: t.description };
+  return acc;
+}, {} as Record<string, { name: string; category: string; description: string }>);
+
+const DEFAULT_TEMPLATE = 'minimalist';
 
 function PresencePage() {
   const reducedMotion = useReducedMotion();
@@ -112,7 +95,7 @@ function PresencePage() {
     company: '',
     links: [],
     proofPoints: [],
-    theme: { template: 'essential-standard' },
+    theme: { template: DEFAULT_TEMPLATE },
   });
 
   // Load existing profile on mount
@@ -306,7 +289,8 @@ function PresencePage() {
 
   const handleTemplateSelect = (templateId: string) => {
     setProfile(prev => ({ ...prev, theme: { template: templateId } }));
-    toast.success(`Template set to ${TEMPLATE_CONFIG[templateId]?.name || templateId}`);
+    const template = TEMPLATE_REGISTRY.find(t => t.id === templateId);
+    toast.success(`Template set to ${template?.name || templateId}`);
   };
 
   return (
@@ -670,42 +654,37 @@ function PresencePage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <Text size="sm" color="muted" className="mb-4">Choose a design template for your public profile page. 25 templates across 5 categories.</Text>
-                <MotionGrid cols={{ base: 1, sm: 2, lg: 3, xl: 5 }} gap={4} stagger={stagger.normal}>
-                  {Object.entries(TEMPLATE_CONFIG).map(([templateId, config]) => (
-                    <motion.button
-                      key={templateId}
-                      onClick={() => handleTemplateSelect(templateId)}
-                      className={cn(
-                        'relative aspect-[4/3] border-2 rounded-lg overflow-hidden transition-all',
-                        profile.theme.template === templateId
-                          ? 'border-primary ring-2 ring-primary ring-offset-2'
-                          : 'border-muted/50 hover:border-primary/50'
-                      )}
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={springConfig}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      <Box className="absolute inset-0 bg-muted/50" />
-                      <Box className="absolute inset-0 bg-gradient-to-br from-primary/10 to-primary/5" />
-                      <Box className="relative h-full w-full flex items-center justify-center">
-                        <Display size="sm" weight="bold" className="text-center px-2" style={{ color: 'var(--primary)' }}>
-                          {config.category[0]}
-                        </Display>
-                      </Box>
-                      <Box className="absolute bottom-2 left-2 right-2 text-white text-sm font-medium">
-                        {config.name}
-                      </Box>
-                      <Box className="absolute top-2 right-2 text-xs text-muted-foreground/80 bg-background/80 px-1.5 py-0.5 rounded">
-                        {config.category}
-                      </Box>
-                      {profile.theme.template === templateId && (
-                        <CheckCircle className="absolute top-2 right-2 h-5 w-5 text-primary bg-primary/10 rounded-full" />
-                      )}
-                    </motion.button>
-                  ))}
-                </MotionGrid>
+                <TemplateGallery
+                  templates={TEMPLATE_REGISTRY}
+                  selectedTemplate={profile.theme.template}
+                  onSelect={handleTemplateSelect}
+                  isOpen={true}
+                  profileData={{
+                    name: profile.name || 'Preview User',
+                    headline: profile.headline || 'Preview your template',
+                    bio: profile.bio || 'This is a live preview of how your profile will look.',
+                    avatarUrl: '',
+                    subdomain: 'preview',
+                    links: profile.links?.map((link, i) => ({
+                      id: `link-${i}`,
+                      label: link.label,
+                      url: link.url,
+                      icon: link.icon ?? undefined,
+                      isVisible: true,
+                    })) || [
+                      { id: '1', label: 'Twitter', url: 'https://twitter.com', icon: 'twitter', isVisible: true },
+                      { id: '2', label: 'GitHub', url: 'https://github.com', icon: 'github', isVisible: true },
+                      { id: '3', label: 'LinkedIn', url: 'https://linkedin.com', icon: 'linkedin', isVisible: true },
+                    ],
+                    proofs: profile.proofPoints?.map((proof, i) => ({
+                      id: `proof-${i}`,
+                      title: proof.type,
+                      value: proof.value,
+                      icon: undefined,
+                    })) || [],
+                  }}
+                  accentColor="var(--color-primary)"
+                />
               </CardContent>
             </Card>
           </MotionBox>
