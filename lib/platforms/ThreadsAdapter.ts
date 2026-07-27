@@ -161,14 +161,14 @@ export class ThreadsAdapter implements PlatformAdapter {
       // Wait for container to be ready (poll)
       await this.waitForContainerReady(accessToken, creationId);
 
+      const publishParams = new URLSearchParams({
+        creation_id: creationId,
+        access_token: accessToken,
+      });
+
       // Publish the container
-      const publishResponse = await fetchWithRetry(`${THREADS_API_BASE}/me/threads_publish`, {
+      const publishResponse = await fetchWithRetry(`${THREADS_API_BASE}/me/threads_publish?${publishParams.toString()}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          creation_id: creationId,
-          access_token: accessToken,
-        }),
       });
 
       if (!publishResponse.ok) {
@@ -221,13 +221,12 @@ export class ThreadsAdapter implements PlatformAdapter {
   }
 
   private async postReply(accessToken: string, parentId: string, content: string): Promise<void> {
-    const response = await fetchWithRetry(`${THREADS_API_BASE}/${parentId}/replies`, {
+    const replyParams = new URLSearchParams({
+      text: content,
+      access_token: accessToken,
+    });
+    const response = await fetchWithRetry(`${THREADS_API_BASE}/${parentId}/replies?${replyParams.toString()}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        text: content,
-        access_token: accessToken,
-      }),
     });
 
     if (!response.ok) {

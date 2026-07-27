@@ -65,17 +65,31 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      logger.info('Composer adaptation requested', { traceId, workspaceId, contentLength: content.length });
+      // Fetch active platform connections for this workspace
+      const { SupabasePlatformRepository } = await import('@/lib/repositories/supabase/SupabasePlatformRepository');
+      const platformRepo = new SupabasePlatformRepository();
+      const connections = await platformRepo.findByWorkspaceId(workspaceId);
+      const activePlatforms = connections
+        .filter(c => c.status === 'connected')
+        .map(c => c.platform as PlatformType);
+
+      if (activePlatforms.length === 0) {
+        return NextResponse.json(
+          { error: 'No active platform connections found' },
+          { status: 400 }
+        );
+      }
+
+      logger.info('Composer adaptation requested', { traceId, workspaceId, contentLength: content.length, activePlatforms });
 
       // Adapt content for all platforms
       const results = await PostAdapter.adaptForAllPlatforms(content.trim(), profileContext);
 
       const variants: Record<PlatformType, AdaptedPost> = {} as Record<PlatformType, AdaptedPost>;
-      const platforms: PlatformType[] = ['linkedin', 'x', 'threads'];
       let totalTokensIn = 0;
       let totalTokensOut = 0;
 
-      for (const platform of platforms) {
+      for (const platform of activePlatforms) {
         const result = results[platform];
         if (!result.ok) {
           logger.error('Adaptation failed for platform', { platform, error: result.error });
@@ -98,7 +112,7 @@ export async function POST(request: NextRequest) {
       });
 
       // Create variants
-      for (const platform of platforms) {
+      for (const platform of activePlatforms) {
         const adapted = variants[platform];
         await postRepository.createVariant({
           postId: post.id,

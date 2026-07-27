@@ -47,9 +47,23 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      logger.info('Direct broadcast requested', { traceId, workspaceId, contentLength: content.length });
+      // Fetch active platform connections for this workspace
+      const { SupabasePlatformRepository } = await import('@/lib/repositories/supabase/SupabasePlatformRepository');
+      const platformRepo = new SupabasePlatformRepository();
+      const connections = await platformRepo.findByWorkspaceId(workspaceId);
+      const activePlatforms = connections
+        .filter(c => c.status === 'connected')
+        .map(c => c.platform as PlatformType);
 
-      const platforms: PlatformType[] = ['linkedin', 'x', 'threads'];
+      if (activePlatforms.length === 0) {
+        return NextResponse.json(
+          { error: 'No active platform connections found' },
+          { status: 400 }
+        );
+      }
+
+      logger.info('Direct broadcast requested', { traceId, workspaceId, contentLength: content.length, activePlatforms });
+
       const rawContent = content.trim();
 
       // Create post in database
@@ -60,8 +74,8 @@ export async function POST(request: NextRequest) {
         adaptationPromptVersion: 'direct-broadcast', // Special marker indicating no AI
       });
 
-      // Create identical variants
-      for (const platform of platforms) {
+      // Create identical variants for ACTIVE platforms only
+      for (const platform of activePlatforms) {
         await postRepository.createVariant({
           postId: post.id,
           platform,
