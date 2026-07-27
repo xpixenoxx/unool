@@ -145,8 +145,10 @@ export class ThreadsAdapter implements PlatformAdapter {
         containerParams.set('reply_control', 'ALL');
       }
 
-      const containerResponse = await fetchWithRetry(`${THREADS_API_BASE}/me/threads?${containerParams.toString()}`, {
+      const containerResponse = await fetchWithRetry(`${THREADS_API_BASE}/me/threads`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: containerParams.toString(),
       });
 
       if (!containerResponse.ok) {
@@ -167,8 +169,10 @@ export class ThreadsAdapter implements PlatformAdapter {
       });
 
       // Publish the container
-      const publishResponse = await fetchWithRetry(`${THREADS_API_BASE}/me/threads_publish?${publishParams.toString()}`, {
+      const publishResponse = await fetchWithRetry(`${THREADS_API_BASE}/me/threads_publish`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: publishParams.toString(),
       });
 
       if (!publishResponse.ok) {
@@ -225,8 +229,10 @@ export class ThreadsAdapter implements PlatformAdapter {
       text: content,
       access_token: accessToken,
     });
-    const response = await fetchWithRetry(`${THREADS_API_BASE}/${parentId}/replies?${replyParams.toString()}`, {
+    const response = await fetchWithRetry(`${THREADS_API_BASE}/${parentId}/replies`, {
       method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: replyParams.toString(),
     });
 
     if (!response.ok) {
