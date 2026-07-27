@@ -103,6 +103,17 @@ async function getDashboardData(): Promise<{
 }
 
 export default async function DashboardPage() {
-  const data = await getDashboardData();
-  return <DashboardClient data={data} />;
+  try {
+    const data = await getDashboardData();
+    return <DashboardClient data={data} />;
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    return (
+      <div className="p-8 text-red-500">
+        <h1>Dashboard Error</h1>
+        <pre>{err.name}: {err.message}</pre>
+        <pre>{err.stack}</pre>
+      </div>
+    );
+  }
 }
