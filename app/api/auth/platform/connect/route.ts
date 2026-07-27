@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getPlatformAdapter } from '@/lib/platforms';
 import { generateOAuthState, storeOAuthState, createOAuthCookie, RedisConfigError } from '@/lib/auth/oauth-state';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const platform = searchParams.get('platform');
