@@ -148,7 +148,7 @@ export class LinkedInAdapter implements PlatformAdapter {
           Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
           'X-Restli-Protocol-Version': '2.0.0',
-          'LinkedIn-Version': '202401',
+          'LinkedIn-Version': '202606',
         },
         body: JSON.stringify(postBody),
       });
@@ -182,6 +182,7 @@ export class LinkedInAdapter implements PlatformAdapter {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           'X-Restli-Protocol-Version': '2.0.0',
+          'LinkedIn-Version': '202606',
         },
       });
 
@@ -199,7 +200,7 @@ export class LinkedInAdapter implements PlatformAdapter {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           'X-Restli-Protocol-Version': '2.0.0',
-          'LinkedIn-Version': '202401',
+          'LinkedIn-Version': '202606',
         },
       });
 
