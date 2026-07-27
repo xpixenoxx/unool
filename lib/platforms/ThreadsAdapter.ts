@@ -10,8 +10,8 @@ import {
 } from './adapter';
 import { platformFetch, fetchWithRetry, TokenExpiredError } from '@/lib/utils/retry';
 
-const META_AUTH_URL = 'https://www.facebook.com/v19.0/dialog/oauth';
-const META_TOKEN_URL = 'https://graph.facebook.com/v19.0/oauth/access_token';
+const META_AUTH_URL = 'https://threads.net/oauth/authorize';
+const META_TOKEN_URL = 'https://graph.threads.net/oauth/access_token';
 const THREADS_API_BASE = 'https://graph.threads.net/v1.0';
 
 export class ThreadsAdapter implements PlatformAdapter {
@@ -67,10 +67,10 @@ export class ThreadsAdapter implements PlatformAdapter {
   async refreshAccessToken(refreshToken: string): Promise<TokenResponse> {
     // Threads uses long-lived tokens; refresh via Facebook OAuth
     const params = new URLSearchParams({
-      grant_type: 'fb_exchange_token',
+      grant_type: 'th_exchange_token',
       client_id: this.authConfig.clientId,
       client_secret: this.authConfig.clientSecret,
-      fb_exchange_token: refreshToken,
+      access_token: refreshToken,
     });
 
     return platformFetch('threads', async () => {
