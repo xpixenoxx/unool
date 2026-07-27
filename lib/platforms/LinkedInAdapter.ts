@@ -131,14 +131,15 @@ export class LinkedInAdapter implements PlatformAdapter {
 
       const postBody = {
         author: authorUrn,
-        lifecycleState: 'PUBLISHED',
-        specificContent: {
-          'com.linkedin.ugc.ShareContent': {
-            shareCommentary: { text: input.content },
-            shareMediaCategory: 'NONE',
-          },
+        commentary: input.content,
+        visibility: 'PUBLIC',
+        distribution: {
+          feedDistribution: 'MAIN_FEED',
+          targetEntities: [],
+          thirdPartyDistributionChannels: []
         },
-        visibility: { 'com.linkedin.ugc.MemberNetworkVisibility': 'PUBLIC' },
+        lifecycleState: 'PUBLISHED',
+        isReshareDisabledByAuthor: false
       };
 
       const response = await fetchWithRetry(`${LINKEDIN_V1_API_BASE}/posts`, {
