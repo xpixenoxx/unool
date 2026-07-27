@@ -563,7 +563,8 @@ export default function ComposerPage() {
           </MotionBox>
         )}
       </AnimatePresence>
-      </>}
+        </>
+      )}
     </Box>
   );
 }
