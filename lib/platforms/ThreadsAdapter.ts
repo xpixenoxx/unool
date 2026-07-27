@@ -45,10 +45,8 @@ export class ThreadsAdapter implements PlatformAdapter {
     });
 
     return platformFetch('threads', async () => {
-      const response = await fetchWithRetry(META_TOKEN_URL, {
+      const response = await fetchWithRetry(`${META_TOKEN_URL}?${params.toString()}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: params.toString(),
       });
 
       if (!response.ok) {
