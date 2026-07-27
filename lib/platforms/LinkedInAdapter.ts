@@ -163,8 +163,8 @@ export class LinkedInAdapter implements PlatformAdapter {
         throw new Error(`LinkedIn publish failed: ${error}`);
       }
 
-      const data = await response.json();
-      const platformPostId = data.id?.split(':').pop() || data.id;
+      // The /posts API returns 201 Created with an empty body and the ID in the x-restli-id header
+      const platformPostId = response.headers.get('x-restli-id') || '';
       const platformUrl = `https://www.linkedin.com/feed/update/${platformPostId}`;
 
       return {
