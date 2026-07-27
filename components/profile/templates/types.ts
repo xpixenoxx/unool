@@ -22,7 +22,7 @@ export interface TemplateMeta {
   features: TemplateFeatures & {
     performanceBudget?: 'ultra-light' | 'light' | 'medium' | 'heavy';
   };
-  persona?: 'student' | 'founder' | 'creator' | 'developer' | 'minimalist';
+  persona?: 'student' | 'founder' | 'creator' | 'developer' | 'minimalist' | 'ngo' | 'premium-opaque' | 'glossy-premium';
 }
 
 export interface TemplateProps {

@@ -1,0 +1,126 @@
+<svg width="400" height="600" viewBox="0 0 400 600" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:oklch(0.08 0.01 280)"/>
+      <stop offset="50%" style="stop-color:oklch(0.1 0.015 280)"/>
+      <stop offset="100%" style="stop-color:oklch(0.06 0.01 280)"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#fbbf24"/>
+      <stop offset="50%" style="stop-color:#f59e0b"/>
+      <stop offset="100%" style="stop-color:#d97706"/>
+    </linearGradient>
+    <linearGradient id="purple" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#a855f7"/>
+      <stop offset="100%" style="stop-color:#7c3aed"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:rgba(255,255,255,0.12)"/>
+      <stop offset="100%" style="stop-color:rgba(255,255,255,0.04)"/>
+    </linearGradient>
+    <linearGradient id="glassStroke" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:rgba(255,255,255,0.2)"/>
+      <stop offset="100%" style="stop-color:rgba(251,191,36,0.3)"/>
+    </linearGradient>
+    <linearGradient id="headlineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#fbbf24"/>
+      <stop offset="100%" style="stop-color:#a855f7"/>
+    </linearGradient>
+    <linearGradient id="nameGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#fbbf24"/>
+      <stop offset="50%" style="stop-color:#fff"/>
+      <stop offset="100%" style="stop-color:#a855f7"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="10" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="400" height="600" fill="url(#bg1)"/>
+
+  <!-- Atmospheric orbs -->
+  <circle cx="80" cy="100" r="100" fill="url(#purple)" opacity="0.08" filter="url(#glow)"/>
+  <circle cx="320" cy="500" r="120" fill="url(#gold)" opacity="0.06" filter="url(#glow)"/>
+  <circle cx="380" cy="80" r="60" fill="url(#gold)" opacity="0.05"/>
+
+  <!-- Sidebar / Avatar Card -->
+  <rect x="40" y="40" width="320" height="160" rx="20" fill="url(#glass)" stroke="url(#glassStroke)" stroke-width="1.5" filter="url(#softGlow)"/>
+
+  <!-- Avatar ring -->
+  <circle cx="200" cy="95" r="52" fill="none" stroke="url(#gold)" stroke-width="3" filter="url(#glow)"/>
+  <circle cx="200" cy="95" r="48" fill="url(#purple)" filter="url(#softGlow)"/>
+  <text x="200" y="107" text-anchor="middle" font-family="system-ui, sans-serif" font-size="28" font-weight="700" fill="white">JD</text>
+
+  <!-- Name with gradient -->
+  <text x="200" y="160" text-anchor="middle" font-family="system-ui, sans-serif" font-size="22" font-weight="700" fill="url(#nameGrad)">James Dawson</text>
+
+  <!-- Gradient headline -->
+  <text x="200" y="188" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" font-weight="500" fill="url(#headlineGrad)" letter-spacing="0.05em">Founder & CEO @ Apex Ventures</text>
+
+  <!-- Company Badges -->
+  <g font-family="system-ui, sans-serif">
+    <rect x="90" y="210" width="70" height="28" rx="14" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+    <text x="125" y="231" text-anchor="middle" font-size="10" font-weight="600" fill="rgba(255,255,255,0.8)">Series B</text>
+
+    <rect x="165" y="210" width="70" height="28" rx="14" fill="rgba(168,85,247,0.15)" stroke="rgba(168,85,247,0.3)" stroke-width="1"/>
+    <text x="200" y="231" text-anchor="middle" font-size="10" font-weight="600" fill="#c084fc">YC W22</text>
+
+    <rect x="240" y="210" width="70" height="28" rx="14" fill="rgba(251,191,36,0.15)" stroke="rgba(251,191,36,0.3)" stroke-width="1"/>
+    <text x="275" y="231" text-anchor="middle" font-size="10" font-weight="600" fill="#fbbf24">Forbes 30U30</text>
+  </g>
+
+  <!-- KPI Strip (Tilt Cards) -->
+  <g font-family="system-ui, sans-serif">
+    <rect x="40" y="260" width="93" height="70" rx="14" fill="url(#glass)" stroke="url(#glassStroke)" stroke-width="1" filter="url(#softGlow)"/>
+    <text x="86.5" y="282" text-anchor="middle" font-size="10" font-weight="700" fill="#fbbf24" letter-spacing="0.08em">REVENUE</text>
+    <text x="86.5" y="312" text-anchor="middle" font-size="20" font-weight="800" fill="white">$2.4M</text>
+
+    <rect x="153.5" y="260" width="93" height="70" rx="14" fill="url(#glass)" stroke="url(#glassStroke)" stroke-width="1" filter="url(#softGlow)"/>
+    <text x="200" y="282" text-anchor="middle" font-size="10" font-weight="700" fill="#fbbf24" letter-spacing="0.08em">TEAM</text>
+    <text x="200" y="312" text-anchor="middle" font-size="20" font-weight="800" fill="white">28</text>
+
+    <rect x="267" y="260" width="93" height="70" rx="14" fill="url(#glass)" stroke="url(#glassStroke)" stroke-width="1" filter="url(#softGlow)"/>
+    <text x="313.5" y="282" text-anchor="middle" font-size="10" font-weight="700" fill="#fbbf24" letter-spacing="0.08em">CUSTOMERS</text>
+    <text x="313.5" y="312" text-anchor="middle" font-size="20" font-weight="800" fill="white">1,240</text>
+  </g>
+
+  <!-- Bio Card -->
+  <rect x="40" y="350" width="320" height="80" rx="16" fill="url(#glass)" stroke="url(#glassStroke)" stroke-width="1" filter="url(#softGlow)"/>
+  <text x="60" y="374" font-family="system-ui, sans-serif" font-size="11" font-weight="600" fill="#fbbf24" letter-spacing="0.08em">BIO</text>
+  <text x="60" y="400" font-family="system-ui, sans-serif" font-size="13" fill="rgba(255,255,255,0.85)" width="280">Building the future of AI infrastructure. Previously scaled Stripe to $1B ARR. Angel investor in 40+ startups.</text>
+
+  <!-- Magnetic Links -->
+  <g font-family="system-ui, sans-serif" font-size="13">
+    <rect x="40" y="450" width="320" height="52" rx="14" fill="url(#glass)" stroke="url(#glassStroke)" stroke-width="1" filter="url(#softGlow)"/>
+    <circle cx="68" cy="476" r="16" fill="rgba(251,191,36,0.2)"/>
+    <text x="68" y="480" text-anchor="middle" font-size="16" fill="#fbbf24">🔗</text>
+    <text x="100" y="480" font-weight="600" fill="white">apexventures.co</text>
+    <text x="345" y="480" text-anchor="end" fill="#fbbf24">→</text>
+
+    <rect x="40" y="512" width="320" height="52" rx="14" fill="url(#glass)" stroke="url(#glassStroke)" stroke-width="1" filter="url(#softGlow)"/>
+    <circle cx="68" cy="538" r="16" fill="rgba(168,85,247,0.2)"/>
+    <text x="68" y="542" text-anchor="middle" font-size="16" fill="#c084fc">💼</text>
+    <text x="100" y="542" font-weight="600" fill="white">LinkedIn</text>
+    <text x="345" y="542" text-anchor="end" fill="#c084fc">→</text>
+  </g>
+
+  <!-- Testimonial Carousel Indicator -->
+  <text x="200" y="580" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="600" fill="rgba(255,255,255,0.4)" letter-spacing="0.1em">TESTIMONIALS</text>
+  <g>
+    <circle cx="185" cy="592" r="4" fill="#fbbf24"/>
+    <circle cx="200" cy="592" r="4" fill="rgba(251,191,36,0.3)"/>
+    <circle cx="215" cy="592" r="4" fill="rgba(251,191,36,0.3)"/>
+  </g>
+</svg>

@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { TemplateProps } from '../types';
 import { Flex, Stack, Box, Grid } from '@/components/ui/layout';
-import { Text, Heading, Overline } from '@/components/ui/typography';
+import { Text, Overline } from '@/components/ui/typography';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { MagneticCard, OrbitalBackground, MorphingBlob, ParallaxLayers, TiltCard } from '@/components/ui/3d';
@@ -64,7 +64,7 @@ export function CreatorTemplate({
         fontFamily: 'var(--font-syne)',
       } as React.CSSProperties}
     >
-      {/* Creative Gradient Background */}
+      {/* Creative Gradient Background + Pattern */}
       <div className="absolute inset-0 -z-20" aria-hidden="true">
         <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-muted/30" />
         <div
@@ -84,25 +84,34 @@ export function CreatorTemplate({
           className="absolute top-0 left-0 right-0 h-2"
           style={{ background: `linear-gradient(90deg, transparent, ${accent}, ${secondaryAccent}, oklch(0.7 0.25 80), transparent)` }}
         />
+        {/* Subtle creative pattern */}
+        <div
+          className="absolute inset-0 opacity-[0.02]"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fillRule='evenodd'%3E%3Cg fill='%23000' fillOpacity='0.1'%3E%3Cpath d='M0 0h60v60H0V0zm1 1h58v58H1V1z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+          }}
+        />
       </div>
 
-      {/* Orbital Background - Creative Energy */}
-      <OrbitalBackground
-        orbCount={6}
-        orbSizes={[180, 120, 220, 90, 160, 70]}
-        colors={[
-          `oklch(0.7 0.25 340 / 0.12)`,
-          `oklch(0.65 0.22 15 / 0.1)`,
-          `oklch(0.75 0.2 280 / 0.09)`,
-          `oklch(0.8 0.18 80 / 0.08)`,
-          `oklch(0.6 0.28 350 / 0.1)`,
-          `oklch(0.72 0.15 30 / 0.08)`,
-        ]}
-        speed={0.2}
-        className="pointer-events-none"
-      />
+      {/* Orbital Background - Creative Energy - ALWAYS VISIBLE but subtle */}
+      {!reducedMotion && (
+        <OrbitalBackground
+          orbCount={6}
+          orbSizes={[180, 120, 220, 90, 160, 70]}
+          colors={[
+            `oklch(0.7 0.25 340 / 0.12)`,
+            `oklch(0.65 0.22 15 / 0.1)`,
+            `oklch(0.75 0.2 280 / 0.09)`,
+            `oklch(0.8 0.18 80 / 0.08)`,
+            `oklch(0.6 0.28 350 / 0.1)`,
+            `oklch(0.72 0.15 30 / 0.08)`,
+          ]}
+          speed={0.2}
+          className="pointer-events-none"
+        />
+      )}
 
-      {/* Dual Morphing Blob System - Creative Expression */}
+      {/* Dual Morphing Blob System - Creative Expression - ALWAYS VISIBLE */}
       <MorphingBlob size={420} color={accent} opacity={0.22} speed={0.12} complexity={5} className="absolute top-1/5 left-1/3 -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
       <MorphingBlob size={300} color={secondaryAccent} opacity={0.18} speed={0.1} complexity={4} className="absolute bottom-1/5 right-1/4 -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
 
@@ -143,7 +152,7 @@ export function CreatorTemplate({
               />
             </motion.div>
 
-            {/* Creative orbit ring */}
+            {/* Creative orbit ring - ALWAYS VISIBLE, animates subtly */}
             <motion.div
               className="absolute -top-5 -left-5 -right-5 -bottom-5 rounded-full pointer-events-none"
               style={{ border: `2px solid ${accent}30` }}
@@ -208,7 +217,7 @@ export function CreatorTemplate({
           </Stack>
         </motion.div>
 
-        {/* Bio - Creative Card with Parallax */}
+        {/* Bio - ALWAYS VISIBLE when bio exists, parallax enhanced */}
         {profile.bio && (
           <motion.div
             initial={reducedMotion ? {} : { opacity: 0, y: 30 }}
@@ -240,7 +249,7 @@ export function CreatorTemplate({
           </motion.div>
         )}
 
-        {/* Links - Creative Feed Cards */}
+        {/* Links - Creative Feed Cards - ALWAYS VISIBLE */}
         {visibleLinks.length > 0 && (
           <motion.div
             initial={reducedMotion ? {} : { opacity: 0, y: 30 }}
@@ -257,7 +266,7 @@ export function CreatorTemplate({
                     exit={{ opacity: 0, scale: 0.95, y: -20 }}
                     transition={{ ...spring.magnetic, delay: 0.5 + index * 0.06 }}
                   >
-                    {/* Alternate TiltCard and MagneticCard for visual variety */}
+                    {/* Alternate TiltCard and MagneticCard for visual variety - ALWAYS VISIBLE */}
                     {index % 2 === 0 ? (
                       <CreativeFeedCard
                         link={link}
@@ -288,7 +297,7 @@ export function CreatorTemplate({
           </motion.div>
         )}
 
-        {/* Media Grid - Instagram/TikTok style */}
+        {/* Media Grid - Instagram/TikTok style - ALWAYS VISIBLE */}
         {mediaItems.length > 0 && (
           <motion.div
             initial={reducedMotion ? {} : { opacity: 0, y: 30 }}
@@ -324,11 +333,12 @@ export function CreatorTemplate({
                           <img src={item.thumbnail} alt={item.caption} className="w-full h-full object-cover" loading="lazy" />
                         </div>
 
-                        {/* Overlay on hover */}
+                        {/* Overlay on hover - ALWAYS VISIBLE on hover/focus */}
                         <motion.div
                           className="absolute inset-0 flex items-center justify-center gap-3 opacity-0"
                           style={{ background: 'linear-gradient(180deg, transparent 40%, oklch(0 0 0 / 0.8))' }}
                           whileHover={{ opacity: 1 }}
+                          whileFocus={{ opacity: 1 }}
                           transition={{ duration: 0.3, ease: 'easeOut' }}
                         >
                           <motion.button
@@ -351,7 +361,7 @@ export function CreatorTemplate({
                           </motion.button>
                         </motion.div>
 
-                        {/* Stats on bottom */}
+                        {/* Stats on bottom - ALWAYS VISIBLE */}
                         <div className="absolute bottom-0 left-0 right-0 px-3 py-2 flex items-center justify-between gap-2" style={{ background: 'linear-gradient(180deg, transparent, oklch(0 0 0 / 0.7))' }}>
                           <Flex gap={1.5} align="center">
                             <span className="flex items-center gap-1 text-xs font-medium" style={{ color: 'var(--foreground)' }}>
@@ -373,7 +383,7 @@ export function CreatorTemplate({
           </motion.div>
         )}
 
-        {/* Proof Points - Creative Badges */}
+        {/* Proof Points - Creative Badges - ALWAYS VISIBLE */}
         {visibleProofs.filter((p) => p.type !== 'badge' && p.type !== 'testimonial').length > 0 && (
           <motion.div
             initial={reducedMotion ? {} : { opacity: 0, y: 20 }}
@@ -416,7 +426,7 @@ export function CreatorTemplate({
           </motion.div>
         )}
 
-        {/* Subdomain - Creative Sidebar */}
+        {/* Subdomain - Creative Sidebar - Mobile only */}
         <motion.div
           initial={reducedMotion ? {} : { opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -441,7 +451,7 @@ export function CreatorTemplate({
         </motion.div>
       </Stack>
 
-      {/* Desktop Only: Creative Subdomain Sidebar */}
+      {/* Desktop Only: Creative Subdomain Sidebar - ALWAYS VISIBLE */}
       <div className="hidden lg:block absolute bottom-8 left-8 right-auto" style={{ maxWidth: 200 }}>
         <motion.div
           initial={reducedMotion ? {} : { opacity: 0, x: -20 }}
@@ -492,7 +502,7 @@ function CreativeFeedCard({
     <>
       {variant === 'tilt' ? (
         <TiltCard
-          maxTilt={8}
+          maxTilt={reducedMotion ? 0 : 8}
           scale={1.02}
           className={cn('h-auto w-full', isPreview && 'opacity-80')}
           style={{
@@ -507,7 +517,7 @@ function CreativeFeedCard({
       ) : (
         <MagneticCard
           radius={120}
-          strength={0.18}
+          strength={reducedMotion ? 0 : 0.18}
           className={cn('h-auto w-full', isPreview && 'opacity-80')}
           style={{
             borderRadius: '16px',
@@ -553,7 +563,7 @@ function CreativeLinkButton({
       style={{ borderRadius: '14px', fontFamily: 'var(--font-syne)', display: 'flex' }}
       onMouseEnter={() => isPreview && onLinkClick?.(link)}
     >
-      {/* Animated left accent bar - creative gradient */}
+      {/* Animated left accent bar - creative gradient - ALWAYS VISIBLE */}
       <motion.div
         className="absolute left-0 top-0 bottom-0 w-1.5"
         style={{ background: `linear-gradient(180deg, ${accent}, ${secondaryAccent}, oklch(0.7 0.25 80))`, borderRadius: '14px 0 0 14px', transformOrigin: 'bottom' }}
@@ -570,7 +580,7 @@ function CreativeLinkButton({
         transition={{ duration: 1, ease: 'easeOut' }}
       />
 
-      {/* Hover glow - variant specific */}
+      {/* Hover glow - variant specific - visible on hover/focus */}
       {variant === 'magnetic' && (
         <motion.div
           className="absolute inset-0 opacity-0 pointer-events-none"
@@ -579,6 +589,7 @@ function CreativeLinkButton({
             borderRadius: '14px',
           }}
           whileHover={{ opacity: 1 }}
+          whileFocus={{ opacity: 1 }}
           transition={{ duration: 0.3 }}
         />
       )}
@@ -591,11 +602,12 @@ function CreativeLinkButton({
             borderRadius: '14px',
           }}
           whileHover={{ opacity: 1 }}
+          whileFocus={{ opacity: 1 }}
           transition={{ duration: 0.3 }}
         />
       )}
 
-      {/* Video play indicator */}
+      {/* Video play indicator - ALWAYS VISIBLE when isVideo */}
       {isVideo && (
         <motion.div
           className="absolute top-3 right-3 z-10"

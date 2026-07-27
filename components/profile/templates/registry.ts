@@ -125,6 +125,81 @@ export const TEMPLATE_REGISTRY: TemplateMeta[] = [
     },
     persona: 'minimalist',
   },
+
+  // NGO — Mission-focused, donations, impact metrics, volunteers, partners
+  {
+    id: 'ngo',
+    name: 'NGO',
+    category: 'persona',
+    intensity: 'standard',
+    preset: 'minimal',
+    description: 'Mission-driven layout with impact metrics KPI strip, prominent donation/volunteer action buttons, partner badges, and clean proof points.',
+    tags: ['ngo', 'nonprofit', 'mission', 'impact', 'donate', 'volunteer', 'partners'],
+    thumbnail: '/templates/previews/ngo.svg',
+    features: {
+      has3DBackground: false,
+      hasParallax: false,
+      hasTiltCards: true,
+      hasMagneticHover: false,
+      hasAnimatedOrbs: false,
+      hasGradientText: false,
+      supportsVideoBackground: false,
+      maxLinks: 12,
+      maxProofPoints: 8,
+      performanceBudget: 'light',
+    },
+    persona: 'ngo',
+  },
+
+  // PREMIUM OPAQUE — Dark theme, glassmorphism, elegant premium aesthetic
+  {
+    id: 'premium-opaque',
+    name: 'Premium Opaque',
+    category: 'persona',
+    intensity: 'bold',
+    preset: 'corporate',
+    description: 'Dark premium theme with glassmorphism cards, magnetic hover effects, gradient text, and elegant gold/purple accents. Sophisticated and exclusive.',
+    tags: ['premium', 'dark', 'glassmorphism', 'elegant', 'exclusive', 'luxury'],
+    thumbnail: '/templates/previews/premium-opaque.svg',
+    features: {
+      has3DBackground: false,
+      hasParallax: false,
+      hasTiltCards: true,
+      hasMagneticHover: true,
+      hasAnimatedOrbs: false,
+      hasGradientText: true,
+      supportsVideoBackground: false,
+      maxLinks: 12,
+      maxProofPoints: 6,
+      performanceBudget: 'medium',
+    },
+    persona: 'premium-opaque',
+  },
+
+  // GLOSSY PREMIUM — High-gloss finishes, reflective surfaces, smooth premium feel
+  {
+    id: 'glossy-premium',
+    name: 'Glossy Premium',
+    category: 'persona',
+    intensity: 'max',
+    preset: 'creative',
+    description: 'Ultra-glossy light theme with reflective glassmorphism, animated shine sweeps, multi-color gradients, diamond-pattern backgrounds, and premium badge animations.',
+    tags: ['glossy', 'premium', 'reflective', 'luxury', 'shiny', 'immersive'],
+    thumbnail: '/templates/previews/glossy-premium.svg',
+    features: {
+      has3DBackground: false,
+      hasParallax: false,
+      hasTiltCards: true,
+      hasMagneticHover: true,
+      hasAnimatedOrbs: false,
+      hasGradientText: true,
+      supportsVideoBackground: false,
+      maxLinks: 10,
+      maxProofPoints: 5,
+      performanceBudget: 'heavy',
+    },
+    persona: 'glossy-premium',
+  },
 ];
 
 export function getTemplateById(id: string): TemplateMeta | undefined {

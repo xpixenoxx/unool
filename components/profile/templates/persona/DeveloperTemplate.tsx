@@ -72,26 +72,32 @@ function TerminalPrompt({ text, delay = 0, reducedMotion }: { text: string; dela
 
 function TypingText({ text, delay = 0, reducedMotion, className, style }: { text: string; delay?: number; reducedMotion: boolean; className?: string; style?: React.CSSProperties }) {
   const [displayText, setDisplayText] = React.useState('');
+  const [isComplete, setIsComplete] = React.useState(false);
 
   React.useEffect(() => {
     if (reducedMotion) {
       setDisplayText(text);
+      setIsComplete(true);
       return;
     }
 
     const chars = text.split('');
     let i = 0;
-    const timer = setInterval(() => {
-      if (i < chars.length) {
-        setDisplayText(prev => prev + chars[i]);
-        i++;
-      } else {
-        clearInterval(timer);
-      }
-    }, 30);
+    const timer = setTimeout(() => {
+      const interval = setInterval(() => {
+        if (i < chars.length) {
+          setDisplayText(prev => prev + chars[i]);
+          i++;
+        } else {
+          clearInterval(interval);
+          setIsComplete(true);
+        }
+      }, 30);
+      return () => clearInterval(interval);
+    }, delay * 1000);
 
-    return () => clearInterval(timer);
-  }, [text, reducedMotion]);
+    return () => clearTimeout(timer);
+  }, [text, delay, reducedMotion]);
 
   return (
     <motion.span
@@ -117,15 +123,21 @@ function TypingText({ text, delay = 0, reducedMotion, className, style }: { text
 
 function StatCard({ label, value, icon: Icon, accent, delay = 0, reducedMotion }: { label: string; value: string; icon: React.ComponentType<React.SVGProps<SVGSVGElement>>; accent: string; delay?: number; reducedMotion: boolean }) {
   return (
-    <TiltCard maxTilt={3} scale={1.015} className="h-auto">
+    <TiltCard maxTilt={reducedMotion ? 0 : 3} scale={1.015} className="h-auto">
       <motion.div
         initial={reducedMotion ? {} : { opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ ...spring.standard, delay: 0.3 + delay }}
         className="relative p-4 rounded-xl border overflow-hidden"
-        style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
+        style={{ background: 'oklch(0.12 0.01 150)', borderColor: 'oklch(0.18 0.02 150)' }}
       >
-        <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${accent}08 0%, transparent 100%)` }} />
+        <div
+          className="absolute inset-0"
+          style={{
+            background: `linear-gradient(135deg, ${accent}08 0%, transparent 100%)`,
+            opacity: reducedMotion ? 1 : 1
+          }}
+        />
         <Flex between className="relative z-10 mb-3">
           <Overline className="uppercase tracking-wider" style={{ color: accent, fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', letterSpacing: '0.1em' }}>
             {label}
@@ -156,24 +168,28 @@ function RepoCard({ repo, accent, delay = 0, reducedMotion }: { repo: RepoData; 
       transition={{ ...spring.standard, delay: 0.4 + delay }}
       className="group relative"
     >
-      <TiltCard maxTilt={4} scale={1.01} className="h-auto">
+      <TiltCard maxTilt={reducedMotion ? 0 : 4} scale={1.01} className="h-auto">
         <a
           href={repo.url}
           target="_blank"
           rel="noopener noreferrer"
           className="relative w-full p-4 rounded-xl border flex flex-col h-full no-underline"
           style={{
-            background: 'var(--card)',
-            borderColor: 'var(--border)',
+            background: 'oklch(0.12 0.01 150)',
+            borderColor: 'oklch(0.18 0.02 150)',
             transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = accent;
-            e.currentTarget.style.boxShadow = `0 8px 32px -8px ${accent}30`;
+            if (!reducedMotion) {
+              e.currentTarget.style.borderColor = accent;
+              e.currentTarget.style.boxShadow = `0 8px 32px -8px ${accent}30`;
+            }
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = 'var(--border)';
-            e.currentTarget.style.boxShadow = 'none';
+            if (!reducedMotion) {
+              e.currentTarget.style.borderColor = 'oklch(0.18 0.02 150)';
+              e.currentTarget.style.boxShadow = 'none';
+            }
           }}
         >
           {/* Header */}
@@ -184,7 +200,7 @@ function RepoCard({ repo, accent, delay = 0, reducedMotion }: { repo: RepoData; 
                 animate={{ scale: 1 }}
                 transition={{ ...spring.bouncy, delay: 0.5 + delay }}
                 className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                style={{ background: `linear-gradient(135deg, ${accent}, ${accent}dd)`, color: 'var(--primary-foreground)' }}
+                style={{ background: `linear-gradient(135deg, ${accent}, ${accent}dd)`, color: 'oklch(0.09 0.01 150)' }}
               >
                 {repo.isPinned ? <Star className="w-4 h-4 fill-current" /> : <FileCode className="w-4 h-4" />}
               </motion.div>
@@ -215,7 +231,7 @@ function RepoCard({ repo, accent, delay = 0, reducedMotion }: { repo: RepoData; 
           )}
 
           {/* Footer Stats */}
-          <Flex between className="pt-3 border-t relative z-10" style={{ borderColor: 'var(--border)' }}>
+          <Flex between className="pt-3 border-t relative z-10" style={{ borderColor: 'oklch(0.18 0.02 150)' }}>
             <Flex gap={4} align="center">
               <Flex gap={1.5} align="center" className="opacity-70 group-hover:opacity-100 transition-opacity">
                 <Star className="w-3.5 h-3.5" style={{ color: accent }} />
@@ -340,46 +356,6 @@ export function DeveloperTemplate({
     },
   ];
 
-  // Links that look like repos
-  const repoLinks = visibleLinks
-    .filter(l => l.label.toLowerCase().includes('github') || l.label.toLowerCase().includes('repo') || l.label.toLowerCase().includes('code'))
-    .slice(0, 3);
-
-  // Internal component: TypingText - simulates typing effect for bio
-  const TypingText = ({ text, speed = 30, startDelay = 0, className = '', style, reducedMotion }: { text: string; speed?: number; startDelay?: number; className?: string; style?: React.CSSProperties; reducedMotion: boolean }) => {
-    const [displayText, setDisplayText] = React.useState('');
-    const [isComplete, setIsComplete] = React.useState(false);
-
-    React.useEffect(() => {
-      if (reducedMotion) {
-        setDisplayText(text);
-        setIsComplete(true);
-        return;
-      }
-      const timer = setTimeout(() => {
-        let i = 0;
-        const interval = setInterval(() => {
-          if (i < text.length) {
-            setDisplayText(text.slice(0, i + 1));
-            i++;
-          } else {
-            clearInterval(interval);
-            setIsComplete(true);
-          }
-        }, speed);
-        return () => clearInterval(interval);
-      }, startDelay);
-      return () => clearTimeout(timer);
-    }, [text, speed, startDelay, reducedMotion]);
-
-    return (
-      <span className={className} style={style}>
-        {displayText}
-        {!isComplete && !reducedMotion && <span className="animate-pulse" style={{ color: accent }}>▊</span>}
-      </span>
-    );
-  };
-
   // Internal component: SyntaxHighlightedCode - simple syntax highlighting for code blocks
   const SyntaxHighlightedCode = ({ code, language = 'typescript', reducedMotion }: { code: string; language?: string; reducedMotion: boolean }) => {
     const highlight = (code: string) => {
@@ -388,7 +364,7 @@ export function DeveloperTemplate({
         .replace(/</g, '<')
         .replace(/>/g, '>')
         .replace(
-          /\b(const|let|var|function|return|if|else|for|while|switch|case|default|break|continue|try|catch|finally|throw|import|export|from|as|const|type|interface|extends|implements|public|private|protected|static|async|await|new|this|super|class|enum|namespace|module|declare|abstract|readonly)\b/g,
+          /\b(const|let|var|function|return|if|else|for|while|switch|case|default|break|continue|try|catch|finally|throw|import|export|from|as|type|interface|extends|implements|public|private|protected|static|async|await|new|this|super|class|enum|namespace|module|declare|abstract|readonly)\b/g,
           '<span style="color:#c586c0">$&</span>'
         )
         .replace(
@@ -430,16 +406,37 @@ export function DeveloperTemplate({
         color: 'oklch(0.92 0.02 150)',
       } as React.CSSProperties}
     >
-      {/* Subtle matrix-like particles */}
-      {!reducedMotion && (
-        <OrbitalParticles
-          count={15}
-          colors={[accent, secondaryAccent, 'oklch(0.7 0.15 150)']}
-          size={3}
-          speed={0.3}
-          className="pointer-events-none fixed inset-0 -z-10 opacity-30"
+      {/* Background: Terminal grid pattern */}
+      <div className="absolute inset-0 -z-20" aria-hidden="true">
+        {/* Base */}
+        <div className="absolute inset-0" style={{ background: 'oklch(0.09 0.01 150)' }} />
+        {/* Grid pattern */}
+        <div
+          className="absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage: `
+              linear-gradient(90deg, ${accent}22 1px, transparent 1px),
+              linear-gradient(${accent}22 1px, transparent 1px)
+            `,
+            backgroundSize: '40px 40px',
+          }}
         />
-      )}
+        {/* Accent glow */}
+        <div
+          className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full blur-[200px] opacity-20"
+          style={{ background: `radial-gradient(ellipse at center, ${accent}30 0%, transparent 70%)` }}
+        />
+        {/* Subtle matrix-like particles */}
+        {!reducedMotion && (
+          <OrbitalParticles
+            count={15}
+            colors={[accent, secondaryAccent, 'oklch(0.7 0.15 150)']}
+            size={3}
+            speed={0.3}
+            className="pointer-events-none fixed inset-0 -z-10 opacity-30"
+          />
+        )}
+      </div>
 
       {/* Terminal Header Bar */}
       <div className="fixed top-0 left-0 right-0 z-20 border-b" style={{ borderColor: 'oklch(0.18 0.02 150)', background: 'oklch(0.09 0.01 150 / 0.95)', backdropFilter: 'blur(8px)' }}>
@@ -492,7 +489,7 @@ export function DeveloperTemplate({
           animate={{ opacity: 1, y: 0 }}
           transition={{ ...spring.standard, delay: 0.3 }}
         >
-          <div className="relative rounded-xl border p-1.5 overflow-hidden" style={{ borderColor: 'var(--border)', background: 'oklch(0.12 0.01 150)' }}>
+          <div className="relative rounded-xl border p-1.5 overflow-hidden" style={{ borderColor: 'oklch(0.18 0.02 150)', background: 'oklch(0.12 0.01 150)' }}>
             <div className="relative p-5 rounded-lg" style={{ background: 'oklch(0.09 0.01 150)' }}>
               {/* Avatar + Name inline */}
               <Flex gap={4} align="center" className="mb-4">
@@ -513,7 +510,7 @@ export function DeveloperTemplate({
                     className="text-xl font-bold tracking-tight"
                     style={{ fontFamily: 'var(--font-sans)', letterSpacing: '-0.02em' }}
                   >
-                    <TypingText text={profile.name || 'Anonymous'} startDelay={0.1} reducedMotion={reducedMotion} style={{ fontFamily: 'var(--font-sans)' }} />
+                    <TypingText text={profile.name || 'Anonymous'} delay={0.1} reducedMotion={reducedMotion} style={{ fontFamily: 'var(--font-sans)' }} />
                   </motion.h1>
                   {profile.headline && (
                     <motion.p
@@ -523,7 +520,7 @@ export function DeveloperTemplate({
                       className="text-base font-medium"
                       style={{ fontFamily: 'var(--font-sans)', color: accent }}
                     >
-                      <TypingText text={profile.headline} startDelay={0.2} reducedMotion={reducedMotion} />
+                      <TypingText text={profile.headline} delay={0.2} reducedMotion={reducedMotion} />
                     </motion.p>
                   )}
                   {profile.company && (
@@ -534,7 +531,7 @@ export function DeveloperTemplate({
                       className="text-sm"
                       style={{ fontFamily: 'var(--font-sans)', color: secondaryAccent }}
                     >
-                      <TypingText text={`@ ${profile.company}`} startDelay={0.3} reducedMotion={reducedMotion} />
+                      <TypingText text={`@ ${profile.company}`} delay={0.3} reducedMotion={reducedMotion} />
                     </motion.p>
                   )}
                   <motion.div
@@ -554,7 +551,7 @@ export function DeveloperTemplate({
                 </Stack>
               </Flex>
 
-              {/* Bio - Syntax Highlighted Bio */}
+              {/* Bio - Syntax Highlighted Bio - ALWAYS VISIBLE when bio exists */}
               {profile.bio && (
                 <motion.div
                   initial={reducedMotion ? {} : { opacity: 0, y: 20 }}
@@ -583,7 +580,7 @@ export function DeveloperTemplate({
           </div>
         </motion.div>
 
-        {/* GitHub Stats - KPI Cards */}
+        {/* GitHub Stats - KPI Cards - ALWAYS VISIBLE, tilt only on hover if not reduced motion */}
         <motion.div
           initial={reducedMotion ? {} : { opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -617,7 +614,7 @@ export function DeveloperTemplate({
           </Grid>
         </motion.div>
 
-        {/* Pinned Repositories */}
+        {/* Pinned Repositories - ALWAYS VISIBLE */}
         {pinnedRepos.length > 0 && (
           <motion.div
             initial={reducedMotion ? {} : { opacity: 0, y: 20 }}
@@ -641,7 +638,7 @@ export function DeveloperTemplate({
           </motion.div>
         )}
 
-        {/* Links Section - Styled as repo list */}
+        {/* Links Section - Styled as repo list - ALWAYS VISIBLE */}
         {visibleLinks.length > 0 && (
           <motion.div
             initial={reducedMotion ? {} : { opacity: 0, y: 20 }}
@@ -690,15 +687,16 @@ export function DeveloperTemplate({
                       e.currentTarget.style.outline = 'none';
                     }}
                   >
-                    {/* Hover background */}
+                    {/* Hover background - always visible on hover/focus */}
                     <motion.div
                       className="absolute inset-0 rounded-lg"
                       style={{ background: accent, opacity: 0 }}
                       whileHover={{ opacity: 0.08 }}
+                      whileFocus={{ opacity: 0.08 }}
                       transition={{ duration: 0.15 }}
                     />
 
-                    {/* Icon */}
+                    {/* Icon - ALWAYS VISIBLE */}
                     <motion.div
                       initial={reducedMotion ? {} : { scale: 0 }}
                       animate={{ scale: 1 }}
@@ -715,7 +713,7 @@ export function DeveloperTemplate({
                       {link.icon || link.label.charAt(0).toUpperCase()}
                     </motion.div>
 
-                    {/* Label + URL */}
+                    {/* Label + URL - ALWAYS VISIBLE */}
                     <Flex column gap={1} flex={1} className="min-w-0">
                       <motion.span
                         initial={reducedMotion ? {} : { opacity: 0, x: -8 }}
@@ -734,10 +732,10 @@ export function DeveloperTemplate({
                     {/* External link + Click count */}
                     <Flex align="center" gap={2.5}>
                       <motion.span
-                        initial={{ opacity: 0, x: -6 }}
+                        initial={{ opacity: 0.3, x: -6 }}
                         whileHover={{ opacity: 1, x: 4 }}
                         transition={{ ...spring.snappy }}
-                        style={{ color: accent, fontSize: '1rem', opacity: 0 }}
+                        style={{ color: accent, fontSize: '1rem' }}
                       >
                         →
                       </motion.span>
@@ -763,7 +761,7 @@ export function DeveloperTemplate({
           </motion.div>
         )}
 
-        {/* Proof Points - Terminal style list */}
+        {/* Proof Points - Terminal style list - ALWAYS VISIBLE */}
         {visibleProofs.length > 0 && (
           <motion.div
             initial={reducedMotion ? {} : { opacity: 0, y: 20 }}

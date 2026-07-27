@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
+import { motion, AnimatePresence, useMotionValue, useSpring } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { TemplateProps } from '../types';
 import { Flex, Stack, Box, Grid } from '@/components/ui/layout';
@@ -73,8 +73,31 @@ export function FounderTemplate({
     goToTestimonial(prev);
   };
 
-  // Magnetic cards for links
-  const magneticCards = visibleLinks.length > 0;
+  // Simple Button component for testimonial navigation
+  function Button({ variant = 'ghost', size = 'icon', className, children, onClick, 'aria-label': ariaLabel }: { variant?: 'ghost' | 'default' | 'outline'; size?: 'icon' | 'sm' | 'md' | 'lg'; className?: string; children: React.ReactNode; onClick?: () => void; 'aria-label'?: string }) {
+    const baseStyles = 'inline-flex items-center justify-center rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50';
+    const variants: Record<string, string> = {
+      ghost: 'hover:bg-accent hover:text-accent-foreground',
+      default: 'bg-primary text-primary-foreground hover:bg-primary/90',
+      outline: 'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
+    };
+    const sizes: Record<string, string> = {
+      icon: 'h-8 w-8',
+      sm: 'h-8 px-3 text-xs',
+      md: 'h-9 px-4 text-sm',
+      lg: 'h-10 px-6 text-base',
+    };
+
+    return (
+      <button
+        className={cn(baseStyles, variants[variant], sizes[size], className)}
+        onClick={onClick}
+        aria-label={ariaLabel}
+      >
+        {children}
+      </button>
+    );
+  }
 
   return (
     <div
@@ -85,12 +108,19 @@ export function FounderTemplate({
         fontFamily: 'var(--font-sans)',
       } as React.CSSProperties}
     >
-      {/* Subtle background gradient */}
+      {/* Subtle background gradient + patterns */}
       <div className="absolute inset-0 -z-10" aria-hidden="true">
         <div className="absolute inset-0 bg-gradient-to-b from-background via-background to-muted/20" />
         <div
           className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full blur-[200px] opacity-30"
           style={{ background: `radial-gradient(ellipse at center, ${accent}20 0%, transparent 60%)` }}
+        />
+        {/* Subtle geometric pattern */}
+        <div
+          className="absolute inset-0 opacity-[0.02]"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fillRule='evenodd'%3E%3Cg fill='%23000' fillOpacity='0.1'%3E%3Cpath d='M0 0h80v80H0V0zm1 1h78v78H1V1z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+          }}
         />
       </div>
 
@@ -107,6 +137,14 @@ export function FounderTemplate({
             {/* Avatar + Name */}
             <Stack space={4} align="center" className="text-center">
               <div className="relative">
+                <div
+                  className="absolute inset-0 rounded-full -inset-1"
+                  style={{
+                    background: `radial-gradient(circle at 30% 30%, ${accent}15, transparent 70%)`,
+                    filter: 'blur(16px)',
+                    transform: 'scale(1.2)',
+                  }}
+                />
                 <Avatar className="h-24 w-24 ring-4 relative z-10" ringColor={accent}>
                   <AvatarImage src={profile.avatarUrl} alt={profile.name} className="object-cover" />
                   <AvatarFallback className="text-3xl font-medium">{profile.name.charAt(0).toUpperCase()}</AvatarFallback>
@@ -170,7 +208,7 @@ export function FounderTemplate({
                 )}
               </Stack>
 
-              {/* Company Badges */}
+              {/* Company Badges - ALWAYS VISIBLE */}
               {companyBadges.length > 0 && (
                 <motion.div
                   initial={reducedMotion ? {} : { opacity: 0, y: 16 }}
@@ -229,7 +267,7 @@ export function FounderTemplate({
             transition={{ ...spring.standard, delay: 0.2 }}
             className="space-y-8"
           >
-            {/* KPI Strip */}
+            {/* KPI Strip - ALWAYS VISIBLE, tilt only on hover if not reduced motion */}
             {kpiProofs.length > 0 && (
               <motion.div
                 initial={reducedMotion ? {} : { opacity: 0, y: 20 }}
@@ -238,7 +276,7 @@ export function FounderTemplate({
               >
                 <Grid cols={{ base: 1, sm: 3 }} gap={4}>
                   {kpiProofs.map((kpi, index) => (
-                    <TiltCard key={kpi.id} maxTilt={6} scale={1.02} className="h-full">
+                    <TiltCard key={kpi.id} maxTilt={reducedMotion ? 0 : 6} scale={1.02} className="h-full">
                       <div className="h-full p-5 rounded-xl border relative overflow-hidden" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
                         <div
                           className="absolute inset-0"
@@ -274,7 +312,7 @@ export function FounderTemplate({
               </motion.div>
             )}
 
-            {/* Bio Card */}
+            {/* Bio Card - ALWAYS VISIBLE */}
             {profile.bio && (
               <motion.div
                 initial={reducedMotion ? {} : { opacity: 0, y: 20 }}
@@ -292,7 +330,7 @@ export function FounderTemplate({
               </motion.div>
             )}
 
-            {/* Links - Card style with magnetic hover */}
+            {/* Links - Card style with magnetic hover - ALWAYS VISIBLE */}
             {visibleLinks.length > 0 && (
               <motion.div
                 initial={reducedMotion ? {} : { opacity: 0, y: 20 }}
@@ -304,7 +342,7 @@ export function FounderTemplate({
                     <MagneticCard
                       key={link.id}
                       radius={100}
-                      strength={0.15}
+                      strength={reducedMotion ? 0 : 0.15}
                       className={cn('w-full', isPreview && 'opacity-80')}
                       style={{
                         borderRadius: '12px',
@@ -324,13 +362,14 @@ export function FounderTemplate({
                         }}
                         onMouseEnter={() => isPreview && onLinkClick?.(link)}
                       >
-                        {/* Hover glow */}
+                        {/* Hover glow - visible on hover/focus */}
                         <motion.div
                           className="absolute inset-0 opacity-0 rounded-xl"
                           style={{
                             boxShadow: `0 0 0 2px ${accent}30, 0 8px 32px -8px ${accent}20`,
                           }}
                           whileHover={{ opacity: 1 }}
+                          whileFocus={{ opacity: 1 }}
                           transition={{ duration: 0.3 }}
                         />
 
@@ -392,7 +431,7 @@ export function FounderTemplate({
               </motion.div>
             )}
 
-            {/* Testimonial Carousel */}
+            {/* Testimonial Carousel - ALWAYS VISIBLE, flip only on interaction */}
             {testimonials.length > 0 && (
               <motion.div
                 initial={reducedMotion ? {} : { opacity: 0, y: 20 }}
@@ -420,7 +459,7 @@ export function FounderTemplate({
                         key={currentTestimonial}
                         axis="y"
                         trigger="auto"
-                        duration={0.6}
+                        duration={reducedMotion ? 0 : 0.6}
                         className="w-full"
                       >
                         {testimonials[currentTestimonial] && (
@@ -482,7 +521,7 @@ export function FounderTemplate({
               </motion.div>
             )}
 
-            {/* Proof Points - Badge style */}
+            {/* Proof Points - Badge style - ALWAYS VISIBLE */}
             {visibleProofs.length > 0 && kpiProofs.length === 0 && testimonials.length === 0 && (
               <motion.div
                 initial={reducedMotion ? {} : { opacity: 0, y: 20 }}
@@ -539,6 +578,14 @@ export function FounderTemplate({
             className="text-center space-y-4"
           >
             <div className="relative inline-block">
+              <div
+                className="absolute inset-0 rounded-full -inset-1"
+                style={{
+                  background: `radial-gradient(circle at 30% 30%, ${accent}15, transparent 70%)`,
+                  filter: 'blur(16px)',
+                  transform: 'scale(1.2)',
+                }}
+              />
               <Avatar className="h-24 w-24 ring-4" ringColor={accent}>
                 <AvatarImage src={profile.avatarUrl} alt={profile.name} className="object-cover" />
                 <AvatarFallback className="text-3xl font-medium">{profile.name.charAt(0).toUpperCase()}</AvatarFallback>
@@ -579,7 +626,7 @@ export function FounderTemplate({
             </Stack>
           </motion.div>
 
-          {/* Mobile KPIs */}
+          {/* Mobile KPIs - ALWAYS VISIBLE */}
           {kpiProofs.length > 0 && (
             <motion.div
               initial={reducedMotion ? {} : { opacity: 0, y: 20 }}
@@ -588,7 +635,7 @@ export function FounderTemplate({
             >
               <Grid cols={1} gap={3}>
                 {kpiProofs.map((kpi, index) => (
-                  <TiltCard key={kpi.id} maxTilt={4} scale={1.015} className="h-auto">
+                  <TiltCard key={kpi.id} maxTilt={reducedMotion ? 0 : 4} scale={1.015} className="h-auto">
                     <div className="p-4 rounded-xl border relative overflow-hidden" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
                       <Text size="xs" weight="medium" color="muted" className="uppercase tracking-wider mb-2" style={{ fontFamily: 'var(--font-sans)', letterSpacing: '0.1em' }}>
                         {kpi.title}
@@ -612,7 +659,7 @@ export function FounderTemplate({
             </motion.div>
           )}
 
-          {/* Mobile Bio */}
+          {/* Mobile Bio - ALWAYS VISIBLE */}
           {profile.bio && (
             <motion.div
               initial={reducedMotion ? {} : { opacity: 0, y: 20 }}
@@ -627,7 +674,7 @@ export function FounderTemplate({
             </motion.div>
           )}
 
-          {/* Mobile Links */}
+          {/* Mobile Links - ALWAYS VISIBLE */}
           {visibleLinks.length > 0 && (
             <motion.div
               initial={reducedMotion ? {} : { opacity: 0, y: 20 }}
@@ -639,7 +686,7 @@ export function FounderTemplate({
                   <MagneticCard
                     key={link.id}
                     radius={100}
-                    strength={0.1}
+                    strength={reducedMotion ? 0 : 0.1}
                     className={cn('w-full', isPreview && 'opacity-80')}
                     style={{
                       borderRadius: '12px',
@@ -663,6 +710,7 @@ export function FounderTemplate({
                         className="absolute inset-0 opacity-0 rounded-xl"
                         style={{ boxShadow: `0 0 0 2px ${accent}30, 0 8px 32px -8px ${accent}20` }}
                         whileHover={{ opacity: 1 }}
+                        whileFocus={{ opacity: 1 }}
                         transition={{ duration: 0.3 }}
                       />
                       <Flex align="center" gap={3} className="relative z-10 flex-1">
@@ -697,7 +745,7 @@ export function FounderTemplate({
             </motion.div>
           )}
 
-          {/* Mobile Testimonials */}
+          {/* Mobile Testimonials - ALWAYS VISIBLE */}
           {testimonials.length > 0 && (
             <motion.div
               initial={reducedMotion ? {} : { opacity: 0, y: 20 }}
@@ -721,7 +769,7 @@ export function FounderTemplate({
                   </Flex>
 
                   <AnimatePresence mode="wait">
-                    <PerspectiveFlip key={currentTestimonial} axis="y" trigger="auto" duration={0.6} className="w-full">
+                    <PerspectiveFlip key={currentTestimonial} axis="y" trigger="auto" duration={reducedMotion ? 0 : 0.6} className="w-full">
                       {testimonials[currentTestimonial] && (
                         <div className="p-5 rounded-2xl border" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
                           <div className="absolute top-3 right-3 text-muted-foreground/30" style={{ fontSize: '2.5rem', lineHeight: 1 }}>"</div>
@@ -770,7 +818,7 @@ export function FounderTemplate({
             </motion.div>
           )}
 
-          {/* Mobile Proofs */}
+          {/* Mobile Proofs - ALWAYS VISIBLE */}
           {visibleProofs.length > 0 && kpiProofs.length === 0 && testimonials.length === 0 && (
             <motion.div
               initial={reducedMotion ? {} : { opacity: 0, y: 20 }}
@@ -822,32 +870,6 @@ export function FounderTemplate({
         </div>
       </div>
     </div>
-  );
-}
-
-// Simple Button component for testimonial navigation
-function Button({ variant = 'ghost', size = 'icon', className, children, onClick, 'aria-label': ariaLabel }: { variant?: 'ghost' | 'default' | 'outline'; size?: 'icon' | 'sm' | 'md' | 'lg'; className?: string; children: React.ReactNode; onClick?: () => void; 'aria-label'?: string }) {
-  const baseStyles = 'inline-flex items-center justify-center rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50';
-  const variants: Record<string, string> = {
-    ghost: 'hover:bg-accent hover:text-accent-foreground',
-    default: 'bg-primary text-primary-foreground hover:bg-primary/90',
-    outline: 'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
-  };
-  const sizes: Record<string, string> = {
-    icon: 'h-8 w-8',
-    sm: 'h-8 px-3 text-xs',
-    md: 'h-9 px-4 text-sm',
-    lg: 'h-10 px-6 text-base',
-  };
-
-  return (
-    <button
-      className={cn(baseStyles, variants[variant], sizes[size], className)}
-      onClick={onClick}
-      aria-label={ariaLabel}
-    >
-      {children}
-    </button>
   );
 }
 

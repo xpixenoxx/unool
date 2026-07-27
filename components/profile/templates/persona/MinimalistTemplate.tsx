@@ -28,15 +28,30 @@ export function MinimalistTemplate({
   const showAvatar = profile.avatarUrl || (profile.name && profile.name.length > 0);
   const showBio = profile.bio && profile.bio.length > 0;
 
+  // Pre-compute style objects to avoid parser issues
+  const containerStyle: React.CSSProperties = {
+    '--profile-accent': accent,
+    '--profile-radius': '9999px',
+    fontFamily: 'var(--font-sans)',
+    background: 'linear-gradient(180deg, var(--background) 0%, var(--background) 50%, var(--muted) 100%)',
+  } as React.CSSProperties & Record<string, string>;
+
+  const orbStyle: React.CSSProperties = {
+    background: 'radial-gradient(ellipse at center, ' + accent + '20 0%, transparent 70%)',
+  };
+
   return (
     <div
-      className="relative min-h-screen w-full flex items-center justify-center px-4 py-12"
-      style={{
-        '--profile-accent': accent,
-        '--profile-radius': '9999px',
-        fontFamily: 'var(--font-sans)',
-      } as React.CSSProperties}
+      className="relative min-h-screen w-full flex items-center justify-center px-4 py-12 sm:py-16"
+      style={containerStyle}
     >
+      {/* Subtle atmospheric orb */}
+      <div
+        className="absolute top-0 left-1/2 -translate-x-1/2 w-[400px] h-[400px] rounded-full blur-[200px] opacity-15 -z-20"
+        style={orbStyle}
+        aria-hidden="true"
+      />
+
       <Stack
         space={6}
         className="relative w-full max-w-[400px]"
@@ -51,6 +66,14 @@ export function MinimalistTemplate({
             className="text-center"
           >
             <div className="relative inline-block">
+              <div
+                className="absolute inset-0 rounded-full -inset-1"
+                style={{
+                  background: `radial-gradient(circle at 30% 30%, ${accent}15, transparent 70%)`,
+                  filter: 'blur(12px)',
+                  transform: 'scale(1.1)',
+                }}
+              />
               <Avatar className="h-20 w-20 ring-2 relative z-10" ringColor={accent}>
                 <AvatarImage src={profile.avatarUrl} alt={profile.name} className="object-cover" />
                 <AvatarFallback className="text-2xl font-medium">{profile.name.charAt(0).toUpperCase()}</AvatarFallback>
@@ -107,7 +130,7 @@ export function MinimalistTemplate({
           </motion.div>
         )}
 
-        {/* Links - Pure Pills */}
+        {/* Links - Pure Pills - ALWAYS VISIBLE, enhanced on hover */}
         {visibleLinks.length > 0 && (
           <motion.div
             initial={reducedMotion ? {} : { opacity: 0, y: 16 }}
@@ -134,7 +157,7 @@ export function MinimalistTemplate({
                       fontWeight: 500,
                       background: 'var(--muted)',
                       color: 'var(--foreground)',
-                      border: '1px solid transparent',
+                      border: '1px solid var(--border)',
                       transition: 'all 0.15s ease',
                     }}
                     onMouseEnter={() => isPreview && onLinkClick?.(link)}
@@ -147,15 +170,16 @@ export function MinimalistTemplate({
                       e.currentTarget.style.outline = 'none';
                     }}
                   >
-                    {/* Hover effect */}
+                    {/* Hover background accent - visible on hover/focus */}
                     <motion.div
                       className="absolute inset-0 rounded-full"
                       style={{ background: accent, opacity: 0 }}
-                      whileHover={{ opacity: 0.08 }}
+                      whileHover={{ opacity: 0.1 }}
+                      whileFocus={{ opacity: 0.1 }}
                       transition={{ duration: 0.15 }}
                     />
 
-                    {/* Icon */}
+                    {/* Icon - ALWAYS VISIBLE */}
                     <motion.div
                       initial={reducedMotion ? {} : { scale: 0 }}
                       animate={{ scale: 1 }}
@@ -172,7 +196,7 @@ export function MinimalistTemplate({
                       {link.icon || link.label.charAt(0).toUpperCase()}
                     </motion.div>
 
-                    {/* Label */}
+                    {/* Label - ALWAYS VISIBLE */}
                     <motion.span
                       initial={reducedMotion ? {} : { opacity: 0, x: -8 }}
                       animate={{ opacity: 1, x: 0 }}
@@ -183,12 +207,13 @@ export function MinimalistTemplate({
                       {link.label}
                     </motion.span>
 
-                    {/* External link indicator */}
+                    {/* External link indicator - visible on hover/focus */}
                     <motion.span
-                      initial={{ opacity: 0, scale: 0.8 }}
+                      initial={{ opacity: 0.3, scale: 0.8 }}
                       whileHover={{ opacity: 1, scale: 1 }}
+                      whileFocus={{ opacity: 1, scale: 1 }}
                       transition={{ ...spring.snappy }}
-                      style={{ color: accent, opacity: 0, fontSize: '1rem' }}
+                      style={{ color: accent, fontSize: '1rem' }}
                     >
                       →
                     </motion.span>
@@ -199,7 +224,7 @@ export function MinimalistTemplate({
           </motion.div>
         )}
 
-        {/* Proof Points - Minimal inline */}
+        {/* Proof Points - Minimal inline - ALWAYS VISIBLE */}
         {visibleProofs.length > 0 && (
           <motion.div
             initial={reducedMotion ? {} : { opacity: 0, y: 16 }}

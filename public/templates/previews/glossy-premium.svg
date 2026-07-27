@@ -1,0 +1,163 @@
+<svg width="400" height="600" viewBox="0 0 400 600" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#fefce8"/>
+      <stop offset="50%" style="stop-color:#fef9c3"/>
+      <stop offset="100%" style="stop-color:#fde68a"/>
+    </linearGradient>
+    <linearGradient id="pink" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f472b6"/>
+      <stop offset="100%" style="stop-color:#ec4899"/>
+    </linearGradient>
+    <linearGradient id="cyan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#22d3ee"/>
+      <stop offset="100%" style="stop-color:#06b6d4"/>
+    </linearGradient>
+    <linearGradient id="amber" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#fbbf24"/>
+      <stop offset="100%" style="stop-color:#f59e0b"/>
+    </linearGradient>
+    <linearGradient id="glassLight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:rgba(255,255,255,0.9)"/>
+      <stop offset="50%" style="stop-color:rgba(255,255,255,0.6)"/>
+      <stop offset="100%" style="stop-color:rgba(255,255,255,0.3)"/>
+    </linearGradient>
+    <linearGradient id="glassStroke" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:rgba(255,255,255,0.9)"/>
+      <stop offset="100%" style="stop-color:rgba(244,114,182,0.4)"/>
+    </linearGradient>
+    <radialGradient id="shine" cx="50%" cy="0%" r="50%">
+      <stop offset="0%" style="stop-color:rgba(255,255,255,0.8)"/>
+      <stop offset="50%" style="stop-color:rgba(255,255,255,0.2)"/>
+      <stop offset="100%" style="stop-color:rgba(255,255,255,0)"/>
+    </radialGradient>
+    <conicGradient id="conicRing" cx="200" cy="110" r="65">
+      <stop offset="0%" style="stop-color:#f472b6"/>
+      <stop offset="25%" style="stop-color:#ec4899"/>
+      <stop offset="50%" style="stop-color:#06b6d4"/>
+      <stop offset="75%" style="stop-color:#22d3ee"/>
+      <stop offset="100%" style="stop-color:#f472b6"/>
+    </conicGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="12" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="6" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="innerGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="400" height="600" fill="url(#bg1)"/>
+
+  <!-- Diamond pattern overlay -->
+  <pattern id="diamond" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+    <path d="M20,0 L40,20 L20,40 L0,20 Z" fill="none" stroke="#f472b6" stroke-width="0.3" opacity="0.15"/>
+  </pattern>
+  <rect width="400" height="600" fill="url(#diamond)" opacity="0.6"/>
+
+  <!-- Atmospheric blobs -->
+  <circle cx="80" cy="120" r="140" fill="url(#pink)" opacity="0.12" filter="url(#glow)"/>
+  <circle cx="320" cy="480" r="160" fill="url(#cyan)" opacity="0.1" filter="url(#glow)"/>
+  <circle cx="360" cy="60" r="80" fill="url(#amber)" opacity="0.08" filter="url(#glow)"/>
+
+  <!-- Conic gradient ring behind avatar -->
+  <circle cx="200" cy="110" r="65" fill="none" stroke="url(#conicRing)" stroke-width="4" filter="url(#glow)" opacity="0.8"/>
+  <circle cx="200" cy="110" r="62" fill="none" stroke="url(#pink)" stroke-width="1" opacity="0.3"/>
+
+  <!-- Avatar -->
+  <circle cx="200" cy="110" r="55" fill="url(#glassLight)" stroke="url(#glassStroke)" stroke-width="2" filter="url(#softGlow)"/>
+  <circle cx="200" cy="110" r="52" fill="url(#pink)" filter="url(#softGlow)"/>
+  <text x="200" y="122" text-anchor="middle" font-family="system-ui, sans-serif" font-size="30" font-weight="800" fill="white">MA</text>
+
+  <!-- Shine sweep on avatar -->
+  <ellipse cx="200" cy="95" rx="45" ry="20" fill="url(#shine)" opacity="0.6"/>
+
+  <!-- Name with gradient text -->
+  <defs>
+    <linearGradient id="nameGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#ec4899"/>
+      <stop offset="50%" style="stop-color:#06b6d4"/>
+      <stop offset="100%" style="stop-color:#f59e0b"/>
+    </linearGradient>
+  </defs>
+  <text x="200" y="182" text-anchor="middle" font-family="system-ui, sans-serif" font-size="24" font-weight="800" fill="url(#nameGrad)">Maya Andersson</text>
+
+  <!-- Headline -->
+  <text x="200" y="210" text-anchor="middle" font-family="system-ui, sans-serif" font-size="14" font-weight="500" fill="#78716c">Creative Director • Digital Artist • 2.4M Followers</text>
+
+  <!-- Engagement Rings -->
+  <g font-family="system-ui, sans-serif" font-size="11">
+    <circle cx="95" cy="255" r="30" fill="none" stroke="url(#pink)" stroke-width="3" stroke-dasharray="188" stroke-dashoffset="47" filter="url(#softGlow)"/>
+    <text x="95" y="250" text-anchor="middle" font-size="10" font-weight="700" fill="#ec4899">2.4M</text>
+    <text x="95" y="268" text-anchor="middle" font-size="9" fill="#a8a29e">FOLLOWERS</text>
+
+    <circle cx="200" cy="255" r="30" fill="none" stroke="url(#cyan)" stroke-width="3" stroke-dasharray="188" stroke-dashoffset="19" filter="url(#softGlow)"/>
+    <text x="200" y="250" text-anchor="middle" font-size="10" font-weight="700" fill="#06b6d4">892K</text>
+    <text x="200" y="268" text-anchor="middle" font-size="9" fill="#a8a29e">LIKES</text>
+
+    <circle cx="305" cy="255" r="30" fill="none" stroke="url(#amber)" stroke-width="3" stroke-dasharray="188" stroke-dashoffset="94" filter="url(#softGlow)"/>
+    <text x="305" y="250" text-anchor="middle" font-size="10" font-weight="700" fill="#f59e0b">45K</text>
+    <text x="305" y="268" text-anchor="middle" font-size="9" fill="#a8a29e">COMMENTS</text>
+  </g>
+
+  <!-- Media Grid (3x2) -->
+  <g>
+    <rect x="40" y="295" width="100" height="100" rx="16" fill="url(#glassLight)" stroke="url(#glassStroke)" stroke-width="1.5" filter="url(#softGlow)"/>
+    <rect x="40" y="295" width="100" height="100" rx="16" fill="url(#pink)" opacity="0.3"/>
+    <text x="90" y="345" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="600" fill="rgba(255,255,255,0.9)">Reel</text>
+
+    <rect x="150" y="295" width="100" height="100" rx="16" fill="url(#glassLight)" stroke="url(#glassStroke)" stroke-width="1.5" filter="url(#softGlow)"/>
+    <rect x="150" y="295" width="100" height="100" rx="16" fill="url(#cyan)" opacity="0.3"/>
+    <text x="200" y="345" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="600" fill="rgba(255,255,255,0.9)">Post</text>
+
+    <rect x="260" y="295" width="100" height="100" rx="16" fill="url(#glassLight)" stroke="url(#glassStroke)" stroke-width="1.5" filter="url(#softGlow)"/>
+    <rect x="260" y="295" width="100" height="100" rx="16" fill="url(#amber)" opacity="0.3"/>
+    <text x="310" y="345" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="600" fill="rgba(255,255,255,0.9)">Story</text>
+
+    <rect x="40" y="405" width="100" height="100" rx="16" fill="url(#glassLight)" stroke="url(#glassStroke)" stroke-width="1.5" filter="url(#softGlow)"/>
+    <rect x="40" y="405" width="100" height="100" rx="16" fill="url(#cyan)" opacity="0.3"/>
+    <text x="90" y="455" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="600" fill="rgba(255,255,255,0.9)">IGTV</text>
+
+    <rect x="150" y="405" width="100" height="100" rx="16" fill="url(#glassLight)" stroke="url(#glassStroke)" stroke-width="1.5" filter="url(#softGlow)"/>
+    <rect x="150" y="405" width="100" height="100" rx="16" fill="url(#pink)" opacity="0.3"/>
+    <text x="200" y="455" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="600" fill="rgba(255,255,255,0.9)">Reel</text>
+
+    <rect x="260" y="405" width="100" height="100" rx="16" fill="url(#glassLight)" stroke="url(#glassStroke)" stroke-width="1.5" filter="url(#softGlow)"/>
+    <rect x="260" y="405" width="100" height="100" rx="16" fill="url(#amber)" opacity="0.3"/>
+    <text x="310" y="455" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="600" fill="rgba(255,255,255,0.9)">Post</text>
+  </g>
+
+  <!-- Glossy Links (alternating tilt/magnetic) -->
+  <g font-family="system-ui, sans-serif" font-size="13">
+    <!-- Tilt Card Link -->
+    <rect x="40" y="520" width="150" height="52" rx="16" fill="url(#glassLight)" stroke="url(#glassStroke)" stroke-width="1.5" filter="url(#softGlow)"/>
+    <circle cx="62" cy="546" r="18" fill="url(#pink)"/>
+    <text x="62" y="550" text-anchor="middle" font-size="14" fill="white">🎨</text>
+    <text x="90" y="538" font-weight="700" fill="#1c1917">Portfolio</text>
+    <text x="90" y="556" font-size="10" fill="#a8a29e">Behance · 45K</text>
+    <text x="180" y="546" text-anchor="end" fill="#ec4899" font-weight="700">→</text>
+
+    <!-- Magnetic Card Link -->
+    <rect x="210" y="520" width="150" height="52" rx="16" fill="url(#glassLight)" stroke="url(#glassStroke)" stroke-width="1.5" filter="url(#softGlow)"/>
+    <circle cx="232" cy="546" r="18" fill="url(#cyan)"/>
+    <text x="232" y="550" text-anchor="middle" font-size="14" fill="white">📸</text>
+    <text x="260" y="538" font-weight="700" fill="#1c1917">Instagram</text>
+    <text x="260" y="556" font-size="10" fill="#a8a29e">@maya.andersson</text>
+    <text x="350" y="546" text-anchor="end" fill="#06b6d4" font-weight="700">→</text>
+  </g>
+
+  <!-- Subdomain -->
+  <text x="200" y="590" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="500" fill="#a8a29e" font-family="monospace">unool.co/@mayaandersson</text>
+</svg>

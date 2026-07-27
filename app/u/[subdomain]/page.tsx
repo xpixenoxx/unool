@@ -114,26 +114,40 @@ export default function PublicProfilePage({ params }: { params: Promise<{ subdom
 
   // Migration map for old template IDs to new persona-driven templates
   const templateMigrationMap: Record<string, string> = {
+    // New persona-driven templates (identity mappings)
+    'student': 'student',
+    'founder': 'founder',
+    'creator': 'creator',
+    'developer': 'developer',
+    'minimalist': 'minimalist',
+    'ngo': 'ngo',
+    'premium-opaque': 'premium-opaque',
+    'glossy-premium': 'glossy-premium',
+    // Old essential templates
     'essential-minimal': 'minimalist',
     'essential-light': 'minimalist',
     'essential-standard': 'minimalist',
     'essential-bold': 'founder',
     'essential-max': 'founder',
+    // Old professional templates
     'professional-minimal': 'minimalist',
     'professional-light': 'minimalist',
     'professional-standard': 'founder',
     'professional-bold': 'founder',
     'professional-max': 'founder',
+    // Old creative templates
     'creative-minimal': 'creator',
     'creative-light': 'creator',
     'creative-standard': 'creator',
     'creative-bold': 'creator',
     'creative-max': 'creator',
+    // Old technical templates
     'technical-minimal': 'developer',
     'technical-light': 'developer',
     'technical-standard': 'developer',
     'technical-bold': 'developer',
     'technical-max': 'developer',
+    // Old social templates
     'social-minimal': 'minimalist',
     'social-light': 'creator',
     'social-standard': 'creator',

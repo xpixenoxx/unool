@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import type { TemplateProps } from '@/components/profile/templates/types';
 
-// Map template IDs to their components for dynamic loading (5 new persona-driven templates)
+// Map template IDs to their components for dynamic loading (8 persona-driven templates)
 const templateComponents: Record<string, React.LazyExoticComponent<React.ComponentType<TemplateProps>>> = {
   // New persona-driven templates
   'student': React.lazy(() => import('@/components/profile/templates/persona/StudentTemplate').then(m => ({ default: m.StudentTemplate }))),
@@ -13,6 +13,9 @@ const templateComponents: Record<string, React.LazyExoticComponent<React.Compone
   'creator': React.lazy(() => import('@/components/profile/templates/persona/CreatorTemplate').then(m => ({ default: m.CreatorTemplate }))),
   'developer': React.lazy(() => import('@/components/profile/templates/persona/DeveloperTemplate').then(m => ({ default: m.DeveloperTemplate }))),
   'minimalist': React.lazy(() => import('@/components/profile/templates/persona/MinimalistTemplate').then(m => ({ default: m.MinimalistTemplate }))),
+  'ngo': React.lazy(() => import('@/components/profile/templates/persona/NGOTemplate').then(m => ({ default: m.NGOTemplate }))),
+  'premium-opaque': React.lazy(() => import('@/components/profile/templates/persona/PremiumOpaqueTemplate').then(m => ({ default: m.PremiumOpaqueTemplate }))),
+  'glossy-premium': React.lazy(() => import('@/components/profile/templates/persona/GlossyPremiumTemplate').then(m => ({ default: m.GlossyPremiumTemplate }))),
 };
 
 interface ProfilePreviewProps {

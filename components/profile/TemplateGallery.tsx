@@ -66,6 +66,21 @@ const PERSONA_INFO: Record<string, { icon: string; tagline: string; color: strin
     tagline: 'Pure links, zero chrome',
     color: 'oklch(0.6 0.25 50)',
   },
+  ngo: {
+    icon: '🌱',
+    tagline: 'Mission-driven with impact metrics',
+    color: 'oklch(0.55 0.22 145)',
+  },
+  'premium-opaque': {
+    icon: '💎',
+    tagline: 'Dark premium with glassmorphism',
+    color: 'oklch(0.75 0.18 85)',
+  },
+  'glossy-premium': {
+    icon: '✨',
+    tagline: 'Ultra-glossy reflective premium',
+    color: 'oklch(0.8 0.18 300)',
+  },
 };
 
 function TemplateCard({ template, isSelected, onPreview, onSelect, previewImage }: TemplateCardProps) {
@@ -402,6 +417,9 @@ export function TemplateGallery({
     creator: '/templates/previews/creator.svg',
     developer: '/templates/previews/developer.svg',
     minimalist: '/templates/previews/minimalist.svg',
+    ngo: '/templates/previews/ngo.svg',
+    'premium-opaque': '/templates/previews/premium-opaque.svg',
+    'glossy-premium': '/templates/previews/glossy-premium.svg',
   };
 
   if (!isOpen) return null;

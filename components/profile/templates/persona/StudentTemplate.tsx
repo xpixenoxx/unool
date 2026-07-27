@@ -19,7 +19,7 @@ export function StudentTemplate({
   onLinkClick,
 }: TemplateProps) {
   const reducedMotion = useReducedMotion();
-  const accent = accentColor || 'oklch(0.54 0.22 260)'; // Blue for students
+  const accent = accentColor || 'oklch(0.54 0.22 260)';
   const springConfig = reducedMotion ? { type: 'tween', duration: 0.01 } : spring.gentle;
 
   const visibleLinks = profile.links.filter((l) => l.isVisible).slice(0, 10);
@@ -27,15 +27,30 @@ export function StudentTemplate({
 
   const internship = profile.company || profile.links.find(l => l.label.toLowerCase().includes('intern'))?.label;
 
+  // Pre-compute style objects to avoid parser issues
+  const containerStyle: React.CSSProperties = {
+    '--profile-accent': accent,
+    '--profile-radius': '6px',
+    fontFamily: 'var(--font-sans)',
+    background: 'linear-gradient(180deg, var(--background) 0%, var(--background) 50%, var(--muted) 100%)',
+  } as React.CSSProperties & Record<string, string>;
+
+  const orbStyle: React.CSSProperties = {
+    background: 'radial-gradient(ellipse at center, ' + accent + '25 0%, transparent 70%)',
+  };
+
   return (
     <div
       className="relative min-h-screen w-full"
-      style={{
-        '--profile-accent': accent,
-        '--profile-radius': '6px',
-        fontFamily: 'var(--font-sans)',
-      } as React.CSSProperties}
+      style={containerStyle}
     >
+      {/* Subtle atmospheric orb */}
+      <div
+        className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[500px] rounded-full blur-[200px] opacity-20 -z-20"
+        style={orbStyle}
+        aria-hidden="true"
+      />
+
       <Stack
         space={8}
         className="relative max-w-[640px] mx-auto px-4 py-12 sm:py-16"
@@ -115,14 +130,16 @@ export function StudentTemplate({
             className="w-full"
           >
             <div
-              className="relative p-5 sm:p-6 rounded-xl border"
+              className="relative p-5 sm:p-6 rounded-xl border overflow-hidden"
               style={{
                 borderColor: 'var(--border)',
                 background: 'var(--card)',
                 boxShadow: '0 1px 3px 0 oklch(0.12 0.02 247.8 / 0.08), 0 1px 2px -1px oklch(0.12 0.02 247.8 / 0.08)',
               }}
             >
-              <Text size="base" color="foreground" style={{ lineHeight: 1.75, fontFamily: 'var(--font-sans)', textAlign: 'left' }}>
+              {/* Subtle accent line on left */}
+              <div className="absolute left-0 top-0 bottom-0 w-1" style={{ background: `linear-gradient(180deg, ${accent}, ${accent}dd)` }} />
+              <Text size="base" color="foreground" style={{ lineHeight: 1.75, fontFamily: 'var(--font-sans)', textAlign: 'left', paddingLeft: '0.5rem' }}>
                 {profile.bio}
               </Text>
             </div>
@@ -153,9 +170,9 @@ export function StudentTemplate({
                     style={{
                       borderRadius: '8px',
                       fontFamily: 'var(--font-sans)',
-                      background: 'transparent',
-                      border: '1px solid transparent',
-                      transition: 'background-color 0.2s ease, border-color 0.2s ease',
+                      background: 'var(--muted/30)',
+                      border: '1px solid var(--border)',
+                      transition: 'background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease',
                     }}
                     onMouseEnter={() => (isPreview ? onLinkClick?.(link) : undefined)}
                     onFocus={(e) => {
@@ -167,14 +184,6 @@ export function StudentTemplate({
                       e.currentTarget.style.outline = 'none';
                     }}
                   >
-                    {/* Hover background */}
-                    <motion.div
-                      className="absolute inset-0 rounded-lg"
-                      style={{ background: 'var(--accent)', opacity: 0 }}
-                      whileHover={{ opacity: 0.06 }}
-                      transition={{ duration: 0.2 }}
-                    />
-
                     {/* Icon */}
                     <motion.div
                       initial={reducedMotion ? {} : { scale: 0 }}
@@ -194,7 +203,7 @@ export function StudentTemplate({
 
                     {/* Label + URL */}
                     <Flex column gap={1} flex={1} className="min-w-0">
-                      <Text weight="medium" className="truncate group-hover:text-primary transition-colors" style={{ fontFamily: 'var(--font-sans)', fontSize: '1rem' }}>
+                      <Text weight="medium" className="truncate" style={{ fontFamily: 'var(--font-sans)', fontSize: '1rem' }}>
                         {link.label}
                       </Text>
                       <Text size="xs" color="muted" className="truncate font-mono" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
@@ -202,12 +211,24 @@ export function StudentTemplate({
                       </Text>
                     </Flex>
 
-                    {/* Subtle arrow */}
+                    {/* Click count with hover reveal */}
                     <motion.span
-                      initial={{ opacity: 0, x: -8 }}
+                      initial={reducedMotion ? {} : { opacity: 0 }}
+                      animate={{ opacity: 1 }}
                       whileHover={{ opacity: 1, x: 4 }}
                       transition={{ ...spring.snappy }}
-                      style={{ color: accent, fontSize: '1.25rem', opacity: 0 }}
+                      style={{ color: accent, fontFamily: 'var(--font-mono)', fontSize: '0.75rem', fontVariantNumeric: 'tabular-nums' }}
+                    >
+                      {link.clicks > 0 && `${link.clicks.toLocaleString()} clicks`}
+                    </motion.span>
+
+                    {/* Subtle arrow - visible on hover/focus */}
+                    <motion.span
+                      initial={{ opacity: 0.3, x: -4 }}
+                      whileHover={{ opacity: 1, x: 4 }}
+                      whileFocus={{ opacity: 1, x: 4 }}
+                      transition={{ ...spring.snappy }}
+                      style={{ color: accent, fontSize: '1.25rem' }}
                     >
                       →
                     </motion.span>
@@ -254,7 +275,7 @@ export function StudentTemplate({
                       <Text weight="semibold" size="sm" style={{ fontFamily: 'var(--font-sans)' }}>
                         {proof.title}
                       </Text>
-                      {proof.value && <Text size="sm" color="muted" style={ { fontFamily: 'var(--font-sans)' } }>{proof.value}</Text>}
+                      {proof.value && <Text size="sm" color="muted" style={{ fontFamily: 'var(--font-sans)' }}>{proof.value}</Text>}
                     </Flex>
                   </div>
                 </motion.div>
