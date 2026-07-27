@@ -147,6 +147,7 @@ export class LinkedInAdapter implements PlatformAdapter {
           Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
           'X-Restli-Protocol-Version': '2.0.0',
+          'LinkedIn-Version': '202401',
         },
         body: JSON.stringify(postBody),
       });
@@ -197,6 +198,7 @@ export class LinkedInAdapter implements PlatformAdapter {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           'X-Restli-Protocol-Version': '2.0.0',
+          'LinkedIn-Version': '202401',
         },
       });
 
@@ -217,7 +219,7 @@ export class LinkedInAdapter implements PlatformAdapter {
 
   private async getAuthorUrn(accessToken: string): Promise<string> {
     return platformFetch('linkedin', async () => {
-      const profileResponse = await fetchWithRetry(`${LINKEDIN_API_BASE}/me`, {
+      const profileResponse = await fetchWithRetry(`https://api.linkedin.com/v2/userinfo`, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
 
@@ -226,7 +228,7 @@ export class LinkedInAdapter implements PlatformAdapter {
       }
 
       const profile = await profileResponse.json();
-      return `urn:li:person:${profile.id}`;
+      return `urn:li:person:${profile.sub}`;
     });
   }
 }
