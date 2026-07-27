@@ -216,8 +216,9 @@ export async function fetchWithRetry(
       }
 
       if (response.status >= 500) {
+        const text = await response.text().catch(() => '');
         throw new APIError(
-          `Server error: ${response.status} ${response.statusText}`,
+          `Server error: ${response.status} ${response.statusText} - ${text}`,
           '',
           response.status,
           true

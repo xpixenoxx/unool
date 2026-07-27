@@ -94,7 +94,7 @@ export class ThreadsAdapter implements PlatformAdapter {
   async getUserProfile(accessToken: string): Promise<UserProfile> {
     return platformFetch('threads', async () => {
       const response = await fetchWithRetry(
-        `${THREADS_API_BASE}/me?fields=id,username,name,profile_picture_url,threads_biography&access_token=${accessToken}`,
+        `${THREADS_API_BASE}/me?fields=id,username,name,threads_profile_picture_url,threads_biography&access_token=${accessToken}`,
         {}
       );
 
@@ -105,6 +105,9 @@ export class ThreadsAdapter implements PlatformAdapter {
         if (response.status === 401 || response.status === 403) {
           throw new TokenExpiredError('Token expired or invalid', 'threads');
         }
+        if (response.status >= 500) {
+          throw new Error(`Profile fetch 500 error: ${error}`);
+        }
         throw new Error(`Profile fetch failed: ${error}`);
       }
 
@@ -114,7 +117,7 @@ export class ThreadsAdapter implements PlatformAdapter {
         username: data.username,
         displayName: data.name,
         profileUrl: `https://www.threads.net/@${data.username}`,
-        avatarUrl: data.profile_picture_url,
+        avatarUrl: data.threads_profile_picture_url,
       };
     });
   }
