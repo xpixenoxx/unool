@@ -274,15 +274,26 @@ export async function withPlanEnforcement(
   handler: (request: NextRequest, context: PlanEnforcementContext) => Promise<NextResponse>
 ): Promise<NextResponse> {
   // Extract user/workspace from headers (set by middleware.ts)
-  const userId = request.headers.get('x-user-id') || '';
-  const workspaceId = request.headers.get('x-workspace-id') || '';
+  let userId = request.headers.get('x-user-id') || '';
+  let workspaceId = request.headers.get('x-workspace-id') || '';
 
   if (!userId || !workspaceId) {
-    logger.warn('Plan enforcement: missing user/workspace context', { userId, workspaceId });
-    return NextResponse.json(
-      { error: 'Authentication required' },
-      { status: 401 }
-    );
+    // Fallback: resolve via getCurrentAuth if headers are missing
+    const { getCurrentAuth } = await import('@/lib/auth/server');
+    const auth = await getCurrentAuth(request);
+    
+    if (auth) {
+      userId = auth.userId;
+      workspaceId = auth.workspaceId;
+    }
+
+    if (!userId || !workspaceId) {
+      logger.warn('Plan enforcement: missing user/workspace context', { userId, workspaceId });
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
   }
 
   // Get plan context
