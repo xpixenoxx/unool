@@ -113,8 +113,9 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     logger.error('OAuth callback failed', { error: err, platform: platformType, state: effectiveState });
+    const errorMsg = encodeURIComponent(err.message?.slice(0, 200) || 'unknown');
     return NextResponse.redirect(
-      new URL(`/dashboard/settings?error=callback_failed&platform=${platformType}`, request.url)
+      new URL(`/dashboard/settings?error=callback_failed&platform=${platformType}&detail=${errorMsg}`, request.url)
     );
   }
 }

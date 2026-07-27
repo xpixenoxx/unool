@@ -40,12 +40,15 @@ export class ThreadsAdapter implements PlatformAdapter {
       client_id: this.authConfig.clientId,
       client_secret: this.authConfig.clientSecret,
       redirect_uri: this.authConfig.redirectUri,
+      grant_type: 'authorization_code',
       code,
     });
 
     return platformFetch('threads', async () => {
-      const response = await fetchWithRetry(`${META_TOKEN_URL}?${params.toString()}`, {
+      const response = await fetchWithRetry(META_TOKEN_URL, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString(),
       });
 
       if (!response.ok) {
