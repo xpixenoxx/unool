@@ -14,7 +14,7 @@
  ○ Compiling /instrumentation ...
  ✓ Compiled /instrumentation in 18.1s (1407 modules)
  ✓ Ready in 41.3s
- ○ Compiling /middleware ...
+ ○    Reload env: .env.local
  ✓ Compiled /middleware in 563ms (652 modules)
  ○ Compiling / ...
  ✓ Compiled / in 152.5s (3265 modules)
@@ -1233,3 +1233,4 @@ Import trace for requested module:
  ✓ Compiled in 559ms (843 modules)
  ✓ Compiled in 418ms (843 modules)
 <w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: EPERM: operation not permitted, rename 'D:\unool\.next\cache\webpack\client-development\1.pack.gz_' -> 'D:\unool\.next\cache\webpack\client-development\1.pack.gz'
+   Reload env: .env.local

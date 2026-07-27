@@ -60,6 +60,9 @@ interface Profile {
 export default function ComposerPage() {
   const reducedMotion = useReducedMotion();
   const [sourceContent, setSourceContent] = useState('');
+  const [quickContent, setQuickContent] = useState('');
+  const [mode, setMode] = useState<'ai' | 'quick'>('ai');
+  const [isBroadcasting, setIsBroadcasting] = useState(false);
   const [drafts, setDrafts] = useState<PlatformDraft[]>([
     { platform: 'linkedin', content: '', characterCount: 0, hashtags: [], status: 'idle' },
     { platform: 'x', content: '', characterCount: 0, hashtags: [], status: 'idle' },
@@ -195,6 +198,51 @@ export default function ComposerPage() {
     }
   };
 
+  const handleDirectBroadcast = async () => {
+    if (!quickContent.trim() || !profile) {
+      toast.error('Please complete your profile first');
+      return;
+    }
+
+    setIsBroadcasting(true);
+
+    try {
+      const res = await fetch('/api/composer/broadcast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ content: quickContent, profileId: profile.id }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Broadcast failed');
+      }
+
+      toast.success('Broadcast published successfully!');
+      
+      const results = data.results;
+      if (results) {
+        for (const [platform, result] of Object.entries(results)) {
+          if ((result as any).success) {
+            toast.success(`${platform}: Published`);
+          } else {
+            toast.error(`${platform}: Failed`, { description: (result as any).error });
+          }
+        }
+      }
+
+      setQuickContent('');
+      window.location.href = `/dashboard/publish?postId=${data.postId}`;
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Broadcast failed';
+      toast.error(errorMsg);
+    } finally {
+      setIsBroadcasting(false);
+    }
+  };
+
   return (
     <Box className="space-y-8 max-w-4xl mx-auto px-4 py-8">
       {/* Header */}
@@ -256,6 +304,60 @@ export default function ComposerPage() {
         )}
       </AnimatePresence>
 
+      {/* Mode Toggle */}
+      <Box className="flex justify-center my-6">
+        <Tabs value={mode} onValueChange={(v) => setMode(v as 'ai' | 'quick')} className="w-full max-w-[400px]">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="ai" className="flex gap-2">
+              <Sparkles className="w-4 h-4" /> AI Composer
+            </TabsTrigger>
+            <TabsTrigger value="quick" className="flex gap-2">
+              <Zap className="w-4 h-4" /> Quick Broadcast
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </Box>
+
+      {mode === 'quick' && (
+        <MotionBox variant="slide-up" delay={0.1}>
+          <Card variant="elevated">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="h-5 w-5 text-primary" />
+                Quick Broadcast
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Textarea
+                placeholder="What do you want to share? This exact text will be published to all connected platforms."
+                value={quickContent}
+                onChange={e => setQuickContent(e.target.value)}
+                className="min-h-[120px]"
+                rows={5}
+              />
+              <Flex between wrap gap={2}>
+                <Text size="sm" color={quickContent.length > 280 ? 'destructive' : 'muted'}>
+                  {quickContent.length} characters
+                  {quickContent.length > 280 && " (Warning: X/Twitter limit is 280)"}
+                </Text>
+              </Flex>
+              
+              <Button
+                onClick={handleDirectBroadcast}
+                disabled={isBroadcasting || !quickContent.trim() || !profile}
+                size="lg"
+                className="w-full sm:w-auto mt-4"
+              >
+                <Send className="mr-2 h-4 w-4" />
+                {isBroadcasting ? 'Publishing...' : 'Publish to All Platforms'}
+              </Button>
+            </CardContent>
+          </Card>
+        </MotionBox>
+      )}
+
+      {mode === 'ai' && (
+        <>
       {/* Step 1: Source Input */}
       <MotionBox variant="slide-up" delay={0.1}>
         <Card variant="elevated">
@@ -461,6 +563,7 @@ export default function ComposerPage() {
           </MotionBox>
         )}
       </AnimatePresence>
+      </>}
     </Box>
   );
 }
