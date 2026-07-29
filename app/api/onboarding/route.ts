@@ -69,6 +69,7 @@ export async function GET(request: NextRequest) {
     }
 
     let checklist = await getChecklist(workspaceId, userId);
+    let isNew = false;
 
     if (!checklist) {
       const initialSteps = createInitialChecklist();
@@ -81,7 +82,92 @@ export async function GET(request: NextRequest) {
         completedAt: null,
         currentStep: 0,
       };
-      await upsertChecklist(checklist);
+      isNew = true;
+    }
+
+    // Auto-complete logic based on current DB state
+    const { SupabaseProfileRepository } = await import('@/lib/repositories/supabase/SupabaseProfileRepository');
+    const { SupabasePlatformRepository } = await import('@/lib/repositories/supabase/SupabasePlatformRepository');
+    const { SupabasePostRepository } = await import('@/lib/repositories/supabase/SupabasePostRepository');
+
+    const profileRepo = new SupabaseProfileRepository();
+    const platformRepo = new SupabasePlatformRepository();
+    const postRepo = new SupabasePostRepository();
+
+    const [profile, platforms, posts] = await Promise.all([
+      profileRepo.findByWorkspaceId(workspaceId),
+      platformRepo.findByWorkspaceId(workspaceId),
+      postRepo.findByWorkspaceId(workspaceId)
+    ]);
+
+    let hasUpdates = false;
+
+    for (const step of checklist.steps) {
+      if (step.completedAt) continue;
+
+      let shouldComplete = false;
+      switch (step.id) {
+        case 'claim_subdomain':
+          if (profile?.subdomain) shouldComplete = true;
+          break;
+        case 'complete_profile':
+          if (profile?.name && profile?.headline && profile?.bio) shouldComplete = true;
+          break;
+        case 'add_proof_points':
+          if (profile?.proofPoints && profile.proofPoints.length >= 3) shouldComplete = true;
+          break;
+        case 'add_links':
+          if (profile?.links && profile.links.length > 0) shouldComplete = true;
+          break;
+        case 'choose_theme':
+          if (profile?.theme && profile.theme.preset !== 'minimal') shouldComplete = true;
+          break;
+        case 'connect_linkedin':
+          if (platforms.some(p => p.platform === 'linkedin' && p.status === 'connected')) shouldComplete = true;
+          break;
+        case 'connect_x':
+          if (platforms.some(p => p.platform === 'x' && p.status === 'connected')) shouldComplete = true;
+          break;
+        case 'connect_threads':
+          if (platforms.some(p => p.platform === 'threads' && p.status === 'connected')) shouldComplete = true;
+          break;
+        case 'create_first_post':
+          if (posts.length > 0) shouldComplete = true;
+          break;
+        case 'review_adaptations':
+          if (posts.some(p => p.status !== 'draft')) shouldComplete = true;
+          break;
+        case 'publish_first_post':
+          if (posts.some(p => p.status === 'published' || p.publishedAt !== null)) shouldComplete = true;
+          break;
+        case 'schedule_post':
+          if (posts.some(p => p.scheduledAt !== null)) shouldComplete = true;
+          break;
+      }
+
+      if (shouldComplete) {
+        step.completedAt = new Date().toISOString();
+        hasUpdates = true;
+      }
+    }
+
+    if (hasUpdates) {
+      checklist.earnedXp = checklist.steps
+        .filter(s => s.completedAt)
+        .reduce((sum, s) => sum + s.xp, 0);
+
+      const allRequiredComplete = checklist.steps
+        .filter(s => s.required)
+        .every(s => s.completedAt);
+      
+      checklist.completedAt = allRequiredComplete ? new Date().toISOString() : null;
+      
+      const nextStepIndex = checklist.steps.findIndex(s => !s.completedAt);
+      checklist.currentStep = nextStepIndex >= 0 ? nextStepIndex : checklist.steps.length;
+    }
+
+    if (isNew || hasUpdates) {
+      checklist = await upsertChecklist(checklist);
     }
 
     const progress = checklist.steps.filter(s => s.required && s.completedAt).length /
