@@ -67,9 +67,10 @@ export default function HomePage() {
       <motion.header className="fixed top-0 left-0 right-0 z-40 backdrop-blur-md bg-background/80 border-b border-border" variants={headerVariants}>
         <Container size="lg" className="flex h-16 items-center justify-between">
           <Flex center gap={3}>
-            <motion.div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium" variants={brandVariants}>
-              <Sparkles className="w-3 h-3" />
-              <span>One Link + One Click</span>
+            <motion.div variants={brandVariants}>
+              <Link href="/">
+                <img src="/logo.png" alt="Unool Logo" className="h-8 w-auto object-contain" />
+              </Link>
             </motion.div>
           </Flex>
           <Flex center gap={4}>
@@ -432,8 +433,7 @@ export default function HomePage() {
         <Container size="lg">
           <Flex between wrap gap={4} className="text-sm text-muted-foreground">
             <Flex center gap={2}>
-              <Sparkles className="w-4 h-4 text-primary" />
-              <span className="font-semibold">Unool</span>
+              <img src="/logo.png" alt="Unool Logo" className="h-6 w-auto object-contain opacity-70 hover:opacity-100 transition-opacity" />
             </Flex>
             <Flex center gap={6}>
               <Link href="/terms" className="hover:text-foreground transition-colors">Terms</Link>

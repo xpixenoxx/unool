@@ -286,8 +286,7 @@ function SignupForm() {
         <Container size="lg">
           <Flex between wrap gap={4} className="text-sm text-muted-foreground">
             <Flex center gap={2}>
-              <Sparkles className="w-4 h-4 text-primary" />
-              <span className="font-semibold">Unool</span>
+              <img src="/logo.png" alt="Unool Logo" className="h-6 w-auto object-contain opacity-70 hover:opacity-100 transition-opacity" />
             </Flex>
             <Flex center gap={6}>
               <Link href="/terms" className="hover:text-foreground transition-colors">Terms</Link>

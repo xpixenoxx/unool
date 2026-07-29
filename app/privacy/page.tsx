@@ -35,8 +35,7 @@ export default function PrivacyPage() {
       <header className="border-b backdrop-blur-md bg-background/80 sticky top-0 z-40">
         <Container size="lg" className="flex h-16 items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <Sparkles className="h-8 w-8 text-primary" />
-            <span className="font-bold text-xl">Unool</span>
+            <img src="/logo.png" alt="Unool Logo" className="h-8 w-auto object-contain" />
           </Link>
           <Link href="/">
             <Button variant="ghost" size="sm">
