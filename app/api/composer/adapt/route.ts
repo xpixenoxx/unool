@@ -141,28 +141,20 @@ export async function POST(request: NextRequest) {
         platforms: Object.keys(variants),
       });
 
+      // Build dynamic response with all variants
+      const responseVariants: Record<string, { content: string; characterCount: number; hashtags: string[]; firstCommentHint?: string }> = {};
+      for (const [platform, adapted] of Object.entries(variants)) {
+        responseVariants[platform] = {
+          content: adapted.content,
+          characterCount: adapted.characterCount,
+          hashtags: adapted.hashtags,
+          firstCommentHint: adapted.firstCommentHint ?? undefined,
+        };
+      }
+
       return NextResponse.json({
         postId: post.id,
-        variants: {
-          linkedin: {
-            content: variants.linkedin.content,
-            characterCount: variants.linkedin.characterCount,
-            hashtags: variants.linkedin.hashtags,
-            firstCommentHint: variants.linkedin.firstCommentHint,
-          },
-          x: {
-            content: variants.x.content,
-            characterCount: variants.x.characterCount,
-            hashtags: variants.x.hashtags,
-            firstCommentHint: variants.x.firstCommentHint,
-          },
-          threads: {
-            content: variants.threads.content,
-            characterCount: variants.threads.characterCount,
-            hashtags: variants.threads.hashtags,
-            firstCommentHint: variants.threads.firstCommentHint,
-          },
-        },
+        variants: responseVariants,
       });
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));

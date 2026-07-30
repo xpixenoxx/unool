@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Linkedin, Twitter, MessageSquare, CheckCircle, AlertCircle, Unlink2, Link2 } from 'lucide-react';
+import { Loader2, Linkedin, Twitter, MessageSquare, Facebook, Instagram, Phone, CheckCircle, AlertCircle, Unlink2, Link2, Lock } from 'lucide-react';
 import { toast } from 'sonner';
+import { platformAdapters, SUPPORTED_PLATFORMS } from '@/lib/platforms';
 
-type Platform = 'linkedin' | 'x' | 'threads';
+type Platform = typeof SUPPORTED_PLATFORMS[number];
 
 interface PlatformConnection {
   platform: Platform;
@@ -21,18 +22,34 @@ interface PlatformConnectionsProps {
   workspaceId: string;
 }
 
-const PLATFORM_CONFIG: Record<Platform, { icon: React.ElementType; name: string; color: string }> = {
-  linkedin: { icon: Linkedin, name: 'LinkedIn', color: 'bg-blue-600' },
-  x: { icon: Twitter, name: 'X (Twitter)', color: 'bg-gray-800' },
-  threads: { icon: MessageSquare, name: 'Threads', color: 'bg-black' },
+// Platform display configuration - maps platform ID to display info
+const PLATFORM_DISPLAY_CONFIG: Record<Platform, { icon: React.ElementType; name: string; color: string; description: string; available: boolean }> = {
+  linkedin: { icon: Linkedin, name: 'LinkedIn', color: 'bg-blue-600', description: 'Professional posts & articles', available: true },
+  x: { icon: Twitter, name: 'X (Twitter)', color: 'bg-gray-800', description: 'Posts, threads & media', available: true },
+  threads: { icon: MessageSquare, name: 'Threads', color: 'bg-black', description: 'Text, images & replies', available: true },
+  facebook: { icon: Facebook, name: 'Facebook Pages', color: 'bg-blue-700', description: 'Pages posts with media', available: true },
+  whatsapp: { icon: Phone, name: 'WhatsApp Status', color: 'bg-green-600', description: 'Status updates (24h)', available: true },
+  instagram: { icon: Instagram, name: 'Instagram', color: 'bg-pink-600', description: 'Feed, Reels & Stories', available: false },
+  manual: { icon: Link2, name: 'Manual / Other', color: 'bg-gray-600', description: 'Copy-paste to any platform', available: true },
 };
 
 export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
-  const [connections, setConnections] = useState<Record<Platform, PlatformConnection>>({
-    linkedin: { platform: 'linkedin', status: 'not_connected' },
-    x: { platform: 'x', status: 'not_connected' },
-    threads: { platform: 'threads', status: 'not_connected' },
-  });
+  // Get only platforms that have adapters implemented
+  const connectablePlatforms = useMemo(() =>
+    SUPPORTED_PLATFORMS.filter(p => platformAdapters[p] && PLATFORM_DISPLAY_CONFIG[p].available) as Platform[],
+    []
+  );
+
+  // Initialize connections state for all connectable platforms
+  const initialConnections = useMemo(() => {
+    const conn: Record<Platform, PlatformConnection> = {} as Record<Platform, PlatformConnection>;
+    connectablePlatforms.forEach(p => {
+      conn[p] = { platform: p, status: 'not_connected' };
+    });
+    return conn;
+  }, [connectablePlatforms]);
+
+  const [connections, setConnections] = useState<Record<Platform, PlatformConnection>>(initialConnections);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState<Platform | null>(null);
   const [disconnecting, setDisconnecting] = useState<Platform | null>(null);
@@ -47,7 +64,11 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
       if (res.ok) {
         const data = await res.json();
         if (data.connections) {
-          setConnections(data.connections);
+          // Merge server connections with local state (preserve platforms not in server response)
+          setConnections(prev => ({
+            ...prev,
+            ...data.connections,
+          }));
         }
       }
     } catch {
@@ -63,7 +84,8 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
   };
 
   const handleDisconnect = async (platform: Platform) => {
-    if (!confirm(`Disconnect ${PLATFORM_CONFIG[platform].name}?`)) return;
+    const config = PLATFORM_DISPLAY_CONFIG[platform];
+    if (!confirm(`Disconnect ${config.name}?`)) return;
 
     setDisconnecting(platform);
     try {
@@ -77,7 +99,7 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
           ...prev,
           [platform]: { platform, status: 'not_connected' },
         }));
-        toast.success(`${PLATFORM_CONFIG[platform].name} disconnected`);
+        toast.success(`${config.name} disconnected`);
       } else {
         toast.error('Failed to disconnect');
       }
@@ -98,8 +120,8 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-3">
-            {(['linkedin', 'x', 'threads'] as Platform[]).map(p => (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {connectablePlatforms.map(p => (
               <div key={p} className="p-3 border rounded-lg animate-pulse bg-muted" />
             ))}
           </div>
@@ -120,9 +142,11 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
         <p className="text-sm text-muted-foreground mb-4">
           Connect your social accounts to enable one-click publishing.
         </p>
-        <div className="grid gap-4 md:grid-cols-3">
-          {(['linkedin', 'x', 'threads'] as Platform[]).map(platform => {
-            const config = PLATFORM_CONFIG[platform];
+
+        {/* Connectable platforms */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6">
+          {connectablePlatforms.map(platform => {
+            const config = PLATFORM_DISPLAY_CONFIG[platform];
             const connection = connections[platform];
             const Icon = config.icon;
             const isConnected = connection.status === 'connected';
@@ -146,6 +170,7 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
                     </span>
                     <div>
                       <h3 className="font-semibold">{config.name}</h3>
+                      <p className="text-xs text-muted-foreground">{config.description}</p>
                       <p className="text-sm text-muted-foreground">
                         {isConnected ? 'Connected' :
                          isExpired ? 'Token expired' :
@@ -227,6 +252,33 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
             );
           })}
         </div>
+
+        {/* Coming soon platforms */}
+        {SUPPORTED_PLATFORMS
+          .filter(p => !connectablePlatforms.includes(p))
+          .map(platform => {
+            const config = PLATFORM_DISPLAY_CONFIG[platform];
+            return (
+              <div
+                key={platform}
+                className="border border-dashed rounded-xl p-4 bg-muted/30 opacity-60"
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <span className={`p-2 rounded-lg ${config.color} text-white`}>
+                    <config.icon className="w-5 h-5" />
+                  </span>
+                  <div className="flex-1">
+                    <h3 className="font-semibold">{config.name}</h3>
+                    <p className="text-xs text-muted-foreground">{config.description}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Lock className="h-3 w-3" />
+                  <span>Coming soon — Meta App Review required</span>
+                </div>
+              </div>
+            );
+          })}
       </CardContent>
     </Card>
   );

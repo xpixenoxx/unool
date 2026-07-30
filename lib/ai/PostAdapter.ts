@@ -3,7 +3,7 @@ import { generateWithFallback } from './provider';
 import { Result, ok, err } from '@/lib/shared/Result';
 import { logger } from '@/lib/logger';
 
-export const PlatformType = z.enum(['linkedin', 'x', 'threads']);
+export const PlatformType = z.enum(['linkedin', 'x', 'threads', 'facebook', 'whatsapp', 'instagram']);
 export type PlatformType = z.infer<typeof PlatformType>;
 
 export const AdaptedPostSchema = z.object({
@@ -31,6 +31,21 @@ const PLATFORM_SPECS: Record<PlatformType, { maxChars: number; style: string; ha
     maxChars: 500,
     style: 'Conversational, personal, behind-the-scenes. More casual than LinkedIn. 2-5 hashtags.',
     hashtagStrategy: 'Community-focused tags (#BuildInPublic #IndieHackers #FounderJourney)'
+  },
+  facebook: {
+    maxChars: 5000,
+    style: 'Engaging, community-focused, conversational. Can include emojis. 2-5 hashtags. Good for longer-form posts with media.',
+    hashtagStrategy: 'Broader audience tags (#SmallBusiness #Community #Entrepreneurship)'
+  },
+  whatsapp: {
+    maxChars: 4096,
+    style: 'Personal, direct, concise. Status updates are short and visual. For direct messages: conversational and helpful.',
+    hashtagStrategy: 'Minimal hashtags, focus on clear message'
+  },
+  instagram: {
+    maxChars: 2200,
+    style: 'Visual-first, aspirational, lifestyle-oriented. Heavy emoji use. 5-15 hashtags in first comment. Great for carousel, Reels, Stories.',
+    hashtagStrategy: 'Niche + broad tags (#CreatorEconomy #PersonalBrand #MarketingTips)'
   },
 };
 
@@ -124,7 +139,7 @@ ${context ? `**Author Context:** ${context.profileName} - ${context.profileHeadl
     sourceContent: string,
     context?: { profileName?: string; profileHeadline?: string }
   ): Promise<Record<PlatformType, Result<AdaptedPost, Error>>> {
-    const platforms: PlatformType[] = ['linkedin', 'x', 'threads'];
+    const platforms: PlatformType[] = ['linkedin', 'x', 'threads', 'facebook', 'whatsapp', 'instagram'];
     const results = await Promise.all(
       platforms.map(platform => this.adaptForPlatform(sourceContent, platform, context))
     );

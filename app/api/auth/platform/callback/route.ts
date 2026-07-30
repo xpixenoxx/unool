@@ -4,6 +4,8 @@ import { encryptToken } from '@/lib/crypto/encryption';
 import { SupabasePlatformRepository } from '@/lib/repositories/supabase/SupabasePlatformRepository';
 import { logger } from '@/lib/logger';
 import { verifyAndConsumeOAuthState, parseOAuthCookie, parseAndConsumePKCECookie } from '@/lib/auth/oauth-state';
+import { SUPPORTED_PLATFORMS } from '@/lib/platforms';
+import type { Platform } from '@/lib/repositories/interfaces/IPlatformRepository';
 
 const platformRepository = new SupabasePlatformRepository();
 
@@ -48,10 +50,18 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const { workspaceId, platform } = verified;
-  const platformType = platform as 'linkedin' | 'x' | 'threads';
+  const { workspaceId, platform: platformFromState } = verified;
 
-  const adapter = getPlatformAdapter(platformType);
+  // Validate platform is supported
+  if (!SUPPORTED_PLATFORMS.includes(platformFromState as (typeof SUPPORTED_PLATFORMS)[number])) {
+    return NextResponse.redirect(
+      new URL(`/dashboard/settings?error=unsupported_platform&platform=${platformFromState}`, request.url)
+    );
+  }
+
+  const platform = platformFromState as Platform;
+
+  const adapter = getPlatformAdapter(platform);
   if (!adapter) {
     return NextResponse.redirect(
       new URL(`/dashboard/settings?error=unsupported_platform&platform=${platform}`, request.url)
@@ -60,7 +70,7 @@ export async function GET(request: NextRequest) {
 
   // Get PKCE verifier from cookie for X/Twitter
   let codeVerifier: string | undefined;
-  if (platformType === 'x') {
+  if (platform === 'x') {
     const pkceCookie = parseAndConsumePKCECookie(request.headers.get('cookie'), effectiveState);
     if (pkceCookie) {
       codeVerifier = pkceCookie;
@@ -71,7 +81,7 @@ export async function GET(request: NextRequest) {
 
   try {
     // Exchange code for token
-    const tokenResponse = platformType === 'x' && codeVerifier
+    const tokenResponse = platform === 'x' && codeVerifier
       ? await adapter.exchangeCodeForToken(code, codeVerifier)
       : await adapter.exchangeCodeForToken(code);
 
@@ -91,7 +101,7 @@ export async function GET(request: NextRequest) {
     // Save or update platform connection
     await platformRepository.create({
       workspaceId,
-      platform: platformType,
+      platform,
       platformUserId: profile.platformUserId,
       username: profile.username,
       accessToken: accessTokenEncrypted,
@@ -100,24 +110,24 @@ export async function GET(request: NextRequest) {
       scopes: tokenResponse.scope ? tokenResponse.scope.split(' ') : adapter.authConfig.scopes,
     });
 
-    logger.info('Platform connected successfully', { platform: platformType, workspaceId, platformUserId: profile.platformUserId });
+    logger.info('Platform connected successfully', { platform, workspaceId, platformUserId: profile.platformUserId });
 
     // Clear OAuth cookies
     const response = NextResponse.redirect(
-      new URL(`/dashboard/settings?connected=${platformType}`, request.url)
+      new URL(`/dashboard/settings?connected=${platform}`, request.url)
     );
     response.headers.append('Set-Cookie', 'oauth_state=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0');
-    if (platformType === 'x') {
+    if (platform === 'x') {
       response.headers.append('Set-Cookie', `pkce_${effectiveState}=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0`);
     }
 
     return response;
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
-    logger.error('OAuth callback failed', { error: err, platform: platformType, state: effectiveState });
+    logger.error('OAuth callback failed', { error: err, platform, state: effectiveState });
     const errorMsg = encodeURIComponent(err.message?.slice(0, 200) || 'unknown');
     return NextResponse.redirect(
-      new URL(`/dashboard/settings?error=callback_failed&platform=${platformType}&detail=${errorMsg}`, request.url)
+      new URL(`/dashboard/settings?error=callback_failed&platform=${platform}&detail=${errorMsg}`, request.url)
     );
   }
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
 import { SupabasePlatformRepository } from '@/lib/repositories/supabase/SupabasePlatformRepository';
 import { logger } from '@/lib/logger';
+import { SUPPORTED_PLATFORMS } from '@/lib/platforms';
 
 const platformRepository = new SupabasePlatformRepository();
 
@@ -18,11 +19,11 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (!['linkedin', 'x', 'threads'].includes(platform)) {
+    if (!SUPPORTED_PLATFORMS.includes(platform as (typeof SUPPORTED_PLATFORMS)[number])) {
       return NextResponse.json({ error: 'Invalid platform' }, { status: 400 });
     }
 
-    const connection = await platformRepository.findByWorkspaceAndPlatform(auth.workspaceId, platform as 'linkedin' | 'x' | 'threads');
+    const connection = await platformRepository.findByWorkspaceAndPlatform(auth.workspaceId, platform as (typeof SUPPORTED_PLATFORMS)[number]);
     if (!connection) {
       return NextResponse.json({ error: 'Connection not found' }, { status: 404 });
     }

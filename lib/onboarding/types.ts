@@ -87,6 +87,22 @@ export const ONBOARDING_STEPS: Omit<OnboardingStep, 'completedAt' | 'metadata'>[
     required: false,
     xp: 200,
   },
+  {
+    id: 'connect_facebook',
+    title: 'Connect Facebook Pages',
+    description: 'Enable one-click publishing to Facebook Pages',
+    category: 'social',
+    required: false,
+    xp: 200,
+  },
+  {
+    id: 'connect_whatsapp',
+    title: 'Connect WhatsApp Status',
+    description: 'Enable posting to WhatsApp Status (24h)',
+    category: 'social',
+    required: false,
+    xp: 200,
+  },
 
   // Content steps
   {

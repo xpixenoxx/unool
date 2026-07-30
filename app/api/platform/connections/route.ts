@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
 import { SupabasePlatformRepository } from '@/lib/repositories/supabase/SupabasePlatformRepository';
 import { logger } from '@/lib/logger';
+import { SUPPORTED_PLATFORMS } from '@/lib/platforms';
 
 const platformRepository = new SupabasePlatformRepository();
 
@@ -16,11 +17,11 @@ export async function GET(request: NextRequest) {
 
     const connections = await platformRepository.findByWorkspaceId(auth.workspaceId);
 
-    const result: Record<string, { platform: string; status: string; username?: string; connectedAt?: string; expiresAt?: string }> = {
-      linkedin: { platform: 'linkedin', status: 'not_connected' },
-      x: { platform: 'x', status: 'not_connected' },
-      threads: { platform: 'threads', status: 'not_connected' },
-    };
+    // Initialize result with all supported platforms
+    const result: Record<string, { platform: string; status: string; username?: string; connectedAt?: string; expiresAt?: string }> = {};
+    for (const platform of SUPPORTED_PLATFORMS) {
+      result[platform] = { platform, status: 'not_connected' };
+    }
 
     for (const conn of connections) {
       const now = new Date();
