@@ -3,7 +3,6 @@
 import * as React from 'react';
 import { motion, useReducedMotion, useMotionValue, useSpring, useTransform, useScroll } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { designTokens } from '@/lib/design/tokens';
 
 /**
  * OrbitalBackground - Floating 3D orbs with orbital spring animation
@@ -65,8 +64,8 @@ interface OrbitalParticle {
   depth: number; // 0-1 for 3D depth effect
 }
 
-const { motion: motionTokens } = designTokens;
-const orbitalSpring = motionTokens.springs.orbital;
+// Orbital spring config (loose, organic)
+const orbitalSpring = { type: 'spring', stiffness: 100, damping: 15, mass: 2 };
 
 /** Default configuration matching design tokens */
 const DEFAULT_CONFIG = {

@@ -24,6 +24,10 @@ export interface PublishInput {
   content: string;
   mediaUrls?: string[];
   firstComment?: string;
+  // WhatsApp-specific
+  whatsappMessageType?: 'text' | 'image' | 'video' | 'document' | 'status';
+  whatsappRecipientType?: 'contact' | 'status';  // 'status' = broadcast to all contacts
+  whatsappRecipientPhone?: string;  // Required for direct messages
 }
 
 export interface PublishResult {
@@ -33,7 +37,7 @@ export interface PublishResult {
 }
 
 export interface PlatformAdapter {
-  readonly platform: 'linkedin' | 'x' | 'threads' | 'manual';
+  readonly platform: 'linkedin' | 'x' | 'threads' | 'manual' | 'facebook' | 'whatsapp';
   readonly authConfig: PlatformAuthConfig;
 
   getAuthUrl(state: string): string | Promise<{ url: string; pkceCookie?: string }>;

@@ -3,44 +3,44 @@
 import * as React from 'react';
 import { motion, HTMLMotionProps, Variants, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { designTokens } from '@/lib/design/tokens';
+import { primitives } from '@/lib/design/tokens';
 
 export { motion, AnimatePresence } from 'framer-motion';
 
-const { motion: motionTokens } = designTokens;
-
 // ============================================================
-// SPRING PRESETS (from design tokens)
+// SPRING PRESETS (from design tokens - primitives.duration & primitives.easing)
 // ============================================================
 
+// Map duration tokens to Framer Motion spring configs
 const spring = {
-  snappy: motionTokens.springs.snappy,
-  standard: motionTokens.springs.standard,
-  gentle: motionTokens.springs.gentle,
-  bouncy: motionTokens.springs.bouncy,
-  smooth: motionTokens.springs.smooth,
-  magnetic: motionTokens.springs.magnetic,
+  snappy: { type: 'spring', stiffness: 500, damping: 30, mass: 0.8 },  // cubic-bezier(0.34, 1.56, 0.64, 1)
+  standard: { type: 'spring', stiffness: 400, damping: 35, mass: 1 },   // cubic-bezier(0.25, 0.46, 0.45, 0.94)
+  gentle: { type: 'spring', stiffness: 300, damping: 40, mass: 1.2 },   // cubic-bezier(0.42, 0, 0.58, 1)
+  bouncy: { type: 'spring', stiffness: 400, damping: 20, mass: 1 },     // cubic-bezier(0.68, -0.55, 0.27, 1.55)
+  smooth: { type: 'spring', stiffness: 350, damping: 45, mass: 1.1 },
+  magnetic: { type: 'spring', stiffness: 600, damping: 35, mass: 0.6 },
 } as const;
 
 const duration = {
-  instant: motionTokens.durations.instant,
-  fast: motionTokens.durations.fast,
-  normal: motionTokens.durations.normal,
-  slow: motionTokens.durations.slow,
-  slower: motionTokens.durations.slower,
+  instant: 0,
+  fast: 0.1,
+  normal: 0.18,
+  smooth: 0.25,
+  slow: 0.35,
+  slower: 0.5,
 } as const;
 
 const easing = {
-  easeOut: motionTokens.easings.easeOut,
-  easeIn: motionTokens.easings.easeIn,
-  easeInOut: motionTokens.easings.easeInOut,
-  brand: motionTokens.easings.brand,
+  easeOut: [0.25, 0.46, 0.45, 0.94],
+  easeIn: [0.42, 0, 0.58, 1],
+  easeInOut: [0.42, 0, 0.58, 1],
+  brand: [0.25, 0.46, 0.45, 0.94],
 } as const;
 
 const stagger = {
-  fast: motionTokens.stagger.fast,
-  normal: motionTokens.stagger.normal,
-  slow: motionTokens.stagger.slow,
+  fast: 0.05,
+  normal: 0.1,
+  slow: 0.15,
 } as const;
 
 // ============================================================

@@ -41,6 +41,8 @@ function getWebhookSecret(platform: Platform): string | undefined {
     linkedin: config.LINKEDIN_WEBHOOK_SECRET,
     x: config.X_WEBHOOK_SECRET,
     threads: config.META_WEBHOOK_SECRET,
+    facebook: config.META_WEBHOOK_SECRET,
+    whatsapp: config.META_WEBHOOK_SECRET,
     manual: undefined,
   };
   return secretMap[platform];
@@ -153,6 +155,8 @@ export function extractWebhookSignature(request: Request, platform: Platform): s
     linkedin: ['x-li-signature', 'x-linkedin-signature'],
     x: ['x-twitter-webhooks-signature', 'x-twitter-signature'],
     threads: ['x-hub-signature-256', 'x-hub-signature'],
+    facebook: ['x-hub-signature-256', 'x-hub-signature'],
+    whatsapp: ['x-hub-signature-256', 'x-hub-signature'],
     manual: [],
   };
 
