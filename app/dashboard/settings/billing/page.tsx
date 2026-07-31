@@ -1,8 +1,8 @@
 import { getAuthContext } from '@/lib/auth/context';
 import { redirect } from 'next/navigation';
-import SettingsClientWrapper from './SettingsClient';
+import BillingClientWrapper from './BillingClient';
 
-async function getSettingsData() {
+async function getBillingData() {
   const auth = await getAuthContext();
   if (!auth) {
     return null;
@@ -10,12 +10,12 @@ async function getSettingsData() {
   return { userId: auth.userId, workspaceId: auth.workspaceId };
 }
 
-export default async function SettingsPage() {
-  const data = await getSettingsData();
+export default async function BillingPage() {
+  const data = await getBillingData();
 
   if (!data) {
     redirect('/');
   }
 
-  return <SettingsClientWrapper userId={data.userId} workspaceId={data.workspaceId} />;
+  return <BillingClientWrapper userId={data.userId} workspaceId={data.workspaceId} />;
 }

@@ -1,24 +1,21 @@
-import { Suspense } from 'react';
-import PublishContent from './PublishContent';
+import { getAuthContext } from '@/lib/auth/context';
+import { redirect } from 'next/navigation';
+import PublishClientWrapper from './PublishClient';
 
-export const dynamic = 'force-dynamic';
+async function getPublishData() {
+  const auth = await getAuthContext();
+  if (!auth) {
+    return null;
+  }
+  return { userId: auth.userId, workspaceId: auth.workspaceId };
+}
 
-export default function PublishPage() {
-  return (
-    <Suspense fallback={
-      <div className="space-y-8 max-w-4xl mx-auto px-4 py-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold">Publish (One Click)</h1>
-            <p className="text-muted-foreground">Write once. AI adapts. You approve. One click publishes everywhere.</p>
-          </div>
-        </div>
-        <div className="min-h-[300px] flex items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-        </div>
-      </div>
-    }>
-      <PublishContent />
-    </Suspense>
-  );
+export default async function PublishPage() {
+  const data = await getPublishData();
+
+  if (!data) {
+    redirect('/');
+  }
+
+  return <PublishClientWrapper userId={data.userId} workspaceId={data.workspaceId} />;
 }
