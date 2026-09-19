@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
   ArrowRight, Linkedin, Twitter, MessageSquare, CheckCircle, Zap, Shield, Sparkles,
-  ArrowUpRight, Globe, BarChart2, Clock, Layers, PenTool, Star
+  ArrowUpRight, Globe, BarChart2, Clock, Layers, PenTool, Star, ChevronDown
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -65,26 +65,36 @@ export default function HomePage() {
     <motion.div className="min-h-screen bg-gradient-to-b from-background to-muted/30" initial="initial" animate="animate" variants={pageVariants}>
       {/* Navigation Bar */}
       <motion.header className="fixed top-0 left-0 right-0 z-40 backdrop-blur-md bg-background/80 border-b border-border" variants={headerVariants}>
-        <Container size="lg" className="flex h-16 items-center justify-between">
+        <nav className="max-w-6xl flex items-center justify-between px-6 mx-auto w-full h-16 md:h-20">
           <Flex center gap={3}>
             <motion.div variants={brandVariants}>
               <Link href="/">
-                <img src="/logo.png" alt="Unool Logo" className="h-8 w-auto object-contain" />
+                <img src="/logo.png" alt="Unool Logo" className="w-[65px] h-[65px] object-contain" />
               </Link>
             </motion.div>
           </Flex>
+          <div className="hidden lg:flex lg:justify-center lg:gap-6 lg:items-center">
+            {['Pricing', 'Reviews', 'Features', 'Platforms', 'FAQ', 'Blog'].map((item) => (
+              <Link key={item} href={`#${item.toLowerCase()}`} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                {item}
+              </Link>
+            ))}
+            <Link href="#tools" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+              Tools <ChevronDown className="w-4 h-4" />
+            </Link>
+            <Link href="#api" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+              API
+            </Link>
+            <Link href="#billing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+              Billing
+            </Link>
+          </div>
           <Flex center gap={4}>
-            <Link href="#how-it-works" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">How It Works</Link>
-            <Link href="#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Features</Link>
-            <Link href="#pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Pricing</Link>
-            <Button asChild size="sm" variant="ghost">
-              <Link href="/dashboard">Dashboard</Link>
-            </Button>
-            <Button asChild size="lg">
-              <Link href="/signup">Get Started Free</Link>
+            <Button asChild variant="outline" className="rounded-full md:w-[87.1px] md:h-12 h-9 px-6 md:px-0">
+              <Link href="/signin">Login</Link>
             </Button>
           </Flex>
-        </Container>
+        </nav>
       </motion.header>
 
       {/* Hero Section */}

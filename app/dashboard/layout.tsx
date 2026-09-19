@@ -41,7 +41,7 @@ function DashboardSidebar({ sidebarOpen, setSidebarOpen }: { sidebarOpen: boolea
         <div className="flex h-full flex-col">
           <div className="flex h-16 items-center justify-between px-4 border-b">
             <Link href="/dashboard" className="flex items-center gap-2">
-              <img src="/logo.png" alt="Unool Logo" className="h-8 w-auto object-contain" />
+              <img src="/logo.png" alt="Unool Logo" className="w-[65px] h-[65px] object-contain" />
             </Link>
           </div>
           <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
@@ -85,7 +85,7 @@ function DashboardSidebar({ sidebarOpen, setSidebarOpen }: { sidebarOpen: boolea
         {/* Header */}
         <div className="flex h-16 items-center justify-between px-4 border-b">
           <Link href="/dashboard" className="flex items-center gap-2">
-            <img src="/logo.png" alt="Unool Logo" className="h-8 w-auto object-contain" />
+            <img src="/logo.png" alt="Unool Logo" className="w-[65px] h-[65px] object-contain" />
           </Link>
           <button
             className="lg:hidden p-2 rounded-md hover:bg-accent"

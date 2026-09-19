@@ -22,12 +22,20 @@ const configSchema = z.object({
   UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
   MAGIC_LINK_EXPIRY_MINUTES: z.coerce.number().default(15),
 
+  // Resend API Key for magic links
+  RESEND_API_KEY: z.string().optional(),
+
   // Encryption key for token encryption (32-byte base64, required in production)
   ENCRYPTION_KEY: z.string().optional(),
   ENCRYPTION_KEY_VERSION: z.coerce.number().default(1),
 
   // Dev auth bypass
   DEV_AUTH_BYPASS: z.coerce.boolean().optional().default(false),
+
+  // OTP security
+  OTP_PEPPER: z.string().optional(),
+  RATE_LIMIT_OTP_GEN_PER_HOUR: z.coerce.number().default(5),
+  RATE_LIMIT_OTP_VERIFY_PER_15MIN: z.coerce.number().default(10),
 
   // Sentry
   SENTRY_DSN: z.string().url().optional(),

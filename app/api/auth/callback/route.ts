@@ -11,10 +11,10 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { code, redirectTo } = body;
+    const { code, token_hash, type, redirectTo } = body;
 
-    if (!code) {
-      return NextResponse.json({ error: 'Missing authorization code' }, { status: 400 });
+    if (!code && !token_hash) {
+      return NextResponse.json({ error: 'Missing authorization credentials' }, { status: 400 });
     }
 
     const supabase = createServerClient(
@@ -34,7 +34,15 @@ export async function POST(request: NextRequest) {
       }
     );
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    let error;
+
+    if (code) {
+      const resp = await supabase.auth.exchangeCodeForSession(code);
+      error = resp.error;
+    } else if (token_hash) {
+      const resp = await supabase.auth.verifyOtp({ token_hash, type: type as any });
+      error = resp.error;
+    }
 
     if (error) {
       logger.error('Auth callback error', { error, traceId });

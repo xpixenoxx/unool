@@ -29,9 +29,9 @@ export default function TermsPage() {
     <motion.div className="min-h-screen bg-gradient-to-b from-background to-muted/30" initial="initial" animate="animate" variants={pageVariants}>
       {/* Header */}
       <header className="border-b backdrop-blur-md bg-background/80 sticky top-0 z-40">
-        <Container size="lg" className="flex h-16 items-center justify-between">
+        <Container size="lg" className="flex h-16 md:h-20 items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <img src="/logo.png" alt="Unool Logo" className="h-8 w-auto object-contain" />
+            <img src="/logo.png" alt="Unool Logo" className="w-[65px] h-[65px] object-contain" />
           </Link>
           <Link href="/">
             <Button variant="ghost" size="sm">

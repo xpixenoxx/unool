@@ -5,6 +5,7 @@ const nextConfig = {
       bodySizeLimit: '2mb',
     },
   },
+  serverExternalPackages: ['argon2'],
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: '*.supabase.co' },

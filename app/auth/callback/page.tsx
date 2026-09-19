@@ -35,10 +35,13 @@ function AuthCallbackContent() {
     if (errorMessage) return;
 
     const code = searchParams.get('code');
-    if (!code) {
-      // If we don't have a code and we didn't find an error in the hash,
+    const token_hash = searchParams.get('token_hash');
+    const type = searchParams.get('type') || 'magiclink';
+
+    if (!code && !token_hash) {
+      // If we don't have a code or token_hash, and we didn't find an error in the hash,
       // something is wrong.
-      setErrorMessage('Missing authorization code');
+      setErrorMessage('Missing authorization credentials');
       return;
     }
 
@@ -50,6 +53,8 @@ function AuthCallbackContent() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             code,
+            token_hash,
+            type,
             redirectTo: `${window.location.origin}${redirect}`,
           }),
         });
@@ -117,7 +122,7 @@ function AuthCallbackContent() {
               </MotionBox>
               <Display size="md" weight="bold" className="mb-2">Completing Sign In</Display>
               <Text color="muted" className="mb-6 max-w-sm mx-auto">
-                {isExchanging ? 'Verifying your magic link...' : 'Please wait while we verify your magic link...'}
+                {isExchanging ? 'Creating your secure session...' : 'Please wait while we log you in...' }
               </Text>
               <MotionBox variant="slide-up" delay={0.3}>
                 <Flex center gap={2} className="text-xs text-muted-foreground">

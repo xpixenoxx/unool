@@ -1,319 +1,218 @@
 'use client';
 
-import { useState, useCallback, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
-import { Loader2, Linkedin, Twitter, MessageSquare, CheckCircle, ArrowRight, Sparkles, Zap, Shield, Mail, AlertCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Flex, Box, Stack, Text, Display, Container, Section, Lead } from '@/components/ui/layout';
-import { MotionBox, MotionStack, spring, stagger } from '@/components/ui/motion';
-import { cn } from '@/lib/utils';
-import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { Transition } from 'framer-motion';
+import { ArrowLeft, MessageSquare, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import OtpVerifyForm from '@/components/auth/OtpVerifyForm';
 
-function SignupForm() {
-  const searchParams = useSearchParams();
-  const redirect = searchParams.get('redirect') || '/dashboard';
-  const [email, setEmail] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
-  const reducedMotion = useReducedMotion();
-  const springConfig: Transition = reducedMotion ? { type: 'tween', duration: 0.01 } : spring.standard;
+type Stage = 'form' | 'otp' | 'done';
 
-  const handleSubmit = async (e: React.FormEvent) => {
+interface FormErrors {
+  name?:     string;
+  email?:    string;
+  password?: string;
+}
+
+function validateForm(name: string, email: string, password: string): FormErrors {
+  const errors: FormErrors = {};
+  if (!name.trim())          errors.name     = 'Name is required.';
+  if (!email.includes('@'))  errors.email    = 'Enter a valid email address.';
+  if (password.length < 8)  errors.password = 'Password must be at least 8 characters.';
+  if (password.length > 128) errors.password = 'Password must be at most 128 characters.';
+  return errors;
+}
+
+export default function SignUpPage() {
+  const router = useRouter();
+
+  const [name, setName]         = useState('');
+  const [email, setEmail]       = useState('');
+  const [password, setPassword] = useState('');
+  const [errors, setErrors]     = useState<FormErrors>({});
+  const [apiError, setApiError] = useState('');
+  const [loading, setLoading]   = useState(false);
+  const [stage, setStage]       = useState<Stage>('form');
+  const [nextResendAt, setNextResendAt] = useState<string>();
+
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !email.includes('@')) {
-      setMessage({ type: 'error', text: 'Please enter a valid email address' });
-      return;
-    }
+    setApiError('');
+    const errs = validateForm(name, email, password);
+    setErrors(errs);
+    if (Object.keys(errs).length) return;
 
     setLoading(true);
-    setMessage(null);
-
     try {
-      const res = await fetch('/api/auth/magic-link', {
-        method: 'POST',
+      const res  = await fetch('/api/auth/signup', {
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, redirectTo: `${window.location.origin}${redirect}` }),
+        body:    JSON.stringify({ name: name.trim(), email: email.trim().toLowerCase(), password }),
       });
-
       const data = await res.json();
-
       if (!res.ok) {
-        setMessage({ type: 'error', text: data.error || 'Failed to send magic link' });
-        return;
+        setApiError(data.message || 'Something went wrong.');
+      } else {
+        setNextResendAt(new Date(Date.now() + 60_000).toISOString());
+        setStage('otp');
       }
-
-      setMessage({ type: 'success', text: `Magic link sent to ${email}. Check your inbox (and spam folder).` });
     } catch {
-      setMessage({ type: 'error', text: 'Something went wrong. Please try again.' });
+      setApiError('Network error. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Motion variants
-  const pageVariants = {
-    initial: { opacity: 0 },
-    animate: { opacity: 1, transition: { staggerChildren: 0.1 } },
-  };
-
-  const headerVariants = {
-    initial: { y: -100, opacity: 0 },
-    animate: { y: 0, opacity: 1, transition: spring.snappy },
-  };
-
-  const brandVariants = {
-    initial: { scale: 0.9, opacity: 0 },
-    animate: { scale: 1, opacity: 1, transition: spring.bouncy },
+  const handleOtpSuccess = () => {
+    setStage('done');
+    setTimeout(() => router.push('/signin'), 2000);
   };
 
   return (
-    <motion.div
-      className="min-h-screen bg-gradient-to-b from-background to-muted/30"
-      initial="initial"
-      animate="animate"
-      variants={pageVariants}
-    >
-      {/* Navigation Bar */}
-      <motion.header
-        className="fixed top-0 left-0 right-0 z-40 backdrop-blur-md bg-background/80 border-b border-border"
-        variants={headerVariants}
-      >
-        <Container size="lg" className="flex h-16 items-center justify-between">
-          <Flex center gap={3}>
-            <motion.div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium" variants={brandVariants}>
-              <Sparkles className="w-3 h-3" />
-              <span>One Link + One Click</span>
-            </motion.div>
-          </Flex>
-          <Flex center gap={4}>
-            <Link href="#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Features</Link>
-            <Link href="#pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Pricing</Link>
-            <Button asChild size="sm" variant="ghost">
-              <Link href="/dashboard">Dashboard</Link>
-            </Button>
-          </Flex>
-        </Container>
-      </motion.header>
-
-      {/* Signup Form Section */}
-      <Section size="xl" className="relative overflow-hidden pt-20">
-        <Container size="lg">
-          <MotionStack space={8} className="max-w-md mx-auto" stagger={stagger.normal} direction="up">
-            {/* Brand Header */}
-            <MotionBox variant="fade" delay={0.1}>
-              <motion.div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium" variants={brandVariants}>
-                <Sparkles className="w-4 h-4" />
-                <span>One Link + One Click</span>
-              </motion.div>
-            </MotionBox>
-
-            {/* Card */}
-            <MotionBox variant="slide-up" delay={0.15}>
-              <Card className="border-primary/20 bg-primary/5 shadow-xl">
-                <CardHeader className="text-center">
-                  <div className="mx-auto w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mb-4">
-                    <Mail className="w-6 h-6 text-primary" />
-                  </div>
-                  <CardTitle className="text-2xl">Sign in to Unool</CardTitle>
-                  <CardDescription>
-                    Enter your email to receive a magic link. No password needed.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <form onSubmit={handleSubmit}>
-                    <div className="space-y-2">
-                      <Label htmlFor="email" className="text-sm font-medium">
-                        Email
-                      </Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        placeholder="you@company.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        disabled={loading}
-                        className="w-full"
-                        autoComplete="email"
-                        autoFocus
-                      />
-                    </div>
-                    <Button
-                      type="submit"
-                      className="w-full"
-                      disabled={loading}
-                      size="lg"
-                    >
-                      {loading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Sending...
-                        </>
-                      ) : (
-                        'Send Magic Link'
-                      )}
-                    </Button>
-                  </form>
-
-                  {message && (
-                    <MotionBox variant="scale" initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={springConfig}>
-                      <div className={cn(
-                        'p-3 rounded-lg text-sm flex items-center gap-2',
-                        message.type === 'success' ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400' :
-                        'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
-                      )}>
-                        {message.type === 'success' && <CheckCircle className="w-4 h-4 flex-shrink-0" />}
-                        {message.type === 'error' && <AlertCircle className="w-4 h-4 flex-shrink-0" />}
-                        <span>{message.text}</span>
-                      </div>
-                    </MotionBox>
-                  )}
-
-                  <p className="text-xs text-center text-muted-foreground">
-                    By signing in, you agree to our{' '}
-                    <Link href="/terms" className="underline hover:text-foreground">
-                      Terms of Service
-                    </Link>{' '}
-                    and{' '}
-                    <Link href="/privacy" className="underline hover:text-foreground">
-                      Privacy Policy
-                    </Link>.
-                  </p>
-
-                  {/* Dev bypass - only show in development */}
-                  {process.env.NODE_ENV === 'development' && (
-                    <MotionBox variant="slide-up" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={springConfig}>
-                      <Flex className="relative" flexDirection="column" gap={2}>
-                        <div className="relative">
-                          <div className="absolute inset-0 bg-gradient-to-t from-card/90 to-transparent z-10 pointer-events-none h-8 bottom-0" />
-                          <Button
-                            variant="outline"
-                            className="w-full text-xs text-muted-foreground"
-                            onClick={async () => {
-                              const res = await fetch('/api/auth/dev-bypass', { method: 'GET', credentials: 'include' });
-                              if (res.ok) window.location.href = '/dashboard';
-                            }}
-                          >
-                            🛠️ Dev Login (Bypass Magic Link)
-                          </Button>
-                        </div>
-                      </Flex>
-                    </MotionBox>
-                  )}
-                </CardContent>
-              </Card>
-            </MotionBox>
-
-            {/* Trust signals */}
-            <MotionBox variant="fade" delay={0.3} className="text-center">
-              <Text size="sm" color="muted" className="flex flex-wrap items-center justify-center gap-4">
-                <span className="flex items-center gap-1">
-                  <CheckCircle className="w-3 h-3" />
-                  No credit card
-                </span>
-                <span className="flex items-center gap-1">
-                  <Sparkles className="w-3 h-3" />
-                  Magic link auth
-                </span>
-                <span className="flex items-center gap-1">
-                  <CheckCircle className="w-3 h-3" />
-                  Free forever for solo founders
-                </span>
-              </Text>
-            </MotionBox>
-          </MotionStack>
-        </Container>
-      </Section>
-
-      {/* Features teaser */}
-      <Section id="features" size="xl" className="bg-muted/30">
-        <Container size="lg">
-          <MotionStack space={6} className="text-center max-w-3xl mx-auto" stagger={stagger.normal} direction="up">
-            <MotionBox variant="fade">
-              <motion.div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium" variants={brandVariants}>
-                <Sparkles className="w-4 h-4" />
-                <span>Built for Founders</span>
-              </motion.div>
-            </MotionBox>
-            <MotionBox variant="slide-up">
-              <Display size="xl" weight="extrabold">Everything you need, nothing you don&apos;t</Display>
-            </MotionBox>
-            <MotionBox variant="slide-up">
-              <Lead>Replace Linktree + Buffer + Notion with one workflow. Ship faster. Look sharper.</Lead>
-            </MotionBox>
-          </MotionStack>
-
-          <MotionStack space={6} className="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" stagger={stagger.normal} direction="up">
-            {[
-              {
-                icon: Zap,
-                title: 'One Link Profile',
-                desc: 'Beautiful public profile at yourname.unool.co. 5 professional themes. Auto-generated from any URL. Proof points, links, badges — all editable.',
-              },
-              {
-                icon: MessageSquare,
-                title: 'AI Post Composer',
-                desc: 'Write once. AI adapts for each platform\'s character limits, formatting, and best practices. LinkedIn threads, X tweets, Threads replies — all native.',
-              },
-              {
-                icon: Shield,
-                title: 'Human-in-the-Loop',
-                desc: 'AI drafts. You approve. Edit inline, reject, or write from scratch. Nothing posts without your explicit click. Full control, zero surprises.',
-              },
-            ].map((feature, i) => (
-              <MotionBox key={feature.title} variant="slide-up" delay={i * 0.07}>
-                <Card className="p-6 h-full transition-all duration-300 hover:border-primary/30 hover:shadow-lg border-muted">
-                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary mb-4">
-                    <feature.icon className="w-7 h-7" />
-                  </div>
-                  <Display size="md" weight="bold" className="mb-3">{feature.title}</Display>
-                  <Text color="muted">{feature.desc}</Text>
-                </Card>
-              </MotionBox>
-            ))}
-          </MotionStack>
-        </Container>
-      </Section>
-
-      {/* Footer */}
-      <footer className="py-12 border-t border-border">
-        <Container size="lg">
-          <Flex between wrap gap={4} className="text-sm text-muted-foreground">
-            <Flex center gap={2}>
-              <img src="/logo.png" alt="Unool Logo" className="h-6 w-auto object-contain opacity-70 hover:opacity-100 transition-opacity" />
-            </Flex>
-            <Flex center gap={6}>
-              <Link href="/terms" className="hover:text-foreground transition-colors">Terms</Link>
-              <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
-              <Link href="https://github.com" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">GitHub</Link>
-            </Flex>
-            <Text>Built for founder-operators, not content creators.</Text>
-          </Flex>
-        </Container>
-      </footer>
-    </motion.div>
-  );
-}
-
-export default function SignupPage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="inline-flex items-center justify-center w-12 h-12">
-          <svg className="animate-spin h-8 w-8 text-primary" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-          </svg>
-        </div>
+    <div className="min-h-screen bg-white relative flex flex-col items-center pt-16 font-sans">
+      {/* Home link */}
+      <div className="absolute top-6 left-6 lg:top-8 lg:left-8">
+        <Link href="/" className="flex items-center gap-2 text-[15px] text-zinc-700 hover:text-black transition-colors font-medium">
+          <ArrowLeft className="w-4 h-4" /> Home
+        </Link>
       </div>
-    }>
-      <SignupForm />
-    </Suspense>
+
+      <div className="w-full max-w-[440px] px-4">
+        {/* Toggle */}
+        <div className="mx-auto flex w-fit p-1 bg-zinc-100 rounded-md mb-8">
+          <Link href="/signin" className="px-5 py-1.5 text-[15px] font-medium rounded text-zinc-500 hover:text-zinc-700 transition-colors">
+            Sign In
+          </Link>
+          <Link href="/signup" className="px-5 py-1.5 text-[15px] font-medium rounded bg-[#68d391] text-white shadow-sm ring-1 ring-black/5">
+            Sign Up
+          </Link>
+        </div>
+
+        {/* ── FORM STAGE ──────────────────────────────────────────────────── */}
+        {stage === 'form' && (
+          <>
+            <h1 className="text-[32px] font-bold text-center text-[#2d3748] tracking-tight mb-8">
+              Create Your Free Account
+            </h1>
+
+            <form onSubmit={handleSignup} noValidate className="space-y-4">
+              {/* Name */}
+              <div>
+                <input
+                  type="text"
+                  placeholder="Full name"
+                  value={name}
+                  onChange={(e) => { setName(e.target.value); setErrors(p => ({ ...p, name: undefined })); }}
+                  disabled={loading}
+                  className={`w-full px-4 py-3 rounded border text-[15px] placeholder:text-zinc-300 bg-white
+                    focus:outline-none focus:ring-1 transition-colors disabled:opacity-60
+                    ${errors.name ? 'border-red-400 focus:border-red-400 focus:ring-red-300' : 'border-zinc-200 focus:border-[#68d391] focus:ring-[#68d391]'}`}
+                />
+                {errors.name && <p className="text-red-500 text-[12px] mt-1">{errors.name}</p>}
+              </div>
+
+              {/* Email */}
+              <div>
+                <input
+                  type="email"
+                  placeholder="tom@cruise.com"
+                  value={email}
+                  onChange={(e) => { setEmail(e.target.value); setErrors(p => ({ ...p, email: undefined })); }}
+                  disabled={loading}
+                  className={`w-full px-4 py-3 rounded border text-[15px] placeholder:text-zinc-300 bg-white
+                    focus:outline-none focus:ring-1 transition-colors disabled:opacity-60
+                    ${errors.email ? 'border-red-400 focus:border-red-400 focus:ring-red-300' : 'border-zinc-200 focus:border-[#68d391] focus:ring-[#68d391]'}`}
+                />
+                {errors.email && <p className="text-red-500 text-[12px] mt-1">{errors.email}</p>}
+              </div>
+
+              {/* Password */}
+              <div>
+                <input
+                  type="password"
+                  placeholder="Password (min. 8 characters)"
+                  value={password}
+                  onChange={(e) => { setPassword(e.target.value); setErrors(p => ({ ...p, password: undefined })); }}
+                  disabled={loading}
+                  className={`w-full px-4 py-3 rounded border text-[15px] placeholder:text-zinc-300 bg-white
+                    focus:outline-none focus:ring-1 transition-colors disabled:opacity-60
+                    ${errors.password ? 'border-red-400 focus:border-red-400 focus:ring-red-300' : 'border-zinc-200 focus:border-[#68d391] focus:ring-[#68d391]'}`}
+                />
+                {errors.password && <p className="text-red-500 text-[12px] mt-1">{errors.password}</p>}
+              </div>
+
+              {/* Captcha placeholder (invisible, keeps layout) */}
+              <div className="invisible flex items-center justify-between border border-zinc-200 rounded p-2
+                              mx-auto w-[300px] bg-[#f9fafb] shadow-sm" aria-hidden="true">
+                <div className="flex items-center gap-3">
+                  <div className="w-5 h-5 border-2 border-zinc-300 rounded bg-white shadow-inner ml-1" />
+                  <span className="text-[14px] text-zinc-700">Verify you are human</span>
+                </div>
+              </div>
+
+              {/* API error */}
+              {apiError && (
+                <div className="flex items-start gap-2 text-red-600 text-[13px] bg-red-50 border border-red-100
+                                rounded-lg px-3 py-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  {apiError}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-[#68d391] hover:bg-[#5bb87d] disabled:opacity-70 disabled:cursor-not-allowed
+                           text-white py-3 rounded font-semibold text-[15px] transition-colors shadow-sm
+                           flex items-center justify-center gap-2"
+              >
+                {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending code…</> : 'Create Account'}
+              </button>
+            </form>
+          </>
+        )}
+
+        {/* ── OTP STAGE ───────────────────────────────────────────────────── */}
+        {stage === 'otp' && (
+          <OtpVerifyForm
+            email={email}
+            purpose="signup"
+            verifyUrl="/api/auth/signup/verify-otp"
+            onSuccess={handleOtpSuccess}
+            onBack={() => { setStage('form'); setApiError(''); }}
+            nextResendAt={nextResendAt}
+          />
+        )}
+
+        {/* ── DONE ────────────────────────────────────────────────────────── */}
+        {stage === 'done' && (
+          <div className="text-center py-8 space-y-3">
+            <CheckCircle2 className="w-14 h-14 text-[#68d391] mx-auto" />
+            <h2 className="text-[22px] font-bold text-[#2d3748]">Account Created!</h2>
+            <p className="text-[14px] text-zinc-500">Redirecting you to sign in…</p>
+          </div>
+        )}
+      </div>
+
+      {/* Footer links */}
+      {stage === 'form' && (
+        <div className="mt-16 text-center flex flex-col gap-1 text-[14px]">
+          <span className="text-zinc-500">
+            Already have an account?{' '}
+            <Link href="/signin" className="text-zinc-700 hover:text-black font-medium">Sign In</Link>
+          </span>
+          <Link href="/forgot-password" className="text-zinc-500 hover:text-zinc-700 transition-colors">
+            Forgot your password?
+          </Link>
+        </div>
+      )}
+
+      {/* Chat Widget */}
+      <div className="fixed bottom-6 right-6 w-[52px] h-[52px] bg-white rounded-full
+                      shadow-[0_4px_14px_rgba(0,0,0,0.1)] border border-zinc-100 flex items-center
+                      justify-center cursor-pointer hover:shadow-[0_6px_20px_rgba(0,0,0,0.15)] transition-shadow">
+        <MessageSquare className="w-[22px] h-[22px] text-zinc-600 fill-zinc-600" />
+      </div>
+    </div>
   );
 }

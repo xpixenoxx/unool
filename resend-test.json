@@ -1,0 +1,24 @@
+{
+  "success": true,
+  "res": {
+    "data": {
+      "id": "01a0bbd6-5caf-7582-a277-c6d705bf18c2"
+    },
+    "error": null,
+    "headers": {
+      "cf-cache-status": "DYNAMIC",
+      "cf-ray": "a3dc1b66480c29f5-BOM",
+      "connection": "keep-alive",
+      "content-length": "45",
+      "content-type": "application/json",
+      "date": "Sat, 19 Sep 2026 22:43:03 GMT",
+      "ratelimit-limit": "10",
+      "ratelimit-policy": "10;w=1",
+      "ratelimit-remaining": "9",
+      "ratelimit-reset": "1",
+      "server": "cloudflare",
+      "x-resend-daily-quota": "1",
+      "x-resend-monthly-quota": "1"
+    }
+  }
+}
