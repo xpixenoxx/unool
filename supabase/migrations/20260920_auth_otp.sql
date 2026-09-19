@@ -1,56 +1,37 @@
 -- ============================================================
--- AUTH: Custom OTP Challenges table
--- Stores hashed OTPs for signup & signin verification.
--- The plaintext OTP is NEVER stored.
+-- AUTH OTP: Updated migration
+-- Allows storing pending signup data BEFORE user is created
+-- Run this in your Supabase SQL Editor
 -- ============================================================
 
-CREATE TABLE IF NOT EXISTS public.auth_otp_challenges (
-  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+-- 1. Drop old table if exists (fresh start)
+DROP TABLE IF EXISTS public.auth_otp_challenges CASCADE;
 
-  -- The user this challenge belongs to (auth.users.id)
-  user_id       UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-
-  -- Purpose: 'signup' | 'signin'
-  purpose       TEXT NOT NULL CHECK (purpose IN ('signup', 'signin')),
-
-  -- SHA-256 hash of the 6-digit OTP (we use sha256 of OTP only for fast lookup;
-  -- argon2id is too slow to be practical at verify-time for 6-digit codes —
-  -- instead we combine SHA-256 with a per-row server secret stored in otp_hash_pepper,
-  -- making brute-force infeasible even if the table is leaked).
-  otp_hash      TEXT NOT NULL,
-
-  -- Expires 5 minutes after creation
-  expires_at    TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '5 minutes'),
-
-  -- Tracks failed attempts; invalidated after 5
-  attempts      INTEGER NOT NULL DEFAULT 0,
-
-  -- Whether this OTP has been successfully used
-  used          BOOLEAN NOT NULL DEFAULT FALSE,
-
-  -- Cooldown: when the next OTP can be sent
+-- 2. Create updated table
+-- user_id is NULLABLE — it's null for pending (pre-OTP) signups
+CREATE TABLE public.auth_otp_challenges (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id        UUID REFERENCES auth.users(id) ON DELETE CASCADE,  -- null until OTP verified
+  email          TEXT NOT NULL,
+  purpose        TEXT NOT NULL CHECK (purpose IN ('signup', 'signin')),
+  otp_hash       TEXT NOT NULL,
+  expires_at     TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '5 minutes'),
+  attempts       INTEGER NOT NULL DEFAULT 0,
+  used           BOOLEAN NOT NULL DEFAULT FALSE,
   next_resend_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  metadata       JSONB,                                              -- stores {name, password_hash} for pending signups
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Index for quick lookup by user + purpose
-CREATE INDEX IF NOT EXISTS idx_auth_otp_user_purpose
-  ON public.auth_otp_challenges (user_id, purpose);
+-- Indexes
+CREATE INDEX idx_auth_otp_email_purpose  ON public.auth_otp_challenges (email, purpose);
+CREATE INDEX idx_auth_otp_user_purpose   ON public.auth_otp_challenges (user_id, purpose);
+CREATE INDEX idx_auth_otp_expires_at     ON public.auth_otp_challenges (expires_at);
 
--- Index for cleanup of expired rows
-CREATE INDEX IF NOT EXISTS idx_auth_otp_expires_at
-  ON public.auth_otp_challenges (expires_at);
-
--- RLS: Only service role can read/write this table.
--- Application code always uses the supabase admin client.
+-- RLS: only service role (our backend) can touch this table
 ALTER TABLE public.auth_otp_challenges ENABLE ROW LEVEL SECURITY;
 
--- No anon or authenticated user policies — all access via service role key only.
-
--- ============================================================
--- Cleanup function: remove expired / used challenges (run via pg_cron or manually)
--- ============================================================
+-- Cleanup function (run daily via pg_cron)
 CREATE OR REPLACE FUNCTION public.cleanup_expired_otp_challenges()
 RETURNS void AS $$
 BEGIN

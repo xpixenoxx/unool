@@ -1,15 +1,22 @@
 /**
  * POST /api/auth/signup/verify-otp
  *
- * Verifies the signup OTP. On success:
- *  - Marks the Supabase auth user as email_confirmed.
- *  - The handle_new_user trigger then creates workspace + profile.
+ * Step 2 of 2 for signup.
+ * Called AFTER the user submits their 6-digit OTP.
+ *
+ * Flow:
+ *  1. Rate-limit.
+ *  2. Verify the OTP (looks up by email in auth_otp_challenges).
+ *  3. Extract {name, password_hash} from the OTP challenge metadata.
+ *  4. Create the Supabase user (email already confirmed — no magic link needed).
+ *  5. Stamp the password_hash into user_metadata.
+ *  6. Return success.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { verifyOtp } from '@/lib/auth/otp';
+import { verifySignupOtp } from '@/lib/auth/otp';
 import { checkOtpVerifyLimit, getClientIp } from '@/lib/auth/rate-limits';
 import { logger } from '@/lib/logger';
 
@@ -22,7 +29,7 @@ export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
 
   try {
-    const body = await request.json().catch(() => ({}));
+    const body   = await request.json().catch(() => ({}));
     const parsed = bodySchema.safeParse(body);
 
     if (!parsed.success) {
@@ -33,9 +40,9 @@ export async function POST(request: NextRequest) {
     }
 
     const { email, otp } = parsed.data;
-    const emailLower = email.toLowerCase().trim();
+    const emailLower     = email.toLowerCase().trim();
 
-    // Rate limit verify attempts by IP + email
+    // Rate limit verify attempts
     const { allowed, retryAfterMs } = await checkOtpVerifyLimit(`${ip}:${emailLower}`);
     if (!allowed) {
       return NextResponse.json(
@@ -44,17 +51,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Look up user
-    const { data: userList } = await supabaseAdmin.auth.admin.listUsers();
-    const foundUser = userList?.users?.find(u => u.email === emailLower);
-    if (!foundUser) {
-      // Don't reveal user existence
-      return NextResponse.json({ success: false, message: 'Invalid or expired code.' }, { status: 400 });
-    }
-    const userId = foundUser.id;
-
-    // Verify OTP
-    const result = await verifyOtp(userId, 'signup', otp);
+    // Verify OTP — this looks up the pending challenge by email (no user_id)
+    const result = await verifySignupOtp(emailLower, otp);
 
     if (!result.success) {
       const messages: Record<string, string> = {
@@ -70,18 +68,43 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Confirm the email in Supabase (triggers handle_new_user)
-    const { error: confirmError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
-      email_confirm: true,
-    });
+    // ── OTP verified! Now create the Supabase user for the first time ─────────
+    const { name, password_hash } = result.metadata as { name: string; password_hash: string };
 
-    if (confirmError) {
-      logger.error('Failed to confirm user email', { error: confirmError, userId });
-      return NextResponse.json({ success: false, message: 'Verification failed. Please try again.' }, { status: 500 });
+    if (!name || !password_hash) {
+      logger.error('Missing metadata in verified OTP challenge', { email: emailLower });
+      return NextResponse.json({ success: false, message: 'Verification data lost. Please sign up again.' }, { status: 500 });
     }
 
-    logger.info('Signup OTP verified, account confirmed', { userId, email: emailLower });
-    return NextResponse.json({ success: true, message: 'Account verified! You can now sign in.' }, { status: 200 });
+    // Create the user with email already confirmed (no email needed from Supabase)
+    const { data: userData, error: createError } = await supabaseAdmin.auth.admin.createUser({
+      email:         emailLower,
+      email_confirm: true,    // ✅ mark as verified immediately
+      user_metadata: {
+        full_name:     name,
+        password_hash: password_hash,
+      },
+    });
+
+    if (createError) {
+      // If the user already exists (duplicate OTP submit), just return success
+      const alreadyExists = createError.message?.toLowerCase().includes('already');
+      if (alreadyExists) {
+        return NextResponse.json({ success: true, message: 'Account already verified. You can sign in.' }, { status: 200 });
+      }
+      logger.error('Failed to create user after OTP verification', { error: createError, email: emailLower });
+      return NextResponse.json({ success: false, message: 'Account creation failed. Please try again.' }, { status: 500 });
+    }
+
+    logger.info('Signup complete — Supabase user created after OTP verification', {
+      userId: userData?.user?.id,
+      email:  emailLower,
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: 'Account verified! You can now sign in.',
+    }, { status: 200 });
 
   } catch (err) {
     logger.error('Signup verify-otp error', { error: err instanceof Error ? err : new Error(String(err)) });
