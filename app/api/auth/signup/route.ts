@@ -80,6 +80,9 @@ export async function POST(request: NextRequest) {
     // (they never completed OTP — now we handle pending state in OTP table instead)
     if (existingUser && !existingUser.email_confirmed_at) {
       await supabaseAdmin.auth.admin.deleteUser(existingUser.id);
+      
+      // Also forcibly cleanup dangling public schema tables in case ON DELETE CASCADE is missing
+      await supabaseAdmin.from('users').delete().eq('email', emailLower);
     }
 
     // Hash the password with Argon2id
