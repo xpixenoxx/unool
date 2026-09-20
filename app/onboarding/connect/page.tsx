@@ -26,7 +26,9 @@ export default function OnboardingConnectPage() {
       <div className="w-full space-y-4">
         
         {/* Add Connection Button */}
-        <button className="w-full h-16 border-2 border-dashed border-zinc-200 rounded-lg flex items-center justify-center gap-2 text-zinc-500 hover:text-zinc-700 hover:border-zinc-300 hover:bg-white transition-colors bg-white/50">
+        <button 
+          onClick={() => router.push('/onboarding/connect/add')}
+          className="w-full h-16 border-2 border-dashed border-zinc-200 rounded-lg flex items-center justify-center gap-2 text-zinc-500 hover:text-zinc-700 hover:border-zinc-300 hover:bg-white transition-colors bg-white/50">
           <Plus className="w-4 h-4" />
           <span className="text-[14px] font-semibold">Add connection</span>
         </button>
