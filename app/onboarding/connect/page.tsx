@@ -16,48 +16,50 @@ export default function OnboardingConnectPage() {
   };
 
   return (
-    <div className="flex flex-col items-center animate-in fade-in slide-in-from-right duration-500">
-      
-      <h1 className="text-[28px] font-bold text-[#1f2937] mb-2 mt-4">Connect your accounts</h1>
-      <p className="text-[15px] text-zinc-500 mb-10 text-center max-w-[400px]">
-        Connect and then manage all your social media accounts from one place
-      </p>
-
-      <div className="w-full space-y-4">
+    <>
+      <div className="flex flex-col items-center animate-in fade-in slide-in-from-right duration-500">
         
-        {/* Add Connection Button */}
-        <button 
-          onClick={() => router.push('/onboarding/connect/add')}
-          className="w-full h-16 border-2 border-dashed border-zinc-200 rounded-lg flex items-center justify-center gap-2 text-zinc-500 hover:text-zinc-700 hover:border-zinc-300 hover:bg-white transition-colors bg-white/50">
-          <Plus className="w-4 h-4" />
-          <span className="text-[14px] font-semibold">Add connection</span>
-        </button>
+        <h1 className="text-[28px] font-bold text-[#1f2937] mb-2 mt-4">Connect your accounts</h1>
+        <p className="text-[15px] text-zinc-500 mb-10 text-center max-w-[400px]">
+          Connect and then manage all your social media accounts from one place
+        </p>
 
-        {/* Existing Connection (LinkedIn Example) */}
-        <div className="w-fit min-w-[320px] bg-white border border-zinc-200 rounded-lg p-3 flex items-center justify-between shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <div className="w-10 h-10 rounded-full bg-[#7052c4] text-white flex items-center justify-center font-semibold text-lg">
-                A
-              </div>
-              <div className="absolute -bottom-1 -right-1 w-[18px] h-[18px] bg-[#0a66c2] rounded flex items-center justify-center border border-white">
-                <span className="text-white text-[9px] font-bold">in</span>
-              </div>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[14px] font-semibold text-[#1f2937]">LinkedIn</span>
-              <span className="text-[13px] text-zinc-500">@Ant Man</span>
-            </div>
-          </div>
+        <div className="w-full space-y-4">
           
-          <div className="flex items-center gap-3 ml-6 mr-1">
-            <div className="w-2 h-2 rounded-full bg-[#10b981]"></div>
-            <button className="text-zinc-400 hover:text-zinc-600 transition-colors">
-              <MoreVertical className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
+          {/* Add Connection Button */}
+          <button 
+            onClick={() => router.push('/onboarding/connect/add')}
+            className="w-full h-16 border-2 border-dashed border-zinc-200 rounded-lg flex items-center justify-center gap-2 text-zinc-500 hover:text-zinc-700 hover:border-zinc-300 hover:bg-white transition-colors bg-white/50">
+            <Plus className="w-4 h-4" />
+            <span className="text-[14px] font-semibold">Add connection</span>
+          </button>
 
+          {/* Existing Connection (LinkedIn Example) */}
+          <div className="w-fit min-w-[320px] bg-white border border-zinc-200 rounded-lg p-3 flex items-center justify-between shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className="w-10 h-10 rounded-full bg-[#7052c4] text-white flex items-center justify-center font-semibold text-lg">
+                  A
+                </div>
+                <div className="absolute -bottom-1 -right-1 w-[18px] h-[18px] bg-[#0a66c2] rounded flex items-center justify-center border border-white">
+                  <span className="text-white text-[9px] font-bold">in</span>
+                </div>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[14px] font-semibold text-[#1f2937]">LinkedIn</span>
+                <span className="text-[13px] text-zinc-500">@Ant Man</span>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-3 ml-6 mr-1">
+              <div className="w-2 h-2 rounded-full bg-[#10b981]"></div>
+              <button className="text-zinc-400 hover:text-zinc-600 transition-colors">
+                <MoreVertical className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+        </div>
       </div>
 
       {/* Floating Bottom Bar */}
@@ -75,7 +77,6 @@ export default function OnboardingConnectPage() {
           Next
         </button>
       </div>
-
-    </div>
+    </>
   );
 }
