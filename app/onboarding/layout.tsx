@@ -1,6 +1,12 @@
+'use client';
+
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 export default function OnboardingLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const isConnectStep = pathname?.includes('/onboarding/connect');
+
   return (
     <div className="min-h-screen bg-[#f3f4f6] flex flex-col font-sans relative pb-20">
       {/* Top Header */}
@@ -17,11 +23,11 @@ export default function OnboardingLayout({ children }: { children: React.ReactNo
         {/* Progress indicator center */}
         <div className="hidden md:flex items-center gap-3">
           <div className="flex items-center gap-1.5">
-            <div className="w-7 h-7 rounded-full bg-[#68d391] text-white flex items-center justify-center text-[13px] font-semibold">1</div>
-            <div className="w-16 h-[2px] bg-zinc-200"></div>
+            <div className={`w-7 h-7 rounded-full ${isConnectStep ? 'bg-[#68d391]' : 'bg-[#68d391]'} text-white flex items-center justify-center text-[13px] font-semibold`}>1</div>
+            <div className={`w-16 h-[2px] ${isConnectStep ? 'bg-[#68d391]' : 'bg-zinc-200'}`}></div>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-7 h-7 rounded-full bg-zinc-200 text-zinc-500 flex items-center justify-center text-[13px] font-semibold">2</div>
+            <div className={`w-7 h-7 rounded-full ${isConnectStep ? 'bg-[#68d391] text-white' : 'bg-zinc-200 text-zinc-500'} flex items-center justify-center text-[13px] font-semibold`}>2</div>
             <div className="w-16 h-[2px] bg-zinc-200"></div>
           </div>
           <div className="w-7 h-7 rounded-full bg-zinc-200 text-zinc-500 flex items-center justify-center text-[13px] font-semibold">3</div>

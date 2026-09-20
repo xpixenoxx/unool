@@ -8,22 +8,16 @@ import {
   Youtube, 
   Facebook, 
   Linkedin, 
-  Video, // for TikTok 
-  MessageCircle, // for Threads
-  Hash, // for Bluesky (temp)
-  Pin // for Pinterest (temp)
+  MessageCircle // for Threads
 } from 'lucide-react';
 
 const accounts = [
   { id: 'instagram', name: 'Instagram', icon: Instagram },
   { id: 'twitter', name: 'Twitter/X', icon: Twitter },
-  { id: 'tiktok', name: 'TikTok', icon: Video },
   { id: 'youtube', name: 'YouTube', icon: Youtube },
   { id: 'facebook', name: 'Facebook', icon: Facebook },
   { id: 'linkedin', name: 'LinkedIn', icon: Linkedin },
-  { id: 'bluesky', name: 'Bluesky', icon: Hash },
   { id: 'threads', name: 'Threads', icon: MessageCircle },
-  { id: 'pinterest', name: 'Pinterest', icon: Pin },
 ];
 
 export default function AddAccountsPage() {
@@ -40,13 +34,33 @@ export default function AddAccountsPage() {
   };
 
   const handleConnect = () => {
-    // Navigate back or to a simulation of OAuth
-    if (selectedAccount?.id === 'linkedin') {
-      window.location.href = 'https://www.linkedin.com/uas/login?session_redirect=fake';
-    } else {
-      setSelectedAccount(null);
-      router.push('/onboarding/connect');
+    if (!selectedAccount) return;
+    
+    let url = '/onboarding/connect';
+    
+    // Simulate OAuth URLs for each platform
+    switch (selectedAccount.id) {
+      case 'linkedin':
+        url = 'https://www.linkedin.com/uas/login?session_redirect=fake';
+        break;
+      case 'facebook':
+        url = 'https://www.facebook.com/v10.0/dialog/oauth?client_id=fake&redirect_uri=fake';
+        break;
+      case 'twitter':
+        url = 'https://twitter.com/i/oauth2/authorize?client_id=fake&redirect_uri=fake';
+        break;
+      case 'instagram':
+        url = 'https://api.instagram.com/oauth/authorize?client_id=fake&redirect_uri=fake';
+        break;
+      case 'youtube':
+        url = 'https://accounts.google.com/o/oauth2/v2/auth?client_id=fake&redirect_uri=fake';
+        break;
+      case 'threads':
+        url = 'https://threads.net/login'; // Adjust to real OAuth url if known
+        break;
     }
+    
+    window.location.href = url;
   };
 
   return (
