@@ -33,25 +33,25 @@ export default function OnboardingStartPage() {
             <div
               key={opt.id}
               onClick={() => setSelected(opt.id)}
-              className={\`flex items-center gap-4 p-4 rounded-lg cursor-pointer transition-all duration-200 border
-                \${isSelected 
+              className={`flex items-center gap-4 p-4 rounded-lg cursor-pointer transition-all duration-200 border
+                ${isSelected 
                   ? 'bg-[#68d391] border-[#68d391] text-white shadow-md' 
                   : 'bg-white border-zinc-200 text-[#4b5563] hover:border-zinc-300 hover:shadow-sm'
-                }\`}
+                }`}
             >
               {/* Radio circle */}
-              <div className={\`w-[22px] h-[22px] rounded-full border-2 flex items-center justify-center shrink-0
-                \${isSelected ? 'border-white bg-[#4ab772] text-white' : 'border-zinc-200 bg-white'}\`}
+              <div className={`w-[22px] h-[22px] rounded-full border-2 flex items-center justify-center shrink-0
+                ${isSelected ? 'border-white bg-[#4ab772] text-white' : 'border-zinc-200 bg-white'}`}
               >
                 {isSelected && <Check className="w-[14px] h-[14px]" />}
               </div>
 
               {/* Text content */}
               <div className="flex flex-col">
-                <span className={\`text-[16px] font-semibold \${isSelected ? 'text-white' : 'text-[#374151]'}\`}>
+                <span className={`text-[16px] font-semibold ${isSelected ? 'text-white' : 'text-[#374151]'}`}>
                   {opt.title}
                 </span>
-                <span className={\`text-[14px] \${isSelected ? 'text-white/90' : 'text-zinc-500'}\`}>
+                <span className={`text-[14px] ${isSelected ? 'text-white/90' : 'text-zinc-500'}`}>
                   {opt.desc}
                 </span>
               </div>

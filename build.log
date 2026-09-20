@@ -1,0 +1,25 @@
+   ▲ Next.js 15.5.18
+   - Environments: .env.local
+   - Experiments (use with caution):
+     · serverActions
+
+   Creating an optimized production build ...
+
+Failed to compile.
+
+./app/onboarding/start/page.tsx
+Error:   [31mx[0m Unexpected eof
+    ,-[[36;1;4mD:\unool\unool\app\onboarding\start\page.tsx[0m:75:3]
+ [2m73[0m |     </div>
+ [2m74[0m |   );
+ [2m75[0m | }
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./app/onboarding/start/page.tsx
+
+
+> Build failed because of webpack errors
