@@ -14,10 +14,13 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { createServerClient } from '@supabase/ssr';
 import { z } from 'zod';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { verifySignupOtp } from '@/lib/auth/otp';
 import { checkOtpVerifyLimit, getClientIp } from '@/lib/auth/rate-limits';
+import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
 
 const bodySchema = z.object({
@@ -104,26 +107,62 @@ export async function POST(request: NextRequest) {
             },
           });
           logger.info('Signup: updated existing unverified user', { userId: existingUser.id, email: emailLower });
-          return NextResponse.json({ success: true, message: 'Account verified! You can now sign in.' }, { status: 200 });
+          return await logUserInAndRedirect(existingUser.id, emailLower);
         }
+        // If they already existed and were verified: just tell them to sign in
         return NextResponse.json({ success: true, message: 'Account already verified. You can sign in.' }, { status: 200 });
       }
       logger.error('Failed to create user after OTP verification', { error: new Error(createError.message), email: emailLower });
       return NextResponse.json({ success: false, message: `Account creation failed: ${createError.message}` }, { status: 500 });
     }
 
-    logger.info('Signup complete — Supabase user created after OTP verification', {
+    logger.info('Signup complete — Supabase user created', {
       userId: userData?.user?.id,
       email:  emailLower,
     });
 
-    return NextResponse.json({
-      success: true,
-      message: 'Account verified! You can now sign in.',
-    }, { status: 200 });
+    return await logUserInAndRedirect(userData.user.id, emailLower);
 
   } catch (err) {
     logger.error('Signup verify-otp error', { error: err instanceof Error ? err : new Error(String(err)) });
     return NextResponse.json({ success: false, message: 'An unexpected error occurred.' }, { status: 500 });
+  }
+}
+
+// Helper to log the user in using a temporary password and set the session cookies
+// before scrambling the password again.
+async function logUserInAndRedirect(userId: string, email: string) {
+  try {
+    const crypto = await import('crypto');
+    const tempPassword = crypto.randomBytes(32).toString('base64');
+    
+    await supabaseAdmin.auth.admin.updateUserById(userId, { password: tempPassword });
+    
+    const cookieStore = await cookies();
+    const supabaseSSR = createServerClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
+      cookies: {
+        getAll()            { return cookieStore.getAll(); },
+        setAll(toSet)       { toSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options)); },
+      },
+    });
+
+    await supabaseSSR.auth.signInWithPassword({ email: email, password: tempPassword });
+
+    await supabaseAdmin.auth.admin.updateUserById(userId, { 
+      password: crypto.randomBytes(32).toString('base64') 
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: 'Account verified!',
+      redirectTo: '/onboarding/start'
+    }, { status: 200 });
+  } catch (error) {
+    logger.error('Auto-login failed after signup', { error: error instanceof Error ? error : new Error(String(error)), userId });
+    // Fall back to just telling them to sign in
+    return NextResponse.json({
+      success: true,
+      message: 'Account verified! You can now sign in.',
+    }, { status: 200 });
   }
 }
