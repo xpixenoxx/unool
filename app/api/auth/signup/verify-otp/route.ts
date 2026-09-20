@@ -62,8 +62,9 @@ export async function POST(request: NextRequest) {
         not_found:    'Invalid or expired code.',
         invalid:      'Incorrect code. Please try again.',
       };
+      const isDev = process.env.NODE_ENV !== 'production';
       return NextResponse.json(
-        { success: false, message: messages[result.reason] ?? 'Invalid or expired code.' },
+        { success: false, message: isDev ? `[DEV: ${result.reason}] ${messages[result.reason]}` : (messages[result.reason] ?? 'Invalid or expired code.') },
         { status: 400 }
       );
     }
@@ -87,13 +88,28 @@ export async function POST(request: NextRequest) {
     });
 
     if (createError) {
-      // If the user already exists (duplicate OTP submit), just return success
-      const alreadyExists = createError.message?.toLowerCase().includes('already');
-      if (alreadyExists) {
+      const errMsg = createError.message?.toLowerCase() ?? '';
+      // If the user already exists (duplicate OTP submit or leftover unverified user)
+      if (errMsg.includes('already') || errMsg.includes('duplicate')) {
+        // Try to update the existing user instead
+        const { data: userList } = await supabaseAdmin.auth.admin.listUsers();
+        const existingUser = userList?.users?.find(u => u.email === emailLower);
+        if (existingUser) {
+          // Update their metadata and confirm their email
+          await supabaseAdmin.auth.admin.updateUserById(existingUser.id, {
+            email_confirm: true,
+            user_metadata: {
+              full_name:     name,
+              password_hash: password_hash,
+            },
+          });
+          logger.info('Signup: updated existing unverified user', { userId: existingUser.id, email: emailLower });
+          return NextResponse.json({ success: true, message: 'Account verified! You can now sign in.' }, { status: 200 });
+        }
         return NextResponse.json({ success: true, message: 'Account already verified. You can sign in.' }, { status: 200 });
       }
-      logger.error('Failed to create user after OTP verification', { error: createError, email: emailLower });
-      return NextResponse.json({ success: false, message: 'Account creation failed. Please try again.' }, { status: 500 });
+      logger.error('Failed to create user after OTP verification', { error: new Error(createError.message), email: emailLower });
+      return NextResponse.json({ success: false, message: `Account creation failed: ${createError.message}` }, { status: 500 });
     }
 
     logger.info('Signup complete — Supabase user created after OTP verification', {
