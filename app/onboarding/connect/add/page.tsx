@@ -11,6 +11,7 @@ import {
   MessageCircle, // for Threads
   Loader2
 } from 'lucide-react';
+import { getAccessToken } from '@/lib/supabase/browser';
 
 const accounts = [
   { id: 'instagram', name: 'Instagram', icon: Instagram },
@@ -39,7 +40,14 @@ export default function AddAccountsPage() {
     setIsConnecting(acc.id);
     
     try {
-      const res = await fetch('/api/auth/me');
+      // Get the access_token from the browser-side Supabase session.
+      // Sending it as a Bearer header bypasses the broken SSR-cookie path entirely.
+      const token = await getAccessToken();
+      
+      const headers: HeadersInit = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      
+      const res = await fetch('/api/auth/me', { headers });
       const data = await res.json();
       
       let url = `/api/auth/platform/connect?platform=${acc.id}&returnUrl=/onboarding/connect`;
@@ -47,6 +55,7 @@ export default function AddAccountsPage() {
         url += `&workspaceId=${data.user.workspaceId}`;
         window.location.href = url;
       } else {
+        // Token fetch failed or session genuinely absent
         alert('Your session has expired or is invalid. Please sign in again.');
         window.location.href = '/signin';
       }

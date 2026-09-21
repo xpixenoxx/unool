@@ -17,6 +17,7 @@ import {
   KeyboardEvent, ClipboardEvent, useCallback,
 } from 'react';
 import { Loader2, AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
+import { getSupabaseBrowserClient } from '@/lib/supabase/browser';
 
 export type OtpPurpose = 'signup' | 'signin';
 
@@ -102,6 +103,15 @@ export default function OtpVerifyForm({
         setOtp(['', '', '', '', '', '']);
         setTimeout(() => otpRefs.current[0]?.focus(), 50);
       } else {
+        // If the server returned session tokens, set them in the browser Supabase client.
+        // This ensures getSession() works for subsequent authenticated API calls.
+        if (data.session?.access_token && data.session?.refresh_token) {
+          const supabase = getSupabaseBrowserClient();
+          await supabase.auth.setSession({
+            access_token: data.session.access_token,
+            refresh_token: data.session.refresh_token,
+          });
+        }
         setSuccess(data.message || 'Verified!');
         setTimeout(() => onSuccess(data.redirectTo), 1200);
       }

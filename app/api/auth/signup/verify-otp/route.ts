@@ -168,7 +168,22 @@ async function logUserInAndRedirect(userId: string, email: string) {
       password: crypto.randomBytes(32).toString('base64') 
     });
 
-    return response;
+    // Return session tokens in the body so the browser-side Supabase client
+    // can call setSession() and have a real, working session for subsequent requests.
+    return NextResponse.json({
+      success: true,
+      message: 'Account verified!',
+      redirectTo: '/onboarding/start',
+      session: {
+        access_token: signInData.session?.access_token,
+        refresh_token: signInData.session?.refresh_token,
+        expires_at: signInData.session?.expires_at,
+        user: {
+          id: signInData.user?.id,
+          email: signInData.user?.email,
+        },
+      },
+    }, { status: 200, headers: response.headers });
   } catch (error) {
     logger.error('Auto-login failed after signup', { error: error instanceof Error ? error : new Error(String(error)), userId });
     // Fall back to just telling them to sign in

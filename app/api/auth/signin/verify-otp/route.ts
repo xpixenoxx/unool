@@ -87,25 +87,28 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Exchange temp password for a real session (setting cookies)
-    const response = NextResponse.json({ success: true, message: 'Signed in successfully.', redirectTo: '/dashboard' }, { status: 200 });
-    
     const cookieStore = await cookies();
+    
+    // Pre-create response so we can attach Set-Cookie headers to it
+    let sessionData: any = null;
+    const tempResponse = { headers: new Headers() };
+    
     const supabaseSSR = createServerClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
       cookies: {
         getAll() { return cookieStore.getAll(); },
         setAll(toSet) { 
           toSet.forEach(({ name, value, options }) => {
             cookieStore.set(name, value, options);
-            response.cookies.set(name, value, options);
           });
         },
       },
     });
 
-    const { error: signInError } = await supabaseSSR.auth.signInWithPassword({
+    const { data: signInData, error: signInError } = await supabaseSSR.auth.signInWithPassword({
       email: emailLower,
       password: tempPassword,
     });
+    sessionData = signInData;
 
     // 3. Immediately scramble the password in Supabase so it's useless
     // Our actual auth relies entirely on the Argon2 hash in user_metadata.
@@ -119,6 +122,29 @@ export async function POST(request: NextRequest) {
     }
 
     logger.info('Signin OTP verified, session created', { userId: user.id });
+    // Return the session tokens in the response body so the browser Supabase client
+    // can call setSession() and make authenticated requests using Bearer tokens.
+    const response = NextResponse.json({ 
+      success: true, 
+      message: 'Signed in successfully.', 
+      redirectTo: '/dashboard',
+      session: {
+        access_token: sessionData?.session?.access_token,
+        refresh_token: sessionData?.session?.refresh_token,
+        expires_at: sessionData?.session?.expires_at,
+        user: {
+          id: sessionData?.user?.id,
+          email: sessionData?.user?.email,
+        },
+      },
+    }, { status: 200 });
+    
+    // Re-apply cookies to this response
+    cookieStore.getAll().forEach(({ name, value }) => {
+      const existing = cookieStore.get(name);
+      if (existing) response.cookies.set(name, value, { httpOnly: true, secure: true, sameSite: 'lax', path: '/' });
+    });
+    
     return response;
 
   } catch (err) {
