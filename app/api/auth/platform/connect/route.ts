@@ -40,6 +40,7 @@ async function resolveWorkspaceId(request: NextRequest): Promise<{ id: string | 
     
     // Check if the specific sb- cookies exist
     const hasSbCookies = allCookies.some(c => c.name.startsWith('sb-'));
+    debug.push('url_' + Buffer.from(config.SUPABASE_URL).toString('base64url').substring(0, 15));
     debug.push('hasSb_' + hasSbCookies);
 
     const supabaseSSR = createServerClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {

@@ -8,7 +8,8 @@ import {
   Youtube, 
   Facebook, 
   Linkedin, 
-  MessageCircle // for Threads
+  MessageCircle, // for Threads
+  Loader2
 } from 'lucide-react';
 
 const accounts = [
@@ -33,13 +34,29 @@ export default function AddAccountsPage() {
     router.push('/onboarding/connect');
   };
 
-  const handleConnect = () => {
+  const [isConnecting, setIsConnecting] = useState(false);
+
+  const handleConnect = async () => {
     if (!selectedAccount) return;
+    setIsConnecting(true);
     
-    // Trigger actual backend OAuth route
-    const url = `/api/auth/platform/connect?platform=${selectedAccount.id}&returnUrl=/onboarding/connect`;
-    
-    window.location.href = url;
+    try {
+      const res = await fetch('/api/auth/me');
+      const data = await res.json();
+      
+      let url = `/api/auth/platform/connect?platform=${selectedAccount.id}&returnUrl=/onboarding/connect`;
+      if (data?.user?.workspaceId) {
+        url += `&workspaceId=${data.user.workspaceId}`;
+      }
+      
+      window.location.href = url;
+    } catch (e) {
+      console.error('Failed to pre-fetch workspace ID', e);
+      // Fallback
+      window.location.href = `/api/auth/platform/connect?platform=${selectedAccount.id}&returnUrl=/onboarding/connect`;
+    } finally {
+      setIsConnecting(false);
+    }
   };
 
   return (
@@ -97,9 +114,16 @@ export default function AddAccountsPage() {
                 </button>
                 <button 
                   onClick={handleConnect}
-                  className="px-5 py-2.5 bg-[#68d391] hover:bg-[#5bb87d] text-white rounded transition-colors shadow-sm"
+                  disabled={isConnecting}
+                  className="px-5 py-2.5 bg-[#68d391] hover:bg-[#5bb87d] text-white rounded transition-colors shadow-sm disabled:opacity-75 flex items-center justify-center min-w-[140px]"
                 >
-                  Connect {selectedAccount.name}
+                  {isConnecting ? (
+                    <span className="flex items-center gap-2">
+                       <Loader2 className="w-4 h-4 animate-spin" /> Connecting
+                    </span>
+                  ) : (
+                    `Connect ${selectedAccount.name}`
+                  )}
                 </button>
               </div>
             </div>
