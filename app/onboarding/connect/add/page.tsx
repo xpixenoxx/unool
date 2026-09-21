@@ -36,29 +36,8 @@ export default function AddAccountsPage() {
   const handleConnect = () => {
     if (!selectedAccount) return;
     
-    let url = '/onboarding/connect';
-    
-    // Simulate OAuth URLs for each platform
-    switch (selectedAccount.id) {
-      case 'linkedin':
-        url = 'https://www.linkedin.com/uas/login?session_redirect=fake';
-        break;
-      case 'facebook':
-        url = 'https://www.facebook.com/v10.0/dialog/oauth?client_id=fake&redirect_uri=fake';
-        break;
-      case 'twitter':
-        url = 'https://twitter.com/i/oauth2/authorize?client_id=fake&redirect_uri=fake';
-        break;
-      case 'instagram':
-        url = 'https://api.instagram.com/oauth/authorize?client_id=fake&redirect_uri=fake';
-        break;
-      case 'youtube':
-        url = 'https://accounts.google.com/o/oauth2/v2/auth?client_id=fake&redirect_uri=fake';
-        break;
-      case 'threads':
-        url = 'https://threads.net/login'; // Adjust to real OAuth url if known
-        break;
-    }
+    // Trigger actual backend OAuth route
+    const url = `/api/auth/platform/connect?platform=${selectedAccount.id}&returnUrl=/onboarding/connect`;
     
     window.location.href = url;
   };

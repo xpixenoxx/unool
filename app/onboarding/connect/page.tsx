@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, MoreVertical } from 'lucide-react';
+import { Plus, MoreVertical, Loader2 } from 'lucide-react';
 
 interface Connection {
+  platformId: string;
   username: string;
   platformName: string;
   profileLogo?: string;
@@ -14,6 +15,37 @@ interface Connection {
 export default function OnboardingConnectPage() {
   const router = useRouter();
   const [connections, setConnections] = useState<Connection[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadConnections() {
+      try {
+        const res = await fetch('/api/platform/connections');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.connections) {
+            const mappedConnections: Connection[] = [];
+            // Result is a map of platforms
+            Object.entries(data.connections).forEach(([platformId, conn]: [string, any]) => {
+              if (conn.status === 'connected') {
+                mappedConnections.push({
+                  platformId: conn.platform,
+                  username: conn.username || 'User',
+                  platformName: conn.platform.charAt(0).toUpperCase() + conn.platform.slice(1),
+                });
+              }
+            });
+            setConnections(mappedConnections);
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadConnections();
+  }, []);
 
   const handleNext = () => {
     // Assuming next redirects to dashboard after finishing onboarding
@@ -43,40 +75,47 @@ export default function OnboardingConnectPage() {
             <span className="text-[14px] font-semibold">Add connection</span>
           </button>
 
-          {/* Existing Connections */}
-          {connections.map((connection, index) => (
-            <div key={index} className="w-fit min-w-[320px] bg-white border border-zinc-200 rounded-lg p-3 flex items-center justify-between shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <div className="w-10 h-10 rounded-full bg-[#7052c4] text-white flex items-center justify-center font-semibold text-lg overflow-hidden">
-                    {connection.profileLogo ? (
-                      <img src={connection.profileLogo} alt={connection.username} className="w-full h-full object-cover" />
-                    ) : (
-                      connection.username?.[0]?.toUpperCase() || 'A'
-                    )}
-                  </div>
-                  <div className="absolute -bottom-1 -right-1 w-[18px] h-[18px] bg-[#0a66c2] rounded flex items-center justify-center border border-white overflow-hidden">
-                    {connection.platformLogo ? (
-                      <img src={connection.platformLogo} alt={connection.platformName} className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-white text-[9px] font-bold">in</span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[14px] font-semibold text-[#1f2937]">{connection.platformName}</span>
-                  <span className="text-[13px] text-zinc-500">{connection.username}</span>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-3 ml-6 mr-1">
-                <div className="w-2 h-2 rounded-full bg-[#10b981]"></div>
-                <button className="text-zinc-400 hover:text-zinc-600 transition-colors">
-                  <MoreVertical className="w-4 h-4" />
-                </button>
-              </div>
+          {loading ? (
+            <div className="flex items-center justify-center p-8">
+              <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
             </div>
-          ))}
+          ) : (
+            connections.map((connection, index) => (
+              <div key={index} className="w-fit min-w-[320px] bg-white border border-zinc-200 rounded-lg p-3 flex items-center justify-between shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <div className="w-10 h-10 rounded-full bg-[#7052c4] text-white flex items-center justify-center font-semibold text-lg overflow-hidden">
+                      {connection.profileLogo ? (
+                        <img src={connection.profileLogo} alt={connection.username} className="w-full h-full object-cover" />
+                      ) : (
+                        connection.username?.[0]?.toUpperCase() || 'A'
+                      )}
+                    </div>
+                    <div className="absolute -bottom-1 -right-1 w-[18px] h-[18px] bg-[#0a66c2] rounded flex items-center justify-center border border-white overflow-hidden">
+                      {connection.platformLogo ? (
+                        <img src={connection.platformLogo} alt={connection.platformName} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-white text-[9px] font-bold">
+                          {connection.platformId === 'linkedin' ? 'in' : connection.platformId.substring(0, 2)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[14px] font-semibold text-[#1f2937]">{connection.platformName}</span>
+                    <span className="text-[13px] text-zinc-500">{connection.username}</span>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3 ml-6 mr-1">
+                  <div className="w-2 h-2 rounded-full bg-[#10b981]"></div>
+                  <button className="text-zinc-400 hover:text-zinc-600 transition-colors">
+                    <MoreVertical className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
 
         </div>
       </div>

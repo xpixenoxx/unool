@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const { workspaceId, platform: platformFromState } = verified;
+  const { workspaceId, platform: platformFromState, returnUrl } = verified;
 
   // Validate platform is supported
   if (!SUPPORTED_PLATFORMS.includes(platformFromState as (typeof SUPPORTED_PLATFORMS)[number])) {
@@ -112,10 +112,16 @@ export async function GET(request: NextRequest) {
 
     logger.info('Platform connected successfully', { platform, workspaceId, platformUserId: profile.platformUserId });
 
-    // Clear OAuth cookies
-    const response = NextResponse.redirect(
-      new URL(`/dashboard/settings?connected=${platform}`, request.url)
-    );
+    // Clear OAuth cookies and prepare redirect
+    let nextUrl = `/dashboard/settings?connected=${platform}`;
+    if (returnUrl) {
+      const u = new URL(returnUrl, request.url);
+      nextUrl = u.toString();
+    } else {
+      nextUrl = new URL(nextUrl, request.url).toString();
+    }
+    
+    const response = NextResponse.redirect(nextUrl);
     response.headers.append('Set-Cookie', 'oauth_state=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0');
     if (platform === 'x') {
       response.headers.append('Set-Cookie', `pkce_${effectiveState}=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0`);

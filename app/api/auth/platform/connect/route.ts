@@ -2,12 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getPlatformAdapter } from '@/lib/platforms';
 import { generateOAuthState, storeOAuthState, createOAuthCookie, RedisConfigError } from '@/lib/auth/oauth-state';
 
+import { getCurrentAuth } from '@/lib/auth/server';
+
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const platform = searchParams.get('platform');
-  const workspaceId = searchParams.get('workspaceId');
+  let workspaceId = searchParams.get('workspaceId');
+  const returnUrl = searchParams.get('returnUrl') || undefined;
+
+  if (!workspaceId) {
+    const auth = await getCurrentAuth(request);
+    if (auth) {
+      workspaceId = auth.workspaceId;
+    }
+  }
 
   if (!platform || !workspaceId) {
     return NextResponse.redirect(
@@ -27,7 +37,7 @@ export async function GET(request: NextRequest) {
 
   // Store in Redis with TTL
   try {
-    await storeOAuthState(state, workspaceId, platform);
+    await storeOAuthState(state, workspaceId, platform, returnUrl);
   } catch (error) {
     if (error instanceof RedisConfigError || (error as Error).name === 'RedisConfigError') {
       return NextResponse.redirect(

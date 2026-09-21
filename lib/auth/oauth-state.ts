@@ -14,6 +14,7 @@ export interface OAuthStateData {
   workspaceId: string;
   platform: string;
   createdAt: number;
+  returnUrl?: string;
 }
 
 /**
@@ -42,12 +43,13 @@ export class RedisConfigError extends Error {
 /**
  * Stores OAuth state in Redis with TTL
  */
-export async function storeOAuthState(state: string, workspaceId: string, platform: string): Promise<void> {
+export async function storeOAuthState(state: string, workspaceId: string, platform: string, returnUrl?: string): Promise<void> {
   const key = `${STATE_PREFIX}${state}`;
   const data: OAuthStateData = {
     workspaceId,
     platform,
     createdAt: Date.now(),
+    returnUrl,
   };
 
   try {
@@ -64,7 +66,7 @@ export async function storeOAuthState(state: string, workspaceId: string, platfo
  * Verifies and consumes OAuth state (deletes after verification)
  * Returns workspaceId and platform if valid
  */
-export async function verifyAndConsumeOAuthState(state: string): Promise<{ workspaceId: string; platform: string } | null> {
+export async function verifyAndConsumeOAuthState(state: string): Promise<{ workspaceId: string; platform: string; returnUrl?: string } | null> {
   const key = `${STATE_PREFIX}${state}`;
 
   // Atomic get-and-delete using GETDEL (Redis 6.2+)
@@ -90,7 +92,7 @@ export async function verifyAndConsumeOAuthState(state: string): Promise<{ works
       return null;
     }
 
-    return { workspaceId: data.workspaceId, platform: data.platform };
+    return { workspaceId: data.workspaceId, platform: data.platform, returnUrl: data.returnUrl };
   } catch (error) {
     logger.error('Invalid OAuth state data', { state: state.slice(0, 8) + '...', error: error instanceof Error ? error : new Error(String(error)) });
     return null;
