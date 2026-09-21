@@ -11,37 +11,36 @@ import { cookies } from 'next/headers';
 
 export const dynamic = 'force-dynamic';
 
-async function resolveWorkspaceId(request: NextRequest): Promise<string | null> {
-  // Method 1: getAuthContext (has dev bypass + workspace resolution)
+async function resolveWorkspaceId(request: NextRequest): Promise<{ id: string | null; debug: string }> {
+  let debug = [];
+  
+  // Method 1: getAuthContext
   try {
     const authCtx = await getAuthContext();
-    if (authCtx) {
-      logger.info('Platform connect: resolved workspace via getAuthContext', { workspaceId: authCtx.workspaceId });
-      return authCtx.workspaceId;
-    }
+    if (authCtx) return { id: authCtx.workspaceId, debug: 'authCtx_success' };
+    debug.push('authCtx_null');
   } catch (e) {
-    logger.warn('Platform connect: getAuthContext failed', { error: e instanceof Error ? e.message : String(e) });
+    debug.push('authCtx_err_' + (e instanceof Error ? e.message : String(e)));
   }
 
-  // Method 2: getCurrentAuth (request-based, checks headers + bearer + SSR cookie)
+  // Method 2: getCurrentAuth
   try {
     const auth = await getCurrentAuth(request);
-    if (auth) {
-      logger.info('Platform connect: resolved workspace via getCurrentAuth', { workspaceId: auth.workspaceId });
-      return auth.workspaceId;
-    }
+    if (auth) return { id: auth.workspaceId, debug: 'currAuth_success' };
+    debug.push('currAuth_null');
   } catch (e) {
-    logger.warn('Platform connect: getCurrentAuth failed', { error: e instanceof Error ? e.message : String(e) });
+    debug.push('currAuth_err_' + (e instanceof Error ? e.message : String(e)));
   }
 
-  // Method 3: Direct Supabase SSR cookie read (most robust fallback)
+  // Method 3: Direct Supabase SSR
   try {
     const cookieStore = await cookies();
     const allCookies = cookieStore.getAll();
-    logger.info('Platform connect: cookie debug', { 
-      cookieCount: String(allCookies.length),
-      cookieNames: allCookies.map(c => c.name).join(',')
-    });
+    debug.push('cookies_' + allCookies.length);
+    
+    // Check if the specific sb- cookies exist
+    const hasSbCookies = allCookies.some(c => c.name.startsWith('sb-'));
+    debug.push('hasSb_' + hasSbCookies);
 
     const supabaseSSR = createServerClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
       cookies: {
@@ -52,28 +51,30 @@ async function resolveWorkspaceId(request: NextRequest): Promise<string | null> 
 
     const { data: { user }, error } = await supabaseSSR.auth.getUser();
     if (error) {
-      logger.warn('Platform connect: SSR getUser error', { error: error.message });
+      debug.push('ssr_err_' + error.message);
     }
     if (user) {
-      logger.info('Platform connect: found user via SSR cookies', { userId: user.id });
-      
-      // Look up workspace
       const adminClient = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
-      const { data: member } = await adminClient
+      const { data: member, error: dbError } = await adminClient
         .from('workspace_members')
         .select('workspace_id')
         .eq('user_id', user.id)
         .single();
 
+      if (dbError) {
+        debug.push('db_err_' + dbError.message);
+      }
+        
       const workspaceId = member?.workspace_id || user.id;
-      logger.info('Platform connect: resolved workspace via direct SSR', { workspaceId });
-      return workspaceId;
+      return { id: workspaceId, debug: 'ssr_success' };
+    } else {
+      debug.push('ssr_user_null');
     }
   } catch (e) {
-    logger.warn('Platform connect: direct SSR cookie read failed', { error: e instanceof Error ? e.message : String(e) });
+    debug.push('ssr_fatal_' + (e instanceof Error ? e.message : String(e)));
   }
 
-  return null;
+  return { id: null, debug: debug.join('|') };
 }
 
 export async function GET(request: NextRequest) {
@@ -82,19 +83,26 @@ export async function GET(request: NextRequest) {
   let workspaceId = searchParams.get('workspaceId');
   const returnUrl = searchParams.get('returnUrl') || undefined;
   const errorRedirect = returnUrl || '/onboarding/connect/add';
+  
+  let debugInfo = 'none';
 
   if (!workspaceId) {
-    workspaceId = await resolveWorkspaceId(request);
+    const resolution = await resolveWorkspaceId(request);
+    workspaceId = resolution.id;
+    debugInfo = resolution.debug;
   }
 
   if (!platform || !workspaceId) {
     logger.warn('Platform connect: missing params after all auth methods', { 
       platform, 
-      hasWorkspace: String(!!workspaceId) 
+      hasWorkspace: String(!!workspaceId),
+      debugInfo 
     });
-    return NextResponse.redirect(
-      new URL(`${errorRedirect}?error=missing_params`, request.url)
-    );
+    
+    const errUrl = new URL(`${errorRedirect}?error=missing_params`, request.url);
+    errUrl.searchParams.set('debug', debugInfo);
+    
+    return NextResponse.redirect(errUrl);
   }
 
   const adapter = getPlatformAdapter(platform);
