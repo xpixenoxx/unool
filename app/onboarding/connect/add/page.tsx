@@ -49,8 +49,8 @@ export default function AddAccountsPage() {
         url += `&workspaceId=${data.user.workspaceId}`;
         window.location.href = url;
       } else {
-        alert('Authentication error: Unable to determine your active workspace. Please try signing out and signing back in.');
-        setIsConnecting(false);
+        alert('Your session has expired or is invalid. Please sign in again.');
+        window.location.href = '/signin';
       }
     } catch (e) {
       console.error('Failed to pre-fetch workspace ID', e);
