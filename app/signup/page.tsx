@@ -65,7 +65,7 @@ export default function SignUpPage() {
 
   const handleOtpSuccess = (redirectTo?: string) => {
     setStage('done');
-    setTimeout(() => router.push(redirectTo || '/onboarding/start'), 1500);
+    setTimeout(() => router.push(redirectTo || '/signin'), 1500);
   };
 
   return (

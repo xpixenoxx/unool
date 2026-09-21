@@ -146,7 +146,11 @@ async function logUserInAndRedirect(userId: string, email: string) {
       },
     });
 
-    await supabaseSSR.auth.signInWithPassword({ email: email, password: tempPassword });
+    const { data: signInData, error: signInError } = await supabaseSSR.auth.signInWithPassword({ email: email, password: tempPassword });
+
+    if (signInError) {
+      throw signInError;
+    }
 
     await supabaseAdmin.auth.admin.updateUserById(userId, { 
       password: crypto.randomBytes(32).toString('base64') 

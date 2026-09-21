@@ -16,25 +16,41 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
 
-    // Fetch user record from public.users
-    const { data: user, error } = await supabaseAdmin
+    // Try fetching from public.users first
+    const { data: user } = await supabaseAdmin
       .from('users')
       .select('id, email, full_name, created_at')
       .eq('id', auth.userId)
       .single();
 
-    if (error || !user) {
-      return NextResponse.json({ success: false, message: 'User not found.' }, { status: 404 });
+    if (user) {
+      return NextResponse.json({
+        success: true,
+        user: {
+          id:          user.id,
+          email:       user.email,
+          name:        user.full_name,
+          workspaceId: auth.workspaceId,
+          createdAt:   user.created_at,
+        },
+      }, { status: 200 });
+    }
+
+    // Fallback: read directly from Supabase Auth admin API if public.users is missing/delayed
+    const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.getUserById(auth.userId);
+    
+    if (authError || !authUser.user) {
+      return NextResponse.json({ success: false, message: 'User not found in Auth system.' }, { status: 404 });
     }
 
     return NextResponse.json({
       success: true,
       user: {
-        id:          user.id,
-        email:       user.email,
-        name:        user.full_name,
+        id:          authUser.user.id,
+        email:       authUser.user.email,
+        name:        authUser.user.user_metadata?.full_name || 'User',
         workspaceId: auth.workspaceId,
-        createdAt:   user.created_at,
+        createdAt:   authUser.user.created_at,
       },
     }, { status: 200 });
 
