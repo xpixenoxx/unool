@@ -138,11 +138,23 @@ async function logUserInAndRedirect(userId: string, email: string) {
     
     await supabaseAdmin.auth.admin.updateUserById(userId, { password: tempPassword });
     
+    const response = NextResponse.json({
+      success: true,
+      message: 'Account verified!',
+      redirectTo: '/onboarding/start'
+    }, { status: 200 });
+
     const cookieStore = await cookies();
     const supabaseSSR = createServerClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
       cookies: {
-        getAll()            { return cookieStore.getAll(); },
-        setAll(toSet)       { toSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options)); },
+        getAll() { return cookieStore.getAll(); },
+        setAll(toSet) { 
+          toSet.forEach(({ name, value, options }) => {
+            // Must mutate both request cookies and response cookies in Next.js
+            cookieStore.set(name, value, options);
+            response.cookies.set(name, value, options);
+          });
+        },
       },
     });
 
@@ -156,11 +168,7 @@ async function logUserInAndRedirect(userId: string, email: string) {
       password: crypto.randomBytes(32).toString('base64') 
     });
 
-    return NextResponse.json({
-      success: true,
-      message: 'Account verified!',
-      redirectTo: '/onboarding/start'
-    }, { status: 200 });
+    return response;
   } catch (error) {
     logger.error('Auto-login failed after signup', { error: error instanceof Error ? error : new Error(String(error)), userId });
     // Fall back to just telling them to sign in

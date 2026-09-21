@@ -87,11 +87,18 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Exchange temp password for a real session (setting cookies)
+    const response = NextResponse.json({ success: true, message: 'Signed in successfully.', redirectTo: '/dashboard' }, { status: 200 });
+    
     const cookieStore = await cookies();
     const supabaseSSR = createServerClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
       cookies: {
-        getAll()            { return cookieStore.getAll(); },
-        setAll(toSet)       { toSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options)); },
+        getAll() { return cookieStore.getAll(); },
+        setAll(toSet) { 
+          toSet.forEach(({ name, value, options }) => {
+            cookieStore.set(name, value, options);
+            response.cookies.set(name, value, options);
+          });
+        },
       },
     });
 
@@ -112,7 +119,7 @@ export async function POST(request: NextRequest) {
     }
 
     logger.info('Signin OTP verified, session created', { userId: user.id });
-    return NextResponse.json({ success: true, message: 'Signed in successfully.', redirectTo: '/dashboard' }, { status: 200 });
+    return response;
 
   } catch (err) {
     logger.error('Signin verify-otp error', { error: err instanceof Error ? err : new Error(String(err)) });
