@@ -21,7 +21,7 @@ export class LinkedInAdapter implements PlatformAdapter {
   readonly authConfig: PlatformAuthConfig = {
     clientId: config.LINKEDIN_CLIENT_ID || '',
     clientSecret: config.LINKEDIN_CLIENT_SECRET || '',
-    redirectUri: config.LINKEDIN_REDIRECT_URI || '',
+    redirectUri: config.LINKEDIN_REDIRECT_URI || `${config.NEXT_PUBLIC_APP_URL}/api/auth/platform/callback`,
     // r_liteprofile was deprecated in 2023. Use OpenID Connect scopes.
     scopes: ['openid', 'profile', 'email', 'w_member_social'],
   };

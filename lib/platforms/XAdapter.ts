@@ -44,7 +44,7 @@ export class XAdapter implements PlatformAdapter {
   readonly authConfig: PlatformAuthConfig = {
     clientId: config.X_CLIENT_ID || '',
     clientSecret: config.X_CLIENT_SECRET || '',
-    redirectUri: config.X_REDIRECT_URI || '',
+    redirectUri: config.X_REDIRECT_URI || `${config.NEXT_PUBLIC_APP_URL}/api/auth/platform/callback`,
     scopes: ['tweet.read', 'tweet.write', 'users.read', 'offline.access'],
   };
 
