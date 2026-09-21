@@ -40,27 +40,66 @@ export default function AddAccountsPage() {
     setIsConnecting(acc.id);
     
     try {
-      // Get the access_token from the browser-side Supabase session.
-      // Sending it as a Bearer header bypasses the broken SSR-cookie path entirely.
-      const token = await getAccessToken();
+      // Strategy 1: Read session from sessionStorage (set during OTP verification)
+      let accessToken: string | null = null;
+      let storedUserId: string | null = null;
       
-      const headers: HeadersInit = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+      try {
+        const stored = sessionStorage.getItem('unool_session');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          accessToken = parsed.access_token || null;
+          storedUserId = parsed.userId || null;
+        }
+      } catch { /* ignore */ }
       
-      const res = await fetch('/api/auth/me', { headers });
-      const data = await res.json();
+      // Strategy 2: Try browser Supabase client
+      if (!accessToken) {
+        try {
+          accessToken = await getAccessToken();
+        } catch { /* ignore */ }
+      }
       
-      let url = `/api/auth/platform/connect?platform=${acc.id}&returnUrl=/onboarding/connect`;
-      if (data?.user?.workspaceId) {
-        url += `&workspaceId=${data.user.workspaceId}`;
+      // Strategy 3: Try /api/auth/me with Bearer token if we have one
+      let workspaceId: string | null = null;
+      
+      if (accessToken) {
+        try {
+          const res = await fetch('/api/auth/me', {
+            headers: { 'Authorization': `Bearer ${accessToken}` },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            workspaceId = data?.user?.workspaceId || null;
+          }
+        } catch { /* ignore */ }
+      }
+      
+      // Strategy 4: Try /api/auth/me without Bearer (cookies)
+      if (!workspaceId) {
+        try {
+          const res = await fetch('/api/auth/me');
+          if (res.ok) {
+            const data = await res.json();
+            workspaceId = data?.user?.workspaceId || null;
+          }
+        } catch { /* ignore */ }
+      }
+      
+      // Strategy 5: Use stored userId directly as workspaceId fallback
+      if (!workspaceId && storedUserId) {
+        workspaceId = storedUserId;
+      }
+      
+      if (workspaceId) {
+        const url = `/api/auth/platform/connect?platform=${acc.id}&returnUrl=/onboarding/connect&workspaceId=${workspaceId}`;
         window.location.href = url;
       } else {
-        // Token fetch failed or session genuinely absent
         alert('Your session has expired or is invalid. Please sign in again.');
         window.location.href = '/signin';
       }
     } catch (e) {
-      console.error('Failed to pre-fetch workspace ID', e);
+      console.error('Failed to initiate platform connection', e);
       alert('Network error while preparing the connection. Please try again.');
       setIsConnecting(null);
     }

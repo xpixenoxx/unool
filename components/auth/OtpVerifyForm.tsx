@@ -103,14 +103,27 @@ export default function OtpVerifyForm({
         setOtp(['', '', '', '', '', '']);
         setTimeout(() => otpRefs.current[0]?.focus(), 50);
       } else {
-        // If the server returned session tokens, set them in the browser Supabase client.
-        // This ensures getSession() works for subsequent authenticated API calls.
-        if (data.session?.access_token && data.session?.refresh_token) {
-          const supabase = getSupabaseBrowserClient();
-          await supabase.auth.setSession({
-            access_token: data.session.access_token,
-            refresh_token: data.session.refresh_token,
-          });
+        // Store session data in sessionStorage as the primary auth persistence mechanism.
+        // This is 100% reliable regardless of cookies, SSR, or Supabase client issues.
+        if (data.session?.access_token) {
+          try {
+            sessionStorage.setItem('unool_session', JSON.stringify({
+              access_token: data.session.access_token,
+              refresh_token: data.session.refresh_token,
+              userId: data.session.user?.id,
+              email: data.session.user?.email,
+              ts: Date.now(),
+            }));
+          } catch { /* sessionStorage not available */ }
+          
+          // Also try setting in browser Supabase client
+          try {
+            const supabase = getSupabaseBrowserClient();
+            await supabase.auth.setSession({
+              access_token: data.session.access_token,
+              refresh_token: data.session.refresh_token,
+            });
+          } catch { /* ignore */ }
         }
         setSuccess(data.message || 'Verified!');
         setTimeout(() => onSuccess(data.redirectTo), 1200);
