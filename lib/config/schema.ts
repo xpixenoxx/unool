@@ -68,7 +68,14 @@ const configSchema = z.object({
 
 export type Config = z.infer<typeof configSchema>;
 
-export const config = configSchema.parse(process.env);
+// Pre-process env matching NEXT_PUBLIC vars if server counterparts are missing
+const env = {
+  ...process.env,
+  SUPABASE_URL: process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL,
+  SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+};
+
+export const config = configSchema.parse(env);
 
 // Augment NodeJS.ProcessEnv for type safety
 declare global {
