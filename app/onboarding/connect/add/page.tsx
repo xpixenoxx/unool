@@ -23,7 +23,6 @@ const accounts = [
 
 export default function AddAccountsPage() {
   const router = useRouter();
-  const [selectedAccount, setSelectedAccount] = useState<typeof accounts[0] | null>(null);
 
   const handleNext = () => {
     // Assuming next redirects to dashboard after finishing onboarding
@@ -34,17 +33,16 @@ export default function AddAccountsPage() {
     router.push('/onboarding/connect');
   };
 
-  const [isConnecting, setIsConnecting] = useState(false);
+  const [isConnecting, setIsConnecting] = useState<string | null>(null);
 
-  const handleConnect = async () => {
-    if (!selectedAccount) return;
-    setIsConnecting(true);
+  const handleConnectDirectly = async (acc: typeof accounts[0]) => {
+    setIsConnecting(acc.id);
     
     try {
       const res = await fetch('/api/auth/me');
       const data = await res.json();
       
-      let url = `/api/auth/platform/connect?platform=${selectedAccount.id}&returnUrl=/onboarding/connect`;
+      let url = `/api/auth/platform/connect?platform=${acc.id}&returnUrl=/onboarding/connect`;
       if (data?.user?.workspaceId) {
         url += `&workspaceId=${data.user.workspaceId}`;
         window.location.href = url;
@@ -55,7 +53,7 @@ export default function AddAccountsPage() {
     } catch (e) {
       console.error('Failed to pre-fetch workspace ID', e);
       alert('Network error while preparing the connection. Please try again.');
-      setIsConnecting(false);
+      setIsConnecting(null);
     }
   };
 
@@ -72,6 +70,7 @@ export default function AddAccountsPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 w-full">
           {accounts.map((acc) => {
             const Icon = acc.icon;
+            const isLoading = isConnecting === acc.id;
             return (
               <div key={acc.id} className="bg-white rounded-lg border border-zinc-200 p-4 flex flex-col gap-4 shadow-sm">
                 <div className="flex items-center gap-3">
@@ -79,56 +78,16 @@ export default function AddAccountsPage() {
                   <span className="text-[15px] font-medium text-zinc-800">{acc.name}</span>
                 </div>
                 <button 
-                  onClick={() => setSelectedAccount(acc)}
-                  className="w-full bg-[#68d391] hover:bg-[#5bb87d] text-white py-2 rounded font-medium text-[14px] transition-colors"
+                  onClick={() => handleConnectDirectly(acc)}
+                  disabled={isLoading || isConnecting !== null}
+                  className="w-full bg-[#68d391] hover:bg-[#5bb87d] text-white py-2 rounded font-medium text-[14px] transition-colors disabled:opacity-75 flex items-center justify-center h-[38px]"
                 >
-                  Add
+                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Add'}
                 </button>
               </div>
             );
           })}
         </div>
-
-        {/* Modal Overlay */}
-        {selectedAccount && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 animate-in fade-in duration-200">
-            <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6 animate-in zoom-in-95 duration-200">
-              <div className="flex items-center gap-2 mb-4">
-                <selectedAccount.icon className="w-5 h-5 text-zinc-800" />
-                <h2 className="text-[18px] font-bold text-zinc-900">Connect {selectedAccount.name}</h2>
-              </div>
-              
-              <div className="flex gap-3 mb-8">
-                <div className="w-2 h-2 rounded-full bg-[#68d391] mt-1.5 shrink-0"></div>
-                <p className="text-[14px] text-zinc-500 leading-relaxed">
-                  Make sure you are signed in to the {selectedAccount.name} Profile account you wish to connect. You may need to sign out and sign in to the correct account before proceeding.
-                </p>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 font-medium text-[14px]">
-                <button 
-                  onClick={() => setSelectedAccount(null)}
-                  className="px-4 py-2.5 text-zinc-600 hover:text-zinc-900 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={handleConnect}
-                  disabled={isConnecting}
-                  className="px-5 py-2.5 bg-[#68d391] hover:bg-[#5bb87d] text-white rounded transition-colors shadow-sm disabled:opacity-75 flex items-center justify-center min-w-[140px]"
-                >
-                  {isConnecting ? (
-                    <span className="flex items-center gap-2">
-                       <Loader2 className="w-4 h-4 animate-spin" /> Connecting
-                    </span>
-                  ) : (
-                    `Connect ${selectedAccount.name}`
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
       </div>
 
