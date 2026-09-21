@@ -174,6 +174,7 @@ async function logUserInAndRedirect(userId: string, email: string) {
       success: true,
       message: 'Account verified!',
       redirectTo: '/onboarding/start',
+      userId: userId, // EXPLICITLY RETURN USER_ID AS FALLBACK
       session: {
         access_token: signInData.session?.access_token,
         refresh_token: signInData.session?.refresh_token,
@@ -186,10 +187,12 @@ async function logUserInAndRedirect(userId: string, email: string) {
     }, { status: 200, headers: response.headers });
   } catch (error) {
     logger.error('Auto-login failed after signup', { error: error instanceof Error ? error : new Error(String(error)), userId });
-    // Fall back to just telling them to sign in
+    // Fall back to returning userId so the onboarding flow at least has Strategy 5 fallback
     return NextResponse.json({
       success: true,
       message: 'Account verified! You can now sign in.',
+      redirectTo: '/onboarding/start',
+      userId: userId,
     }, { status: 200 });
   }
 }

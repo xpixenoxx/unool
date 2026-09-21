@@ -104,17 +104,21 @@ export default function OtpVerifyForm({
         setTimeout(() => otpRefs.current[0]?.focus(), 50);
       } else {
         // Store session data in sessionStorage as the primary auth persistence mechanism.
-        // This is 100% reliable regardless of cookies, SSR, or Supabase client issues.
-        if (data.session?.access_token) {
+        // Even if session is totally missing, store userId if the server passed it!
+        const uid = data.userId || data.session?.user?.id;
+        if (uid) {
           try {
             sessionStorage.setItem('unool_session', JSON.stringify({
-              access_token: data.session.access_token,
-              refresh_token: data.session.refresh_token,
-              userId: data.session.user?.id,
-              email: data.session.user?.email,
+              access_token: data.session?.access_token || null,
+              refresh_token: data.session?.refresh_token || null,
+              userId: uid,
+              email: data.session?.user?.email || email,
               ts: Date.now(),
             }));
           } catch { /* sessionStorage not available */ }
+        }
+        
+        if (data.session?.access_token) {
           
           // Also try setting in browser Supabase client
           try {
