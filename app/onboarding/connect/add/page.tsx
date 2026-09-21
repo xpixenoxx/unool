@@ -47,14 +47,14 @@ export default function AddAccountsPage() {
       let url = `/api/auth/platform/connect?platform=${selectedAccount.id}&returnUrl=/onboarding/connect`;
       if (data?.user?.workspaceId) {
         url += `&workspaceId=${data.user.workspaceId}`;
+        window.location.href = url;
+      } else {
+        alert('Authentication error: Unable to determine your active workspace. Please try signing out and signing back in.');
+        setIsConnecting(false);
       }
-      
-      window.location.href = url;
     } catch (e) {
       console.error('Failed to pre-fetch workspace ID', e);
-      // Fallback
-      window.location.href = `/api/auth/platform/connect?platform=${selectedAccount.id}&returnUrl=/onboarding/connect`;
-    } finally {
+      alert('Network error while preparing the connection. Please try again.');
       setIsConnecting(false);
     }
   };
