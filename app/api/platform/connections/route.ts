@@ -4,6 +4,8 @@ import { SupabasePlatformRepository } from '@/lib/repositories/supabase/Supabase
 import { logger } from '@/lib/logger';
 import { SUPPORTED_PLATFORMS } from '@/lib/platforms';
 
+export const dynamic = 'force-dynamic';
+
 const platformRepository = new SupabasePlatformRepository();
 
 export async function GET(request: NextRequest) {
@@ -12,10 +14,15 @@ export async function GET(request: NextRequest) {
   try {
     const auth = await getCurrentAuth(request);
     if (!auth) {
+      logger.warn('Platform connections fetch: Unauthorized (getCurrentAuth returned null)', { traceId });
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    logger.info('Platform connections fetch: Auth resolved', { traceId, auth });
+
     const connections = await platformRepository.findByWorkspaceId(auth.workspaceId);
+    
+    logger.info('Platform connections fetch: DB response', { traceId, workspaceId: auth.workspaceId, count: connections.length });
 
     // Initialize result with all supported platforms
     const result: Record<string, { platform: string; status: string; username?: string; connectedAt?: string; expiresAt?: string }> = {};

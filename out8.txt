@@ -1,0 +1,40 @@
+﻿Γùç injected env (41) from .env.local // tip: Γùê encrypted .env [www.dotenvx.com]
+Connections in DB: [
+  {
+    "id": "932a3816-d7c1-4906-9323-8be3ad178687",
+    "workspace_id": "77029ac6-24db-45cd-9d04-48abe73e8ac6",
+    "platform": "threads",
+    "platform_user_id": "38759431690368527",
+    "username": "moremarha",
+    "access_token_encrypted": "v1:XYAp3te9mrmfpd0ekFgpjU5M90Q5JaGYS9vpIMB/IOopFzPjAEFNJq4L4nzpvA6V2uK/FjZJyL5fbyPlbZTy94ltQqqhAt0F8zdyH7HxrYXkPTI04J7IdPzf4Q1Stmt/GEq0cuZQvysoYzhprScr9YuHp6eszPvyNg9V8uRRCMBXv1YCZL5cswQnIGOB7RK0US8220qZIoEYbHiGk6GeFAnCn0WoSZsjkKslspHHIvBOalH/IzE7dpZLth5dzpc3QYTZt4/C/bjoxnAgv1h0ITUYwGCqiJvpZaEYnwCPkjnqaPAhIS8Mn082F0aNC8yQap+zXq4RQmvgzOS2cnlV4htAlA==",
+    "refresh_token_encrypted": "",
+    "expires_at": null,
+    "scopes": [
+      "threads_basic",
+      "threads_content_publish",
+      "threads_manage_replies",
+      "threads_manage_insights"
+    ],
+    "status": "connected",
+    "created_at": "2026-09-22T17:59:58.176959+00:00",
+    "updated_at": "2026-09-22T17:59:58.176959+00:00"
+  },
+  {
+    "id": "23d5d6c9-0b8e-46f1-80e2-d27b10d08243",
+    "workspace_id": "77029ac6-24db-45cd-9d04-48abe73e8ac6",
+    "platform": "linkedin",
+    "platform_user_id": "sTDnO-XTex",
+    "username": "hemanthsairamjagatha@gmail.com",
+    "access_token_encrypted": "v1:fpmJNrube46ECRVaH4sp7JuNBBXllQysVp6LX5b58XNnXJZHiGKwNNcXh2T3zR+Wp+RxpUmwDlCGdzJdbraKcVwBnClkp7+qLaxyUrB1aL9e153bqlJgP5Rfcm4qMK1ljqAUxFtwQgHKj+ddw3Bz5sEGCT0Xf45ZW1TzL4zMj30/i9W/P2h/x10UnnDAQsit3FTPrxV7phExMDq6JbDM+W9gTWzsaVOhq7vurQYkF50JiCw3m7tP+GKBCoUHSK1la424qfj9S/VoZe0I2xuJOKjAKLu16hLumge+7QWTC1RZuUoCNwBcvmQLNYT1IB/iT85ziBlnSy5hEZTI/4VAPNGr48XUnrztHyK6Epq/2Xx49nRGLSs2j6SzxkR0gKWU2UTF6zAqY/mcEazC65OxC/C0GKFsENlQA6Q90gWw3G7DnQdH9IGiHlUCjyqfYXEf9cyGkNE3cHDwN1Fvvn9hQU7qXR6oaBg1gJO+qH+dVFduFUZhBBr08NiX",
+    "refresh_token_encrypted": "",
+    "expires_at": "2026-11-21T17:54:24.428+00:00",
+    "scopes": [
+      "email,openid,profile,w_member_social"
+    ],
+    "status": "connected",
+    "created_at": "2026-09-22T17:53:50.385706+00:00",
+    "updated_at": "2026-09-22T17:54:26.435+00:00"
+  }
+]
+Platform: threads, ExpiresAt: null, Now: Wed Sep 23 2026 00:07:59 GMT+0530 (India Standard Time), IsExpired: null, Status: connected
+Platform: linkedin, ExpiresAt: Sat Nov 21 2026 23:24:24 GMT+0530 (India Standard Time), Now: Wed Sep 23 2026 00:07:59 GMT+0530 (India Standard Time), IsExpired: false, Status: connected
