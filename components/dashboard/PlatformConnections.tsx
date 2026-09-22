@@ -60,7 +60,7 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
 
   const loadConnections = async () => {
     try {
-      const res = await fetch('/api/platform/connections', { credentials: 'include' });
+      const res = await fetch(`/api/platform/connections?_t=${Date.now()}`, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         if (data.connections) {

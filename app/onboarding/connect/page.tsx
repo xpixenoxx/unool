@@ -57,7 +57,7 @@ function ConnectPageContent() {
       const headers: HeadersInit = {};
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const res = await fetch('/api/platform/connections', { headers });
+      const res = await fetch(`/api/platform/connections?_t=${Date.now()}`, { headers });
       if (res.ok) {
         const data = await res.json();
         if (data.connections) {

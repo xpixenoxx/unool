@@ -71,6 +71,7 @@ export default function AddAccountsPage() {
           if (res.ok) {
             const data = await res.json();
             workspaceId = data?.user?.workspaceId || null;
+            storedUserId = data?.user?.id || storedUserId;
           }
         } catch { /* ignore */ }
       }
@@ -82,6 +83,7 @@ export default function AddAccountsPage() {
           if (res.ok) {
             const data = await res.json();
             workspaceId = data?.user?.workspaceId || null;
+            storedUserId = data?.user?.id || storedUserId;
           }
         } catch { /* ignore */ }
       }
@@ -91,8 +93,12 @@ export default function AddAccountsPage() {
         workspaceId = storedUserId;
       }
       
-      if (workspaceId) {
-        const url = `/api/auth/platform/connect?platform=${acc.id}&returnUrl=/onboarding/connect&workspaceId=${workspaceId}`;
+      if (workspaceId && storedUserId) {
+        const url = `/api/auth/platform/connect?platform=${acc.id}&returnUrl=/onboarding/connect&workspaceId=${workspaceId}&userId=${storedUserId}`;
+        window.location.href = url;
+      } else if (workspaceId) {
+        // Fallback if userId is missing for some reason
+        const url = `/api/auth/platform/connect?platform=${acc.id}&returnUrl=/onboarding/connect&workspaceId=${workspaceId}&userId=${workspaceId}`;
         window.location.href = url;
       } else {
         alert('Your session has expired or is invalid. Please sign in again.');
