@@ -45,8 +45,11 @@ export class ThreadsAdapter implements PlatformAdapter {
     });
 
     return platformFetch('threads', async () => {
-      const response = await fetchWithRetry(`${META_TOKEN_URL}?${params.toString()}`, {
+      // Step 1: Exchange code for short-lived token (POST body, not query params)
+      const response = await fetchWithRetry(META_TOKEN_URL, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString(),
       });
 
       if (!response.ok) {
@@ -55,12 +58,45 @@ export class ThreadsAdapter implements PlatformAdapter {
         throw new Error(`Token exchange failed: ${error}`);
       }
 
-      const data = await response.json();
+      const shortLivedData = await response.json();
+      logger.info('Threads short-lived token obtained', { expiresIn: shortLivedData.expires_in });
+
+      // Step 2: Exchange short-lived token for a long-lived token (60 days)
+      try {
+        const longLivedParams = new URLSearchParams({
+          grant_type: 'th_exchange_token',
+          client_secret: this.authConfig.clientSecret,
+          access_token: shortLivedData.access_token,
+        });
+        const longLivedResponse = await fetchWithRetry(
+          `${THREADS_API_BASE}/access_token?${longLivedParams.toString()}`,
+          { method: 'GET' }
+        );
+
+        if (longLivedResponse.ok) {
+          const longLivedData = await longLivedResponse.json();
+          logger.info('Threads long-lived token obtained', { expiresIn: longLivedData.expires_in });
+          return {
+            accessToken: longLivedData.access_token,
+            expiresIn: longLivedData.expires_in,
+            scope: shortLivedData.scope,
+          };
+        } else {
+          const errText = await longLivedResponse.text();
+          logger.warn('Threads long-lived token exchange failed, using short-lived', { error: errText });
+        }
+      } catch (longLivedErr) {
+        logger.warn('Threads long-lived token exchange error, using short-lived', {
+          errorMessage: longLivedErr instanceof Error ? longLivedErr.message : String(longLivedErr),
+        });
+      }
+
+      // Fallback: return the short-lived token
       return {
-        accessToken: data.access_token,
-        refreshToken: data.refresh_token,
-        expiresIn: data.expires_in,
-        scope: data.scope,
+        accessToken: shortLivedData.access_token,
+        refreshToken: shortLivedData.refresh_token,
+        expiresIn: shortLivedData.expires_in,
+        scope: shortLivedData.scope,
       };
     });
   }

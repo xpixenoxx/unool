@@ -11,6 +11,19 @@ const platformRepository = new SupabasePlatformRepository();
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * Build a redirect URL that respects the returnUrl from OAuth state.
+ * Falls back to /dashboard/settings if no returnUrl is available.
+ */
+function buildRedirectUrl(request: NextRequest, returnUrl: string | undefined, params: Record<string, string>): string {
+  const fallback = returnUrl || '/dashboard/settings';
+  const url = new URL(fallback, request.url);
+  for (const [key, value] of Object.entries(params)) {
+    url.searchParams.set(key, value);
+  }
+  return url.toString();
+}
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const code = searchParams.get('code');
@@ -18,16 +31,29 @@ export async function GET(request: NextRequest) {
   const error = searchParams.get('error');
   const errorDescription = searchParams.get('error_description');
 
+  // --- Early error: OAuth provider returned an error ---
   if (error) {
-    logger.warn('OAuth error', { error, errorDescription, state });
-    return NextResponse.redirect(
-      new URL(`/dashboard/settings?error=oauth_error&description=${encodeURIComponent(errorDescription || '')}`, request.url)
-    );
+    logger.warn('OAuth provider error', { error, errorDescription, state });
+    // Try to extract returnUrl from cookie state even for provider errors
+    const cookieHeader = request.headers.get('cookie');
+    const cookieState = parseOAuthCookie(cookieHeader);
+    const returnUrl = cookieState?.data?.returnUrl;
+    const redirectUrl = buildRedirectUrl(request, returnUrl, {
+      error: 'oauth_error',
+      description: errorDescription || '',
+    });
+    const response = NextResponse.redirect(redirectUrl);
+    response.headers.append('Set-Cookie', 'oauth_state=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0');
+    return response;
   }
 
   if (!code) {
+    logger.warn('OAuth callback missing code parameter');
+    const cookieHeader = request.headers.get('cookie');
+    const cookieState = parseOAuthCookie(cookieHeader);
+    const returnUrl = cookieState?.data?.returnUrl;
     return NextResponse.redirect(
-      new URL('/dashboard/settings?error=missing_code', request.url)
+      buildRedirectUrl(request, returnUrl, { error: 'missing_code' })
     );
   }
 
@@ -37,8 +63,9 @@ export async function GET(request: NextRequest) {
   const effectiveState = cookieState?.state || state;
 
   if (!effectiveState) {
+    logger.warn('OAuth callback missing state', { hasCode: !!code, hasCookieState: !!cookieState });
     return NextResponse.redirect(
-      new URL('/dashboard/settings?error=missing_state', request.url)
+      buildRedirectUrl(request, cookieState?.data?.returnUrl, { error: 'missing_state' })
     );
   }
 
@@ -47,7 +74,7 @@ export async function GET(request: NextRequest) {
   if (!verified) {
     logger.warn('OAuth state verification failed', { state: effectiveState.slice(0, 8) + '...' });
     return NextResponse.redirect(
-      new URL('/dashboard/settings?error=invalid_state', request.url)
+      buildRedirectUrl(request, cookieState?.data?.returnUrl, { error: 'invalid_state' })
     );
   }
 
@@ -55,8 +82,9 @@ export async function GET(request: NextRequest) {
 
   // Validate platform is supported
   if (!SUPPORTED_PLATFORMS.includes(platformFromState as (typeof SUPPORTED_PLATFORMS)[number])) {
+    logger.warn('Unsupported platform in OAuth callback', { platform: platformFromState });
     return NextResponse.redirect(
-      new URL(`/dashboard/settings?error=unsupported_platform&platform=${platformFromState}`, request.url)
+      buildRedirectUrl(request, returnUrl, { error: 'unsupported_platform', platform: platformFromState })
     );
   }
 
@@ -65,7 +93,7 @@ export async function GET(request: NextRequest) {
   const adapter = getPlatformAdapter(platform);
   if (!adapter) {
     return NextResponse.redirect(
-      new URL(`/dashboard/settings?error=unsupported_platform&platform=${platform}`, request.url)
+      buildRedirectUrl(request, returnUrl, { error: 'unsupported_platform', platform })
     );
   }
 
@@ -82,12 +110,25 @@ export async function GET(request: NextRequest) {
 
   try {
     // Exchange code for token
+    logger.info('Exchanging OAuth code for token', { platform, workspaceId });
     const tokenResponse = platform === 'x' && codeVerifier
       ? await adapter.exchangeCodeForToken(code, codeVerifier)
       : await adapter.exchangeCodeForToken(code);
 
+    logger.info('Token exchange successful', {
+      platform,
+      hasAccessToken: !!tokenResponse.accessToken,
+      hasRefreshToken: !!tokenResponse.refreshToken,
+      expiresIn: tokenResponse.expiresIn,
+    });
+
     // Get user profile
     const profile = await adapter.getUserProfile(tokenResponse.accessToken);
+    logger.info('User profile fetched', {
+      platform,
+      platformUserId: profile.platformUserId,
+      username: profile.username,
+    });
 
     // Encrypt tokens
     const accessTokenEncrypted = await encryptToken(tokenResponse.accessToken);
@@ -114,10 +155,11 @@ export async function GET(request: NextRequest) {
     
     if (member?.workspace_id) {
       finalWorkspaceId = member.workspace_id;
+      logger.debug('Resolved workspaceId from userId', { userId: workspaceId, workspaceId: finalWorkspaceId });
     }
 
     // Save or update platform connection
-    await platformRepository.create({
+    const savedConnection = await platformRepository.create({
       workspaceId: finalWorkspaceId,
       platform,
       platformUserId: profile.platformUserId,
@@ -128,18 +170,17 @@ export async function GET(request: NextRequest) {
       scopes: tokenResponse.scope ? tokenResponse.scope.split(' ') : adapter.authConfig.scopes,
     });
 
-    logger.info('Platform connected successfully', { platform, workspaceId, platformUserId: profile.platformUserId });
+    logger.info('Platform connected successfully', {
+      platform,
+      workspaceId: finalWorkspaceId,
+      platformUserId: profile.platformUserId,
+      connectionId: savedConnection.id,
+    });
 
-    // Clear OAuth cookies and prepare redirect
-    let nextUrl = `/dashboard/settings?connected=${platform}`;
-    if (returnUrl) {
-      const u = new URL(returnUrl, request.url);
-      nextUrl = u.toString();
-    } else {
-      nextUrl = new URL(nextUrl, request.url).toString();
-    }
+    // Build success redirect URL
+    const successUrl = buildRedirectUrl(request, returnUrl, { connected: platform });
     
-    const response = NextResponse.redirect(nextUrl);
+    const response = NextResponse.redirect(successUrl);
     response.headers.append('Set-Cookie', 'oauth_state=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0');
     if (platform === 'x') {
       response.headers.append('Set-Cookie', `pkce_${effectiveState}=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0`);
@@ -148,10 +189,19 @@ export async function GET(request: NextRequest) {
     return response;
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
-    logger.error('OAuth callback failed', { error: err, platform, state: effectiveState });
+    logger.error('OAuth callback failed', {
+      error: err,
+      platform,
+      workspaceId,
+      state: effectiveState.slice(0, 8) + '...',
+    });
     const errorMsg = encodeURIComponent(err.message?.slice(0, 200) || 'unknown');
     return NextResponse.redirect(
-      new URL(`/dashboard/settings?error=callback_failed&platform=${platform}&detail=${errorMsg}`, request.url)
+      buildRedirectUrl(request, returnUrl, {
+        error: 'callback_failed',
+        platform,
+        detail: errorMsg,
+      })
     );
   }
 }

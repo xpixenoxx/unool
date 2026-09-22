@@ -15,7 +15,7 @@ import { getAccessToken } from '@/lib/supabase/browser';
 
 const accounts = [
   { id: 'instagram', name: 'Instagram', icon: Instagram },
-  { id: 'twitter', name: 'Twitter/X', icon: Twitter },
+  { id: 'x', name: 'Twitter/X', icon: Twitter },
   { id: 'youtube', name: 'YouTube', icon: Youtube },
   { id: 'facebook', name: 'Facebook', icon: Facebook },
   { id: 'linkedin', name: 'LinkedIn', icon: Linkedin },
