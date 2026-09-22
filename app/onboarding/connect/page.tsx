@@ -20,7 +20,23 @@ export default function OnboardingConnectPage() {
   useEffect(() => {
     async function loadConnections() {
       try {
-        const res = await fetch('/api/platform/connections');
+        let token: string | null = null;
+        try {
+          const stored = sessionStorage.getItem('unool_session');
+          if (stored) token = JSON.parse(stored).access_token || null;
+        } catch { /* ignore */ }
+
+        if (!token) {
+          try {
+            const { getAccessToken } = await import('@/lib/supabase/browser');
+            token = await getAccessToken();
+          } catch { /* ignore */ }
+        }
+
+        const headers: HeadersInit = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        const res = await fetch('/api/platform/connections', { headers });
         if (res.ok) {
           const data = await res.json();
           if (data.connections) {
