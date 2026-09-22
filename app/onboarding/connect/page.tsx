@@ -91,13 +91,14 @@ function ConnectPageContent() {
         if (data.connections) {
           const mappedConnections: Connection[] = [];
           Object.entries(data.connections).forEach(([, conn]: [string, any]) => {
-            if (conn.status === 'connected') {
+            if (conn.status === 'connected' || conn.status === 'expired' || conn.status === 'revoked') {
               const platformName = conn.platform === 'x' ? 'X (Twitter)' 
                 : conn.platform.charAt(0).toUpperCase() + conn.platform.slice(1);
+              const isExpired = conn.status === 'expired' || conn.status === 'revoked';
               mappedConnections.push({
                 platformId: conn.platform,
                 username: conn.username || conn.platform || 'User',
-                platformName,
+                platformName: isExpired ? `${platformName} (Expired)` : platformName,
               });
             }
           });
@@ -272,14 +273,15 @@ function ConnectPageContent() {
             ))
           )}
 
-          {/* Debug panel (temporary — remove after fixing) */}
-          {!loading && debugInfo.length > 0 && (
-            <details className="mt-4 text-xs text-zinc-400">
-              <summary className="cursor-pointer hover:text-zinc-600">Debug info ({connections.length} connections found)</summary>
-              <pre className="mt-2 p-2 bg-zinc-50 rounded text-[10px] overflow-x-auto whitespace-pre-wrap">
-                {debugInfo.join('\n')}
-              </pre>
-            </details>
+          {/* Aggressive Debug panel - always visible until fixed */}
+          {!loading && (
+            <div className="mt-4 p-4 bg-zinc-50 border border-zinc-200 rounded-lg w-full overflow-x-auto text-[11px] font-mono text-zinc-600">
+              <h3 className="font-bold text-red-500 mb-2">RAW STATE DUMP (Screenshot this if empty!):</h3>
+              <p>Count: {connections.length}</p>
+              <hr className="my-2" />
+              <p className="font-bold">Debug Log:</p>
+              <pre>{debugInfo.join('\n') || 'no debug info'}</pre>
+            </div>
           )}
 
         </div>
