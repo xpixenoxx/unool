@@ -70,7 +70,7 @@ export class SupabasePlatformRepository implements IPlatformRepository {
   async create(input: CreatePlatformConnectionInput): Promise<PlatformConnection> {
     const { data, error } = await this.supabase
       .from('platform_connections')
-      .insert({
+      .upsert({
         workspace_id: input.workspaceId,
         platform: input.platform,
         platform_user_id: input.platformUserId,
@@ -80,7 +80,7 @@ export class SupabasePlatformRepository implements IPlatformRepository {
         expires_at: input.expiresAt?.toISOString(),
         scopes: input.scopes || [],
         status: 'connected',
-      })
+      }, { onConflict: 'workspace_id,platform' })
       .select()
       .single();
     if (error) throw error;
