@@ -68,21 +68,56 @@ export class SupabasePlatformRepository implements IPlatformRepository {
   }
 
   async create(input: CreatePlatformConnectionInput): Promise<PlatformConnection> {
-    const { data, error } = await this.supabase
+    // First, check if connection already exists
+    const { data: existing, error: existingError } = await this.supabase
       .from('platform_connections')
-      .upsert({
-        workspace_id: input.workspaceId,
-        platform: input.platform,
-        platform_user_id: input.platformUserId,
-        username: input.username,
-        access_token_encrypted: input.accessToken,
-        refresh_token_encrypted: input.refreshToken,
-        expires_at: input.expiresAt?.toISOString(),
-        scopes: input.scopes || [],
-        status: 'connected',
-      }, { onConflict: 'workspace_id,platform' })
-      .select()
+      .select('id')
+      .eq('workspace_id', input.workspaceId)
+      .eq('platform', input.platform)
       .single();
+
+    let data;
+    let error;
+
+    if (existing) {
+      // Update existing record
+      const result = await this.supabase
+        .from('platform_connections')
+        .update({
+          platform_user_id: input.platformUserId,
+          username: input.username,
+          access_token_encrypted: input.accessToken,
+          refresh_token_encrypted: input.refreshToken,
+          expires_at: input.expiresAt?.toISOString(),
+          scopes: input.scopes || [],
+          status: 'connected',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', existing.id)
+        .select()
+        .single();
+      data = result.data;
+      error = result.error;
+    } else {
+      // Insert new record
+      const result = await this.supabase
+        .from('platform_connections')
+        .insert({
+          workspace_id: input.workspaceId,
+          platform: input.platform,
+          platform_user_id: input.platformUserId,
+          username: input.username,
+          access_token_encrypted: input.accessToken,
+          refresh_token_encrypted: input.refreshToken,
+          expires_at: input.expiresAt?.toISOString(),
+          scopes: input.scopes || [],
+          status: 'connected',
+        })
+        .select()
+        .single();
+      data = result.data;
+      error = result.error;
+    }
     if (error) throw error;
     return this.mapConnectionRow(data);
   }

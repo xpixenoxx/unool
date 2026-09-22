@@ -99,9 +99,26 @@ export async function GET(request: NextRequest) {
       ? new Date(Date.now() + tokenResponse.expiresIn * 1000)
       : undefined;
 
+    // Safety check: The UI fallback might have passed a userId instead of a workspaceId.
+    // Try to resolve the real workspaceId from the database before inserting.
+    let finalWorkspaceId = workspaceId;
+    const { createClient } = await import('@supabase/supabase-js');
+    const { config } = await import('@/lib/config/schema');
+    const adminSupabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+    
+    const { data: member } = await adminSupabase
+      .from('workspace_members')
+      .select('workspace_id')
+      .eq('user_id', workspaceId)
+      .single();
+    
+    if (member?.workspace_id) {
+      finalWorkspaceId = member.workspace_id;
+    }
+
     // Save or update platform connection
     await platformRepository.create({
-      workspaceId,
+      workspaceId: finalWorkspaceId,
       platform,
       platformUserId: profile.platformUserId,
       username: profile.username,
