@@ -16,6 +16,7 @@ export class SupabasePlatformRepository implements IPlatformRepository {
     return {
       id: row.id as string,
       workspaceId: row.workspace_id as string,
+      userId: row.user_id as string,
       platform: row.platform as Platform,
       platformUserId: row.platform_user_id as string,
       username: row.username as string,
@@ -67,12 +68,23 @@ export class SupabasePlatformRepository implements IPlatformRepository {
     return data.map(this.mapConnectionRow);
   }
 
+  async findByWorkspaceAndUser(workspaceId: string, userId: string): Promise<PlatformConnection[]> {
+    const { data, error } = await this.supabase
+      .from('platform_connections')
+      .select('*')
+      .eq('workspace_id', workspaceId)
+      .eq('user_id', userId);
+    if (error) throw error;
+    return data.map(this.mapConnectionRow);
+  }
+
   async create(input: CreatePlatformConnectionInput): Promise<PlatformConnection> {
     // First, check if connection already exists
     const { data: existing, error: existingError } = await this.supabase
       .from('platform_connections')
       .select('id')
       .eq('workspace_id', input.workspaceId)
+      .eq('user_id', input.userId)
       .eq('platform', input.platform)
       .single();
 
@@ -104,6 +116,7 @@ export class SupabasePlatformRepository implements IPlatformRepository {
         .from('platform_connections')
         .insert({
           workspace_id: input.workspaceId,
+          user_id: input.userId,
           platform: input.platform,
           platform_user_id: input.platformUserId,
           username: input.username,

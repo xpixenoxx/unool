@@ -3,6 +3,7 @@ export type Platform = 'linkedin' | 'x' | 'threads' | 'manual' | 'facebook' | 'w
 export interface PlatformConnection {
   id: string;
   workspaceId: string;
+  userId: string;
   platform: Platform;
   platformUserId: string;
   username: string | null;
@@ -29,6 +30,7 @@ export interface PlatformPost {
 
 export interface CreatePlatformConnectionInput {
   workspaceId: string;
+  userId: string;
   platform: Platform;
   platformUserId: string;
   username?: string;

@@ -3,6 +3,8 @@ import { getCurrentAuth } from '@/lib/auth/server';
 import { SupabasePlatformRepository } from '@/lib/repositories/supabase/SupabasePlatformRepository';
 import { logger } from '@/lib/logger';
 import { SUPPORTED_PLATFORMS } from '@/lib/platforms';
+import { createClient } from '@supabase/supabase-js';
+import { config } from '@/lib/config/schema';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,11 +20,54 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    logger.info('Platform connections fetch: Auth resolved', { traceId, auth });
+    logger.info('Platform connections fetch: Auth resolved', { traceId, userId: auth.userId, workspaceId: auth.workspaceId });
 
-    const connections = await platformRepository.findByWorkspaceId(auth.workspaceId);
+    // Strategy 1: Try with the resolved workspaceId and userId
+    let connections = await platformRepository.findByWorkspaceAndUser(auth.workspaceId, auth.userId);
     
-    logger.info('Platform connections fetch: DB response', { traceId, workspaceId: auth.workspaceId, count: connections.length });
+    logger.info('Platform connections fetch: Strategy 1 (workspaceId + userId)', {
+      traceId,
+      workspaceId: auth.workspaceId,
+      userId: auth.userId,
+      count: connections.length,
+    });
+
+    // Strategy 2: If no connections found and userId !== workspaceId, try userId as workspaceId
+    // This handles the case where the OAuth callback stored userId instead of workspaceId
+    if (connections.length === 0 && auth.userId !== auth.workspaceId) {
+      const fallbackConnections = await platformRepository.findByWorkspaceAndUser(auth.userId, auth.userId);
+      logger.info('Platform connections fetch: Strategy 2 (userId as workspaceId)', {
+        traceId,
+        userId: auth.userId,
+        count: fallbackConnections.length,
+      });
+      if (fallbackConnections.length > 0) {
+        connections = fallbackConnections;
+        // Fix the mismatched workspace_id in the database so future queries work correctly
+        const adminSupabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+        for (const conn of fallbackConnections) {
+          try {
+            await adminSupabase
+              .from('platform_connections')
+              .update({ workspace_id: auth.workspaceId, updated_at: new Date().toISOString() })
+              .eq('id', conn.id);
+            logger.info('Fixed workspace_id for platform connection', {
+              traceId,
+              connectionId: conn.id,
+              platform: conn.platform,
+              oldWorkspaceId: auth.userId,
+              newWorkspaceId: auth.workspaceId,
+            });
+          } catch (fixErr) {
+            logger.warn('Failed to fix workspace_id for platform connection', {
+              traceId,
+              connectionId: conn.id,
+              error: fixErr instanceof Error ? fixErr.message : String(fixErr),
+            });
+          }
+        }
+      }
+    }
 
     // Initialize result with all supported platforms
     const result: Record<string, { platform: string; status: string; username?: string; connectedAt?: string; expiresAt?: string }> = {};
@@ -44,7 +89,7 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    logger.info('Platform connections fetched', { traceId, workspaceId: auth.workspaceId });
+    logger.info('Platform connections fetched', { traceId, workspaceId: auth.workspaceId, totalFound: connections.length });
     return NextResponse.json({ connections: result });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));

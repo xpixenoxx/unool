@@ -12,6 +12,7 @@ const STATE_PREFIX = 'oauth:state:';
 
 export interface OAuthStateData {
   workspaceId: string;
+  userId: string;
   platform: string;
   createdAt: number;
   returnUrl?: string;
@@ -43,10 +44,11 @@ export class RedisConfigError extends Error {
 /**
  * Stores OAuth state in Redis with TTL
  */
-export async function storeOAuthState(state: string, workspaceId: string, platform: string, returnUrl?: string): Promise<void> {
+export async function storeOAuthState(state: string, workspaceId: string, userId: string, platform: string, returnUrl?: string): Promise<void> {
   const key = `${STATE_PREFIX}${state}`;
   const data: OAuthStateData = {
     workspaceId,
+    userId,
     platform,
     createdAt: Date.now(),
     returnUrl,
@@ -64,9 +66,9 @@ export async function storeOAuthState(state: string, workspaceId: string, platfo
 
 /**
  * Verifies and consumes OAuth state (deletes after verification)
- * Returns workspaceId and platform if valid
+ * Returns workspaceId, userId and platform if valid
  */
-export async function verifyAndConsumeOAuthState(state: string, cookieHeader?: string | null): Promise<{ workspaceId: string; platform: string; returnUrl?: string } | null> {
+export async function verifyAndConsumeOAuthState(state: string, cookieHeader?: string | null): Promise<{ workspaceId: string; userId: string; platform: string; returnUrl?: string } | null> {
   const key = `${STATE_PREFIX}${state}`;
 
   let data: OAuthStateData | null = null;
@@ -101,14 +103,17 @@ export async function verifyAndConsumeOAuthState(state: string, cookieHeader?: s
     return null;
   }
 
-  return { workspaceId: data.workspaceId, platform: data.platform, returnUrl: data.returnUrl };
+  // Backwards compatibility for cookies created before this deployment
+  const resolvedUserId = data.userId || data.workspaceId;
+
+  return { workspaceId: data.workspaceId, userId: resolvedUserId, platform: data.platform, returnUrl: data.returnUrl };
 }
 
 /**
  * Creates a secure cookie for OAuth flow containing all required state data
  */
-export function createOAuthCookie(state: string, workspaceId: string, platform: string, returnUrl?: string, maxAgeSeconds: number = STATE_TTL_SECONDS): string {
-  const data: OAuthStateData = { workspaceId, platform, returnUrl, createdAt: Date.now() };
+export function createOAuthCookie(state: string, workspaceId: string, userId: string, platform: string, returnUrl?: string, maxAgeSeconds: number = STATE_TTL_SECONDS): string {
+  const data: OAuthStateData = { workspaceId, userId, platform, returnUrl, createdAt: Date.now() };
   // Base64 encode the JSON so it's cookie-safe
   const value = btoa(JSON.stringify({ s: state, d: data }));
   return `oauth_state=${value}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${maxAgeSeconds}`;

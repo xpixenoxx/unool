@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const { workspaceId, platform: platformFromState, returnUrl } = verified;
+  const { workspaceId, userId, platform: platformFromState, returnUrl } = verified;
 
   // Validate platform is supported
   if (!SUPPORTED_PLATFORMS.includes(platformFromState as (typeof SUPPORTED_PLATFORMS)[number])) {
@@ -110,7 +110,7 @@ export async function GET(request: NextRequest) {
 
   try {
     // Exchange code for token
-    logger.info('Exchanging OAuth code for token', { platform, workspaceId });
+    logger.info('Exchanging OAuth code for token', { platform, workspaceId, userId });
     const tokenResponse = platform === 'x' && codeVerifier
       ? await adapter.exchangeCodeForToken(code, codeVerifier)
       : await adapter.exchangeCodeForToken(code);
@@ -140,27 +140,64 @@ export async function GET(request: NextRequest) {
       ? new Date(Date.now() + tokenResponse.expiresIn * 1000)
       : undefined;
 
-    // Safety check: The UI fallback might have passed a userId instead of a workspaceId.
-    // Try to resolve the real workspaceId from the database before inserting.
+    // Safety check: Resolve the real workspaceId from the database.
+    // The OAuth state might have passed a userId instead of workspaceId,
+    // or an incorrect/stale workspaceId. We must verify and correct it.
     let finalWorkspaceId = workspaceId;
     const { createClient } = await import('@supabase/supabase-js');
     const { config } = await import('@/lib/config/schema');
     const adminSupabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
     
-    const { data: member } = await adminSupabase
-      .from('workspace_members')
-      .select('workspace_id')
-      .eq('user_id', workspaceId)
+    // Check 1: Does the workspaceId exist as an actual workspace?
+    const { data: existingWorkspace } = await adminSupabase
+      .from('workspaces')
+      .select('id')
+      .eq('id', workspaceId)
       .single();
     
-    if (member?.workspace_id) {
-      finalWorkspaceId = member.workspace_id;
-      logger.debug('Resolved workspaceId from userId', { userId: workspaceId, workspaceId: finalWorkspaceId });
+    if (!existingWorkspace) {
+      // workspaceId is NOT a valid workspace — it might be a userId.
+      // Look up the user's actual workspace from workspace_members.
+      const { data: member } = await adminSupabase
+        .from('workspace_members')
+        .select('workspace_id')
+        .eq('user_id', workspaceId)
+        .single();
+      
+      if (member?.workspace_id) {
+        finalWorkspaceId = member.workspace_id;
+        logger.info('Resolved workspaceId from userId (workspaceId was not a valid workspace)', {
+          userId: workspaceId,
+          workspaceId: finalWorkspaceId,
+        });
+      } else {
+        // Last resort: check if there's a workspace owned by this user
+        const { data: ownedWorkspace } = await adminSupabase
+          .from('workspaces')
+          .select('id')
+          .eq('owner_id', workspaceId)
+          .single();
+        
+        if (ownedWorkspace?.id) {
+          finalWorkspaceId = ownedWorkspace.id;
+          logger.info('Resolved workspaceId from owned workspace', {
+            userId: workspaceId,
+            workspaceId: finalWorkspaceId,
+          });
+        } else {
+          logger.warn('Could not resolve valid workspaceId — using original value', {
+            workspaceId,
+          });
+        }
+      }
+    } else {
+      logger.debug('WorkspaceId verified as existing workspace', { workspaceId: finalWorkspaceId });
     }
 
     // Save or update platform connection
     const savedConnection = await platformRepository.create({
       workspaceId: finalWorkspaceId,
+      userId,
       platform,
       platformUserId: profile.platformUserId,
       username: profile.username,

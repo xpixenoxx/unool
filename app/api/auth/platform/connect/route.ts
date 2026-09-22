@@ -11,13 +11,13 @@ import { cookies } from 'next/headers';
 
 export const dynamic = 'force-dynamic';
 
-async function resolveWorkspaceId(request: NextRequest): Promise<{ id: string | null; debug: string }> {
+async function resolveWorkspaceId(request: NextRequest): Promise<{ id: string | null; userId: string | null, debug: string }> {
   let debug = [];
   
   // Method 1: getAuthContext
   try {
     const authCtx = await getAuthContext();
-    if (authCtx) return { id: authCtx.workspaceId, debug: 'authCtx_success' };
+    if (authCtx) return { id: authCtx.workspaceId, userId: authCtx.userId, debug: 'authCtx_success' };
     debug.push('authCtx_null');
   } catch (e) {
     debug.push('authCtx_err_' + (e instanceof Error ? e.message : String(e)));
@@ -26,7 +26,7 @@ async function resolveWorkspaceId(request: NextRequest): Promise<{ id: string | 
   // Method 2: getCurrentAuth
   try {
     const auth = await getCurrentAuth(request);
-    if (auth) return { id: auth.workspaceId, debug: 'currAuth_success' };
+    if (auth) return { id: auth.workspaceId, userId: auth.userId, debug: 'currAuth_success' };
     debug.push('currAuth_null');
   } catch (e) {
     debug.push('currAuth_err_' + (e instanceof Error ? e.message : String(e)));
@@ -67,7 +67,7 @@ async function resolveWorkspaceId(request: NextRequest): Promise<{ id: string | 
       }
         
       const workspaceId = member?.workspace_id || user.id;
-      return { id: workspaceId, debug: 'ssr_success' };
+      return { id: workspaceId, userId: user.id, debug: 'ssr_success' };
     } else {
       debug.push('ssr_user_null');
     }
@@ -75,28 +75,31 @@ async function resolveWorkspaceId(request: NextRequest): Promise<{ id: string | 
     debug.push('ssr_fatal_' + (e instanceof Error ? e.message : String(e)));
   }
 
-  return { id: null, debug: debug.join('|') };
+  return { id: null, userId: null, debug: debug.join('|') };
 }
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const platform = searchParams.get('platform');
   let workspaceId = searchParams.get('workspaceId');
+  let userId = searchParams.get('userId');
   const returnUrl = searchParams.get('returnUrl') || undefined;
   const errorRedirect = returnUrl || '/onboarding/connect/add';
   
   let debugInfo = 'none';
 
-  if (!workspaceId) {
+  if (!workspaceId || !userId) {
     const resolution = await resolveWorkspaceId(request);
-    workspaceId = resolution.id;
+    workspaceId = workspaceId || resolution.id;
+    userId = userId || resolution.userId;
     debugInfo = resolution.debug;
   }
 
-  if (!platform || !workspaceId) {
+  if (!platform || !workspaceId || !userId) {
     logger.warn('Platform connect: missing params after all auth methods', { 
       platform, 
       hasWorkspace: String(!!workspaceId),
+      hasUser: String(!!userId),
       debugInfo 
     });
     
@@ -118,13 +121,13 @@ export async function GET(request: NextRequest) {
   const state = generateOAuthState(workspaceId, platform);
 
   // Store in Redis with TTL (fails silently if unconfigured and falls back to cookie)
-  await storeOAuthState(state, workspaceId, platform, returnUrl);
+  await storeOAuthState(state, workspaceId, userId, platform, returnUrl);
 
   // Handle PKCE for X/Twitter - getAuthUrl can return string or {url, pkceCookie}
   const authUrlResult = adapter.getAuthUrl(state);
 
   let authUrl: string;
-  const resCookies: string[] = [createOAuthCookie(state, workspaceId, platform, returnUrl)];
+  const resCookies: string[] = [createOAuthCookie(state, workspaceId, userId, platform, returnUrl)];
 
   if (typeof authUrlResult === 'string') {
     authUrl = authUrlResult;
