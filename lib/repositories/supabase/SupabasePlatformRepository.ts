@@ -16,7 +16,7 @@ export class SupabasePlatformRepository implements IPlatformRepository {
     return {
       id: row.id as string,
       workspaceId: row.workspace_id as string,
-      userId: row.user_id as string,
+      userId: (row.user_id as string) || '',
       platform: row.platform as Platform,
       platformUserId: row.platform_user_id as string,
       username: row.username as string,
@@ -69,22 +69,27 @@ export class SupabasePlatformRepository implements IPlatformRepository {
   }
 
   async findByWorkspaceAndUser(workspaceId: string, userId: string): Promise<PlatformConnection[]> {
-    const { data, error } = await this.supabase
-      .from('platform_connections')
-      .select('*')
-      .eq('workspace_id', workspaceId)
-      .eq('user_id', userId);
-    if (error) throw error;
-    return data.map(this.mapConnectionRow);
+    // Try with user_id filter first; if column doesn't exist, fall back to workspace-only
+    try {
+      const { data, error } = await this.supabase
+        .from('platform_connections')
+        .select('*')
+        .eq('workspace_id', workspaceId)
+        .eq('user_id', userId);
+      if (error) throw error;
+      return data.map(this.mapConnectionRow);
+    } catch {
+      // user_id column may not exist yet — fall back
+      return this.findByWorkspaceId(workspaceId);
+    }
   }
 
   async create(input: CreatePlatformConnectionInput): Promise<PlatformConnection> {
-    // First, check if connection already exists
-    const { data: existing, error: existingError } = await this.supabase
+    // Check if connection already exists (by workspace + platform only — user_id may not exist)
+    const { data: existing } = await this.supabase
       .from('platform_connections')
       .select('id')
       .eq('workspace_id', input.workspaceId)
-      .eq('user_id', input.userId)
       .eq('platform', input.platform)
       .single();
 
@@ -93,18 +98,24 @@ export class SupabasePlatformRepository implements IPlatformRepository {
 
     if (existing) {
       // Update existing record
+      const updatePayload: Record<string, unknown> = {
+        platform_user_id: input.platformUserId,
+        username: input.username,
+        access_token_encrypted: input.accessToken,
+        refresh_token_encrypted: input.refreshToken,
+        expires_at: input.expiresAt?.toISOString(),
+        scopes: input.scopes || [],
+        status: 'connected',
+        updated_at: new Date().toISOString(),
+      };
+      // Only set user_id if provided (column may not exist in DB)
+      if (input.userId) {
+        updatePayload.user_id = input.userId;
+      }
+
       const result = await this.supabase
         .from('platform_connections')
-        .update({
-          platform_user_id: input.platformUserId,
-          username: input.username,
-          access_token_encrypted: input.accessToken,
-          refresh_token_encrypted: input.refreshToken,
-          expires_at: input.expiresAt?.toISOString(),
-          scopes: input.scopes || [],
-          status: 'connected',
-          updated_at: new Date().toISOString(),
-        })
+        .update(updatePayload)
         .eq('id', existing.id)
         .select()
         .single();
@@ -112,24 +123,41 @@ export class SupabasePlatformRepository implements IPlatformRepository {
       error = result.error;
     } else {
       // Insert new record
+      const insertPayload: Record<string, unknown> = {
+        workspace_id: input.workspaceId,
+        platform: input.platform,
+        platform_user_id: input.platformUserId,
+        username: input.username,
+        access_token_encrypted: input.accessToken,
+        refresh_token_encrypted: input.refreshToken,
+        expires_at: input.expiresAt?.toISOString(),
+        scopes: input.scopes || [],
+        status: 'connected',
+      };
+      // Only set user_id if provided (column may not exist in DB)
+      if (input.userId) {
+        insertPayload.user_id = input.userId;
+      }
+
       const result = await this.supabase
         .from('platform_connections')
-        .insert({
-          workspace_id: input.workspaceId,
-          user_id: input.userId,
-          platform: input.platform,
-          platform_user_id: input.platformUserId,
-          username: input.username,
-          access_token_encrypted: input.accessToken,
-          refresh_token_encrypted: input.refreshToken,
-          expires_at: input.expiresAt?.toISOString(),
-          scopes: input.scopes || [],
-          status: 'connected',
-        })
+        .insert(insertPayload)
         .select()
         .single();
       data = result.data;
       error = result.error;
+
+      // If insert failed because user_id column doesn't exist, retry without it
+      if (error && input.userId) {
+        delete insertPayload.user_id;
+        const retryResult = await this.supabase
+          .from('platform_connections')
+          .insert(insertPayload)
+          .select()
+          .single();
+        data = retryResult.data;
+        error = retryResult.error;
+      }
     }
     if (error) throw error;
     return this.mapConnectionRow(data);

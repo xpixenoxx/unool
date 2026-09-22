@@ -31,6 +31,7 @@ function ConnectPageContent() {
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [openDropdown, setOpenDropdown] = useState<number | null>(null);
+  const [debugInfo, setDebugInfo] = useState<string[]>([]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -40,45 +41,79 @@ function ConnectPageContent() {
   }, []);
 
   const loadConnections = useCallback(async () => {
+    const clientDebug: string[] = [];
     try {
+      // Get access token from multiple sources
       let token: string | null = null;
+
+      // Source 1: sessionStorage (set during OTP verification)
       try {
         const stored = sessionStorage.getItem('unool_session');
-        if (stored) token = JSON.parse(stored).access_token || null;
-      } catch { /* ignore */ }
+        if (stored) {
+          token = JSON.parse(stored).access_token || null;
+          clientDebug.push(token ? 'session_token_found' : 'session_no_token');
+        } else {
+          clientDebug.push('no_session_storage');
+        }
+      } catch { clientDebug.push('session_error'); }
 
+      // Source 2: Supabase browser client
       if (!token) {
         try {
           const { getAccessToken } = await import('@/lib/supabase/browser');
           token = await getAccessToken();
-        } catch { /* ignore */ }
+          clientDebug.push(token ? 'browser_token_found' : 'browser_no_token');
+        } catch { clientDebug.push('browser_error'); }
       }
 
-      const headers: HeadersInit = {};
+      // Build request with both credentials and Bearer token
+      const headers: HeadersInit = { 'Cache-Control': 'no-cache' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const res = await fetch(`/api/platform/connections?_t=${Date.now()}`, { headers });
+      clientDebug.push(`fetching:hasToken=${!!token}`);
+
+      const res = await fetch(`/api/platform/connections?_t=${Date.now()}`, {
+        headers,
+        credentials: 'include', // Send cookies too
+      });
+
+      clientDebug.push(`response:${res.status}`);
+
       if (res.ok) {
         const data = await res.json();
+        clientDebug.push(`data:totalFound=${data.totalFound || 0}`);
+
+        // Capture server debug info
+        if (data.debug) {
+          clientDebug.push(...data.debug.map((d: string) => `srv:${d}`));
+        }
+
         if (data.connections) {
           const mappedConnections: Connection[] = [];
           Object.entries(data.connections).forEach(([, conn]: [string, any]) => {
             if (conn.status === 'connected') {
+              const platformName = conn.platform === 'x' ? 'X (Twitter)' 
+                : conn.platform.charAt(0).toUpperCase() + conn.platform.slice(1);
               mappedConnections.push({
                 platformId: conn.platform,
-                username: conn.username || 'User',
-                platformName: conn.platform.charAt(0).toUpperCase() + conn.platform.slice(1),
+                username: conn.username || conn.platform || 'User',
+                platformName,
               });
             }
           });
+          clientDebug.push(`mapped:${mappedConnections.length}`);
           setConnections(mappedConnections);
         }
       } else {
-        console.error('Failed to fetch connections:', res.status, await res.text());
+        const text = await res.text();
+        clientDebug.push(`error_body:${text.slice(0, 200)}`);
+        console.error('Failed to fetch connections:', res.status, text);
       }
     } catch (e) {
+      clientDebug.push(`fetch_error:${e instanceof Error ? e.message : String(e)}`);
       console.error('Error loading connections:', e);
     } finally {
+      setDebugInfo(clientDebug);
       setLoading(false);
     }
   }, []);
@@ -235,6 +270,16 @@ function ConnectPageContent() {
                 </div>
               </div>
             ))
+          )}
+
+          {/* Debug panel (temporary — remove after fixing) */}
+          {!loading && debugInfo.length > 0 && (
+            <details className="mt-4 text-xs text-zinc-400">
+              <summary className="cursor-pointer hover:text-zinc-600">Debug info ({connections.length} connections found)</summary>
+              <pre className="mt-2 p-2 bg-zinc-50 rounded text-[10px] overflow-x-auto whitespace-pre-wrap">
+                {debugInfo.join('\n')}
+              </pre>
+            </details>
           )}
 
         </div>
