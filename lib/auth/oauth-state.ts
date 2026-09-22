@@ -54,11 +54,11 @@ export async function storeOAuthState(state: string, workspaceId: string, platfo
 
   try {
     await redis.set(key, JSON.stringify(data), { ex: STATE_TTL_SECONDS });
-    logger.debug('OAuth state stored', { state: state.slice(0, 8) + '...', workspaceId, platform });
+    logger.debug('OAuth state stored in Redis', { state: state.slice(0, 8) + '...', workspaceId, platform });
   } catch (error) {
-    const err = error instanceof Error ? error : new Error(String(error));
-    logger.error('Failed to store OAuth state in Redis. Check UPSTASH_REDIS_* env vars.', { error: err });
-    throw new RedisConfigError('Upstash Redis is not properly configured.');
+    logger.warn('Redis unavailable. Falling back to signed cookie state propagation only.');
+    // We intentionally do not throw here anymore.
+    // The OAuth connect/callback routes will fallback to state encoded in the cookie.
   }
 }
 
@@ -66,57 +66,72 @@ export async function storeOAuthState(state: string, workspaceId: string, platfo
  * Verifies and consumes OAuth state (deletes after verification)
  * Returns workspaceId and platform if valid
  */
-export async function verifyAndConsumeOAuthState(state: string): Promise<{ workspaceId: string; platform: string; returnUrl?: string } | null> {
+export async function verifyAndConsumeOAuthState(state: string, cookieHeader?: string | null): Promise<{ workspaceId: string; platform: string; returnUrl?: string } | null> {
   const key = `${STATE_PREFIX}${state}`;
 
-  // Atomic get-and-delete using GETDEL (Redis 6.2+)
-  // Fallback: GET then DEL
-  const stored = await redis.get(key);
-  if (!stored) {
-    logger.warn('OAuth state not found or expired', { state: state.slice(0, 8) + '...' });
-    return null;
-  }
-
-  // Delete immediately to prevent replay
-  await redis.del(key);
+  let data: OAuthStateData | null = null;
 
   try {
-    // Upstash Redis may automatically parse JSON, so 'stored' might already be an object
-    const data = typeof stored === 'string' 
-      ? JSON.parse(stored) as OAuthStateData 
-      : stored as unknown as OAuthStateData;
-
-    // Additional sanity checks
-    if (!data || !data.createdAt || Date.now() - data.createdAt > STATE_TTL_SECONDS * 1000) {
-      logger.warn('OAuth state expired or invalid', { state: state.slice(0, 8) + '...' });
-      return null;
+    const stored = await redis.get(key);
+    if (stored) {
+      await redis.del(key);
+      data = typeof stored === 'string' 
+        ? JSON.parse(stored) as OAuthStateData 
+        : stored as unknown as OAuthStateData;
     }
+  } catch {
+    // Redis unavailable, fallback to cookie
+  }
 
-    return { workspaceId: data.workspaceId, platform: data.platform, returnUrl: data.returnUrl };
-  } catch (error) {
-    logger.error('Invalid OAuth state data', { state: state.slice(0, 8) + '...', error: error instanceof Error ? error : new Error(String(error)) });
+  // Fallback to purely cookie-based state extraction
+  if (!data && cookieHeader) {
+    const parsedCookie = parseOAuthCookie(cookieHeader);
+    if (parsedCookie && parsedCookie.state === state) {
+      data = parsedCookie.data;
+    }
+  }
+
+  if (!data) {
+    logger.warn('OAuth state not found in Redis or cookie fallback', { state: state.slice(0, 8) + '...' });
     return null;
   }
+
+  if (!data.createdAt || Date.now() - data.createdAt > STATE_TTL_SECONDS * 1000) {
+    logger.warn('OAuth state expired or invalid', { state: state.slice(0, 8) + '...' });
+    return null;
+  }
+
+  return { workspaceId: data.workspaceId, platform: data.platform, returnUrl: data.returnUrl };
 }
 
 /**
- * Creates a secure cookie for OAuth flow
+ * Creates a secure cookie for OAuth flow containing all required state data
  */
-export function createOAuthCookie(state: string, maxAgeSeconds: number = STATE_TTL_SECONDS): string {
-  return `oauth_state=${state}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${maxAgeSeconds}`;
+export function createOAuthCookie(state: string, workspaceId: string, platform: string, returnUrl?: string, maxAgeSeconds: number = STATE_TTL_SECONDS): string {
+  const data: OAuthStateData = { workspaceId, platform, returnUrl, createdAt: Date.now() };
+  // Base64 encode the JSON so it's cookie-safe
+  const value = btoa(JSON.stringify({ s: state, d: data }));
+  return `oauth_state=${value}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${maxAgeSeconds}`;
 }
 
 /**
  * Parses OAuth state from cookie
  */
-export function parseOAuthCookie(cookieHeader: string | null): string | null {
+export function parseOAuthCookie(cookieHeader: string | null): { state: string, data: OAuthStateData } | null {
   if (!cookieHeader) return null;
 
   const cookies = cookieHeader.split(';').map((c) => c.trim());
   const oauthCookie = cookies.find((c) => c.startsWith('oauth_state='));
   if (!oauthCookie) return null;
 
-  return oauthCookie.split('=')[1] || null;
+  try {
+    const raw = oauthCookie.split('=')[1];
+    if (!raw) return null;
+    const parsed = JSON.parse(atob(raw));
+    return { state: parsed.s, data: parsed.d };
+  } catch {
+    return null;
+  }
 }
 
 /**

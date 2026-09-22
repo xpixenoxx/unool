@@ -32,8 +32,9 @@ export async function GET(request: NextRequest) {
   }
 
   // Get state from cookie (not URL parameter for security)
-  const cookieState = parseOAuthCookie(request.headers.get('cookie'));
-  const effectiveState = cookieState || state;
+  const cookieHeader = request.headers.get('cookie');
+  const cookieState = parseOAuthCookie(cookieHeader);
+  const effectiveState = cookieState?.state || state;
 
   if (!effectiveState) {
     return NextResponse.redirect(
@@ -41,8 +42,8 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Verify and consume state from Redis
-  const verified = await verifyAndConsumeOAuthState(effectiveState);
+  // Verify and consume state from Redis or Cookie fallback
+  const verified = await verifyAndConsumeOAuthState(effectiveState, cookieHeader);
   if (!verified) {
     logger.warn('OAuth state verification failed', { state: effectiveState.slice(0, 8) + '...' });
     return NextResponse.redirect(

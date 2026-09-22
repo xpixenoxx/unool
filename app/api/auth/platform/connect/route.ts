@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPlatformAdapter } from '@/lib/platforms';
-import { generateOAuthState, storeOAuthState, createOAuthCookie, RedisConfigError } from '@/lib/auth/oauth-state';
+import { generateOAuthState, storeOAuthState, createOAuthCookie } from '@/lib/auth/oauth-state';
 import { getAuthContext } from '@/lib/auth/context';
 import { getCurrentAuth } from '@/lib/auth/server';
 import { logger } from '@/lib/logger';
@@ -117,24 +117,14 @@ export async function GET(request: NextRequest) {
   // Generate cryptographically secure state
   const state = generateOAuthState(workspaceId, platform);
 
-  // Store in Redis with TTL
-  try {
-    await storeOAuthState(state, workspaceId, platform, returnUrl);
-  } catch (error) {
-    if (error instanceof RedisConfigError || (error as Error).name === 'RedisConfigError') {
-      logger.error('Platform connect: Redis unconfigured');
-      return NextResponse.redirect(
-        new URL(`${errorRedirect}?error=redis_unconfigured`, request.url)
-      );
-    }
-    throw error;
-  }
+  // Store in Redis with TTL (fails silently if unconfigured and falls back to cookie)
+  await storeOAuthState(state, workspaceId, platform, returnUrl);
 
   // Handle PKCE for X/Twitter - getAuthUrl can return string or {url, pkceCookie}
   const authUrlResult = adapter.getAuthUrl(state);
 
   let authUrl: string;
-  const resCookies: string[] = [createOAuthCookie(state)];
+  const resCookies: string[] = [createOAuthCookie(state, workspaceId, platform, returnUrl)];
 
   if (typeof authUrlResult === 'string') {
     authUrl = authUrlResult;
