@@ -110,11 +110,9 @@ export async function POST(request: NextRequest) {
     });
     sessionData = signInData;
 
-    // 3. Immediately scramble the password in Supabase so it's useless
-    // Our actual auth relies entirely on the Argon2 hash in user_metadata.
-    await supabaseAdmin.auth.admin.updateUserById(user.id, {
-      password: crypto.randomBytes(32).toString('base64')
-    });
+    // The password is a 32-byte secure random string that only the server knows.
+    // We intentionally DO NOT scramble it again because changing the password
+    // immediately revokes the JWT session we just created.
 
     if (signInError) {
       logger.error('Session exchange error', { error: signInError, userId: user.id });

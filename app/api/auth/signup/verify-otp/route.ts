@@ -164,9 +164,9 @@ async function logUserInAndRedirect(userId: string, email: string) {
       throw signInError;
     }
 
-    await supabaseAdmin.auth.admin.updateUserById(userId, { 
-      password: crypto.randomBytes(32).toString('base64') 
-    });
+    // The password is a 32-byte secure random string that only the server knows.
+    // We intentionally DO NOT scramble it again because changing the password
+    // immediately revokes the JWT session we just created.
 
     // Return session tokens in the body so the browser-side Supabase client
     // can call setSession() and have a real, working session for subsequent requests.
