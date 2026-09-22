@@ -211,7 +211,7 @@ function ConnectPageContent() {
             </div>
           ) : (
             connections.map((connection, index) => (
-              <div key={index} className="w-fit min-w-[340px] bg-white border border-zinc-200 rounded-lg p-3 flex items-center justify-between shadow-sm relative">
+              <div key={index} className="w-full bg-white border border-zinc-200 rounded-lg p-3 flex items-center justify-between shadow-sm relative">
                 <div className="flex items-center gap-3">
                   <div className="relative">
                     <div className="w-10 h-10 rounded-full bg-[#7052c4] text-white flex items-center justify-center font-semibold text-[18px] overflow-hidden">
@@ -272,18 +272,6 @@ function ConnectPageContent() {
               </div>
             ))
           )}
-
-          {/* Aggressive Debug panel - always visible until fixed */}
-          {!loading && (
-            <div className="mt-4 p-4 bg-zinc-50 border border-zinc-200 rounded-lg w-full overflow-x-auto text-[11px] font-mono text-zinc-600">
-              <h3 className="font-bold text-red-500 mb-2">RAW STATE DUMP (Screenshot this if empty!):</h3>
-              <p>Count: {connections.length}</p>
-              <hr className="my-2" />
-              <p className="font-bold">Debug Log:</p>
-              <pre>{debugInfo.join('\n') || 'no debug info'}</pre>
-            </div>
-          )}
-
         </div>
       </div>
 
