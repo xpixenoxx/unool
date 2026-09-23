@@ -64,7 +64,7 @@ export default function HomePage() {
   return (
     <motion.div className="min-h-screen bg-gradient-to-b from-background to-muted/30" initial="initial" animate="animate" variants={pageVariants}>
       {/* Navigation Bar */}
-      <motion.header className="fixed top-0 left-0 right-0 z-40 backdrop-blur-md bg-background/80 border-b border-border" variants={headerVariants}>
+      <motion.header className="fixed top-0 left-0 right-0 z-40 backdrop-blur-md bg-background/80" variants={headerVariants}>
         <nav className="max-w-6xl flex items-center justify-between px-6 mx-auto w-full h-16 md:h-20">
           <Flex center gap={3}>
             <motion.div variants={brandVariants}>
@@ -98,74 +98,80 @@ export default function HomePage() {
       </motion.header>
 
       {/* Hero Section */}
-      <Section className="relative overflow-hidden pt-32 pb-20">
-        <div className="max-w-4xl mx-auto text-center px-4">
-          
-          {/* Social Icons Row */}
-          <div className="flex items-center justify-center gap-2.5 mb-8">
-            <div className="w-8 h-8 rounded-md bg-[#000000] flex items-center justify-center overflow-hidden">
-               <img src="https://cdn.simpleicons.org/x/white" className="w-5 h-5" alt="X" />
-            </div>
-            <div className="w-8 h-8 rounded-md bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-500 flex items-center justify-center overflow-hidden">
-               <img src="https://cdn.simpleicons.org/instagram/white" className="w-5 h-5" alt="Instagram" />
-            </div>
-            <div className="w-8 h-8 rounded-md bg-[#0a66c2] flex items-center justify-center overflow-hidden">
-               <img src="https://cdn.simpleicons.org/linkedin/white" className="w-5 h-5" alt="LinkedIn" />
-            </div>
-            <div className="w-8 h-8 rounded-md bg-[#1877F2] flex items-center justify-center overflow-hidden">
-               <img src="https://cdn.simpleicons.org/facebook/white" className="w-5 h-5" alt="Facebook" />
-            </div>
-            <div className="w-8 h-8 rounded-md bg-black flex items-center justify-center overflow-hidden">
-               <img src="https://cdn.simpleicons.org/tiktok/white" className="w-5 h-5" alt="TikTok" />
-            </div>
-            <div className="w-8 h-8 rounded-md bg-[#FF0000] flex items-center justify-center overflow-hidden">
-               <img src="https://cdn.simpleicons.org/youtube/white" className="w-5 h-5" alt="YouTube" />
-            </div>
-            <div className="w-8 h-8 rounded-md flex items-center justify-center overflow-hidden">
-               <img src="https://cdn.simpleicons.org/bluesky/0285FF" className="w-7 h-7" alt="Bluesky" />
-            </div>
-            <div className="w-8 h-8 rounded-md bg-white border border-zinc-200 flex items-center justify-center overflow-hidden">
-               <img src="https://cdn.simpleicons.org/threads/000000" className="w-5 h-5" alt="Threads" />
-            </div>
-            <div className="w-8 h-8 rounded-full bg-[#E60023] flex items-center justify-center overflow-hidden">
-               <img src="https://cdn.simpleicons.org/pinterest/white" className="w-5 h-5" alt="Pinterest" />
-            </div>
-            <div className="w-8 h-8 rounded bg-white flex items-center justify-center overflow-hidden">
-               <img src="https://cdn.simpleicons.org/google/4285F4" className="w-7 h-7" alt="Google" />
-            </div>
-          </div>
+      <Section size="xl" className="relative overflow-hidden pt-20">
+        <motion.div className="absolute inset-0 -z-10" variants={bgVariants}>
+          <OrbitalBackground />
+        </motion.div>
 
-          <h1 className="text-[52px] sm:text-[64px] leading-[1.1] font-bold text-[#2c3340] mb-6 tracking-tight">
-            Post to all your social<br />accounts from one dashboard
-          </h1>
-          
-          <div className="flex flex-wrap items-center justify-center gap-1.5 text-zinc-600 text-[18px] mb-12">
-            <span>easy to use, fairly priced, with human support from jack</span>
-            <div className="w-[26px] h-[26px] bg-zinc-300 rounded-full overflow-hidden shrink-0 ml-1">
-               <img src="https://avatar.vercel.sh/jack" className="w-full h-full object-cover" alt="jack" />
-            </div>
-            <span>.</span>
-          </div>
+        <Container size="lg">
+          <MotionStack space={8} className="max-w-4xl mx-auto text-center" stagger={stagger.normal} direction="up">
+            <MotionBox variant="fade" delay={0.1}>
+              <motion.div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium" variants={brandVariants}>
+                <Sparkles className="w-4 h-4" />
+                <span>One Link + One Click</span>
+              </motion.div>
+            </MotionBox>
 
-          <div className="flex flex-col items-center">
-            <Link 
-              href="/signup" 
-              className="bg-[#68d391] hover:bg-[#5bb87d] text-white px-8 py-3.5 rounded-full font-medium text-[17px] transition-colors shadow-sm flex items-center gap-2 mb-10"
-            >
-              Try it for free <ArrowRight className="w-4 h-4 ml-1" />
-            </Link>
+            <MotionBox variant="slide-up" delay={0.15}>
+              <Display size="2xl" weight="extrabold" className="text-balance">
+                Your professional presence,{' '}
+                <span className="text-primary">automated publishing</span>
+              </Display>
+            </MotionBox>
 
-            <Link href="#agents" className="text-[#a0a5b0] hover:text-zinc-600 text-[13px] flex items-center gap-1 transition-colors">
-              posting with an AI agent? click here <ArrowRight className="w-3 h-3 ml-0.5" />
-            </Link>
-            
-            <div className="flex items-center gap-2.5 mt-4 opacity-50">
-              <img src="https://cdn.simpleicons.org/openai/000000" className="w-3.5 h-3.5" alt="OpenAI" />
-              <img src="https://cdn.simpleicons.org/anthropic/000000" className="w-3.5 h-3.5" alt="Anthropic" />
-              <img src="https://cdn.simpleicons.org/meta/000000" className="w-4 h-4" alt="Meta" />
-            </div>
-          </div>
-        </div>
+            <MotionBox variant="slide-up" delay={0.2}>
+              <Lead className="max-w-2xl mx-auto">
+                Paste your URL. Get a beautiful profile page + platform-native posts for LinkedIn, X, and Threads.
+                Write once. Review. Publish everywhere.
+              </Lead>
+            </MotionBox>
+
+            <Flex gap={4} className="justify-center" style={{ flexWrap: 'wrap' }}>
+              <MotionBox variant="scale">
+                <Button asChild size="lg" className="group w-full sm:w-auto">
+                  <Link href="/signup">
+                    Get Started Free
+                    <ArrowRight className="w-5 h-5 ml-2 inline-block transition-transform group-hover:translate-x-1" />
+                  </Link>
+                </Button>
+              </MotionBox>
+            </Flex>
+
+            <MotionBox variant="fade" delay={0.3}>
+              <Text size="sm" color="muted" className="flex flex-wrap items-center justify-center gap-4">
+                <span className="flex items-center gap-1">
+                  <CheckCircle className="w-3 h-3" /> No credit card
+                </span>
+                <span className="flex items-center gap-1">
+                  <Zap className="w-3 h-3" /> Magic link auth
+                </span>
+                <span className="flex items-center gap-1">
+                  <Shield className="w-3 h-3" /> Free forever for solo founders
+                </span>
+              </Text>
+            </MotionBox>
+          </MotionStack>
+
+          {/* Trust Signals */}
+          <MotionGrid cols={4} gap={6} stagger={stagger.normal} className="grid-cols-2 sm:grid-cols-4">
+            {[
+              { icon: Zap, label: '< 30s', desc: 'URL to live profile' },
+              { icon: CheckCircle, label: '3 platforms', desc: 'LinkedIn, X, Threads' },
+              { icon: Shield, label: 'You decide', desc: 'AI suggests, you approve' },
+              { icon: Sparkles, label: 'Free tier', desc: 'No credit card required' },
+            ].map(({ icon: Icon, label, desc }, i) => (
+              <MotionBox key={label} variant="slide-up" delay={i * 0.08}>
+                <Card className="border-primary/20 bg-primary/5 hover:border-primary/40 hover:bg-primary/10 transition-all duration-300">
+                  <CardContent className="p-6 text-center">
+                    <Icon className="w-10 h-10 mx-auto text-primary mb-3" />
+                    <Text weight="semibold" size="lg">{label}</Text>
+                    <Text size="sm" color="muted" className="mt-1">{desc}</Text>
+                  </CardContent>
+                </Card>
+              </MotionBox>
+            ))}
+          </MotionGrid>
+        </Container>
       </Section>
 
       {/* How It Works - 3D Card Grid */}
