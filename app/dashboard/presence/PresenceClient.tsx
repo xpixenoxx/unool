@@ -394,16 +394,43 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
           <Text size="lg" color="muted">Your intelligent public profile page</Text>
         </Box>
         <Flex wrap gap={2}>
+          <Box className="flex items-center p-1 bg-muted/50 rounded-lg border">
+            <button
+              onClick={() => setProfile({...profile, visibility: 'public'})}
+              className={cn(
+                "px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200",
+                profile.visibility === 'public' 
+                  ? "bg-background text-foreground shadow-sm" 
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              )}
+            >
+              Public
+            </button>
+            <button
+              onClick={() => {
+                setProfile({...profile, visibility: 'private'});
+                if (viewers.length === 0) loadViewers();
+              }}
+              className={cn(
+                "px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200",
+                profile.visibility === 'private' 
+                  ? "bg-background text-foreground shadow-sm" 
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              )}
+            >
+              Private
+            </button>
+          </Box>
           {claimedSubdomain && (
-            <Badge variant="outline" className="gap-1">
-              <GlobeIcon className="h-3 w-3" />
+            <Badge variant="outline" className="gap-1 h-9 px-3 text-sm">
+              <GlobeIcon className="h-4 w-4" />
               {process.env.NODE_ENV === 'development'
                 ? `/u/${claimedSubdomain}`
                 : `${claimedSubdomain}.unool.co`}
             </Badge>
           )}
           {claimedSubdomain && liveUrl && (
-            <Button variant="outline" asChild>
+            <Button variant="outline" asChild className="h-9">
               <Link href={liveUrl} target="_blank">
                 <ExternalLink className="mr-2 h-4 w-4" />
                 View Live
@@ -602,55 +629,28 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
           </MotionBox>
           
           {/* Privacy & Access Control */}
-          <MotionBox variant="slide-up" delay={0.1}>
-            <Card variant="elevated">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5 text-primary" />
-                  Profile Visibility
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <Box className="space-y-4">
-                  <Label className="flex items-start gap-4 p-4 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
-                    <input 
-                      type="radio" 
-                      name="visibility" 
-                      value="public" 
-                      className="mt-1"
-                      checked={profile.visibility === 'public'} 
-                      onChange={() => setProfile({...profile, visibility: 'public'})}
-                    />
-                    <Box>
-                      <Display size="sm" weight="bold">Public</Display>
-                      <Text size="sm" color="muted">Anyone with your profile link can view your profile.</Text>
-                    </Box>
-                  </Label>
-                  
-                  <Label className="flex items-start gap-4 p-4 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
-                    <input 
-                      type="radio" 
-                      name="visibility" 
-                      value="private" 
-                      className="mt-1"
-                      checked={profile.visibility === 'private'} 
-                      onChange={() => {
-                        setProfile({...profile, visibility: 'private'});
-                        if (viewers.length === 0) loadViewers();
-                      }}
-                    />
-                    <Box>
-                      <Display size="sm" weight="bold">Private</Display>
-                      <Text size="sm" color="muted">Only people you explicitly authorize can view your profile.</Text>
-                    </Box>
-                  </Label>
-                </Box>
-                
-                {profile.visibility === 'private' && (
-                  <Box className="space-y-4 p-4 border rounded-lg bg-muted/20">
-                    <Display size="sm" weight="bold">Allowed Viewers</Display>
-                    
-                    <Box className="space-y-2">
+          <AnimatePresence>
+            {profile.visibility === 'private' && (
+              <MotionBox 
+                variant="slide-up" 
+                delay={0.1}
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden"
+              >
+                <Card variant="elevated" className="border-primary/20">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Shield className="h-5 w-5 text-primary" />
+                      Allowed Viewers
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Box className="space-y-4">
+                      <Text size="sm" color="muted">Since your profile is private, only people you explicitly authorize below can view it.</Text>
+                      
+                      <Box className="space-y-2">
                       <Box className="relative">
                         <Input
                           placeholder="Search users by name or email..."
@@ -697,11 +697,12 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
                     ) : (
                       <Text size="sm" color="muted" className="italic mt-2">No authorized viewers. Only you can view the profile.</Text>
                     )}
-                  </Box>
-                )}
-              </CardContent>
-            </Card>
-          </MotionBox>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </MotionBox>
+            )}
+          </AnimatePresence>
         </TabsContent>
 
         {/* Links Tab */}
