@@ -17,41 +17,37 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid subdomain' }, { status: 400 });
     }
 
-    const { data: profile, error } = await supabase
-      .from('profiles')
-      .select(`
-        id,
-        workspace_id,
-        user_id,
-        subdomain,
-        name,
-        headline,
-        bio,
-        role,
-        company,
-        links,
-        proof_points,
-        theme,
-        source_url,
-        extraction_prompt_version,
-        version,
-        created_at,
-        updated_at
-      `)
-      .eq('subdomain', subdomain)
-      .single();
+    // Use the Repository which has the service_role key to bypass RLS,
+    // so we can manually enforce our own visibility logic.
+    const profileRepository = new (await import('@/lib/repositories/supabase/SupabaseProfileRepository')).SupabaseProfileRepository();
+    const profile = await profileRepository.findBySubdomain(subdomain);
 
-    if (error) {
-      if (error.code === 'PGRST116') {
-        return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
-      }
-      const err = new Error(error.message);
-      logger.error('Public profile fetch failed', { error: err, subdomain });
-      return NextResponse.json({ error: 'Failed to load profile' }, { status: 500 });
+    if (!profile) {
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
 
-    // Increment view count async
+    // Check visibility / authorized viewers
+    if (profile.visibility === 'private') {
+      const auth = await (await import('@/lib/auth/server')).getCurrentAuth(request);
+      
+      if (!auth) {
+        return NextResponse.json({ error: 'This profile is private. Please sign in to view it.' }, { status: 401 });
+      }
+
+      // Owner always has access
+      if (auth.userId !== profile.userId) {
+        const viewers = await profileRepository.getViewers(profile.id);
+        const isAuthorized = viewers.some(v => v.viewerUserId === auth.userId);
+        
+        if (!isAuthorized) {
+          return NextResponse.json({ error: 'This profile is private. You do not have permission to view it.' }, { status: 403 });
+        }
+      }
+    }
+
+    // Increment view count async (fire-and-forget, fallback to ignoring errors)
     try {
+      const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
       await supabase.rpc('increment_profile_views', { profile_id: profile.id });
     } catch {
       // Ignore view count errors
@@ -61,9 +57,9 @@ export async function GET(
     const { ipHash, referrer, userAgent } = extractTrackingFromRequest(request);
     const resolvedIpHash = await ipHash;
     analytics.profileView({
-      workspaceId: profile.workspace_id,
+      workspaceId: profile.workspaceId,
       profileId: profile.id,
-      userId: profile.user_id,
+      userId: profile.userId,
       sessionId: request.headers.get('x-session-id') || undefined,
       referrer: referrer || undefined,
       userAgent: userAgent || undefined,
@@ -73,7 +69,7 @@ export async function GET(
     return NextResponse.json({
       ...profile,
       links: profile.links || [],
-      proofs: profile.proof_points || [],
+      proofs: profile.proofPoints || [],
       theme: profile.theme || { preset: 'minimal' },
     });
   } catch (error) {

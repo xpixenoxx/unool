@@ -43,7 +43,7 @@ export async function PUT(request: NextRequest) {
     const { userId, workspaceId } = auth;
 
     const body = await request.json();
-    const { name, headline, bio, role, company, links, proofPoints, theme, subdomain } = body;
+    const { name, headline, bio, role, company, links, proofPoints, theme, subdomain, visibility } = body;
 
     // Get existing profile or create new
     let profile = await profileRepository.findByWorkspaceId(workspaceId);
@@ -60,6 +60,7 @@ export async function PUT(request: NextRequest) {
         proofPoints,
         theme,
         subdomain: subdomain || undefined,
+        visibility,
       }, profile.version);
     } else {
       // Creating a new profile - generate a temporary subdomain if none provided
@@ -84,6 +85,7 @@ export async function PUT(request: NextRequest) {
         proofPoints,
         theme,
         subdomain: subdomain || tempSubdomain,
+        visibility,
       }, 1);
     }
 

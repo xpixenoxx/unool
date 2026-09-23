@@ -1,0 +1,17 @@
+﻿Γùç injected env (41) from .env.local // tip: Γîÿ override existing { override: true }
+Connections Dump: [
+  {
+    "id": "932a3816-d7c1-4906-9323-8be3ad178687",
+    "workspace_id": "77029ac6-24db-45cd-9d04-48abe73e8ac6",
+    "user_id": "851724d6-4fc4-441b-96e9-6f97405c3bd2",
+    "platform": "threads",
+    "username": "moremarha"
+  },
+  {
+    "id": "23d5d6c9-0b8e-46f1-80e2-d27b10d08243",
+    "workspace_id": "77029ac6-24db-45cd-9d04-48abe73e8ac6",
+    "user_id": "851724d6-4fc4-441b-96e9-6f97405c3bd2",
+    "platform": "linkedin",
+    "username": "hemanthsairamjagatha@gmail.com"
+  }
+]

@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import type { IProfileRepository } from '../interfaces/IProfileRepository';
-import type { Profile, CreateProfileInput, UpdateProfileInput, ProfileLink, ProofPoint, ProfileTheme } from '../interfaces/IProfileRepository';
+import type { Profile, CreateProfileInput, UpdateProfileInput, ProfileLink, ProofPoint, ProfileTheme, ProfileViewer } from '../interfaces/IProfileRepository';
 
 export class SupabaseProfileRepository implements IProfileRepository {
   private supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
@@ -23,6 +23,7 @@ export class SupabaseProfileRepository implements IProfileRepository {
       sourceUrl: row.source_url as string | null,
       extractionPromptVersion: row.extraction_prompt_version as string | null,
       version: row.version as number,
+      visibility: (row.visibility as 'public' | 'private') || 'public',
       createdAt: new Date(row.created_at as string),
       updatedAt: new Date(row.updated_at as string),
     };
@@ -93,6 +94,7 @@ export class SupabaseProfileRepository implements IProfileRepository {
         subdomain: input.subdomain,
         source_url: input.sourceUrl,
         extraction_prompt_version: input.extractionPromptVersion,
+        visibility: 'public',
         version: 1,
       })
       .select()
@@ -118,6 +120,7 @@ export class SupabaseProfileRepository implements IProfileRepository {
     if (data.proofPoints !== undefined) updateData.proof_points = data.proofPoints;
     if (data.theme !== undefined) updateData.theme = data.theme;
     if (data.subdomain !== undefined) updateData.subdomain = data.subdomain;
+    if (data.visibility !== undefined) updateData.visibility = data.visibility;
 
     const { data: row, error } = await this.supabase
       .from('profiles')
@@ -156,5 +159,63 @@ export class SupabaseProfileRepository implements IProfileRepository {
     if (error) {
       throw error;
     }
+  }
+
+  async addViewer(profileId: string, viewerUserId: string): Promise<void> {
+    const { error } = await this.supabase
+      .from('profile_viewers')
+      .insert({ profile_id: profileId, user_id: viewerUserId })
+      .select()
+      .single();
+
+    if (error && error.code !== '23505') { // Ignore unique constraint violation
+      throw error;
+    }
+  }
+
+  async removeViewer(profileId: string, viewerUserId: string): Promise<void> {
+    const { error } = await this.supabase
+      .from('profile_viewers')
+      .delete()
+      .eq('profile_id', profileId)
+      .eq('user_id', viewerUserId);
+
+    if (error) {
+      throw error;
+    }
+  }
+
+  async getViewers(profileId: string): Promise<ProfileViewer[]> {
+    const { data, error } = await this.supabase
+      .from('profile_viewers')
+      .select(`
+        id,
+        profile_id,
+        user_id,
+        created_at,
+        user:users!user_id (
+          email,
+          full_name
+        )
+      `)
+      .eq('profile_id', profileId);
+
+    if (error) {
+      // If table doesn't exist yet, just return empty gracefully
+      if (error.code === '42P01') return [];
+      throw error;
+    }
+
+    return (data || []).map(row => {
+      const user = Array.isArray(row.user) ? row.user[0] : row.user;
+      return {
+        id: row.id,
+        profileId: row.profile_id,
+        viewerUserId: row.user_id,
+        createdAt: new Date(row.created_at),
+        email: user?.email,
+        fullName: user?.full_name
+      };
+    });
   }
 }

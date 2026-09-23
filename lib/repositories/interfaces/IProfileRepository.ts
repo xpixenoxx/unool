@@ -1,19 +1,29 @@
 export interface ProfileLink {
   label: string;
   url: string;
-  type: 'website' | 'linkedin' | 'github' | 'twitter' | 'calendly' | 'other';
+  type: 'website' | 'linkedin' | 'github' | 'twitter' | 'calendly' | 'other' | string;
 }
 
 export interface ProofPoint {
-  type: 'metric' | 'customer' | 'press' | 'product' | 'team' | 'funding';
+  type: 'metric' | 'customer' | 'press' | 'product' | 'team' | 'funding' | string;
   value: string;
   url?: string;
 }
 
 export interface ProfileTheme {
-  preset: 'minimal' | 'bold' | 'corporate' | 'creative' | 'technical';
+  preset?: string;
+  template?: string;
   primaryColor?: string;
   font?: string;
+}
+
+export interface ProfileViewer {
+  id: string;
+  profileId: string;
+  viewerUserId: string;
+  createdAt: Date;
+  email?: string;
+  fullName?: string;
 }
 
 export interface Profile {
@@ -32,6 +42,8 @@ export interface Profile {
   sourceUrl: string | null;
   extractionPromptVersion: string | null;
   version: number;
+  visibility: 'public' | 'private';
+  authorizedViewers?: ProfileViewer[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -54,6 +66,7 @@ export interface UpdateProfileInput {
   proofPoints?: ProofPoint[];
   theme?: ProfileTheme;
   subdomain?: string | null;
+  visibility?: 'public' | 'private';
 }
 
 export interface IProfileRepository {
@@ -63,4 +76,9 @@ export interface IProfileRepository {
   findBySubdomain(subdomain: string): Promise<Profile | null>;
   update(id: string, input: UpdateProfileInput, expectedVersion: number): Promise<Profile>;
   delete(id: string): Promise<void>;
+  
+  // Viewer management
+  addViewer(profileId: string, viewerUserId: string): Promise<void>;
+  removeViewer(profileId: string, viewerUserId: string): Promise<void>;
+  getViewers(profileId: string): Promise<ProfileViewer[]>;
 }

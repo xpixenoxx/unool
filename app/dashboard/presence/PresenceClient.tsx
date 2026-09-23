@@ -39,6 +39,13 @@ interface ProfileTheme {
   template: string;
 }
 
+interface ProfileViewer {
+  id: string;
+  viewerUserId: string;
+  email?: string;
+  fullName?: string;
+}
+
 interface Profile {
   id?: string;
   name: string;
@@ -50,6 +57,7 @@ interface Profile {
   proofPoints: ProofPoint[];
   theme: ProfileTheme;
   subdomain?: string | null;
+  visibility?: 'public' | 'private';
 }
 
 interface ExtractedProfile {
@@ -101,7 +109,13 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
     links: [],
     proofPoints: [],
     theme: { template: DEFAULT_TEMPLATE },
+    visibility: 'public',
   });
+
+  const [viewers, setViewers] = useState<ProfileViewer[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<{id: string, email: string, full_name: string}[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   // Load existing profile on mount
   useEffect(() => {
@@ -119,9 +133,82 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
         } else {
           setClaimedSubdomain('');
         }
+        
+        if (data.profile.visibility === 'private') {
+          loadViewers();
+        }
       }
     } catch (error) {
       console.error('Failed to load profile:', error);
+    }
+  };
+
+  const loadViewers = async () => {
+    try {
+      const res = await fetch('/api/profile/viewers', { credentials: 'include' });
+      const data = await res.json();
+      if (data.viewers) {
+        setViewers(data.viewers);
+      }
+    } catch (error) {
+      console.error('Failed to load viewers:', error);
+    }
+  };
+
+  const handleSearchUsers = async (query: string) => {
+    setSearchQuery(query);
+    if (query.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    
+    setIsSearching(true);
+    try {
+      const res = await fetch(`/api/users/search?q=${encodeURIComponent(query)}`);
+      const data = await res.json();
+      if (data.users) {
+        setSearchResults(data.users);
+      }
+    } catch (error) {
+      console.error('Search failed', error);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleAddViewer = async (viewerUserId: string) => {
+    try {
+      const res = await fetch('/api/profile/viewers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ viewerUserId })
+      });
+      if (res.ok) {
+        toast.success('Viewer added');
+        setSearchQuery('');
+        setSearchResults([]);
+        loadViewers();
+      } else {
+        toast.error('Failed to add viewer');
+      }
+    } catch (error) {
+      toast.error('Failed to add viewer');
+    }
+  };
+
+  const handleRemoveViewer = async (viewerUserId: string) => {
+    try {
+      const res = await fetch(`/api/profile/viewers?viewerUserId=${viewerUserId}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        toast.success('Viewer removed');
+        loadViewers();
+      } else {
+        toast.error('Failed to remove viewer');
+      }
+    } catch (error) {
+      toast.error('Failed to remove viewer');
     }
   };
 
@@ -510,6 +597,108 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
                     </Box>
                   </Flex>
                 </Stack>
+              </CardContent>
+            </Card>
+          </MotionBox>
+          
+          {/* Privacy & Access Control */}
+          <MotionBox variant="slide-up" delay={0.1}>
+            <Card variant="elevated">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="h-5 w-5 text-primary" />
+                  Profile Visibility
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <Box className="space-y-4">
+                  <Label className="flex items-start gap-4 p-4 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
+                    <input 
+                      type="radio" 
+                      name="visibility" 
+                      value="public" 
+                      className="mt-1"
+                      checked={profile.visibility === 'public'} 
+                      onChange={() => setProfile({...profile, visibility: 'public'})}
+                    />
+                    <Box>
+                      <Display size="sm" weight="bold">Public</Display>
+                      <Text size="sm" color="muted">Anyone with your profile link can view your profile.</Text>
+                    </Box>
+                  </Label>
+                  
+                  <Label className="flex items-start gap-4 p-4 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
+                    <input 
+                      type="radio" 
+                      name="visibility" 
+                      value="private" 
+                      className="mt-1"
+                      checked={profile.visibility === 'private'} 
+                      onChange={() => {
+                        setProfile({...profile, visibility: 'private'});
+                        if (viewers.length === 0) loadViewers();
+                      }}
+                    />
+                    <Box>
+                      <Display size="sm" weight="bold">Private</Display>
+                      <Text size="sm" color="muted">Only people you explicitly authorize can view your profile.</Text>
+                    </Box>
+                  </Label>
+                </Box>
+                
+                {profile.visibility === 'private' && (
+                  <Box className="space-y-4 p-4 border rounded-lg bg-muted/20">
+                    <Display size="sm" weight="bold">Allowed Viewers</Display>
+                    
+                    <Box className="space-y-2">
+                      <Box className="relative">
+                        <Input
+                          placeholder="Search users by name or email..."
+                          value={searchQuery}
+                          onChange={(e) => handleSearchUsers(e.target.value)}
+                        />
+                        {isSearching && (
+                          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                        )}
+                      </Box>
+                      
+                      {searchResults.length > 0 && (
+                        <Box className="absolute z-10 w-full md:w-1/2 mt-1 border bg-background rounded-md shadow-lg max-h-60 overflow-auto">
+                          {searchResults.map(user => (
+                            <Flex key={user.id} between className="p-3 border-b last:border-0 hover:bg-muted/50">
+                              <Box>
+                                <Text size="sm" weight="medium">{user.full_name || 'Unnamed'}</Text>
+                                <Text size="xs" color="muted">{user.email}</Text>
+                              </Box>
+                              <Button size="sm" variant="secondary" onClick={() => handleAddViewer(user.id)}>
+                                Add
+                              </Button>
+                            </Flex>
+                          ))}
+                        </Box>
+                      )}
+                    </Box>
+
+                    {viewers.length > 0 ? (
+                      <Stack space={2} className="mt-4">
+                        <Text size="sm" weight="medium">Selected viewers:</Text>
+                        {viewers.map(viewer => (
+                          <Flex key={viewer.viewerUserId} between className="p-2 border rounded-md bg-background">
+                            <Box>
+                              <Text size="sm">{viewer.fullName || viewer.email || viewer.viewerUserId}</Text>
+                              {viewer.fullName && viewer.email && <Text size="xs" color="muted">{viewer.email}</Text>}
+                            </Box>
+                            <Button size="sm" variant="ghost" className="text-destructive h-8 px-2" onClick={() => handleRemoveViewer(viewer.viewerUserId)}>
+                              Remove
+                            </Button>
+                          </Flex>
+                        ))}
+                      </Stack>
+                    ) : (
+                      <Text size="sm" color="muted" className="italic mt-2">No authorized viewers. Only you can view the profile.</Text>
+                    )}
+                  </Box>
+                )}
               </CardContent>
             </Card>
           </MotionBox>

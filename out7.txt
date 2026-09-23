@@ -1,0 +1,11 @@
+﻿Γùç injected env (41) from .env.local // tip: Γîÿ enable debugging { debug: true }
+Total members: 1
+[
+  {
+    id: '6532bed2-4da2-40f7-b3ed-2b564bc89aee',
+    workspace_id: '77029ac6-24db-45cd-9d04-48abe73e8ac6',
+    user_id: '851724d6-4fc4-441b-96e9-6f97405c3bd2',
+    role: 'owner',
+    created_at: '2026-09-22T17:53:06.801974+00:00'
+  }
+]
