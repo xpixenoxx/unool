@@ -17,6 +17,8 @@ export interface TemplateMeta {
   intensity: 'minimal' | 'light' | 'standard' | 'bold' | 'max';
   preset: 'minimal' | 'corporate' | 'creative' | 'technical' | 'bold';
   description: string;
+  tagline?: string;
+  icon?: string;
   tags: string[];
   thumbnail: string;
   features: TemplateFeatures & {

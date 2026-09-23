@@ -24,12 +24,12 @@ interface TemplateSelectorProps {
   profileData?: any;
 }
 
-const CATEGORIES: Array<{ id: TemplateMeta['category']; name: string; icon: string; description: string }> = [
-  { id: 'essential', name: 'Essential', icon: '📄', description: 'Clean, whitespace-driven, content-first' },
-  { id: 'professional', name: 'Professional', icon: '💼', description: 'Structured, trust signals, clear hierarchy' },
-  { id: 'creative', name: 'Creative', icon: '🎨', description: 'Asymmetric, expressive, personality-led' },
-  { id: 'technical', name: 'Technical', icon: '💻', description: 'Monospace, terminal aesthetic, data-dense' },
-  { id: 'social', name: 'Social', icon: '🔗', description: 'Feed-like, visual, link-heavy' },
+const CATEGORIES: Array<{ id: TemplateMeta['category']; name: string }> = [
+  { id: 'individual', name: 'INDIVIDUAL' },
+  { id: 'startup', name: 'STARTUP' },
+  { id: 'agency', name: 'AGENCY' },
+  { id: 'entrepreneur', name: 'ENTREPRENEUR' },
+  { id: 'influencer', name: 'INFLUENCER' },
 ];
 
 function CategoryBadge({ category, isActive, onClick }: { category: typeof CATEGORIES[0]; isActive: boolean; onClick: () => void }) {
@@ -37,12 +37,11 @@ function CategoryBadge({ category, isActive, onClick }: { category: typeof CATEG
     <Badge
       variant={isActive ? 'default' : 'outline'}
       className={cn(
-        'gap-2 px-4 py-2 text-sm font-medium transition-all cursor-pointer',
+        'px-4 py-2 text-sm font-medium transition-all cursor-pointer tracking-wider',
         isActive ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'
       )}
       onClick={onClick}
     >
-      <span className="text-lg">{category.icon}</span>
       <span>{category.name}</span>
     </Badge>
   );
@@ -77,7 +76,7 @@ export function TemplateSelector({
   inline = false,
   profileData,
 }: TemplateSelectorProps) {
-  const [activeCategory, setActiveCategory] = React.useState<TemplateMeta['category']>('essential');
+  const [activeCategory, setActiveCategory] = React.useState<TemplateMeta['category']>('individual');
   const [previewTemplate, setPreviewTemplate] = React.useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = React.useState(!inline);
 
@@ -128,9 +127,11 @@ export function TemplateSelector({
             >
               <Stack space={3}>
                 <Flex between>
-                  <Text weight="medium" size="sm">{template.name}</Text>
-                  <IntensityBadge intensity={template.intensity} />
+                  <Text weight="bold" size="lg">{template.icon} {template.name}</Text>
                 </Flex>
+                <Text size="sm" weight="medium" color="default">
+                  {template.tagline}
+                </Text>
                 <Text size="xs" color="muted" className="line-clamp-2">
                   {template.description}
                 </Text>
@@ -256,8 +257,8 @@ export function TemplateSelector({
               <div className="p-6 border-b bg-background/50 backdrop-blur">
                 <Flex between className="mb-4">
                   <div>
-                    <Heading>Choose Your Template</Heading>
-                    <Text color="muted" size="sm">Select a style that matches your vibe. Preview updates instantly.</Text>
+                    <Heading>What kind of creator are you?</Heading>
+                    <Text color="muted" size="sm">Select your creative identity.</Text>
                   </div>
                   {selectedTemplate && (
                     <Badge variant="success" className="gap-2">
@@ -298,10 +299,12 @@ export function TemplateSelector({
                         >
                           <Stack space={3} className="flex-1 flex">
                             <Flex between>
-                              <Text weight="medium" size="sm">{template.name}</Text>
-                              <IntensityBadge intensity={template.intensity} />
+                              <Text weight="bold" size="lg">{template.icon} {template.name}</Text>
                             </Flex>
-                            <Text size="xs" color="muted" className="line-clamp-2 flex-1">
+                            <Text size="sm" weight="medium" color="default">
+                              {template.tagline}
+                            </Text>
+                            <Text size="xs" color="muted" className="line-clamp-3 flex-1">
                               {template.description}
                             </Text>
                             <Flex gap={2} className="flex-wrap">
@@ -393,7 +396,7 @@ export function TemplateSelector({
                   <Button variant="outline" onClick={() => setIsModalOpen(false)}>
                     Cancel
                   </Button>
-                  <Button onClick={() => handleSelect(previewTemplate || selectedTemplate || 'essential-standard')} disabled={!previewTemplate && !selectedTemplate}>
+                  <Button onClick={() => handleSelect(previewTemplate || selectedTemplate || 'lone')} disabled={!previewTemplate && !selectedTemplate}>
                     Apply Template
                     <ChevronRight className="ml-2 h-4 w-4" />
                   </Button>
