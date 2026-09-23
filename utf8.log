@@ -1,0 +1,89 @@
+﻿.next/types/app/admin/layout.ts(12,13): error TS2344: Type 'OmitWithTag<typeof import("D:/unool/unool/app/admin/layout"), "default" | "config" | "metadata" | "dynamic" | "viewport" | "generateStaticParams" | "revalidate" | "dynamicParams" | "fetchCache" | ... 5 more ... | "experimental_ppr", "">' does not satisfy the constraint '{ [x: string]: never; }'.
+  Property 'AdminSidebar' is incompatible with index signature.
+    Type '({ collapsed, onToggle }: { collapsed?: boolean | undefined; onToggle: () => void; }) => Element' is not assignable to type 'never'.
+folio-book/src/components/Book.tsx(2,52): error TS2307: Cannot find module '@react-three/fiber' or its corresponding type declarations.
+folio-book/src/components/Book.tsx(3,47): error TS2307: Cannot find module '@react-three/drei' or its corresponding type declarations.
+folio-book/src/components/Book.tsx(4,24): error TS2307: Cannot find module 'three' or its corresponding type declarations.
+folio-book/src/components/Book.tsx(5,22): error TS2307: Cannot find module 'gsap' or its corresponding type declarations.
+folio-book/src/components/Book.tsx(949,15): error TS7031: Binding element 'clock' implicitly has an 'any' type.
+folio-book/src/components/Book.tsx(1118,15): error TS7031: Binding element 'camera' implicitly has an 'any' type.
+folio-book/src/components/Book.tsx(1143,15): error TS7031: Binding element 'clock' implicitly has an 'any' type.
+folio-book/src/components/Book.tsx(1143,22): error TS7031: Binding element 'camera' implicitly has an 'any' type.
+folio-book/src/components/Book.tsx(1218,5): error TS2339: Property 'group' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1220,7): error TS2339: Property 'mesh' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1228,25): error TS7006: Parameter 'e' implicitly has an 'any' type.
+folio-book/src/components/Book.tsx(1251,7): error TS2339: Property 'mesh' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1260,7): error TS2339: Property 'mesh' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1267,5): error TS2339: Property 'group' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1441,5): error TS2339: Property 'group' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1443,7): error TS2339: Property 'group' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1444,9): error TS2339: Property 'mesh' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1445,11): error TS2339: Property 'boxGeometry' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1446,11): error TS2339: Property 'primitive' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1447,9): error TS2339: Property 'mesh' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1449,9): error TS2339: Property 'mesh' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1450,11): error TS2339: Property 'boxGeometry' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1451,11): error TS2339: Property 'primitive' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1452,9): error TS2339: Property 'mesh' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1453,7): error TS2339: Property 'group' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1456,7): error TS2339: Property 'mesh' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1457,9): error TS2339: Property 'boxGeometry' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1458,9): error TS2339: Property 'primitive' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1459,7): error TS2339: Property 'mesh' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1462,7): error TS2339: Property 'mesh' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1463,9): error TS2339: Property 'boxGeometry' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1464,9): error TS2339: Property 'primitive' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1465,7): error TS2339: Property 'mesh' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1471,7): error TS2339: Property 'group' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1487,7): error TS2339: Property 'group' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1491,5): error TS2339: Property 'group' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1506,5): error TS2339: Property 'group' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1508,7): error TS2339: Property 'mesh' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1514,9): error TS2339: Property 'boxGeometry' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1515,9): error TS2339: Property 'primitive' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1516,7): error TS2339: Property 'mesh' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1519,7): error TS2339: Property 'mesh' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1520,9): error TS2339: Property 'boxGeometry' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1521,9): error TS2339: Property 'meshStandardMaterial' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1528,7): error TS2339: Property 'mesh' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1531,7): error TS2339: Property 'mesh' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1532,9): error TS2339: Property 'boxGeometry' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1533,9): error TS2339: Property 'meshStandardMaterial' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1540,7): error TS2339: Property 'mesh' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1541,5): error TS2339: Property 'group' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1551,5): error TS2339: Property 'group' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1555,11): error TS2339: Property 'group' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1556,13): error TS2339: Property 'mesh' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1557,15): error TS2339: Property 'planeGeometry' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1558,15): error TS2339: Property 'meshStandardMaterial' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1567,13): error TS2339: Property 'mesh' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1569,13): error TS2339: Property 'mesh' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1570,15): error TS2339: Property 'coneGeometry' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1571,15): error TS2339: Property 'meshStandardMaterial' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1576,13): error TS2339: Property 'mesh' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1577,11): error TS2339: Property 'group' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1580,5): error TS2339: Property 'group' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1645,15): error TS7031: Binding element 'clock' implicitly has an 'any' type.
+folio-book/src/components/Book.tsx(1652,30): error TS2339: Property 'primitive' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1712,21): error TS7031: Binding element 'gl' implicitly has an 'any' type.
+folio-book/src/components/Book.tsx(1718,7): error TS2339: Property 'color' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1719,7): error TS2339: Property 'fog' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1722,7): error TS2339: Property 'spotLight' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1737,7): error TS2339: Property 'spotLight' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1746,7): error TS2339: Property 'spotLight' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1758,7): error TS2339: Property 'ambientLight' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/components/Book.tsx(1759,7): error TS2339: Property 'hemisphereLight' does not exist on type 'JSX.IntrinsicElements'.
+folio-book/src/main.tsx(4,17): error TS5097: An import path can only end with a '.tsx' extension when 'allowImportingTsExtensions' is enabled.
+folio-book/vite.config.ts(2,19): error TS2307: Cannot find module '@vitejs/plugin-react' or its corresponding type declarations.
+lib/design/tokens.ts(345,23): error TS7053: Element implicitly has an 'any' type because expression of type '400' can't be used to index type '{ readonly 500: "oklch(0.58 0.22 25)"; readonly 600: "oklch(0.48 0.20 25)"; }'.
+  Property '400' does not exist on type '{ readonly 500: "oklch(0.58 0.22 25)"; readonly 600: "oklch(0.48 0.20 25)"; }'.
+lib/design/tokens.ts(350,19): error TS7053: Element implicitly has an 'any' type because expression of type '400' can't be used to index type '{ readonly 500: "oklch(0.68 0.16 85)"; readonly 600: "oklch(0.58 0.14 85)"; }'.
+  Property '400' does not exist on type '{ readonly 500: "oklch(0.68 0.16 85)"; readonly 600: "oklch(0.58 0.14 85)"; }'.
+lib/design/tokens.ts(355,19): error TS7053: Element implicitly has an 'any' type because expression of type '400' can't be used to index type '{ readonly 500: "oklch(0.75 0.18 75)"; readonly 600: "oklch(0.65 0.16 75)"; }'.
+  Property '400' does not exist on type '{ readonly 500: "oklch(0.75 0.18 75)"; readonly 600: "oklch(0.65 0.16 75)"; }'.
+lib/limits/freeTier.test.ts(5,83): error TS2322: Type '{ postsThisMonth: number; aiTokensThisMonth: number; connectedAccounts: number; scheduledPosts: number; teamMembers: number; apiCallsToday: number; profileViews?: number | undefined; linkClicks?: number | undefined; }' is not assignable to type 'UsageSnapshot'.
+  Types of property 'profileViews' are incompatible.
+    Type 'number | undefined' is not assignable to type 'number'.
+      Type 'undefined' is not assignable to type 'number'.
+scripts/test_api_logic.ts(15,35): error TS2367: This comparison appears to be unintentional because the types '"851724d6-4fc4-441b-96e9-6f97405c3bd2"' and '"77029ac6-24db-45cd-9d04-48abe73e8ac6"' have no overlap.
+test_insert2.ts(12,23): error TS18047: 'workspaces' is possibly 'null'.

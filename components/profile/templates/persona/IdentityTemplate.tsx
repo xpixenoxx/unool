@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import type { TemplateProps } from '@/components/profile/templates/types';
 import { getTemplateById } from '@/components/profile/templates/registry';
