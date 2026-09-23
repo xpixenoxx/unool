@@ -11,7 +11,7 @@ export default function OnboardingLayout({ children }: { children: React.ReactNo
     <div className="min-h-screen bg-[#f3f4f6] flex flex-col font-sans relative pb-20">
       {/* Top Header */}
       <header className="fixed top-0 w-full bg-white border-b border-zinc-200 z-10">
-        <div className="h-[80px] max-w-[1152px] flex items-center justify-between mx-auto" style={{ padding: '0px 24px', margin: '0px 188px' }}>
+        <div className="h-[80px] w-full max-w-[1152px] flex items-center justify-between mx-auto px-[24px]">
           
           {/* Logo left */}
           <div className="flex items-center">

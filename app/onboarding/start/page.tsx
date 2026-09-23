@@ -62,7 +62,7 @@ export default function OnboardingStartPage() {
 
       {/* Floating Bottom Bar */}
       <div className="fixed bottom-0 left-0 w-full bg-white border-t border-zinc-200 z-40">
-        <div className="h-[80px] max-w-[1152px] flex items-center justify-end mx-auto" style={{ padding: '0px 24px', margin: '0px 188px' }}>
+        <div className="h-[80px] w-full max-w-[1152px] flex items-center justify-end mx-auto px-[24px]">
           <button
             onClick={handleNext}
             className="bg-[#68d391] hover:bg-[#5bb87d] text-white px-8 py-2.5 rounded font-semibold text-[15px] transition-colors shadow-sm"
