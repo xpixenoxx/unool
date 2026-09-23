@@ -13,7 +13,7 @@ export interface TemplateFeatures {
 export interface TemplateMeta {
   id: string;
   name: string;
-  category: 'essential' | 'professional' | 'creative' | 'technical' | 'social' | 'persona';
+  category: 'individual' | 'startup' | 'agency' | 'entrepreneur' | 'influencer';
   intensity: 'minimal' | 'light' | 'standard' | 'bold' | 'max';
   preset: 'minimal' | 'corporate' | 'creative' | 'technical' | 'bold';
   description: string;
@@ -22,7 +22,7 @@ export interface TemplateMeta {
   features: TemplateFeatures & {
     performanceBudget?: 'ultra-light' | 'light' | 'medium' | 'heavy';
   };
-  persona?: 'student' | 'founder' | 'creator' | 'developer' | 'minimalist' | 'ngo' | 'premium-opaque' | 'glossy-premium';
+  persona?: 'lover' | 'lone' | 'energy' | 'rebellion' | 'vision' | 'human' | 'the-studio' | 'the-machine' | 'the-club' | 'the-builder' | 'the-visionary' | 'the-hustler' | 'the-aesthete' | 'the-creator' | 'the-voice';
 }
 
 export interface TemplateProps {

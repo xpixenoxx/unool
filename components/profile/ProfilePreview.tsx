@@ -5,17 +5,28 @@ import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import type { TemplateProps } from '@/components/profile/templates/types';
 
-// Map template IDs to their components for dynamic loading (8 persona-driven templates)
-const templateComponents: Record<string, React.LazyExoticComponent<React.ComponentType<TemplateProps>>> = {
-  // New persona-driven templates
-  'student': React.lazy(() => import('@/components/profile/templates/persona/StudentTemplate').then(m => ({ default: m.StudentTemplate }))),
-  'founder': React.lazy(() => import('@/components/profile/templates/persona/FounderTemplate').then(m => ({ default: m.FounderTemplate }))),
-  'creator': React.lazy(() => import('@/components/profile/templates/persona/CreatorTemplate').then(m => ({ default: m.CreatorTemplate }))),
-  'developer': React.lazy(() => import('@/components/profile/templates/persona/DeveloperTemplate').then(m => ({ default: m.DeveloperTemplate }))),
-  'minimalist': React.lazy(() => import('@/components/profile/templates/persona/MinimalistTemplate').then(m => ({ default: m.MinimalistTemplate }))),
-  'ngo': React.lazy(() => import('@/components/profile/templates/persona/NGOTemplate').then(m => ({ default: m.NGOTemplate }))),
-  'premium-opaque': React.lazy(() => import('@/components/profile/templates/persona/PremiumOpaqueTemplate').then(m => ({ default: m.PremiumOpaqueTemplate }))),
-  'glossy-premium': React.lazy(() => import('@/components/profile/templates/persona/GlossyPremiumTemplate').then(m => ({ default: m.GlossyPremiumTemplate }))),
+// Map template IDs to their components for dynamic loading
+const templateComponents: Record<string, React.LazyExoticComponent<React.ComponentType<TemplateProps & { templateId: string }>>> = {
+  // Individual
+  'lover': React.lazy(() => import('@/components/profile/templates/persona/IdentityTemplate').then(m => ({ default: m.IdentityTemplate }))),
+  'lone': React.lazy(() => import('@/components/profile/templates/persona/IdentityTemplate').then(m => ({ default: m.IdentityTemplate }))),
+  'energy': React.lazy(() => import('@/components/profile/templates/persona/IdentityTemplate').then(m => ({ default: m.IdentityTemplate }))),
+  // Startup
+  'rebellion': React.lazy(() => import('@/components/profile/templates/persona/IdentityTemplate').then(m => ({ default: m.IdentityTemplate }))),
+  'vision': React.lazy(() => import('@/components/profile/templates/persona/IdentityTemplate').then(m => ({ default: m.IdentityTemplate }))),
+  'human': React.lazy(() => import('@/components/profile/templates/persona/IdentityTemplate').then(m => ({ default: m.IdentityTemplate }))),
+  // Agency
+  'the-studio': React.lazy(() => import('@/components/profile/templates/persona/IdentityTemplate').then(m => ({ default: m.IdentityTemplate }))),
+  'the-machine': React.lazy(() => import('@/components/profile/templates/persona/IdentityTemplate').then(m => ({ default: m.IdentityTemplate }))),
+  'the-club': React.lazy(() => import('@/components/profile/templates/persona/IdentityTemplate').then(m => ({ default: m.IdentityTemplate }))),
+  // Entrepreneur
+  'the-builder': React.lazy(() => import('@/components/profile/templates/persona/IdentityTemplate').then(m => ({ default: m.IdentityTemplate }))),
+  'the-visionary': React.lazy(() => import('@/components/profile/templates/persona/IdentityTemplate').then(m => ({ default: m.IdentityTemplate }))),
+  'the-hustler': React.lazy(() => import('@/components/profile/templates/persona/IdentityTemplate').then(m => ({ default: m.IdentityTemplate }))),
+  // Influencer
+  'the-aesthete': React.lazy(() => import('@/components/profile/templates/persona/IdentityTemplate').then(m => ({ default: m.IdentityTemplate }))),
+  'the-creator': React.lazy(() => import('@/components/profile/templates/persona/IdentityTemplate').then(m => ({ default: m.IdentityTemplate }))),
+  'the-voice': React.lazy(() => import('@/components/profile/templates/persona/IdentityTemplate').then(m => ({ default: m.IdentityTemplate }))),
 };
 
 interface ProfilePreviewProps {
@@ -49,6 +60,7 @@ function TemplateWrapper({ templateId, profile, accentColor, isPreview, onLinkCl
       </div>
     }>
       <Component
+        templateId={templateId}
         profile={profile}
         accentColor={accentColor}
         isPreview={isPreview}
