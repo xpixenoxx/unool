@@ -10,37 +10,36 @@ export default function OnboardingLayout({ children }: { children: React.ReactNo
   return (
     <div className="min-h-screen bg-[#f3f4f6] flex flex-col font-sans relative pb-20">
       {/* Top Header */}
-      <header className="h-[72px] bg-white border-b border-zinc-200 flex items-center justify-between px-6 lg:px-12 fixed top-0 w-full z-10">
-        
-        {/* Logo left */}
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 bg-black rounded-bl-xl rounded-tr-xl flex items-center justify-center">
-            <div className="w-2 h-2 bg-white rounded-full"></div>
+      <header className="fixed top-0 w-full bg-white border-b border-zinc-200 z-10">
+        <div className="h-[80px] max-w-[1152px] flex items-center justify-between mx-auto" style={{ padding: '0px 24px', margin: '0px 188px' }}>
+          
+          {/* Logo left */}
+          <div className="flex items-center">
+            <img src="/logo.png" alt="Unool Logo" className="w-[65px] h-[65px] object-contain" />
           </div>
-          <span className="text-[17px] font-bold text-zinc-900 tracking-tight">Unool</span>
-        </div>
 
-        {/* Progress indicator center */}
-        <div className="hidden md:flex items-center gap-3">
-          <div className="flex items-center gap-1.5">
-            <div className={`w-7 h-7 rounded-full ${isConnectStep ? 'bg-[#68d391]' : 'bg-[#68d391]'} text-white flex items-center justify-center text-[13px] font-semibold`}>1</div>
-            <div className={`w-16 h-[2px] ${isConnectStep ? 'bg-[#68d391]' : 'bg-zinc-200'}`}></div>
+          {/* Progress indicator center */}
+          <div className="hidden md:flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <div className={`w-7 h-7 rounded-full ${isConnectStep ? 'bg-[#68d391]' : 'bg-[#68d391]'} text-white flex items-center justify-center text-[13px] font-semibold`}>1</div>
+              <div className={`w-16 h-[2px] ${isConnectStep ? 'bg-[#68d391]' : 'bg-zinc-200'}`}></div>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className={`w-7 h-7 rounded-full ${isConnectStep ? 'bg-[#68d391] text-white' : 'bg-zinc-200 text-zinc-500'} flex items-center justify-center text-[13px] font-semibold`}>2</div>
+              <div className="w-16 h-[2px] bg-zinc-200"></div>
+            </div>
+            <div className="w-7 h-7 rounded-full bg-zinc-200 text-zinc-500 flex items-center justify-center text-[13px] font-semibold">3</div>
           </div>
-          <div className="flex items-center gap-1.5">
-            <div className={`w-7 h-7 rounded-full ${isConnectStep ? 'bg-[#68d391] text-white' : 'bg-zinc-200 text-zinc-500'} flex items-center justify-center text-[13px] font-semibold`}>2</div>
-            <div className="w-16 h-[2px] bg-zinc-200"></div>
-          </div>
-          <div className="w-7 h-7 rounded-full bg-zinc-200 text-zinc-500 flex items-center justify-center text-[13px] font-semibold">3</div>
-        </div>
 
-        {/* User avatar right */}
-        <div className="w-8 h-8 rounded-full bg-[#e6f7ec] text-[#34a853] flex items-center justify-center text-[13px] font-bold">
-          U
+          {/* User avatar right */}
+          <div className="w-8 h-8 rounded-full bg-[#e6f7ec] text-[#34a853] flex items-center justify-center text-[13px] font-bold">
+            U
+          </div>
         </div>
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 w-full max-w-[600px] mx-auto mt-[72px] pt-12 px-4 pb-24">
+      <main className="flex-1 w-full max-w-[600px] mx-auto mt-[80px] pt-12 px-4 pb-24">
         {children}
       </main>
 
