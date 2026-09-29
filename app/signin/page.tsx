@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, KeyboardEvent, ClipboardEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { Home, Search, Bell, Mail, User, Bookmark, Loader2, Heart, MessageCircle, Repeat2, Send, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { getSupabaseBrowserClient } from '@/lib/supabase/browser';
 
@@ -24,6 +24,19 @@ export default function SignInSocialPage() {
   const [stage, setStage] = useState<'form' | 'otp'>('form');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  
+  // Interactive Feed State
+  const feedControls = useAnimation();
+  const [liked, setLiked] = useState(false);
+  const [reposted, setReposted] = useState(false);
+  const [bookmarked, setBookmarked] = useState(false);
+
+  const handleNavClick = () => {
+    feedControls.start({
+      x: [0, -15, 15, -10, 10, -5, 5, 0],
+      transition: { duration: 0.5, ease: 'easeInOut' }
+    });
+  };
   
   // OTP State
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -192,7 +205,11 @@ export default function SignInSocialPage() {
           
           <div className="flex flex-col gap-2 w-full mt-2">
             {navItems.map((item, i) => (
-              <div key={i} className="flex items-center gap-5 p-3 w-fit lg:w-full lg:px-4 rounded-full transition-colors opacity-50 hover:bg-white/5 cursor-not-allowed">
+              <div 
+                key={i} 
+                onClick={handleNavClick}
+                className="flex items-center gap-5 p-3 w-fit lg:w-full lg:px-4 rounded-full transition-colors opacity-70 hover:bg-white/10 cursor-pointer"
+              >
                 <item.icon className="w-7 h-7" />
                 <span className="hidden lg:block text-xl">{item.label}</span>
               </div>
@@ -208,7 +225,10 @@ export default function SignInSocialPage() {
         </div>
 
         {/* Center Feed */}
-        <div className="flex-1 w-full max-w-[600px] border-r border-white/10 flex flex-col h-full overflow-y-auto no-scrollbar relative bg-black/40 backdrop-blur-md">
+        <motion.div 
+          animate={feedControls}
+          className="flex-1 w-full max-w-[600px] border-r border-white/10 flex flex-col h-full overflow-y-auto no-scrollbar relative bg-black/40 backdrop-blur-md"
+        >
           {/* Header */}
           <div className="sticky top-0 z-50 bg-black/60 backdrop-blur-xl border-b border-white/10 p-4 flex gap-8">
             <Link href="/signin" className="text-[15px] font-bold relative pb-2 text-white">
@@ -310,11 +330,19 @@ export default function SignInSocialPage() {
                   </AnimatePresence>
                   
                   {/* Simulated action bar */}
-                  <div className="flex items-center justify-between mt-4 max-w-md text-white/40">
-                    <div className="flex items-center gap-2 hover:text-[#C84B31] transition-colors cursor-pointer"><MessageCircle className="w-5 h-5" /> <span className="text-sm">2.4k</span></div>
-                    <div className="flex items-center gap-2 hover:text-green-500 transition-colors cursor-pointer"><Repeat2 className="w-5 h-5" /> <span className="text-sm">842</span></div>
-                    <div className="flex items-center gap-2 hover:text-red-500 transition-colors cursor-pointer"><Heart className="w-5 h-5" /> <span className="text-sm">12k</span></div>
-                    <div className="flex items-center gap-2 hover:text-blue-500 transition-colors cursor-pointer"><Bookmark className="w-5 h-5" /></div>
+                  <div className="flex items-center justify-between mt-4 max-w-md text-white/40 select-none">
+                    <div onClick={handleNavClick} className="flex items-center gap-2 hover:text-[#C84B31] transition-colors cursor-pointer">
+                      <MessageCircle className="w-5 h-5" /> <span className="text-sm">2.4k</span>
+                    </div>
+                    <div onClick={() => setReposted(!reposted)} className={`flex items-center gap-2 transition-colors cursor-pointer ${reposted ? 'text-green-500' : 'hover:text-green-500'}`}>
+                      <Repeat2 className="w-5 h-5" /> <span className="text-sm">{reposted ? '843' : '842'}</span>
+                    </div>
+                    <div onClick={() => setLiked(!liked)} className={`flex items-center gap-2 transition-colors cursor-pointer ${liked ? 'text-red-500' : 'hover:text-red-500'}`}>
+                      <Heart className={`w-5 h-5 ${liked ? 'fill-current' : ''}`} /> <span className="text-sm">{liked ? '12.1k' : '12k'}</span>
+                    </div>
+                    <div onClick={() => setBookmarked(!bookmarked)} className={`flex items-center gap-2 transition-colors cursor-pointer ${bookmarked ? 'text-blue-500' : 'hover:text-blue-500'}`}>
+                      <Bookmark className={`w-5 h-5 ${bookmarked ? 'fill-current' : ''}`} />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -400,41 +428,47 @@ export default function SignInSocialPage() {
                           ))}
                         </div>
 
-                        {error && (
+                        {error && !otpSuccess && (
                           <p className="text-red-400 text-sm mt-2 font-medium text-center">{error}</p>
                         )}
                         
-                        {otpSuccess && (
-                          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-[#68d391] text-sm mt-2 font-bold text-center flex items-center justify-center gap-2">
-                            <CheckCircle2 className="w-4 h-4" /> Verified! Redirecting...
-                          </motion.p>
-                        )}
-
-                        <div className="flex flex-col sm:flex-row items-center justify-between mt-6 gap-4">
-                          {cooldown > 0 ? (
-                            <span className="text-sm font-medium text-white/50">
-                              Resend code in {cooldown}s
-                            </span>
-                          ) : (
+                        {otpSuccess ? (
+                          <motion.div 
+                            initial={{ opacity: 0, scale: 0.8 }} 
+                            animate={{ opacity: 1, scale: 1 }} 
+                            className="mt-6 p-6 rounded-2xl border border-green-500/50 bg-green-500/10 flex flex-col items-center justify-center text-center gap-3"
+                          >
+                            <CheckCircle2 className="w-12 h-12 text-green-400" />
+                            <h3 className="text-xl font-bold text-green-400">Access Granted</h3>
+                            <p className="text-sm text-green-400/80">Allowed to Unool. Redirecting to workspace...</p>
+                          </motion.div>
+                        ) : (
+                          <div className="flex flex-col sm:flex-row items-center justify-between mt-6 gap-4">
+                            {cooldown > 0 ? (
+                              <span className="text-sm font-medium text-white/50">
+                                Resend code in {cooldown}s
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={handleResend}
+                                disabled={resendLoading}
+                                className="text-sm font-bold hover:underline text-[#C84B31]"
+                              >
+                                {resendLoading ? 'Sending...' : 'Resend Code'}
+                              </button>
+                            )}
+                            
                             <button
                               type="button"
-                              onClick={handleResend}
-                              disabled={resendLoading}
-                              className="text-sm font-bold hover:underline text-[#C84B31]"
+                              onClick={verifyOtp}
+                              disabled={loading || otp.join('').length < 6}
+                              className="w-full sm:w-auto px-8 py-2.5 rounded-full font-bold text-[14px] text-black bg-white flex items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-50 disabled:active:scale-100 hover:bg-white/90"
                             >
-                              {resendLoading ? 'Sending...' : 'Resend Code'}
+                              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Confirm'}
                             </button>
-                          )}
-                          
-                          <button
-                            type="button"
-                            onClick={verifyOtp}
-                            disabled={loading || otp.join('').length < 6 || otpSuccess}
-                            className="w-full sm:w-auto px-8 py-2.5 rounded-full font-bold text-[14px] text-black bg-white flex items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-50 disabled:active:scale-100 hover:bg-white/90"
-                          >
-                            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Confirm'}
-                          </button>
-                        </div>
+                          </div>
+                        )}
                       </div>
 
                       <button onClick={() => { setStage('form'); setOtp(['','','','','','']); setError(''); }} className="text-sm font-semibold mt-4 text-white/50 hover:text-white transition-colors">
@@ -445,9 +479,8 @@ export default function SignInSocialPage() {
                 </motion.div>
               )}
             </AnimatePresence>
-
           </div>
-        </div>
+        </motion.div>
 
         {/* Right Sidebar (Trending/Info) */}
         <div className="hidden lg:flex flex-col w-[350px] shrink-0 p-6 pl-8">
