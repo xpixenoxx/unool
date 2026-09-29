@@ -1,39 +1,72 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect, KeyboardEvent, ClipboardEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, MessageSquare, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
-import OtpVerifyForm from '@/components/auth/OtpVerifyForm';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Home, Search, Bell, Mail, User, Bookmark, Loader2, Image, Sparkles, Smile, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { getSupabaseBrowserClient } from '@/lib/supabase/browser';
 
-type Stage = 'form' | 'otp' | 'done';
+const C = {
+  oxblood: '#3A0B1A',
+  mahogany: '#5C1A1A',
+  terracotta: '#8C2A25',
+  clay: '#C84B31',
+  sand: '#D4B896',
+  cream: '#FFF9F2',
+  ink: '#1A0A05',
+};
 
 interface FormErrors {
-  name?:     string;
-  email?:    string;
+  name?: string;
+  email?: string;
   password?: string;
 }
 
 function validateForm(name: string, email: string, password: string): FormErrors {
   const errors: FormErrors = {};
-  if (!name.trim())          errors.name     = 'Name is required.';
-  if (!email.includes('@'))  errors.email    = 'Enter a valid email address.';
-  if (password.length < 8)  errors.password = 'Password must be at least 8 characters.';
+  if (!name.trim()) errors.name = 'Name is required.';
+  if (!email.includes('@')) errors.email = 'Enter a valid email address.';
+  if (password.length < 8) errors.password = 'Password must be at least 8 characters.';
   if (password.length > 128) errors.password = 'Password must be at most 128 characters.';
   return errors;
 }
 
-export default function SignUpPage() {
+export default function SignUpSocialPage() {
   const router = useRouter();
 
-  const [name, setName]         = useState('');
-  const [email, setEmail]       = useState('');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [errors, setErrors]     = useState<FormErrors>({});
+  const [errors, setErrors] = useState<FormErrors>({});
   const [apiError, setApiError] = useState('');
-  const [loading, setLoading]   = useState(false);
-  const [stage, setStage]       = useState<Stage>('form');
+  const [loading, setLoading] = useState(false);
+  const [stage, setStage] = useState<'form' | 'otp' | 'done'>('form');
+  
+  // OTP State
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [nextResendAt, setNextResendAt] = useState<string>();
+  const [cooldown, setCooldown] = useState(0);
+  const [resendLoading, setResendLoading] = useState(false);
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  useEffect(() => {
+    if (!nextResendAt) return;
+    const diff = Math.ceil((new Date(nextResendAt).getTime() - Date.now()) / 1000);
+    if (diff > 0) setCooldown(Math.min(diff, 60));
+  }, [nextResendAt]);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setInterval(() => setCooldown(c => Math.max(0, c - 1)), 1000);
+    return () => clearInterval(t);
+  }, [cooldown]);
+
+  useEffect(() => {
+    if (stage === 'otp') {
+      setTimeout(() => otpRefs.current[0]?.focus(), 600);
+    }
+  }, [stage]);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,10 +77,10 @@ export default function SignUpPage() {
 
     setLoading(true);
     try {
-      const res  = await fetch('/api/auth/signup', {
-        method:  'POST',
+      const res = await fetch('/api/auth/signup', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ name: name.trim(), email: email.trim().toLowerCase(), password }),
+        body: JSON.stringify({ name: name.trim(), email: email.trim().toLowerCase(), password }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -63,155 +96,411 @@ export default function SignUpPage() {
     }
   };
 
-  const handleOtpSuccess = (redirectTo?: string) => {
-    setStage('done');
-    setTimeout(() => router.push(redirectTo || '/signin'), 1500);
+  const handleOtpChange = (i: number, val: string) => {
+    const digit = val.replace(/\D/g, '').slice(-1);
+    const next = [...otp];
+    next[i] = digit;
+    setOtp(next);
+    setApiError('');
+    if (digit && i < 5) otpRefs.current[i + 1]?.focus();
   };
 
+  const handleOtpKeyDown = (i: number, e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && !otp[i] && i > 0) otpRefs.current[i - 1]?.focus();
+  };
+
+  const handleOtpPaste = (e: ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    const next = [...otp];
+    pasted.split('').forEach((ch, idx) => { next[idx] = ch; });
+    setOtp(next);
+    otpRefs.current[Math.min(pasted.length, 5)]?.focus();
+  };
+
+  const verifyOtp = async () => {
+    const token = otp.join('');
+    if (token.length < 6) return;
+    setLoading(true);
+    setApiError('');
+    
+    try {
+      const res = await fetch('/api/auth/signup/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, otp: token }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setApiError(data.message || 'Invalid code.');
+        setOtp(['', '', '', '', '', '']);
+        setTimeout(() => otpRefs.current[0]?.focus(), 50);
+      } else {
+        setStage('done');
+        setTimeout(() => router.push(data.redirectTo || '/signin'), 2000);
+      }
+    } catch {
+      setApiError('Network error.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (cooldown > 0 || resendLoading) return;
+    setResendLoading(true);
+    try {
+      await fetch('/api/auth/resend-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, purpose: 'signup' }),
+      });
+      setOtp(['', '', '', '', '', '']);
+      setCooldown(60);
+      otpRefs.current[0]?.focus();
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
+  const navItems = [
+    { icon: Home, label: 'Home', active: false },
+    { icon: Search, label: 'Explore', active: false },
+    { icon: Bell, label: 'Notifications', active: false },
+    { icon: Mail, label: 'Messages', active: false },
+    { icon: Bookmark, label: 'Bookmarks', active: false },
+    { icon: User, label: 'Profile', active: false },
+  ];
+
   return (
-    <div className="min-h-screen bg-white relative flex flex-col items-center pt-16 font-sans">
-      {/* Home link */}
-      <div className="absolute top-6 left-6 lg:top-8 lg:left-8">
-        <Link href="/" className="flex items-center gap-2 text-[15px] text-zinc-700 hover:text-black transition-colors font-medium">
-          <ArrowLeft className="w-4 h-4" /> Home
-        </Link>
-      </div>
-
-      <div className="w-full max-w-[440px] px-4">
-        {/* Toggle */}
-        <div className="mx-auto flex w-fit p-1 bg-zinc-100 rounded-md mb-8">
-          <Link href="/signin" className="px-5 py-1.5 text-[15px] font-medium rounded text-zinc-500 hover:text-zinc-700 transition-colors">
-            Sign In
+    <div 
+      className="min-h-screen w-full flex justify-center font-sans text-white selection:bg-[#C84B31]"
+      style={{ background: `linear-gradient(180deg, ${C.oxblood} 0%, ${C.terracotta} 40%, ${C.sand} 80%, ${C.cream} 100%)` }}
+    >
+      <div className="w-full max-w-7xl flex h-screen overflow-hidden">
+        
+        {/* Left Sidebar (Nav) */}
+        <div className="hidden sm:flex flex-col w-[80px] lg:w-[275px] shrink-0 border-r border-white/10 p-4">
+          <Link href="/" className="flex items-center gap-4 p-3 hover:bg-white/5 w-fit rounded-full transition-colors mb-4 group">
+            <ArrowLeft className="w-7 h-7 group-hover:-translate-x-1 transition-transform" />
+            <span className="hidden lg:block text-xl font-bold">Back to Site</span>
           </Link>
-          <Link href="/signup" className="px-5 py-1.5 text-[15px] font-medium rounded bg-[#68d391] text-white shadow-sm ring-1 ring-black/5">
-            Sign Up
-          </Link>
-        </div>
-
-        {/* ── FORM STAGE ──────────────────────────────────────────────────── */}
-        {stage === 'form' && (
-          <>
-            <h1 className="text-[32px] font-bold text-center text-[#2d3748] tracking-tight mb-8">
-              Create Your Free Account
-            </h1>
-
-            <form onSubmit={handleSignup} noValidate className="space-y-4">
-              {/* Name */}
-              <div>
-                <input
-                  type="text"
-                  placeholder="Full name"
-                  value={name}
-                  onChange={(e) => { setName(e.target.value); setErrors(p => ({ ...p, name: undefined })); }}
-                  disabled={loading}
-                  className={`w-full px-4 py-3 rounded border text-[15px] placeholder:text-zinc-300 bg-white
-                    focus:outline-none focus:ring-1 transition-colors disabled:opacity-60
-                    ${errors.name ? 'border-red-400 focus:border-red-400 focus:ring-red-300' : 'border-zinc-200 focus:border-[#68d391] focus:ring-[#68d391]'}`}
-                />
-                {errors.name && <p className="text-red-500 text-[12px] mt-1">{errors.name}</p>}
+          
+          <div className="flex flex-col gap-2 w-full mt-2">
+            {navItems.map((item, i) => (
+              <div key={i} className="flex items-center gap-5 p-3 w-fit lg:w-full lg:px-4 rounded-full transition-colors opacity-50 hover:bg-white/5 cursor-not-allowed">
+                <item.icon className="w-7 h-7" />
+                <span className="hidden lg:block text-xl">{item.label}</span>
               </div>
-
-              {/* Email */}
-              <div>
-                <input
-                  type="email"
-                  placeholder="tom@cruise.com"
-                  value={email}
-                  onChange={(e) => { setEmail(e.target.value); setErrors(p => ({ ...p, email: undefined })); }}
-                  disabled={loading}
-                  className={`w-full px-4 py-3 rounded border text-[15px] placeholder:text-zinc-300 bg-white
-                    focus:outline-none focus:ring-1 transition-colors disabled:opacity-60
-                    ${errors.email ? 'border-red-400 focus:border-red-400 focus:ring-red-300' : 'border-zinc-200 focus:border-[#68d391] focus:ring-[#68d391]'}`}
-                />
-                {errors.email && <p className="text-red-500 text-[12px] mt-1">{errors.email}</p>}
-              </div>
-
-              {/* Password */}
-              <div>
-                <input
-                  type="password"
-                  placeholder="Password (min. 8 characters)"
-                  value={password}
-                  onChange={(e) => { setPassword(e.target.value); setErrors(p => ({ ...p, password: undefined })); }}
-                  disabled={loading}
-                  className={`w-full px-4 py-3 rounded border text-[15px] placeholder:text-zinc-300 bg-white
-                    focus:outline-none focus:ring-1 transition-colors disabled:opacity-60
-                    ${errors.password ? 'border-red-400 focus:border-red-400 focus:ring-red-300' : 'border-zinc-200 focus:border-[#68d391] focus:ring-[#68d391]'}`}
-                />
-                {errors.password && <p className="text-red-500 text-[12px] mt-1">{errors.password}</p>}
-              </div>
-
-              {/* Captcha placeholder (invisible, keeps layout) */}
-              <div className="invisible flex items-center justify-between border border-zinc-200 rounded p-2
-                              mx-auto w-[300px] bg-[#f9fafb] shadow-sm" aria-hidden="true">
-                <div className="flex items-center gap-3">
-                  <div className="w-5 h-5 border-2 border-zinc-300 rounded bg-white shadow-inner ml-1" />
-                  <span className="text-[14px] text-zinc-700">Verify you are human</span>
-                </div>
-              </div>
-
-              {/* API error */}
-              {apiError && (
-                <div className="flex items-start gap-2 text-red-600 text-[13px] bg-red-50 border border-red-100
-                                rounded-lg px-3 py-2">
-                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                  {apiError}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-[#68d391] hover:bg-[#5bb87d] disabled:opacity-70 disabled:cursor-not-allowed
-                           text-white py-3 rounded font-semibold text-[15px] transition-colors shadow-sm
-                           flex items-center justify-center gap-2"
-              >
-                {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending code…</> : 'Create Account'}
-              </button>
-            </form>
-          </>
-        )}
-
-        {/* ── OTP STAGE ───────────────────────────────────────────────────── */}
-        {stage === 'otp' && (
-          <OtpVerifyForm
-            email={email}
-            purpose="signup"
-            verifyUrl="/api/auth/signup/verify-otp"
-            onSuccess={handleOtpSuccess}
-            onBack={() => { setStage('form'); setApiError(''); }}
-            nextResendAt={nextResendAt}
-          />
-        )}
-
-        {/* ── DONE ────────────────────────────────────────────────────────── */}
-        {stage === 'done' && (
-          <div className="text-center py-8 space-y-3">
-            <CheckCircle2 className="w-14 h-14 text-[#68d391] mx-auto" />
-            <h2 className="text-[22px] font-bold text-[#2d3748]">Account Created!</h2>
-            <p className="text-[14px] text-zinc-500">Redirecting you to sign in…</p>
+            ))}
           </div>
-        )}
-      </div>
 
-      {/* Footer links */}
-      {stage === 'form' && (
-        <div className="mt-16 text-center flex flex-col gap-1 text-[14px]">
-          <span className="text-zinc-500">
-            Already have an account?{' '}
-            <Link href="/signin" className="text-zinc-700 hover:text-black font-medium">Sign In</Link>
-          </span>
-          <Link href="/forgot-password" className="text-zinc-500 hover:text-zinc-700 transition-colors">
-            Forgot your password?
+          <Link href="/signin" className="mt-8 bg-transparent border border-white text-white font-bold text-lg py-4 px-8 rounded-full hidden lg:block text-center hover:bg-white/10 transition-colors shadow-lg">
+            Sign In Instead
           </Link>
         </div>
-      )}
 
-      {/* Chat Widget */}
-      <div className="fixed bottom-6 right-6 w-[52px] h-[52px] bg-white rounded-full
-                      shadow-[0_4px_14px_rgba(0,0,0,0.1)] border border-zinc-100 flex items-center
-                      justify-center cursor-pointer hover:shadow-[0_6px_20px_rgba(0,0,0,0.15)] transition-shadow">
-        <MessageSquare className="w-[22px] h-[22px] text-zinc-600 fill-zinc-600" />
+        {/* Center Feed: Composing a post */}
+        <div className="flex-1 w-full max-w-[600px] border-r border-white/10 flex flex-col h-full overflow-y-auto no-scrollbar relative bg-black/40 backdrop-blur-md">
+          {/* Header */}
+          <div className="sticky top-0 z-50 bg-black/60 backdrop-blur-xl border-b border-white/10 p-4 flex gap-8">
+            <Link href="/signin" className="text-[15px] font-bold text-white/50 hover:text-white transition-colors pb-2">
+              Sign In
+            </Link>
+            <Link href="/signup" className="text-[15px] font-bold relative pb-2 text-white">
+              Sign Up
+              <div className="absolute bottom-0 left-0 right-0 h-1 rounded-t-full bg-[#C84B31]" />
+            </Link>
+          </div>
+
+          {/* The Compose Area */}
+          <div className="p-4 sm:p-6 pb-32">
+            
+            {/* The initial compose form */}
+            <div className="relative z-10 w-full mb-6">
+              <div className="flex gap-4">
+                <div className="flex flex-col items-center">
+                  <div className="w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xl font-bold z-10 relative bg-white/10 shadow-inner">
+                    {name ? name.charAt(0).toUpperCase() : <User className="w-6 h-6 opacity-50" />}
+                  </div>
+                  {/* Thread line connecting downward if stage changes */}
+                  <AnimatePresence>
+                    {stage !== 'form' && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: '100%', opacity: 1 }}
+                        transition={{ duration: 0.5, ease: 'easeOut' }}
+                        className="w-0.5 mt-2 flex-grow rounded-full bg-white/20"
+                      />
+                    )}
+                  </AnimatePresence>
+                </div>
+                
+                <div className="flex-1 pt-1">
+                  {stage === 'form' ? (
+                    <motion.form 
+                      onSubmit={handleSignup} 
+                      className="w-full flex flex-col gap-2"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                    >
+                      <h2 className="text-xl font-bold mb-4 opacity-80">Compose your profile</h2>
+                      
+                      <input
+                        type="text"
+                        placeholder="Your full name"
+                        value={name}
+                        onChange={(e) => { setName(e.target.value); setErrors(p => ({...p, name: undefined})); }}
+                        disabled={loading}
+                        className={`w-full bg-transparent border-none focus:ring-0 text-xl font-medium p-2 placeholder:text-white/30 text-white outline-none disabled:opacity-50
+                          ${errors.name ? 'border-b border-red-500' : ''}`}
+                      />
+                      {errors.name && <p className="text-red-400 text-xs px-2">{errors.name}</p>}
+
+                      <input
+                        type="email"
+                        placeholder="Email address"
+                        value={email}
+                        onChange={(e) => { setEmail(e.target.value); setErrors(p => ({...p, email: undefined})); setApiError(''); }}
+                        disabled={loading}
+                        className={`w-full bg-transparent border-none focus:ring-0 text-lg p-2 placeholder:text-white/30 text-white outline-none disabled:opacity-50
+                          ${errors.email ? 'border-b border-red-500' : ''}`}
+                      />
+                      {errors.email && <p className="text-red-400 text-xs px-2">{errors.email}</p>}
+
+                      <input
+                        type="password"
+                        placeholder="Password (min 8 chars)"
+                        value={password}
+                        onChange={(e) => { setPassword(e.target.value); setErrors(p => ({...p, password: undefined})); }}
+                        disabled={loading}
+                        className={`w-full bg-transparent border-none focus:ring-0 text-lg p-2 placeholder:text-white/30 text-white outline-none disabled:opacity-50
+                          ${errors.password ? 'border-b border-red-500' : ''}`}
+                      />
+                      {errors.password && <p className="text-red-400 text-xs px-2">{errors.password}</p>}
+                      {apiError && <p className="text-red-400 text-sm px-2 mt-2">{apiError}</p>}
+
+                      <div className="w-full h-px bg-white/10 my-4" />
+
+                      <div className="flex items-center justify-between">
+                        <div className="flex gap-4 text-[#C84B31]">
+                          <Image className="w-5 h-5 cursor-pointer opacity-50 hover:opacity-100" />
+                          <Sparkles className="w-5 h-5 cursor-pointer opacity-50 hover:opacity-100" />
+                          <Smile className="w-5 h-5 cursor-pointer opacity-50 hover:opacity-100" />
+                        </div>
+                        <button
+                          type="submit"
+                          disabled={loading || !name || !email || !password}
+                          className="px-6 py-2 rounded-full font-bold text-[15px] text-black bg-white flex items-center gap-2 transition-transform active:scale-95 disabled:opacity-50 disabled:active:scale-100 hover:bg-white/90"
+                        >
+                          {loading ? <Loader2 className="w-4 h-4 animate-spin text-black" /> : 'Post Profile'}
+                        </button>
+                      </div>
+                    </motion.form>
+                  ) : (
+                    <motion.div 
+                      className="w-full flex flex-col gap-1 pb-4"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-bold text-[15px]">{name}</span>
+                        <span className="text-[15px] text-white/50">@{email.split('@')[0]}</span>
+                      </div>
+                      <p className="text-[15px] text-white/90">
+                        Joining the network! Waiting for verification...
+                      </p>
+                    </motion.div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Post 2: Unool replies with OTP request */}
+            <AnimatePresence>
+              {(stage === 'otp' || stage === 'done') && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: 0.2 }}
+                  className="relative z-10 w-full"
+                >
+                  <div className="flex gap-4">
+                    <div className="flex flex-col items-center">
+                      <div className="w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xl font-bold z-10 shadow-inner" style={{ background: `linear-gradient(135deg, ${C.clay}, ${C.terracotta})` }}>
+                        U
+                      </div>
+                      {/* Only draw line if stage is done, to connect to the final checkmark */}
+                      {stage === 'done' && (
+                        <div className="w-0.5 mt-2 flex-grow rounded-full bg-white/20" />
+                      )}
+                    </div>
+                    
+                    <div className="flex-1 pt-1 pb-6">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-bold text-[15px]">Unool</span>
+                        <span className="text-[15px] text-white/50 flex items-center gap-1">
+                          <CheckCircle2 className="w-4 h-4 text-white fill-[#C84B31]" /> @unool
+                        </span>
+                      </div>
+                      
+                      <p className="text-[15px] leading-relaxed mb-4 text-white/90">
+                        Welcome to the community, {name.split(' ')[0]}! 🎉<br/>
+                        I just sent a 6-digit verification code to your email. Enter it below to confirm your account.
+                      </p>
+
+                      {/* OTP Form Input */}
+                      {stage === 'otp' && (
+                        <div className="rounded-2xl border border-white/20 bg-white/5 p-4 backdrop-blur-md">
+                          <div className="flex justify-between gap-2 mb-4">
+                            {otp.map((digit, i) => (
+                              <input
+                                key={i}
+                                ref={(el) => { otpRefs.current[i] = el; }}
+                                type="text"
+                                inputMode="numeric"
+                                maxLength={1}
+                                value={digit}
+                                onChange={(e) => handleOtpChange(i, e.target.value)}
+                                onKeyDown={(e) => handleOtpKeyDown(i, e)}
+                                onPaste={i === 0 ? handleOtpPaste : undefined}
+                                disabled={loading}
+                                className={`w-10 h-12 sm:w-12 sm:h-14 text-center text-xl font-bold rounded-xl border transition-all duration-200 outline-none bg-black/50 text-white
+                                  ${digit ? 'border-[#C84B31] shadow-[0_0_15px_rgba(200,75,49,0.3)]' : 'border-white/20'}
+                                  focus:border-[#C84B31] focus:ring-1 focus:ring-[#C84B31]
+                                `}
+                              />
+                            ))}
+                          </div>
+
+                          {apiError && (
+                            <p className="text-red-400 text-sm mt-2 font-medium text-center">{apiError}</p>
+                          )}
+                          
+                          <div className="flex flex-col sm:flex-row items-center justify-between mt-6 gap-4">
+                            {cooldown > 0 ? (
+                              <span className="text-sm font-medium text-white/50">
+                                Resend in {cooldown}s
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={handleResend}
+                                disabled={resendLoading}
+                                className="text-sm font-bold hover:underline text-[#C84B31]"
+                              >
+                                {resendLoading ? 'Sending...' : 'Resend Code'}
+                              </button>
+                            )}
+                            
+                            <button
+                              type="button"
+                              onClick={verifyOtp}
+                              disabled={loading || otp.join('').length < 6}
+                              className="w-full sm:w-auto px-8 py-2.5 rounded-full font-bold text-[14px] text-black bg-white flex items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-50 disabled:active:scale-100 hover:bg-white/90"
+                            >
+                              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Confirm'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {stage === 'otp' && (
+                        <button onClick={() => { setStage('form'); setOtp(['','','','','','']); setApiError(''); }} className="text-sm font-semibold mt-4 text-white/50 hover:text-white transition-colors">
+                          ← Cancel signup
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Post 3: Final confirmation */}
+            <AnimatePresence>
+              {stage === 'done' && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: 0.2 }}
+                  className="flex gap-4 relative z-0"
+                >
+                  <div className="flex flex-col items-center">
+                    <div className="w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center text-white shadow-sm bg-green-500/20 border border-green-500/50">
+                      <CheckCircle2 className="w-6 h-6 text-green-400" />
+                    </div>
+                  </div>
+                  
+                  <div className="flex-1 pt-1 pb-4">
+                    <p className="text-[17px] font-bold text-green-400 mt-2">
+                      Verified! Welcome aboard.
+                    </p>
+                    <p className="text-sm text-white/50 mt-1">
+                      Redirecting you to sign in...
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+          </div>
+        </div>
+
+        {/* Right Sidebar (Trending/Info) */}
+        <div className="hidden lg:flex flex-col w-[350px] shrink-0 p-6 pl-8">
+          <div className="bg-black/20 backdrop-blur-md rounded-2xl border border-white/10 p-4 mb-6">
+            <h2 className="text-xl font-bold mb-4">Already signed up?</h2>
+            <p className="text-sm text-white/60 mb-4 leading-relaxed">
+              If you already have an account with Unool, you can skip the creation process and jump right in.
+            </p>
+            <Link href="/signin" className="block w-full py-2 border border-white/20 rounded-full text-center font-bold hover:bg-white/10 transition-colors">
+              Sign In
+            </Link>
+          </div>
+
+          <div className="bg-black/20 backdrop-blur-md rounded-2xl border border-white/10 p-4">
+            <h2 className="text-xl font-bold mb-4">What's happening</h2>
+            
+            <div className="flex flex-col gap-4">
+              <div className="flex justify-between items-start cursor-pointer group">
+                <div className="flex flex-col">
+                  <span className="text-xs text-white/50">Technology · Trending</span>
+                  <span className="font-bold group-hover:text-[#C84B31] transition-colors">#DesignSystems</span>
+                  <span className="text-xs text-white/40">125K posts</span>
+                </div>
+              </div>
+              
+              <div className="flex justify-between items-start cursor-pointer group">
+                <div className="flex flex-col">
+                  <span className="text-xs text-white/50">Startups · Trending</span>
+                  <span className="font-bold group-hover:text-[#C84B31] transition-colors">Ship Faster</span>
+                  <span className="text-xs text-white/40">84.2K posts</span>
+                </div>
+              </div>
+
+              <div className="flex justify-between items-start cursor-pointer group">
+                <div className="flex flex-col">
+                  <span className="text-xs text-white/50">AI · Trending</span>
+                  <span className="font-bold group-hover:text-[#C84B31] transition-colors">Unool 2.0</span>
+                  <span className="text-xs text-white/40">52.1K posts</span>
+                </div>
+              </div>
+            </div>
+            
+            <button className="text-[#C84B31] text-sm mt-4 hover:underline">Show more</button>
+          </div>
+          
+          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-6 text-xs text-white/40 px-2">
+            <span className="hover:underline cursor-pointer">Terms of Service</span>
+            <span className="hover:underline cursor-pointer">Privacy Policy</span>
+            <span className="hover:underline cursor-pointer">Cookie Policy</span>
+            <span className="hover:underline cursor-pointer">Accessibility</span>
+            <span className="hover:underline cursor-pointer">Ads info</span>
+            <span>© 2026 Unool Inc.</span>
+          </div>
+        </div>
+
       </div>
     </div>
   );
