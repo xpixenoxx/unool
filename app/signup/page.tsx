@@ -433,12 +433,15 @@ export default function SignUpSocialPage() {
                   </div>
                   
                   <div className="flex-1 pt-1 pb-4">
-                    <p className="text-[17px] font-bold text-green-400 mt-2">
-                      Verified! Welcome aboard.
-                    </p>
-                    <p className="text-sm text-white/50 mt-1">
-                      Redirecting you to sign in...
-                    </p>
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.8 }} 
+                      animate={{ opacity: 1, scale: 1 }} 
+                      className="mt-2 p-6 rounded-2xl border border-green-500/50 bg-green-500/10 flex flex-col items-center justify-center text-center gap-3 w-full"
+                    >
+                      <CheckCircle2 className="w-12 h-12 text-green-400" />
+                      <h3 className="text-xl font-bold text-green-400">Access Granted</h3>
+                      <p className="text-sm text-green-400/80">Allowed to Unool. Redirecting to sign in...</p>
+                    </motion.div>
                   </div>
                 </motion.div>
               )}
