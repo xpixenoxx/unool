@@ -440,6 +440,29 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                     Connect
                   </button>
                 )}
+                {platform.connected && (
+                  <button
+                    onClick={async () => {
+                      if (!confirm(`Disconnect ${platform.name}? You can reconnect anytime.`)) return;
+                      try {
+                        const res = await fetch(`/api/platform/connections/${platform.id}`, {
+                          method: 'DELETE',
+                        });
+                        if (res.ok) {
+                          window.location.reload();
+                        } else {
+                          alert('Failed to disconnect');
+                        }
+                      } catch (e) {
+                        alert('Failed to disconnect');
+                      }
+                    }}
+                    className="text-xs font-medium px-3 py-1.5 rounded-lg transition-colors border hover:bg-black/5"
+                    style={{ borderColor: B.border, color: B.textMuted }}
+                  >
+                    Disconnect
+                  </button>
+                )}
               </div>
             ))}
           </div>
