@@ -36,15 +36,45 @@ export interface PlanEnforcementResult {
 async function getPlanContext(userId: string, workspaceId: string): Promise<PlanEnforcementContext | null> {
   // Read the plan from the workspaces table — this is where upgrades are stored.
   // (Previously this read from profiles.plan which is a social profile row and has no plan field.)
-  const { data: workspace, error: wsError } = await supabaseAdmin
+  let workspace: { plan: string; plan_status?: string; plan_expires_at?: string | null; features?: unknown } | null = null;
+
+  // First try direct workspace ID lookup
+  const { data: wsById, error: wsError } = await supabaseAdmin
     .from('workspaces')
     .select('plan, plan_status, plan_expires_at, features')
     .eq('id', workspaceId)
     .single();
 
-  if (wsError || !workspace) {
-    logger.warn('Failed to get workspace plan', { workspaceId, error: wsError });
-    return null;
+  if (!wsError && wsById) {
+    workspace = wsById;
+  } else {
+    // Fallback: workspaceId might actually be a user UUID — look up the workspace via workspace_members
+    logger.warn('Direct workspace lookup failed, trying via user membership', { workspaceId, userId, error: wsError });
+
+    const { data: member } = await supabaseAdmin
+      .from('workspace_members')
+      .select('workspace_id')
+      .eq('user_id', userId)
+      .single();
+
+    if (member?.workspace_id) {
+      const { data: wsFromMember } = await supabaseAdmin
+        .from('workspaces')
+        .select('plan, plan_status, plan_expires_at, features')
+        .eq('id', member.workspace_id)
+        .single();
+
+      if (wsFromMember) {
+        workspace = wsFromMember;
+      }
+    }
+  }
+
+  // If we still can't find the workspace, degrade gracefully to free tier
+  // (better than returning 500 "Failed to retrieve plan information")
+  if (!workspace) {
+    logger.warn('Could not resolve workspace — defaulting to free tier', { workspaceId, userId });
+    workspace = { plan: 'free' };
   }
 
   const plan = (workspace.plan as string) || 'free';
