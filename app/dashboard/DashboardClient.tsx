@@ -400,9 +400,9 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           {/* Platform badges */}
           <div className="space-y-3">
             {[
-              { name: 'LinkedIn', icon: '🔗', color: '#0A66C2', connected: data.connections['linkedin']?.status === 'connected' },
-              { name: 'X (Twitter)', icon: '𝕏', color: '#1A1A1A', connected: data.connections['twitter']?.status === 'connected' },
-              { name: 'Threads', icon: '🧵', color: '#000000', connected: data.connections['threads']?.status === 'connected' },
+              { id: 'linkedin', name: 'LinkedIn', icon: '🔗', color: '#0A66C2', connected: data.connections['linkedin']?.status === 'connected' },
+              { id: 'x', name: 'X (Twitter)', icon: '𝕏', color: '#1A1A1A', connected: data.connections['x']?.status === 'connected' },
+              { id: 'threads', name: 'Threads', icon: '🧵', color: '#000000', connected: data.connections['threads']?.status === 'connected' },
             ].map((platform) => (
               <div
                 key={platform.name}
@@ -430,13 +430,15 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                   </p>
                 </div>
                 {!platform.connected && (
-                  <Link
-                    href="/dashboard/settings"
+                  <button
+                    onClick={() => {
+                      window.location.href = `/api/auth/platform/connect?platform=${platform.id}&workspaceId=${data.workspaceId}`;
+                    }}
                     className="text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
                     style={{ backgroundColor: B.accentBg, color: B.accent }}
                   >
                     Connect
-                  </Link>
+                  </button>
                 )}
               </div>
             ))}
