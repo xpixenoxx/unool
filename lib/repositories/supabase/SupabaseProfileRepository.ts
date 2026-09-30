@@ -17,6 +17,7 @@ export class SupabaseProfileRepository implements IProfileRepository {
       bio: row.bio as string,
       role: row.role as string,
       company: row.company as string,
+      avatarUrl: row.avatar_url as string | null,
       links: (row.links as ProfileLink[]) || [],
       proofPoints: (row.proof_points as ProofPoint[]) || [],
       theme: (row.theme as ProfileTheme) || { preset: 'minimal' },
@@ -116,6 +117,7 @@ export class SupabaseProfileRepository implements IProfileRepository {
     if (data.bio !== undefined) updateData.bio = data.bio;
     if (data.role !== undefined) updateData.role = data.role;
     if (data.company !== undefined) updateData.company = data.company;
+    if (data.avatarUrl !== undefined) updateData.avatar_url = data.avatarUrl;
     if (data.links !== undefined) updateData.links = data.links;
     if (data.proofPoints !== undefined) updateData.proof_points = data.proofPoints;
     if (data.theme !== undefined) updateData.theme = data.theme;

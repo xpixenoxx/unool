@@ -43,7 +43,7 @@ export async function PUT(request: NextRequest) {
     const { userId, workspaceId } = auth;
 
     const body = await request.json();
-    const { name, headline, bio, role, company, links, proofPoints, theme, subdomain, visibility } = body;
+    const { name, headline, bio, role, company, avatarUrl, links, proofPoints, theme, subdomain, visibility } = body;
 
     // Get existing profile or create new
     let profile = await profileRepository.findByWorkspaceId(workspaceId);
@@ -56,6 +56,7 @@ export async function PUT(request: NextRequest) {
         bio,
         role,
         company,
+        avatarUrl,
         links,
         proofPoints,
         theme,
@@ -81,6 +82,7 @@ export async function PUT(request: NextRequest) {
         bio,
         role,
         company,
+        avatarUrl,
         links,
         proofPoints,
         theme,

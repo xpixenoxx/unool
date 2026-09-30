@@ -71,6 +71,7 @@ interface Profile {
   bio: string;
   role: string;
   company: string;
+  avatarUrl?: string;
   links: ProfileLink[];
   proofPoints: ProofPoint[];
   theme: ProfileTheme;
@@ -126,7 +127,7 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
   const [profile, setProfile] = useState<Profile>({
-    name: '', headline: '', bio: '', role: '', company: '',
+    name: '', headline: '', bio: '', role: '', company: '', avatarUrl: '',
     links: [], proofPoints: [], theme: { template: DEFAULT_TEMPLATE }, visibility: 'public',
   });
 
@@ -468,6 +469,11 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
                     <label className="text-xs font-medium ml-1" style={{ color: B.textMuted }}>Company</label>
                     <input value={profile.company} onChange={e => setProfile({...profile, company: e.target.value})} className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none" style={{ backgroundColor: B.bg, border: `1px solid ${B.border}`, color: B.text }} placeholder="Acme Corp" />
                   </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium ml-1" style={{ color: B.textMuted }}>Avatar / Logo URL (Optional)</label>
+                  <input value={profile.avatarUrl || ''} onChange={e => setProfile({...profile, avatarUrl: e.target.value})} className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none" style={{ backgroundColor: B.bg, border: `1px solid ${B.border}`, color: B.text }} placeholder="https://example.com/logo.png" />
                 </div>
 
                 <div className="space-y-1.5">

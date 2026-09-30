@@ -86,23 +86,51 @@ function TemplateCard({ template, isSelected, onPreview, onSelect }: any) {
         </Stack>
       </Box>
       
-      <Flex gap={2} className="pt-6 mt-auto">
-        <Button
-          variant="default"
-          size="sm"
-          className="flex-1"
+      <Flex gap={2} className="pt-6 mt-auto relative z-10">
+        <motion.button
+          whileHover={!isSelected ? { scale: 1.02 } : {}}
+          whileTap={!isSelected ? { scale: 0.98 } : {}}
           onClick={(e) => {
             e.stopPropagation();
-            onSelect();
+            if (!isSelected) onSelect();
           }}
-          disabled={isSelected}
-        >
-          {isSelected ? (
-            <Flex gap={1.5} center><Check className="w-4 h-4" /> Selected</Flex>
-          ) : (
-            'Commit to Style'
+          className={cn(
+            "w-full py-2.5 px-4 rounded-lg text-sm font-semibold transition-all duration-300 flex items-center justify-center gap-2",
+            isSelected 
+              ? "bg-[#4A8C5C] text-white shadow-[0_0_15px_rgba(74,140,92,0.4)]" 
+              : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
           )}
-        </Button>
+        >
+          <AnimatePresence mode="wait">
+            {isSelected ? (
+              <motion.div
+                key="selected"
+                initial={{ opacity: 0, scale: 0.5, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.5, y: -10 }}
+                className="flex items-center gap-2"
+              >
+                <motion.div
+                  initial={{ rotate: -90, opacity: 0 }}
+                  animate={{ rotate: 0, opacity: 1 }}
+                  transition={{ type: "spring", stiffness: 200, damping: 10 }}
+                >
+                  <Check className="w-4 h-4 text-white font-bold" />
+                </motion.div>
+                <span>Style Confirmed!</span>
+              </motion.div>
+            ) : (
+              <motion.span
+                key="unselected"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                Commit to Style
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </motion.button>
       </Flex>
     </motion.div>
   );

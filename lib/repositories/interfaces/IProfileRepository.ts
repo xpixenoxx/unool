@@ -36,6 +36,7 @@ export interface Profile {
   bio: string | null;
   role: string | null;
   company: string | null;
+  avatarUrl: string | null;
   links: ProfileLink[];
   proofPoints: ProofPoint[];
   theme: ProfileTheme;
@@ -62,6 +63,7 @@ export interface UpdateProfileInput {
   bio?: string;
   role?: string;
   company?: string;
+  avatarUrl?: string;
   links?: ProfileLink[];
   proofPoints?: ProofPoint[];
   theme?: ProfileTheme;
