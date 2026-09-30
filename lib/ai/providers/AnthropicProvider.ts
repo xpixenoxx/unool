@@ -15,7 +15,11 @@ export class AnthropicProvider implements AIProvider {
   }
 
   async generateText(prompt: string, options?: GenerationOptions): Promise<Result<AIResponse, AIError>> {
-    const model = options?.model || config.ANTHROPIC_MODEL || config.AI_DEFAULT_MODEL;
+    let model = options?.model || config.ANTHROPIC_MODEL || config.AI_DEFAULT_MODEL;
+    // Sanitize common invalid model names from env vars
+    if (model.includes('opus-4') || model === 'claude-opus') model = 'claude-3-opus-20240229';
+    else if (model.includes('sonnet-5') || model === 'claude-sonnet') model = 'claude-3-5-sonnet-20241022';
+    else if (model.includes('haiku') && !model.includes('2024')) model = 'claude-3-5-haiku-20241022';
     const systemPrompt = options?.systemPrompt || '';
     const maxTokens = options?.maxTokens || 4000;
     const temperature = options?.temperature ?? 0.7;
