@@ -135,13 +135,18 @@ function checkFeatureGate(
   const featureKey = featureMap[action];
   if (!featureKey) return { allowed: true };
 
-  // Check features first; fall back to limits.
-  // Some plans store quota keys (e.g. ai_adaptations_per_month) only in limits,
-  // so we must check both. -1 means unlimited.
+  // Check features first, then limits.
   const featureValue = features[featureKey as keyof PlanFeatures];
   const limitValue = limits[featureKey as keyof PlanLimits];
   const value = featureValue !== undefined ? featureValue : limitValue;
 
+  // IMPORTANT: If the key is absent from BOTH features and limits, do NOT block.
+  // The feature gate should only deny when a feature is explicitly set to false or 0.
+  // Missing = not restricted at the gate level (quota check handles enforcement).
+  if (value === undefined) return { allowed: true };
+
+  // -1 = unlimited, true = enabled, positive number = has quota (allowed at gate level)
+  // false or 0 = explicitly disabled
   const allowed =
     value === true ||
     value === -1 ||
@@ -152,6 +157,7 @@ function checkFeatureGate(
     reason: allowed ? undefined : `Feature '${action}' not available in current plan`,
   };
 }
+
 
 async function checkQuota(
   action: PlanAction,
