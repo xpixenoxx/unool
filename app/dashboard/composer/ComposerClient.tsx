@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import Link from 'next/link';
@@ -9,11 +9,24 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CheckCircle, Loader2, Sparkles, Send, X, Linkedin, Twitter, MessageSquare, ArrowRight, Zap, Shield, Edit2, ArrowUpRight } from 'lucide-react';
+import {
+  CheckCircle,
+  Loader2,
+  Sparkles,
+  Send,
+  X,
+  Linkedin,
+  Twitter,
+  MessageSquare,
+  Zap,
+  ArrowUpRight,
+  AlertTriangle,
+  RefreshCw,
+} from 'lucide-react';
 import { toast } from 'sonner';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Box, Flex, Text, Display } from '@/components/ui/layout';
-import { MotionBox, spring, stagger } from '@/components/ui/motion';
+import { MotionBox, spring } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { cn } from '@/lib/utils';
 
@@ -78,6 +91,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const [activeTab, setActiveTab] = useState<PlatformType>('linkedin');
   const [profile, setProfile] = useState<Profile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
+  const [planError, setPlanError] = useState<string | null>(null);
   const springConfig: Transition = reducedMotion ? { type: 'tween', duration: 0.01 } : spring.snappy;
 
   const loadProfile = useCallback(async () => {
@@ -95,7 +109,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         });
       }
     } catch {
-      // Ignore - profile might not exist yet
+      // Ignore — profile might not exist yet
     } finally {
       setProfileLoading(false);
     }
@@ -111,6 +125,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       return;
     }
 
+    setPlanError(null);
     setIsGenerating(true);
     setDrafts(d => d.map(d => ({ ...d, status: 'generating' })));
 
@@ -125,7 +140,12 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       const data: AdaptResponse = await res.json();
 
       if (!res.ok) {
-        const errorData = data as { error?: string };
+        const errorData = data as { error?: string; code?: string };
+        if (res.status === 403) {
+          setPlanError(errorData.error || 'Your current plan does not allow this action.');
+          setDrafts(d => d.map(d => ({ ...d, status: 'idle' })));
+          return;
+        }
         throw new Error(errorData.error || 'Failed to generate drafts');
       }
 
@@ -136,11 +156,11 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         const result = data.variants[platform];
         return {
           platform,
-          content: result.content,
-          characterCount: result.characterCount,
-          hashtags: result.hashtags,
-          firstCommentHint: result.firstCommentHint,
-          status: 'ready' as const,
+          content: result?.content ?? '',
+          characterCount: result?.characterCount ?? 0,
+          hashtags: result?.hashtags ?? [],
+          firstCommentHint: result?.firstCommentHint,
+          status: result ? ('ready' as const) : ('error' as const),
         };
       }));
 
@@ -180,6 +200,11 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       const data = await res.json();
 
       if (!res.ok) {
+        const errorData = data as { error?: string; code?: string };
+        if (res.status === 403) {
+          setPlanError(errorData.error || 'Your current plan does not allow publishing.');
+          return;
+        }
         throw new Error(data.error || 'Publish failed');
       }
 
@@ -209,6 +234,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       return;
     }
 
+    setPlanError(null);
     setIsBroadcasting(true);
 
     try {
@@ -222,6 +248,11 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       const data = await res.json();
 
       if (!res.ok) {
+        const errorData = data as { error?: string; code?: string };
+        if (res.status === 403) {
+          setPlanError(errorData.error || 'Your current plan does not allow publishing.');
+          return;
+        }
         throw new Error(data.error || 'Broadcast failed');
       }
 
@@ -248,326 +279,385 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
     }
   };
 
-  return (
-    <Box className="space-y-8 max-w-4xl mx-auto px-4 py-8">
-      {/* Header */}
-      <Flex between wrap gap={4}>
-        <Box>
-          <Display size="xl" weight="bold">Composer</Display>
-          <Text size="lg" color="muted">Write once. AI adapts. You review. One click publishes everywhere.</Text>
-        </Box>
-        <Button
-          onClick={handlePublish}
-          disabled={isGenerating || !postId || !drafts.some(d => d.status === 'ready')}
-          size="lg"
-        >
-          <ArrowUpRight className="mr-2 h-4 w-4" />
-          Publish All
-        </Button>
-      </Flex>
+  const readyCount = drafts.filter(d => d.status === 'ready').length;
 
-      {/* Profile Context */}
-      <AnimatePresence mode="wait">
-        {profileLoading && (
-          <MotionBox key="loading" variant="fade">
-            <Text size="sm" color="muted">Loading profile...</Text>
-          </MotionBox>
-        )}
-        {profile && !profileLoading && (
-          <MotionBox key="profile" variant="slide-up">
-            <Card className="border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-900/20">
-              <CardContent>
-                <Flex center gap={3} wrap className="py-2">
-                  <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0" />
-                  <Text size="sm" color="green-800 dark:text-green-200" className="flex-1">
-                    Using profile: <strong>{profile.name}</strong> — {profile.headline}
-                  </Text>
-                  <Button variant="ghost" size="sm" asChild>
-                    <Link href="/dashboard/presence">Edit Profile</Link>
+  return (
+    <Box className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+
+      {/* Header */}
+      <div className="pb-4 border-b border-border">
+        <Display size="xl" weight="bold">Composer</Display>
+        <Text size="sm" color="muted" className="mt-1">
+          Write once. AI adapts. You review. One click publishes everywhere.
+        </Text>
+      </div>
+
+      {/* Plan error banner */}
+      <AnimatePresence>
+        {planError && (
+          <MotionBox key="plan-error" variant="slide-up">
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Plan Limit Reached</AlertTitle>
+              <AlertDescription className="flex flex-col gap-3 mt-1">
+                <span>{planError}</span>
+                <div className="flex gap-2 flex-wrap">
+                  <Button size="sm" asChild>
+                    <Link href="/dashboard/settings/billing">Upgrade Plan</Link>
                   </Button>
-                </Flex>
-              </CardContent>
-            </Card>
-          </MotionBox>
-        )}
-        {!profile && !profileLoading && (
-          <MotionBox key="no-profile" variant="slide-up">
-            <Card className="border-yellow-200 bg-yellow-50 dark:border-yellow-900 dark:bg-yellow-900/20">
-              <CardContent>
-                <Flex center gap={3} wrap className="py-2">
-                  <Text size="sm" color="yellow-800 dark:text-yellow-200" className="flex-1">
-                    No profile found. Complete your profile in the{' '}
-                    <Button variant="ghost" size="sm" asChild>
-                      <Link href="/dashboard/presence">Presence</Link>
-                    </Button>{' '}
-                    tab first.
-                  </Text>
-                </Flex>
-              </CardContent>
-            </Card>
+                  <Button size="sm" variant="ghost" onClick={() => setPlanError(null)}>
+                    Dismiss
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
           </MotionBox>
         )}
       </AnimatePresence>
 
-      {/* Mode Toggle */}
-      <Box className="flex justify-center my-6">
-        <Tabs value={mode} onValueChange={(v) => setMode(v as 'ai' | 'quick')} className="w-full max-w-[400px]">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="ai" className="flex gap-2">
-              <Sparkles className="w-4 h-4" /> AI Composer
-            </TabsTrigger>
-            <TabsTrigger value="quick" className="flex gap-2">
-              <Zap className="w-4 h-4" /> Quick Broadcast
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </Box>
+      {/* Profile context bar */}
+      <AnimatePresence mode="wait">
+        {profileLoading && (
+          <MotionBox key="loading" variant="fade">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              <span>Loading profile...</span>
+            </div>
+          </MotionBox>
+        )}
+        {profile && !profileLoading && (
+          <MotionBox key="profile" variant="slide-up">
+            <div className="flex items-center justify-between flex-wrap gap-3 px-4 py-3 rounded-lg border border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/40">
+              <div className="flex items-center gap-2 min-w-0">
+                <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0" />
+                <p className="text-sm text-green-800 dark:text-green-200 truncate">
+                  Using profile: <strong>{profile.name}</strong>
+                  {profile.headline && (
+                    <span className="text-green-700 dark:text-green-300 ml-1">— {profile.headline}</span>
+                  )}
+                </p>
+              </div>
+              <Button variant="ghost" size="sm" asChild className="flex-shrink-0 text-green-700 dark:text-green-300">
+                <Link href="/dashboard/presence">Edit Profile</Link>
+              </Button>
+            </div>
+          </MotionBox>
+        )}
+        {!profile && !profileLoading && (
+          <MotionBox key="no-profile" variant="slide-up">
+            <div className="flex items-center justify-between flex-wrap gap-3 px-4 py-3 rounded-lg border border-yellow-200 bg-yellow-50 dark:border-yellow-900 dark:bg-yellow-950/40">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 flex-shrink-0" />
+                <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                  No profile found. Set up your profile to continue.
+                </p>
+              </div>
+              <Button size="sm" asChild>
+                <Link href="/dashboard/presence">Set Up Profile</Link>
+              </Button>
+            </div>
+          </MotionBox>
+        )}
+      </AnimatePresence>
 
+      {/* Mode toggle */}
+      <div className="flex justify-center">
+        <div className="inline-flex rounded-xl border border-border bg-muted/50 p-1 gap-1">
+          <button
+            onClick={() => setMode('ai')}
+            className={cn(
+              'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200',
+              mode === 'ai'
+                ? 'bg-background shadow-sm text-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <Sparkles className="w-4 h-4" />
+            AI Composer
+          </button>
+          <button
+            onClick={() => setMode('quick')}
+            className={cn(
+              'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200',
+              mode === 'quick'
+                ? 'bg-background shadow-sm text-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <Zap className="w-4 h-4" />
+            Quick Broadcast
+          </button>
+        </div>
+      </div>
+
+      {/* Quick Broadcast */}
       {mode === 'quick' && (
-        <MotionBox variant="slide-up" delay={0.1}>
-          <Card variant="elevated">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Zap className="h-5 w-5 text-primary" />
+        <MotionBox variant="slide-up" delay={0.05}>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Zap className="h-4 w-4 text-primary" />
                 Quick Broadcast
               </CardTitle>
+              <Text size="sm" color="muted">
+                Publish identical content to all connected platforms instantly — no AI adaptation.
+              </Text>
             </CardHeader>
             <CardContent className="space-y-4">
               <Textarea
                 placeholder="What do you want to share? This exact text will be published to all connected platforms."
                 value={quickContent}
                 onChange={e => setQuickContent(e.target.value)}
-                className="min-h-[120px]"
-                rows={5}
+                className="min-h-[140px] resize-none"
+                rows={6}
               />
-              <Flex between wrap gap={2}>
-                <Text size="sm" color={quickContent.length > 280 ? 'destructive' : 'muted'}>
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <span className={cn(
+                  'text-sm tabular-nums',
+                  quickContent.length > 280 ? 'text-destructive font-medium' : 'text-muted-foreground'
+                )}>
                   {quickContent.length} characters
-                  {quickContent.length > 280 && " (Warning: X/Twitter limit is 280)"}
-                </Text>
-              </Flex>
-
-              <Button
-                onClick={handleDirectBroadcast}
-                disabled={isBroadcasting || !quickContent.trim() || !profile}
-                size="lg"
-                className="w-full sm:w-auto mt-4"
-              >
-                <Send className="mr-2 h-4 w-4" />
-                {isBroadcasting ? 'Publishing...' : 'Publish to All Platforms'}
-              </Button>
+                  {quickContent.length > 280 && ' · exceeds X/Twitter limit (280)'}
+                </span>
+                <Button
+                  onClick={handleDirectBroadcast}
+                  disabled={isBroadcasting || !quickContent.trim() || !profile}
+                >
+                  {isBroadcasting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Publishing...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="mr-2 h-4 w-4" />
+                      Publish to All Platforms
+                    </>
+                  )}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </MotionBox>
       )}
 
+      {/* AI Composer */}
       {mode === 'ai' && (
         <>
-      {/* Step 1: Source Input */}
-      <MotionBox variant="slide-up" delay={0.1}>
-        <Card variant="elevated">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
-              Step 1: Write Your Idea
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Textarea
-              placeholder="What do you want to share? e.g., 'Just launched v2 of our product with new AI features...'"
-              value={sourceContent}
-              onChange={e => setSourceContent(e.target.value)}
-              className="min-h-[120px]"
-              rows={4}
-            />
-            <Text size="sm" color="muted">{sourceContent.length} characters</Text>
-            <Button
-              onClick={generateDrafts}
-              disabled={isGenerating || !sourceContent.trim() || !profile}
-              size="lg"
-              className="w-full sm:w-auto"
-            >
-              <Sparkles className="mr-2 h-4 w-4" />
-              {isGenerating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Adapting for 3 Platforms...
-                </>
-              ) : (
-                'Generate Platform Drafts'
-              )}
-            </Button>
-          </CardContent>
-        </Card>
-      </MotionBox>
-
-      {/* Step 2: Platform Drafts */}
-      <AnimatePresence mode="wait">
-        {drafts.some(d => d.status !== 'idle') && (
-          <MotionBox key="drafts" variant="slide-up" delay={0.15}>
-            <Card variant="elevated">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-primary" />
-                  Step 2: Review & Edit ({drafts.filter(d => d.status === 'ready').length} ready)
-                </CardTitle>
+          {/* Step 1 */}
+          <MotionBox variant="slide-up" delay={0.05}>
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold flex-shrink-0">1</span>
+                  <CardTitle className="text-base">Write Your Idea</CardTitle>
+                </div>
+                <Text size="sm" color="muted">
+                  Describe what you want to share. AI will adapt it perfectly for each platform.
+                </Text>
               </CardHeader>
-              <CardContent>
-                <Tabs value={activeTab} onValueChange={(value: string) => setActiveTab(value as PlatformType)} className="w-full">
-                  <TabsList className="grid w-full grid-cols-3">
-                    {(['linkedin', 'x', 'threads'] as const).map(platform => {
-                      const config = PLATFORM_CONFIG[platform];
-                      const draft = drafts.find(d => d.platform === platform);
-                      const Icon = config.icon;
-                      return (
-                        <TabsTrigger key={platform} value={platform} className="flex items-center justify-center gap-2">
-                          <span className={`p-1.5 rounded-lg ${config.color} text-white`}>
-                            <Icon className="w-4 h-4" />
-                          </span>
-                          <span className="text-sm font-medium">{config.name}</span>
-                          {draft?.status === 'generating' && (
-                            <Loader2 className="h-3 w-3 animate-spin text-primary" />
-                          )}
-                          {draft?.status === 'ready' && (
-                            <CheckCircle className="h-3 w-3 text-green-500" />
-                          )}
-                          {draft?.status === 'error' && (
-                            <X className="h-3 w-3 text-destructive" />
-                          )}
-                        </TabsTrigger>
-                      );
-                    })}
-                  </TabsList>
-
-                  {(['linkedin', 'x', 'threads'] as PlatformType[]).map(platform => {
-                    const config = PLATFORM_CONFIG[platform];
-                    const draft = drafts.find(d => d.platform === platform);
-                    const Icon = config.icon;
-                    const isOverLimit = draft && draft.characterCount > config.maxChars;
-
-                    return (
-                      <TabsContent key={platform} value={platform} className="mt-4 space-y-4">
-                        <motion.div
-                          className="border rounded-xl p-4 bg-card"
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          transition={springConfig}
-                        >
-                          <Flex between wrap gap={2} className="mb-4">
-                            <Flex center gap={3}>
-                              <span className={`p-2 rounded-lg ${config.color} text-white`}>
-                                <Icon className="h-5 w-5" />
-                              </span>
-                              <Box>
-                                <Text weight="semibold">{config.name}</Text>
-                                <Text size="sm" color="muted">
-                                  {draft?.characterCount ?? 0}/{config.maxChars} characters
-                                  {draft && draft.hashtags.length > 0 && ` • ${draft.hashtags.length} hashtags`}
-                                </Text>
-                              </Box>
-                            </Flex>
-                            <Flex center gap={2}>
-                              {draft && (
-                                <>
-                                  {draft.status === 'generating' && <Badge variant="secondary">Generating...</Badge>}
-                                  {draft.status === 'ready' && <Badge variant="default">Ready</Badge>}
-                                  {draft.status === 'error' && <Badge variant="destructive">Error</Badge>}
-                                </>
-                              )}
-                            </Flex>
-                          </Flex>
-
-                          {draft?.error && (
-                            <Alert variant="destructive" className="mb-4">
-                              <AlertDescription>{draft.error}</AlertDescription>
-                            </Alert>
-                          )}
-
-                          <Textarea
-                            value={draft?.content ?? ''}
-                            onChange={e => updateDraft(platform, e.target.value)}
-                            className={cn('min-h-[120px]', isOverLimit && 'border-destructive')}
-                            rows={5}
-                            disabled={draft?.status !== 'ready'}
-                            placeholder={
-                              draft?.status === 'generating' ? 'Generating...' :
-                              draft?.status === 'idle' ? 'Generate drafts first' :
-                              'Your adapted content will appear here'
-                            }
-                          />
-
-                          {draft && isOverLimit && (
-                            <Text size="sm" color="destructive" className="mt-2 flex items-center gap-1">
-                              <X className="h-3 w-3" />
-                              Over character limit by {draft.characterCount - config.maxChars} characters
-                            </Text>
-                          )}
-
-                          {draft && draft.hashtags.length > 0 && (
-                            <Flex wrap gap={1} className="mt-3">
-                              {draft.hashtags.map(tag => (
-                                <Badge key={tag} variant="outline">{tag}</Badge>
-                              ))}
-                            </Flex>
-                          )}
-
-                          {draft && draft.firstCommentHint && (
-                            <Box className="mt-3 p-3 bg-muted rounded-lg text-sm">
-                              <Text weight="semibold">First comment hint:</Text>{' '}
-                              {draft.firstCommentHint}
-                            </Box>
-                          )}
-
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={generateDrafts}
-                            disabled={draft?.status !== 'ready'}
-                            className="mt-2 w-full sm:w-auto"
-                          >
-                            <Sparkles className="mr-1 h-3 w-3" />
-                            Regenerate
-                          </Button>
-                        </motion.div>
-                      </TabsContent>
-                    );
-                  })}
-                </Tabs>
+              <CardContent className="space-y-4">
+                <Textarea
+                  placeholder="e.g. 'Just launched v2 of our product with new AI features. We cut setup time by 80%...'"
+                  value={sourceContent}
+                  onChange={e => setSourceContent(e.target.value)}
+                  className="min-h-[140px] resize-none"
+                  rows={6}
+                />
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <span className="text-sm text-muted-foreground tabular-nums">
+                    {sourceContent.length} characters
+                  </span>
+                  <Button
+                    onClick={generateDrafts}
+                    disabled={isGenerating || !sourceContent.trim() || !profile}
+                  >
+                    {isGenerating ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Adapting for 3 platforms...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        Generate Platform Drafts
+                      </>
+                    )}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </MotionBox>
-        )}
-      </AnimatePresence>
 
-      {/* Step 3: Publish */}
-      <AnimatePresence mode="wait">
-        {drafts.some(d => d.status === 'ready') && (
-          <MotionBox key="publish" variant="slide-up" delay={0.2}>
-            <Card className="border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-900/20">
-              <CardContent className="pt-6">
-                <Flex between wrap gap={4}>
-                  <Flex center gap={3}>
-                    <Box className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+          {/* Step 2 — Platform Drafts */}
+          <AnimatePresence mode="wait">
+            {drafts.some(d => d.status !== 'idle') && (
+              <MotionBox key="drafts" variant="slide-up" delay={0.1}>
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold flex-shrink-0">2</span>
+                        <CardTitle className="text-base">Review & Edit Drafts</CardTitle>
+                      </div>
+                      {readyCount > 0 && (
+                        <Badge variant="secondary" className="text-xs">{readyCount} of 3 ready</Badge>
+                      )}
+                    </div>
+                    <Text size="sm" color="muted">
+                      Each platform draft is independently editable. Tweak before publishing.
+                    </Text>
+                  </CardHeader>
+                  <CardContent>
+                    <Tabs value={activeTab} onValueChange={(value: string) => setActiveTab(value as PlatformType)}>
+                      <TabsList className="w-full mb-4">
+                        {(['linkedin', 'x', 'threads'] as const).map(platform => {
+                          const cfg = PLATFORM_CONFIG[platform];
+                          const draft = drafts.find(d => d.platform === platform);
+                          const Icon = cfg.icon;
+                          return (
+                            <TabsTrigger key={platform} value={platform} className="flex-1 flex items-center justify-center gap-1.5">
+                              <span className={cn('p-1 rounded-md text-white', cfg.color)}>
+                                <Icon className="w-3 h-3" />
+                              </span>
+                              <span className="hidden sm:inline text-xs font-medium">{cfg.name}</span>
+                              {draft?.status === 'generating' && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
+                              {draft?.status === 'ready' && <CheckCircle className="h-3 w-3 text-green-500" />}
+                              {draft?.status === 'error' && <X className="h-3 w-3 text-destructive" />}
+                            </TabsTrigger>
+                          );
+                        })}
+                      </TabsList>
+
+                      {(['linkedin', 'x', 'threads'] as PlatformType[]).map(platform => {
+                        const cfg = PLATFORM_CONFIG[platform];
+                        const draft = drafts.find(d => d.platform === platform);
+                        const isOverLimit = draft && draft.characterCount > cfg.maxChars;
+
+                        return (
+                          <TabsContent key={platform} value={platform} className="space-y-3 mt-0">
+                            <motion.div
+                              initial={{ opacity: 0, y: 8 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -8 }}
+                              transition={springConfig}
+                            >
+                              <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                                <div className="flex items-center gap-2">
+                                  <span className={cn('p-1.5 rounded-lg text-white', cfg.color)}>
+                                    <cfg.icon className="h-4 w-4" />
+                                  </span>
+                                  <div>
+                                    <p className="text-sm font-semibold leading-tight">{cfg.name}</p>
+                                    <p className={cn(
+                                      'text-xs tabular-nums',
+                                      isOverLimit ? 'text-destructive font-medium' : 'text-muted-foreground'
+                                    )}>
+                                      {draft?.characterCount ?? 0} / {cfg.maxChars} chars
+                                      {draft && draft.hashtags.length > 0 && ` · ${draft.hashtags.length} hashtags`}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div>
+                                  {draft?.status === 'generating' && <Badge variant="secondary">Generating…</Badge>}
+                                  {draft?.status === 'ready' && (
+                                    <Badge className="bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 border-green-200">
+                                      Ready
+                                    </Badge>
+                                  )}
+                                  {draft?.status === 'error' && <Badge variant="destructive">Error</Badge>}
+                                </div>
+                              </div>
+
+                              {draft?.error && (
+                                <Alert variant="destructive" className="mb-3">
+                                  <AlertDescription>{draft.error}</AlertDescription>
+                                </Alert>
+                              )}
+
+                              <Textarea
+                                value={draft?.content ?? ''}
+                                onChange={e => updateDraft(platform, e.target.value)}
+                                className={cn(
+                                  'min-h-[160px] resize-none font-mono text-sm',
+                                  isOverLimit && 'border-destructive focus-visible:ring-destructive'
+                                )}
+                                rows={7}
+                                disabled={draft?.status !== 'ready'}
+                                placeholder={
+                                  draft?.status === 'generating' ? 'Generating your draft…' :
+                                  draft?.status === 'idle' ? 'Click "Generate Platform Drafts" to start' :
+                                  'Your adapted content will appear here'
+                                }
+                              />
+
+                              {isOverLimit && (
+                                <p className="text-xs text-destructive flex items-center gap-1">
+                                  <X className="h-3 w-3" />
+                                  {draft!.characterCount - cfg.maxChars} characters over the {cfg.name} limit — please trim
+                                </p>
+                              )}
+
+                              {draft && draft.hashtags.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5 pt-1">
+                                  {draft.hashtags.map(tag => (
+                                    <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>
+                                  ))}
+                                </div>
+                              )}
+
+                              {draft?.firstCommentHint && (
+                                <div className="mt-2 p-3 bg-muted/60 rounded-lg text-xs">
+                                  <span className="font-semibold text-foreground">First comment idea: </span>
+                                  <span className="text-muted-foreground">{draft.firstCommentHint}</span>
+                                </div>
+                              )}
+
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={generateDrafts}
+                                disabled={isGenerating || draft?.status === 'generating'}
+                                className="mt-1 text-xs h-7"
+                              >
+                                <RefreshCw className="mr-1 h-3 w-3" />
+                                Regenerate all drafts
+                              </Button>
+                            </motion.div>
+                          </TabsContent>
+                        );
+                      })}
+                    </Tabs>
+                  </CardContent>
+                </Card>
+              </MotionBox>
+            )}
+          </AnimatePresence>
+
+          {/* Step 3 — Publish bar */}
+          <AnimatePresence mode="wait">
+            {readyCount > 0 && (
+              <MotionBox key="publish" variant="slide-up" delay={0.1}>
+                <div className="flex items-center justify-between flex-wrap gap-4 px-5 py-4 rounded-xl border border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/40">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
                       <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
-                    </Box>
-                    <Box>
-                      <Text weight="semibold" color="green-800 dark:text-green-200">Ready to Publish</Text>
-                      <Text size="sm" color="green-700 dark:text-green-300">
-                        {drafts.filter(d => d.status === 'ready').length} platform drafts reviewed and ready
-                      </Text>
-                    </Box>
-                  </Flex>
-                  <Button size="lg" onClick={handlePublish} disabled={isGenerating} className="w-full sm:w-auto">
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-green-800 dark:text-green-200">Ready to Publish</p>
+                      <p className="text-xs text-green-700 dark:text-green-300">
+                        {readyCount} platform draft{readyCount > 1 ? 's' : ''} reviewed and ready
+                      </p>
+                    </div>
+                  </div>
+                  <Button onClick={handlePublish} disabled={isGenerating}>
                     <ArrowUpRight className="mr-2 h-4 w-4" />
                     Publish All
                   </Button>
-                </Flex>
-              </CardContent>
-            </Card>
-          </MotionBox>
-        )}
-      </AnimatePresence>
+                </div>
+              </MotionBox>
+            )}
+          </AnimatePresence>
         </>
       )}
     </Box>
@@ -577,13 +667,11 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
 export default function ComposerClientWrapper({ userId, workspaceId }: ComposerClientProps) {
   return (
     <Suspense fallback={
-      <Box className="space-y-8 max-w-4xl mx-auto px-4 py-8">
-        <Flex between wrap gap={4}>
-          <Box>
-            <Display size="xl" weight="bold">Composer</Display>
-            <Text size="lg" color="muted">Write once. AI adapts. You review. One click publishes everywhere.</Text>
-          </Box>
-        </Flex>
+      <Box className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+        <div className="pb-4 border-b border-border">
+          <Display size="xl" weight="bold">Composer</Display>
+          <Text size="sm" color="muted" className="mt-1">Write once. AI adapts. You review. One click publishes everywhere.</Text>
+        </div>
         <Card>
           <CardContent className="min-h-[300px] flex items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />

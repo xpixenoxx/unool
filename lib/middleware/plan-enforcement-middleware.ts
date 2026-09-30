@@ -34,38 +34,40 @@ export interface PlanEnforcementResult {
 }
 
 async function getPlanContext(userId: string, workspaceId: string): Promise<PlanEnforcementContext | null> {
-  // Get user's current plan from profiles table
-  const { data: profile, error: profileError } = await supabaseAdmin
-    .from('profiles')
-    .select('plan')
-    .eq('user_id', userId)
-    .single();
-
-  if (profileError || !profile) {
-    logger.warn('Failed to get user plan', { userId, error: profileError });
-  }
-
-  const plan = (profile?.plan as string) || 'free';
-
-  // Get workspace features
+  // Read the plan from the workspaces table — this is where upgrades are stored.
+  // (Previously this read from profiles.plan which is a social profile row and has no plan field.)
   const { data: workspace, error: wsError } = await supabaseAdmin
     .from('workspaces')
-    .select('features')
+    .select('plan, plan_status, plan_expires_at, features')
     .eq('id', workspaceId)
     .single();
 
-  if (wsError) {
-    logger.warn('Failed to get workspace features', { workspaceId, error: wsError });
+  if (wsError || !workspace) {
+    logger.warn('Failed to get workspace plan', { workspaceId, error: wsError });
+    return null;
   }
 
-  // Get plan info to get default limits/features
+  const plan = (workspace.plan as string) || 'free';
+
+  // Check plan is active and not expired
+  const planStatus = workspace.plan_status || 'active';
+  if (planStatus !== 'active' && planStatus !== 'trialing') {
+    logger.warn('Workspace plan is not active', { workspaceId, planStatus });
+  }
+
+  if (workspace.plan_expires_at && new Date(workspace.plan_expires_at) < new Date()) {
+    logger.warn('Workspace plan has expired', { workspaceId, planExpiresAt: workspace.plan_expires_at });
+  }
+
+  // Get plan limits/features from the plans table
   const { data: planInfo } = await supabaseAdmin
     .from('plans')
     .select('limits, features')
     .eq('id', plan)
     .single();
 
-  const features: PlanFeatures = (workspace?.features as PlanFeatures) || planInfo?.features || {};
+  // Workspace-level feature overrides take priority over plan defaults
+  const features: PlanFeatures = (workspace.features as PlanFeatures) || planInfo?.features || {};
   const limits: PlanLimits = planInfo?.limits || {};
 
   return {
