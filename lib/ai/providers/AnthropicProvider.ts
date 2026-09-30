@@ -27,6 +27,7 @@ export class AnthropicProvider implements AIProvider {
 
     const fallbackModels = [
       model,
+      'claude-3-5-haiku-20241022',
       'claude-3-5-sonnet-20241022',
       'claude-3-haiku-20240307',
       'claude-2.1'
@@ -97,12 +98,11 @@ export class AnthropicProvider implements AIProvider {
       }
     } // End for loop
 
-    // If we exhausted all fallbacks
     return err({
       code: 'API_ERROR',
-      message: lastErrorData?.error ? JSON.stringify(lastErrorData.error) : 'All Anthropic fallback models failed',
+      message: 'Anthropic API error: Your API key does not have access to any models. Please ensure you have added billing credits ($5 minimum) to your Anthropic console.',
       provider: this.name,
-      retryable: lastStatus >= 500,
+      retryable: false,
       name: 'AnthropicError',
     });
   }
