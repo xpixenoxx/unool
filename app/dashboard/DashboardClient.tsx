@@ -82,6 +82,7 @@ interface DashboardData {
   profile: Profile | null;
   recentPosts: Post[];
   usageStats: UsageStats;
+  connections: Record<string, { status: 'connected' | 'not_connected' | 'expired' }>;
   planTier: 'free' | 'pro' | 'enterprise';
   userId: string;
   workspaceId: string;
@@ -399,9 +400,9 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           {/* Platform badges */}
           <div className="space-y-3">
             {[
-              { name: 'LinkedIn', icon: '🔗', color: '#0A66C2', connected: true },
-              { name: 'X (Twitter)', icon: '𝕏', color: '#1A1A1A', connected: true },
-              { name: 'Threads', icon: '🧵', color: '#000000', connected: false },
+              { name: 'LinkedIn', icon: '🔗', color: '#0A66C2', connected: data.connections['linkedin']?.status === 'connected' },
+              { name: 'X (Twitter)', icon: '𝕏', color: '#1A1A1A', connected: data.connections['twitter']?.status === 'connected' },
+              { name: 'Threads', icon: '🧵', color: '#000000', connected: data.connections['threads']?.status === 'connected' },
             ].map((platform) => (
               <div
                 key={platform.name}

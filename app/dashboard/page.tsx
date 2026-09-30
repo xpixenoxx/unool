@@ -33,6 +33,7 @@ async function getDashboardData(): Promise<{
     profileViews: number;
     linkClicks: number;
   };
+  connections: Record<string, { status: 'connected' | 'not_connected' | 'expired' }>;
   planTier: 'free' | 'pro' | 'enterprise';
   userId: string;
   workspaceId: string;
@@ -43,6 +44,7 @@ async function getDashboardData(): Promise<{
       profile: null,
       recentPosts: [],
       usageStats: { postsThisMonth: 0, postsLimit: 12, profileViews: 0, linkClicks: 0 },
+      connections: {},
       planTier: 'free',
       userId: '',
       workspaceId: '',
@@ -77,6 +79,20 @@ async function getDashboardData(): Promise<{
   // Get usage stats
   const usage = await getCurrentUsage(supabaseAdmin, workspaceId, userId);
 
+  // Fetch connections
+  const { data: connectionsData } = await supabaseAdmin
+    .from('platform_connections')
+    .select('platform, expires_at')
+    .eq('workspace_id', workspaceId);
+
+  const connections: Record<string, { status: 'connected' | 'not_connected' | 'expired' }> = {};
+  if (connectionsData) {
+    for (const c of connectionsData) {
+      const isExpired = c.expires_at && new Date(c.expires_at) <= new Date();
+      connections[c.platform] = { status: isExpired ? 'expired' : 'connected' };
+    }
+  }
+
   return {
     profile: profile
       ? {
@@ -96,6 +112,7 @@ async function getDashboardData(): Promise<{
       profileViews: usage.profileViews || 0,
       linkClicks: usage.linkClicks || 0,
     },
+    connections,
     planTier: tier,
     userId,
     workspaceId,
