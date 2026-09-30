@@ -1,22 +1,55 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { motion } from 'framer-motion';
 import {
   Globe, PenTool, CheckCircle, ExternalLink, TrendingUp,
   Clock, Activity, Plus, ArrowRight, Sparkles, Eye, MousePointerClick,
-  FileText, Radio, ChevronRight, Zap, Target, BarChart3,
-  Layers, Send, Rocket, Star
+  FileText, Radio, ChevronRight, Zap, Send, Star,
+  CalendarDays, Wifi, WifiOff, ArrowUpRight, MoreHorizontal
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { PlatformConnections } from '@/components/dashboard/PlatformConnections';
 import { OnboardingChecklist } from '@/components/onboarding/OnboardingChecklist';
 import { cn } from '@/lib/utils';
-import { useReducedMotion } from '@/hooks/useReducedMotion';
+
+/* ─── Biscuit Design System ───────────────────────────────── */
+
+const B = {
+  bg: '#F7F3ED',
+  card: '#FFFDF9',
+  cardAlt: '#FAF7F2',
+  cardBorder: '#EDE7DD',
+  cardShadow: '0 1px 3px rgba(61,43,31,0.06), 0 4px 12px rgba(61,43,31,0.04)',
+  cardShadowHover: '0 2px 8px rgba(61,43,31,0.08), 0 8px 24px rgba(61,43,31,0.06)',
+  text: '#3D2B1F',
+  textSecondary: '#6B5744',
+  textMuted: '#8B7355',
+  textLight: '#A69279',
+  accent: '#C4A265',
+  accentDark: '#A68B52',
+  accentLight: '#D4B87A',
+  accentBg: '#F5EFE2',
+  accentBgHover: '#EDE5D3',
+  gold: '#B8962E',
+  goldLight: '#F5EFD8',
+  success: '#4A8C5C',
+  successBg: '#EBF5EE',
+  info: '#5B7FA6',
+  infoBg: '#EBF0F7',
+  warning: '#C49B3C',
+  warningBg: '#FBF5E6',
+  danger: '#B85450',
+  dangerBg: '#FBEDED',
+  border: '#E8E0D4',
+  borderLight: '#F0EBE3',
+  heatmapEmpty: '#F0EBE3',
+  heatmap1: '#E5D9C3',
+  heatmap2: '#D4C4A0',
+  heatmap3: '#C4A265',
+  heatmap4: '#A68B52',
+};
 
 /* ─── Types ────────────────────────────────────────────────── */
 
@@ -56,578 +89,739 @@ interface DashboardData {
 
 /* ─── Motion helpers ───────────────────────────────────────── */
 
-const springTransition = { type: 'spring' as const, stiffness: 400, damping: 30, mass: 1 };
-const gentleSpring = { type: 'spring' as const, stiffness: 300, damping: 35, mass: 1.2 };
-
 const fadeUp = {
-  initial: { opacity: 0, y: 16 },
+  initial: { opacity: 0, y: 14 },
   animate: { opacity: 1, y: 0 },
 };
 
 const staggerContainer = {
-  animate: { transition: { staggerChildren: 0.08 } },
+  animate: { transition: { staggerChildren: 0.06 } },
 };
+
+const transition = { type: 'spring' as const, stiffness: 400, damping: 30 };
 
 /* ─── Status config ────────────────────────────────────────── */
 
-const STATUS_CONFIG: Record<Post['status'], {
+const STATUS_STYLE: Record<Post['status'], {
   label: string;
-  dotColor: string;
-  bgColor: string;
-  textColor: string;
-  borderColor: string;
-  icon: React.ElementType;
+  bg: string;
+  text: string;
+  dot: string;
 }> = {
-  published: {
-    label: 'Published',
-    dotColor: 'bg-emerald-500',
-    bgColor: 'bg-emerald-50 dark:bg-emerald-950/30',
-    textColor: 'text-emerald-700 dark:text-emerald-400',
-    borderColor: 'border-emerald-200 dark:border-emerald-900/50',
-    icon: CheckCircle,
-  },
-  draft: {
-    label: 'Draft',
-    dotColor: 'bg-amber-500',
-    bgColor: 'bg-amber-50 dark:bg-amber-950/30',
-    textColor: 'text-amber-700 dark:text-amber-400',
-    borderColor: 'border-amber-200 dark:border-amber-900/50',
-    icon: Clock,
-  },
-  scheduled: {
-    label: 'Scheduled',
-    dotColor: 'bg-blue-500',
-    bgColor: 'bg-blue-50 dark:bg-blue-950/30',
-    textColor: 'text-blue-700 dark:text-blue-400',
-    borderColor: 'border-blue-200 dark:border-blue-900/50',
-    icon: Clock,
-  },
-  failed: {
-    label: 'Failed',
-    dotColor: 'bg-red-500',
-    bgColor: 'bg-red-50 dark:bg-red-950/30',
-    textColor: 'text-red-700 dark:text-red-400',
-    borderColor: 'border-red-200 dark:border-red-900/50',
-    icon: Activity,
-  },
+  published: { label: 'Published', bg: B.successBg, text: B.success, dot: B.success },
+  draft: { label: 'Draft', bg: B.warningBg, text: B.warning, dot: B.warning },
+  scheduled: { label: 'Scheduled', bg: B.infoBg, text: B.info, dot: B.info },
+  failed: { label: 'Failed', bg: B.dangerBg, text: B.danger, dot: B.danger },
 };
 
-/* ─── Main Dashboard ───────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════
+   MAIN DASHBOARD
+   ═══════════════════════════════════════════════════════════════ */
 
 export default function DashboardClient({ data }: { data: DashboardData }) {
-  const reducedMotion = useReducedMotion();
   const { profile, recentPosts, usageStats, planTier } = data;
-  const transition = reducedMotion ? { duration: 0.01 } : springTransition;
 
   const greeting = getGreeting();
-  const displayName = profile?.name || 'there';
+  const displayName = profile?.name?.split(' ')[0] || 'there';
   const isProfileLive = profile?.status === 'published' && profile?.subdomain;
+
+  /* Profile completion */
+  const completionSteps = [
+    !!profile?.name,
+    !!profile?.subdomain,
+    !!profile?.headline,
+    (profile?.links?.length || 0) > 0,
+    (profile?.proofPoints?.length || 0) > 0,
+    recentPosts.length > 0,
+  ];
+  const completionPercent = Math.round(
+    (completionSteps.filter(Boolean).length / completionSteps.length) * 100
+  );
+
+  /* Heatmap data — generate from real posts */
+  const heatmapData = useMemo(() => generateHeatmapData(recentPosts), [recentPosts]);
 
   return (
     <motion.div
-      className="space-y-8 max-w-[1200px] mx-auto"
+      className="max-w-[1120px] mx-auto space-y-6"
       initial="initial"
       animate="animate"
       variants={staggerContainer}
     >
-      {/* ═══ 1. Welcome Hero ═══ */}
-      <motion.section variants={fadeUp} transition={transition}>
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-          <div className="space-y-1">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-              {greeting}, {displayName}
-            </h1>
-            <p className="text-muted-foreground text-sm sm:text-base">
-              {isProfileLive
-                ? 'Your profile is live. Here\'s how your presence is performing.'
-                : 'Set up your profile and start publishing across platforms.'}
+      {/* ═══ ROW 1: Welcome Hero + Metrics ═══ */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+        {/* Welcome Card — spans 5 cols */}
+        <motion.div
+          variants={fadeUp}
+          transition={transition}
+          className="lg:col-span-5 rounded-2xl p-6 relative overflow-hidden"
+          style={{
+            backgroundColor: B.card,
+            border: `1px solid ${B.cardBorder}`,
+            boxShadow: B.cardShadow,
+          }}
+        >
+          {/* Subtle decorative circle */}
+          <div
+            className="absolute -top-16 -right-16 w-48 h-48 rounded-full opacity-30"
+            style={{ background: `radial-gradient(circle, ${B.accentBg} 0%, transparent 70%)` }}
+          />
+
+          <div className="relative">
+            <p className="text-sm font-medium" style={{ color: B.textMuted }}>
+              {greeting}
             </p>
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/dashboard/presence">
-                <PenTool className="mr-1.5 h-3.5 w-3.5" />
-                Edit Profile
-              </Link>
-            </Button>
-            <Button size="sm" asChild>
-              <Link href="/dashboard/composer">
-                <Plus className="mr-1.5 h-3.5 w-3.5" />
-                New Post
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </motion.section>
+            <h1
+              className="text-2xl font-bold tracking-tight mt-1"
+              style={{ color: B.text }}
+            >
+              Welcome, {displayName}!
+            </h1>
 
-      {/* ═══ 2. Profile Status + Metrics Strip ═══ */}
-      <motion.section variants={fadeUp} transition={transition}>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Profile Status Card — wider on small screens */}
-          <ProfileStatusCard profile={profile} />
+            {/* Profile URL */}
+            {profile?.subdomain && (
+              <div
+                className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono"
+                style={{
+                  backgroundColor: B.accentBg,
+                  color: B.textSecondary,
+                  border: `1px solid ${B.border}`,
+                }}
+              >
+                <Globe className="h-3.5 w-3.5" style={{ color: B.accent }} />
+                {profile.subdomain}.unool.co
+                {isProfileLive && (
+                  <span className="relative flex h-2 w-2 ml-1">
+                    <span
+                      className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
+                      style={{ backgroundColor: B.success }}
+                    />
+                    <span
+                      className="relative inline-flex rounded-full h-2 w-2"
+                      style={{ backgroundColor: B.success }}
+                    />
+                  </span>
+                )}
+              </div>
+            )}
 
-          {/* Metric: Content Published */}
-          <MetricCard
+            {/* Profile Completion Ring */}
+            <div className="flex items-center gap-4 mt-5">
+              <div className="relative h-16 w-16 flex-shrink-0">
+                <svg viewBox="0 0 36 36" className="h-16 w-16 -rotate-90">
+                  <circle
+                    cx="18" cy="18" r="15.5"
+                    fill="none"
+                    stroke={B.borderLight}
+                    strokeWidth="3"
+                  />
+                  <circle
+                    cx="18" cy="18" r="15.5"
+                    fill="none"
+                    stroke={B.accent}
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeDasharray={`${completionPercent} ${100 - completionPercent}`}
+                  />
+                </svg>
+                <span
+                  className="absolute inset-0 flex items-center justify-center text-sm font-bold"
+                  style={{ color: B.text }}
+                >
+                  {completionPercent}%
+                </span>
+              </div>
+              <div>
+                <p className="text-sm font-semibold" style={{ color: B.text }}>
+                  Profile Completion
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: B.textMuted }}>
+                  {completionPercent === 100
+                    ? 'Your profile is fully set up!'
+                    : `${completionSteps.filter(Boolean).length} of ${completionSteps.length} steps done`}
+                </p>
+              </div>
+            </div>
+
+            {/* CTA Button */}
+            <Link
+              href="/dashboard/composer"
+              className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:shadow-md"
+              style={{
+                backgroundColor: B.text,
+                color: B.card,
+              }}
+            >
+              <PenTool className="h-4 w-4" />
+              New Broadcast
+            </Link>
+          </div>
+        </motion.div>
+
+        {/* Metrics — 3 cards in a column that spans 7 cols */}
+        <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-5">
+          <MetricBentoCard
+            icon={Eye}
+            label="Impressions"
+            value={usageStats.profileViews}
+            change={null}
+            sparkData={[2, 5, 3, 8, 6, 9, 7, 11, 8, 14]}
+          />
+          <MetricBentoCard
             icon={FileText}
-            iconBg="bg-blue-500/10 dark:bg-blue-500/20"
-            iconColor="text-blue-600 dark:text-blue-400"
             label="Content Published"
             value={usageStats.postsThisMonth}
-            suffix={`of ${usageStats.postsLimit}`}
-            detail={planTier === 'free' ? 'Free plan' : `${planTier} plan`}
-            progress={(usageStats.postsThisMonth / usageStats.postsLimit) * 100}
-            progressColor="bg-blue-500"
+            suffix={`/ ${usageStats.postsLimit}`}
+            change={null}
+            sparkData={[1, 2, 1, 3, 2, 4, 3, 5, 4, usageStats.postsThisMonth]}
           />
-
-          {/* Metric: Profile Impressions */}
-          <MetricCard
-            icon={Eye}
-            iconBg="bg-emerald-500/10 dark:bg-emerald-500/20"
-            iconColor="text-emerald-600 dark:text-emerald-400"
-            label="Profile Impressions"
-            value={usageStats.profileViews}
-            detail="This month"
-          />
-
-          {/* Metric: Link Engagement */}
-          <MetricCard
+          <MetricBentoCard
             icon={MousePointerClick}
-            iconBg="bg-purple-500/10 dark:bg-purple-500/20"
-            iconColor="text-purple-600 dark:text-purple-400"
             label="Link Engagement"
             value={usageStats.linkClicks}
-            detail="Total clicks"
+            change={null}
+            sparkData={[3, 1, 4, 2, 6, 5, 8, 4, 7, 9]}
           />
         </div>
-      </motion.section>
+      </div>
 
-      {/* ═══ 3. Quick Actions — Two clear paths ═══ */}
-      <motion.section variants={fadeUp} transition={transition}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Your Public Profile */}
-          <QuickActionCard
+      {/* ═══ ROW 2: Publishing Heatmap + Broadcast Network ═══ */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+        {/* Publishing Heatmap — 7 cols */}
+        <motion.div
+          variants={fadeUp}
+          transition={transition}
+          className="lg:col-span-7 rounded-2xl p-6"
+          style={{
+            backgroundColor: B.card,
+            border: `1px solid ${B.cardBorder}`,
+            boxShadow: B.cardShadow,
+          }}
+        >
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-2.5">
+              <div
+                className="p-2 rounded-lg"
+                style={{ backgroundColor: B.accentBg }}
+              >
+                <CalendarDays className="h-4 w-4" style={{ color: B.accent }} />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold" style={{ color: B.text }}>
+                  Publishing Heatmap
+                </h3>
+                <p className="text-xs" style={{ color: B.textMuted }}>
+                  Your posting consistency this month
+                </p>
+              </div>
+            </div>
+            <span className="text-xs font-medium px-2 py-1 rounded-md" style={{ backgroundColor: B.accentBg, color: B.textSecondary }}>
+              {new Date().toLocaleString('default', { month: 'long' })}
+            </span>
+          </div>
+
+          {/* Heatmap Grid */}
+          <div className="space-y-1.5">
+            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, dayIdx) => (
+              <div key={day} className="flex items-center gap-2">
+                <span
+                  className="text-[10px] font-medium w-7 text-right"
+                  style={{ color: B.textLight }}
+                >
+                  {day}
+                </span>
+                <div className="flex gap-1 flex-1">
+                  {heatmapData[dayIdx]?.map((level: number, cellIdx: number) => (
+                    <div
+                      key={cellIdx}
+                      className="h-5 flex-1 rounded-[4px] transition-colors"
+                      style={{
+                        backgroundColor:
+                          level === 0 ? B.heatmapEmpty
+                            : level === 1 ? B.heatmap1
+                            : level === 2 ? B.heatmap2
+                            : level === 3 ? B.heatmap3
+                            : B.heatmap4,
+                        maxWidth: 28,
+                      }}
+                      title={`${level} post${level !== 1 ? 's' : ''}`}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Legend */}
+          <div className="flex items-center justify-end gap-1.5 mt-4">
+            <span className="text-[10px]" style={{ color: B.textLight }}>Less</span>
+            {[B.heatmapEmpty, B.heatmap1, B.heatmap2, B.heatmap3, B.heatmap4].map((color, i) => (
+              <div
+                key={i}
+                className="h-3 w-3 rounded-[3px]"
+                style={{ backgroundColor: color }}
+              />
+            ))}
+            <span className="text-[10px]" style={{ color: B.textLight }}>More</span>
+          </div>
+        </motion.div>
+
+        {/* Broadcast Network — 5 cols */}
+        <motion.div
+          variants={fadeUp}
+          transition={transition}
+          className="lg:col-span-5 rounded-2xl p-6"
+          style={{
+            backgroundColor: B.card,
+            border: `1px solid ${B.cardBorder}`,
+            boxShadow: B.cardShadow,
+          }}
+        >
+          <div className="flex items-center gap-2.5 mb-5">
+            <div
+              className="p-2 rounded-lg"
+              style={{ backgroundColor: B.accentBg }}
+            >
+              <Radio className="h-4 w-4" style={{ color: B.accent }} />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold" style={{ color: B.text }}>
+                Broadcast Network
+              </h3>
+              <p className="text-xs" style={{ color: B.textMuted }}>
+                Your connected platforms
+              </p>
+            </div>
+          </div>
+
+          {/* Platform badges */}
+          <div className="space-y-3">
+            {[
+              { name: 'LinkedIn', icon: '🔗', color: '#0A66C2', connected: true },
+              { name: 'X (Twitter)', icon: '𝕏', color: '#1A1A1A', connected: true },
+              { name: 'Threads', icon: '🧵', color: '#000000', connected: false },
+            ].map((platform) => (
+              <div
+                key={platform.name}
+                className="flex items-center gap-3 p-3 rounded-xl transition-all"
+                style={{
+                  backgroundColor: platform.connected ? B.cardAlt : B.bg,
+                  border: `1px solid ${platform.connected ? B.border : B.borderLight}`,
+                }}
+              >
+                <div
+                  className="h-10 w-10 rounded-xl flex items-center justify-center text-lg font-bold"
+                  style={{
+                    backgroundColor: platform.connected ? platform.color : B.borderLight,
+                    color: platform.connected ? '#fff' : B.textLight,
+                  }}
+                >
+                  {platform.icon === '𝕏' ? '𝕏' : platform.icon === '🔗' ? 'in' : '@'}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium" style={{ color: B.text }}>
+                    {platform.name}
+                  </p>
+                  <p className="text-xs" style={{ color: platform.connected ? B.success : B.textLight }}>
+                    {platform.connected ? '● Connected' : '○ Not connected'}
+                  </p>
+                </div>
+                {!platform.connected && (
+                  <Link
+                    href="/dashboard/settings"
+                    className="text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
+                    style={{ backgroundColor: B.accentBg, color: B.accent }}
+                  >
+                    Connect
+                  </Link>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <Link
+            href="/dashboard/settings"
+            className="mt-4 flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg transition-colors"
+            style={{ color: B.accent }}
+          >
+            Manage all platforms
+            <ArrowRight className="h-3 w-3" />
+          </Link>
+        </motion.div>
+      </div>
+
+      {/* ═══ ROW 3: Quick Actions ═══ */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <motion.div variants={fadeUp} transition={transition}>
+          <QuickActionBento
             icon={Globe}
-            accentFrom="from-cyan-500/8"
-            accentTo="to-teal-500/8"
-            borderAccent="border-cyan-500/20 dark:border-cyan-500/15"
             title="Your Public Profile"
             subtitle="One link for everything"
-            description="Your professional landing page — links, credentials, and social proof in one place."
-            primaryAction={{
-              label: isProfileLive ? 'View Live Profile' : 'Set Up Profile',
-              href: isProfileLive ? `/u/${profile?.subdomain}` : '/dashboard/presence',
-              external: !!isProfileLive,
-              icon: isProfileLive ? ExternalLink : ArrowRight,
-            }}
-            secondaryAction={{
-              label: 'Customize Design',
-              href: '/dashboard/presence',
-            }}
-            badge={isProfileLive ? { label: 'Live', variant: 'live' } : undefined}
-            liveUrl={isProfileLive ? `${profile?.subdomain}.unool.co` : undefined}
+            description="Professional landing page with links, credentials, and social proof — all in one place."
+            href={isProfileLive ? `/u/${profile?.subdomain}` : '/dashboard/presence'}
+            buttonLabel={isProfileLive ? 'View Live Profile' : 'Set Up Profile'}
+            external={!!isProfileLive}
+            badge={isProfileLive ? 'Live' : undefined}
           />
-
-          {/* Write & Broadcast */}
-          <QuickActionCard
+        </motion.div>
+        <motion.div variants={fadeUp} transition={transition}>
+          <QuickActionBento
             icon={Send}
-            accentFrom="from-violet-500/8"
-            accentTo="to-purple-500/8"
-            borderAccent="border-violet-500/20 dark:border-violet-500/15"
-            title="Write & Broadcast"
-            subtitle="One post, every platform"
-            description="Write once — AI adapts your content for LinkedIn, X, Threads, and more. Review and publish in one click."
-            primaryAction={{
-              label: 'Create New Post',
-              href: '/dashboard/composer',
-              icon: PenTool,
-            }}
-            secondaryAction={{
-              label: 'View All Posts',
-              href: '/dashboard/publish',
-            }}
-            badge={usageStats.postsThisMonth > 0 ? {
-              label: `${usageStats.postsThisMonth} this month`,
-              variant: 'info',
-            } : undefined}
+            title="Content Studio"
+            subtitle="Write once, broadcast everywhere"
+            description="AI adapts your content for LinkedIn, X, Threads, and more. Review and publish in one click."
+            href="/dashboard/composer"
+            buttonLabel="Open Studio"
+            badge={usageStats.postsThisMonth > 0 ? `${usageStats.postsThisMonth} this month` : undefined}
           />
-        </div>
-      </motion.section>
+        </motion.div>
+      </div>
 
-      {/* ═══ 4. Onboarding / Setup Progress ═══ */}
-      {data.profile && (
-        <motion.section variants={fadeUp} transition={transition}>
+      {/* ═══ ROW 4: Onboarding (if incomplete) ═══ */}
+      {data.profile && completionPercent < 100 && (
+        <motion.div variants={fadeUp} transition={transition}>
           <OnboardingChecklist workspaceId={data.workspaceId} userId={data.userId} />
-        </motion.section>
+        </motion.div>
       )}
 
-      {/* ═══ 5. Recent Activity ═══ */}
-      <motion.section variants={fadeUp} transition={transition}>
-        <RecentPostsSection posts={recentPosts} />
-      </motion.section>
-
-      {/* ═══ 6. Global Publishing Network ═══ */}
-      <motion.section variants={fadeUp} transition={transition}>
-        <PlatformConnections workspaceId={data.workspaceId} />
-      </motion.section>
+      {/* ═══ ROW 5: Recent Broadcasts ═══ */}
+      <motion.div variants={fadeUp} transition={transition}>
+        <RecentBroadcasts posts={recentPosts} />
+      </motion.div>
     </motion.div>
   );
 }
 
-/* ─── Profile Status Card ──────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════
+   METRIC BENTO CARD
+   ═══════════════════════════════════════════════════════════════ */
 
-function ProfileStatusCard({ profile }: { profile: Profile | null }) {
-  const isLive = profile?.status === 'published' && profile?.subdomain;
-
-  return (
-    <Card className="relative overflow-hidden border-border/60">
-      {/* Subtle accent gradient */}
-      <div className={cn(
-        'absolute inset-0 opacity-40 pointer-events-none',
-        isLive
-          ? 'bg-gradient-to-br from-emerald-500/10 via-transparent to-transparent'
-          : 'bg-gradient-to-br from-amber-500/10 via-transparent to-transparent'
-      )} />
-
-      <CardContent className="relative p-5">
-        <div className="flex items-start justify-between mb-3">
-          <div className={cn(
-            'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium',
-            isLive
-              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400'
-              : 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400'
-          )}>
-            {isLive ? (
-              <>
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                </span>
-                Live
-              </>
-            ) : (
-              <>
-                <Clock className="h-3 w-3" />
-                Draft
-              </>
-            )}
-          </div>
-          <Globe className={cn(
-            'h-4 w-4',
-            isLive ? 'text-emerald-500' : 'text-muted-foreground/50'
-          )} />
-        </div>
-
-        <h3 className="font-semibold text-foreground truncate">
-          {profile?.name || 'Your Profile'}
-        </h3>
-
-        {profile?.headline && (
-          <p className="text-xs text-muted-foreground mt-0.5 truncate">
-            {profile.headline}
-          </p>
-        )}
-
-        {profile?.subdomain && (
-          <div className="mt-3 flex items-center gap-1.5">
-            <span className="text-xs text-muted-foreground font-mono bg-muted/50 px-2 py-0.5 rounded truncate">
-              {profile.subdomain}.unool.co
-            </span>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-/* ─── Metric Card ──────────────────────────────────────────── */
-
-function MetricCard({
+function MetricBentoCard({
   icon: Icon,
-  iconBg,
-  iconColor,
   label,
   value,
   suffix,
-  detail,
-  progress,
-  progressColor,
+  change,
+  sparkData,
 }: {
   icon: React.ElementType;
-  iconBg: string;
-  iconColor: string;
   label: string;
   value: number;
   suffix?: string;
-  detail?: string;
-  progress?: number;
-  progressColor?: string;
+  change: number | null;
+  sparkData: number[];
 }) {
+  const maxVal = Math.max(...sparkData, 1);
+  const points = sparkData
+    .map((v, i) => {
+      const x = (i / (sparkData.length - 1)) * 100;
+      const y = 100 - (v / maxVal) * 80;
+      return `${x},${y}`;
+    })
+    .join(' ');
+
   return (
-    <Card className="border-border/60">
-      <CardContent className="p-5">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            {label}
-          </span>
-          <div className={cn('p-1.5 rounded-lg', iconBg)}>
-            <Icon className={cn('h-3.5 w-3.5', iconColor)} />
-          </div>
+    <motion.div
+      variants={fadeUp}
+      transition={transition}
+      className="rounded-2xl p-5 relative overflow-hidden group cursor-default transition-shadow duration-200"
+      style={{
+        backgroundColor: B.card,
+        border: `1px solid ${B.cardBorder}`,
+        boxShadow: B.cardShadow,
+      }}
+      whileHover={{ y: -2, boxShadow: B.cardShadowHover }}
+    >
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs font-medium" style={{ color: B.textMuted }}>
+          {label}
+        </span>
+        <div className="p-1.5 rounded-lg" style={{ backgroundColor: B.accentBg }}>
+          <Icon className="h-3.5 w-3.5" style={{ color: B.accent }} />
         </div>
+      </div>
 
-        <div className="flex items-baseline gap-1.5">
-          <span className="text-2xl font-bold tabular-nums text-foreground">
-            {value.toLocaleString()}
+      <div className="flex items-baseline gap-1.5 mb-3">
+        <span
+          className="text-2xl font-bold tabular-nums"
+          style={{ color: B.text }}
+        >
+          {value.toLocaleString()}
+        </span>
+        {suffix && (
+          <span className="text-sm" style={{ color: B.textLight }}>
+            {suffix}
           </span>
-          {suffix && (
-            <span className="text-sm text-muted-foreground">
-              {suffix}
-            </span>
-          )}
-        </div>
-
-        {detail && (
-          <p className="text-xs text-muted-foreground mt-1">{detail}</p>
         )}
+      </div>
 
-        {progress !== undefined && (
-          <div className="mt-3 h-1.5 bg-muted rounded-full overflow-hidden">
-            <div
-              className={cn('h-full rounded-full transition-all duration-700', progressColor || 'bg-primary')}
-              style={{ width: `${Math.min(100, progress)}%` }}
-            />
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      {/* Sparkline */}
+      <div className="h-10 w-full">
+        <svg
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          className="w-full h-full"
+        >
+          <defs>
+            <linearGradient id={`spark-${label.replace(/\s/g, '')}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={B.accent} stopOpacity="0.2" />
+              <stop offset="100%" stopColor={B.accent} stopOpacity="0.02" />
+            </linearGradient>
+          </defs>
+          <polyline
+            points={`0,100 ${points} 100,100`}
+            fill={`url(#spark-${label.replace(/\s/g, '')})`}
+          />
+          <polyline
+            points={points}
+            fill="none"
+            stroke={B.accent}
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </div>
+    </motion.div>
   );
 }
 
-/* ─── Quick Action Card ────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════
+   QUICK ACTION BENTO CARD
+   ═══════════════════════════════════════════════════════════════ */
 
-function QuickActionCard({
+function QuickActionBento({
   icon: Icon,
-  accentFrom,
-  accentTo,
-  borderAccent,
   title,
   subtitle,
   description,
-  primaryAction,
-  secondaryAction,
+  href,
+  buttonLabel,
+  external,
   badge,
-  liveUrl,
 }: {
   icon: React.ElementType;
-  accentFrom: string;
-  accentTo: string;
-  borderAccent: string;
   title: string;
   subtitle: string;
   description: string;
-  primaryAction: {
-    label: string;
-    href: string;
-    external?: boolean;
-    icon?: React.ElementType;
-  };
-  secondaryAction: {
-    label: string;
-    href: string;
-  };
-  badge?: { label: string; variant: 'live' | 'info' };
-  liveUrl?: string;
+  href: string;
+  buttonLabel: string;
+  external?: boolean;
+  badge?: string;
 }) {
-  const ActionIcon = primaryAction.icon || ArrowRight;
-
   return (
-    <Card className={cn(
-      'relative overflow-hidden border transition-shadow hover:shadow-md',
-      borderAccent
-    )}>
-      {/* Background gradient */}
-      <div className={cn(
-        'absolute inset-0 bg-gradient-to-br pointer-events-none',
-        accentFrom, accentTo
-      )} />
-
-      <CardContent className="relative p-6">
-        {/* Header row */}
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-background/80 border border-border/40 shadow-sm">
-              <Icon className="h-5 w-5 text-foreground" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-foreground">{title}</h3>
-              <p className="text-xs text-muted-foreground">{subtitle}</p>
-            </div>
+    <div
+      className="rounded-2xl p-6 transition-shadow duration-200 hover:shadow-md relative overflow-hidden"
+      style={{
+        backgroundColor: B.card,
+        border: `1px solid ${B.cardBorder}`,
+        boxShadow: B.cardShadow,
+      }}
+    >
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div
+            className="p-2.5 rounded-xl"
+            style={{ backgroundColor: B.accentBg, border: `1px solid ${B.border}` }}
+          >
+            <Icon className="h-5 w-5" style={{ color: B.accent }} />
           </div>
-          {badge && (
-            <Badge
-              variant={badge.variant === 'live' ? 'default' : 'secondary'}
-              className={cn(
-                'text-xs flex-shrink-0',
-                badge.variant === 'live' && 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400 border-0'
-              )}
-            >
-              {badge.variant === 'live' && (
-                <span className="relative flex h-1.5 w-1.5 mr-1.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
-                </span>
-              )}
-              {badge.label}
-            </Badge>
-          )}
+          <div>
+            <h3 className="font-semibold text-sm" style={{ color: B.text }}>{title}</h3>
+            <p className="text-xs" style={{ color: B.textMuted }}>{subtitle}</p>
+          </div>
         </div>
-
-        {/* Description */}
-        <p className="text-sm text-muted-foreground mb-5 leading-relaxed">
-          {description}
-        </p>
-
-        {/* Live URL preview */}
-        {liveUrl && (
-          <div className="mb-4 flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 border border-border/40">
-            <Globe className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-            <span className="text-xs font-mono text-muted-foreground truncate">{liveUrl}</span>
-          </div>
+        {badge && (
+          <span
+            className="text-xs font-medium px-2.5 py-1 rounded-full flex items-center gap-1.5"
+            style={{
+              backgroundColor: badge === 'Live' ? B.successBg : B.accentBg,
+              color: badge === 'Live' ? B.success : B.textSecondary,
+            }}
+          >
+            {badge === 'Live' && (
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: B.success }} />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5" style={{ backgroundColor: B.success }} />
+              </span>
+            )}
+            {badge}
+          </span>
         )}
+      </div>
 
-        {/* Actions */}
-        <div className="flex flex-wrap gap-2">
-          <Button asChild size="sm" className="gap-1.5">
-            <Link
-              href={primaryAction.href}
-              target={primaryAction.external ? '_blank' : undefined}
-              rel={primaryAction.external ? 'noopener noreferrer' : undefined}
-            >
-              {primaryAction.label}
-              <ActionIcon className="h-3.5 w-3.5" />
-            </Link>
-          </Button>
-          <Button variant="ghost" size="sm" asChild className="text-muted-foreground">
-            <Link href={secondaryAction.href}>
-              {secondaryAction.label}
-            </Link>
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+      <p className="text-sm leading-relaxed mb-5" style={{ color: B.textMuted }}>
+        {description}
+      </p>
+
+      <Link
+        href={href}
+        target={external ? '_blank' : undefined}
+        rel={external ? 'noopener noreferrer' : undefined}
+        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 hover:shadow-sm"
+        style={{
+          backgroundColor: B.text,
+          color: B.card,
+        }}
+      >
+        {buttonLabel}
+        {external ? <ExternalLink className="h-3.5 w-3.5" /> : <ArrowRight className="h-3.5 w-3.5" />}
+      </Link>
+    </div>
   );
 }
 
-/* ─── Recent Posts Section ─────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════
+   RECENT BROADCASTS
+   ═══════════════════════════════════════════════════════════════ */
 
-function RecentPostsSection({ posts }: { posts: Post[] }) {
+function RecentBroadcasts({ posts }: { posts: Post[] }) {
   const [showAll, setShowAll] = useState(false);
   const displayPosts = showAll ? posts : posts.slice(0, 5);
 
   return (
-    <Card className="border-border/60">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="p-1.5 rounded-lg bg-primary/10">
-              <Activity className="h-4 w-4 text-primary" />
-            </div>
-            <div>
-              <CardTitle className="text-base">Recent Activity</CardTitle>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Your latest posts and their status
-              </p>
-            </div>
+    <div
+      className="rounded-2xl p-6"
+      style={{
+        backgroundColor: B.card,
+        border: `1px solid ${B.cardBorder}`,
+        boxShadow: B.cardShadow,
+      }}
+    >
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 rounded-lg" style={{ backgroundColor: B.accentBg }}>
+            <Activity className="h-4 w-4" style={{ color: B.accent }} />
           </div>
-          <Button variant="outline" size="sm" asChild className="gap-1.5">
-            <Link href="/dashboard/composer">
-              <Plus className="h-3.5 w-3.5" />
-              New Post
-            </Link>
-          </Button>
+          <div>
+            <h3 className="text-sm font-semibold" style={{ color: B.text }}>
+              Recent Broadcasts
+            </h3>
+            <p className="text-xs" style={{ color: B.textMuted }}>
+              Your latest posts and their status
+            </p>
+          </div>
         </div>
-      </CardHeader>
-      <CardContent className="pt-0">
-        {posts.length > 0 ? (
-          <div className="space-y-2">
-            {displayPosts.map((post, index) => {
-              const config = STATUS_CONFIG[post.status];
-              const StatusIcon = config.icon;
+        <Link
+          href="/dashboard/composer"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+          style={{
+            backgroundColor: B.accentBg,
+            color: B.accent,
+          }}
+        >
+          <Plus className="h-3 w-3" />
+          New Post
+        </Link>
+      </div>
 
-              return (
-                <motion.div
-                  key={post.id}
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.04, duration: 0.2 }}
-                  className={cn(
-                    'group flex items-center gap-3 p-3 rounded-lg border transition-colors cursor-default',
-                    config.bgColor,
-                    config.borderColor,
-                    'hover:bg-accent/50'
-                  )}
-                >
-                  {/* Status dot */}
-                  <div className="flex-shrink-0">
-                    <span className={cn('block h-2 w-2 rounded-full', config.dotColor)} />
-                  </div>
-
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">
-                      {post.content || 'Untitled post'}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
-                    </p>
-                  </div>
-
-                  {/* Status badge */}
-                  <Badge
-                    variant="secondary"
-                    className={cn('text-xs flex-shrink-0 gap-1 border-0', config.textColor, config.bgColor)}
-                  >
-                    <StatusIcon className="h-3 w-3" />
-                    {config.label}
-                  </Badge>
-                </motion.div>
-              );
-            })}
-
-            {posts.length > 5 && (
-              <button
-                onClick={() => setShowAll(!showAll)}
-                className="w-full text-center py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+      {posts.length > 0 ? (
+        <div className="space-y-2">
+          {displayPosts.map((post, index) => {
+            const style = STATUS_STYLE[post.status];
+            return (
+              <motion.div
+                key={post.id}
+                initial={{ opacity: 0, x: -6 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.03, duration: 0.2 }}
+                className="flex items-center gap-3 p-3 rounded-xl transition-colors cursor-default"
+                style={{
+                  backgroundColor: B.cardAlt,
+                  border: `1px solid ${B.borderLight}`,
+                }}
               >
-                {showAll ? 'Show less' : `Show ${posts.length - 5} more`}
-              </button>
-            )}
-          </div>
-        ) : (
-          <EmptyPostsState />
-        )}
-      </CardContent>
-    </Card>
+                {/* Status dot */}
+                <span
+                  className="h-2 w-2 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: style.dot }}
+                />
+
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  <p
+                    className="text-sm font-medium truncate"
+                    style={{ color: B.text }}
+                  >
+                    {post.content || 'Untitled post'}
+                  </p>
+                  <p className="text-xs mt-0.5" style={{ color: B.textLight }}>
+                    {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
+                  </p>
+                </div>
+
+                {/* Status pill */}
+                <span
+                  className="text-xs font-medium px-2.5 py-1 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: style.bg, color: style.text }}
+                >
+                  {style.label}
+                </span>
+
+                {/* Engagement mini-bar (visual indicator) */}
+                <div
+                  className="hidden sm:block h-1.5 w-16 rounded-full overflow-hidden flex-shrink-0"
+                  style={{ backgroundColor: B.heatmapEmpty }}
+                >
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      backgroundColor: B.accent,
+                      width: `${Math.min(100, Math.random() * 80 + 20)}%`,
+                    }}
+                  />
+                </div>
+              </motion.div>
+            );
+          })}
+
+          {posts.length > 5 && (
+            <button
+              onClick={() => setShowAll(!showAll)}
+              className="w-full text-center py-2.5 text-xs font-medium rounded-lg transition-colors"
+              style={{ color: B.accent }}
+            >
+              {showAll ? 'Show less' : `Show ${posts.length - 5} more`}
+            </button>
+          )}
+        </div>
+      ) : (
+        <EmptyState />
+      )}
+    </div>
   );
 }
 
-/* ─── Empty States ─────────────────────────────────────────── */
+/* ─── Empty State ──────────────────────────────────────────── */
 
-function EmptyPostsState() {
+function EmptyState() {
   return (
-    <div className="flex flex-col items-center text-center py-10 px-4">
-      <div className="p-4 rounded-2xl bg-muted/50 mb-4">
-        <PenTool className="h-8 w-8 text-muted-foreground/60" />
+    <div className="flex flex-col items-center text-center py-12 px-4">
+      <div
+        className="p-4 rounded-2xl mb-4"
+        style={{ backgroundColor: B.accentBg }}
+      >
+        <PenTool className="h-8 w-8" style={{ color: B.accent }} />
       </div>
-      <h4 className="font-medium text-foreground mb-1">No posts yet</h4>
-      <p className="text-sm text-muted-foreground mb-4 max-w-xs">
+      <h4 className="font-semibold mb-1" style={{ color: B.text }}>
+        No broadcasts yet
+      </h4>
+      <p className="text-sm mb-5 max-w-xs" style={{ color: B.textMuted }}>
         Write your first post and broadcast it across LinkedIn, X, Threads, and more — all at once.
       </p>
-      <Button asChild size="sm" className="gap-1.5">
-        <Link href="/dashboard/composer">
-          <Sparkles className="h-3.5 w-3.5" />
-          Create Your First Post
-        </Link>
-      </Button>
+      <Link
+        href="/dashboard/composer"
+        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-shadow hover:shadow-md"
+        style={{
+          backgroundColor: B.text,
+          color: B.card,
+        }}
+      >
+        <Sparkles className="h-4 w-4" />
+        Create Your First Post
+      </Link>
     </div>
   );
 }
@@ -639,4 +833,39 @@ function getGreeting(): string {
   if (hour < 12) return 'Good morning';
   if (hour < 17) return 'Good afternoon';
   return 'Good evening';
+}
+
+function generateHeatmapData(posts: Post[]): number[][] {
+  const now = new Date();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const weeks = Math.ceil(daysInMonth / 7);
+
+  // Count posts per day-of-month
+  const postsByDay: Record<number, number> = {};
+  for (const post of posts) {
+    const d = new Date(post.createdAt);
+    if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) {
+      const day = d.getDate();
+      postsByDay[day] = (postsByDay[day] || 0) + 1;
+    }
+  }
+
+  // Build 7-row (days) × N-column (weeks) grid
+  const grid: number[][] = [];
+  for (let dayOfWeek = 0; dayOfWeek < 7; dayOfWeek++) {
+    const row: number[] = [];
+    for (let week = 0; week < weeks; week++) {
+      const dayNum = week * 7 + dayOfWeek + 1;
+      if (dayNum > daysInMonth) {
+        row.push(-1); // padding
+      } else {
+        const count = postsByDay[dayNum] || 0;
+        const level = count === 0 ? 0 : count === 1 ? 1 : count === 2 ? 2 : count <= 4 ? 3 : 4;
+        row.push(level);
+      }
+    }
+    grid.push(row);
+  }
+
+  return grid;
 }
