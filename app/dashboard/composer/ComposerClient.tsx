@@ -30,6 +30,7 @@ import { Box, Flex, Text, Display } from '@/components/ui/layout';
 import { MotionBox, spring } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { cn } from '@/lib/utils';
+import { getSupabaseBrowserClient } from '@/lib/supabase/browser';
 
 const PLATFORM_CONFIG: Record<PlatformType, { icon: React.ElementType; name: string; maxChars: number; color: string }> = {
   linkedin: { icon: Linkedin, name: 'LinkedIn', maxChars: 3000, color: 'bg-blue-600' },
@@ -115,16 +116,25 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
 
     setIsUploading(true);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      
+      // 1. Get a presigned upload URL from the backend
       const res = await fetch('/api/composer/upload', {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: file.name, contentType: file.type }),
       });
       
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Upload failed');
+      
+      // 2. Upload directly from the browser to Supabase
+      const supabase = getSupabaseBrowserClient();
+      const { error: uploadError } = await supabase.storage
+        .from('post-media')
+        .uploadToSignedUrl(data.path, data.token, file);
+
+      if (uploadError) {
+        throw new Error(`Upload failed: ${uploadError.message}`);
+      }
       
       setMedia({ url: data.url, type: data.type });
       toast.success(`${isVideo ? 'Video' : 'Image'} uploaded successfully`);
