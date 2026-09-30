@@ -95,12 +95,10 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const [planError, setPlanError] = useState<string | null>(null);
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const springConfig: Transition = reducedMotion ? { type: 'tween', duration: 0.01 } : spring.snappy;
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const processFile = async (file: File) => {
     if (!file.type.startsWith('image/')) {
       toast.error('Only image files are supported');
       return;
@@ -129,7 +127,33 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       toast.error(err instanceof Error ? err.message : 'Upload failed');
     } finally {
       setIsUploading(false);
-      e.target.value = ''; // Reset input
+    }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processFile(file);
+    }
+    e.target.value = '';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      processFile(file);
     }
   };
 
@@ -442,12 +466,17 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                 Publish identical content to all connected platforms instantly — no AI adaptation.
               </Text>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent 
+              className={cn("space-y-4 transition-colors", isDragging && "bg-muted/50 rounded-lg")}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
               <Textarea
-                placeholder="What do you want to share? This exact text will be published to all connected platforms."
+                placeholder="What do you want to share? Drag and drop an image here, or type your exact text."
                 value={quickContent}
                 onChange={e => setQuickContent(e.target.value)}
-                className="min-h-[140px] resize-none"
+                className={cn("min-h-[140px] resize-none", isDragging && "bg-transparent border-dashed border-primary")}
                 rows={6}
               />
               <div className="flex items-center justify-between flex-wrap gap-3">
@@ -487,14 +516,10 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                     onChange={handleFileUpload}
                     disabled={isUploading}
                   />
-                  <label htmlFor="media-upload-quick">
-                    <Button variant="outline" size="sm" type="button" asChild disabled={isUploading}>
-                      <span>
-                        {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImagePlus className="mr-2 h-4 w-4" />}
-                        Add Image
-                      </span>
-                    </Button>
-                  </label>
+                  <Button variant="outline" size="sm" type="button" onClick={() => document.getElementById('media-upload-quick')?.click()} disabled={isUploading}>
+                    {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImagePlus className="mr-2 h-4 w-4" />}
+                    Add Image
+                  </Button>
                   {mediaUrl && (
                     <div className="relative inline-block">
                       <img src={mediaUrl} alt="Upload preview" className="h-16 w-16 object-cover rounded-md border" />
@@ -528,12 +553,17 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   Describe what you want to share. AI will adapt it perfectly for each platform.
                 </Text>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent 
+                className={cn("space-y-4 transition-colors", isDragging && "bg-muted/50 rounded-lg")}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
                 <Textarea
-                  placeholder="e.g. 'Just launched v2 of our product with new AI features. We cut setup time by 80%...'"
+                  placeholder="e.g. 'Just launched v2 of our product...' (Drag and drop an image here to attach it!)"
                   value={sourceContent}
                   onChange={e => setSourceContent(e.target.value)}
-                  className="min-h-[140px] resize-none"
+                  className={cn("min-h-[140px] resize-none", isDragging && "bg-transparent border-dashed border-primary")}
                   rows={6}
                 />
                 <div className="flex items-center justify-between flex-wrap gap-3">
@@ -569,14 +599,10 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                       onChange={handleFileUpload}
                       disabled={isUploading}
                     />
-                    <label htmlFor="media-upload-ai">
-                      <Button variant="outline" size="sm" type="button" asChild disabled={isUploading}>
-                        <span>
-                          {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImagePlus className="mr-2 h-4 w-4" />}
-                          Add Image
-                        </span>
-                      </Button>
-                    </label>
+                    <Button variant="outline" size="sm" type="button" onClick={() => document.getElementById('media-upload-ai')?.click()} disabled={isUploading}>
+                      {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImagePlus className="mr-2 h-4 w-4" />}
+                      Add Image
+                    </Button>
                     {mediaUrl && (
                       <div className="relative inline-block">
                         <img src={mediaUrl} alt="Upload preview" className="h-16 w-16 object-cover rounded-md border" />
