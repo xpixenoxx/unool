@@ -141,6 +141,7 @@ export class LinkedInAdapter implements PlatformAdapter {
           const contentType = imageRes.headers.get('content-type') || 'application/octet-stream';
 
           const isVideo = contentType.startsWith('video/');
+          const isPdf = contentType === 'application/pdf';
 
           let mediaUrn = '';
           let uploadUrl = '';
@@ -167,6 +168,26 @@ export class LinkedInAdapter implements PlatformAdapter {
             initData = await initRes.json();
             mediaUrn = initData.value.video;
             // uploadUrl is handled below for videos
+          } else if (isPdf) {
+            const initRes = await fetchWithRetry(`${LINKEDIN_V1_API_BASE}/documents?action=initializeUpload`, {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+                'X-Restli-Protocol-Version': '2.0.0',
+                'LinkedIn-Version': '202606',
+              },
+              body: JSON.stringify({ initializeUploadRequest: { owner: authorUrn } }),
+            });
+
+            if (!initRes.ok) {
+              const errText = await initRes.text();
+              throw new Error(`Failed to initialize document upload: ${errText}`);
+            }
+
+            initData = await initRes.json();
+            mediaUrn = initData.value.document;
+            uploadUrl = initData.value.uploadUrl;
           } else {
             const initRes = await fetchWithRetry(`${LINKEDIN_V1_API_BASE}/images?action=initializeUpload`, {
               method: 'POST',
@@ -256,7 +277,12 @@ export class LinkedInAdapter implements PlatformAdapter {
           }
 
           // 4. Set content object for post payload
-          contentObj = { media: { id: mediaUrn } };
+          contentObj = { 
+            media: { 
+              id: mediaUrn,
+              ...(isPdf ? { title: 'Attached Document' } : {}) 
+            } 
+          };
         } catch (error) {
           logger.error('LinkedIn media upload failed', { error });
           // Fall back to text post if image fails, or throw? Better to throw so user knows.

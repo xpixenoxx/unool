@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
         token: data.token,
         path: data.path,
         url: publicUrlData.publicUrl,
-        type: contentType.startsWith('video/') ? 'video' : 'image',
+        type: contentType === 'application/pdf' ? 'document' : contentType.startsWith('video/') ? 'video' : 'image',
       });
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));

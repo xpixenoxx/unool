@@ -23,6 +23,7 @@ import {
   AlertTriangle,
   RefreshCw,
   ImagePlus,
+  FileText,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -94,7 +95,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [planError, setPlanError] = useState<string | null>(null);
-  const [media, setMedia] = useState<{url: string; type: 'image' | 'video'} | null>(null);
+  const [media, setMedia] = useState<{url: string; type: 'image' | 'video' | 'document'} | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const springConfig: Transition = reducedMotion ? { type: 'tween', duration: 0.01 } : spring.snappy;
@@ -102,15 +103,16 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const processFile = async (file: File) => {
     const isImage = file.type.startsWith('image/');
     const isVideo = file.type.startsWith('video/');
+    const isPdf = file.type === 'application/pdf';
 
-    if (!isImage && !isVideo) {
-      toast.error('Only image and video files are supported');
+    if (!isImage && !isVideo && !isPdf) {
+      toast.error('Only image, video, and PDF files are supported');
       return;
     }
     
-    const sizeLimitMB = isVideo ? 50 : 5;
+    const sizeLimitMB = isVideo || isPdf ? 50 : 5;
     if (file.size > sizeLimitMB * 1024 * 1024) {
-      toast.error(`${isVideo ? 'Video' : 'Image'} must be less than ${sizeLimitMB}MB`);
+      toast.error(`${isPdf ? 'PDF' : isVideo ? 'Video' : 'Image'} must be less than ${sizeLimitMB}MB`);
       return;
     }
 
@@ -137,7 +139,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       }
       
       setMedia({ url: data.url, type: data.type });
-      toast.success(`${isVideo ? 'Video' : 'Image'} uploaded successfully`);
+      toast.success(`${isPdf ? 'PDF document' : isVideo ? 'Video' : 'Image'} uploaded successfully`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Upload failed');
     } finally {
@@ -527,7 +529,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                     type="file"
                     id="media-upload-quick"
                     className="hidden"
-                    accept="image/*,video/*"
+                    accept="image/*,video/*,application/pdf"
                     onChange={handleFileUpload}
                     disabled={isUploading}
                   />
@@ -537,7 +539,12 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   </Button>
                   {media && (
                     <div className="relative inline-block">
-                      {media.type === 'video' ? (
+                      {media.type === 'document' ? (
+                        <div className="h-16 w-16 bg-muted rounded-md border flex flex-col items-center justify-center">
+                          <FileText className="h-6 w-6 text-primary" />
+                          <span className="text-[10px] mt-1 text-muted-foreground">PDF</span>
+                        </div>
+                      ) : media.type === 'video' ? (
                         <video src={media.url} className="h-16 w-16 object-cover rounded-md border" muted />
                       ) : (
                         <img src={media.url} alt="Upload preview" className="h-16 w-16 object-cover rounded-md border" />
@@ -614,7 +621,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                       type="file"
                       id="media-upload-ai"
                       className="hidden"
-                      accept="image/*,video/*"
+                      accept="image/*,video/*,application/pdf"
                       onChange={handleFileUpload}
                       disabled={isUploading}
                     />
@@ -624,7 +631,12 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                     </Button>
                     {media && (
                       <div className="relative inline-block">
-                        {media.type === 'video' ? (
+                        {media.type === 'document' ? (
+                          <div className="h-16 w-16 bg-muted rounded-md border flex flex-col items-center justify-center">
+                            <FileText className="h-6 w-6 text-primary" />
+                            <span className="text-[10px] mt-1 text-muted-foreground">PDF</span>
+                          </div>
+                        ) : media.type === 'video' ? (
                           <video src={media.url} className="h-16 w-16 object-cover rounded-md border" muted />
                         ) : (
                           <img src={media.url} alt="Upload preview" className="h-16 w-16 object-cover rounded-md border" />
