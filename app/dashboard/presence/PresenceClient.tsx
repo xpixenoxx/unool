@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Globe, PenTool, Loader2, Sparkles, Trash2, Palette, Link as LinkIcon, ExternalLink, Plus, CheckCircle, AlertCircle, Trash, ArrowRight, Shield, Activity, CalendarDays, MousePointerClick } from 'lucide-react';
+import { Globe, PenTool, Loader2, Sparkles, Trash2, Palette, Link as LinkIcon, ExternalLink, Plus, CheckCircle, AlertCircle, Trash, ArrowRight, Shield, Activity, CalendarDays, MousePointerClick, UploadCloud, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { TEMPLATE_REGISTRY } from '@/components/profile/templates/registry';
@@ -118,6 +118,7 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
   const [saving, setSaving] = useState(false);
   const [claimingSubdomain, setClaimingSubdomain] = useState(false);
   const [deletingSubdomain, setDeletingSubdomain] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [sourceUrl, setSourceUrl] = useState('');
   const [subdomain, setSubdomain] = useState('');
   const [subdomainAvailable, setSubdomainAvailable] = useState<boolean | null>(null);
@@ -248,6 +249,59 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
       toast.success('Subdomain deleted');
     } catch (err) { toast.error('Failed to delete subdomain'); }
     finally { setDeletingSubdomain(false); }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement> | React.DragEvent<HTMLDivElement>) => {
+    let file: File | null = null;
+    
+    if ('dataTransfer' in e) {
+      e.preventDefault();
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        file = e.dataTransfer.files[0];
+      }
+    } else if (e.target.files && e.target.files[0]) {
+      file = e.target.files[0];
+    }
+
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) { // 5MB limit
+      toast.error('Image must be less than 5MB');
+      return;
+    }
+
+    setIsUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/profile/avatar', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to upload image');
+      }
+
+      const data = await res.json();
+      setProfile(prev => ({ ...prev, avatarUrl: data.url }));
+      toast.success('Avatar uploaded successfully');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Error uploading image');
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
   };
 
   const handleSave = async () => {
@@ -472,8 +526,58 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium ml-1" style={{ color: B.textMuted }}>Avatar / Logo URL (Optional)</label>
-                  <input value={profile.avatarUrl || ''} onChange={e => setProfile({...profile, avatarUrl: e.target.value})} className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none" style={{ backgroundColor: B.bg, border: `1px solid ${B.border}`, color: B.text }} placeholder="https://example.com/logo.png" />
+                  <label className="text-xs font-medium ml-1" style={{ color: B.textMuted }}>Avatar / Logo Image</label>
+                  
+                  <div 
+                    onDrop={handleImageUpload}
+                    onDragOver={handleDragOver}
+                    className="relative w-full border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center gap-3 transition-colors hover:bg-black/5"
+                    style={{ borderColor: B.border, backgroundColor: B.bg }}
+                  >
+                    {isUploadingImage ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <Loader2 className="w-8 h-8 animate-spin" style={{ color: B.accent }} />
+                        <span className="text-sm font-medium text-gray-500">Uploading...</span>
+                      </div>
+                    ) : profile.avatarUrl ? (
+                      <div className="relative group rounded-full overflow-hidden w-24 h-24 shadow-sm border border-black/10">
+                        <img src={profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                        <label className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
+                          <UploadCloud className="w-6 h-6 text-white" />
+                          <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                        </label>
+                        <button 
+                          onClick={(e) => { e.preventDefault(); setProfile(p => ({ ...p, avatarUrl: '' })) }}
+                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: B.accentBg, color: B.accentDark }}>
+                          <ImageIcon className="w-6 h-6" />
+                        </div>
+                        <div className="text-center">
+                          <p className="text-sm font-medium" style={{ color: B.text }}>Drag & drop an image here</p>
+                          <p className="text-xs mt-1" style={{ color: B.textMuted }}>or click to browse from your device</p>
+                        </div>
+                        <label className="absolute inset-0 w-full h-full cursor-pointer opacity-0">
+                          <input type="file" accept="image/*" className="w-full h-full cursor-pointer" onChange={handleImageUpload} />
+                        </label>
+                      </>
+                    )}
+                  </div>
+                  <div className="mt-2 text-xs flex justify-between items-center" style={{ color: B.textMuted }}>
+                    <span>Optional. Will fall back to initial if not provided.</span>
+                    <input 
+                      value={profile.avatarUrl || ''} 
+                      onChange={e => setProfile({...profile, avatarUrl: e.target.value})} 
+                      className="px-2 py-1 bg-transparent border-b outline-none w-48 text-right" 
+                      style={{ borderColor: B.border, color: B.text }} 
+                      placeholder="Or paste URL here..." 
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-1.5">
