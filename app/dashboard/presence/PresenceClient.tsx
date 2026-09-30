@@ -1,26 +1,44 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
-import React from 'react';
+import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import Link from 'next/link';
-import { motion, AnimatePresence, Transition } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Globe, PenTool, Loader2, Sparkles, Trash2, Palette, Link as LinkIcon, ExternalLink, Plus, CheckCircle, AlertCircle, Trash, ArrowRight, Zap, Shield, Globe as GlobeIcon } from 'lucide-react';
+import { Globe, PenTool, Loader2, Sparkles, Trash2, Palette, Link as LinkIcon, ExternalLink, Plus, CheckCircle, AlertCircle, Trash, ArrowRight, Shield, Activity, CalendarDays, MousePointerClick } from 'lucide-react';
 import { toast } from 'sonner';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Flex, Box, Stack, Text, Display, Divider } from '@/components/ui/layout';
-import { MotionBox, MotionStack, spring, stagger } from '@/components/ui/motion';
 import { cn } from '@/lib/utils';
 import { TEMPLATE_REGISTRY } from '@/components/profile/templates/registry';
 import { TemplateGallery } from '@/components/profile/TemplateGallery';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 
-type TabValue = 'profile' | 'links' | 'design';
-type Preset = 'minimal' | 'bold' | 'corporate' | 'creative' | 'technical';
+/* ─── Biscuit Design System ───────────────────────────────── */
+const B = {
+  bg: '#F7F3ED',
+  card: '#FFFDF9',
+  cardAlt: '#FAF7F2',
+  cardBorder: '#EDE7DD',
+  cardShadow: '0 1px 3px rgba(61,43,31,0.06), 0 4px 12px rgba(61,43,31,0.04)',
+  cardShadowHover: '0 2px 8px rgba(61,43,31,0.08), 0 8px 24px rgba(61,43,31,0.06)',
+  text: '#3D2B1F',
+  textSecondary: '#6B5744',
+  textMuted: '#8B7355',
+  textLight: '#A69279',
+  accent: '#C4A265',
+  accentDark: '#A68B52',
+  accentBg: '#F5EFE2',
+  success: '#4A8C5C',
+  successBg: '#EBF5EE',
+  danger: '#B85450',
+  dangerBg: '#FBEDED',
+  border: '#E8E0D4',
+  borderLight: '#F0EBE3',
+  inputBg: '#FFFDF9',
+};
+
+/* ─── Types ────────────────────────────────────────────────── */
+type TabValue = 'profile' | 'links' | 'templates';
 
 interface ProfileLink {
   label: string;
@@ -70,12 +88,6 @@ interface ExtractedProfile {
   proofPoints: Array<{ type: string; value: string; url?: string }>;
 }
 
-// Use new persona-driven templates from registry
-const TEMPLATE_CONFIG: Record<string, { name: string; category: string; description: string }> = TEMPLATE_REGISTRY.reduce((acc, t) => {
-  acc[t.id] = { name: t.name, category: 'Persona', description: t.description };
-  return acc;
-}, {} as Record<string, { name: string; category: string; description: string }>);
-
 const DEFAULT_TEMPLATE = 'minimalist';
 
 interface PresenceClientProps {
@@ -83,10 +95,23 @@ interface PresenceClientProps {
   workspaceId: string;
 }
 
-export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
-  const reducedMotion = useReducedMotion();
-  const springConfig: Transition = reducedMotion ? { type: 'tween', duration: 0.01 } : spring.standard;
+/* ─── Motion helpers ───────────────────────────────────────── */
+const fadeUp = {
+  initial: { opacity: 0, y: 14 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -10 },
+};
 
+const staggerContainer = {
+  animate: { transition: { staggerChildren: 0.05 } },
+};
+
+const transition = { type: 'spring' as const, stiffness: 400, damping: 30 };
+
+/* ═══════════════════════════════════════════════════════════════
+   MAIN COMPONENT
+   ═══════════════════════════════════════════════════════════════ */
+export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
   const [activeTab, setActiveTab] = useState<TabValue>('profile');
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -101,15 +126,8 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
   const [profile, setProfile] = useState<Profile>({
-    name: '',
-    headline: '',
-    bio: '',
-    role: '',
-    company: '',
-    links: [],
-    proofPoints: [],
-    theme: { template: DEFAULT_TEMPLATE },
-    visibility: 'public',
+    name: '', headline: '', bio: '', role: '', company: '',
+    links: [], proofPoints: [], theme: { template: DEFAULT_TEMPLATE }, visibility: 'public',
   });
 
   const [viewers, setViewers] = useState<ProfileViewer[]>([]);
@@ -117,10 +135,7 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
   const [searchResults, setSearchResults] = useState<{id: string, email: string, full_name: string}[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
-  // Load existing profile on mount
-  useEffect(() => {
-    loadProfile();
-  }, []);
+  useEffect(() => { loadProfile(); }, []);
 
   const loadProfile = async () => {
     try {
@@ -130,126 +145,67 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
         setProfile(data.profile);
         if (data.profile.subdomain && !data.profile.subdomain.startsWith('user-')) {
           setClaimedSubdomain(data.profile.subdomain);
-        } else {
-          setClaimedSubdomain('');
+          setSubdomain(data.profile.subdomain);
         }
-        
-        if (data.profile.visibility === 'private') {
-          loadViewers();
-        }
+        if (data.profile.visibility === 'private') loadViewers();
       }
-    } catch (error) {
-      console.error('Failed to load profile:', error);
-    }
+    } catch (error) { console.error('Failed to load profile:', error); }
   };
 
   const loadViewers = async () => {
     try {
       const res = await fetch('/api/profile/viewers', { credentials: 'include' });
       const data = await res.json();
-      if (data.viewers) {
-        setViewers(data.viewers);
-      }
-    } catch (error) {
-      console.error('Failed to load viewers:', error);
-    }
+      if (data.viewers) setViewers(data.viewers);
+    } catch (error) { console.error('Failed to load viewers:', error); }
   };
 
   const handleSearchUsers = async (query: string) => {
     setSearchQuery(query);
-    if (query.length < 2) {
-      setSearchResults([]);
-      return;
-    }
-    
+    if (query.length < 2) return setSearchResults([]);
     setIsSearching(true);
     try {
       const res = await fetch(`/api/users/search?q=${encodeURIComponent(query)}`);
       const data = await res.json();
-      if (data.users) {
-        setSearchResults(data.users);
-      }
-    } catch (error) {
-      console.error('Search failed', error);
-    } finally {
-      setIsSearching(false);
-    }
+      if (data.users) setSearchResults(data.users);
+    } catch (error) { console.error('Search failed', error); }
+    finally { setIsSearching(false); }
   };
 
   const handleAddViewer = async (viewerUserId: string) => {
     try {
-      const res = await fetch('/api/profile/viewers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ viewerUserId })
-      });
-      if (res.ok) {
-        toast.success('Viewer added');
-        setSearchQuery('');
-        setSearchResults([]);
-        loadViewers();
-      } else {
-        toast.error('Failed to add viewer');
-      }
-    } catch (error) {
-      toast.error('Failed to add viewer');
-    }
+      const res = await fetch('/api/profile/viewers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ viewerUserId }) });
+      if (res.ok) { toast.success('Viewer added'); setSearchQuery(''); setSearchResults([]); loadViewers(); }
+      else toast.error('Failed to add viewer');
+    } catch { toast.error('Failed to add viewer'); }
   };
 
   const handleRemoveViewer = async (viewerUserId: string) => {
     try {
-      const res = await fetch(`/api/profile/viewers?viewerUserId=${viewerUserId}`, {
-        method: 'DELETE'
-      });
-      if (res.ok) {
-        toast.success('Viewer removed');
-        loadViewers();
-      } else {
-        toast.error('Failed to remove viewer');
-      }
-    } catch (error) {
-      toast.error('Failed to remove viewer');
-    }
+      const res = await fetch(`/api/profile/viewers?viewerUserId=${viewerUserId}`, { method: 'DELETE' });
+      if (res.ok) { toast.success('Viewer removed'); loadViewers(); }
+      else toast.error('Failed to remove viewer');
+    } catch { toast.error('Failed to remove viewer'); }
   };
 
   const handleGenerate = async () => {
     if (!sourceUrl.trim()) return;
     setGenerating(true);
     try {
-      const res = await fetch('/api/profile/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ url: sourceUrl }),
-      });
+      const res = await fetch('/api/profile/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ url: sourceUrl }) });
       if (!res.ok) throw new Error('Failed to generate profile');
       const data = await res.json();
       if (data.profile) {
-        const extracted = data.profile as ExtractedProfile;
-        setProfile(prev => ({
-          ...prev,
-          name: extracted.name || prev.name,
-          headline: extracted.headline || prev.headline,
-          bio: extracted.bio || prev.bio,
-          role: extracted.role || prev.role,
-          company: extracted.company || prev.company,
-          links: extracted.links || prev.links,
-          proofPoints: extracted.proofPoints.map(p => ({ type: p.type, value: p.value, url: p.url || '' })) || prev.proofPoints,
-        }));
-        toast.success('Profile generated from URL');
+        const ext = data.profile as ExtractedProfile;
+        setProfile(prev => ({ ...prev, name: ext.name || prev.name, headline: ext.headline || prev.headline, bio: ext.bio || prev.bio, role: ext.role || prev.role, company: ext.company || prev.company, links: ext.links || prev.links, proofPoints: ext.proofPoints.map(p => ({ type: p.type, value: p.value, url: p.url || '' })) || prev.proofPoints }));
+        toast.success('Profile magic autofill complete!');
       }
-    } catch (error) {
-      toast.error('Failed to generate profile');
-    } finally {
-      setGenerating(false);
-    }
+    } catch { toast.error('Failed to generate profile'); }
+    finally { setGenerating(false); }
   };
 
   const checkSubdomainAvailability = useCallback(async (value: string) => {
-    if (!value || value.length < 3) {
-      setSubdomainAvailable(null);
-      return;
-    }
+    if (!value || value.length < 3) return setSubdomainAvailable(null);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
       try {
@@ -257,9 +213,7 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
         const data = await res.json();
         setSubdomainAvailable(data.available === true);
         setLastCheckedSubdomain(value);
-      } catch {
-        setSubdomainAvailable(null);
-      }
+      } catch { setSubdomainAvailable(null); }
     }, 300);
   }, []);
 
@@ -273,662 +227,357 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
     if (!subdomain || subdomainAvailable !== true) return;
     setClaimingSubdomain(true);
     try {
-      const res = await fetch('/api/subdomains/claim', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ subdomain }),
-      });
-      if (!res.ok) throw new Error('Failed to claim subdomain');
+      const res = await fetch('/api/subdomains/claim', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ subdomain }) });
+      if (!res.ok) throw new Error('Failed to claim');
       setClaimedSubdomain(subdomain);
       toast.success(`Subdomain ${subdomain}.unool.co claimed!`);
-    } catch {
-      toast.error('Failed to claim subdomain');
-    } finally {
-      setClaimingSubdomain(false);
-    }
+    } catch { toast.error('Failed to claim subdomain'); }
+    finally { setClaimingSubdomain(false); }
   };
 
   const handleDeleteSubdomain = async () => {
     if (!claimedSubdomain) return;
     setDeletingSubdomain(true);
     try {
-      const res = await fetch(`/api/subdomains/${claimedSubdomain}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to delete subdomain');
-      }
-      // Reload profile to get updated subdomain
+      const res = await fetch(`/api/subdomains/${claimedSubdomain}`, { method: 'DELETE', credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to delete');
       await loadProfile();
+      setSubdomain('');
+      setClaimedSubdomain(null);
       toast.success('Subdomain deleted');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to delete subdomain');
-    } finally {
-      setDeletingSubdomain(false);
-    }
+    } catch (err) { toast.error('Failed to delete subdomain'); }
+    finally { setDeletingSubdomain(false); }
   };
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      const res = await fetch('/api/profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          ...profile,
-          subdomain: claimedSubdomain,
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to save profile');
-      }
-      toast.success('Profile saved');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to save profile');
-    } finally {
-      setSaving(false);
-    }
+      const res = await fetch('/api/profile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ ...profile, subdomain: claimedSubdomain }) });
+      if (!res.ok) throw new Error('Failed to save');
+      toast.success('Profile saved successfully');
+    } catch { toast.error('Failed to save profile'); }
+    finally { setSaving(false); }
   };
 
-  const handleLinkAdd = (type: string) => {
-    const newLink: ProfileLink = { label: '', url: '', type };
-    setProfile(prev => ({ ...prev, links: [...prev.links, newLink] }));
-  };
-
-  const handleLinkUpdate = (index: number, field: 'label' | 'url' | 'type', value: string) => {
-    setProfile(prev => {
-      const newLinks = [...prev.links];
-      if (newLinks[index]) {
-        newLinks[index] = { ...newLinks[index], [field]: value };
-      }
-      return { ...prev, links: newLinks };
-    });
-  };
-
-  const handleLinkRemove = (index: number) => {
-    setProfile(prev => ({ ...prev, links: prev.links.filter((_, i) => i !== index) }));
-  };
-
-  const handleProofPointAdd = () => {
-    const newPoint: ProofPoint = { type: '', value: '', url: '' };
-    setProfile(prev => ({ ...prev, proofPoints: [...prev.proofPoints, newPoint] }));
-  };
-
-  const handleProofPointUpdate = (index: number, field: 'type' | 'value' | 'url', value: string) => {
-    setProfile(prev => {
-      const newPoints = [...prev.proofPoints];
-      if (newPoints[index]) {
-        newPoints[index] = { ...newPoints[index], [field]: value };
-      }
-      return { ...prev, proofPoints: newPoints };
-    });
-  };
-
-  const handleProofPointRemove = (index: number) => {
-    setProfile(prev => ({ ...prev, proofPoints: prev.proofPoints.filter((_, i) => i !== index) }));
-  };
-
-  const liveUrl = claimedSubdomain
-    ? (process.env.NODE_ENV === 'development'
-        ? `/u/${claimedSubdomain}`
-        : `https://${claimedSubdomain}.unool.co`)
-    : null;
-
-  const handleTemplateSelect = (templateId: string) => {
-    setProfile(prev => ({ ...prev, theme: { template: templateId } }));
-    const template = TEMPLATE_REGISTRY.find(t => t.id === templateId);
-    toast.success(`Template set to ${template?.name || templateId}`);
-  };
+  const liveUrl = claimedSubdomain ? (process.env.NODE_ENV === 'development' ? `/u/${claimedSubdomain}` : `https://${claimedSubdomain}.unool.co`) : null;
 
   return (
-    <Box className="space-y-8 max-w-4xl mx-auto px-4 py-8">
-      {/* Header */}
-      <Flex between wrap gap={4}>
-        <Box>
-          <Display size="xl" weight="bold">Presence (One Link)</Display>
-          <Text size="lg" color="muted">Your intelligent public profile page</Text>
-        </Box>
-        <Flex wrap gap={2}>
-          <Box className="flex items-center p-1 bg-muted/50 rounded-lg border">
+    <motion.div className="max-w-[1000px] mx-auto space-y-6 pb-20" initial="initial" animate="animate" variants={staggerContainer}>
+      
+      {/* ═══ HEADER ═══ */}
+      <motion.div variants={fadeUp} transition={transition} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight" style={{ color: B.text }}>Your Public Profile</h1>
+          <p className="text-sm mt-1" style={{ color: B.textMuted }}>Manage your one-link presence and portfolio.</p>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          {/* Privacy Toggle */}
+          <div className="flex items-center p-1 rounded-lg" style={{ backgroundColor: B.cardBorder }}>
             <button
               onClick={() => setProfile({...profile, visibility: 'public'})}
-              className={cn(
-                "px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200",
-                profile.visibility === 'public' 
-                  ? "bg-background text-foreground shadow-sm" 
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
-              )}
+              className="px-3 py-1.5 text-xs font-semibold rounded-md transition-colors"
+              style={{
+                backgroundColor: profile.visibility === 'public' ? B.card : 'transparent',
+                color: profile.visibility === 'public' ? B.text : B.textMuted,
+                boxShadow: profile.visibility === 'public' ? B.cardShadow : 'none'
+              }}
             >
               Public
             </button>
             <button
-              onClick={() => {
-                setProfile({...profile, visibility: 'private'});
-                if (viewers.length === 0) loadViewers();
+              onClick={() => { setProfile({...profile, visibility: 'private'}); if (viewers.length === 0) loadViewers(); }}
+              className="px-3 py-1.5 text-xs font-semibold rounded-md transition-colors"
+              style={{
+                backgroundColor: profile.visibility === 'private' ? B.card : 'transparent',
+                color: profile.visibility === 'private' ? B.text : B.textMuted,
+                boxShadow: profile.visibility === 'private' ? B.cardShadow : 'none'
               }}
-              className={cn(
-                "px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200",
-                profile.visibility === 'private' 
-                  ? "bg-background text-foreground shadow-sm" 
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
-              )}
             >
               Private
             </button>
-          </Box>
-          {claimedSubdomain && (
-            <Badge variant="outline" className="gap-1 h-9 px-3 text-sm">
-              <GlobeIcon className="h-4 w-4" />
-              {process.env.NODE_ENV === 'development'
-                ? `/u/${claimedSubdomain}`
-                : `${claimedSubdomain}.unool.co`}
-            </Badge>
+          </div>
+
+          {liveUrl && (
+            <Link
+              href={liveUrl}
+              target="_blank"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-shadow hover:shadow-md"
+              style={{ backgroundColor: B.text, color: B.card }}
+            >
+              View Live <ExternalLink className="h-3.5 w-3.5" />
+            </Link>
           )}
-          {claimedSubdomain && liveUrl && (
-            <Button variant="outline" asChild className="h-9">
-              <Link href={liveUrl} target="_blank">
-                <ExternalLink className="mr-2 h-4 w-4" />
-                View Live
-              </Link>
-            </Button>
-          )}
-        </Flex>
-      </Flex>
-
-      {/* AI Generation Card */}
-      <MotionBox variant="slide-up" delay={0.05}>
-        <Card className="bg-gradient-to-r from-primary/5 to-purple-500/5 border-primary/20">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
-              Generate Profile from URL
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Flex column gap={4} className="sm:flex-row">
-              <Text size="sm" color="muted" className="flex-1 self-center sm:self-start">
-                Paste your website, LinkedIn, or GitHub URL. Unool extracts your role, company, metrics, links, and proof points automatically.
-              </Text>
-              <Flex gap={2} className="w-full sm:w-auto">
-                <Input
-                  placeholder="https://yourwebsite.com or https://linkedin.com/in/yourname"
-                  value={sourceUrl}
-                  onChange={e => setSourceUrl(e.target.value)}
-                  className="flex-1"
-                />
-                <Button onClick={handleGenerate} disabled={generating || !sourceUrl.trim()} size="lg">
-                  {generating ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="mr-2 h-4 w-4" />
-                      Generate
-                    </>
-                  )}
-                </Button>
-              </Flex>
-            </Flex>
-          </CardContent>
-        </Card>
-      </MotionBox>
-
-      {/* Subdomain Claim */}
-      <MotionBox variant="slide-up" delay={0.1}>
-        <Card className="border-primary/20 bg-primary/5">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Globe className="h-5 w-5 text-primary" />
-              Claim Your Subdomain
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Flex column gap={2} className="sm:flex-row">
-              <Box className="relative flex-1">
-                <Input
-                  placeholder="yourname"
-                  value={subdomain}
-                  onChange={handleSubdomainChange}
-                  disabled={!!claimedSubdomain || claimingSubdomain}
-                  className="pl-10"
-                />
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">unool.co/</span>
-                {subdomainAvailable !== null && lastCheckedSubdomain === subdomain && subdomain.length >= 3 && (
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-sm">
-                    {subdomainAvailable ? (
-                      <>
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        <span className="text-green-600">Available</span>
-                      </>
-                    ) : (
-                      <>
-                        <AlertCircle className="h-4 w-4 text-red-500" />
-                        <span className="text-red-600">Taken</span>
-                      </>
-                    )}
-                  </span>
-                )}
-              </Box>
-              <Button onClick={handleClaimSubdomain} disabled={!subdomain || subdomainAvailable !== true || claimingSubdomain} size="lg">
-                {claimingSubdomain ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Claiming...
-                  </>
-                ) : (
-                  <>
-                    <Globe className="mr-2 h-4 w-4" />
-                    Claim
-                  </>
-                )}
-              </Button>
-              {claimedSubdomain && (
-                <Button variant="destructive" onClick={handleDeleteSubdomain} disabled={deletingSubdomain} size="lg">
-                  {deletingSubdomain ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Deleting...
-                    </>
-                  ) : (
-                    <>
-                      <Trash className="mr-2 h-4 w-4" />
-                      Delete Subdomain
-                    </>
-                  )}
-                </Button>
-              )}
-            </Flex>
-            {claimedSubdomain && (
-              <Text size="sm" color="muted">
-                Your profile will be live at:{' '}
-                <a href={liveUrl ?? '#'} target="_blank" className="underline text-primary hover:text-primary/80">
-                  {liveUrl}
-                </a>
-              </Text>
-            )}
-          </CardContent>
-        </Card>
-      </MotionBox>
-
-      {/* Main Tabs */}
-      <Tabs value={activeTab} onValueChange={(value: string) => setActiveTab(value as TabValue)} className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="links">Links</TabsTrigger>
-          <TabsTrigger value="design">Design</TabsTrigger>
-        </TabsList>
-
-        {/* Profile Tab */}
-        <TabsContent value="profile" className="mt-4 space-y-6">
-          <MotionBox variant="slide-up">
-            <Card variant="elevated">
-              <CardHeader>
-                <CardTitle>Profile Information</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Stack space={4}>
-                  <Box className="space-y-2">
-                    <Label htmlFor="name">Name</Label>
-                    <Input
-                      id="name"
-                      value={profile.name}
-                      onChange={e => setProfile({ ...profile, name: e.target.value })}
-                      placeholder="Your Name"
-                    />
-                  </Box>
-                  <Box className="space-y-2">
-                    <Label htmlFor="headline">Headline</Label>
-                    <Input
-                      id="headline"
-                      value={profile.headline}
-                      onChange={e => setProfile({ ...profile, headline: e.target.value })}
-                      placeholder="Founder @ Company"
-                    />
-                  </Box>
-                  <Box className="space-y-2">
-                    <Label htmlFor="bio">Bio</Label>
-                    <textarea
-                      id="bio"
-                      value={profile.bio}
-                      onChange={e => setProfile({ ...profile, bio: e.target.value })}
-                      placeholder="Tell the world about yourself"
-                      className="w-full min-h-[100px] p-3 border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                      rows={4}
-                    />
-                  </Box>
-                  <Flex gap={4} wrap>
-                    <Box className="space-y-2 flex-1 min-w-[200px]">
-                      <Label htmlFor="role">Role</Label>
-                      <Input
-                        id="role"
-                        value={profile.role}
-                        onChange={e => setProfile({ ...profile, role: e.target.value })}
-                        placeholder="CEO, Founder, Developer"
-                      />
-                    </Box>
-                    <Box className="space-y-2 flex-1 min-w-[200px]">
-                      <Label htmlFor="company">Company</Label>
-                      <Input
-                        id="company"
-                        value={profile.company}
-                        onChange={e => setProfile({ ...profile, company: e.target.value })}
-                        placeholder="Company Name"
-                      />
-                    </Box>
-                  </Flex>
-                </Stack>
-              </CardContent>
-            </Card>
-          </MotionBox>
           
-          {/* Privacy & Access Control */}
-          <AnimatePresence>
-            {profile.visibility === 'private' && (
-              <MotionBox 
-                variant="slide-up" 
-                delay={0.1}
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="overflow-hidden"
-              >
-                <Card variant="elevated" className="border-primary/20">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Shield className="h-5 w-5 text-primary" />
-                      Allowed Viewers
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <Box className="space-y-4">
-                      <Text size="sm" color="muted">Since your profile is private, only people you explicitly authorize below can view it.</Text>
-                      
-                      <Box className="space-y-2">
-                      <Box className="relative">
-                        <Input
-                          placeholder="Search users by name or email..."
-                          value={searchQuery}
-                          onChange={(e) => handleSearchUsers(e.target.value)}
-                        />
-                        {isSearching && (
-                          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
-                        )}
-                      </Box>
-                      
-                      {searchResults.length > 0 && (
-                        <Box className="absolute z-10 w-full md:w-1/2 mt-1 border bg-background rounded-md shadow-lg max-h-60 overflow-auto">
-                          {searchResults.map(user => (
-                            <Flex key={user.id} between className="p-3 border-b last:border-0 hover:bg-muted/50">
-                              <Box>
-                                <Text size="sm" weight="medium">{user.full_name || 'Unnamed'}</Text>
-                                <Text size="xs" color="muted">{user.email}</Text>
-                              </Box>
-                              <Button size="sm" variant="secondary" onClick={() => handleAddViewer(user.id)}>
-                                Add
-                              </Button>
-                            </Flex>
-                          ))}
-                        </Box>
-                      )}
-                    </Box>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-shadow hover:shadow-md disabled:opacity-50"
+            style={{ backgroundColor: B.accent, color: '#fff' }}
+          >
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+            Save Changes
+          </button>
+        </div>
+      </motion.div>
 
-                    {viewers.length > 0 ? (
-                      <Stack space={2} className="mt-4">
-                        <Text size="sm" weight="medium">Selected viewers:</Text>
-                        {viewers.map(viewer => (
-                          <Flex key={viewer.viewerUserId} between className="p-2 border rounded-md bg-background">
-                            <Box>
-                              <Text size="sm">{viewer.fullName || viewer.email || viewer.viewerUserId}</Text>
-                              {viewer.fullName && viewer.email && <Text size="xs" color="muted">{viewer.email}</Text>}
-                            </Box>
-                            <Button size="sm" variant="ghost" className="text-destructive h-8 px-2" onClick={() => handleRemoveViewer(viewer.viewerUserId)}>
-                              Remove
-                            </Button>
-                          </Flex>
-                        ))}
-                      </Stack>
-                    ) : (
-                      <Text size="sm" color="muted" className="italic mt-2">No authorized viewers. Only you can view the profile.</Text>
-                    )}
-                    </Box>
-                  </CardContent>
-                </Card>
-              </MotionBox>
+      {/* ═══ AI GENERATION (MAGIC) ═══ */}
+      <motion.div variants={fadeUp} transition={transition} className="rounded-2xl p-5 relative overflow-hidden" style={{ backgroundColor: B.card, border: `1px solid ${B.accentBg}`, boxShadow: B.cardShadow }}>
+        <div className="absolute top-0 left-0 w-1 h-full" style={{ backgroundColor: B.accent }} />
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4 ml-2">
+          <div className="p-2.5 rounded-xl flex-shrink-0" style={{ backgroundColor: B.accentBg }}>
+            <Sparkles className="h-5 w-5" style={{ color: B.accent }} />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-sm font-semibold" style={{ color: B.text }}>Magic Autofill</h3>
+            <p className="text-xs mt-0.5" style={{ color: B.textMuted }}>Paste your LinkedIn, GitHub, or personal website to instantly extract your details.</p>
+          </div>
+          <div className="flex w-full sm:w-auto items-center gap-2">
+            <input
+              placeholder="https://linkedin.com/in/yourname"
+              value={sourceUrl}
+              onChange={e => setSourceUrl(e.target.value)}
+              className="px-3 py-2 text-sm rounded-lg w-full sm:w-64 focus:outline-none"
+              style={{ backgroundColor: B.bg, border: `1px solid ${B.border}`, color: B.text }}
+            />
+            <button
+              onClick={handleGenerate}
+              disabled={generating || !sourceUrl.trim()}
+              className="px-4 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 flex items-center gap-2 flex-shrink-0"
+              style={{ backgroundColor: B.accentBg, color: B.accentDark }}
+            >
+              {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Autofill'}
+            </button>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* ═══ SUBDOMAIN CLAIM ═══ */}
+      <motion.div variants={fadeUp} transition={transition} className="rounded-2xl p-6" style={{ backgroundColor: B.card, border: `1px solid ${B.cardBorder}`, boxShadow: B.cardShadow }}>
+        <div className="flex items-center gap-2.5 mb-5">
+          <div className="p-2 rounded-lg" style={{ backgroundColor: B.bg }}>
+            <Globe className="h-4 w-4" style={{ color: B.text }} />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold" style={{ color: B.text }}>Profile URL (Subdomain)</h3>
+            <p className="text-xs" style={{ color: B.textMuted }}>Choose the custom link where your profile will live.</p>
+          </div>
+        </div>
+        
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+          <div className="relative flex-1 w-full flex items-center">
+            {/* Clean Prefix */}
+            <div className="pl-3 pr-1 py-2 text-sm border-y border-l rounded-l-lg flex-shrink-0 select-none" style={{ backgroundColor: B.bg, borderColor: B.border, color: B.textMuted }}>
+              https://
+            </div>
+            <input
+              placeholder="yourname"
+              value={subdomain}
+              onChange={handleSubdomainChange}
+              disabled={!!claimedSubdomain || claimingSubdomain}
+              className="px-2 py-2 text-sm border-y w-full focus:outline-none min-w-0"
+              style={{ backgroundColor: B.inputBg, borderColor: B.border, color: B.text, fontWeight: 500 }}
+            />
+            <div className="pr-3 pl-1 py-2 text-sm border-y border-r rounded-r-lg flex-shrink-0 select-none" style={{ backgroundColor: B.bg, borderColor: B.border, color: B.textMuted }}>
+              .unool.co
+            </div>
+            
+            {/* Availability Indicator */}
+            {!claimedSubdomain && subdomainAvailable !== null && lastCheckedSubdomain === subdomain && subdomain.length >= 3 && (
+              <div className="absolute -top-6 right-0 flex items-center gap-1 text-xs font-medium">
+                {subdomainAvailable ? (
+                  <><CheckCircle className="h-3.5 w-3.5" style={{ color: B.success }} /><span style={{ color: B.success }}>Available</span></>
+                ) : (
+                  <><AlertCircle className="h-3.5 w-3.5" style={{ color: B.danger }} /><span style={{ color: B.danger }}>Taken</span></>
+                )}
+              </div>
             )}
-          </AnimatePresence>
-        </TabsContent>
+          </div>
 
-        {/* Links Tab */}
-        <TabsContent value="links" className="mt-4 space-y-6">
-          <MotionBox variant="slide-up">
-            <Card variant="elevated">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Links</CardTitle>
-                <Flex gap={2}>
-                  <Button variant="outline" size="sm" onClick={() => handleLinkAdd('social')}>
-                    <Plus className="mr-1 h-3 w-3" />
-                    Social
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => handleLinkAdd('custom')}>
-                    <Plus className="mr-1 h-3 w-3" />
-                    Custom
-                  </Button>
-                </Flex>
-              </CardHeader>
-              <CardContent>
-                {profile.links.length === 0 ? (
-                  <Text color="muted" className="py-8 text-center">No links added yet. Add your social profiles and custom links.</Text>
-                ) : (
-                  <Stack space={3}>
-                    {profile.links.map((link, index) => (
-                      <motion.div
-                        key={index}
-                        className="flex gap-2 p-3 border rounded-lg bg-background"
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={springConfig}
-                      >
-                        <Box className="w-20">
-                          <Label className="text-xs text-muted-foreground">Label</Label>
-                          <Input
-                            value={link.label}
-                            onChange={e => handleLinkUpdate(index, 'label', e.target.value)}
-                            placeholder="Twitter"
-                            className="h-8 text-sm"
-                          />
-                        </Box>
-                        <Box className="flex-1">
-                          <Label className="text-xs text-muted-foreground">URL</Label>
-                          <Input
-                            value={link.url}
-                            onChange={e => handleLinkUpdate(index, 'url', e.target.value)}
-                            placeholder="https://twitter.com/username"
-                            className="h-8 text-sm"
-                          />
-                        </Box>
-                        <Box className="w-24">
-                          <Label className="text-xs text-muted-foreground">Type</Label>
-                          <select
-                            value={link.type}
-                            onChange={e => handleLinkUpdate(index, 'type', e.target.value)}
-                            className="w-full h-8 text-sm border rounded bg-background"
-                          >
-                            <option value="social">Social</option>
-                            <option value="custom">Custom</option>
-                            <option value="primary">Primary CTA</option>
-                          </select>
-                        </Box>
-                        <Button variant="ghost" size="icon" onClick={() => handleLinkRemove(index)} className="text-destructive">
+          {!claimedSubdomain ? (
+            <button
+              onClick={handleClaimSubdomain}
+              disabled={!subdomain || subdomainAvailable !== true || claimingSubdomain}
+              className="px-5 py-2 w-full sm:w-auto rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
+              style={{ backgroundColor: B.text, color: B.card }}
+            >
+              {claimingSubdomain ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : 'Claim Link'}
+            </button>
+          ) : (
+            <button
+              onClick={handleDeleteSubdomain}
+              disabled={deletingSubdomain}
+              className="px-4 py-2 w-full sm:w-auto rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              style={{ backgroundColor: B.dangerBg, color: B.danger }}
+            >
+              {deletingSubdomain ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Trash className="h-4 w-4" /> Release Link</>}
+            </button>
+          )}
+        </div>
+      </motion.div>
+
+      {/* ═══ MAIN CONTENT TABS ═══ */}
+      <motion.div variants={fadeUp} transition={transition}>
+        <div className="flex p-1 rounded-xl mb-6 w-full max-w-md" style={{ backgroundColor: B.cardBorder }}>
+          {(['profile', 'links', 'templates'] as const).map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className="flex-1 py-2 text-sm font-semibold rounded-lg transition-all capitalize"
+              style={{
+                backgroundColor: activeTab === tab ? B.card : 'transparent',
+                color: activeTab === tab ? B.text : B.textMuted,
+                boxShadow: activeTab === tab ? B.cardShadow : 'none'
+              }}
+            >
+              {tab === 'profile' ? 'Basic Info' : tab === 'links' ? 'Links & Proofs' : 'Templates & Design'}
+            </button>
+          ))}
+        </div>
+
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+          >
+            {/* TAB: PROFILE */}
+            {activeTab === 'profile' && (
+              <div className="rounded-2xl p-6 space-y-5" style={{ backgroundColor: B.card, border: `1px solid ${B.cardBorder}`, boxShadow: B.cardShadow }}>
+                <h3 className="text-sm font-semibold mb-4" style={{ color: B.text }}>Personal Details</h3>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium ml-1" style={{ color: B.textMuted }}>Full Name</label>
+                    <input value={profile.name} onChange={e => setProfile({...profile, name: e.target.value})} className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none" style={{ backgroundColor: B.bg, border: `1px solid ${B.border}`, color: B.text }} placeholder="Jane Doe" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium ml-1" style={{ color: B.textMuted }}>Headline</label>
+                    <input value={profile.headline} onChange={e => setProfile({...profile, headline: e.target.value})} className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none" style={{ backgroundColor: B.bg, border: `1px solid ${B.border}`, color: B.text }} placeholder="Founder @ Startup" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium ml-1" style={{ color: B.textMuted }}>Role</label>
+                    <input value={profile.role} onChange={e => setProfile({...profile, role: e.target.value})} className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none" style={{ backgroundColor: B.bg, border: `1px solid ${B.border}`, color: B.text }} placeholder="CEO" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium ml-1" style={{ color: B.textMuted }}>Company</label>
+                    <input value={profile.company} onChange={e => setProfile({...profile, company: e.target.value})} className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none" style={{ backgroundColor: B.bg, border: `1px solid ${B.border}`, color: B.text }} placeholder="Acme Corp" />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium ml-1" style={{ color: B.textMuted }}>Bio</label>
+                  <textarea value={profile.bio} onChange={e => setProfile({...profile, bio: e.target.value})} className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none min-h-[100px] resize-y" style={{ backgroundColor: B.bg, border: `1px solid ${B.border}`, color: B.text }} placeholder="Tell the world about yourself..." />
+                </div>
+              </div>
+            )}
+
+            {/* TAB: LINKS & PROOFS */}
+            {activeTab === 'links' && (
+              <div className="space-y-6">
+                {/* Links Card */}
+                <div className="rounded-2xl p-6" style={{ backgroundColor: B.card, border: `1px solid ${B.cardBorder}`, boxShadow: B.cardShadow }}>
+                  <div className="flex items-center justify-between mb-5">
+                    <div>
+                      <h3 className="text-sm font-semibold" style={{ color: B.text }}>Social & Custom Links</h3>
+                      <p className="text-xs mt-0.5" style={{ color: B.textMuted }}>Add the platforms you want to drive traffic to.</p>
+                    </div>
+                    <button onClick={() => setProfile(p => ({...p, links: [...p.links, {label:'', url:'', type:'social'}]}))} className="p-2 rounded-lg hover:bg-black/5 transition-colors" style={{ color: B.text }}>
+                      <Plus className="h-4 w-4" />
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    {profile.links.length === 0 && <p className="text-sm py-4 text-center" style={{ color: B.textLight }}>No links added yet.</p>}
+                    {profile.links.map((link, idx) => (
+                      <div key={idx} className="flex flex-col sm:flex-row items-center gap-3 p-3 rounded-xl border" style={{ backgroundColor: B.bg, borderColor: B.border }}>
+                        <input value={link.label} onChange={e => { const l = [...profile.links]; l[idx].label = e.target.value; setProfile({...profile, links: l}); }} placeholder="Platform (e.g. Twitter)" className="w-full sm:w-32 px-3 py-1.5 text-sm rounded-md focus:outline-none" style={{ backgroundColor: B.inputBg, border: `1px solid ${B.border}` }} />
+                        <input value={link.url} onChange={e => { const l = [...profile.links]; l[idx].url = e.target.value; setProfile({...profile, links: l}); }} placeholder="https://..." className="w-full flex-1 px-3 py-1.5 text-sm rounded-md focus:outline-none" style={{ backgroundColor: B.inputBg, border: `1px solid ${B.border}` }} />
+                        <select value={link.type} onChange={e => { const l = [...profile.links]; l[idx].type = e.target.value; setProfile({...profile, links: l}); }} className="w-full sm:w-28 px-3 py-1.5 text-sm rounded-md focus:outline-none" style={{ backgroundColor: B.inputBg, border: `1px solid ${B.border}` }}>
+                          <option value="social">Social</option>
+                          <option value="custom">Custom</option>
+                        </select>
+                        <button onClick={() => setProfile(p => ({...p, links: p.links.filter((_, i) => i !== idx)}))} className="p-1.5 rounded-md hover:bg-red-50 text-red-500 w-full sm:w-auto flex justify-center">
                           <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </motion.div>
+                        </button>
+                      </div>
                     ))}
-                  </Stack>
-                )}
-              </CardContent>
-            </Card>
-          </MotionBox>
+                  </div>
+                </div>
 
-          {/* Proof Points */}
-          <MotionBox variant="slide-up" delay={0.05}>
-            <Card variant="elevated">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Proof Points</CardTitle>
-                <Button variant="outline" size="sm" onClick={handleProofPointAdd}>
-                  <Plus className="mr-1 h-3 w-3" />
-                  Add Proof Point
-                </Button>
-              </CardHeader>
-              <CardContent>
-                {profile.proofPoints.length === 0 ? (
-                  <Text color="muted" className="py-8 text-center">No proof points added. Showcase your achievements, metrics, and credentials.</Text>
-                ) : (
-                  <Stack space={3}>
-                    {profile.proofPoints.map((point, index) => (
-                      <motion.div
-                        key={index}
-                        className="flex gap-2 p-3 border rounded-lg bg-background"
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={springConfig}
-                      >
-                        <Box className="w-40">
-                          <Label className="text-xs text-muted-foreground">Type</Label>
-                          <Input
-                            value={point.type}
-                            onChange={e => handleProofPointUpdate(index, 'type', e.target.value)}
-                            placeholder="Revenue"
-                            className="h-8 text-sm"
-                          />
-                        </Box>
-                        <Box className="flex-1">
-                          <Label className="text-xs text-muted-foreground">Value</Label>
-                          <Input
-                            value={point.value}
-                            onChange={e => handleProofPointUpdate(index, 'value', e.target.value)}
-                            placeholder="$10M ARR"
-                            className="h-8 text-sm"
-                          />
-                        </Box>
-                        <Box className="w-48">
-                          <Label className="text-xs text-muted-foreground">URL (optional)</Label>
-                          <Input
-                            value={point.url}
-                            onChange={e => handleProofPointUpdate(index, 'url', e.target.value)}
-                            placeholder="https://..."
-                            className="h-8 text-sm"
-                          />
-                        </Box>
-                        <Button variant="ghost" size="icon" onClick={() => handleProofPointRemove(index)} className="text-destructive">
+                {/* Proof Points Card */}
+                <div className="rounded-2xl p-6" style={{ backgroundColor: B.card, border: `1px solid ${B.cardBorder}`, boxShadow: B.cardShadow }}>
+                  <div className="flex items-center justify-between mb-5">
+                    <div>
+                      <h3 className="text-sm font-semibold" style={{ color: B.text }}>Proof Points & Credentials</h3>
+                      <p className="text-xs mt-0.5" style={{ color: B.textMuted }}>Showcase your achievements and metrics.</p>
+                    </div>
+                    <button onClick={() => setProfile(p => ({...p, proofPoints: [...p.proofPoints, {type:'', value:'', url:''}]}))} className="p-2 rounded-lg hover:bg-black/5 transition-colors" style={{ color: B.text }}>
+                      <Plus className="h-4 w-4" />
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    {profile.proofPoints.length === 0 && <p className="text-sm py-4 text-center" style={{ color: B.textLight }}>No proof points added yet.</p>}
+                    {profile.proofPoints.map((point, idx) => (
+                      <div key={idx} className="flex flex-col sm:flex-row items-center gap-3 p-3 rounded-xl border" style={{ backgroundColor: B.bg, borderColor: B.border }}>
+                        <input value={point.type} onChange={e => { const p = [...profile.proofPoints]; p[idx].type = e.target.value; setProfile({...profile, proofPoints: p}); }} placeholder="Metric (e.g. Followers)" className="w-full sm:w-40 px-3 py-1.5 text-sm rounded-md focus:outline-none" style={{ backgroundColor: B.inputBg, border: `1px solid ${B.border}` }} />
+                        <input value={point.value} onChange={e => { const p = [...profile.proofPoints]; p[idx].value = e.target.value; setProfile({...profile, proofPoints: p}); }} placeholder="Value (e.g. 10k+)" className="w-full sm:w-32 px-3 py-1.5 text-sm rounded-md focus:outline-none" style={{ backgroundColor: B.inputBg, border: `1px solid ${B.border}` }} />
+                        <input value={point.url || ''} onChange={e => { const p = [...profile.proofPoints]; p[idx].url = e.target.value; setProfile({...profile, proofPoints: p}); }} placeholder="Proof URL (Optional)" className="w-full flex-1 px-3 py-1.5 text-sm rounded-md focus:outline-none" style={{ backgroundColor: B.inputBg, border: `1px solid ${B.border}` }} />
+                        <button onClick={() => setProfile(p => ({...p, proofPoints: p.proofPoints.filter((_, i) => i !== idx)}))} className="p-1.5 rounded-md hover:bg-red-50 text-red-500 w-full sm:w-auto flex justify-center">
                           <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </motion.div>
+                        </button>
+                      </div>
                     ))}
-                  </Stack>
-                )}
-              </CardContent>
-            </Card>
-          </MotionBox>
-        </TabsContent>
+                  </div>
+                </div>
+              </div>
+            )}
 
-        {/* Design Tab */}
-        <TabsContent value="design" className="mt-4 space-y-6">
-          <MotionBox variant="slide-up">
-            <Card variant="elevated">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Palette className="h-5 w-5 text-primary" />
-                  Design Template
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+            {/* TAB: TEMPLATES */}
+            {activeTab === 'templates' && (
+              <div className="rounded-2xl p-6" style={{ backgroundColor: B.card, border: `1px solid ${B.cardBorder}`, boxShadow: B.cardShadow }}>
+                <div className="mb-5">
+                  <h3 className="text-sm font-semibold" style={{ color: B.text }}>Design Gallery</h3>
+                  <p className="text-xs mt-0.5" style={{ color: B.textMuted }}>Select a beautiful theme for your public profile.</p>
+                </div>
+                
                 <TemplateGallery
                   templates={TEMPLATE_REGISTRY}
                   selectedTemplate={profile.theme.template}
-                  onSelect={handleTemplateSelect}
+                  onSelect={(templateId) => {
+                    setProfile(prev => ({ ...prev, theme: { template: templateId } }));
+                    toast.success(`Theme updated to ${TEMPLATE_REGISTRY.find(t=>t.id===templateId)?.name}`);
+                  }}
                   isOpen={true}
                   profileData={{
-                    name: profile.name || 'Preview User',
-                    headline: profile.headline || 'Preview your template',
+                    name: profile.name || 'Your Name',
+                    headline: profile.headline || 'Your awesome headline',
                     bio: profile.bio || 'This is a live preview of how your profile will look.',
-                    avatarUrl: '',
-                    subdomain: 'preview',
-                    links: profile.links?.map((link, i) => ({
-                      id: `link-${i}`,
-                      label: link.label,
-                      url: link.url,
-                      icon: link.icon ?? undefined,
-                      isVisible: true,
-                    })) || [
-                      { id: '1', label: 'Twitter', url: 'https://twitter.com', icon: 'twitter', isVisible: true },
-                      { id: '2', label: 'GitHub', url: 'https://github.com', icon: 'github', isVisible: true },
-                      { id: '3', label: 'LinkedIn', url: 'https://linkedin.com', icon: 'linkedin', isVisible: true },
-                    ],
-                    proofs: profile.proofPoints?.map((proof, i) => ({
-                      id: `proof-${i}`,
-                      title: proof.type,
-                      value: proof.value,
-                      icon: undefined,
-                    })) || [],
+                    subdomain: claimedSubdomain || 'preview',
+                    links: profile.links?.map((l, i) => ({ id: `l${i}`, label: l.label || 'Link', url: l.url, isVisible: true })) || [],
+                    proofs: profile.proofPoints?.map((p, i) => ({ id: `p${i}`, title: p.type || 'Metric', value: p.value || '100', icon: undefined })) || [],
                   }}
-                  accentColor="var(--color-primary)"
+                  accentColor={B.accent}
                 />
-              </CardContent>
-            </Card>
-          </MotionBox>
-        </TabsContent>
-      </Tabs>
-
-      {/* Save Button */}
-      <MotionBox variant="slide-up" delay={0.2}>
-        <Flex end>
-          <Button onClick={handleSave} disabled={saving} size="lg">
-            {saving ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <CheckCircle className="mr-2 h-4 w-4" />
-                Save Profile
-              </>
+              </div>
             )}
-          </Button>
-        </Flex>
-      </MotionBox>
-    </Box>
-  );
-}
+          </motion.div>
+        </AnimatePresence>
+      </motion.div>
 
-function TemplateSelectorDemo() {
-  return null;
+    </motion.div>
+  );
 }
 
 export default function PresenceClientWrapper({ userId, workspaceId }: PresenceClientProps) {
   return (
-    <Suspense fallback={
-      <Box className="space-y-8 max-w-4xl mx-auto px-4 py-8">
-        <Flex between wrap gap={4}>
-          <Box>
-            <Display size="xl" weight="bold">Presence (One Link)</Display>
-            <Text size="lg" color="muted">Your intelligent public profile page</Text>
-          </Box>
-        </Flex>
-        <Card>
-          <CardContent className="min-h-[300px] flex items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </CardContent>
-        </Card>
-      </Box>
-    }>
+    <Suspense fallback={<div className="flex h-96 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" style={{ color: B.accent }} /></div>}>
       <PresenceClient userId={userId} workspaceId={workspaceId} />
     </Suspense>
   );
