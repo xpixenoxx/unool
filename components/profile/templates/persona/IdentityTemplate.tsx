@@ -11,137 +11,131 @@ function LoverTemplate({ profile, accentColor }: any) {
   const accent = accentColor || '#D2B48C'; // Tan/luxury default
   
   return (
-    <div className="min-h-screen w-full bg-[#FAFAFA] text-[#2C2C2C] overflow-hidden" style={{ fontFamily: '"Playfair Display", Georgia, serif' }}>
+    <div className="min-h-[100dvh] w-full bg-[#FAFAFA] text-[#2C2C2C] flex items-center justify-center p-4 sm:p-8 relative overflow-hidden" style={{ fontFamily: '"Playfair Display", Georgia, serif' }}>
       
-      {/* Editorial Header Section */}
-      <div className="relative w-full h-[60vh] md:h-[70vh] flex items-center justify-center border-b border-[#E0E0E0] overflow-hidden bg-gradient-to-b from-[#FAFAFA] to-[#F2EFEB]">
-        {/* Abstract animated background elements */}
-        <motion.div 
-          animate={{ rotate: 360 }} 
-          transition={{ duration: 150, repeat: Infinity, ease: "linear" }}
-          className="absolute -top-1/2 -right-1/4 w-full h-[150%] rounded-full opacity-5 blur-3xl pointer-events-none" 
-          style={{ backgroundColor: accent }} 
-        />
-        
-        <div className="relative z-10 max-w-5xl w-full px-6 flex flex-col md:flex-row items-center gap-12 md:gap-24">
+      {/* Background Orbs */}
+      <motion.div 
+        animate={{ rotate: 360, scale: [1, 1.1, 1] }} 
+        transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+        className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full opacity-[0.03] blur-[100px] pointer-events-none" 
+        style={{ backgroundColor: accent }} 
+      />
+      <motion.div 
+        animate={{ rotate: -360, scale: [1, 1.2, 1] }} 
+        transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
+        className="absolute bottom-[-10%] right-[-10%] w-[40vw] h-[40vw] rounded-full opacity-[0.04] blur-[80px] pointer-events-none" 
+        style={{ backgroundColor: accent }} 
+      />
+
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+        className="relative z-10 w-full max-w-2xl bg-white/60 backdrop-blur-xl border border-white/40 shadow-2xl rounded-[2.5rem] p-8 sm:p-12 flex flex-col items-center text-center"
+      >
+        {/* Avatar */}
+        {profile.avatarUrl ? (
           <motion.div 
-            initial={{ opacity: 0, x: -50 }} 
-            animate={{ opacity: 1, x: 0 }} 
-            transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-            className="flex-1 text-center md:text-left space-y-6"
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.2, duration: 0.8, type: "spring" }}
+            className="w-28 h-28 sm:w-36 sm:h-36 mb-6 rounded-full p-1 border border-[#E0E0E0] shadow-sm relative group"
           >
-            <motion.span 
-              initial={{ opacity: 0, y: 10 }} 
-              animate={{ opacity: 1, y: 0 }} 
-              transition={{ delay: 0.2, duration: 0.8 }}
-              className="text-sm tracking-[0.3em] uppercase" 
+            <div className="w-full h-full rounded-full overflow-hidden">
+              <img src={profile.avatarUrl} alt={profile.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+            </div>
+          </motion.div>
+        ) : (
+          <div className="w-24 h-24 mb-6 rounded-full flex items-center justify-center text-3xl font-serif text-white shadow-sm" style={{ backgroundColor: accent }}>
+            {profile.name?.charAt(0) || 'U'}
+          </div>
+        )}
+
+        {/* Header Info */}
+        <div className="space-y-3 mb-8 w-full">
+          <motion.h1 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="text-4xl sm:text-5xl font-medium tracking-tight text-[#1A1A1A]"
+          >
+            {profile.name}
+          </motion.h1>
+          <motion.p 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="text-lg sm:text-xl italic font-light opacity-80"
+          >
+            {profile.headline}
+          </motion.p>
+          {(profile.role || profile.company) && (
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
+              className="text-xs tracking-[0.2em] uppercase font-sans font-semibold opacity-60 mt-2"
               style={{ color: accent }}
             >
-              {profile.role} • {profile.company}
-            </motion.span>
-            
-            <h1 className="text-6xl md:text-8xl font-medium tracking-tight leading-[1.1] text-[#1A1A1A]">
-              {profile.name}
-            </h1>
-            
-            <motion.p 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
-              transition={{ delay: 0.4, duration: 1 }}
-              className="text-xl md:text-3xl italic opacity-80 font-light" style={{ color: '#4A4A4A' }}
-            >
-              {profile.headline}
-            </motion.p>
-          </motion.div>
-          
-          {profile.avatarUrl && (
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9, rotate: -5 }} 
-              animate={{ opacity: 1, scale: 1, rotate: 0 }} 
-              transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-              className="relative w-64 h-80 md:w-80 md:h-[28rem] flex-shrink-0 group perspective-1000"
-            >
-              <div className="absolute inset-0 bg-black/5 transform translate-x-4 translate-y-4 rounded-t-full rounded-b-md blur-sm transition-transform group-hover:translate-x-6 group-hover:translate-y-6" />
-              <img 
-                src={profile.avatarUrl} 
-                alt={profile.name} 
-                className="relative z-10 w-full h-full object-cover rounded-t-full rounded-b-md border-[6px] border-white shadow-2xl transition-transform duration-700 ease-out group-hover:scale-[1.02]" 
-              />
+              {profile.role} {profile.role && profile.company ? '•' : ''} {profile.company}
             </motion.div>
           )}
         </div>
-      </div>
 
-      {/* Content Section */}
-      <div className="max-w-6xl mx-auto px-6 py-20 md:py-32 grid grid-cols-1 md:grid-cols-12 gap-16">
-        
-        {/* Left Column: Bio & Proofs */}
-        <div className="md:col-span-7 space-y-16">
-          <motion.div 
-            initial={{ opacity: 0, y: 30 }} 
-            whileInView={{ opacity: 1, y: 0 }} 
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.8 }}
+        {/* Bio */}
+        {profile.bio && (
+          <motion.p 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6 }}
+            className="text-sm sm:text-base leading-relaxed text-[#4A4A4A] font-sans max-w-lg mx-auto mb-10"
           >
-            <h2 className="text-xs tracking-[0.2em] uppercase mb-8" style={{ color: accent, fontFamily: 'var(--font-sans)' }}>About</h2>
-            <p className="text-2xl md:text-3xl leading-relaxed text-[#333] font-light" style={{ fontFamily: 'var(--font-sans)' }}>
-              {profile.bio}
-            </p>
-          </motion.div>
+            {profile.bio}
+          </motion.p>
+        )}
 
-          {profile.proofPoints && profile.proofPoints.length > 0 && (
-            <motion.div 
-              initial={{ opacity: 0, y: 30 }} 
-              whileInView={{ opacity: 1, y: 0 }} 
-              viewport={{ once: true }}
-              transition={{ duration: 0.8 }}
-              className="pt-12 border-t border-[#E0E0E0]"
-            >
-              <h2 className="text-xs tracking-[0.2em] uppercase mb-8" style={{ color: accent, fontFamily: 'var(--font-sans)' }}>Selected Metrics</h2>
-              <div className="grid grid-cols-2 gap-8">
-                {profile.proofPoints.map((proof: any, i: number) => (
-                  <div key={i} className="group cursor-default">
-                    <div className="text-4xl md:text-5xl font-medium mb-2 transition-colors duration-300" style={{ color: '#1A1A1A' }}>
-                      {proof.value}
-                    </div>
-                    <div className="text-sm tracking-wider uppercase opacity-60" style={{ fontFamily: 'var(--font-sans)' }}>
-                      {proof.type}
-                    </div>
-                  </div>
-                ))}
+        {/* Proof Points (Metrics) */}
+        {profile.proofPoints && profile.proofPoints.length > 0 && (
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7 }}
+            className="w-full flex flex-wrap justify-center gap-6 sm:gap-10 mb-10 pb-10 border-b border-[#E0E0E0]/50"
+          >
+            {profile.proofPoints.map((proof: any, i: number) => (
+              <div key={i} className="flex flex-col items-center">
+                <span className="text-2xl sm:text-3xl font-medium text-[#1A1A1A]">{proof.value}</span>
+                <span className="text-[10px] sm:text-xs tracking-wider uppercase font-sans opacity-50 mt-1">{proof.type}</span>
               </div>
-            </motion.div>
-          )}
-        </div>
+            ))}
+          </motion.div>
+        )}
 
-        {/* Right Column: Links */}
-        <div className="md:col-span-5 md:pl-12 md:border-l border-[#E0E0E0]">
-          <h2 className="text-xs tracking-[0.2em] uppercase mb-8" style={{ color: accent, fontFamily: 'var(--font-sans)' }}>Connect</h2>
-          <div className="flex flex-col gap-4">
-            {profile.links?.map((link: any, i: number) => (
+        {/* Links */}
+        {profile.links && profile.links.length > 0 && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.8 }}
+            className="w-full flex flex-col gap-3"
+          >
+            {profile.links.map((link: any, i: number) => (
               <motion.a 
                 key={i} 
                 href={link.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                initial={{ opacity: 0, x: 20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: i * 0.1 }}
-                className="group relative block p-6 bg-white border border-[#E0E0E0] hover:border-[#C0C0C0] transition-all duration-300 overflow-hidden"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="group relative w-full py-4 px-6 bg-white/80 border border-[#E0E0E0] rounded-2xl flex items-center justify-center overflow-hidden transition-all duration-300 hover:border-transparent hover:shadow-lg"
               >
-                <div className="absolute inset-0 w-0 bg-[#1A1A1A] transition-all duration-500 ease-out group-hover:w-full z-0" />
-                <div className="relative z-10 flex items-center justify-between transition-colors duration-300 group-hover:text-white">
-                  <span className="text-xl italic">{link.label}</span>
-                  <span className="text-sm uppercase tracking-widest opacity-0 -translate-x-4 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-500" style={{ fontFamily: 'var(--font-sans)' }}>
-                    Visit ↗
-                  </span>
-                </div>
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-300" style={{ backgroundColor: accent }} />
+                <span className="relative z-10 text-sm sm:text-base italic tracking-wide group-hover:font-medium transition-all" style={{ color: '#1A1A1A' }}>
+                  {link.label}
+                </span>
               </motion.a>
             ))}
-          </div>
-        </div>
-      </div>
+          </motion.div>
+        )}
+      </motion.div>
     </div>
   );
 }
