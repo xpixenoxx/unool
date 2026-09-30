@@ -191,6 +191,7 @@ export class LinkedInAdapter implements PlatformAdapter {
 
           // 3. Upload binary data
           if (isVideo && initData?.value?.uploadInstructions) {
+            const uploadedPartIds: string[] = [];
             // Videos may be split into multiple chunks
             for (const instruction of initData.value.uploadInstructions) {
               const chunk = imageBuffer.slice(instruction.firstByte, instruction.lastByte + 1);
@@ -207,6 +208,35 @@ export class LinkedInAdapter implements PlatformAdapter {
                 const errText = await uploadRes.text();
                 throw new Error(`Failed to upload video chunk: ${errText}`);
               }
+              
+              const etag = uploadRes.headers.get('etag');
+              if (etag) {
+                // ETag comes wrapped in quotes, we need to strip them
+                uploadedPartIds.push(etag.replace(/"/g, ''));
+              }
+            }
+
+            // Finalize video upload
+            const finalizeRes = await fetchWithRetry(`${LINKEDIN_V1_API_BASE}/videos?action=finalizeUpload`, {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+                'X-Restli-Protocol-Version': '2.0.0',
+                'LinkedIn-Version': '202606',
+              },
+              body: JSON.stringify({
+                finalizeUploadRequest: {
+                  video: mediaUrn,
+                  uploadToken: initData.value.uploadToken || '',
+                  uploadedPartIds,
+                }
+              }),
+            });
+
+            if (!finalizeRes.ok) {
+              const errText = await finalizeRes.text();
+              throw new Error(`Failed to finalize video upload: ${errText}`);
             }
           } else {
             // Single payload upload (Images)
