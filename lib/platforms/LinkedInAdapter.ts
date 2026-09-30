@@ -144,6 +144,7 @@ export class LinkedInAdapter implements PlatformAdapter {
 
           let mediaUrn = '';
           let uploadUrl = '';
+          let initData: any = null;
 
           // 2. Initialize upload with LinkedIn
           if (isVideo) {
@@ -163,9 +164,9 @@ export class LinkedInAdapter implements PlatformAdapter {
               throw new Error(`Failed to initialize video upload: ${errText}`);
             }
 
-            const initData = await initRes.json();
+            initData = await initRes.json();
             mediaUrn = initData.value.video;
-            uploadUrl = initData.value.uploadInstructions[0].uploadUrl;
+            // uploadUrl is handled below for videos
           } else {
             const initRes = await fetchWithRetry(`${LINKEDIN_V1_API_BASE}/images?action=initializeUpload`, {
               method: 'POST',
@@ -183,24 +184,45 @@ export class LinkedInAdapter implements PlatformAdapter {
               throw new Error(`Failed to initialize image upload: ${errText}`);
             }
 
-            const initData = await initRes.json();
+            initData = await initRes.json();
             mediaUrn = initData.value.image;
             uploadUrl = initData.value.uploadUrl;
           }
 
           // 3. Upload binary data
-          const uploadRes = await fetchWithRetry(uploadUrl, {
-            method: 'PUT',
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-              'Content-Type': contentType,
-            },
-            body: imageBuffer,
-          });
+          if (isVideo && initData?.value?.uploadInstructions) {
+            // Videos may be split into multiple chunks
+            for (const instruction of initData.value.uploadInstructions) {
+              const chunk = imageBuffer.slice(instruction.firstByte, instruction.lastByte + 1);
+              const uploadRes = await fetchWithRetry(instruction.uploadUrl, {
+                method: 'PUT',
+                headers: {
+                  Authorization: `Bearer ${accessToken}`,
+                  'Content-Type': 'application/octet-stream',
+                },
+                body: chunk,
+              });
 
-          if (!uploadRes.ok) {
-            const errText = await uploadRes.text();
-            throw new Error(`Failed to upload media binary: ${errText}`);
+              if (!uploadRes.ok) {
+                const errText = await uploadRes.text();
+                throw new Error(`Failed to upload video chunk: ${errText}`);
+              }
+            }
+          } else {
+            // Single payload upload (Images)
+            const uploadRes = await fetchWithRetry(uploadUrl, {
+              method: 'PUT',
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': contentType,
+              },
+              body: imageBuffer,
+            });
+
+            if (!uploadRes.ok) {
+              const errText = await uploadRes.text();
+              throw new Error(`Failed to upload media binary: ${errText}`);
+            }
           }
 
           // 4. Set content object for post payload
