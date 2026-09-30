@@ -154,6 +154,15 @@ export class PublishService {
       results[variant.platform] = result.ok ? result.value : { success: false, error: result.error?.message };
     }
 
+    // Update parent post status based on variant results
+    const hasAnySuccess = Object.values(results).some((r: any) => r.success);
+    const hasAnyAttempt = Object.keys(results).length > 0;
+    
+    if (hasAnyAttempt) {
+      const overallStatus = hasAnySuccess ? 'published' : 'failed';
+      await postRepository.updateStatus(postId, overallStatus);
+    }
+
     return results as Record<Platform, PublishJobResult>;
   }
 

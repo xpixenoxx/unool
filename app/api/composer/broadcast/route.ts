@@ -95,6 +95,18 @@ export async function POST(request: NextRequest) {
       // Trigger publish to all platforms immediately
       const results = await publishService.publishToAllPlatforms(post.id, workspaceId);
 
+      const hasAnySuccess = Object.values(results).some((r: any) => r.success);
+      
+      if (!hasAnySuccess && Object.keys(results).length > 0) {
+        // Collect errors
+        const errors = Object.entries(results).map(([platform, res]: [string, any]) => `${platform}: ${res.error}`).join(', ');
+        return NextResponse.json({ 
+          success: false, 
+          error: `Publish failed: ${errors}`, 
+          results 
+        }, { status: 500 });
+      }
+
       return NextResponse.json({
         success: true,
         postId: post.id,

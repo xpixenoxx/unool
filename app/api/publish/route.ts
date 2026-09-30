@@ -18,6 +18,18 @@ export async function POST(request: NextRequest) {
 
       const results = await publishService.publishToAllPlatforms(postId, workspaceId);
 
+      const hasAnySuccess = Object.values(results).some((r: any) => r.success);
+      
+      if (!hasAnySuccess && Object.keys(results).length > 0) {
+        const errors = Object.entries(results).map(([platform, res]: [string, any]) => `${platform}: ${res.error}`).join(', ');
+        logger.error('Publish job failed entirely', { postId, workspaceId, errors });
+        return NextResponse.json({ 
+          success: false, 
+          error: `Publish failed: ${errors}`, 
+          results 
+        }, { status: 500 });
+      }
+
       logger.info('Publish job completed', { postId, workspaceId, results });
 
       return NextResponse.json({
