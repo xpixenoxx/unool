@@ -119,6 +119,7 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
   const [claimingSubdomain, setClaimingSubdomain] = useState(false);
   const [deletingSubdomain, setDeletingSubdomain] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [sourceUrl, setSourceUrl] = useState('');
   const [subdomain, setSubdomain] = useState('');
   const [subdomainAvailable, setSubdomainAvailable] = useState<boolean | null>(null);
@@ -304,15 +305,48 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
     e.preventDefault();
   };
 
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      const res = await fetch('/api/profile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ ...profile, subdomain: claimedSubdomain }) });
-      if (!res.ok) throw new Error('Failed to save');
-      toast.success('Profile saved successfully');
-    } catch { toast.error('Failed to save profile'); }
-    finally { setSaving(false); }
-  };
+  const initialMount = useRef(true);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Auto-save effect
+  useEffect(() => {
+    if (initialMount.current) {
+      initialMount.current = false;
+      return;
+    }
+
+    setSaveStatus('saving');
+
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    saveTimeoutRef.current = setTimeout(async () => {
+      try {
+        setSaving(true);
+        const res = await fetch('/api/profile', { 
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' }, 
+          credentials: 'include', 
+          body: JSON.stringify({ ...profile, subdomain: claimedSubdomain }) 
+        });
+        if (!res.ok) throw new Error('Failed to auto-save');
+        setSaveStatus('saved');
+        setTimeout(() => {
+          setSaveStatus(prev => prev === 'saved' ? 'idle' : prev);
+        }, 2000);
+      } catch (err) {
+        console.error('Auto-save failed:', err);
+        setSaveStatus('error');
+      } finally {
+        setSaving(false);
+      }
+    }, 1000); // 1 second debounce
+
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
+  }, [profile, claimedSubdomain]);
 
   const liveUrl = claimedSubdomain ? (process.env.NODE_ENV === 'development' ? `/u/${claimedSubdomain}` : `https://${claimedSubdomain}.unool.co`) : null;
 
@@ -364,15 +398,33 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
             </Link>
           )}
           
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-shadow hover:shadow-md disabled:opacity-50"
-            style={{ backgroundColor: B.accent, color: '#fff' }}
-          >
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
-            Save Changes
-          </button>
+          {/* Auto-Save Indicator */}
+          <div className="flex items-center gap-2 text-sm font-medium pr-2">
+            {saveStatus === 'saving' && (
+              <span className="flex items-center gap-1.5 opacity-60" style={{ color: B.textMuted }}>
+                <Loader2 className="w-4 h-4 animate-spin" /> Saving...
+              </span>
+            )}
+            {saveStatus === 'saved' && (
+              <span className="flex items-center gap-1.5" style={{ color: '#059669' }}>
+                <CheckCircle className="w-4 h-4" /> Saved
+              </span>
+            )}
+            {saveStatus === 'error' && (
+              <span className="flex items-center gap-1.5 text-red-600">
+                <AlertCircle className="w-4 h-4" /> Failed
+              </span>
+            )}
+          </div>
+
+          <Link href="/dashboard">
+            <button
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-shadow hover:shadow-md"
+              style={{ backgroundColor: B.cardBorder, color: B.text }}
+            >
+              Done
+            </button>
+          </Link>
         </div>
       </motion.div>
 
