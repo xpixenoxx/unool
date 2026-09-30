@@ -21,6 +21,9 @@ export async function POST(request: NextRequest) {
 
       const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
 
+      // Try to create the bucket (fails safely if it already exists)
+      await supabase.storage.createBucket('post-media', { public: true });
+
       // Upload to post-media bucket
       const { data, error } = await supabase.storage
         .from('post-media')
@@ -31,7 +34,7 @@ export async function POST(request: NextRequest) {
 
       if (error) {
         logger.error('Supabase storage upload error', { error });
-        return NextResponse.json({ error: 'Failed to upload image' }, { status: 500 });
+        return NextResponse.json({ error: `Upload failed: ${error.message}` }, { status: 500 });
       }
 
       // Get public URL
