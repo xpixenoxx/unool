@@ -96,9 +96,16 @@ async function getPlanContext(userId: string, workspaceId: string): Promise<Plan
     .eq('id', plan)
     .single();
 
-  // Workspace-level feature overrides take priority over plan defaults
-  const features: PlanFeatures = (workspace.features as PlanFeatures) || planInfo?.features || {};
-  const limits: PlanLimits = planInfo?.limits || {};
+  // Workspace-level feature overrides take priority over plan defaults.
+  // NOTE: The DB migration stores all quota fields (ai_adaptations_per_month, etc.)
+  // in the 'features' JSON column. 'limits' is a sparse subset.
+  // Merge both so all enforcement checks can find their keys.
+  const rawFeatures = (planInfo?.features || {}) as Record<string, unknown>;
+  const rawLimits = (planInfo?.limits || {}) as Record<string, unknown>;
+  const mergedLimits = { ...rawFeatures, ...rawLimits } as PlanLimits;
+
+  const features: PlanFeatures = (workspace.features as PlanFeatures) || rawFeatures as PlanFeatures;
+  const limits: PlanLimits = mergedLimits;
 
   return {
     userId,
