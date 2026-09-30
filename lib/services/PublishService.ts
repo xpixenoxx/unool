@@ -143,15 +143,20 @@ export class PublishService {
     const variants = await postRepository.findVariantsByPostId(postId);
     const results: Record<string, PublishJobResult> = {};
 
-    // Publish each variant to its platform
-    for (const variant of variants) {
+    // Publish each variant to its platform in parallel
+    const publishPromises = variants.map(async (variant) => {
       const result = await this.publishPost({
         postVariantId: variant.id,
         platform: variant.platform,
         workspaceId,
       });
+      return { platform: variant.platform, result };
+    });
 
-      results[variant.platform] = result.ok ? result.value : { success: false, error: result.error?.message };
+    const publishedResults = await Promise.all(publishPromises);
+
+    for (const { platform, result } of publishedResults) {
+      results[platform] = result.ok ? result.value : { success: false, error: result.error?.message };
     }
 
     // Update parent post status based on variant results

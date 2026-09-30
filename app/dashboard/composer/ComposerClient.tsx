@@ -95,7 +95,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [planError, setPlanError] = useState<string | null>(null);
-  const [media, setMedia] = useState<{url: string; type: 'image' | 'video' | 'document'} | null>(null);
+  const [media, setMedia] = useState<{url: string; type: 'image' | 'video' | 'document'}[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const springConfig: Transition = reducedMotion ? { type: 'tween', duration: 0.01 } : spring.snappy;
@@ -107,6 +107,23 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
 
     if (!isImage && !isVideo && !isPdf) {
       toast.error('Only image, video, and PDF files are supported');
+      return;
+    }
+
+    const currentImages = media.filter(m => m.type === 'image').length;
+    const currentVideos = media.filter(m => m.type === 'video').length;
+    const currentPdfs = media.filter(m => m.type === 'document').length;
+
+    if (isImage && currentImages >= 5) {
+      toast.error('You can only upload up to 5 images');
+      return;
+    }
+    if (isVideo && currentVideos >= 1) {
+      toast.error('You can only upload up to 1 video');
+      return;
+    }
+    if (isPdf && currentPdfs >= 1) {
+      toast.error('You can only upload up to 1 PDF');
       return;
     }
     
@@ -138,7 +155,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         throw new Error(`Upload failed: ${uploadError.message}`);
       }
       
-      setMedia({ url: data.url, type: data.type });
+      setMedia(prev => [...prev, { url: data.url, type: data.type }]);
       toast.success(`${isPdf ? 'PDF document' : isVideo ? 'Video' : 'Image'} uploaded successfully`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Upload failed');
@@ -214,7 +231,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ content: sourceContent, profileId: profile.id, mediaUrl: media?.url, mediaType: media?.type }),
+        body: JSON.stringify({ content: sourceContent, profileId: profile.id, mediaItems: media }),
       });
 
       const data: AdaptResponse = await res.json();
@@ -322,7 +339,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ content: quickContent, profileId: profile.id, mediaUrl: media?.url, mediaType: media?.type }),
+        body: JSON.stringify({ content: quickContent, profileId: profile.id, mediaItems: media }),
       });
 
       const data = await res.json();
@@ -537,24 +554,28 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                     {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImagePlus className="mr-2 h-4 w-4" />}
                     Add Media
                   </Button>
-                  {media && (
-                    <div className="relative inline-block">
-                      {media.type === 'document' ? (
-                        <div className="h-16 w-16 bg-muted rounded-md border flex flex-col items-center justify-center">
-                          <FileText className="h-6 w-6 text-primary" />
-                          <span className="text-[10px] mt-1 text-muted-foreground">PDF</span>
+                  {media.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {media.map((m, i) => (
+                        <div key={i} className="relative inline-block">
+                          {m.type === 'document' ? (
+                            <div className="h-16 w-16 bg-muted rounded-md border flex flex-col items-center justify-center">
+                              <FileText className="h-6 w-6 text-primary" />
+                              <span className="text-[10px] mt-1 text-muted-foreground">PDF</span>
+                            </div>
+                          ) : m.type === 'video' ? (
+                            <video src={m.url} className="h-16 w-16 object-cover rounded-md border" muted />
+                          ) : (
+                            <img src={m.url} alt="Upload preview" className="h-16 w-16 object-cover rounded-md border" />
+                          )}
+                          <button
+                            onClick={() => setMedia(prev => prev.filter((_, idx) => idx !== i))}
+                            className="absolute -top-2 -right-2 bg-background border rounded-full p-0.5 hover:bg-muted"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
                         </div>
-                      ) : media.type === 'video' ? (
-                        <video src={media.url} className="h-16 w-16 object-cover rounded-md border" muted />
-                      ) : (
-                        <img src={media.url} alt="Upload preview" className="h-16 w-16 object-cover rounded-md border" />
-                      )}
-                      <button
-                        onClick={() => setMedia(null)}
-                        className="absolute -top-2 -right-2 bg-background border rounded-full p-0.5 hover:bg-muted"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -629,24 +650,28 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                       {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImagePlus className="mr-2 h-4 w-4" />}
                       Add Media
                     </Button>
-                    {media && (
-                      <div className="relative inline-block">
-                        {media.type === 'document' ? (
-                          <div className="h-16 w-16 bg-muted rounded-md border flex flex-col items-center justify-center">
-                            <FileText className="h-6 w-6 text-primary" />
-                            <span className="text-[10px] mt-1 text-muted-foreground">PDF</span>
+                    {media.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {media.map((m, i) => (
+                          <div key={i} className="relative inline-block">
+                            {m.type === 'document' ? (
+                              <div className="h-16 w-16 bg-muted rounded-md border flex flex-col items-center justify-center">
+                                <FileText className="h-6 w-6 text-primary" />
+                                <span className="text-[10px] mt-1 text-muted-foreground">PDF</span>
+                              </div>
+                            ) : m.type === 'video' ? (
+                              <video src={m.url} className="h-16 w-16 object-cover rounded-md border" muted />
+                            ) : (
+                              <img src={m.url} alt="Upload preview" className="h-16 w-16 object-cover rounded-md border" />
+                            )}
+                            <button
+                              onClick={() => setMedia(prev => prev.filter((_, idx) => idx !== i))}
+                              className="absolute -top-2 -right-2 bg-background border rounded-full p-0.5 hover:bg-muted"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
                           </div>
-                        ) : media.type === 'video' ? (
-                          <video src={media.url} className="h-16 w-16 object-cover rounded-md border" muted />
-                        ) : (
-                          <img src={media.url} alt="Upload preview" className="h-16 w-16 object-cover rounded-md border" />
-                        )}
-                        <button
-                          onClick={() => setMedia(null)}
-                          className="absolute -top-2 -right-2 bg-background border rounded-full p-0.5 hover:bg-muted"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
+                        ))}
                       </div>
                     )}
                   </div>
