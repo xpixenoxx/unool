@@ -16,68 +16,95 @@ export class AnthropicProvider implements AIProvider {
 
   async generateText(prompt: string, options?: GenerationOptions): Promise<Result<AIResponse, AIError>> {
     let model = options?.model || config.ANTHROPIC_MODEL || config.AI_DEFAULT_MODEL;
-    // Force haiku for any weird model names to avoid tier access errors
-    if (model.includes('opus') || model.includes('sonnet') || (model.includes('haiku') && !model.includes('2024'))) {
-       model = 'claude-3-haiku-20240307';
+    // Force a known good model if the env var looks fake
+    if (model.includes('opus-4') || model.includes('sonnet-5') && !model.includes('2024')) {
+       model = 'claude-3-5-sonnet-20241022';
     }
+
     const systemPrompt = options?.systemPrompt || '';
     const maxTokens = options?.maxTokens || 4000;
     const temperature = options?.temperature ?? 0.7;
 
-    try {
-      console.log('[DEBUG AnthropicProvider] Sending request:', { model, maxTokens, temperature, promptLength: prompt.length });
-      const response = await fetch(`${this.baseUrl}/messages`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': this.apiKey,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model,
-          max_tokens: maxTokens,
-          temperature,
-          system: systemPrompt,
-          messages: [{ role: 'user', content: prompt }],
-        }),
-      });
+    const fallbackModels = [
+      model,
+      'claude-3-5-sonnet-20241022',
+      'claude-3-haiku-20240307',
+      'claude-2.1'
+    ];
 
-      const data = await response.json();
-      console.log('[DEBUG AnthropicProvider] Response:', { ok: response.ok, status: response.status, data: JSON.stringify(data).slice(0, 500) });
+    let lastErrorData: any = null;
+    let lastStatus = 500;
 
-      if (!response.ok) {
-        return err({
-          code: 'API_ERROR',
-          message: data.error ? JSON.stringify(data.error) : 'Anthropic API error',
-          provider: this.name,
-          retryable: response.status >= 500,
-          name: 'AnthropicError',
+    for (const currentModel of fallbackModels) {
+      try {
+        console.log('[DEBUG AnthropicProvider] Sending request:', { model: currentModel, maxTokens, temperature, promptLength: prompt.length });
+        const response = await fetch(`${this.baseUrl}/messages`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': this.apiKey,
+            'anthropic-version': '2023-06-01',
+          },
+          body: JSON.stringify({
+            model: currentModel,
+            max_tokens: maxTokens,
+            temperature,
+            system: systemPrompt,
+            messages: [{ role: 'user', content: prompt }],
+          }),
         });
+
+        const data = await response.json();
+        console.log('[DEBUG AnthropicProvider] Response:', { ok: response.ok, status: response.status, data: JSON.stringify(data).slice(0, 500) });
+
+        if (!response.ok) {
+          lastErrorData = data;
+          lastStatus = response.status;
+          
+          // If the model is not found, loop to the next fallback model
+          if (data.error?.type === 'not_found_error') {
+            logger.warn(`Model ${currentModel} not found/accessible, trying next...`);
+            continue;
+          }
+
+          return err({
+            code: 'API_ERROR',
+            message: data.error ? JSON.stringify(data.error) : 'Anthropic API error',
+            provider: this.name,
+            retryable: response.status >= 500,
+            name: 'AnthropicError',
+          });
+        }
+
+        const usage = {
+          promptTokens: data.usage?.input_tokens || 0,
+          completionTokens: data.usage?.output_tokens || 0,
+          totalTokens: (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0),
+        };
+
+        return ok({
+          text: data.content[0]?.text || '',
+          usage,
+          model: currentModel,
+          finishReason: data.stop_reason || 'stop',
+        });
+      } catch (error: unknown) {
+        const errorObj = error instanceof Error ? error : new Error(String(error));
+        logger.error('Anthropic provider error', { error: errorObj, prompt: prompt.slice(0, 100) });
+        lastErrorData = { error: { message: errorObj.message } };
+        lastStatus = 500;
+        // Continue to next model on network errors, although it's unlikely to help
       }
+    } // End for loop
 
-      const usage = {
-        promptTokens: data.usage?.input_tokens || 0,
-        completionTokens: data.usage?.output_tokens || 0,
-        totalTokens: (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0),
-      };
-
-      return ok({
-        text: data.content[0]?.text || '',
-        usage,
-        model,
-        finishReason: data.stop_reason || 'stop',
-      });
-    } catch (error: unknown) {
-      const errorObj = error instanceof Error ? error : new Error(String(error));
-      logger.error('Anthropic provider error', { error: errorObj, prompt: prompt.slice(0, 100) });
-      return err({
-        code: 'NETWORK_ERROR',
-        message: error instanceof Error ? error.message : 'Unknown error',
-        provider: this.name,
-        retryable: true,
-        name: 'AnthropicError',
-      });
-    }
+    // If we exhausted all fallbacks
+    return err({
+      code: 'API_ERROR',
+      message: lastErrorData?.error ? JSON.stringify(lastErrorData.error) : 'All Anthropic fallback models failed',
+      provider: this.name,
+      retryable: lastStatus >= 500,
+      name: 'AnthropicError',
+    });
   }
 
   async generateObject<T extends z.ZodTypeAny>(
