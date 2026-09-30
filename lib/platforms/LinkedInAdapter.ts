@@ -129,7 +129,63 @@ export class LinkedInAdapter implements PlatformAdapter {
     return platformFetch('linkedin', async () => {
       const authorUrn = await this.getAuthorUrn(accessToken);
 
-      const postBody = {
+      let contentObj: any = undefined;
+
+      if (input.mediaUrls && input.mediaUrls.length > 0) {
+        const imageUrl = input.mediaUrls[0];
+        try {
+          // 1. Fetch image binary from URL
+          const imageRes = await fetch(imageUrl);
+          if (!imageRes.ok) throw new Error(`Failed to fetch image: ${imageRes.statusText}`);
+          const imageBuffer = await imageRes.arrayBuffer();
+          const contentType = imageRes.headers.get('content-type') || 'application/octet-stream';
+
+          // 2. Initialize upload with LinkedIn
+          const initRes = await fetchWithRetry(`${LINKEDIN_V1_API_BASE}/images?action=initializeUpload`, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+              'X-Restli-Protocol-Version': '2.0.0',
+              'LinkedIn-Version': '202606',
+            },
+            body: JSON.stringify({ initializeUploadRequest: { owner: authorUrn } }),
+          });
+
+          if (!initRes.ok) {
+            const errText = await initRes.text();
+            throw new Error(`Failed to initialize image upload: ${errText}`);
+          }
+
+          const initData = await initRes.json();
+          const imageUrn = initData.value.image;
+          const uploadUrl = initData.value.uploadUrl;
+
+          // 3. Upload binary data
+          const uploadRes = await fetchWithRetry(uploadUrl, {
+            method: 'PUT',
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              'Content-Type': contentType,
+            },
+            body: imageBuffer,
+          });
+
+          if (!uploadRes.ok) {
+            const errText = await uploadRes.text();
+            throw new Error(`Failed to upload image binary: ${errText}`);
+          }
+
+          // 4. Set content object for post payload
+          contentObj = { media: { id: imageUrn } };
+        } catch (error) {
+          logger.error('LinkedIn image upload failed', { error });
+          // Fall back to text post if image fails, or throw? Better to throw so user knows.
+          throw error;
+        }
+      }
+
+      const postBody: any = {
         author: authorUrn,
         commentary: input.content,
         visibility: 'PUBLIC',
@@ -141,6 +197,10 @@ export class LinkedInAdapter implements PlatformAdapter {
         lifecycleState: 'PUBLISHED',
         isReshareDisabledByAuthor: false
       };
+
+      if (contentObj) {
+        postBody.content = contentObj;
+      }
 
       const response = await fetchWithRetry(`${LINKEDIN_V1_API_BASE}/posts`, {
         method: 'POST',

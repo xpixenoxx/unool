@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       const { workspaceId } = auth;
 
       const body = await request.json();
-      const { content, profileId } = body;
+      const { content, profileId, mediaUrl } = body;
 
       if (!content || typeof content !== 'string' || !content.trim()) {
         return NextResponse.json({ error: 'Content is required' }, { status: 400 });
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
           postId: post.id,
           platform,
           adaptedContent: rawContent,
-          mediaUrls: [],
+          mediaUrls: mediaUrl ? [{ url: mediaUrl, type: 'image' }] : [],
           characterCount: rawContent.length,
           hashtagStrategy: [],
           firstCommentHint: undefined,

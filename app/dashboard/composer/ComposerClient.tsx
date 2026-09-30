@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import Link from 'next/link';
@@ -22,6 +22,7 @@ import {
   ArrowUpRight,
   AlertTriangle,
   RefreshCw,
+  ImagePlus,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -92,7 +93,45 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [planError, setPlanError] = useState<string | null>(null);
+  const [mediaUrl, setMediaUrl] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const springConfig: Transition = reducedMotion ? { type: 'tween', duration: 0.01 } : spring.snappy;
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Only image files are supported');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be less than 5MB');
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const res = await fetch('/api/composer/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      
+      setMediaUrl(data.url);
+      toast.success('Image uploaded successfully');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setIsUploading(false);
+      e.target.value = ''; // Reset input
+    }
+  };
 
   const loadProfile = useCallback(async () => {
     try {
@@ -134,7 +173,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ content: sourceContent, profileId: profile.id }),
+        body: JSON.stringify({ content: sourceContent, profileId: profile.id, mediaUrl }),
       });
 
       const data: AdaptResponse = await res.json();
@@ -242,7 +281,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ content: quickContent, profileId: profile.id }),
+        body: JSON.stringify({ content: quickContent, profileId: profile.id, mediaUrl }),
       });
 
       const data = await res.json();
@@ -436,6 +475,39 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   )}
                 </Button>
               </div>
+              
+              {/* Media Upload (Quick Broadcast) */}
+              <div className="pt-2">
+                <div className="flex items-center gap-4">
+                  <input
+                    type="file"
+                    id="media-upload-quick"
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    disabled={isUploading}
+                  />
+                  <label htmlFor="media-upload-quick">
+                    <Button variant="outline" size="sm" type="button" asChild disabled={isUploading}>
+                      <span>
+                        {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImagePlus className="mr-2 h-4 w-4" />}
+                        Add Image
+                      </span>
+                    </Button>
+                  </label>
+                  {mediaUrl && (
+                    <div className="relative inline-block">
+                      <img src={mediaUrl} alt="Upload preview" className="h-16 w-16 object-cover rounded-md border" />
+                      <button
+                        onClick={() => setMediaUrl(null)}
+                        className="absolute -top-2 -right-2 bg-background border rounded-full p-0.5 hover:bg-muted"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </CardContent>
           </Card>
         </MotionBox>
@@ -484,6 +556,39 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                       </>
                     )}
                   </Button>
+                </div>
+
+                {/* Media Upload (AI Composer) */}
+                <div className="pt-2">
+                  <div className="flex items-center gap-4">
+                    <input
+                      type="file"
+                      id="media-upload-ai"
+                      className="hidden"
+                      accept="image/*"
+                      onChange={handleFileUpload}
+                      disabled={isUploading}
+                    />
+                    <label htmlFor="media-upload-ai">
+                      <Button variant="outline" size="sm" type="button" asChild disabled={isUploading}>
+                        <span>
+                          {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImagePlus className="mr-2 h-4 w-4" />}
+                          Add Image
+                        </span>
+                      </Button>
+                    </label>
+                    {mediaUrl && (
+                      <div className="relative inline-block">
+                        <img src={mediaUrl} alt="Upload preview" className="h-16 w-16 object-cover rounded-md border" />
+                        <button
+                          onClick={() => setMediaUrl(null)}
+                          className="absolute -top-2 -right-2 bg-background border rounded-full p-0.5 hover:bg-muted"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
