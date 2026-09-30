@@ -140,26 +140,53 @@ export class LinkedInAdapter implements PlatformAdapter {
           const imageBuffer = await imageRes.arrayBuffer();
           const contentType = imageRes.headers.get('content-type') || 'application/octet-stream';
 
+          const isVideo = contentType.startsWith('video/');
+
+          let mediaUrn = '';
+          let uploadUrl = '';
+
           // 2. Initialize upload with LinkedIn
-          const initRes = await fetchWithRetry(`${LINKEDIN_V1_API_BASE}/images?action=initializeUpload`, {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-              'Content-Type': 'application/json',
-              'X-Restli-Protocol-Version': '2.0.0',
-              'LinkedIn-Version': '202606',
-            },
-            body: JSON.stringify({ initializeUploadRequest: { owner: authorUrn } }),
-          });
+          if (isVideo) {
+            const initRes = await fetchWithRetry(`${LINKEDIN_V1_API_BASE}/videos?action=initializeUpload`, {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+                'X-Restli-Protocol-Version': '2.0.0',
+                'LinkedIn-Version': '202606',
+              },
+              body: JSON.stringify({ initializeUploadRequest: { owner: authorUrn, fileSizeBytes: imageBuffer.byteLength, uploadCaptions: false, uploadThumbnail: false } }),
+            });
 
-          if (!initRes.ok) {
-            const errText = await initRes.text();
-            throw new Error(`Failed to initialize image upload: ${errText}`);
+            if (!initRes.ok) {
+              const errText = await initRes.text();
+              throw new Error(`Failed to initialize video upload: ${errText}`);
+            }
+
+            const initData = await initRes.json();
+            mediaUrn = initData.value.video;
+            uploadUrl = initData.value.uploadInstructions[0].uploadUrl;
+          } else {
+            const initRes = await fetchWithRetry(`${LINKEDIN_V1_API_BASE}/images?action=initializeUpload`, {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+                'X-Restli-Protocol-Version': '2.0.0',
+                'LinkedIn-Version': '202606',
+              },
+              body: JSON.stringify({ initializeUploadRequest: { owner: authorUrn } }),
+            });
+
+            if (!initRes.ok) {
+              const errText = await initRes.text();
+              throw new Error(`Failed to initialize image upload: ${errText}`);
+            }
+
+            const initData = await initRes.json();
+            mediaUrn = initData.value.image;
+            uploadUrl = initData.value.uploadUrl;
           }
-
-          const initData = await initRes.json();
-          const imageUrn = initData.value.image;
-          const uploadUrl = initData.value.uploadUrl;
 
           // 3. Upload binary data
           const uploadRes = await fetchWithRetry(uploadUrl, {
@@ -173,13 +200,13 @@ export class LinkedInAdapter implements PlatformAdapter {
 
           if (!uploadRes.ok) {
             const errText = await uploadRes.text();
-            throw new Error(`Failed to upload image binary: ${errText}`);
+            throw new Error(`Failed to upload media binary: ${errText}`);
           }
 
           // 4. Set content object for post payload
-          contentObj = { media: { id: imageUrn } };
+          contentObj = { media: { id: mediaUrn } };
         } catch (error) {
-          logger.error('LinkedIn image upload failed', { error });
+          logger.error('LinkedIn media upload failed', { error });
           // Fall back to text post if image fails, or throw? Better to throw so user knows.
           throw error;
         }

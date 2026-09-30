@@ -45,6 +45,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         url: publicUrlData.publicUrl,
+        type: file.type.startsWith('video/') ? 'video' : 'image',
       });
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));

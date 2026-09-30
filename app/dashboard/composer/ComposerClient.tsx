@@ -93,18 +93,23 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [planError, setPlanError] = useState<string | null>(null);
-  const [mediaUrl, setMediaUrl] = useState<string | null>(null);
+  const [media, setMedia] = useState<{url: string; type: 'image' | 'video'} | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const springConfig: Transition = reducedMotion ? { type: 'tween', duration: 0.01 } : spring.snappy;
 
   const processFile = async (file: File) => {
-    if (!file.type.startsWith('image/')) {
-      toast.error('Only image files are supported');
+    const isImage = file.type.startsWith('image/');
+    const isVideo = file.type.startsWith('video/');
+
+    if (!isImage && !isVideo) {
+      toast.error('Only image and video files are supported');
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Image must be less than 5MB');
+    
+    const sizeLimitMB = isVideo ? 50 : 5;
+    if (file.size > sizeLimitMB * 1024 * 1024) {
+      toast.error(`${isVideo ? 'Video' : 'Image'} must be less than ${sizeLimitMB}MB`);
       return;
     }
 
@@ -121,8 +126,8 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Upload failed');
       
-      setMediaUrl(data.url);
-      toast.success('Image uploaded successfully');
+      setMedia({ url: data.url, type: data.type });
+      toast.success(`${isVideo ? 'Video' : 'Image'} uploaded successfully`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Upload failed');
     } finally {
@@ -197,7 +202,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ content: sourceContent, profileId: profile.id, mediaUrl }),
+        body: JSON.stringify({ content: sourceContent, profileId: profile.id, mediaUrl: media?.url, mediaType: media?.type }),
       });
 
       const data: AdaptResponse = await res.json();
@@ -305,7 +310,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ content: quickContent, profileId: profile.id, mediaUrl }),
+        body: JSON.stringify({ content: quickContent, profileId: profile.id, mediaUrl: media?.url, mediaType: media?.type }),
       });
 
       const data = await res.json();
@@ -512,19 +517,23 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                     type="file"
                     id="media-upload-quick"
                     className="hidden"
-                    accept="image/*"
+                    accept="image/*,video/*"
                     onChange={handleFileUpload}
                     disabled={isUploading}
                   />
                   <Button variant="outline" size="sm" type="button" onClick={() => document.getElementById('media-upload-quick')?.click()} disabled={isUploading}>
                     {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImagePlus className="mr-2 h-4 w-4" />}
-                    Add Image
+                    Add Media
                   </Button>
-                  {mediaUrl && (
+                  {media && (
                     <div className="relative inline-block">
-                      <img src={mediaUrl} alt="Upload preview" className="h-16 w-16 object-cover rounded-md border" />
+                      {media.type === 'video' ? (
+                        <video src={media.url} className="h-16 w-16 object-cover rounded-md border" muted />
+                      ) : (
+                        <img src={media.url} alt="Upload preview" className="h-16 w-16 object-cover rounded-md border" />
+                      )}
                       <button
-                        onClick={() => setMediaUrl(null)}
+                        onClick={() => setMedia(null)}
                         className="absolute -top-2 -right-2 bg-background border rounded-full p-0.5 hover:bg-muted"
                       >
                         <X className="h-3 w-3" />
@@ -560,7 +569,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                 onDrop={handleDrop}
               >
                 <Textarea
-                  placeholder="e.g. 'Just launched v2 of our product...' (Drag and drop an image here to attach it!)"
+                  placeholder="e.g. 'Just launched v2 of our product...' (Drag and drop media here to attach it!)"
                   value={sourceContent}
                   onChange={e => setSourceContent(e.target.value)}
                   className={cn("min-h-[140px] resize-none", isDragging && "bg-transparent border-dashed border-primary")}
@@ -595,19 +604,23 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                       type="file"
                       id="media-upload-ai"
                       className="hidden"
-                      accept="image/*"
+                      accept="image/*,video/*"
                       onChange={handleFileUpload}
                       disabled={isUploading}
                     />
                     <Button variant="outline" size="sm" type="button" onClick={() => document.getElementById('media-upload-ai')?.click()} disabled={isUploading}>
                       {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImagePlus className="mr-2 h-4 w-4" />}
-                      Add Image
+                      Add Media
                     </Button>
-                    {mediaUrl && (
+                    {media && (
                       <div className="relative inline-block">
-                        <img src={mediaUrl} alt="Upload preview" className="h-16 w-16 object-cover rounded-md border" />
+                        {media.type === 'video' ? (
+                          <video src={media.url} className="h-16 w-16 object-cover rounded-md border" muted />
+                        ) : (
+                          <img src={media.url} alt="Upload preview" className="h-16 w-16 object-cover rounded-md border" />
+                        )}
                         <button
-                          onClick={() => setMediaUrl(null)}
+                          onClick={() => setMedia(null)}
                           className="absolute -top-2 -right-2 bg-background border rounded-full p-0.5 hover:bg-muted"
                         >
                           <X className="h-3 w-3" />
