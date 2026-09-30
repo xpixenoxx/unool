@@ -88,12 +88,10 @@ export async function GET(request: NextRequest) {
          
          debug.push(`s4:rescued_rows=${rows.length}`);
          
-         // Force rescue: if STILL zero, just assign all rows so the user sees SOMETHING on the frontend for debugging
-         // (Only safe because this is a dev/test single owner environment currently)
-         if (rows.length === 0 && process.env.NODE_ENV !== 'production' || true) {
-            debug.push(`s4:FORCING_ALL_ROWS_FOR_DEBUG`);
-            rows = globalCheck; 
-         }
+          // Remove the forced rescue hack
+          if (rows.length === 0) {
+             debug.push(`s4:no_rescued_rows`);
+          }
        }
     }
 
