@@ -18,7 +18,7 @@ export class AnthropicProvider implements AIProvider {
     let model = options?.model || config.ANTHROPIC_MODEL || config.AI_DEFAULT_MODEL;
     // Force haiku for any weird model names to avoid tier access errors
     if (model.includes('opus') || model.includes('sonnet') || (model.includes('haiku') && !model.includes('2024'))) {
-       model = 'claude-3-5-haiku-20241022';
+       model = 'claude-3-haiku-20240307';
     }
     const systemPrompt = options?.systemPrompt || '';
     const maxTokens = options?.maxTokens || 4000;
@@ -48,7 +48,7 @@ export class AnthropicProvider implements AIProvider {
       if (!response.ok) {
         return err({
           code: 'API_ERROR',
-          message: data.error?.message || 'Anthropic API error',
+          message: data.error ? JSON.stringify(data.error) : 'Anthropic API error',
           provider: this.name,
           retryable: response.status >= 500,
           name: 'AnthropicError',
