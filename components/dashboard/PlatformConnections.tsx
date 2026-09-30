@@ -4,9 +4,14 @@ import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Linkedin, Twitter, MessageSquare, Facebook, Instagram, Phone, CheckCircle, AlertCircle, Unlink2, Link2, Lock } from 'lucide-react';
+import {
+  Loader2, Linkedin, Twitter, MessageSquare, Facebook, Instagram,
+  Phone, CheckCircle, AlertCircle, Unlink2, Link2, Lock, Globe2,
+  ArrowRight, Wifi, WifiOff, RefreshCw
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { platformAdapters, SUPPORTED_PLATFORMS } from '@/lib/platforms';
+import { cn } from '@/lib/utils';
 
 type Platform = typeof SUPPORTED_PLATFORMS[number];
 
@@ -22,34 +27,117 @@ interface PlatformConnectionsProps {
   workspaceId: string;
 }
 
-// Platform display configuration - maps platform ID to display info
-const PLATFORM_DISPLAY_CONFIG: Record<Platform, { icon: React.ElementType; name: string; color: string; description: string; available: boolean }> = {
-  linkedin: { icon: Linkedin, name: 'LinkedIn', color: 'bg-blue-600', description: 'Professional posts & articles', available: true },
-  x: { icon: Twitter, name: 'X (Twitter)', color: 'bg-gray-800', description: 'Posts, threads & media', available: true },
-  threads: { icon: MessageSquare, name: 'Threads', color: 'bg-black', description: 'Text, images & replies', available: true },
-  facebook: { icon: Facebook, name: 'Facebook Pages', color: 'bg-blue-700', description: 'Pages posts with media', available: true },
-  whatsapp: { icon: Phone, name: 'WhatsApp Status', color: 'bg-green-600', description: 'Status updates (24h)', available: true },
-  instagram: { icon: Instagram, name: 'Instagram', color: 'bg-pink-600', description: 'Feed, Reels & Stories', available: false },
-  manual: { icon: Link2, name: 'Manual / Other', color: 'bg-gray-600', description: 'Copy-paste to any platform', available: true },
+/* ─── Platform display config ──────────────────────────────── */
+
+const PLATFORM_CONFIG: Record<
+  Platform,
+  {
+    icon: React.ElementType;
+    name: string;
+    shortName: string;
+    color: string;
+    hoverBorder: string;
+    description: string;
+    audience: string;
+    available: boolean;
+  }
+> = {
+  linkedin: {
+    icon: Linkedin,
+    name: 'LinkedIn',
+    shortName: 'LinkedIn',
+    color: 'bg-[#0A66C2]',
+    hoverBorder: 'hover:border-[#0A66C2]/30',
+    description: 'Professional articles & posts',
+    audience: 'Professionals & decision-makers',
+    available: true,
+  },
+  x: {
+    icon: Twitter,
+    name: 'X (Twitter)',
+    shortName: 'X',
+    color: 'bg-neutral-900 dark:bg-neutral-100',
+    hoverBorder: 'hover:border-neutral-400/40',
+    description: 'Posts, threads & media',
+    audience: 'Global public audience',
+    available: true,
+  },
+  threads: {
+    icon: MessageSquare,
+    name: 'Threads',
+    shortName: 'Threads',
+    color: 'bg-neutral-900 dark:bg-neutral-100',
+    hoverBorder: 'hover:border-neutral-400/40',
+    description: 'Text-based conversations',
+    audience: 'Instagram community',
+    available: true,
+  },
+  facebook: {
+    icon: Facebook,
+    name: 'Facebook Pages',
+    shortName: 'Facebook',
+    color: 'bg-[#1877F2]',
+    hoverBorder: 'hover:border-[#1877F2]/30',
+    description: 'Page posts with rich media',
+    audience: 'Wide demographic reach',
+    available: true,
+  },
+  whatsapp: {
+    icon: Phone,
+    name: 'WhatsApp Status',
+    shortName: 'WhatsApp',
+    color: 'bg-[#25D366]',
+    hoverBorder: 'hover:border-[#25D366]/30',
+    description: '24-hour status updates',
+    audience: 'Personal network',
+    available: true,
+  },
+  instagram: {
+    icon: Instagram,
+    name: 'Instagram',
+    shortName: 'Instagram',
+    color: 'bg-gradient-to-br from-[#833AB4] via-[#E1306C] to-[#F77737]',
+    hoverBorder: 'hover:border-pink-400/30',
+    description: 'Feed, Reels & Stories',
+    audience: 'Visual-first audience',
+    available: false,
+  },
+  manual: {
+    icon: Link2,
+    name: 'Manual / Other',
+    shortName: 'Other',
+    color: 'bg-neutral-500',
+    hoverBorder: 'hover:border-neutral-400/30',
+    description: 'Copy-paste to any platform',
+    audience: 'Any platform',
+    available: true,
+  },
 };
 
+/* ─── Component ────────────────────────────────────────────── */
+
 export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
-  // Get only platforms that have adapters implemented
-  const connectablePlatforms = useMemo(() =>
-    SUPPORTED_PLATFORMS.filter(p => platformAdapters[p] && PLATFORM_DISPLAY_CONFIG[p].available) as Platform[],
+  const connectablePlatforms = useMemo(
+    () =>
+      SUPPORTED_PLATFORMS.filter(
+        (p) => platformAdapters[p] && PLATFORM_CONFIG[p].available
+      ) as Platform[],
     []
   );
 
-  // Initialize connections state for all connectable platforms
   const initialConnections = useMemo(() => {
-    const conn: Record<Platform, PlatformConnection> = {} as Record<Platform, PlatformConnection>;
-    connectablePlatforms.forEach(p => {
+    const conn: Record<Platform, PlatformConnection> = {} as Record<
+      Platform,
+      PlatformConnection
+    >;
+    connectablePlatforms.forEach((p) => {
       conn[p] = { platform: p, status: 'not_connected' };
     });
     return conn;
   }, [connectablePlatforms]);
 
-  const [connections, setConnections] = useState<Record<Platform, PlatformConnection>>(initialConnections);
+  const [connections, setConnections] =
+    useState<Record<Platform, PlatformConnection>>(initialConnections);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState<Platform | null>(null);
   const [disconnecting, setDisconnecting] = useState<Platform | null>(null);
@@ -60,19 +148,17 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
 
   const loadConnections = async () => {
     try {
-      const res = await fetch(`/api/platform/connections?_t=${Date.now()}`, { credentials: 'include' });
+      const res = await fetch(`/api/platform/connections?_t=${Date.now()}`, {
+        credentials: 'include',
+      });
       if (res.ok) {
         const data = await res.json();
         if (data.connections) {
-          // Merge server connections with local state (preserve platforms not in server response)
-          setConnections(prev => ({
-            ...prev,
-            ...data.connections,
-          }));
+          setConnections((prev) => ({ ...prev, ...data.connections }));
         }
       }
     } catch {
-      // Ignore - use defaults
+      // Use defaults
     } finally {
       setLoading(false);
     }
@@ -84,8 +170,8 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
   };
 
   const handleDisconnect = async (platform: Platform) => {
-    const config = PLATFORM_DISPLAY_CONFIG[platform];
-    if (!confirm(`Disconnect ${config.name}?`)) return;
+    const config = PLATFORM_CONFIG[platform];
+    if (!confirm(`Disconnect ${config.name}? You can reconnect anytime.`)) return;
 
     setDisconnecting(platform);
     try {
@@ -93,9 +179,8 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
         method: 'DELETE',
         credentials: 'include',
       });
-
       if (res.ok) {
-        setConnections(prev => ({
+        setConnections((prev) => ({
           ...prev,
           [platform]: { platform, status: 'not_connected' },
         }));
@@ -110,19 +195,33 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
     }
   };
 
+  const connectedCount = connectablePlatforms.filter(
+    (p) => connections[p]?.status === 'connected'
+  ).length;
+
+  const comingSoonPlatforms = SUPPORTED_PLATFORMS.filter(
+    (p) => !connectablePlatforms.includes(p)
+  );
+
+  /* ─── Loading state ─── */
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Loader2 className="h-5 w-5 animate-spin" />
-            Platform Connections
+      <Card className="border-border/60">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2.5 text-base">
+            <div className="p-1.5 rounded-lg bg-primary/10">
+              <Globe2 className="h-4 w-4 text-primary" />
+            </div>
+            Publishing Network
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {connectablePlatforms.map(p => (
-              <div key={p} className="p-3 border rounded-lg animate-pulse bg-muted" />
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {connectablePlatforms.map((p) => (
+              <div
+                key={p}
+                className="h-[120px] rounded-xl border border-border/40 bg-muted/30 animate-pulse"
+              />
             ))}
           </div>
         </CardContent>
@@ -131,98 +230,141 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Link2 className="h-5 w-5" />
-          Platform Connections
-        </CardTitle>
+    <Card className="border-border/60">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 rounded-lg bg-primary/10">
+              <Globe2 className="h-4 w-4 text-primary" />
+            </div>
+            <div>
+              <CardTitle className="text-base">Publishing Network</CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Connect platforms to publish everywhere at once
+              </p>
+            </div>
+          </div>
+          {connectedCount > 0 && (
+            <Badge variant="secondary" className="text-xs gap-1">
+              <Wifi className="h-3 w-3" />
+              {connectedCount} connected
+            </Badge>
+          )}
+        </div>
       </CardHeader>
-      <CardContent>
-        <p className="text-sm text-muted-foreground mb-4">
-          Connect your social accounts to enable one-click publishing.
-        </p>
 
-        {/* Connectable platforms */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6">
-          {connectablePlatforms.map(platform => {
-            const config = PLATFORM_DISPLAY_CONFIG[platform];
+      <CardContent className="pt-0">
+        {/* Connected + available platforms */}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {connectablePlatforms.map((platform) => {
+            const config = PLATFORM_CONFIG[platform];
             const connection = connections[platform];
             const Icon = config.icon;
             const isConnected = connection.status === 'connected';
             const isExpired = connection.status === 'expired';
             const isError = connection.status === 'error';
+            const hasIssue = isExpired || isError;
 
             return (
               <div
                 key={platform}
-                className={`border rounded-xl p-4 transition-all ${
-                  isConnected ? 'border-green-200 bg-green-50' :
-                  isExpired ? 'border-yellow-200 bg-yellow-50' :
-                  isError ? 'border-red-200 bg-red-50' :
-                  'border-muted/50 bg-muted/30'
-                }`}
+                className={cn(
+                  'relative rounded-xl border p-4 transition-all duration-200',
+                  config.hoverBorder,
+                  isConnected
+                    ? 'border-emerald-200/80 dark:border-emerald-800/50 bg-emerald-50/50 dark:bg-emerald-950/20'
+                    : hasIssue
+                      ? 'border-amber-200/80 dark:border-amber-800/50 bg-amber-50/30 dark:bg-amber-950/20'
+                      : 'border-border/50 bg-card hover:bg-accent/30'
+                )}
               >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <span className={`p-2 rounded-lg ${config.color} text-white`}>
-                      <Icon className="w-5 h-5" />
-                    </span>
-                    <div>
-                      <h3 className="font-semibold">{config.name}</h3>
-                      <p className="text-xs text-muted-foreground">{config.description}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {isConnected ? 'Connected' :
-                         isExpired ? 'Token expired' :
-                         isError ? 'Connection error' : 'Not connected'}
-                      </p>
-                    </div>
-                  </div>
-                  <Badge
-                    variant={isConnected ? 'default' : isExpired ? 'secondary' : isError ? 'destructive' : 'outline'}
-                    className="text-xs"
-                  >
-                    {isConnected ? (
-                      <>
-                        <CheckCircle className="mr-1 h-2.5 w-2.5" />
-                        Connected
-                      </>
-                    ) : isExpired ? (
-                      <>
-                        <AlertCircle className="mr-1 h-2.5 w-2.5" />
-                        Expired
-                      </>
-                    ) : isError ? (
-                      <>
-                        <AlertCircle className="mr-1 h-2.5 w-2.5" />
-                        Error
-                      </>
-                    ) : (
-                      'Not connected'
+                {/* Platform header */}
+                <div className="flex items-center gap-3 mb-3">
+                  <div
+                    className={cn(
+                      'p-2 rounded-lg text-white flex-shrink-0',
+                      config.color
                     )}
-                  </Badge>
+                  >
+                    <Icon
+                      className={cn(
+                        'w-4 h-4',
+                        platform === 'x' && 'dark:text-neutral-900',
+                        platform === 'threads' && 'dark:text-neutral-900'
+                      )}
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h4 className="text-sm font-semibold text-foreground truncate">
+                      {config.name}
+                    </h4>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {config.description}
+                    </p>
+                  </div>
                 </div>
 
-                {isConnected && connection.username && (
-                  <p className="text-sm text-muted-foreground mb-3">
-                    @{connection.username}
-                  </p>
-                )}
+                {/* Status + username */}
+                <div className="mb-3">
+                  {isConnected ? (
+                    <div className="flex items-center gap-1.5">
+                      <CheckCircle className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                      <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400 truncate">
+                        {connection.username
+                          ? `@${connection.username}`
+                          : 'Connected'}
+                      </span>
+                    </div>
+                  ) : hasIssue ? (
+                    <div className="flex items-center gap-1.5">
+                      <AlertCircle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                      <span className="text-xs font-medium text-amber-700 dark:text-amber-400">
+                        {isExpired ? 'Token expired — reconnect' : 'Connection error'}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <WifiOff className="h-3.5 w-3.5 text-muted-foreground/50 flex-shrink-0" />
+                      <span className="text-xs text-muted-foreground">
+                        Not connected
+                      </span>
+                    </div>
+                  )}
+                </div>
 
-                <div className="flex gap-2">
-                  {isConnected || isExpired ? (
+                {/* Action button */}
+                {isConnected || isExpired ? (
+                  <div className="flex gap-2">
+                    {isExpired && (
+                      <Button
+                        size="sm"
+                        variant="default"
+                        className="flex-1 h-8 text-xs"
+                        onClick={() => handleConnect(platform)}
+                        disabled={connecting === platform}
+                      >
+                        {connecting === platform ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <>
+                            <RefreshCw className="mr-1 h-3 w-3" />
+                            Reconnect
+                          </>
+                        )}
+                      </Button>
+                    )}
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="sm"
-                      className="flex-1"
+                      className={cn(
+                        'h-8 text-xs text-muted-foreground',
+                        !isExpired && 'flex-1'
+                      )}
                       onClick={() => handleDisconnect(platform)}
                       disabled={disconnecting === platform}
                     >
                       {disconnecting === platform ? (
-                        <>
-                          <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                          Disconnecting...
-                        </>
+                        <Loader2 className="h-3 w-3 animate-spin" />
                       ) : (
                         <>
                           <Unlink2 className="mr-1 h-3 w-3" />
@@ -230,55 +372,58 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
                         </>
                       )}
                     </Button>
-                  ) : (
-                    <Button
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => handleConnect(platform)}
-                      disabled={connecting === platform}
-                    >
-                      {connecting === platform ? (
-                        <>
-                          <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                          Connecting...
-                        </>
-                      ) : (
-                        'Connect'
-                      )}
-                    </Button>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <Button
+                    size="sm"
+                    className="w-full h-8 text-xs gap-1.5"
+                    onClick={() => handleConnect(platform)}
+                    disabled={connecting === platform}
+                  >
+                    {connecting === platform ? (
+                      <>
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Connecting…
+                      </>
+                    ) : (
+                      <>
+                        Connect
+                        <ArrowRight className="h-3 w-3" />
+                      </>
+                    )}
+                  </Button>
+                )}
               </div>
             );
           })}
         </div>
 
-        {/* Coming soon platforms */}
-        {SUPPORTED_PLATFORMS
-          .filter(p => !connectablePlatforms.includes(p))
-          .map(platform => {
-            const config = PLATFORM_DISPLAY_CONFIG[platform];
-            return (
-              <div
-                key={platform}
-                className="border border-dashed rounded-xl p-4 bg-muted/30 opacity-60"
-              >
-                <div className="flex items-center gap-3 mb-2">
-                  <span className={`p-2 rounded-lg ${config.color} text-white`}>
-                    <config.icon className="w-5 h-5" />
-                  </span>
-                  <div className="flex-1">
-                    <h3 className="font-semibold">{config.name}</h3>
-                    <p className="text-xs text-muted-foreground">{config.description}</p>
+        {/* Coming soon */}
+        {comingSoonPlatforms.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-border/40">
+            <p className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wider">
+              Coming Soon
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {comingSoonPlatforms.map((platform) => {
+                const config = PLATFORM_CONFIG[platform];
+                const Icon = config.icon;
+                return (
+                  <div
+                    key={platform}
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-border/50 bg-muted/20 text-muted-foreground"
+                  >
+                    <div className={cn('p-1 rounded', config.color, 'opacity-50')}>
+                      <Icon className="w-3 h-3 text-white" />
+                    </div>
+                    <span className="text-xs">{config.shortName}</span>
+                    <Lock className="h-3 w-3 opacity-40" />
                   </div>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Lock className="h-3 w-3" />
-                  <span>Coming soon — Meta App Review required</span>
-                </div>
-              </div>
-            );
-          })}
+                );
+              })}
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
