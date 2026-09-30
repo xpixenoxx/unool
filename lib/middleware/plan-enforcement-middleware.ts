@@ -109,7 +109,11 @@ async function getPlanContext(userId: string, workspaceId: string): Promise<Plan
   };
 }
 
-function checkFeatureGate(features: PlanFeatures, action: PlanAction): { allowed: boolean; reason?: string } {
+function checkFeatureGate(
+  features: PlanFeatures,
+  limits: PlanLimits,
+  action: PlanAction
+): { allowed: boolean; reason?: string } {
   const featureMap: Record<PlanAction, keyof PlanFeatures> = {
     create_post: 'posts_per_month',
     create_profile: 'profiles',
@@ -131,8 +135,17 @@ function checkFeatureGate(features: PlanFeatures, action: PlanAction): { allowed
   const featureKey = featureMap[action];
   if (!featureKey) return { allowed: true };
 
-  const value = features[featureKey];
-  const allowed = value === true || (typeof value === 'number' && value > 0);
+  // Check features first; fall back to limits.
+  // Some plans store quota keys (e.g. ai_adaptations_per_month) only in limits,
+  // so we must check both. -1 means unlimited.
+  const featureValue = features[featureKey as keyof PlanFeatures];
+  const limitValue = limits[featureKey as keyof PlanLimits];
+  const value = featureValue !== undefined ? featureValue : limitValue;
+
+  const allowed =
+    value === true ||
+    value === -1 ||
+    (typeof value === 'number' && value > 0);
 
   return {
     allowed,
@@ -240,7 +253,7 @@ export async function enforcePlanLimit(
   const { userId, workspaceId, plan, features, limits } = context;
 
   // Check feature gate
-  const featureCheck = checkFeatureGate(features, action);
+  const featureCheck = checkFeatureGate(features, limits, action);
   if (!featureCheck.allowed) {
     return {
       allowed: false,
