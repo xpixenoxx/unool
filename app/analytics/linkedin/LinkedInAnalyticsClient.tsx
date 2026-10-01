@@ -109,13 +109,16 @@ export function LinkedInAnalyticsClient() {
         const res = await fetch('/api/linkedin/analytics', { credentials: 'include' });
         const json = await res.json();
         
+        // Expose debug info on window for easy inspection, and also store it in state if needed
+        (window as any).__LI_DEBUG__ = json.debug;
+        console.log('LI_DEBUG', json.debug);
+
         if (!res.ok) {
           const debugInfo = json.debug ? `\n\nDebug: ${json.debug.join(' → ')}` : '';
           throw new Error((json.error || 'Failed to fetch analytics') + debugInfo);
         }
         
         if (json.postsError) {
-          // API returned profile but posts fetch failed (scope issue likely)
           console.warn('Posts fetch issue:', json.postsError, json.debug);
         }
         
@@ -123,8 +126,16 @@ export function LinkedInAnalyticsClient() {
           const hint = json.postsError 
             ? `LinkedIn API returned an error when fetching posts: ${json.postsError}`
             : 'No posts found on your LinkedIn profile yet. Start posting to see analytics!';
-          setError(hint);
+          // Just attach debug to the error string so the user screenshots will capture it!
+          const dbg = json.debug ? ` | Debug: ${json.debug.slice(-3).join(', ')}` : '';
+          setError(hint + dbg);
         } else {
+          // If we HAVE posts, let's attach the debug string to the first post text temporarily just so I can see it!
+          if (json.debug) {
+             if (json.posts.length > 0) {
+                json.posts[0].text = `[DEBUG: ${json.debug.slice(-3).join(' | ')}] \n\n ${json.posts[0].text}`;
+             }
+          }
           setData(json);
         }
       } catch (err) {
