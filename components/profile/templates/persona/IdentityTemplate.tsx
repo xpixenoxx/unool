@@ -8,8 +8,12 @@ import { motion } from 'framer-motion';
 // --- 01 INDIVIDUAL --- //
 
 function LoverTemplate({ profile, accentColor }: any) {
-  const [palette, setPalette] = useState('whipped-cream');
-  const [activeTab, setActiveTab] = useState('overview');
+  const availableTabs = ['overview'];
+  if (profile.company || profile.role) availableTabs.push('project');
+  if (profile.skills && profile.skills.length > 0) availableTabs.push('stack');
+  if (profile.links && profile.links.length > 0) availableTabs.push('connect');
+
+  const [activeTab, setActiveTab] = useState(availableTabs[0] || 'overview');
   const [reactions, setReactions] = useState({ handshake: 142, applaud: 89 });
   const [toastMsg, setToastMsg] = useState('');
   const [toastVisible, setToastVisible] = useState(false);
@@ -55,56 +59,9 @@ function LoverTemplate({ profile, accentColor }: any) {
       --text-eyebrow: #3A1E15; 
       --inset-bg: #EFE4D6; 
       --border-subtle: #E2D3C2;
-    }
 
-    .lover-template-container[data-palette="dark-chocolate"] {
-      --page-bg: #0C0604;
-      --stage-mat: #180D08;
-      --card-bg: #22120C;
-      --card-border: rgba(255, 255, 255, 0.09);
-      --card-shadow-outer-1: 22px 30px 60px rgba(0, 0, 0, 0.92);
-      --card-shadow-outer-2: -6px -6px 20px rgba(70, 40, 28, 0.25);
-      --card-shadow-inner-1: inset 2px 2px 5px rgba(95, 55, 40, 0.5);
-      --card-shadow-inner-2: inset -4px -6px 12px rgba(0, 0, 0, 0.8);
-      --pill-bg: #2E1911;
-      --pill-text: #FAF5EE;
-      --pill-shadow: 5px 7px 15px rgba(0, 0, 0, 0.65), -2px -2px 6px rgba(70, 40, 30, 0.3), inset 2px 2px 3px rgba(95, 60, 45, 0.35), inset -2px -2px 4px rgba(0, 0, 0, 0.6);
-      --choc-primary: #FAF5EE;
-      --choc-gradient: linear-gradient(135deg, #FFFFFF 0%, #EFE6DA 100%);
-      --choc-btn-shadow: 6px 10px 22px rgba(0, 0, 0, 0.5), inset 2px 2px 4px rgba(255, 255, 255, 0.95), inset -2px -3px 5px rgba(160, 120, 95, 0.2);
-      --text-main: #FAF5EE;
-      --text-muted: #C7AE9F;
-      --text-eyebrow: #FAF5EE;
-      --inset-bg: #170A06;
-      --border-subtle: #3E2117;
-    }
-
-    .lover-template-container[data-palette="milk-chocolate"] {
-      --page-bg: #180D08;
-      --stage-mat: #26150E;
-      --card-bg: #44271C;
-      --card-border: rgba(255, 255, 255, 0.15);
-      --card-shadow-outer-1: 22px 30px 60px rgba(0, 0, 0, 0.65);
-      --card-shadow-outer-2: -6px -6px 20px rgba(120, 75, 55, 0.2);
-      --card-shadow-inner-1: inset 3px 3px 6px rgba(255, 255, 255, 0.2);
-      --card-shadow-inner-2: inset -4px -6px 12px rgba(20, 8, 4, 0.65);
-      --pill-bg: #FAF5EE;
-      --pill-text: #2B1710;
-      --pill-shadow: 5px 7px 15px rgba(20, 8, 4, 0.4), -2px -2px 6px rgba(255, 255, 255, 0.15), inset 2px 2px 3px rgba(255, 255, 255, 0.95), inset -2px -2px 4px rgba(170, 130, 105, 0.15);
-      --choc-primary: #FAF5EE;
-      --choc-gradient: linear-gradient(135deg, #FAF5EE 0%, #E8DCCF 100%);
-      --choc-btn-shadow: 6px 10px 22px rgba(20, 8, 4, 0.45), inset 2px 2px 4px rgba(255, 255, 255, 0.95), inset -2px -3px 5px rgba(160, 120, 95, 0.2);
-      --text-main: #FFFDF9;
-      --text-muted: #D9C3B4;
-      --text-eyebrow: #FAF5EE;
-      --inset-bg: #351C13;
-      --border-subtle: rgba(255, 255, 255, 0.15);
-    }
-
-    .lover-template-container {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
       background-color: var(--page-bg);
-      transition: background-color 0.4s ease;
     }
 
     .lover-template-container .font-mono-tag {
@@ -118,10 +75,9 @@ function LoverTemplate({ profile, accentColor }: any) {
 
     .lover-template-container .clay-master-card {
       background: var(--card-bg);
-      border-radius: 36px;
+      border-radius: 32px;
       box-shadow: var(--card-shadow-outer-1), var(--card-shadow-outer-2), var(--card-shadow-inner-1), var(--card-shadow-inner-2);
       border: 1px solid var(--card-border);
-      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     .lover-template-container .clay-pill {
@@ -166,36 +122,18 @@ function LoverTemplate({ profile, accentColor }: any) {
     .lover-template-container .clay-avatar-frame {
       box-shadow: 0 14px 28px rgba(0, 0, 0, 0.2), inset 3px 3px 6px rgba(255, 255, 255, 0.95), inset -3px -3px 6px rgba(0, 0, 0, 0.15);
     }
+
+    .tab-content-wrapper {
+      min-height: 260px;
+    }
   `;
 
   return (
-    <div className="lover-template-container min-h-[100dvh] w-full text-stone-100 p-4 md:p-8 flex flex-col items-center justify-center relative overflow-hidden" data-palette={palette}>
+    <div className="lover-template-container min-h-[100dvh] w-full text-stone-100 p-2 sm:p-4 md:p-8 flex flex-col items-center justify-center relative overflow-hidden" data-palette="whipped-cream">
       <style dangerouslySetInnerHTML={{ __html: customStyles }} />
 
-      <header className="w-full max-w-[460px] mb-6 flex flex-col items-center justify-between gap-3 border-b pb-4 text-center z-10" style={{ borderColor: 'rgba(255, 255, 255, 0.12)' }}>
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md text-[10px] font-mono-tag font-semibold shadow-sm" style={{ background: 'var(--stage-mat)', color: 'var(--text-eyebrow)', border: '1px solid var(--border-subtle)' }}>
-          <span className="w-2 h-2 rounded-full" style={{ background: '#FAF5EE' }}></span>
-          CREAM & CHOCOLATE CLAYMORPHISM
-        </div>
-        
-        <div className="flex items-center gap-1.5 p-1 rounded-2xl border shadow-md" style={{ background: 'var(--stage-mat)', borderColor: 'rgba(255, 255, 255, 0.08)' }}>
-          <button onClick={() => { setPalette('whipped-cream'); showToast('Applied Whipped Cream Base Palette'); }} className={`px-2.5 py-1.5 rounded-xl text-[11px] font-mono-tag font-medium transition flex items-center gap-1.5 ${palette === 'whipped-cream' ? 'bg-black/20 font-semibold' : 'text-stone-400 hover:text-white'}`} style={{ color: palette === 'whipped-cream' ? '#FAF5EE' : '' }}>
-            <span className="w-2.5 h-2.5 rounded-full bg-[#FAF5EE] border border-stone-500"></span>
-            Cream Card
-          </button>
-          <button onClick={() => { setPalette('dark-chocolate'); showToast('Applied Dark Chocolate Base Palette'); }} className={`px-2.5 py-1.5 rounded-xl text-[11px] font-mono-tag font-medium transition flex items-center gap-1.5 ${palette === 'dark-chocolate' ? 'bg-black/20 font-semibold' : 'text-stone-400 hover:text-white'}`} style={{ color: palette === 'dark-chocolate' ? '#FAF5EE' : '' }}>
-            <span className="w-2.5 h-2.5 rounded-full bg-[#22120C] border border-stone-700"></span>
-            Dark Chocolate
-          </button>
-          <button onClick={() => { setPalette('milk-chocolate'); showToast('Applied Milk Chocolate Base Palette'); }} className={`px-2.5 py-1.5 rounded-xl text-[11px] font-mono-tag font-medium transition flex items-center gap-1.5 ${palette === 'milk-chocolate' ? 'bg-black/20 font-semibold' : 'text-stone-400 hover:text-white'}`} style={{ color: palette === 'milk-chocolate' ? '#FAF5EE' : '' }}>
-            <span className="w-2.5 h-2.5 rounded-full bg-[#44271C] border border-stone-600"></span>
-            Milk Chocolate
-          </button>
-        </div>
-      </header>
-
-      <main className="w-full max-w-[460px] p-4 sm:p-7 rounded-[48px] transition-all duration-300 shadow-2xl z-10" style={{ background: 'var(--stage-mat)' }}>
-        <div className="clay-master-card p-6 sm:p-7 flex flex-col relative overflow-hidden">
+      <main className="w-full max-w-[460px] p-4 sm:p-7 rounded-[32px] sm:rounded-[48px] shadow-2xl z-10" style={{ background: 'var(--stage-mat)' }}>
+        <div className="clay-master-card p-5 sm:p-7 flex flex-col relative overflow-hidden">
           
           <div className="w-full flex items-center justify-between pb-3 mb-5 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
             <div className="flex items-center gap-2">
@@ -239,124 +177,128 @@ function LoverTemplate({ profile, accentColor }: any) {
             </div>
           </div>
 
-          <div className="w-full p-1 rounded-2xl clay-inset-tray mb-5 grid grid-cols-4 gap-1">
-            {['overview', 'project', 'stack', 'connect'].map((tab) => (
-              <button 
-                key={tab}
-                onClick={() => setActiveTab(tab)} 
-                className={`py-2 px-1 text-center font-mono-tag text-[10px] rounded-xl transition ${activeTab === tab ? 'clay-pill clay-pill-active font-semibold' : 'text-stone-500 hover:text-stone-800 font-medium'}`} 
-                style={{ color: activeTab === tab ? 'var(--text-main)' : '' }}
-              >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </button>
-            ))}
-          </div>
+          {availableTabs.length > 1 && (
+            <div className="w-full p-1 rounded-2xl clay-inset-tray mb-5 grid gap-1" style={{ gridTemplateColumns: \`repeat(\${availableTabs.length}, minmax(0, 1fr))\` }}>
+              {availableTabs.map((tab) => (
+                <button 
+                  key={tab}
+                  onClick={() => setActiveTab(tab)} 
+                  className={\`py-2 px-1 text-center font-mono-tag text-[10px] rounded-xl transition font-semibold \${activeTab === tab ? 'clay-pill clay-pill-active' : 'text-stone-500 hover:text-stone-800'}\`} 
+                  style={{ color: activeTab === tab ? 'var(--text-main)' : '' }}
+                >
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </button>
+              ))}
+            </div>
+          )}
 
-          {activeTab === 'overview' && (
-            <div className="tab-pane space-y-4">
-              {profile.bio && (
-                <div className="clay-inset-tray p-3.5 rounded-2xl">
-                  <p className="text-xs leading-relaxed font-normal" style={{ color: 'var(--text-main)' }}>
-                    {profile.bio}
-                  </p>
+          <div className="tab-content-wrapper">
+            {activeTab === 'overview' && (
+              <div className="tab-pane space-y-4">
+                {profile.bio && (
+                  <div className="clay-inset-tray p-3.5 rounded-2xl">
+                    <p className="text-xs leading-relaxed font-normal" style={{ color: 'var(--text-main)' }}>
+                      {profile.bio}
+                    </p>
+                  </div>
+                )}
+
+                {profile.proofs && profile.proofs.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2">
+                    {profile.proofs.slice(0,3).map((proof: any, i: number) => (
+                      <div key={i} onClick={() => showToast(\`\${proof.title || proof.type}: \${proof.value}\`)} className="clay-pill p-2.5 rounded-2xl flex flex-col items-center text-center cursor-pointer" style={i === 1 ? { border: '1px solid var(--text-main)' } : {}}>
+                        <span className="text-base sm:text-lg font-bold font-display" style={{ color: 'var(--text-main)' }}>{proof.value}</span>
+                        <span className="font-mono-tag text-[8px] uppercase font-semibold" style={{ color: 'var(--text-muted)' }}>{proof.title || proof.type} ⓘ</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="p-3 rounded-2xl clay-inset-tray flex items-center justify-between gap-2">
+                  <span className="font-mono-tag text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>
+                    ENGAGE:
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button onClick={() => handleReaction('handshake')} className="clay-pill px-2.5 py-1.5 text-xs font-semibold flex items-center gap-1 active:scale-95 transition-transform">
+                      <span>🤝</span>
+                      <span className="font-mono-tag text-[10px]">{reactions.handshake}</span>
+                    </button>
+                    <button onClick={() => handleReaction('applaud')} className="clay-pill px-2.5 py-1.5 text-xs font-semibold flex items-center gap-1 active:scale-95 transition-transform">
+                      <span>👏</span>
+                      <span className="font-mono-tag text-[10px]">{reactions.applaud}</span>
+                    </button>
+                    <button onClick={() => { navigator.clipboard.writeText(window.location.href); showToast('Profile link copied!'); }} className="clay-pill p-1.5 text-xs active:scale-95 transition-transform" title="Share Profile">
+                      🔗
+                    </button>
+                  </div>
                 </div>
-              )}
+              </div>
+            )}
 
-              {profile.proofs && profile.proofs.length > 0 && (
-                <div className="grid grid-cols-3 gap-2">
-                  {profile.proofs.slice(0,3).map((proof: any, i: number) => (
-                    <div key={i} onClick={() => showToast(`${proof.title || proof.type}: ${proof.value}`)} className="clay-pill p-2.5 rounded-2xl flex flex-col items-center text-center cursor-pointer" style={i === 1 ? { border: '1px solid var(--text-main)' } : {}}>
-                      <span className="text-base sm:text-lg font-bold font-display" style={{ color: 'var(--text-main)' }}>{proof.value}</span>
-                      <span className="font-mono-tag text-[8px] uppercase font-semibold" style={{ color: 'var(--text-muted)' }}>{proof.title || proof.type} ⓘ</span>
+            {activeTab === 'project' && (
+              <div className="tab-pane space-y-3">
+                <div className="clay-inset-tray p-4 rounded-2xl border" style={{ borderColor: 'var(--border-subtle)' }}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-mono-tag text-[9px] font-bold px-2 py-0.5 rounded-md uppercase" style={{ background: 'var(--text-main)', color: 'var(--card-bg)' }}>
+                      CORE INITIATIVE
+                    </span>
+                    <span className="font-mono-tag text-[9px] font-semibold" style={{ color: 'var(--text-eyebrow)' }}>
+                      ACTIVE SPRINT
+                    </span>
+                  </div>
+                  <h3 className="text-base font-bold font-display tracking-tight" style={{ color: 'var(--text-main)' }}>
+                    {profile.company || 'Current Project'}
+                  </h3>
+                  <p className="text-xs leading-relaxed mt-1" style={{ color: 'var(--text-muted)' }}>
+                    Currently focusing on building out core features, scaling architecture, and improving user experiences.
+                  </p>
+                  <div className="mt-3 pt-3 border-t flex items-center justify-between" style={{ borderColor: 'var(--border-subtle)' }}>
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--text-main)' }}></span>
+                      <span className="font-mono-tag text-[9px] font-semibold uppercase" style={{ color: 'var(--text-main)' }}>
+                        ROLE: {profile.role || 'LEAD'}
+                      </span>
+                    </div>
+                    <button onClick={() => showToast('Architecture documentation requested!')} className="clay-pill px-2.5 py-1 text-[10px] font-mono-tag font-semibold" style={{ color: 'var(--text-eyebrow)' }}>
+                      View Specs →
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'stack' && (
+              <div className="tab-pane space-y-3">
+                <p className="text-[11px] font-mono-tag uppercase" style={{ color: 'var(--text-muted)' }}>
+                  Tap any competency to endorse:
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {profile.skills?.map((skill: string, i: number) => (
+                    <div key={i} onClick={(e) => { const el = e.currentTarget; el.classList.add('clay-pill-active'); setTimeout(() => el.classList.remove('clay-pill-active'), 250); showToast(\`Endorsed \${skill}!\`); }} className="clay-pill p-2.5 rounded-xl flex items-center justify-between cursor-pointer">
+                      <span className="font-mono-tag text-[10px] font-semibold" style={{ color: 'var(--text-main)' }}>{skill}</span>
+                      <span className="skill-count font-mono-tag text-[9px] px-1.5 py-0.5 rounded bg-black/5" style={{ color: 'var(--text-muted)' }}>+{Math.floor(Math.random() * 50) + 10}</span>
                     </div>
                   ))}
                 </div>
-              )}
-
-              <div className="p-3 rounded-2xl clay-inset-tray flex items-center justify-between gap-2">
-                <span className="font-mono-tag text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>
-                  ENGAGE:
-                </span>
-                <div className="flex items-center gap-1.5">
-                  <button onClick={() => handleReaction('handshake')} className="clay-pill px-2.5 py-1.5 text-xs font-semibold flex items-center gap-1 active:scale-95 transition-transform">
-                    <span>🤝</span>
-                    <span className="font-mono-tag text-[10px]">{reactions.handshake}</span>
-                  </button>
-                  <button onClick={() => handleReaction('applaud')} className="clay-pill px-2.5 py-1.5 text-xs font-semibold flex items-center gap-1 active:scale-95 transition-transform">
-                    <span>👏</span>
-                    <span className="font-mono-tag text-[10px]">{reactions.applaud}</span>
-                  </button>
-                  <button onClick={() => { navigator.clipboard.writeText(window.location.href); showToast('Profile link copied!'); }} className="clay-pill p-1.5 text-xs active:scale-95 transition-transform" title="Share Profile">
-                    🔗
-                  </button>
-                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {activeTab === 'project' && (
-            <div className="tab-pane space-y-3">
-              <div className="clay-inset-tray p-4 rounded-2xl border" style={{ borderColor: 'var(--border-subtle)' }}>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-mono-tag text-[9px] font-bold px-2 py-0.5 rounded-md uppercase" style={{ background: 'var(--text-main)', color: 'var(--card-bg)' }}>
-                    CORE INITIATIVE
-                  </span>
-                  <span className="font-mono-tag text-[9px] font-semibold" style={{ color: 'var(--text-eyebrow)' }}>
-                    ACTIVE SPRINT
-                  </span>
-                </div>
-                <h3 className="text-base font-bold font-display tracking-tight" style={{ color: 'var(--text-main)' }}>
-                  {profile.company || 'Current Project'}
-                </h3>
-                <p className="text-xs leading-relaxed mt-1" style={{ color: 'var(--text-muted)' }}>
-                  Currently focusing on building out core features, scaling architecture, and improving user experiences.
-                </p>
-                <div className="mt-3 pt-3 border-t flex items-center justify-between" style={{ borderColor: 'var(--border-subtle)' }}>
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--text-main)' }}></span>
-                    <span className="font-mono-tag text-[9px] font-semibold uppercase" style={{ color: 'var(--text-main)' }}>
-                      ROLE: {profile.role || 'LEAD'}
-                    </span>
-                  </div>
-                  <button onClick={() => showToast('Architecture documentation requested!')} className="clay-pill px-2.5 py-1 text-[10px] font-mono-tag font-semibold" style={{ color: 'var(--text-eyebrow)' }}>
-                    View Specs →
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'stack' && (
-            <div className="tab-pane space-y-3">
-              <p className="text-[11px] font-mono-tag uppercase" style={{ color: 'var(--text-muted)' }}>
-                Tap any competency to endorse:
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                {['Leadership', 'Design', 'Strategy', 'Execution', 'Innovation', 'Mentorship'].map((skill, i) => (
-                  <div key={i} onClick={(e) => { const el = e.currentTarget; el.classList.add('clay-pill-active'); setTimeout(() => el.classList.remove('clay-pill-active'), 250); showToast(`Endorsed ${skill}!`); }} className="clay-pill p-2.5 rounded-xl flex items-center justify-between cursor-pointer">
-                    <span className="font-mono-tag text-[10px] font-semibold" style={{ color: 'var(--text-main)' }}>{skill}</span>
-                    <span className="skill-count font-mono-tag text-[9px] px-1.5 py-0.5 rounded bg-black/5" style={{ color: 'var(--text-muted)' }}>+{Math.floor(Math.random() * 50) + 10}</span>
-                  </div>
+            {activeTab === 'connect' && (
+              <div className="tab-pane space-y-2.5">
+                {profile.links && profile.links.map((link: any, i: number) => (
+                  <a key={i} href={link.url} target="_blank" rel="noreferrer" className={\`\${i === 0 ? 'clay-choc-btn' : 'clay-pill border'} w-full py-3.5 px-4 font-bold text-xs tracking-wider uppercase flex items-center justify-between no-underline block\`} style={i === 0 ? { color: 'var(--card-bg)' } : { borderColor: 'var(--border-subtle)', color: 'var(--text-main)' }}>
+                    <div className="flex items-center gap-2.5">
+                      <span>{link.label}</span>
+                    </div>
+                    <span className="font-mono-tag text-[10px]" style={i === 0 ? { opacity: 0.85 } : { color: 'var(--text-muted)' }}>Visit →</span>
+                  </a>
                 ))}
+                <button onClick={() => { navigator.clipboard.writeText('hello@example.com'); showToast('Copied: hello@example.com'); }} className="clay-pill w-full py-2.5 px-4 font-mono-tag text-[10px] font-semibold flex items-center justify-center gap-2" style={{ color: 'var(--text-eyebrow)' }}>
+                  <span>✉</span> Copy Professional Inquiries Email
+                </button>
               </div>
-            </div>
-          )}
-
-          {activeTab === 'connect' && (
-            <div className="tab-pane space-y-2.5">
-              {profile.links && profile.links.map((link: any, i: number) => (
-                <a key={i} href={link.url} target="_blank" rel="noreferrer" className={`${i === 0 ? 'clay-choc-btn' : 'clay-pill border'} w-full py-3.5 px-4 font-bold text-xs tracking-wider uppercase flex items-center justify-between no-underline block`} style={i === 0 ? { color: 'var(--card-bg)' } : { borderColor: 'var(--border-subtle)', color: 'var(--text-main)' }}>
-                  <div className="flex items-center gap-2.5">
-                    <span>{link.label}</span>
-                  </div>
-                  <span className="font-mono-tag text-[10px]" style={i === 0 ? { opacity: 0.85 } : { color: 'var(--text-muted)' }}>Visit →</span>
-                </a>
-              ))}
-              <button onClick={() => { navigator.clipboard.writeText('hello@example.com'); showToast('Copied: hello@example.com'); }} className="clay-pill w-full py-2.5 px-4 font-mono-tag text-[10px] font-semibold flex items-center justify-center gap-2" style={{ color: 'var(--text-eyebrow)' }}>
-                <span>✉</span> Copy Professional Inquiries Email
-              </button>
-            </div>
-          )}
+            )}
+          </div>
 
           <div className="mt-5 pt-3.5 border-t flex items-center justify-between" style={{ borderColor: 'var(--border-subtle)' }}>
             <span className="font-mono-tag text-[9px] font-medium uppercase" style={{ color: 'var(--text-muted)' }}>
@@ -370,7 +312,7 @@ function LoverTemplate({ profile, accentColor }: any) {
         </div>
       </main>
 
-      <div className={`fixed bottom-6 px-4 py-2.5 rounded-2xl bg-stone-900/95 border border-stone-700 text-stone-200 text-xs font-mono-tag shadow-2xl flex items-center gap-2 z-50 transition-all duration-300 ${toastVisible ? 'opacity-100 translate-y-0' : 'opacity-0 pointer-events-none translate-y-3'}`}>
+      <div className={\`fixed bottom-6 px-4 py-2.5 rounded-2xl bg-stone-900/95 border border-stone-700 text-stone-200 text-xs font-mono-tag shadow-2xl flex items-center gap-2 z-50 transition-all duration-300 \${toastVisible ? 'opacity-100 translate-y-0' : 'opacity-0 pointer-events-none translate-y-3'}\`}>
         <span className="w-2 h-2 rounded-full" style={{ background: 'var(--text-main)' }}></span>
         <span>{toastMsg}</span>
       </div>
