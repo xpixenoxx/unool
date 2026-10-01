@@ -11,7 +11,7 @@ const LINKEDIN_REST = 'https://api.linkedin.com/rest';
 const LI_HEADERS = (token: string) => ({
   Authorization: `Bearer ${token}`,
   'X-Restli-Protocol-Version': '2.0.0',
-  'LinkedIn-Version': '202501',
+  'LinkedIn-Version': '202606',
 });
 
 /**
