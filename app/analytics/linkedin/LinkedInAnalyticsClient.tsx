@@ -126,16 +126,8 @@ export function LinkedInAnalyticsClient() {
           const hint = json.postsError 
             ? `LinkedIn API returned an error when fetching posts: ${json.postsError}`
             : 'No posts found on your LinkedIn profile yet. Start posting to see analytics!';
-          // Just attach debug to the error string so the user screenshots will capture it!
-          const dbg = json.debug ? ` | Debug: ${json.debug.slice(-3).join(', ')}` : '';
-          setError(hint + dbg);
+          setError(hint);
         } else {
-          // If we HAVE posts, let's attach the debug string to the first post text temporarily just so I can see it!
-          if (json.debug) {
-             if (json.posts.length > 0) {
-                json.posts[0].text = `[DEBUG: ${json.debug.slice(-3).join(' | ')}] \n\n ${json.posts[0].text}`;
-             }
-          }
           setData(json);
         }
       } catch (err) {
