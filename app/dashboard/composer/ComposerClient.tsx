@@ -100,63 +100,89 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const [isDragging, setIsDragging] = useState(false);
   const springConfig: Transition = reducedMotion ? { type: 'tween', duration: 0.01 } : spring.snappy;
 
-  const processFile = async (file: File) => {
-    const isImage = file.type.startsWith('image/');
-    const isVideo = file.type.startsWith('video/');
-    const isPdf = file.type === 'application/pdf';
+  const processFiles = async (files: File[]) => {
+    let currentImages = media.filter(m => m.type === 'image').length;
+    let currentVideos = media.filter(m => m.type === 'video').length;
+    let currentPdfs = media.filter(m => m.type === 'document').length;
 
-    if (!isImage && !isVideo && !isPdf) {
-      toast.error('Only image, video, and PDF files are supported');
-      return;
+    const validFilesToUpload: File[] = [];
+
+    for (const file of files) {
+      const isImage = file.type.startsWith('image/');
+      const isVideo = file.type.startsWith('video/');
+      const isPdf = file.type === 'application/pdf';
+
+      if (!isImage && !isVideo && !isPdf) {
+        toast.error(`${file.name}: Only image, video, and PDF files are supported`);
+        continue;
+      }
+
+      if (isImage) {
+        if (currentImages >= 5) {
+          toast.error(`Cannot add ${file.name}: You can only upload up to 5 images`);
+          continue;
+        }
+        currentImages++;
+      } else if (isVideo) {
+        if (currentVideos >= 1) {
+          toast.error(`Cannot add ${file.name}: You can only upload up to 1 video`);
+          continue;
+        }
+        currentVideos++;
+      } else if (isPdf) {
+        if (currentPdfs >= 1) {
+          toast.error(`Cannot add ${file.name}: You can only upload up to 1 PDF`);
+          continue;
+        }
+        currentPdfs++;
+      }
+
+      const sizeLimitMB = isVideo || isPdf ? 50 : 5;
+      if (file.size > sizeLimitMB * 1024 * 1024) {
+        toast.error(`${file.name}: File must be less than ${sizeLimitMB}MB`);
+        continue;
+      }
+
+      validFilesToUpload.push(file);
     }
 
-    const currentImages = media.filter(m => m.type === 'image').length;
-    const currentVideos = media.filter(m => m.type === 'video').length;
-    const currentPdfs = media.filter(m => m.type === 'document').length;
-
-    if (isImage && currentImages >= 5) {
-      toast.error('You can only upload up to 5 images');
-      return;
-    }
-    if (isVideo && currentVideos >= 1) {
-      toast.error('You can only upload up to 1 video');
-      return;
-    }
-    if (isPdf && currentPdfs >= 1) {
-      toast.error('You can only upload up to 1 PDF');
-      return;
-    }
-    
-    const sizeLimitMB = isVideo || isPdf ? 50 : 5;
-    if (file.size > sizeLimitMB * 1024 * 1024) {
-      toast.error(`${isPdf ? 'PDF' : isVideo ? 'Video' : 'Image'} must be less than ${sizeLimitMB}MB`);
-      return;
-    }
+    if (validFilesToUpload.length === 0) return;
 
     setIsUploading(true);
     try {
-      // 1. Get a presigned upload URL from the backend
-      const res = await fetch('/api/composer/upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename: file.name, contentType: file.type }),
-      });
-      
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Upload failed');
-      
-      // 2. Upload directly from the browser to Supabase
       const supabase = getSupabaseBrowserClient();
-      const { error: uploadError } = await supabase.storage
-        .from('post-media')
-        .uploadToSignedUrl(data.path, data.token, file);
+      const newMediaItems: { url: string; type: 'image' | 'video' | 'document' }[] = [];
+      
+      for (const file of validFilesToUpload) {
+        const res = await fetch('/api/composer/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: file.name, contentType: file.type }),
+        });
+        
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Upload failed');
+        
+        const { error: uploadError } = await supabase.storage
+          .from('post-media')
+          .uploadToSignedUrl(data.path, data.token, file);
 
-      if (uploadError) {
-        throw new Error(`Upload failed: ${uploadError.message}`);
+        if (uploadError) {
+          throw new Error(`Upload failed for ${file.name}: ${uploadError.message}`);
+        }
+        
+        newMediaItems.push({ url: data.url, type: data.type });
       }
       
-      setMedia(prev => [...prev, { url: data.url, type: data.type }]);
-      toast.success(`${isPdf ? 'PDF document' : isVideo ? 'Video' : 'Image'} uploaded successfully`);
+      if (newMediaItems.length > 0) {
+        setMedia(prev => [...prev, ...newMediaItems]);
+        if (newMediaItems.length === 1) {
+          const type = newMediaItems[0].type;
+          toast.success(`${type === 'document' ? 'PDF document' : type === 'video' ? 'Video' : 'Image'} uploaded successfully`);
+        } else {
+          toast.success(`${newMediaItems.length} files uploaded successfully`);
+        }
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Upload failed');
     } finally {
@@ -165,9 +191,9 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      processFile(file);
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      processFiles(files);
     }
     e.target.value = '';
   };
@@ -185,9 +211,9 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) {
-      processFile(file);
+    const files = Array.from(e.dataTransfer.files || []);
+    if (files.length > 0) {
+      processFiles(files);
     }
   };
 
@@ -549,6 +575,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                     accept="image/*,video/*,application/pdf"
                     onChange={handleFileUpload}
                     disabled={isUploading}
+                    multiple
                   />
                   <Button variant="outline" size="sm" type="button" onClick={() => document.getElementById('media-upload-quick')?.click()} disabled={isUploading}>
                     {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImagePlus className="mr-2 h-4 w-4" />}
@@ -645,6 +672,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                       accept="image/*,video/*,application/pdf"
                       onChange={handleFileUpload}
                       disabled={isUploading}
+                      multiple
                     />
                     <Button variant="outline" size="sm" type="button" onClick={() => document.getElementById('media-upload-ai')?.click()} disabled={isUploading}>
                       {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImagePlus className="mr-2 h-4 w-4" />}
