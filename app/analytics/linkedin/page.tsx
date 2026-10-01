@@ -1,8 +1,8 @@
 import { LinkedInAnalyticsClient } from './LinkedInAnalyticsClient';
-import Head from 'next/head';
 
 export const metadata = {
-  title: 'LinkedIn Insights',
+  title: 'LinkedIn Insights | unool',
+  description: 'AI-powered LinkedIn analytics dashboard',
 };
 
 export default function LinkedInAnalyticsPage() {
