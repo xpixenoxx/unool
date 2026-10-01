@@ -195,7 +195,7 @@ export async function GET(request: NextRequest) {
 
         // Fetch real-time engagement via socialActions
         try {
-          const socialUrl = `https://api.linkedin.com/rest/socialActions/${encodeURIComponent(postUrn)}`;
+          const socialUrl = `https://api.linkedin.com/rest/socialActions/${postUrn}`;
           const socialRes = await fetch(socialUrl, {
             headers: LI_HEADERS(accessToken),
           });
@@ -228,7 +228,7 @@ export async function GET(request: NextRequest) {
         let commentsList: any[] = [];
         try {
           const commentsRes = await fetch(
-            `https://api.linkedin.com/rest/socialActions/${encodeURIComponent(postUrn)}/comments?count=10`,
+            `https://api.linkedin.com/rest/socialActions/${postUrn}/comments?count=10`,
             { headers: LI_HEADERS(accessToken) }
           );
           if (commentsRes.ok) {
