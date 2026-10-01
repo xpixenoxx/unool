@@ -13,6 +13,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { PlatformConnections } from '@/components/dashboard/PlatformConnections';
 import { OnboardingChecklist } from '@/components/onboarding/OnboardingChecklist';
 import { cn } from '@/lib/utils';
+import { Dialog, DialogContent, DialogTrigger, DialogTitle } from '@/components/ui/dialog';
 
 /* ─── Biscuit Design System ───────────────────────────────── */
 
@@ -467,14 +468,21 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             ))}
           </div>
 
-          <Link
-            href="/dashboard/settings"
-            className="mt-4 flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg transition-colors"
-            style={{ color: B.accent }}
-          >
-            Manage all platforms
-            <ArrowRight className="h-3 w-3" />
-          </Link>
+          <Dialog>
+            <DialogTrigger asChild>
+              <button
+                className="mt-4 flex w-full items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg transition-colors hover:bg-black/5"
+                style={{ color: B.accent }}
+              >
+                Manage all platforms
+                <ArrowRight className="h-3 w-3" />
+              </button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[800px] bg-[#F7F3ED] border-none max-h-[85vh] overflow-y-auto">
+              <DialogTitle className="sr-only">Manage Platforms</DialogTitle>
+              <PlatformConnections workspaceId={data.workspaceId} />
+            </DialogContent>
+          </Dialog>
         </motion.div>
       </div>
 

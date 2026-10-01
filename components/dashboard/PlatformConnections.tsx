@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   Loader2, Linkedin, Twitter, MessageSquare, Facebook, Instagram,
   Phone, CheckCircle, AlertCircle, Unlink2, Link2, Lock, Globe2,
-  ArrowRight, Wifi, WifiOff, RefreshCw
+  ArrowRight, Wifi, WifiOff, RefreshCw, Youtube
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { platformAdapters, SUPPORTED_PLATFORMS } from '@/lib/platforms';
@@ -100,7 +100,7 @@ const PLATFORM_CONFIG: Record<
     hoverBorder: 'hover:border-pink-400/30',
     description: 'Feed, Reels & Stories',
     audience: 'Visual-first audience',
-    available: false,
+    available: true,
   },
   manual: {
     icon: Link2,
@@ -112,6 +112,16 @@ const PLATFORM_CONFIG: Record<
     audience: 'Any platform',
     available: true,
   },
+  youtube: {
+    icon: Youtube,
+    name: 'YouTube',
+    shortName: 'YouTube',
+    color: 'bg-[#FF0000]',
+    hoverBorder: 'hover:border-red-400/30',
+    description: 'Video content & Shorts',
+    audience: 'Video consumers',
+    available: true,
+  },
 };
 
 /* ─── Component ────────────────────────────────────────────── */
@@ -120,7 +130,7 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
   const connectablePlatforms = useMemo(
     () =>
       SUPPORTED_PLATFORMS.filter(
-        (p) => platformAdapters[p] && PLATFORM_CONFIG[p].available
+        (p) => PLATFORM_CONFIG[p]?.available
       ) as Platform[],
     []
   );
