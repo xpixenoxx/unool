@@ -8,13 +8,6 @@ import { motion } from 'framer-motion';
 // --- 01 INDIVIDUAL --- //
 
 function LoverTemplate({ profile, accentColor }: any) {
-  const availableTabs = ['overview'];
-  if (profile.company || profile.role) availableTabs.push('project');
-  if (profile.skills && profile.skills.length > 0) availableTabs.push('stack');
-  if (profile.links && profile.links.length > 0) availableTabs.push('connect');
-
-  const [activeTab, setActiveTab] = useState(availableTabs[0] || 'overview');
-  const [reactions, setReactions] = useState({ handshake: 142, applaud: 89 });
   const [toastMsg, setToastMsg] = useState('');
   const [toastVisible, setToastVisible] = useState(false);
   const [toastTimer, setToastTimer] = useState<NodeJS.Timeout | null>(null);
@@ -25,296 +18,198 @@ function LoverTemplate({ profile, accentColor }: any) {
     if (toastTimer) clearTimeout(toastTimer);
     const timer = setTimeout(() => {
       setToastVisible(false);
-    }, 2500);
+    }, 2200);
     setToastTimer(timer);
   };
 
-  const handleReaction = (type: 'handshake' | 'applaud') => {
-    setReactions(prev => ({ ...prev, [type]: prev[type] + 1 }));
-    showToast(`+1 ${type === 'handshake' ? 'Handshake 🤝' : 'Applaud 👏'} sent!`);
+  const copyEmail = () => {
+    navigator.clipboard.writeText('hello@example.com');
+    showToast('Copied: hello@example.com');
   };
-  
+
+  const downloadVCard = () => {
+    const vcard = `BEGIN:VCARD\nVERSION:3.0\nN:${profile.name};;;;\nFN:${profile.name}\nORG:${profile.company || ''}\nTITLE:${profile.role || ''}\nURL:${typeof window !== 'undefined' ? window.location.origin : ''}\nEND:VCARD`;
+    const blob = new Blob([vcard], { type: 'text/vcard' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${profile.name?.replace(/\s+/g, '_') || 'Contact'}.vcf`;
+    a.click();
+    showToast('Contact vCard saved!');
+  };
+
   const customStyles = `
-    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,500&family=IBM+Plex+Mono:wght@500;600&display=swap');
 
     .lover-template-container {
-      --page-bg: #FFFFFF; 
-      --stage-mat: #22120C; 
-      --card-bg: #FAF5EE; 
-      --card-border: rgba(255, 255, 255, 0.98);
-      --card-shadow-outer-1: 20px 28px 55px rgba(18, 9, 5, 0.45);
-      --card-shadow-outer-2: -10px -10px 30px rgba(255, 255, 255, 0.12);
-      --card-shadow-inner-1: inset 3px 3px 8px rgba(255, 255, 255, 1);
-      --card-shadow-inner-2: inset -4px -6px 12px rgba(195, 160, 135, 0.2);
-      --pill-bg: #F2E8DC; 
-      --pill-text: #2B1710; 
-      --pill-shadow: 5px 7px 15px rgba(170, 125, 100, 0.2), -3px -3px 8px rgba(255, 255, 255, 0.98), inset 2px 2px 4px rgba(255, 255, 255, 0.95), inset -2px -2px 4px rgba(160, 110, 85, 0.15);
-      --choc-primary: #2B1710;
-      --choc-gradient: linear-gradient(135deg, #3A1E15 0%, #20100A 100%);
-      --choc-btn-shadow: 6px 10px 22px rgba(22, 10, 5, 0.48), inset 2px 2px 4px rgba(255, 255, 255, 0.18), inset -2px -3px 5px rgba(0, 0, 0, 0.65);
-      --cream-secondary-bg: #F2E8DC;
-      --cream-secondary-border: #E0CEBE;
-      --text-main: #2B1710; 
-      --text-muted: #6B493B; 
-      --text-eyebrow: #3A1E15; 
-      --inset-bg: #EFE4D6; 
-      --border-subtle: #E2D3C2;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
 
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      background-color: var(--page-bg);
+    .lover-template-container .font-serif {
+      font-family: 'Playfair Display', Georgia, serif;
     }
 
     .lover-template-container .font-mono-tag {
       font-family: 'IBM Plex Mono', monospace;
-      letter-spacing: 0.08em;
     }
 
-    .lover-template-container .font-display {
-      font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+    .lover-template-container .clay-surface {
+      background: #FFFDF9;
+      border-radius: 26px;
+      box-shadow: 
+        0 8px 24px rgba(42, 23, 16, 0.08),
+        0 1px 3px rgba(42, 23, 16, 0.04),
+        inset 1.5px 1.5px 3px rgba(255, 255, 255, 1),
+        inset -1.5px -2px 4px rgba(180, 140, 115, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.95);
     }
 
-    .lover-template-container .clay-master-card {
-      background: var(--card-bg);
-      border-radius: 32px;
-      box-shadow: var(--card-shadow-outer-1), var(--card-shadow-outer-2), var(--card-shadow-inner-1), var(--card-shadow-inner-2);
-      border: 1px solid var(--card-border);
+    .lover-template-container .clay-card {
+      background: #FFFDF9;
+      border-radius: 18px;
+      box-shadow: 
+        0 4px 14px rgba(42, 23, 16, 0.06),
+        inset 1.5px 1.5px 2px rgba(255, 255, 255, 1),
+        inset -1px -1px 3px rgba(180, 140, 115, 0.09);
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .lover-template-container .clay-card:active {
+      transform: scale(0.985);
+      box-shadow: inset 1.5px 1.5px 3px rgba(42, 23, 16, 0.1);
     }
 
-    .lover-template-container .clay-pill {
-      background: var(--pill-bg);
-      color: var(--pill-text);
-      box-shadow: var(--pill-shadow);
-      border-radius: 14px;
-      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-      cursor: pointer;
+    .lover-template-container .clay-btn-accent {
+      background: linear-gradient(135deg, #CF5628 0%, #B34115 100%);
+      color: #FFFFFF;
+      min-height: 44px;
+      border-radius: 9999px;
+      box-shadow: 
+        0 4px 14px rgba(190, 70, 25, 0.32),
+        inset 1.5px 1.5px 2px rgba(255, 220, 200, 0.5),
+        inset -1.5px -2px 3px rgba(0, 0, 0, 0.25);
+      transition: all 0.15s ease;
     }
-    .lover-template-container .clay-pill:hover {
-      transform: translateY(-2px);
-      filter: brightness(1.02);
-    }
-    .lover-template-container .clay-pill:active, .lover-template-container .clay-pill-active {
-      transform: translateY(1.5px) scale(0.99);
-      box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.18), inset 2px 2px 4px rgba(0, 0, 0, 0.15), inset -1px -1px 3px rgba(255, 255, 255, 0.7);
+    .lover-template-container .clay-btn-accent:active {
+      transform: scale(0.96);
     }
 
-    .lover-template-container .clay-choc-btn {
-      background: var(--choc-gradient);
-      box-shadow: var(--choc-btn-shadow);
-      border-radius: 14px;
-      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-    .lover-template-container .clay-choc-btn:hover {
-      transform: translateY(-2px);
-      filter: brightness(1.08);
-    }
-    .lover-template-container .clay-choc-btn:active {
-      transform: translateY(1.5px) scale(0.99);
-      box-shadow: 2px 3px 6px rgba(0, 0, 0, 0.35), inset 3px 3px 6px rgba(0, 0, 0, 0.5);
-    }
-
-    .lover-template-container .clay-inset-tray {
-      background: var(--inset-bg);
-      border-radius: 20px;
-      box-shadow: inset 3px 3px 7px rgba(0, 0, 0, 0.08), inset -2px -2px 5px rgba(255, 255, 255, 0.9);
-      border: 1px solid rgba(0, 0, 0, 0.04);
-    }
-
-    .lover-template-container .clay-avatar-frame {
-      box-shadow: 0 14px 28px rgba(0, 0, 0, 0.2), inset 3px 3px 6px rgba(255, 255, 255, 0.95), inset -3px -3px 6px rgba(0, 0, 0, 0.15);
-    }
-
-    .tab-content-wrapper {
-      min-height: 260px;
+    .lover-template-container .accent-badge { 
+      background: #F5E6DC; 
+      color: #A64522; 
+      border-color: #E9D1C3; 
     }
   `;
 
   return (
-    <div className="lover-template-container min-h-[100dvh] w-full text-stone-100 p-2 sm:p-4 md:p-8 flex flex-col items-center justify-center relative overflow-hidden" data-palette="whipped-cream">
+    <div className="lover-template-container bg-transparent text-[#26160F] p-4 sm:p-8 antialiased flex flex-col items-center justify-start min-h-[100dvh] w-full relative">
       <style dangerouslySetInnerHTML={{ __html: customStyles }} />
 
-      <main className="w-full max-w-[460px] p-2 sm:p-3.5 rounded-[32px] sm:rounded-[48px] shadow-2xl z-10" style={{ background: 'var(--stage-mat)' }}>
-        <div className="clay-master-card p-2.5 sm:p-3.5 flex flex-col relative overflow-hidden">
-          
-          <div className="w-full flex items-center justify-between pb-3 mb-5 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
-            <div className="flex items-center gap-2">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: 'var(--text-main)' }}></span>
-                <span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: 'var(--text-main)' }}></span>
-              </span>
-              <span className="font-mono-tag text-[10px] font-semibold tracking-wider uppercase" style={{ color: 'var(--text-eyebrow)' }}>
-                SPEC: {profile.role || 'APPLIED AI'}
-              </span>
-            </div>
-            <span className="font-mono-tag text-[10px] font-medium uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-              {profile.company || 'INDEPENDENT'}
+      <div className="w-full max-w-[400px] bg-[#FAF5F0] border border-[#2A1710]/15 rounded-[32px] p-5 shadow-xl relative flex flex-col overflow-hidden transition-all duration-300">
+        
+        {/* Top Status Bar */}
+        <div className="flex items-center justify-between pb-3 mb-4 border-b border-[#2A1710]/10">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#CF5628] animate-pulse"></span>
+            <span className="font-mono-tag text-xs font-bold text-[#2A1710] uppercase tracking-wider">
+              {profile.role || 'PROFESSIONAL'} • {profile.company || 'INDEPENDENT'}
             </span>
           </div>
-
-          <div className="flex items-start gap-4 mb-5">
-            <div className="relative shrink-0">
-              <div className="w-20 h-20 sm:w-22 sm:h-22 rounded-3xl p-1.5 clay-avatar-frame flex items-center justify-center" style={{ background: 'var(--pill-bg)', border: '2px solid var(--text-main)' }}>
-                <div className="w-full h-full rounded-2xl overflow-hidden bg-stone-900 border" style={{ borderColor: 'var(--border-subtle)' }}>
-                  <img src={profile.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80'} alt={profile.name} className="w-full h-full object-cover" />
-                </div>
-              </div>
-              <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full clay-pill flex items-center justify-center font-bold text-[10px]" style={{ background: 'var(--text-main)', color: 'var(--card-bg)' }}>
-                ✓
-              </div>
-            </div>
-
-            <div className="flex-1 min-w-0">
-              <h2 className="text-xl sm:text-2xl font-bold font-display tracking-tight truncate" style={{ color: 'var(--text-main)' }}>
-                {profile.name}
-              </h2>
-              <p className="text-xs font-medium mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                {profile.headline}
-              </p>
-              <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-                <span className="clay-pill px-2.5 py-1 font-mono-tag text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-eyebrow)' }}>
-                  {profile.role || 'PROFESSIONAL'}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {availableTabs.length > 1 && (
-            <div className="w-full p-1 rounded-2xl clay-inset-tray mb-5 grid gap-1" style={{ gridTemplateColumns: `repeat(${availableTabs.length}, minmax(0, 1fr))` }}>
-              {availableTabs.map((tab) => (
-                <button 
-                  key={tab}
-                  onClick={() => setActiveTab(tab)} 
-                  className={`py-2 px-1 text-center font-mono-tag text-[10px] rounded-xl transition font-semibold ${activeTab === tab ? 'clay-pill clay-pill-active' : 'text-stone-500 hover:text-stone-800'}`} 
-                  style={{ color: activeTab === tab ? 'var(--text-main)' : '' }}
-                >
-                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                </button>
-              ))}
-            </div>
-          )}
-
-          <div className="tab-content-wrapper">
-            {activeTab === 'overview' && (
-              <div className="tab-pane space-y-4">
-                {profile.bio && (
-                  <div className="clay-inset-tray p-3.5 rounded-2xl">
-                    <p className="text-xs leading-relaxed font-normal" style={{ color: 'var(--text-main)' }}>
-                      {profile.bio}
-                    </p>
-                  </div>
-                )}
-
-                {profile.proofs && profile.proofs.length > 0 && (
-                  <div className="grid grid-cols-3 gap-2">
-                    {profile.proofs.slice(0,3).map((proof: any, i: number) => (
-                      <div key={i} onClick={() => showToast(`${proof.title || proof.type}: ${proof.value}`)} className="clay-pill p-2.5 rounded-2xl flex flex-col items-center text-center cursor-pointer" style={i === 1 ? { border: '1px solid var(--text-main)' } : {}}>
-                        <span className="text-base sm:text-lg font-bold font-display" style={{ color: 'var(--text-main)' }}>{proof.value}</span>
-                        <span className="font-mono-tag text-[8px] uppercase font-semibold" style={{ color: 'var(--text-muted)' }}>{proof.title || proof.type} ⓘ</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <div className="p-3 rounded-2xl clay-inset-tray flex items-center justify-between gap-2">
-                  <span className="font-mono-tag text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>
-                    ENGAGE:
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    <button onClick={() => handleReaction('handshake')} className="clay-pill px-2.5 py-1.5 text-xs font-semibold flex items-center gap-1 active:scale-95 transition-transform">
-                      <span>🤝</span>
-                      <span className="font-mono-tag text-[10px]">{reactions.handshake}</span>
-                    </button>
-                    <button onClick={() => handleReaction('applaud')} className="clay-pill px-2.5 py-1.5 text-xs font-semibold flex items-center gap-1 active:scale-95 transition-transform">
-                      <span>👏</span>
-                      <span className="font-mono-tag text-[10px]">{reactions.applaud}</span>
-                    </button>
-                    <button onClick={() => { navigator.clipboard.writeText(window.location.href); showToast('Profile link copied!'); }} className="clay-pill p-1.5 text-xs active:scale-95 transition-transform" title="Share Profile">
-                      🔗
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'project' && (
-              <div className="tab-pane space-y-3">
-                <div className="clay-inset-tray p-4 rounded-2xl border" style={{ borderColor: 'var(--border-subtle)' }}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-mono-tag text-[9px] font-bold px-2 py-0.5 rounded-md uppercase" style={{ background: 'var(--text-main)', color: 'var(--card-bg)' }}>
-                      CORE INITIATIVE
-                    </span>
-                    <span className="font-mono-tag text-[9px] font-semibold" style={{ color: 'var(--text-eyebrow)' }}>
-                      ACTIVE SPRINT
-                    </span>
-                  </div>
-                  <h3 className="text-base font-bold font-display tracking-tight" style={{ color: 'var(--text-main)' }}>
-                    {profile.company || 'Current Project'}
-                  </h3>
-                  <p className="text-xs leading-relaxed mt-1" style={{ color: 'var(--text-muted)' }}>
-                    Currently focusing on building out core features, scaling architecture, and improving user experiences.
-                  </p>
-                  <div className="mt-3 pt-3 border-t flex items-center justify-between" style={{ borderColor: 'var(--border-subtle)' }}>
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--text-main)' }}></span>
-                      <span className="font-mono-tag text-[9px] font-semibold uppercase" style={{ color: 'var(--text-main)' }}>
-                        ROLE: {profile.role || 'LEAD'}
-                      </span>
-                    </div>
-                    <button onClick={() => showToast('Architecture documentation requested!')} className="clay-pill px-2.5 py-1 text-[10px] font-mono-tag font-semibold" style={{ color: 'var(--text-eyebrow)' }}>
-                      View Specs →
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'stack' && (
-              <div className="tab-pane space-y-3">
-                <p className="text-[11px] font-mono-tag uppercase" style={{ color: 'var(--text-muted)' }}>
-                  Tap any competency to endorse:
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {profile.skills?.map((skill: string, i: number) => (
-                    <div key={i} onClick={(e) => { const el = e.currentTarget; el.classList.add('clay-pill-active'); setTimeout(() => el.classList.remove('clay-pill-active'), 250); showToast(`Endorsed ${skill}!`); }} className="clay-pill p-2.5 rounded-xl flex items-center justify-between cursor-pointer">
-                      <span className="font-mono-tag text-[10px] font-semibold" style={{ color: 'var(--text-main)' }}>{skill}</span>
-                      <span className="skill-count font-mono-tag text-[9px] px-1.5 py-0.5 rounded bg-black/5" style={{ color: 'var(--text-muted)' }}>+{Math.floor(Math.random() * 50) + 10}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'connect' && (
-              <div className="tab-pane space-y-2.5">
-                {profile.links && profile.links.map((link: any, i: number) => (
-                  <a key={i} href={link.url} target="_blank" rel="noreferrer" className={`${i % 2 === 0 ? 'clay-choc-btn' : 'clay-pill border'} w-full py-3.5 px-4 font-bold text-xs tracking-wider uppercase flex items-center justify-between no-underline block`} style={i % 2 === 0 ? { color: 'var(--card-bg)' } : { borderColor: 'var(--border-subtle)', color: 'var(--text-main)' }}>
-                    <div className="flex items-center gap-2.5">
-                      <span>{link.label}</span>
-                    </div>
-                    <span className="font-mono-tag text-[10px]" style={i % 2 === 0 ? { opacity: 0.85 } : { color: 'var(--text-muted)' }}>Visit →</span>
-                  </a>
-                ))}
-                <button onClick={() => { navigator.clipboard.writeText('hello@example.com'); showToast('Copied: hello@example.com'); }} className="clay-pill w-full py-2.5 px-4 font-mono-tag text-[10px] font-semibold flex items-center justify-center gap-2" style={{ color: 'var(--text-eyebrow)' }}>
-                  <span>✉</span> Copy Professional Inquiries Email
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div className="mt-5 pt-3.5 border-t flex items-center justify-between" style={{ borderColor: 'var(--border-subtle)' }}>
-            <span className="font-mono-tag text-[9px] font-medium uppercase" style={{ color: 'var(--text-muted)' }}>
-              STATUS: ACTIVE ENGAGEMENT
-            </span>
-            <button onClick={() => showToast('Contact vCard downloaded!')} className="font-mono-tag text-[9px] font-semibold uppercase hover:underline" style={{ color: 'var(--text-main)' }}>
-              Save Contact (vCard)
-            </button>
-          </div>
-
+          <span className="font-mono-tag text-xs font-bold accent-badge px-2.5 py-0.5 rounded-full border">
+            @{profile.subdomain || 'user'}
+          </span>
         </div>
-      </main>
 
-      <div className={`fixed bottom-6 px-4 py-2.5 rounded-2xl bg-stone-900/95 border border-stone-700 text-stone-200 text-xs font-mono-tag shadow-2xl flex items-center gap-2 z-50 transition-all duration-300 ${toastVisible ? 'opacity-100 translate-y-0' : 'opacity-0 pointer-events-none translate-y-3'}`}>
-        <span className="w-2 h-2 rounded-full" style={{ background: 'var(--text-main)' }}></span>
-        <span>{toastMsg}</span>
+        {/* Avatar & Identity */}
+        <div className="flex flex-col items-center text-center mb-5">
+          <div className="relative mb-3">
+            <div className="w-[76px] h-[76px] rounded-full p-1 bg-white shadow-md flex items-center justify-center border border-stone-200">
+              <img 
+                src={profile.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80'} 
+                alt={profile.name || 'User'} 
+                className="w-full h-full rounded-full object-cover"
+              />
+            </div>
+            <div className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-[#2A1710] text-[#FFFDF9] flex items-center justify-center font-bold text-[10px] shadow-sm border border-white">
+              ✓
+            </div>
+          </div>
+
+          <h1 className="font-extrabold text-2xl text-[#2A1710] tracking-tight leading-tight" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+            {profile.name}
+          </h1>
+
+          <p className="text-xs font-semibold text-[#CF5628] mt-1 font-mono-tag uppercase tracking-wide">
+            {profile.headline}
+          </p>
+
+          {profile.bio && (
+            <p className="text-xs text-stone-600 font-medium leading-relaxed mt-2.5 max-w-[320px] bg-[#FFFDF9] p-3 rounded-2xl border border-white/80 shadow-sm">
+              "{profile.bio}"
+            </p>
+          )}
+        </div>
+
+        {/* Verified Proof Points */}
+        {profile.proofs && profile.proofs.length > 0 && (
+          <div className="grid grid-cols-3 gap-2.5 mb-5">
+            {profile.proofs.slice(0,3).map((proof: any, i: number) => (
+              <div key={i} className="clay-card p-3 flex flex-col items-center justify-center text-center">
+                <span className={`text-base font-extrabold ${i === 1 ? 'text-[#CF5628]' : 'text-[#2A1710]'}`}>{proof.value}</span>
+                <span className="text-[11px] text-stone-500 font-mono-tag">{proof.title || proof.type}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Links */}
+        {profile.links && profile.links.length > 0 && (
+          <div className="space-y-2.5 mb-5">
+            <div className="flex items-center justify-between px-1">
+              <span className="text-xs font-bold text-[#2A1710] uppercase tracking-wider font-mono-tag">
+                Official Links
+              </span>
+              <span className="text-[11px] text-stone-500 font-medium">Verified Profiles</span>
+            </div>
+
+            {profile.links.map((link: any, i: number) => (
+              <a key={i} href={link.url} target="_blank" rel="noreferrer" className="clay-card p-3.5 flex items-center justify-between no-underline block active:scale-95 transition">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${i % 3 === 0 ? 'bg-[#F6EDE8] text-[#2A1710]' : i % 3 === 1 ? 'bg-[#FAF0E6] text-[#8C4F35]' : 'bg-[#FCECE9] text-[#CF5628]'}`}>
+                    <span className="font-bold text-lg font-serif">{link.label.charAt(0).toUpperCase()}</span>
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-[#2A1710]">{link.label}</h4>
+                    <p className="text-[11px] text-stone-500 truncate max-w-[150px]">{link.url.replace(/^https?:\/\//, '').replace(/^www\./, '')}</p>
+                  </div>
+                </div>
+                <span className="text-stone-400 font-bold text-xs pr-1">↗</span>
+              </a>
+            ))}
+          </div>
+        )}
+
+        {/* Quick Action Bar */}
+        <div className="flex items-center gap-2">
+          <button onClick={copyEmail} className="clay-btn-accent flex-1 text-xs font-bold flex items-center justify-center gap-1.5 shadow-md">
+            <span>✉️</span> Get in Touch
+          </button>
+          <button onClick={downloadVCard} className="clay-card px-4 py-2.5 text-xs font-bold text-[#2A1710] flex items-center justify-center gap-1.5 shrink-0">
+            <span>💾</span> Save Contact
+          </button>
+        </div>
+
+        {/* Footer */}
+        <div className="mt-4 pt-3 border-t border-[#2A1710]/10 flex items-center justify-between text-[11px] text-stone-400 font-mono-tag">
+          <span>{profile.subdomain}.unool.co</span>
+          <span className="text-[#2A1710] font-bold">Unool</span>
+        </div>
+
+      </div>
+
+      {/* Toast */}
+      <div className={`fixed bottom-6 px-4 py-2 bg-[#2A1710] text-[#FFFDF9] text-xs font-mono-tag rounded-full shadow-2xl transition-all duration-200 z-50 ${toastVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+        {toastMsg}
       </div>
     </div>
   );
