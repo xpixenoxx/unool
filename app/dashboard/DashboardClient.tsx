@@ -404,10 +404,20 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               { id: 'linkedin', name: 'LinkedIn', icon: '🔗', color: '#0A66C2', connected: data.connections['linkedin']?.status === 'connected' },
               { id: 'x', name: 'X (Twitter)', icon: '𝕏', color: '#1A1A1A', connected: data.connections['x']?.status === 'connected' },
               { id: 'threads', name: 'Threads', icon: '🧵', color: '#000000', connected: data.connections['threads']?.status === 'connected' },
-            ].map((platform) => (
+            ].map((platform) => {
+              const isLinkedinAnalytics = platform.id === 'linkedin' && platform.connected;
+              return (
               <div
                 key={platform.name}
-                className="flex items-center gap-3 p-3 rounded-xl transition-all"
+                onClick={() => {
+                  if (isLinkedinAnalytics) {
+                    window.location.href = '/analytics/linkedin';
+                  }
+                }}
+                className={cn(
+                  "flex items-center gap-3 p-3 rounded-xl transition-all",
+                  isLinkedinAnalytics && "cursor-pointer hover:scale-[1.02] shadow-sm group"
+                )}
                 style={{
                   backgroundColor: platform.connected ? B.cardAlt : B.bg,
                   border: `1px solid ${platform.connected ? B.border : B.borderLight}`,
@@ -432,7 +442,8 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 </div>
                 {!platform.connected && (
                   <button
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       window.location.href = `/api/auth/platform/connect?platform=${platform.id}&workspaceId=${data.workspaceId}`;
                     }}
                     className="text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
@@ -443,7 +454,8 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 )}
                 {platform.connected && (
                   <button
-                    onClick={async () => {
+                    onClick={async (e) => {
+                      e.stopPropagation();
                       if (!confirm(`Disconnect ${platform.name}? You can reconnect anytime.`)) return;
                       try {
                         const res = await fetch(`/api/platform/connections/${platform.id}`, {
@@ -465,7 +477,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                   </button>
                 )}
               </div>
-            ))}
+            )})}
           </div>
 
           <Dialog>
