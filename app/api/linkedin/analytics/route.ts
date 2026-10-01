@@ -7,7 +7,6 @@ import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
-const LINKEDIN_REST = 'https://api.linkedin.com/rest';
 const LI_HEADERS = (token: string) => ({
   Authorization: `Bearer ${token}`,
   'X-Restli-Protocol-Version': '2.0.0',
@@ -17,46 +16,46 @@ const LI_HEADERS = (token: string) => ({
 /**
  * GET /api/linkedin/analytics
  *
- * Fetches real-time LinkedIn analytics using the stored access token.
- * Returns detailed debug info on failure so we can pinpoint issues.
+ * Fetches LinkedIn analytics by:
+ * 1. Reading posts published through Unool from our database
+ * 2. Fetching real-time engagement data from LinkedIn's socialActions API
+ *    (which works with w_member_social scope)
  */
 export async function GET(request: NextRequest) {
   const debug: string[] = [];
 
   try {
-    // ── Auth ───────────────────────────────────────────────
     const auth = await getCurrentAuth(request);
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized', debug: ['auth_null'] }, { status: 401 });
     }
     debug.push(`auth:uid=${auth.userId.slice(0, 8)},wid=${auth.workspaceId.slice(0, 8)}`);
 
-    // ── Find LinkedIn connection ──────────────────────────
     const adminSupabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
 
-    let { data: rows } = await adminSupabase
+    // ── Find LinkedIn connection ──────────────────────────
+    let { data: connRows } = await adminSupabase
       .from('platform_connections')
       .select('*')
       .eq('workspace_id', auth.workspaceId)
       .eq('platform', 'linkedin');
 
-    if ((!rows || rows.length === 0) && auth.userId !== auth.workspaceId) {
+    if ((!connRows || connRows.length === 0) && auth.userId !== auth.workspaceId) {
       const s2 = await adminSupabase
         .from('platform_connections')
         .select('*')
         .eq('workspace_id', auth.userId)
         .eq('platform', 'linkedin');
-      if (s2.data && s2.data.length > 0) rows = s2.data;
+      if (s2.data && s2.data.length > 0) connRows = s2.data;
     }
 
-    // Strategy 3: check all workspaces the user belongs to
-    if (!rows || rows.length === 0) {
+    // Strategy 3: check all workspaces
+    if (!connRows || connRows.length === 0) {
       const { data: memberships } = await adminSupabase
         .from('workspace_members')
         .select('workspace_id')
         .eq('user_id', auth.userId);
-
-      if (memberships && memberships.length > 0) {
+      if (memberships) {
         for (const m of memberships) {
           const s3 = await adminSupabase
             .from('platform_connections')
@@ -64,67 +63,109 @@ export async function GET(request: NextRequest) {
             .eq('workspace_id', m.workspace_id)
             .eq('platform', 'linkedin');
           if (s3.data && s3.data.length > 0) {
-            rows = s3.data;
-            debug.push(`found_in_member_ws=${m.workspace_id.slice(0, 8)}`);
+            connRows = s3.data;
             break;
           }
         }
       }
     }
 
-    if (!rows || rows.length === 0) {
-      debug.push('no_linkedin_connection_found');
+    if (!connRows || connRows.length === 0) {
       return NextResponse.json({ error: 'LinkedIn not connected. Please connect LinkedIn from the dashboard first.', debug }, { status: 404 });
     }
 
-    debug.push(`connection_id=${rows[0].id.slice(0, 8)},status=${rows[0].status}`);
+    const connection = connRows[0];
+    debug.push(`conn:${connection.id.slice(0, 8)},status=${connection.status}`);
 
-    const connection = rows[0];
     let accessToken: string;
     try {
       accessToken = await decryptToken(connection.access_token_encrypted);
-      debug.push('token_decrypted');
+      debug.push('token_ok');
     } catch (e) {
-      debug.push(`decrypt_failed:${e instanceof Error ? e.message : String(e)}`);
       return NextResponse.json({ error: 'Failed to decrypt access token. Please reconnect LinkedIn.', debug }, { status: 401 });
     }
 
-    // ── Get author profile ────────────────────────────────
+    // ── Get profile ───────────────────────────────────────
     const profileRes = await fetch('https://api.linkedin.com/v2/userinfo', {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
 
     if (!profileRes.ok) {
       const errText = await profileRes.text();
-      debug.push(`profile_failed:${profileRes.status}:${errText.slice(0, 200)}`);
-      if (profileRes.status === 401) {
-        return NextResponse.json({ error: 'LinkedIn token expired. Please reconnect your LinkedIn account.', debug }, { status: 401 });
-      }
-      return NextResponse.json({ error: `LinkedIn profile fetch failed (${profileRes.status})`, debug }, { status: 500 });
+      debug.push(`profile_err:${profileRes.status}`);
+      return NextResponse.json({
+        error: profileRes.status === 401
+          ? 'LinkedIn token expired. Please reconnect your LinkedIn account.'
+          : `LinkedIn profile fetch failed (${profileRes.status})`,
+        debug,
+      }, { status: profileRes.status === 401 ? 401 : 500 });
     }
 
     const profileData = await profileRes.json();
-    const authorUrn = `urn:li:person:${profileData.sub}`;
     const displayName = profileData.name || `${profileData.given_name || ''} ${profileData.family_name || ''}`.trim();
-    debug.push(`profile_ok:${displayName}:urn=${authorUrn}`);
+    debug.push(`profile:${displayName}`);
 
-    // ── Fetch user's posts ────────────────────────────────
-    const postsUrl = `${LINKEDIN_REST}/posts?q=author&author=${encodeURIComponent(authorUrn)}&count=10&sortBy=LAST_MODIFIED`;
-    debug.push(`posts_url=${postsUrl}`);
+    // ── Fetch posts published through Unool from our DB ───
+    // Get all LinkedIn platform_posts for this connection
+    const { data: platformPosts, error: ppErr } = await adminSupabase
+      .from('platform_posts')
+      .select('*, post_variant:post_variant_id(*, post:post_id(*))')
+      .eq('platform_connection_id', connection.id)
+      .order('created_at', { ascending: false })
+      .limit(20);
 
-    const postsRes = await fetch(postsUrl, { headers: LI_HEADERS(accessToken) });
+    debug.push(`db_posts:${platformPosts?.length || 0},err=${ppErr?.message || 'none'}`);
 
-    let posts: any[] = [];
-    if (postsRes.ok) {
-      const postsData = await postsRes.json();
-      posts = postsData.elements || [];
-      debug.push(`posts_ok:count=${posts.length}`);
-    } else {
-      const errText = await postsRes.text();
-      debug.push(`posts_failed:${postsRes.status}:${errText.slice(0, 300)}`);
-      
-      // If posts fetch fails, still return profile with empty posts
-      // (might be a scope issue — w_member_social may not allow reading posts on some apps)
+    // If no posts found via connection id, try finding via workspace posts
+    let allPosts = platformPosts || [];
+
+    if (allPosts.length === 0) {
+      // Broader search: find all posts for this workspace that have linkedin variants
+      const { data: wsPosts } = await adminSupabase
+        .from('posts')
+        .select('id, content, created_at')
+        .eq('workspace_id', auth.workspaceId)
+        .eq('status', 'published')
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (wsPosts && wsPosts.length > 0) {
+        const postIds = wsPosts.map((p: any) => p.id);
+        const { data: variants } = await adminSupabase
+          .from('post_variants')
+          .select('id, post_id, adapted_content, platform, status, platform_post_id, created_at')
+          .in('post_id', postIds)
+          .eq('platform', 'linkedin')
+          .eq('status', 'published');
+
+        if (variants && variants.length > 0) {
+          const variantIds = variants.map((v: any) => v.id);
+          const { data: pPosts } = await adminSupabase
+            .from('platform_posts')
+            .select('*')
+            .in('post_variant_id', variantIds)
+            .order('created_at', { ascending: false });
+
+          if (pPosts && pPosts.length > 0) {
+            // Enrich with variant/post data
+            allPosts = pPosts.map((pp: any) => {
+              const variant = variants.find((v: any) => v.id === pp.post_variant_id);
+              const post = wsPosts.find((p: any) => p.id === variant?.post_id);
+              return {
+                ...pp,
+                post_variant: variant ? {
+                  ...variant,
+                  post: post || null,
+                } : null,
+              };
+            });
+          }
+        }
+        debug.push(`ws_posts_search:variants=${allPosts.length}`);
+      }
+    }
+
+    if (allPosts.length === 0) {
       return NextResponse.json({
         profile: {
           name: displayName,
@@ -135,24 +176,26 @@ export async function GET(request: NextRequest) {
         totalPosts: 0,
         fetchedAt: new Date().toISOString(),
         debug,
-        postsError: `LinkedIn returned ${postsRes.status}. ${errText.slice(0, 200)}`,
+        postsError: 'No posts published through Unool were found. Publish a post via the Studio to see analytics here.',
       });
     }
 
-    // ── Enrich each post with engagement data ─────────────
+    // ── Enrich each post with real-time engagement from LinkedIn ──
     const enrichedPosts = await Promise.all(
-      posts.slice(0, 10).map(async (post: any) => {
-        const postId = post.id || '';
-        const postUrn = postId.startsWith('urn:') ? postId : `urn:li:share:${postId}`;
+      allPosts.slice(0, 10).map(async (pp: any) => {
+        const platformPostId = pp.platform_post_id || '';
+        const postUrn = platformPostId.startsWith('urn:') ? platformPostId : `urn:li:share:${platformPostId}`;
+        const variant = pp.post_variant;
+        const postText = variant?.adapted_content || variant?.post?.content || '';
 
         let reactions = 0;
         let commentsCount = 0;
         let shares = 0;
 
-        // Fetch social actions
+        // Fetch real-time engagement via socialActions (works with w_member_social)
         try {
           const socialRes = await fetch(
-            `${LINKEDIN_REST}/socialActions/${encodeURIComponent(postUrn)}`,
+            `https://api.linkedin.com/rest/socialActions/${encodeURIComponent(postUrn)}`,
             { headers: LI_HEADERS(accessToken) }
           );
           if (socialRes.ok) {
@@ -160,14 +203,25 @@ export async function GET(request: NextRequest) {
             reactions = d.likesSummary?.totalLikes || 0;
             commentsCount = d.commentsSummary?.totalFirstLevelComments || d.commentsSummary?.totalComments || 0;
             shares = d.sharesSummary?.totalShares || 0;
+          } else {
+            // Use stored engagement as fallback
+            const stored = pp.engagement || {};
+            reactions = stored.likes || 0;
+            commentsCount = stored.comments || 0;
+            shares = stored.shares || 0;
           }
-        } catch { /* skip */ }
+        } catch {
+          const stored = pp.engagement || {};
+          reactions = stored.likes || 0;
+          commentsCount = stored.comments || 0;
+          shares = stored.shares || 0;
+        }
 
         // Fetch comments
         let commentsList: any[] = [];
         try {
           const commentsRes = await fetch(
-            `${LINKEDIN_REST}/socialActions/${encodeURIComponent(postUrn)}/comments?count=10`,
+            `https://api.linkedin.com/rest/socialActions/${encodeURIComponent(postUrn)}/comments?count=10`,
             { headers: LI_HEADERS(accessToken) }
           );
           if (commentsRes.ok) {
@@ -183,17 +237,15 @@ export async function GET(request: NextRequest) {
           }
         } catch { /* skip */ }
 
-        const postText = post.commentary || post.specificContent?.['com.linkedin.ugc.ShareContent']?.shareCommentary?.text || '';
-
         return {
-          id: postId,
+          id: platformPostId,
           text: postText,
-          createdAt: post.createdAt ? new Date(post.createdAt).toISOString() : post.created?.time ? new Date(post.created.time).toISOString() : null,
+          createdAt: pp.created_at || null,
           reactions,
           comments: commentsCount,
           shares,
           commentsList,
-          url: `https://www.linkedin.com/feed/update/${postId}`,
+          url: pp.platform_url || `https://www.linkedin.com/feed/update/${platformPostId}`,
         };
       })
     );
@@ -207,7 +259,7 @@ export async function GET(request: NextRequest) {
         linkedinUrl: `https://www.linkedin.com/in/${profileData.sub}`,
       },
       posts: enrichedPosts,
-      totalPosts: posts.length,
+      totalPosts: enrichedPosts.length,
       fetchedAt: new Date().toISOString(),
       debug,
     });
