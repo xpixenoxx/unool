@@ -194,11 +194,10 @@ export async function GET(request: NextRequest) {
         let engagementDebug = '';
 
         // Fetch real-time engagement via socialActions
-        // NOTE: Do NOT use encodeURIComponent — LinkedIn expects the raw URN with colons
         try {
-          const socialUrl = `https://api.linkedin.com/v2/socialActions/${postUrn}`;
+          const socialUrl = `https://api.linkedin.com/rest/socialActions/${encodeURIComponent(postUrn)}`;
           const socialRes = await fetch(socialUrl, {
-            headers: { Authorization: `Bearer ${accessToken}` },
+            headers: LI_HEADERS(accessToken),
           });
           if (socialRes.ok) {
             const d = await socialRes.json();
@@ -229,8 +228,8 @@ export async function GET(request: NextRequest) {
         let commentsList: any[] = [];
         try {
           const commentsRes = await fetch(
-            `https://api.linkedin.com/v2/socialActions/${postUrn}/comments?count=10`,
-            { headers: { Authorization: `Bearer ${accessToken}` } }
+            `https://api.linkedin.com/rest/socialActions/${encodeURIComponent(postUrn)}/comments?count=10`,
+            { headers: LI_HEADERS(accessToken) }
           );
           if (commentsRes.ok) {
             const cd = await commentsRes.json();
