@@ -191,38 +191,46 @@ export async function GET(request: NextRequest) {
         let reactions = 0;
         let commentsCount = 0;
         let shares = 0;
+        let engagementDebug = '';
 
-        // Fetch real-time engagement via socialActions (works with w_member_social)
+        // Fetch real-time engagement via socialActions
+        // NOTE: Do NOT use encodeURIComponent — LinkedIn expects the raw URN with colons
         try {
-          const socialRes = await fetch(
-            `https://api.linkedin.com/rest/socialActions/${encodeURIComponent(postUrn)}`,
-            { headers: LI_HEADERS(accessToken) }
-          );
+          const socialUrl = `https://api.linkedin.com/v2/socialActions/${postUrn}`;
+          const socialRes = await fetch(socialUrl, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
           if (socialRes.ok) {
             const d = await socialRes.json();
             reactions = d.likesSummary?.totalLikes || 0;
             commentsCount = d.commentsSummary?.totalFirstLevelComments || d.commentsSummary?.totalComments || 0;
             shares = d.sharesSummary?.totalShares || 0;
+            engagementDebug = `ok:r=${reactions},c=${commentsCount},s=${shares}`;
           } else {
+            const errText = await socialRes.text();
+            engagementDebug = `err:${socialRes.status}:${errText.slice(0, 100)}`;
             // Use stored engagement as fallback
             const stored = pp.engagement || {};
             reactions = stored.likes || 0;
             commentsCount = stored.comments || 0;
             shares = stored.shares || 0;
           }
-        } catch {
+        } catch (e) {
+          engagementDebug = `catch:${e instanceof Error ? e.message : String(e)}`;
           const stored = pp.engagement || {};
           reactions = stored.likes || 0;
           commentsCount = stored.comments || 0;
           shares = stored.shares || 0;
         }
 
+        debug.push(`post:${platformPostId.slice(0, 20)}:${engagementDebug}`);
+
         // Fetch comments
         let commentsList: any[] = [];
         try {
           const commentsRes = await fetch(
-            `https://api.linkedin.com/rest/socialActions/${encodeURIComponent(postUrn)}/comments?count=10`,
-            { headers: LI_HEADERS(accessToken) }
+            `https://api.linkedin.com/v2/socialActions/${postUrn}/comments?count=10`,
+            { headers: { Authorization: `Bearer ${accessToken}` } }
           );
           if (commentsRes.ok) {
             const cd = await commentsRes.json();
