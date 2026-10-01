@@ -144,7 +144,7 @@ export default function HomePage() {
           className="relative z-20 max-w-6xl mx-auto w-full px-6 py-6 flex items-center justify-between"
         >
           <Link href="/" className="flex items-center gap-2">
-            <img src="/logo.png" alt="Unool" className="w-[50px] h-[50px] object-contain brightness-0 invert opacity-90" />
+            <img src="/logo.png" alt="Unool" className="w-[60px] h-[60px] object-contain" />
           </Link>
 
           <div className="hidden md:flex items-center gap-8 text-sm" style={{ color: 'rgba(255,249,242,0.5)' }}>

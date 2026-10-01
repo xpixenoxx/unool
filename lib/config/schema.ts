@@ -55,6 +55,16 @@ const configSchema = z.object({
   X_CLIENT_SECRET: z.string().optional(),
   X_REDIRECT_URI: z.string().url().optional(),
 
+  // Pinterest OAuth
+  PINTEREST_CLIENT_ID: z.string().optional(),
+  PINTEREST_CLIENT_SECRET: z.string().optional(),
+  PINTEREST_REDIRECT_URI: z.string().url().optional(),
+
+  // YouTube OAuth
+  YOUTUBE_CLIENT_ID: z.string().optional(),
+  YOUTUBE_CLIENT_SECRET: z.string().optional(),
+  YOUTUBE_REDIRECT_URI: z.string().url().optional(),
+
   // Webhook secrets
   LINKEDIN_WEBHOOK_SECRET: z.string().optional(),
   X_WEBHOOK_SECRET: z.string().optional(),

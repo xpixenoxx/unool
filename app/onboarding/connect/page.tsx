@@ -22,6 +22,7 @@ const PLATFORM_BADGE_COLORS: Record<string, string> = {
   instagram: '#E4405F',
   youtube: '#FF0000',
   whatsapp: '#25D366',
+  pinterest: '#E60023',
 };
 
 function ConnectPageContent() {

@@ -9,7 +9,8 @@ import {
   Facebook, 
   Linkedin, 
   MessageCircle, // for Threads
-  Loader2
+  Loader2,
+  Pin // for Pinterest
 } from 'lucide-react';
 import { getAccessToken } from '@/lib/supabase/browser';
 
@@ -20,6 +21,7 @@ const accounts = [
   { id: 'facebook', name: 'Facebook', icon: Facebook },
   { id: 'linkedin', name: 'LinkedIn', icon: Linkedin },
   { id: 'threads', name: 'Threads', icon: MessageCircle },
+  { id: 'pinterest', name: 'Pinterest', icon: Pin },
 ];
 
 export default function AddAccountsPage() {
