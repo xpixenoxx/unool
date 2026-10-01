@@ -107,13 +107,23 @@ export function LinkedInAnalyticsClient() {
       setError(null);
       try {
         const res = await fetch('/api/linkedin/analytics', { credentials: 'include' });
-        if (!res.ok) {
-          const errData = await res.json();
-          throw new Error(errData.error || 'Failed to fetch analytics');
-        }
         const json = await res.json();
+        
+        if (!res.ok) {
+          const debugInfo = json.debug ? `\n\nDebug: ${json.debug.join(' → ')}` : '';
+          throw new Error((json.error || 'Failed to fetch analytics') + debugInfo);
+        }
+        
+        if (json.postsError) {
+          // API returned profile but posts fetch failed (scope issue likely)
+          console.warn('Posts fetch issue:', json.postsError, json.debug);
+        }
+        
         if (!json.posts || json.posts.length === 0) {
-          setError('No posts found on your LinkedIn profile yet. Start posting to see analytics!');
+          const hint = json.postsError 
+            ? `LinkedIn API returned an error when fetching posts: ${json.postsError}`
+            : 'No posts found on your LinkedIn profile yet. Start posting to see analytics!';
+          setError(hint);
         } else {
           setData(json);
         }
