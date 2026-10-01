@@ -38,7 +38,7 @@ function LoverTemplate({ profile, accentColor }: any) {
     @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap');
 
     .lover-template-container {
-      --page-bg: #140B07; 
+      --page-bg: #FFFFFF; 
       --stage-mat: #22120C; 
       --card-bg: #FAF5EE; 
       --card-border: rgba(255, 255, 255, 0.98);
@@ -132,8 +132,8 @@ function LoverTemplate({ profile, accentColor }: any) {
     <div className="lover-template-container min-h-[100dvh] w-full text-stone-100 p-2 sm:p-4 md:p-8 flex flex-col items-center justify-center relative overflow-hidden" data-palette="whipped-cream">
       <style dangerouslySetInnerHTML={{ __html: customStyles }} />
 
-      <main className="w-full max-w-[460px] p-4 sm:p-7 rounded-[32px] sm:rounded-[48px] shadow-2xl z-10" style={{ background: 'var(--stage-mat)' }}>
-        <div className="clay-master-card p-5 sm:p-7 flex flex-col relative overflow-hidden">
+      <main className="w-full max-w-[460px] p-2 sm:p-3.5 rounded-[32px] sm:rounded-[48px] shadow-2xl z-10" style={{ background: 'var(--stage-mat)' }}>
+        <div className="clay-master-card p-2.5 sm:p-3.5 flex flex-col relative overflow-hidden">
           
           <div className="w-full flex items-center justify-between pb-3 mb-5 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
             <div className="flex items-center gap-2">
@@ -286,11 +286,11 @@ function LoverTemplate({ profile, accentColor }: any) {
             {activeTab === 'connect' && (
               <div className="tab-pane space-y-2.5">
                 {profile.links && profile.links.map((link: any, i: number) => (
-                  <a key={i} href={link.url} target="_blank" rel="noreferrer" className={`${i === 0 ? 'clay-choc-btn' : 'clay-pill border'} w-full py-3.5 px-4 font-bold text-xs tracking-wider uppercase flex items-center justify-between no-underline block`} style={i === 0 ? { color: 'var(--card-bg)' } : { borderColor: 'var(--border-subtle)', color: 'var(--text-main)' }}>
+                  <a key={i} href={link.url} target="_blank" rel="noreferrer" className={`${i % 2 === 0 ? 'clay-choc-btn' : 'clay-pill border'} w-full py-3.5 px-4 font-bold text-xs tracking-wider uppercase flex items-center justify-between no-underline block`} style={i % 2 === 0 ? { color: 'var(--card-bg)' } : { borderColor: 'var(--border-subtle)', color: 'var(--text-main)' }}>
                     <div className="flex items-center gap-2.5">
                       <span>{link.label}</span>
                     </div>
-                    <span className="font-mono-tag text-[10px]" style={i === 0 ? { opacity: 0.85 } : { color: 'var(--text-muted)' }}>Visit →</span>
+                    <span className="font-mono-tag text-[10px]" style={i % 2 === 0 ? { opacity: 0.85 } : { color: 'var(--text-muted)' }}>Visit →</span>
                   </a>
                 ))}
                 <button onClick={() => { navigator.clipboard.writeText('hello@example.com'); showToast('Copied: hello@example.com'); }} className="clay-pill w-full py-2.5 px-4 font-mono-tag text-[10px] font-semibold flex items-center justify-center gap-2" style={{ color: 'var(--text-eyebrow)' }}>
