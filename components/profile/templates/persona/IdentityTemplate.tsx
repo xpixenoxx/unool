@@ -178,12 +178,12 @@ function LoverTemplate({ profile, accentColor }: any) {
           </div>
 
           {availableTabs.length > 1 && (
-            <div className="w-full p-1 rounded-2xl clay-inset-tray mb-5 grid gap-1" style={{ gridTemplateColumns: \`repeat(\${availableTabs.length}, minmax(0, 1fr))\` }}>
+            <div className="w-full p-1 rounded-2xl clay-inset-tray mb-5 grid gap-1" style={{ gridTemplateColumns: `repeat(${availableTabs.length}, minmax(0, 1fr))` }}>
               {availableTabs.map((tab) => (
                 <button 
                   key={tab}
                   onClick={() => setActiveTab(tab)} 
-                  className={\`py-2 px-1 text-center font-mono-tag text-[10px] rounded-xl transition font-semibold \${activeTab === tab ? 'clay-pill clay-pill-active' : 'text-stone-500 hover:text-stone-800'}\`} 
+                  className={`py-2 px-1 text-center font-mono-tag text-[10px] rounded-xl transition font-semibold ${activeTab === tab ? 'clay-pill clay-pill-active' : 'text-stone-500 hover:text-stone-800'}`} 
                   style={{ color: activeTab === tab ? 'var(--text-main)' : '' }}
                 >
                   {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -206,7 +206,7 @@ function LoverTemplate({ profile, accentColor }: any) {
                 {profile.proofs && profile.proofs.length > 0 && (
                   <div className="grid grid-cols-3 gap-2">
                     {profile.proofs.slice(0,3).map((proof: any, i: number) => (
-                      <div key={i} onClick={() => showToast(\`\${proof.title || proof.type}: \${proof.value}\`)} className="clay-pill p-2.5 rounded-2xl flex flex-col items-center text-center cursor-pointer" style={i === 1 ? { border: '1px solid var(--text-main)' } : {}}>
+                      <div key={i} onClick={() => showToast(`${proof.title || proof.type}: ${proof.value}`)} className="clay-pill p-2.5 rounded-2xl flex flex-col items-center text-center cursor-pointer" style={i === 1 ? { border: '1px solid var(--text-main)' } : {}}>
                         <span className="text-base sm:text-lg font-bold font-display" style={{ color: 'var(--text-main)' }}>{proof.value}</span>
                         <span className="font-mono-tag text-[8px] uppercase font-semibold" style={{ color: 'var(--text-muted)' }}>{proof.title || proof.type} ⓘ</span>
                       </div>
@@ -274,7 +274,7 @@ function LoverTemplate({ profile, accentColor }: any) {
                 </p>
                 <div className="grid grid-cols-2 gap-2">
                   {profile.skills?.map((skill: string, i: number) => (
-                    <div key={i} onClick={(e) => { const el = e.currentTarget; el.classList.add('clay-pill-active'); setTimeout(() => el.classList.remove('clay-pill-active'), 250); showToast(\`Endorsed \${skill}!\`); }} className="clay-pill p-2.5 rounded-xl flex items-center justify-between cursor-pointer">
+                    <div key={i} onClick={(e) => { const el = e.currentTarget; el.classList.add('clay-pill-active'); setTimeout(() => el.classList.remove('clay-pill-active'), 250); showToast(`Endorsed ${skill}!`); }} className="clay-pill p-2.5 rounded-xl flex items-center justify-between cursor-pointer">
                       <span className="font-mono-tag text-[10px] font-semibold" style={{ color: 'var(--text-main)' }}>{skill}</span>
                       <span className="skill-count font-mono-tag text-[9px] px-1.5 py-0.5 rounded bg-black/5" style={{ color: 'var(--text-muted)' }}>+{Math.floor(Math.random() * 50) + 10}</span>
                     </div>
@@ -286,7 +286,7 @@ function LoverTemplate({ profile, accentColor }: any) {
             {activeTab === 'connect' && (
               <div className="tab-pane space-y-2.5">
                 {profile.links && profile.links.map((link: any, i: number) => (
-                  <a key={i} href={link.url} target="_blank" rel="noreferrer" className={\`\${i === 0 ? 'clay-choc-btn' : 'clay-pill border'} w-full py-3.5 px-4 font-bold text-xs tracking-wider uppercase flex items-center justify-between no-underline block\`} style={i === 0 ? { color: 'var(--card-bg)' } : { borderColor: 'var(--border-subtle)', color: 'var(--text-main)' }}>
+                  <a key={i} href={link.url} target="_blank" rel="noreferrer" className={`${i === 0 ? 'clay-choc-btn' : 'clay-pill border'} w-full py-3.5 px-4 font-bold text-xs tracking-wider uppercase flex items-center justify-between no-underline block`} style={i === 0 ? { color: 'var(--card-bg)' } : { borderColor: 'var(--border-subtle)', color: 'var(--text-main)' }}>
                     <div className="flex items-center gap-2.5">
                       <span>{link.label}</span>
                     </div>
@@ -312,7 +312,7 @@ function LoverTemplate({ profile, accentColor }: any) {
         </div>
       </main>
 
-      <div className={\`fixed bottom-6 px-4 py-2.5 rounded-2xl bg-stone-900/95 border border-stone-700 text-stone-200 text-xs font-mono-tag shadow-2xl flex items-center gap-2 z-50 transition-all duration-300 \${toastVisible ? 'opacity-100 translate-y-0' : 'opacity-0 pointer-events-none translate-y-3'}\`}>
+      <div className={`fixed bottom-6 px-4 py-2.5 rounded-2xl bg-stone-900/95 border border-stone-700 text-stone-200 text-xs font-mono-tag shadow-2xl flex items-center gap-2 z-50 transition-all duration-300 ${toastVisible ? 'opacity-100 translate-y-0' : 'opacity-0 pointer-events-none translate-y-3'}`}>
         <span className="w-2 h-2 rounded-full" style={{ background: 'var(--text-main)' }}></span>
         <span>{toastMsg}</span>
       </div>
