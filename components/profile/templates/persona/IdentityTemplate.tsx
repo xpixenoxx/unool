@@ -93,17 +93,17 @@ function LoverTemplate({ profile, accentColor }: any) {
         )}
 
         {/* Proof Points (Metrics) */}
-        {profile.proofPoints && profile.proofPoints.length > 0 && (
+        {profile.proofs && profile.proofs.filter((p: any) => p.type === 'metric').length > 0 && (
           <motion.div 
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.7 }}
             className="w-full flex flex-wrap justify-center gap-6 sm:gap-10 mb-10 pb-10 border-b border-[#E0E0E0]/50"
           >
-            {profile.proofPoints.map((proof: any, i: number) => (
+            {profile.proofs.filter((p: any) => p.type === 'metric').map((proof: any, i: number) => (
               <div key={i} className="flex flex-col items-center">
                 <span className="text-2xl sm:text-3xl font-medium text-[#1A1A1A]">{proof.value}</span>
-                <span className="text-[10px] sm:text-xs tracking-wider uppercase font-sans opacity-50 mt-1">{proof.type}</span>
+                <span className="text-[10px] sm:text-xs tracking-wider uppercase font-sans opacity-50 mt-1">{proof.title}</span>
               </div>
             ))}
           </motion.div>
