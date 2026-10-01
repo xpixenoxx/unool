@@ -41,17 +41,17 @@ async function main() {
   const platformPostId = post.platform_post_id;
   const postUrn = platformPostId.startsWith('urn:') ? platformPostId : `urn:li:share:${platformPostId}`;
   
-  console.log('Fetching socialActions for:', postUrn);
-  const socialUrl = `https://api.linkedin.com/rest/socialActions/${postUrn}`;
-  
-  const res = await fetch(socialUrl, { headers: LI_HEADERS(token) });
-  console.log('Status:', res.status);
-  
-  if (res.ok) {
-    console.log('Data:', await res.json());
-  } else {
-    console.log('Error:', await res.text());
-  }
+  console.log('Testing Unencoded URN...');
+  const socialUrlUnencoded = `https://api.linkedin.com/rest/socialActions/${postUrn}`;
+  const res1 = await fetch(socialUrlUnencoded, { headers: LI_HEADERS(token) });
+  console.log('Unencoded Status:', res1.status);
+  console.log('Unencoded Response:', await res1.text());
+
+  console.log('\nTesting Encoded URN...');
+  const socialUrlEncoded = `https://api.linkedin.com/rest/socialActions/${encodeURIComponent(postUrn)}`;
+  const res2 = await fetch(socialUrlEncoded, { headers: LI_HEADERS(token) });
+  console.log('Encoded Status:', res2.status);
+  console.log('Encoded Response:', await res2.text());
 }
 
 main().catch(console.error);
