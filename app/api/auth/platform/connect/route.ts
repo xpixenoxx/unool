@@ -117,6 +117,18 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  // Platforms with custom connect flows (e.g. Bluesky uses app-password, not OAuth).
+  // getAuthUrl returns an empty string for these — redirect back to the dashboard
+  // with an instruction instead of crashing.
+  const testAuthUrl = adapter.getAuthUrl('test');
+  const resolvedTestUrl = typeof testAuthUrl === 'string' ? testAuthUrl : '';
+  if (!resolvedTestUrl) {
+    logger.info('Platform connect: custom flow platform, redirecting to dashboard', { platform });
+    const dashboardUrl = new URL('/dashboard', request.url);
+    dashboardUrl.searchParams.set('connect', platform);
+    return NextResponse.redirect(dashboardUrl);
+  }
+
   // Generate cryptographically secure state
   const state = generateOAuthState(workspaceId, platform);
 
