@@ -8,13 +8,13 @@ import { Input } from '@/components/ui/input';
 import {
   Loader2, Linkedin, Twitter, MessageSquare, Facebook, Instagram,
   Phone, CheckCircle, AlertCircle, Unlink2, Link2, Lock, Globe2,
-  ArrowRight, Wifi, WifiOff, RefreshCw, Youtube, Cloud, ExternalLink
+  ArrowRight, Wifi, WifiOff, RefreshCw, Youtube, Cloud, ExternalLink, Image as ImageIcon
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
-const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'whatsapp', 'instagram', 'youtube', 'bluesky'] as const;
+const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'whatsapp', 'instagram', 'youtube', 'pinterest', 'bluesky'] as const;
 type Platform = typeof SUPPORTED_PLATFORMS[number];
 
 interface PlatformConnection {
@@ -123,6 +123,16 @@ const PLATFORM_CONFIG: Record<
     hoverBorder: 'hover:border-red-400/30',
     description: 'Video content & Shorts',
     audience: 'Video consumers',
+    available: true,
+  },
+  pinterest: {
+    icon: ImageIcon,
+    name: 'Pinterest',
+    shortName: 'Pinterest',
+    color: 'bg-[#E60023]',
+    hoverBorder: 'hover:border-[#E60023]/30',
+    description: 'Visual discovery & ideas',
+    audience: 'Shoppers & visual planners',
     available: true,
   },
   bluesky: {

@@ -328,6 +328,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               { id: 'instagram', name: 'Instagram', icon: '📸', color: '#E1306C', connected: data.connections['instagram']?.status === 'connected' },
               { id: 'facebook', name: 'Facebook', icon: '👤', color: '#1877F2', connected: data.connections['facebook']?.status === 'connected' },
               { id: 'youtube', name: 'YouTube', icon: '▶️', color: '#FF0000', connected: data.connections['youtube']?.status === 'connected' },
+              { id: 'pinterest', name: 'Pinterest', icon: '📌', color: '#E60023', connected: data.connections['pinterest']?.status === 'connected' },
               { id: 'whatsapp', name: 'WhatsApp', icon: '💬', color: '#25D366', connected: data.connections['whatsapp']?.status === 'connected' },
               { id: 'bluesky', name: 'Bluesky', icon: '🦋', color: '#0085ff', connected: data.connections['bluesky']?.status === 'connected' },
             ].map((platform) => {
