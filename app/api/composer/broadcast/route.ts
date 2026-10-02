@@ -76,11 +76,19 @@ export async function POST(request: NextRequest) {
 
       // Create identical variants for ACTIVE platforms only
       for (const platform of activePlatforms) {
+        // Normalize mediaItems to PostMedia objects with {url, type}
+        const normalizedMedia = (mediaItems || []).map((m: any) => {
+          if (typeof m === 'string') {
+            return { url: m, type: 'image' as const };
+          }
+          return { url: m.url as string, type: (m.type || 'image') as 'image' | 'video' };
+        }).filter((m: any) => Boolean(m.url));
+
         await postRepository.createVariant({
           postId: post.id,
           platform,
           adaptedContent: rawContent,
-          mediaUrls: mediaItems ? mediaItems.map((m: any) => typeof m === 'string' ? m : m.url).filter(Boolean) : [],
+          mediaUrls: normalizedMedia,
           characterCount: rawContent.length,
           hashtagStrategy: [],
           firstCommentHint: undefined,

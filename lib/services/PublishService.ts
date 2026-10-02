@@ -56,9 +56,18 @@ export class PublishService {
     }
 
     // Prepare publish input
+    // Normalize mediaUrls — DB may contain either PostMedia objects {url,type} or legacy plain strings
+    const mediaUrls: string[] = (variant.mediaUrls || [])
+      .map((m: any) => {
+        if (typeof m === 'string') return m as string;
+        if (m && typeof m === 'object' && typeof m.url === 'string') return m.url;
+        return null;
+      })
+      .filter((u): u is string => typeof u === 'string' && u.length > 0);
+
     const publishInput: PublishInput = {
       content: variant.adaptedContent,
-      mediaUrls: variant.mediaUrls.map(m => m.url),
+      mediaUrls,
       firstComment: variant.firstCommentHint || undefined,
     };
 
