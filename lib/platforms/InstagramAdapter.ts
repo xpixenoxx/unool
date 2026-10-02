@@ -10,20 +10,18 @@ import {
 } from './adapter';
 import { platformFetch, fetchWithRetry, TokenExpiredError } from '@/lib/utils/retry';
 
-const META_AUTH_URL = 'https://www.facebook.com/v20.0/dialog/oauth';
-const META_TOKEN_URL = 'https://graph.facebook.com/v20.0/oauth/access_token';
+const META_AUTH_URL = 'https://www.instagram.com/oauth/authorize';
+const META_TOKEN_URL = 'https://api.instagram.com/oauth/access_token';
 const FACEBOOK_API_BASE = 'https://graph.facebook.com/v20.0';
 
 export class InstagramAdapter implements PlatformAdapter {
   readonly platform = 'instagram' as const;
 
   readonly authConfig: PlatformAuthConfig = {
-    clientId: config.INSTAGRAM_CLIENT_ID || config.FACEBOOK_CLIENT_ID || '',
-    clientSecret: config.INSTAGRAM_CLIENT_SECRET || config.FACEBOOK_CLIENT_SECRET || '',
+    clientId: config.INSTAGRAM_CLIENT_ID || '',
+    clientSecret: config.INSTAGRAM_CLIENT_SECRET || '',
     redirectUri: config.INSTAGRAM_REDIRECT_URI || `${config.NEXT_PUBLIC_APP_URL}/api/auth/platform/callback`,
     scopes: [
-      'public_profile',
-      'email',
       'instagram_business_basic',
       'instagram_business_manage_messages',
       'instagram_business_manage_comments',
@@ -55,8 +53,11 @@ export class InstagramAdapter implements PlatformAdapter {
     });
 
     return platformFetch('instagram', async () => {
-      const response = await fetchWithRetry(`${META_TOKEN_URL}?${params.toString()}`, {
+      // Step 1: Exchange code for short-lived token (valid ~1 hour)
+      const response = await fetchWithRetry(META_TOKEN_URL, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString(),
       });
 
       if (!response.ok) {
@@ -65,27 +66,53 @@ export class InstagramAdapter implements PlatformAdapter {
         throw new Error(`Token exchange failed: ${error}`);
       }
 
-      const data = await response.json();
+      const shortLivedData = await response.json();
+      const shortLivedToken = shortLivedData.access_token;
+
+      // Step 2: Exchange short-lived token for long-lived token (valid ~60 days)
+      const longLivedParams = new URLSearchParams({
+        grant_type: 'ig_exchange_token',
+        client_secret: this.authConfig.clientSecret,
+        access_token: shortLivedToken,
+      });
+
+      const longLivedResponse = await fetchWithRetry(
+        `https://graph.instagram.com/access_token?${longLivedParams.toString()}`,
+        {}
+      );
+
+      if (!longLivedResponse.ok) {
+        const error = await longLivedResponse.text();
+        logger.warn('Instagram long-lived token exchange failed, using short-lived token', { errorMessage: error });
+        // Fall back to short-lived token
+        return {
+          accessToken: shortLivedToken,
+          refreshToken: shortLivedToken,
+          expiresIn: shortLivedData.expires_in || 3600,
+          scope: shortLivedData.scope,
+        };
+      }
+
+      const longLivedData = await longLivedResponse.json();
+      
       return {
-        accessToken: data.access_token,
-        refreshToken: data.refresh_token,
-        expiresIn: data.expires_in,
-        scope: data.scope,
+        accessToken: longLivedData.access_token,
+        refreshToken: longLivedData.access_token,
+        expiresIn: longLivedData.expires_in || 5184000,
+        scope: shortLivedData.scope,
       };
     });
   }
 
   async refreshAccessToken(refreshToken: string): Promise<TokenResponse> {
     const params = new URLSearchParams({
-      grant_type: 'fb_exchange_token',
-      client_id: this.authConfig.clientId,
-      client_secret: this.authConfig.clientSecret,
-      fb_exchange_token: refreshToken,
+      grant_type: 'ig_refresh_token',
+      access_token: refreshToken,
     });
 
     return platformFetch('instagram', async () => {
       const response = await fetchWithRetry(
-        `${META_TOKEN_URL}?${params.toString()}`,
+        `https://graph.instagram.com/refresh_access_token?${params.toString()}`,
         {}
       );
 
@@ -151,7 +178,7 @@ export class InstagramAdapter implements PlatformAdapter {
       }
       const profileData = await profileResponse.json();
       const igAccountId = profileData.id;
-      
+
       if (!igAccountId) {
         throw new Error('No Instagram account ID found.');
       }
@@ -167,12 +194,12 @@ export class InstagramAdapter implements PlatformAdapter {
         // Single media
         const mediaUrl = mediaUrls[0];
         const isVideo = this.isVideoUrl(mediaUrl);
-        
+
         const containerParams = new URLSearchParams({
           access_token: accessToken,
           caption: input.content || '',
         });
-        
+
         if (isVideo) {
           containerParams.append('media_type', 'REELS');
           containerParams.append('video_url', mediaUrl);
@@ -191,7 +218,7 @@ export class InstagramAdapter implements PlatformAdapter {
           throw new Error(`Instagram media container creation failed: ${error}`);
         }
         creationId = (await containerRes.json()).id;
-        
+
         // Always wait for the media container to be ready (Instagram processes both images and videos asynchronously)
         await this.waitForMediaReady(accessToken, creationId);
       } else {
@@ -203,7 +230,7 @@ export class InstagramAdapter implements PlatformAdapter {
             access_token: accessToken,
             is_carousel_item: 'true',
           });
-          
+
           if (isVid) {
             itemParams.append('media_type', 'VIDEO');
             itemParams.append('video_url', url);
@@ -230,7 +257,7 @@ export class InstagramAdapter implements PlatformAdapter {
 
         // Wait for all individual carousel items to be ready before bundling them
         for (const itemId of itemIds) {
-           await this.waitForMediaReady(accessToken, itemId);
+          await this.waitForMediaReady(accessToken, itemId);
         }
 
         // Create carousel container
@@ -301,27 +328,27 @@ export class InstagramAdapter implements PlatformAdapter {
       };
     });
   }
-  
+
   private async waitForMediaReady(accessToken: string, containerId: string, maxAttempts = 30): Promise<void> {
     for (let i = 0; i < maxAttempts; i++) {
-        await new Promise(resolve => setTimeout(resolve, 3000));
-        let statusRes;
-        
-        try {
-          statusRes = await fetchWithRetry(
-            `https://graph.instagram.com/v20.0/${containerId}?fields=status_code&access_token=${accessToken}`,
-            {}
-          );
-        } catch (err) {
-          // fetch network error, skip attempt
-          continue;
-        }
-        
-        if (!statusRes.ok) continue;
-        const statusData = await statusRes.json();
-        
-        if (statusData.status_code === 'FINISHED') return;
-        if (statusData.status_code === 'ERROR') throw new Error('Instagram media processing failed or timed out on Meta servers.');
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      let statusRes;
+
+      try {
+        statusRes = await fetchWithRetry(
+          `https://graph.instagram.com/v20.0/${containerId}?fields=status_code&access_token=${accessToken}`,
+          {}
+        );
+      } catch (err) {
+        // fetch network error, skip attempt
+        continue;
+      }
+
+      if (!statusRes.ok) continue;
+      const statusData = await statusRes.json();
+
+      if (statusData.status_code === 'FINISHED') return;
+      if (statusData.status_code === 'ERROR') throw new Error('Instagram media processing failed or timed out on Meta servers.');
     }
     throw new Error('Instagram media processing timeout.');
   }
