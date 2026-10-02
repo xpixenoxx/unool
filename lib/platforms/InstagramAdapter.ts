@@ -22,6 +22,8 @@ export class InstagramAdapter implements PlatformAdapter {
     clientSecret: config.INSTAGRAM_CLIENT_SECRET || '',
     redirectUri: config.INSTAGRAM_REDIRECT_URI || `${config.NEXT_PUBLIC_APP_URL}/api/auth/platform/callback`,
     scopes: [
+      'public_profile',
+      'email',
       'instagram_business_basic',
       'instagram_business_manage_messages',
       'instagram_business_manage_comments',

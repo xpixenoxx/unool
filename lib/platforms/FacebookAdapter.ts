@@ -21,7 +21,7 @@ export class FacebookAdapter implements PlatformAdapter {
     clientId: config.FACEBOOK_CLIENT_ID || '',
     clientSecret: config.FACEBOOK_CLIENT_SECRET || '',
     redirectUri: config.FACEBOOK_REDIRECT_URI || `${config.NEXT_PUBLIC_APP_URL}/api/auth/platform/callback`,
-    scopes: ['pages_show_list', 'pages_read_engagement', 'pages_manage_posts'],
+    scopes: ['public_profile', 'email', 'pages_show_list', 'pages_read_engagement', 'pages_manage_posts'],
   };
 
   getAuthUrl(state: string): string {
