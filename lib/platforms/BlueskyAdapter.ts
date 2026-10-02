@@ -108,24 +108,46 @@ export class BlueskyAdapter implements PlatformAdapter {
     let embed: any;
     if (input.mediaUrls && input.mediaUrls.length > 0) {
       const imageUrls = input.mediaUrls.slice(0, 4); // Bluesky max 4 images
-      const blobs = await Promise.all(
-        imageUrls.map(async (url) => {
-          const response = await fetch(url);
-          const buffer = await response.arrayBuffer();
-          const mimeType = response.headers.get('content-type') || 'image/jpeg';
-          const upload = await agent.uploadBlob(new Uint8Array(buffer), { encoding: mimeType });
-          return {
-            $type: 'app.bsky.embed.images#image',
-            image: upload.data.blob,
-            alt: '',
-          };
+      logger.info('Bluesky: uploading images', { count: imageUrls.length, urls: imageUrls.map(u => u.substring(0, 80)) });
+
+      const blobResults = await Promise.all(
+        imageUrls.map(async (url, idx) => {
+          try {
+            const response = await fetch(url);
+            if (!response.ok) {
+              logger.error(`Bluesky: failed to fetch image ${idx}`, { url: url.substring(0, 100), status: response.status });
+              return null;
+            }
+            const buffer = await response.arrayBuffer();
+            if (buffer.byteLength === 0) {
+              logger.error(`Bluesky: image ${idx} has zero bytes`, { url: url.substring(0, 100) });
+              return null;
+            }
+            const mimeType = response.headers.get('content-type') || 'image/jpeg';
+            logger.info(`Bluesky: uploading blob ${idx}`, { size: buffer.byteLength, mimeType });
+            const upload = await agent.uploadBlob(new Uint8Array(buffer), { encoding: mimeType });
+            return {
+              $type: 'app.bsky.embed.images#image',
+              image: upload.data.blob,
+              alt: '',
+            };
+          } catch (imgErr) {
+            logger.error(`Bluesky: image upload ${idx} failed`, { error: imgErr instanceof Error ? imgErr.message : String(imgErr), url: url.substring(0, 100) });
+            return null;
+          }
         })
       );
 
-      embed = {
-        $type: 'app.bsky.embed.images',
-        images: blobs,
-      } as any;
+      const blobs = blobResults.filter(Boolean);
+      if (blobs.length > 0) {
+        embed = {
+          $type: 'app.bsky.embed.images',
+          images: blobs,
+        } as any;
+        logger.info('Bluesky: embed ready', { imageCount: blobs.length });
+      } else {
+        logger.warn('Bluesky: all image uploads failed, posting text-only');
+      }
     }
 
     const record = await agent.post({ text, embed });

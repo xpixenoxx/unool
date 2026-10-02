@@ -71,6 +71,12 @@ export class PublishService {
       firstComment: variant.firstCommentHint || undefined,
     };
 
+    logger.info('PublishService: prepared publish input', {
+      platform: input.platform,
+      mediaCount: mediaUrls.length,
+      mediaUrls: mediaUrls.map(u => u.substring(0, 80)),
+    });
+
     // Attempt publish with automatic token refresh on 401
     const attemptPublish = async (currentAccessToken: string, hasRetried: boolean): Promise<PublishJobResult> => {
       try {
