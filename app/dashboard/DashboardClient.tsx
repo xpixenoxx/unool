@@ -291,11 +291,11 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       {/* ═══ ROW 2: Publishing Heatmap + Broadcast Network ═══ */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
 
-        {/* Broadcast Network — centered */}
+        {/* Broadcast Network — Full width */}
         <motion.div
           variants={fadeUp}
           transition={transition}
-          className="lg:col-span-6 lg:col-start-4 rounded-2xl p-6"
+          className="lg:col-span-12 rounded-2xl p-6"
           style={{
             backgroundColor: B.card,
             border: `1px solid ${B.cardBorder}`,
@@ -320,11 +320,15 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           </div>
 
           {/* Platform badges */}
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {[
               { id: 'linkedin', name: 'LinkedIn', icon: '🔗', color: '#0A66C2', connected: data.connections['linkedin']?.status === 'connected' },
               { id: 'x', name: 'X (Twitter)', icon: '𝕏', color: '#1A1A1A', connected: data.connections['x']?.status === 'connected' },
               { id: 'threads', name: 'Threads', icon: '🧵', color: '#000000', connected: data.connections['threads']?.status === 'connected' },
+              { id: 'instagram', name: 'Instagram', icon: '📸', color: '#E1306C', connected: data.connections['instagram']?.status === 'connected' },
+              { id: 'facebook', name: 'Facebook', icon: '👤', color: '#1877F2', connected: data.connections['facebook']?.status === 'connected' },
+              { id: 'youtube', name: 'YouTube', icon: '▶️', color: '#FF0000', connected: data.connections['youtube']?.status === 'connected' },
+              { id: 'whatsapp', name: 'WhatsApp', icon: '💬', color: '#25D366', connected: data.connections['whatsapp']?.status === 'connected' },
             ].map((platform) => {
               const isLinkedinAnalytics = platform.id === 'linkedin' && platform.connected;
               return (
