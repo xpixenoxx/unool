@@ -3,7 +3,7 @@ import { generateWithFallback } from './provider';
 import { Result, ok, err } from '@/lib/shared/Result';
 import { logger } from '@/lib/logger';
 
-export const PlatformType = z.enum(['linkedin', 'x', 'threads', 'facebook', 'whatsapp', 'instagram']);
+export const PlatformType = z.enum(['linkedin', 'x', 'threads', 'facebook', 'whatsapp', 'instagram', 'youtube', 'pinterest', 'bluesky']);
 export type PlatformType = z.infer<typeof PlatformType>;
 
 export const AdaptedPostSchema = z.object({
@@ -21,6 +21,21 @@ const PLATFORM_SPECS: Record<PlatformType, { maxChars: number; style: string; ha
     maxChars: 3000,
     style: 'Professional, storytelling, value-driven. Use line breaks. Include 3-5 relevant hashtags at the end.',
     hashtagStrategy: 'Industry-specific, professional tags (#SaaS #Leadership #DataEngineering)'
+  },
+  bluesky: {
+    maxChars: 300,
+    style: 'Casual, direct, web-culture aware, no-nonsense',
+    hashtagStrategy: '1-2 inline hashtags if relevant, otherwise none',
+  },
+  youtube: {
+    maxChars: 5000,
+    style: 'Engaging, descriptive, SEO-optimized. Encourage likes and subscriptions.',
+    hashtagStrategy: '3-5 broad and niche hashtags',
+  },
+  pinterest: {
+    maxChars: 500,
+    style: 'Inspiring, positive, actionable.',
+    hashtagStrategy: '2-3 searchable keywords/tags',
   },
   x: {
     maxChars: 280,
