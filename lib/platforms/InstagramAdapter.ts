@@ -52,8 +52,10 @@ export class InstagramAdapter implements PlatformAdapter {
     });
 
     return platformFetch('instagram', async () => {
-      const response = await fetchWithRetry(`${META_TOKEN_URL}?${params.toString()}`, {
+      const response = await fetchWithRetry(META_TOKEN_URL, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString(),
       });
 
       if (!response.ok) {
