@@ -649,8 +649,16 @@ function QuickActionBento({
    ═══════════════════════════════════════════════════════════════ */
 
 function RecentBroadcasts({ posts }: { posts: Post[] }) {
-  const [showAll, setShowAll] = useState(false);
-  const displayPosts = showAll ? posts : posts.slice(0, 5);
+  const [limit, setLimit] = useState(2);
+  const displayPosts = posts.slice(0, limit);
+
+  const handleShowMore = () => {
+    if (limit === 2) {
+      setLimit(5);
+    } else {
+      setLimit(posts.length);
+    }
+  };
 
   return (
     <div
@@ -748,13 +756,13 @@ function RecentBroadcasts({ posts }: { posts: Post[] }) {
             );
           })}
 
-          {posts.length > 5 && (
+          {limit < posts.length && (
             <button
-              onClick={() => setShowAll(!showAll)}
-              className="w-full text-center py-2.5 text-xs font-medium rounded-lg transition-colors"
+              onClick={handleShowMore}
+              className="w-full text-center py-2.5 text-xs font-medium hover:bg-black/5 rounded-lg transition-colors"
               style={{ color: B.accent }}
             >
-              {showAll ? 'Show less' : `Show ${posts.length - 5} more`}
+              Show more
             </button>
           )}
         </div>
