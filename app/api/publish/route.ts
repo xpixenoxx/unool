@@ -16,21 +16,12 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // We use Next.js 15 after() to run the publishing in the background
-      // This prevents Vercel Serverless Functions from timing out.
-      const { after } = await import('next/server');
-
-      after(async () => {
-        try {
-          logger.info('Background publish starting', { postId, workspaceId });
-          await publishService.publishToAllPlatforms(postId, workspaceId);
-        } catch (bgError) {
-          logger.error('Background publish failed', { postId, workspaceId, error: bgError });
-        }
-      });
+      // Run publishing synchronously so frontend gets results
+      const postResults = await publishService.publishToAllPlatforms(postId, workspaceId);
 
       return NextResponse.json({
         success: true,
+        results: postResults,
       });
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
