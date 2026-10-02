@@ -10,9 +10,9 @@ import {
   ArrowRight, Wifi, WifiOff, RefreshCw, Youtube
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { platformAdapters, SUPPORTED_PLATFORMS } from '@/lib/platforms';
 import { cn } from '@/lib/utils';
 
+const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'whatsapp', 'instagram', 'youtube'] as const;
 type Platform = typeof SUPPORTED_PLATFORMS[number];
 
 interface PlatformConnection {
