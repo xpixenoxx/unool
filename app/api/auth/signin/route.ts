@@ -21,6 +21,10 @@ import { verifyPassword } from '@/lib/auth/password';
 import { sendOtpEmail } from '@/lib/auth/email';
 import { checkOtpGenerateLimit, getClientIp } from '@/lib/auth/rate-limits';
 import { logger } from '@/lib/logger';
+import { createServerClient } from '@supabase/ssr';
+import { config } from '@/lib/config/schema';
+import { cookies } from 'next/headers';
+import crypto from 'crypto';
 
 const bodySchema = z.object({
   email:    z.string().email('Invalid email'),
@@ -83,25 +87,91 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: INVALID_MSG }, { status: 401 });
     }
 
-    // Check cooldown before re-issuing OTP
-    const coolingDown = await isResendCoolingDown(user.id, 'signin');
-    if (coolingDown) {
-      return NextResponse.json(
-        { success: false, message: 'A code was already sent. Please wait 60 seconds before requesting another.' },
-        { status: 429 }
-      );
+    // Check if MFA is enabled
+    const mfaEnabled = user.user_metadata?.mfa_enabled === true;
+    
+    if (mfaEnabled) {
+      // Check cooldown before re-issuing OTP
+      const coolingDown = await isResendCoolingDown(user.id, 'signin');
+      if (coolingDown) {
+        return NextResponse.json(
+          { success: false, message: 'A code was already sent. Please wait 60 seconds before requesting another.' },
+          { status: 429 }
+        );
+      }
+  
+      // Issue and email OTP
+      const { otp, nextResendAt } = await issueOtp(user.id, 'signin');
+      await sendOtpEmail({ to: emailLower, otp, purpose: 'signin' });
+  
+      logger.info('Signin OTP sent', { userId: user.id });
+      return NextResponse.json({
+        success:      true,
+        message:      'A verification code has been sent to your email.',
+        nextResendAt: nextResendAt.toISOString(),
+      }, { status: 200 });
+    } else {
+      // ── MFA disabled: Create session directly ──────────────────────────────
+      const tempPassword = crypto.randomBytes(32).toString('base64');
+  
+      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
+        password: tempPassword
+      });
+  
+      if (updateError) {
+        logger.error('Failed to prepare session (signin direct)', { error: updateError, userId: user.id });
+        return NextResponse.json({ success: false, message: 'Session creation failed.' }, { status: 500 });
+      }
+
+      const cookieStore = await cookies();
+      let sessionData: any = null;
+      
+      const supabaseSSR = createServerClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
+        cookies: {
+          getAll() { return cookieStore.getAll(); },
+          setAll(toSet) { 
+            toSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options);
+            });
+          },
+        },
+      });
+
+      const { data: signInData, error: signInError } = await supabaseSSR.auth.signInWithPassword({
+        email: emailLower,
+        password: tempPassword,
+      });
+      sessionData = signInData;
+
+      if (signInError) {
+        logger.error('Session exchange error (signin direct)', { error: signInError, userId: user.id });
+        return NextResponse.json({ success: false, message: 'Session creation failed.' }, { status: 500 });
+      }
+
+      logger.info('Direct signin complete (MFA disabled)', { userId: user.id });
+      
+      const response = NextResponse.json({ 
+        success: true, 
+        message: 'Signed in successfully.', 
+        redirectTo: '/dashboard',
+        session: {
+          access_token: sessionData?.session?.access_token,
+          refresh_token: sessionData?.session?.refresh_token,
+          expires_at: sessionData?.session?.expires_at,
+          user: {
+            id: sessionData?.user?.id,
+            email: sessionData?.user?.email,
+          },
+        },
+      }, { status: 200 });
+      
+      cookieStore.getAll().forEach(({ name, value }) => {
+        const existing = cookieStore.get(name);
+        if (existing) response.cookies.set(name, value, { httpOnly: true, secure: true, sameSite: 'lax', path: '/' });
+      });
+      
+      return response;
     }
-
-    // Issue and email OTP
-    const { otp, nextResendAt } = await issueOtp(user.id, 'signin');
-    await sendOtpEmail({ to: emailLower, otp, purpose: 'signin' });
-
-    logger.info('Signin OTP sent', { userId: user.id });
-    return NextResponse.json({
-      success:      true,
-      message:      'A verification code has been sent to your email.',
-      nextResendAt: nextResendAt.toISOString(),
-    }, { status: 200 });
 
   } catch (err) {
     logger.error('Signin endpoint error', { error: err instanceof Error ? err : new Error(String(err)) });

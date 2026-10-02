@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Key, Shield, Bell, Palette, Trash2, User, Lock, LogOut, CheckCircle, AlertCircle, Copy, Trash, Check, Sparkles, Settings, AlertTriangle, Link as LinkIcon, Key as KeyIcon, User as UserIcon, CheckCircle2, XCircle } from 'lucide-react';
 import { TemplateSelector } from '@/components/profile/TemplateSelector';
+import { getSupabaseBrowserClient } from '@/lib/supabase/browser';
 
 type TabValue = 'account' | 'security' | 'notifications' | 'appearance' | 'danger';
 
@@ -79,6 +80,9 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
   const [newKeyPlaintext, setNewKeyPlaintext] = useState<string>('');
   const [copiedKeyId, setCopiedKeyId] = useState<string | null>(null);
 
+  const [mfaEnabled, setMfaEnabled] = useState(false);
+  const [togglingMfa, setTogglingMfa] = useState(false);
+
   const connected = searchParams.get('connected');
   const error = searchParams.get('error');
   const description = searchParams.get('description');
@@ -104,7 +108,33 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
   useEffect(() => {
     loadWorkspace();
     loadApiKeys();
+    loadUserSecurity();
   }, []);
+
+  const loadUserSecurity = async () => {
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const { data } = await supabase.auth.getUser();
+      setMfaEnabled(data.user?.user_metadata?.mfa_enabled === true);
+    } catch {}
+  };
+
+  const handleToggleMfa = async (checked: boolean) => {
+    setTogglingMfa(true);
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const { error } = await supabase.auth.updateUser({
+        data: { mfa_enabled: checked }
+      });
+      if (error) throw error;
+      setMfaEnabled(checked);
+      toast.success(`MFA has been ${checked ? 'enabled' : 'disabled'} for sign in.`);
+    } catch (err: any) {
+      toast.error('Failed to update MFA settings');
+    } finally {
+      setTogglingMfa(false);
+    }
+  };
 
   const loadWorkspace = async () => {
     try {
@@ -551,27 +581,26 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Alert variant="default" className="border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-900 dark:bg-blue-900/20 dark:text-blue-200">
-                <Lock className="h-4 w-4" />
-                <AlertDescription>
-                  Unool uses magic link authentication (email-based sign in). There are no passwords to manage.
-                  Two-factor authentication is handled by your email provider.
-                </AlertDescription>
-              </Alert>
               <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
-                    <p className="font-medium">Magic Link Authentication</p>
-                    <p className="text-sm text-muted-foreground">Sign in via email link — no passwords required</p>
+                    <p className="font-medium">Multi-Factor Authentication (OTP)</p>
+                    <p className="text-sm text-muted-foreground mt-1 text-balance">
+                      Require an email verification code when signing in. Applies only to sign-in.
+                    </p>
                   </div>
-                  <Badge variant="default" className="h-fit">Enabled</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Email Verification</p>
-                    <p className="text-sm text-muted-foreground">Verified on sign in</p>
+                  <div className="flex items-center space-x-2 shrink-0">
+                    <Checkbox
+                      id="mfa-toggle"
+                      checked={mfaEnabled}
+                      onCheckedChange={(checked) => handleToggleMfa(checked as boolean)}
+                      disabled={togglingMfa}
+                    />
+                    <Label htmlFor="mfa-toggle" className="cursor-pointer">
+                      {mfaEnabled ? 'Enabled' : 'Disabled'}
+                    </Label>
+                    {togglingMfa && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
                   </div>
-                  <Badge variant="default" className="h-fit">Verified</Badge>
                 </div>
               </div>
             </CardContent>

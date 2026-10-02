@@ -79,6 +79,27 @@ export default function SignInSocialPage() {
       const data = await res.json();
       if (!res.ok) {
         setError(data.message || 'Invalid credentials.');
+      } else if (data.session?.access_token) {
+        const uid = data.userId || data.session?.user?.id;
+        if (uid) {
+          try {
+            sessionStorage.setItem('unool_session', JSON.stringify({
+              access_token: data.session?.access_token || null,
+              refresh_token: data.session?.refresh_token || null,
+              userId: uid,
+              email: data.session?.user?.email || email,
+              ts: Date.now(),
+            }));
+          } catch { }
+        }
+        try {
+          const supabase = getSupabaseBrowserClient();
+          await supabase.auth.setSession({
+            access_token: data.session.access_token,
+            refresh_token: data.session.refresh_token,
+          });
+        } catch { }
+        router.push(data.redirectTo || '/dashboard');
       } else {
         setNextResendAt(data.nextResendAt);
         setStage('otp');
