@@ -106,21 +106,26 @@ export async function issueOtp(userId: string, purpose: OtpPurpose, email?: stri
   const expiresAt    = new Date(now.getTime() + 5 * 60 * 1000);
   const nextResendAt = new Date(now.getTime() + 60 * 1000);
 
+  // Db Constraint Workaround: The Postgres DB restricts purpose to 'signup' or 'signin' via 'auth_otp_challenges_purpose_check'.
+  // We map 'reset' to 'signin' at the DB level, and enforce intent via metadata.
+  const dbPurpose = purpose === 'reset' ? 'signin' : purpose;
+
   await supabaseAdmin
     .from('auth_otp_challenges')
     .delete()
     .eq('user_id', userId)
-    .eq('purpose', purpose);
+    .eq('purpose', dbPurpose);
 
   const { error } = await supabaseAdmin
     .from('auth_otp_challenges')
     .insert({
       user_id:        userId,
       email:          email ?? '',
-      purpose,
+      purpose:        dbPurpose,
       otp_hash:       otpHash,
       expires_at:     expiresAt.toISOString(),
       next_resend_at: nextResendAt.toISOString(),
+      metadata:       { intended_for: purpose }, // strict intent validation for verifyOtp
     });
 
   if (error) {
@@ -169,20 +174,31 @@ export async function verifyOtp(
   purpose:  OtpPurpose,
   plainOtp: string
 ): Promise<OtpVerifyResult> {
+  const dbPurpose = purpose === 'reset' ? 'signin' : purpose;
+
   const { data: challenges, error } = await supabaseAdmin
     .from('auth_otp_challenges')
     .select('*')
     .eq('user_id', userId)
-    .eq('purpose', purpose)
+    .eq('purpose', dbPurpose)
     .eq('used', false)
-    .order('created_at', { ascending: false })
-    .limit(1);
+    .order('created_at', { ascending: false });
 
   if (error || !challenges || challenges.length === 0) {
     return { success: false, reason: 'not_found' };
   }
 
-  return _checkAndMarkOtp(challenges[0], plainOtp);
+  const challenge = challenges.find((ch: any) => {
+    // If metadata explicitly defines intended_for, use it. Otherwise fallback to row purpose.
+    const intended = ch.metadata?.intended_for || ch.purpose;
+    return intended === purpose;
+  });
+
+  if (!challenge) {
+    return { success: false, reason: 'not_found' };
+  }
+
+  return _checkAndMarkOtp(challenge, plainOtp);
 }
 
 async function _checkAndMarkOtp(challenge: Record<string, unknown>, plainOtp: string): Promise<OtpVerifyResult> {
@@ -237,16 +253,24 @@ export async function isSignupResendCoolingDown(email: string): Promise<boolean>
 }
 
 export async function isResendCoolingDown(userId: string, purpose: OtpPurpose): Promise<boolean> {
-  const { data } = await supabaseAdmin
-    .from('auth_otp_challenges')
-    .select('next_resend_at')
-    .eq('user_id', userId)
-    .eq('purpose', purpose)
-    .eq('used', false)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .single();
+  const dbPurpose = purpose === 'reset' ? 'signin' : purpose;
 
-  if (!data) return false;
-  return new Date(data.next_resend_at) > new Date();
+  const { data: challenges } = await supabaseAdmin
+    .from('auth_otp_challenges')
+    .select('next_resend_at, purpose, metadata')
+    .eq('user_id', userId)
+    .eq('purpose', dbPurpose)
+    .eq('used', false)
+    .order('created_at', { ascending: false });
+
+  if (!challenges || challenges.length === 0) return false;
+
+  const challenge = challenges.find((ch: any) => {
+    const intended = ch.metadata?.intended_for || ch.purpose;
+    return intended === purpose;
+  });
+
+  if (!challenge) return false;
+
+  return new Date(challenge.next_resend_at) > new Date();
 }
