@@ -28,9 +28,17 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const variants = await postRepository.findVariantsByPostId(postId);
+    const { SupabasePlatformRepository } = await import('@/lib/repositories/supabase/SupabasePlatformRepository');
+    const platformRepo = new SupabasePlatformRepository();
+    const connections = await platformRepo.findByWorkspaceId(auth.workspaceId);
+    const connectedPlatforms = new Set(connections.filter(c => c.status === 'connected').map(c => c.platform));
 
-    logger.info('Post with variants fetched', { traceId, postId, variantCount: variants.length });
+    const allVariants = await postRepository.findVariantsByPostId(postId);
+
+    // Filter to only show variants for connected platforms, OR variants that were already successfully published
+    const visibleVariants = allVariants.filter(v => connectedPlatforms.has(v.platform) || v.status === 'published');
+
+    logger.info('Post with variants fetched', { traceId, postId, variantCount: visibleVariants.length });
 
     return NextResponse.json({
       post: {
@@ -42,7 +50,7 @@ export async function GET(
         createdAt: post.createdAt.toISOString(),
         updatedAt: post.updatedAt.toISOString(),
       },
-      variants: variants.map((v) => ({
+      variants: visibleVariants.map((v) => ({
         id: v.id,
         postId: v.postId,
         platform: v.platform,
