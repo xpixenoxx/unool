@@ -22,14 +22,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Resolve workspace
+    // Resolve workspace and user
     let workspaceId = bodyWorkspaceId;
+    let userId = '';
+    
+    const authCtx = await getAuthContext();
+    if (authCtx) {
+      workspaceId = workspaceId || authCtx.workspaceId;
+      userId = authCtx.userId;
+    }
+
     if (!workspaceId) {
-      const authCtx = await getAuthContext();
-      if (!authCtx) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
-      workspaceId = authCtx.workspaceId;
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Normalise handle — strip leading @
@@ -63,17 +67,17 @@ export async function POST(request: NextRequest) {
     const encryptedToken = await encryptToken(tokenPayload);
 
     // Upsert platform connection
-    await platformRepo.upsertConnection({
+    await platformRepo.create({
       workspaceId,
+      userId: userId || workspaceId,
       platform: 'bluesky',
       platformUserId: profile.platformUserId,
       username: profile.username,
       displayName: profile.displayName,
       avatarUrl: profile.avatarUrl,
-      accessTokenEncrypted: encryptedToken,
-      refreshTokenEncrypted: null,
-      tokenExpiresAt: null, // app passwords don't expire
-      status: 'connected',
+      accessToken: encryptedToken,
+      refreshToken: '', // required by interface, but unused
+      expiresAt: undefined, // app passwords don't expire
       scopes: [],
     });
 
