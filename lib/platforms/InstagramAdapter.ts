@@ -38,6 +38,7 @@ export class InstagramAdapter implements PlatformAdapter {
       redirect_uri: this.authConfig.redirectUri,
       scope: this.authConfig.scopes.join(','),
       response_type: 'code',
+      auth_type: 'rerequest',
       force_reauth: 'true',
       state,
     });
