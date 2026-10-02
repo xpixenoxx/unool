@@ -86,9 +86,10 @@ export async function POST(request: NextRequest) {
       displayName: profile.displayName,
     });
   } catch (error) {
-    logger.error('Bluesky connect: unexpected error', { error });
+    const errObj = error instanceof Error ? error : new Error(String(error));
+    logger.error('Bluesky connect: unexpected error', { error: errObj });
     return NextResponse.json(
-      { error: 'An unexpected error occurred. Please try again.' },
+      { error: `An unexpected error occurred: ${errObj.message}. Please try again.` },
       { status: 500 }
     );
   }
