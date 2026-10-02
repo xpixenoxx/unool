@@ -170,13 +170,31 @@ export class FacebookAdapter implements PlatformAdapter {
 
   async publish(accessToken: string, input: PublishInput): Promise<PublishResult> {
     return platformFetch('facebook', async () => {
+      // 1. Fetch user's pages to implicitly get a Page Access Token and Page ID
+      const pagesRes = await fetchWithRetry(
+        `${FACEBOOK_API_BASE}/me/accounts?fields=id,access_token&access_token=${accessToken}`,
+        {}
+      );
+      if (!pagesRes.ok) {
+        const errText = await pagesRes.text();
+        throw new Error(`Failed to fetch Facebook Pages: ${errText}`);
+      }
+      const pagesData = await pagesRes.json();
+      if (!pagesData.data || pagesData.data.length === 0) {
+        throw new Error('No Facebook Pages found. You must create at least one Facebook Page to publish.');
+      }
+      
+      const page = pagesData.data[0];
+      const pageAccessToken = page.access_token;
+      const pageId = page.id;
+
       const mediaUrls = input.mediaUrls || [];
       let platformPostId: string;
       let platformUrl: string;
 
       if (mediaUrls.length === 0) {
         // Text post
-        const result = await this.publishTextPost(accessToken, input.content);
+        const result = await this.publishTextPost(pageAccessToken, pageId, input.content);
         platformPostId = result.id;
         platformUrl = `https://www.facebook.com/${platformPostId}`;
       } else if (mediaUrls.length === 1) {
@@ -185,26 +203,26 @@ export class FacebookAdapter implements PlatformAdapter {
 
         if (isVideo) {
           // Video post
-          const result = await this.publishVideoPost(accessToken, mediaUrl, input.content);
+          const result = await this.publishVideoPost(pageAccessToken, pageId, mediaUrl, input.content);
           platformPostId = result.id;
           platformUrl = `https://www.facebook.com/${platformPostId}`;
         } else {
           // Image post
-          const result = await this.publishImagePost(accessToken, mediaUrl, input.content);
+          const result = await this.publishImagePost(pageAccessToken, pageId, mediaUrl, input.content);
           platformPostId = result.id;
           platformUrl = `https://www.facebook.com/${platformPostId}`;
         }
       } else {
         // Multiple images - use multi-photo post
-        const result = await this.publishMultiImagePost(accessToken, mediaUrls, input.content);
+        const result = await this.publishMultiImagePost(pageAccessToken, pageId, mediaUrls, input.content);
         platformPostId = result.id;
         platformUrl = `https://www.facebook.com/${platformPostId}`;
       }
 
-      // If firstComment is provided, add it as a comment
+      // If firstComment is provided, add it as a comment using the Page Access Token
       if (input.firstComment) {
         try {
-          await this.addComment(accessToken, platformPostId, input.firstComment);
+          await this.addComment(pageAccessToken, platformPostId, input.firstComment);
         } catch (commentError) {
           const err = commentError instanceof Error ? commentError : new Error(String(commentError));
           logger.warn('Facebook first comment failed', { error: err });
@@ -220,13 +238,13 @@ export class FacebookAdapter implements PlatformAdapter {
     });
   }
 
-  private async publishTextPost(accessToken: string, message: string): Promise<{ id: string }> {
+  private async publishTextPost(pageAccessToken: string, pageId: string, message: string): Promise<{ id: string }> {
     const params = new URLSearchParams({
       message,
-      access_token: accessToken,
+      access_token: pageAccessToken,
     });
 
-    const response = await fetchWithRetry(`${FACEBOOK_API_BASE}/me/feed`, {
+    const response = await fetchWithRetry(`${FACEBOOK_API_BASE}/${pageId}/feed`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: params.toString(),
@@ -241,15 +259,15 @@ export class FacebookAdapter implements PlatformAdapter {
     return response.json();
   }
 
-  private async publishImagePost(accessToken: string, imageUrl: string, message: string): Promise<{ id: string }> {
+  private async publishImagePost(pageAccessToken: string, pageId: string, imageUrl: string, message: string): Promise<{ id: string }> {
     // First, upload photo as unpublished
     const uploadParams = new URLSearchParams({
       url: imageUrl,
       published: 'false',
-      access_token: accessToken,
+      access_token: pageAccessToken,
     });
 
-    const uploadResponse = await fetchWithRetry(`${FACEBOOK_API_BASE}/me/photos`, {
+    const uploadResponse = await fetchWithRetry(`${FACEBOOK_API_BASE}/${pageId}/photos`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: uploadParams.toString(),
@@ -268,10 +286,10 @@ export class FacebookAdapter implements PlatformAdapter {
     const postParams = new URLSearchParams({
       message,
       attached_media: JSON.stringify([{ media_fbid: mediaId }]),
-      access_token: accessToken,
+      access_token: pageAccessToken,
     });
 
-    const postResponse = await fetchWithRetry(`${FACEBOOK_API_BASE}/me/feed`, {
+    const postResponse = await fetchWithRetry(`${FACEBOOK_API_BASE}/${pageId}/feed`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: postParams.toString(),
@@ -286,7 +304,7 @@ export class FacebookAdapter implements PlatformAdapter {
     return postResponse.json();
   }
 
-  private async publishMultiImagePost(accessToken: string, imageUrls: string[], message: string): Promise<{ id: string }> {
+  private async publishMultiImagePost(pageAccessToken: string, pageId: string, imageUrls: string[], message: string): Promise<{ id: string }> {
     // Upload all photos as unpublished
     const mediaIds: string[] = [];
 
@@ -294,10 +312,10 @@ export class FacebookAdapter implements PlatformAdapter {
       const uploadParams = new URLSearchParams({
         url: imageUrl,
         published: 'false',
-        access_token: accessToken,
+        access_token: pageAccessToken,
       });
 
-      const uploadResponse = await fetchWithRetry(`${FACEBOOK_API_BASE}/me/photos`, {
+      const uploadResponse = await fetchWithRetry(`${FACEBOOK_API_BASE}/${pageId}/photos`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: uploadParams.toString(),
@@ -316,10 +334,10 @@ export class FacebookAdapter implements PlatformAdapter {
     const postParams = new URLSearchParams({
       message,
       attached_media: JSON.stringify(mediaIds.map(id => ({ media_fbid: id }))),
-      access_token: accessToken,
+      access_token: pageAccessToken,
     });
 
-    const postResponse = await fetchWithRetry(`${FACEBOOK_API_BASE}/me/feed`, {
+    const postResponse = await fetchWithRetry(`${FACEBOOK_API_BASE}/${pageId}/feed`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: postParams.toString(),
@@ -333,15 +351,15 @@ export class FacebookAdapter implements PlatformAdapter {
     return postResponse.json();
   }
 
-  private async publishVideoPost(accessToken: string, videoUrl: string, description: string): Promise<{ id: string }> {
+  private async publishVideoPost(pageAccessToken: string, pageId: string, videoUrl: string, description: string): Promise<{ id: string }> {
     // Facebook video upload is async - upload then poll for status
     const uploadParams = new URLSearchParams({
       file_url: videoUrl,
       description,
-      access_token: accessToken,
+      access_token: pageAccessToken,
     });
 
-    const uploadResponse = await fetchWithRetry(`${FACEBOOK_API_BASE}/me/videos`, {
+    const uploadResponse = await fetchWithRetry(`${FACEBOOK_API_BASE}/${pageId}/videos`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: uploadParams.toString(),
@@ -357,7 +375,7 @@ export class FacebookAdapter implements PlatformAdapter {
     const videoId = uploadData.id;
 
     // Poll for video processing status
-    await this.waitForVideoReady(accessToken, videoId);
+    await this.waitForVideoReady(pageAccessToken, videoId);
 
     return { id: videoId };
   }
