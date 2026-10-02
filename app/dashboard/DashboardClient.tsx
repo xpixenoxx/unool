@@ -756,14 +756,27 @@ function RecentBroadcasts({ posts }: { posts: Post[] }) {
             );
           })}
 
-          {limit < posts.length && (
-            <button
-              onClick={handleShowMore}
-              className="w-full text-center py-2.5 text-xs font-medium hover:bg-black/5 rounded-lg transition-colors"
-              style={{ color: B.accent }}
-            >
-              Show more
-            </button>
+          {(limit < posts.length || limit > 2) && (
+            <div className="flex gap-2">
+              {limit < posts.length && (
+                <button
+                  onClick={handleShowMore}
+                  className="flex-1 text-center py-2.5 text-xs font-medium hover:bg-black/5 rounded-lg transition-colors"
+                  style={{ color: B.accent }}
+                >
+                  Show more
+                </button>
+              )}
+              {limit > 2 && (
+                <button
+                  onClick={() => setLimit(2)}
+                  className="flex-1 text-center py-2.5 text-xs font-medium hover:bg-black/5 rounded-lg transition-colors"
+                  style={{ color: B.textMuted }}
+                >
+                  Show less
+                </button>
+              )}
+            </div>
           )}
         </div>
       ) : (
