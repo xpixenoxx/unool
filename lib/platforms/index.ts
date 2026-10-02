@@ -7,6 +7,7 @@ export { facebookAdapter, FacebookAdapter } from './FacebookAdapter';
 export { whatsAppAdapter, WhatsAppAdapter } from './WhatsAppAdapter';
 export { pinterestAdapter, PinterestAdapter } from './PinterestAdapter';
 export { youtubeAdapter, YoutubeAdapter } from './YoutubeAdapter';
+export { instagramAdapter, InstagramAdapter } from './InstagramAdapter';
 
 import { linkedInAdapter } from './LinkedInAdapter';
 import { threadsAdapter } from './ThreadsAdapter';
@@ -16,6 +17,7 @@ import { facebookAdapter } from './FacebookAdapter';
 import { whatsAppAdapter } from './WhatsAppAdapter';
 import { pinterestAdapter } from './PinterestAdapter';
 import { youtubeAdapter } from './YoutubeAdapter';
+import { instagramAdapter } from './InstagramAdapter';
 import type { PlatformAdapter } from './adapter';
 
 export const platformAdapters: Record<string, PlatformAdapter> = {
@@ -28,6 +30,7 @@ export const platformAdapters: Record<string, PlatformAdapter> = {
   whatsapp: whatsAppAdapter,
   pinterest: pinterestAdapter,
   youtube: youtubeAdapter,
+  instagram: instagramAdapter,
 };
 
 export function getPlatformAdapter(platform: string): PlatformAdapter | null {
