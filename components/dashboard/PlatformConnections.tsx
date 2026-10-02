@@ -398,6 +398,8 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
             ...prev,
             bluesky: { platform: 'bluesky', status: 'connected', username },
           }));
+          // Reload the dashboard page so the Broadcast Network block updates too
+          window.location.reload();
         }}
       />
 
