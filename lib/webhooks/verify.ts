@@ -44,6 +44,9 @@ function getWebhookSecret(platform: Platform): string | undefined {
     facebook: config.META_WEBHOOK_SECRET,
     whatsapp: config.META_WEBHOOK_SECRET,
     instagram: config.META_WEBHOOK_SECRET,
+    youtube: undefined,
+    pinterest: undefined,
+    bluesky: undefined,
     manual: undefined,
   };
   return secretMap[platform];
@@ -159,6 +162,9 @@ export function extractWebhookSignature(request: Request, platform: Platform): s
     facebook: ['x-hub-signature-256', 'x-hub-signature'],
     whatsapp: ['x-hub-signature-256', 'x-hub-signature'],
     instagram: ['x-hub-signature-256', 'x-hub-signature'],
+    youtube: [],
+    pinterest: [],
+    bluesky: [],
     manual: [],
   };
 

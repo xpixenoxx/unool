@@ -247,7 +247,7 @@ export class LinkedInAdapter implements PlatformAdapter {
             }
           }
         } catch (error) {
-          logger.error('LinkedIn media upload failed', { error });
+          logger.error('LinkedIn media upload failed', { error: error instanceof Error ? error : new Error(String(error)) });
           throw error;
         }
       }

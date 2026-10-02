@@ -18,9 +18,9 @@ export class WhatsAppAdapter implements PlatformAdapter {
   readonly platform = 'whatsapp' as const;
 
   readonly authConfig: PlatformAuthConfig = {
-    clientId: config.META_CLIENT_ID || '',
-    clientSecret: config.META_CLIENT_SECRET || '',
-    redirectUri: config.META_REDIRECT_URI || '',
+    clientId: config.FACEBOOK_CLIENT_ID || '',
+    clientSecret: config.FACEBOOK_CLIENT_SECRET || '',
+    redirectUri: config.FACEBOOK_REDIRECT_URI || '',
     scopes: ['whatsapp_business_messaging', 'whatsapp_business_management'],
   };
 

@@ -1,4 +1,4 @@
-export type Platform = 'linkedin' | 'x' | 'threads' | 'manual' | 'facebook' | 'whatsapp' | 'instagram' | 'youtube' | 'pinterest';
+export type Platform = 'linkedin' | 'x' | 'threads' | 'manual' | 'facebook' | 'whatsapp' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky';
 
 export interface PlatformConnection {
   id: string;

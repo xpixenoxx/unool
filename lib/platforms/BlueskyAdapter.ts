@@ -105,8 +105,7 @@ export class BlueskyAdapter implements PlatformAdapter {
     // Truncate to Bluesky's 300 grapheme limit
     const text = this.truncate(input.content, 300);
 
-    // Handle image attachments (up to 4 images on Bluesky)
-    let embed: object | undefined;
+    let embed: any;
     if (input.mediaUrls && input.mediaUrls.length > 0) {
       const imageUrls = input.mediaUrls.slice(0, 4); // Bluesky max 4 images
       const blobs = await Promise.all(
@@ -126,7 +125,7 @@ export class BlueskyAdapter implements PlatformAdapter {
       embed = {
         $type: 'app.bsky.embed.images',
         images: blobs,
-      };
+      } as any;
     }
 
     const record = await agent.post({ text, embed });
