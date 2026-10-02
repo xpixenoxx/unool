@@ -10,8 +10,8 @@ import {
 } from './adapter';
 import { platformFetch, fetchWithRetry, TokenExpiredError } from '@/lib/utils/retry';
 
-const META_AUTH_URL = 'https://www.instagram.com/oauth/authorize';
-const META_TOKEN_URL = 'https://api.instagram.com/oauth/access_token';
+const META_AUTH_URL = 'https://www.facebook.com/v20.0/dialog/oauth';
+const META_TOKEN_URL = 'https://graph.facebook.com/v20.0/oauth/access_token';
 const FACEBOOK_API_BASE = 'https://graph.facebook.com/v20.0';
 
 export class InstagramAdapter implements PlatformAdapter {
@@ -55,11 +55,8 @@ export class InstagramAdapter implements PlatformAdapter {
     });
 
     return platformFetch('instagram', async () => {
-      // Step 1: Exchange code for short-lived token (valid ~1 hour)
-      const response = await fetchWithRetry(META_TOKEN_URL, {
+      const response = await fetchWithRetry(`${META_TOKEN_URL}?${params.toString()}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: params.toString(),
       });
 
       if (!response.ok) {
@@ -68,57 +65,27 @@ export class InstagramAdapter implements PlatformAdapter {
         throw new Error(`Token exchange failed: ${error}`);
       }
 
-      const shortLivedData = await response.json();
-      const shortLivedToken = shortLivedData.access_token;
-
-      // Step 2: Exchange short-lived token for long-lived token (valid ~60 days)
-      const longLivedParams = new URLSearchParams({
-        grant_type: 'ig_exchange_token',
-        client_secret: this.authConfig.clientSecret,
-        access_token: shortLivedToken,
-      });
-
-      const longLivedResponse = await fetchWithRetry(
-        `https://graph.instagram.com/access_token?${longLivedParams.toString()}`,
-        {}
-      );
-
-      if (!longLivedResponse.ok) {
-        const error = await longLivedResponse.text();
-        logger.warn('Instagram long-lived token exchange failed, using short-lived token', { errorMessage: error });
-        // Fall back to short-lived token
-        return {
-          accessToken: shortLivedToken,
-          refreshToken: shortLivedToken, // Store as refresh token for later refresh
-          expiresIn: shortLivedData.expires_in || 3600,
-          scope: shortLivedData.scope,
-        };
-      }
-
-      const longLivedData = await longLivedResponse.json();
-      logger.info('Instagram: obtained long-lived token', { expiresIn: longLivedData.expires_in });
-      
+      const data = await response.json();
       return {
-        accessToken: longLivedData.access_token,
-        // Store long-lived token as refresh token too - Instagram refresh uses the token itself
-        refreshToken: longLivedData.access_token,
-        expiresIn: longLivedData.expires_in || 5184000, // 60 days
-        scope: shortLivedData.scope,
+        accessToken: data.access_token,
+        refreshToken: data.refresh_token,
+        expiresIn: data.expires_in,
+        scope: data.scope,
       };
     });
   }
 
   async refreshAccessToken(refreshToken: string): Promise<TokenResponse> {
-    // Instagram uses ig_refresh_token grant type at /refresh_access_token endpoint
-    // The "refreshToken" here is actually the long-lived access token itself
     const params = new URLSearchParams({
-      grant_type: 'ig_refresh_token',
-      access_token: refreshToken,
+      grant_type: 'fb_exchange_token',
+      client_id: this.authConfig.clientId,
+      client_secret: this.authConfig.clientSecret,
+      fb_exchange_token: refreshToken,
     });
 
     return platformFetch('instagram', async () => {
       const response = await fetchWithRetry(
-        `https://graph.instagram.com/refresh_access_token?${params.toString()}`,
+        `${META_TOKEN_URL}?${params.toString()}`,
         {}
       );
 
@@ -131,7 +98,6 @@ export class InstagramAdapter implements PlatformAdapter {
       const data = await response.json();
       return {
         accessToken: data.access_token,
-        // Instagram refresh returns same token type - store it as refresh token too
         refreshToken: data.access_token,
         expiresIn: data.expires_in,
       };
