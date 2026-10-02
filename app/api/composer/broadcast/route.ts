@@ -100,25 +100,22 @@ export async function POST(request: NextRequest) {
         postId: post.id,
       });
 
-      // Trigger publish to all platforms immediately
-      const results = await publishService.publishToAllPlatforms(post.id, workspaceId);
+      // We use Next.js 15 after() to run the publishing in the background
+      // This prevents Vercel Serverless Functions from timing out and returning 504 (which causes the "Unexpected token" JSON parse error in the client).
+      const { after } = await import('next/server');
 
-      const hasAnySuccess = Object.values(results).some((r: any) => r.success);
-      
-      if (!hasAnySuccess && Object.keys(results).length > 0) {
-        // Collect errors
-        const errors = Object.entries(results).map(([platform, res]: [string, any]) => `${platform}: ${res.error}`).join(', ');
-        return NextResponse.json({ 
-          success: false, 
-          error: `Publish failed: ${errors}`, 
-          results 
-        }, { status: 500 });
-      }
+      after(async () => {
+        try {
+          logger.info('Background publish starting', { traceId, postId: post.id });
+          await publishService.publishToAllPlatforms(post.id, workspaceId);
+        } catch (bgError) {
+          logger.error('Background publish failed', { traceId, postId: post.id, error: bgError });
+        }
+      });
 
       return NextResponse.json({
         success: true,
         postId: post.id,
-        results,
       });
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));

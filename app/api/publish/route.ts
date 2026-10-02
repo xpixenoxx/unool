@@ -16,25 +16,21 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const results = await publishService.publishToAllPlatforms(postId, workspaceId);
+      // We use Next.js 15 after() to run the publishing in the background
+      // This prevents Vercel Serverless Functions from timing out.
+      const { after } = await import('next/server');
 
-      const hasAnySuccess = Object.values(results).some((r: any) => r.success);
-      
-      if (!hasAnySuccess && Object.keys(results).length > 0) {
-        const errors = Object.entries(results).map(([platform, res]: [string, any]) => `${platform}: ${res.error}`).join(', ');
-        logger.error('Publish job failed entirely', { postId, workspaceId, errors });
-        return NextResponse.json({ 
-          success: false, 
-          error: `Publish failed: ${errors}`, 
-          results 
-        }, { status: 500 });
-      }
-
-      logger.info('Publish job completed', { postId, workspaceId, results });
+      after(async () => {
+        try {
+          logger.info('Background publish starting', { postId, workspaceId });
+          await publishService.publishToAllPlatforms(postId, workspaceId);
+        } catch (bgError) {
+          logger.error('Background publish failed', { postId, workspaceId, error: bgError });
+        }
+      });
 
       return NextResponse.json({
         success: true,
-        results,
       });
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
