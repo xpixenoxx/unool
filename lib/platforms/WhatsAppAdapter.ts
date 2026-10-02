@@ -21,7 +21,7 @@ export class WhatsAppAdapter implements PlatformAdapter {
     clientId: config.FACEBOOK_CLIENT_ID || '',
     clientSecret: config.FACEBOOK_CLIENT_SECRET || '',
     redirectUri: config.FACEBOOK_REDIRECT_URI || '',
-    scopes: ['whatsapp_business_messaging', 'whatsapp_business_management'],
+    scopes: ['public_profile', 'email', 'whatsapp_business_messaging', 'whatsapp_business_management'],
   };
 
   getAuthUrl(state: string): string {
@@ -30,6 +30,7 @@ export class WhatsAppAdapter implements PlatformAdapter {
       redirect_uri: this.authConfig.redirectUri,
       scope: this.authConfig.scopes.join(','),
       response_type: 'code',
+      auth_type: 'rerequest',
       state,
     });
     return `${META_AUTH_URL}?${params.toString()}`;
@@ -115,8 +116,8 @@ export class WhatsAppAdapter implements PlatformAdapter {
         throw new Error('No WhatsApp Business Account found');
       }
 
-      // Get phone numbers for this WABA
-      const phoneNumbers = waba.phone_numbers || [];
+      // Get phone numbers for this WABA (Meta Graph edges contain a 'data' array)
+      const phoneNumbers = waba.phone_numbers?.data || Array.isArray(waba.phone_numbers) ? waba.phone_numbers : [];
       const phoneNumber = phoneNumbers[0];
 
       return {
@@ -194,7 +195,8 @@ export class WhatsAppAdapter implements PlatformAdapter {
 
     const data = await response.json();
     const waba = data.data?.[0];
-    const phoneNumber = waba?.phone_numbers?.[0];
+    const phoneNumbers = waba?.phone_numbers?.data || (Array.isArray(waba?.phone_numbers) ? waba.phone_numbers : []);
+    const phoneNumber = phoneNumbers[0];
 
     if (!phoneNumber?.id) {
       throw new Error('No WhatsApp Business phone number found');

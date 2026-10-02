@@ -1,0 +1,63 @@
+[
+  {
+    "id": "5ad880bb-a106-4f02-be56-5845d9833741",
+    "workspace_id": "3d59e35f-80ed-46de-b7a4-ffb406d7c7cd",
+    "platform": "pinterest",
+    "platform_user_id": "744501519558418409",
+    "username": "hemanthsairamj",
+    "access_token_encrypted": "v1:XlWTCe5Njn/vWAWGihAq3nwA159uaTRJDC2vlf5H+TOnkx+vqtKeEfLOnz6/e2LonjszIrn0COpdUfAqf2mBHMXj+2psHU+5w+LbjMejbzA1WrY/i4L70HFR/m0pejjeHw365SDXeqz2ThwxNv9ZvQb1/MoCFP4KcyXyfWONlmIS",
+    "refresh_token_encrypted": "v1:Aglw88pTJSysNzpLjQrAwVVyVUz3GGjQznpapAoO30xN/WKa1u053JiZW+lMW+KYWEwx/A3+OiIujXxNcmmKKCUnOBW7+nwMJaR+KrGtIwuhdZsCslZZBz0B5xwAOFItaYucJsvZUviZO0Iwz8ftN0oJ1jtGPflIL2zqcNGPnLh9DRglhEcmvop4AtDy+QVXUVijTANddBnvyLwdQckQgCo5Wc3TIWHGsY1UfrI0GdpKyYsMqBzNs934KvhPqSPMhumUKOyZpgmfw5gssba4igyvdZ04IiylkU55vDRSRJmbYS6LM5M5HZzEjeZtCahdHmnxhF9gU1rM2Wfg9loGUVuTzRPYCFgifrgWZdrcjppWhISKCmatIyao4DviFgtTZKkWymBpoFRO4C82zkVt1g0H8GcxXqKr3VP4elpfjJX/koEtri8fBzrME40KR46QVtsA2o6gmhApHbLhPetj60a1HOumpjlrBvR2OTxIOrirB+XzroflkrbHY4+8rIuwkzeynRsuP17jL51h2ExAzeR3Kv2YJ5nDSaHsRktzNnjqOCorLeRAA0vd1xqaAc2KNVwkuo2C8NONVtV/9zpvE/W12pY3DKb3Aw1I/UZ99kkKG5Ibh7OkHijNRRI0UqG5bdzHzYJ6wTtCRMlanvYDj9EikOXvKcMximqBrIsyLO/LUvDrpLjJ+L4bdNMH6laBd2nGKxo0mS+U874X+rgSYashkAFfChkdoOhVLZSSI0puQoTUoojI",
+    "expires_at": "2026-11-01T13:51:47.79+00:00",
+    "scopes": [
+      "boards:read",
+      "boards:write",
+      "pins:read",
+      "pins:write",
+      "user_accounts:read"
+    ],
+    "status": "connected",
+    "created_at": "2026-10-01T23:09:40.252792+00:00",
+    "updated_at": "2026-10-02T13:51:47.79+00:00",
+    "user_id": "e98750a7-7107-4417-8aea-220e5a32d4d2"
+  },
+  {
+    "id": "1a28dda7-7689-4800-b562-d1fafd76288a",
+    "workspace_id": "3d59e35f-80ed-46de-b7a4-ffb406d7c7cd",
+    "platform": "instagram",
+    "platform_user_id": "28774664385498412",
+    "username": "moremarha",
+    "access_token_encrypted": "v1:329jz9N2H3u3f52v9g95hOPesZyhjXgeC3wWzIc4oaLN54VbZmUNXdAc7kxKfVSEtKDq+4vqVVyXUCLjaZmRu86Sg/wKBahPWTZEzGxNHgFwi2+xpm7a+k8SHjBSVAclzobmpJG5wFhgi1jHUZLAP8geMA/5pzicWik3SbDcweSHS++l06DnA3gO7KAr9OtqzatitNmrzjJXduHzrQB9+H1JxBxpJF4oRy9RlA0V/d59WElXLSkr0X+1P4YmzgVFALPyg/j9755kcQzykb3Y9uaAD8+yD6aqBRW5BooxqcGAyaMVG9UCENdVVyh4nQgOow==",
+    "refresh_token_encrypted": "",
+    "expires_at": null,
+    "scopes": [
+      "instagram_business_basic",
+      "instagram_business_manage_messages",
+      "instagram_business_manage_comments",
+      "instagram_business_content_publish",
+      "instagram_business_manage_insights"
+    ],
+    "status": "connected",
+    "created_at": "2026-10-02T12:52:20.334031+00:00",
+    "updated_at": "2026-10-02T12:52:20.334031+00:00",
+    "user_id": "e98750a7-7107-4417-8aea-220e5a32d4d2"
+  },
+  {
+    "id": "c06bd0dd-1a86-47e9-b7f8-bef657c11033",
+    "workspace_id": "3d59e35f-80ed-46de-b7a4-ffb406d7c7cd",
+    "platform": "facebook",
+    "platform_user_id": "1408139494619957",
+    "username": "1408139494619957",
+    "access_token_encrypted": "v1:ho4hU5cxuYkBb40weTf0ilESOKOoNgRwgCOC9Wo5V0fhG6Hn2hyyNQfUuf7bRRtiiwuLkGE/ddM9fZfmnzsqNblboJkD6u8tcOHXlulapqNmv+uX3FRDPMpd7qN9S3oUMQTiGxF950EJt0/FRK9/M6NKao3p7XL2NpxWav6pKvS3Nqw/20/6+nt2sJ0UA2BSo5Y4kvxgWkG/nqUVLkqyn8eCSe5Pv2xDE3DtFePlHda0NonU6JLopNg/RkdBMaCbMEf2AwevVWSRoaPBoboHhAr6oGojpbeI97/r5bVfYU9m9JRP4+YzejJ1OJ1b5hSL6huQjkWZDJh58K6omY+4UJ7eWgsrb33Urkv/lb3wbMUNodAwnDtSIOoOU9ZcA/ZfdJIzvrcTwC32EjTEU73NliYsovFXcBPg2SIiVjqnXUKeVTrZS/p6FauPTjClGyzLe95Dq2/6QIOYNRKPvPceOqbi2OwLfiFFDrMM0Hg=",
+    "refresh_token_encrypted": "",
+    "expires_at": "2026-12-01T13:25:45.623+00:00",
+    "scopes": [
+      "pages_show_list",
+      "pages_read_engagement",
+      "pages_manage_posts"
+    ],
+    "status": "error",
+    "created_at": "2026-10-02T13:25:58.767018+00:00",
+    "updated_at": "2026-10-02T13:28:25.672+00:00",
+    "user_id": "e98750a7-7107-4417-8aea-220e5a32d4d2"
+  }
+]
