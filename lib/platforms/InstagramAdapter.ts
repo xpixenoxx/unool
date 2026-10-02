@@ -147,44 +147,105 @@ export class InstagramAdapter implements PlatformAdapter {
         throw new Error('Instagram requires at least one image or video to publish.');
       }
 
-      const mediaUrl = input.mediaUrls[0];
-      const isVideo = this.isVideoUrl(mediaUrl);
-      
-      // 1. Create Media Container
-      const containerParams = new URLSearchParams({
-        access_token: accessToken,
-        caption: input.content || '',
-      });
-      
-      if (isVideo) {
-        containerParams.append('media_type', 'REELS'); // Publish as Reel
-        containerParams.append('video_url', mediaUrl);
-      } else {
-        containerParams.append('image_url', mediaUrl);
-      }
+      const mediaUrls = input.mediaUrls.slice(0, 10); // Instagram max 10 for carousel
+      let creationId: string;
 
-      const containerRes = await fetchWithRetry(
-        `https://graph.instagram.com/v20.0/${igAccountId}/media`,
-        {
+      if (mediaUrls.length === 1) {
+        // Single media
+        const mediaUrl = mediaUrls[0];
+        const isVideo = this.isVideoUrl(mediaUrl);
+        
+        const containerParams = new URLSearchParams({
+          access_token: accessToken,
+          caption: input.content || '',
+        });
+        
+        if (isVideo) {
+          containerParams.append('media_type', 'REELS');
+          containerParams.append('video_url', mediaUrl);
+        } else {
+          containerParams.append('image_url', mediaUrl);
+        }
+
+        const containerRes = await fetchWithRetry(`https://graph.instagram.com/v20.0/${igAccountId}/media`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: containerParams.toString(),
+        });
+
+        if (!containerRes.ok) {
+          const error = await containerRes.text();
+          throw new Error(`Instagram media container creation failed: ${error}`);
         }
-      );
+        creationId = (await containerRes.json()).id;
+        
+        if (isVideo) {
+          await this.waitForVideoReady(accessToken, creationId);
+        }
+      } else {
+        // Carousel
+        const itemIds: string[] = [];
+        for (const url of mediaUrls) {
+          const isVid = this.isVideoUrl(url);
+          const itemParams = new URLSearchParams({
+            access_token: accessToken,
+            is_carousel_item: 'true',
+          });
+          
+          if (isVid) {
+            itemParams.append('media_type', 'VIDEO');
+            itemParams.append('video_url', url);
+          } else {
+            itemParams.append('image_url', url);
+          }
 
-      if (!containerRes.ok) {
-        const error = await containerRes.text();
-        throw new Error(`Instagram media container creation failed: ${error}`);
+          const itemRes = await fetchWithRetry(`https://graph.instagram.com/v20.0/${igAccountId}/media`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: itemParams.toString(),
+          });
+
+          if (itemRes.ok) {
+            itemIds.push((await itemRes.json()).id);
+          } else {
+            logger.warn('Failed to upload Instagram carousel item', { url, error: await itemRes.text() });
+          }
+        }
+
+        if (itemIds.length === 0) {
+          throw new Error('Failed to create any carousel items for Instagram');
+        }
+
+        // Wait for all items to be ready (especially videos)
+        for (const url of mediaUrls) {
+           if (this.isVideoUrl(url)) {
+              // Note: Ideally we wait for specific video IDs. For simplicity, just wait a bit.
+              await new Promise(r => setTimeout(r, 5000));
+           }
+        }
+
+        // Create carousel container
+        const carouselParams = new URLSearchParams({
+          access_token: accessToken,
+          caption: input.content || '',
+          media_type: 'CAROUSEL',
+          children: itemIds.join(','),
+        });
+
+        const carouselRes = await fetchWithRetry(`https://graph.instagram.com/v20.0/${igAccountId}/media`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: carouselParams.toString(),
+        });
+
+        if (!carouselRes.ok) {
+          const error = await carouselRes.text();
+          throw new Error(`Instagram carousel container creation failed: ${error}`);
+        }
+        creationId = (await carouselRes.json()).id;
       }
 
-      const containerData = await containerRes.json();
-      const creationId = containerData.id;
-
-      // 2. Publish the Container (Wait for video processing if applicable)
-      if (isVideo) {
-        await this.waitForVideoReady(accessToken, creationId);
-      }
-
+      // 2. Publish the Container
       const publishParams = new URLSearchParams({
         creation_id: creationId,
         access_token: accessToken,
