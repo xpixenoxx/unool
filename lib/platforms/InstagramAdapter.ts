@@ -18,9 +18,9 @@ export class InstagramAdapter implements PlatformAdapter {
   readonly platform = 'instagram' as const;
 
   readonly authConfig: PlatformAuthConfig = {
-    clientId: config.META_CLIENT_ID || '',
-    clientSecret: config.META_CLIENT_SECRET || '',
-    redirectUri: config.META_REDIRECT_URI || `${config.NEXT_PUBLIC_APP_URL}/api/auth/platform/callback`,
+    clientId: config.FACEBOOK_CLIENT_ID || '',
+    clientSecret: config.FACEBOOK_CLIENT_SECRET || '',
+    redirectUri: config.FACEBOOK_REDIRECT_URI || `${config.NEXT_PUBLIC_APP_URL}/api/auth/platform/callback`,
     scopes: ['instagram_basic', 'instagram_content_publish', 'pages_show_list', 'pages_read_engagement'],
   };
 

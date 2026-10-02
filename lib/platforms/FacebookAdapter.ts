@@ -18,9 +18,9 @@ export class FacebookAdapter implements PlatformAdapter {
   readonly platform = 'facebook' as const;
 
   readonly authConfig: PlatformAuthConfig = {
-    clientId: config.META_CLIENT_ID || '',
-    clientSecret: config.META_CLIENT_SECRET || '',
-    redirectUri: config.META_REDIRECT_URI || `${config.NEXT_PUBLIC_APP_URL}/api/auth/platform/callback`,
+    clientId: config.FACEBOOK_CLIENT_ID || '',
+    clientSecret: config.FACEBOOK_CLIENT_SECRET || '',
+    redirectUri: config.FACEBOOK_REDIRECT_URI || `${config.NEXT_PUBLIC_APP_URL}/api/auth/platform/callback`,
     scopes: ['pages_show_list', 'pages_read_engagement', 'pages_manage_posts'],
   };
 

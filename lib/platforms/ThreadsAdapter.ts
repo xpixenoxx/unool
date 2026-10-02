@@ -18,9 +18,9 @@ export class ThreadsAdapter implements PlatformAdapter {
   readonly platform = 'threads' as const;
 
   readonly authConfig: PlatformAuthConfig = {
-    clientId: config.META_CLIENT_ID || '',
-    clientSecret: config.META_CLIENT_SECRET || '',
-    redirectUri: config.META_REDIRECT_URI || `${config.NEXT_PUBLIC_APP_URL}/api/auth/platform/callback`,
+    clientId: config.THREADS_CLIENT_ID || '',
+    clientSecret: config.THREADS_CLIENT_SECRET || '',
+    redirectUri: config.THREADS_REDIRECT_URI || `${config.NEXT_PUBLIC_APP_URL}/api/auth/platform/callback`,
     scopes: ['threads_basic', 'threads_content_publish', 'threads_manage_replies', 'threads_manage_insights'],
   };
 

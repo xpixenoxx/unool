@@ -45,10 +45,15 @@ const configSchema = z.object({
   LINKEDIN_CLIENT_SECRET: z.string().optional(),
   LINKEDIN_REDIRECT_URI: z.string().url().optional(),
 
-  // Meta (Threads/Facebook) OAuth
-  META_CLIENT_ID: z.string().optional(),
-  META_CLIENT_SECRET: z.string().optional(),
-  META_REDIRECT_URI: z.string().url().optional(),
+  // Threads OAuth
+  THREADS_CLIENT_ID: z.string().optional(),
+  THREADS_CLIENT_SECRET: z.string().optional(),
+  THREADS_REDIRECT_URI: z.string().url().optional(),
+
+  // Facebook & Instagram OAuth (Meta Graph API)
+  FACEBOOK_CLIENT_ID: z.string().optional(),
+  FACEBOOK_CLIENT_SECRET: z.string().optional(),
+  FACEBOOK_REDIRECT_URI: z.string().url().optional(),
 
   // X (Twitter) OAuth
   X_CLIENT_ID: z.string().optional(),
