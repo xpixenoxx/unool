@@ -101,43 +101,15 @@ export class InstagramAdapter implements PlatformAdapter {
 
   async getUserProfile(accessToken: string): Promise<UserProfile> {
     return platformFetch('instagram', async () => {
-      // 1. Fetch user's pages
-      const pagesResponse = await fetchWithRetry(
-        `${FACEBOOK_API_BASE}/me/accounts?fields=id,name,instagram_business_account&access_token=${accessToken}`,
-        {}
-      );
-
-      if (!pagesResponse.ok) {
-        if (pagesResponse.status === 401 || pagesResponse.status === 403) {
-          throw new TokenExpiredError('Token expired or invalid', 'instagram');
-        }
-        const error = await pagesResponse.text();
-        throw new Error(`Failed to fetch Facebook pages: ${error}`);
-      }
-
-      const pagesData = await pagesResponse.json();
-      const pages = pagesData.data || [];
-
-      // Find first page with an associated Instagram business account
-      let igBusinessAccountId: string | null = null;
-      for (const page of pages) {
-        if (page.instagram_business_account?.id) {
-          igBusinessAccountId = page.instagram_business_account.id;
-          break;
-        }
-      }
-
-      if (!igBusinessAccountId) {
-        throw new Error('No Instagram Business or Creator account found linked to your Facebook pages.');
-      }
-
-      // 2. Fetch IG account profile details
       const profileResponse = await fetchWithRetry(
-        `${FACEBOOK_API_BASE}/${igBusinessAccountId}?fields=id,username,name,profile_picture_url&access_token=${accessToken}`,
+        `https://graph.instagram.com/v20.0/me?fields=id,username,name,profile_picture_url&access_token=${accessToken}`,
         {}
       );
 
       if (!profileResponse.ok) {
+        if (profileResponse.status === 401 || profileResponse.status === 403) {
+          throw new TokenExpiredError('Token expired or invalid', 'instagram');
+        }
         const error = await profileResponse.text();
         throw new Error(`Failed to fetch Instagram profile: ${error}`);
       }
@@ -156,22 +128,20 @@ export class InstagramAdapter implements PlatformAdapter {
 
   async publish(accessToken: string, input: PublishInput): Promise<PublishResult> {
     return platformFetch('instagram', async () => {
-      // Find the Instagram Business Account ID attached to the user token
-      const pagesResponse = await fetchWithRetry(
-        `${FACEBOOK_API_BASE}/me/accounts?fields=instagram_business_account&access_token=${accessToken}`,
+      // Find the Instagram Business Account ID attached to the native user token
+      const profileResponse = await fetchWithRetry(
+        `https://graph.instagram.com/v20.0/me?fields=id&access_token=${accessToken}`,
         {}
       );
-      if (!pagesResponse.ok) {
-        throw new Error('Could not fetch pages for publishing');
+      if (!profileResponse.ok) {
+        throw new Error('Could not fetch instagram profile for publishing');
       }
-      const pagesData = await pagesResponse.json();
-      const page = pagesData.data?.find((p: any) => p.instagram_business_account?.id);
+      const profileData = await profileResponse.json();
+      const igAccountId = profileData.id;
       
-      if (!page) {
-        throw new Error('No linked Instagram Business account found.');
+      if (!igAccountId) {
+        throw new Error('No Instagram account ID found.');
       }
-      
-      const igAccountId = page.instagram_business_account.id;
 
       if (!input.mediaUrls || input.mediaUrls.length === 0) {
         throw new Error('Instagram requires at least one image or video to publish.');
@@ -194,7 +164,7 @@ export class InstagramAdapter implements PlatformAdapter {
       }
 
       const containerRes = await fetchWithRetry(
-        `${FACEBOOK_API_BASE}/${igAccountId}/media`,
+        `https://graph.instagram.com/v20.0/${igAccountId}/media`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -221,7 +191,7 @@ export class InstagramAdapter implements PlatformAdapter {
       });
 
       const publishRes = await fetchWithRetry(
-        `${FACEBOOK_API_BASE}/${igAccountId}/media_publish`,
+        `https://graph.instagram.com/v20.0/${igAccountId}/media_publish`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -240,7 +210,7 @@ export class InstagramAdapter implements PlatformAdapter {
       let permalink = '';
       try {
         const mediaRes = await fetchWithRetry(
-          `${FACEBOOK_API_BASE}/${platformPostId}?fields=permalink&access_token=${accessToken}`,
+          `https://graph.instagram.com/v20.0/${platformPostId}?fields=permalink&access_token=${accessToken}`,
           {}
         );
         if (mediaRes.ok) {
@@ -263,7 +233,7 @@ export class InstagramAdapter implements PlatformAdapter {
     for (let i = 0; i < maxAttempts; i++) {
         await new Promise(resolve => setTimeout(resolve, 3000));
         const statusRes = await fetchWithRetry(
-          `${FACEBOOK_API_BASE}/${containerId}?fields=status_code&access_token=${accessToken}`,
+          `https://graph.instagram.com/v20.0/${containerId}?fields=status_code&access_token=${accessToken}`,
           {}
         );
         
@@ -289,7 +259,7 @@ export class InstagramAdapter implements PlatformAdapter {
   async getEngagement(accessToken: string, platformPostId: string): Promise<Record<string, unknown>> {
     return platformFetch('instagram', async () => {
       const response = await fetchWithRetry(
-        `${FACEBOOK_API_BASE}/${platformPostId}?fields=like_count,comments_count,views_count,shares_count&access_token=${accessToken}`,
+        `https://graph.instagram.com/v20.0/${platformPostId}?fields=like_count,comments_count,views_count,shares_count&access_token=${accessToken}`,
         {}
       );
 
