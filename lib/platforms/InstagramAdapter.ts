@@ -184,7 +184,8 @@ export class InstagramAdapter implements PlatformAdapter {
         }
       } else {
         // Carousel
-        const uploadPromises = mediaUrls.map(async (url) => {
+        const itemIds: string[] = [];
+        for (const url of mediaUrls) {
           const isVid = this.isVideoUrl(url);
           const itemParams = new URLSearchParams({
             access_token: accessToken,
@@ -198,28 +199,18 @@ export class InstagramAdapter implements PlatformAdapter {
             itemParams.append('image_url', url);
           }
 
-          try {
-            const itemRes = await fetchWithRetry(`https://graph.instagram.com/v20.0/${igAccountId}/media`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-              body: itemParams.toString(),
-            });
+          const itemRes = await fetchWithRetry(`https://graph.instagram.com/v20.0/${igAccountId}/media`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: itemParams.toString(),
+          });
 
-            if (itemRes.ok) {
-              const data = await itemRes.json();
-              return data.id as string;
-            } else {
-              logger.warn('Failed to upload Instagram carousel item', { url, error: await itemRes.text() });
-              return null;
-            }
-          } catch (e) {
-            logger.warn('Failed to upload Instagram carousel item', { url, error: e });
-            return null;
+          if (itemRes.ok) {
+            itemIds.push((await itemRes.json()).id);
+          } else {
+            logger.warn('Failed to upload Instagram carousel item', { url, error: await itemRes.text() });
           }
-        });
-
-        const results = await Promise.all(uploadPromises);
-        const itemIds = results.filter((id): id is string => id !== null);
+        }
 
         if (itemIds.length === 0) {
           throw new Error('Failed to create any carousel items for Instagram');
