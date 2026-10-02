@@ -291,90 +291,11 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       {/* ═══ ROW 2: Publishing Heatmap + Broadcast Network ═══ */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
 
-        {/* Publishing Heatmap — 7 cols */}
+        {/* Broadcast Network — centered */}
         <motion.div
           variants={fadeUp}
           transition={transition}
-          className="lg:col-span-7 rounded-2xl p-6"
-          style={{
-            backgroundColor: B.card,
-            border: `1px solid ${B.cardBorder}`,
-            boxShadow: B.cardShadow,
-          }}
-        >
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-2.5">
-              <div
-                className="p-2 rounded-lg"
-                style={{ backgroundColor: B.accentBg }}
-              >
-                <CalendarDays className="h-4 w-4" style={{ color: B.accent }} />
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold" style={{ color: B.text }}>
-                  Publishing Heatmap
-                </h3>
-                <p className="text-xs" style={{ color: B.textMuted }}>
-                  Your posting consistency this month
-                </p>
-              </div>
-            </div>
-            <span className="text-xs font-medium px-2 py-1 rounded-md" style={{ backgroundColor: B.accentBg, color: B.textSecondary }}>
-              {new Date().toLocaleString('default', { month: 'long' })}
-            </span>
-          </div>
-
-          {/* Heatmap Grid */}
-          <div className="space-y-1.5">
-            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, dayIdx) => (
-              <div key={day} className="flex items-center gap-2">
-                <span
-                  className="text-[10px] font-medium w-7 text-right"
-                  style={{ color: B.textLight }}
-                >
-                  {day}
-                </span>
-                <div className="flex gap-1 flex-1">
-                  {heatmapData[dayIdx]?.map((level: number, cellIdx: number) => (
-                    <div
-                      key={cellIdx}
-                      className="h-5 flex-1 rounded-[4px] transition-colors"
-                      style={{
-                        backgroundColor:
-                          level === 0 ? B.heatmapEmpty
-                            : level === 1 ? B.heatmap1
-                            : level === 2 ? B.heatmap2
-                            : level === 3 ? B.heatmap3
-                            : B.heatmap4,
-                        maxWidth: 28,
-                      }}
-                      title={`${level} post${level !== 1 ? 's' : ''}`}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Legend */}
-          <div className="flex items-center justify-end gap-1.5 mt-4">
-            <span className="text-[10px]" style={{ color: B.textLight }}>Less</span>
-            {[B.heatmapEmpty, B.heatmap1, B.heatmap2, B.heatmap3, B.heatmap4].map((color, i) => (
-              <div
-                key={i}
-                className="h-3 w-3 rounded-[3px]"
-                style={{ backgroundColor: color }}
-              />
-            ))}
-            <span className="text-[10px]" style={{ color: B.textLight }}>More</span>
-          </div>
-        </motion.div>
-
-        {/* Broadcast Network — 5 cols */}
-        <motion.div
-          variants={fadeUp}
-          transition={transition}
-          className="lg:col-span-5 rounded-2xl p-6"
+          className="lg:col-span-6 lg:col-start-4 rounded-2xl p-6"
           style={{
             backgroundColor: B.card,
             border: `1px solid ${B.cardBorder}`,
