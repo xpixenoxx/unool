@@ -132,160 +132,122 @@ export class LinkedInAdapter implements PlatformAdapter {
       let contentObj: any = undefined;
 
       if (input.mediaUrls && input.mediaUrls.length > 0) {
-        const imageUrl = input.mediaUrls[0];
         try {
-          // 1. Fetch image binary from URL
-          const imageRes = await fetch(imageUrl);
-          if (!imageRes.ok) throw new Error(`Failed to fetch image: ${imageRes.statusText}`);
-          const imageBuffer = await imageRes.arrayBuffer();
-          const contentType = imageRes.headers.get('content-type') || 'application/octet-stream';
+          if (input.mediaUrls.length === 1) {
+            // Single media upload
+            const imageUrl = input.mediaUrls[0];
+            const imageRes = await fetch(imageUrl);
+            if (!imageRes.ok) throw new Error(`Failed to fetch image: ${imageRes.statusText}`);
+            const imageBuffer = await imageRes.arrayBuffer();
+            const contentType = imageRes.headers.get('content-type') || 'application/octet-stream';
+            const isVideo = contentType.startsWith('video/');
+            const isPdf = contentType === 'application/pdf';
 
-          const isVideo = contentType.startsWith('video/');
-          const isPdf = contentType === 'application/pdf';
+            let mediaUrn = '';
+            let uploadUrl = '';
+            let initData: any = null;
 
-          let mediaUrn = '';
-          let uploadUrl = '';
-          let initData: any = null;
-
-          // 2. Initialize upload with LinkedIn
-          if (isVideo) {
-            const initRes = await fetchWithRetry(`${LINKEDIN_V1_API_BASE}/videos?action=initializeUpload`, {
-              method: 'POST',
-              headers: {
-                Authorization: `Bearer ${accessToken}`,
-                'Content-Type': 'application/json',
-                'X-Restli-Protocol-Version': '2.0.0',
-                'LinkedIn-Version': '202606',
-              },
-              body: JSON.stringify({ initializeUploadRequest: { owner: authorUrn, fileSizeBytes: imageBuffer.byteLength, uploadCaptions: false, uploadThumbnail: false } }),
-            });
-
-            if (!initRes.ok) {
-              const errText = await initRes.text();
-              throw new Error(`Failed to initialize video upload: ${errText}`);
-            }
-
-            initData = await initRes.json();
-            mediaUrn = initData.value.video;
-            // uploadUrl is handled below for videos
-          } else if (isPdf) {
-            const initRes = await fetchWithRetry(`${LINKEDIN_V1_API_BASE}/documents?action=initializeUpload`, {
-              method: 'POST',
-              headers: {
-                Authorization: `Bearer ${accessToken}`,
-                'Content-Type': 'application/json',
-                'X-Restli-Protocol-Version': '2.0.0',
-                'LinkedIn-Version': '202606',
-              },
-              body: JSON.stringify({ initializeUploadRequest: { owner: authorUrn } }),
-            });
-
-            if (!initRes.ok) {
-              const errText = await initRes.text();
-              throw new Error(`Failed to initialize document upload: ${errText}`);
-            }
-
-            initData = await initRes.json();
-            mediaUrn = initData.value.document;
-            uploadUrl = initData.value.uploadUrl;
-          } else {
-            const initRes = await fetchWithRetry(`${LINKEDIN_V1_API_BASE}/images?action=initializeUpload`, {
-              method: 'POST',
-              headers: {
-                Authorization: `Bearer ${accessToken}`,
-                'Content-Type': 'application/json',
-                'X-Restli-Protocol-Version': '2.0.0',
-                'LinkedIn-Version': '202606',
-              },
-              body: JSON.stringify({ initializeUploadRequest: { owner: authorUrn } }),
-            });
-
-            if (!initRes.ok) {
-              const errText = await initRes.text();
-              throw new Error(`Failed to initialize image upload: ${errText}`);
-            }
-
-            initData = await initRes.json();
-            mediaUrn = initData.value.image;
-            uploadUrl = initData.value.uploadUrl;
-          }
-
-          // 3. Upload binary data
-          if (isVideo && initData?.value?.uploadInstructions) {
-            const uploadedPartIds: string[] = [];
-            // Videos may be split into multiple chunks
-            for (const instruction of initData.value.uploadInstructions) {
-              const chunk = imageBuffer.slice(instruction.firstByte, instruction.lastByte + 1);
-              const uploadRes = await fetchWithRetry(instruction.uploadUrl, {
-                method: 'PUT',
-                headers: {
-                  Authorization: `Bearer ${accessToken}`,
-                  'Content-Type': 'application/octet-stream',
-                },
-                body: chunk,
+            if (isVideo) {
+              const initRes = await fetchWithRetry(`${LINKEDIN_V1_API_BASE}/videos?action=initializeUpload`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json', 'X-Restli-Protocol-Version': '2.0.0', 'LinkedIn-Version': '202606' },
+                body: JSON.stringify({ initializeUploadRequest: { owner: authorUrn, fileSizeBytes: imageBuffer.byteLength, uploadCaptions: false, uploadThumbnail: false } }),
               });
-
-              if (!uploadRes.ok) {
-                const errText = await uploadRes.text();
-                throw new Error(`Failed to upload video chunk: ${errText}`);
-              }
-              
-              const etag = uploadRes.headers.get('etag');
-              if (etag) {
-                // ETag comes wrapped in quotes, we need to strip them
-                uploadedPartIds.push(etag.replace(/"/g, ''));
-              }
+              if (!initRes.ok) throw new Error(`Failed to initialize video upload: ${await initRes.text()}`);
+              initData = await initRes.json();
+              mediaUrn = initData.value.video;
+            } else if (isPdf) {
+              const initRes = await fetchWithRetry(`${LINKEDIN_V1_API_BASE}/documents?action=initializeUpload`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json', 'X-Restli-Protocol-Version': '2.0.0', 'LinkedIn-Version': '202606' },
+                body: JSON.stringify({ initializeUploadRequest: { owner: authorUrn } }),
+              });
+              if (!initRes.ok) throw new Error(`Failed to initialize document upload: ${await initRes.text()}`);
+              initData = await initRes.json();
+              mediaUrn = initData.value.document;
+              uploadUrl = initData.value.uploadUrl;
+            } else {
+              const initRes = await fetchWithRetry(`${LINKEDIN_V1_API_BASE}/images?action=initializeUpload`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json', 'X-Restli-Protocol-Version': '2.0.0', 'LinkedIn-Version': '202606' },
+                body: JSON.stringify({ initializeUploadRequest: { owner: authorUrn } }),
+              });
+              if (!initRes.ok) throw new Error(`Failed to initialize image upload: ${await initRes.text()}`);
+              initData = await initRes.json();
+              mediaUrn = initData.value.image;
+              uploadUrl = initData.value.uploadUrl;
             }
 
-            // Finalize video upload
-            const finalizeRes = await fetchWithRetry(`${LINKEDIN_V1_API_BASE}/videos?action=finalizeUpload`, {
-              method: 'POST',
-              headers: {
-                Authorization: `Bearer ${accessToken}`,
-                'Content-Type': 'application/json',
-                'X-Restli-Protocol-Version': '2.0.0',
-                'LinkedIn-Version': '202606',
-              },
-              body: JSON.stringify({
-                finalizeUploadRequest: {
-                  video: mediaUrn,
-                  uploadToken: initData.value.uploadToken || '',
-                  uploadedPartIds,
-                }
-              }),
-            });
-
-            if (!finalizeRes.ok) {
-              const errText = await finalizeRes.text();
-              throw new Error(`Failed to finalize video upload: ${errText}`);
+            if (isVideo && initData?.value?.uploadInstructions) {
+              const uploadedPartIds: string[] = [];
+              for (const instruction of initData.value.uploadInstructions) {
+                const chunk = imageBuffer.slice(instruction.firstByte, instruction.lastByte + 1);
+                const uploadRes = await fetchWithRetry(instruction.uploadUrl, {
+                  method: 'PUT',
+                  headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/octet-stream' },
+                  body: chunk,
+                });
+                if (!uploadRes.ok) throw new Error(`Failed to upload video chunk: ${await uploadRes.text()}`);
+                const etag = uploadRes.headers.get('etag');
+                if (etag) uploadedPartIds.push(etag.replace(/"/g, ''));
+              }
+              const finalizeRes = await fetchWithRetry(`${LINKEDIN_V1_API_BASE}/videos?action=finalizeUpload`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json', 'X-Restli-Protocol-Version': '2.0.0', 'LinkedIn-Version': '202606' },
+                body: JSON.stringify({ finalizeUploadRequest: { video: mediaUrn, uploadToken: initData.value.uploadToken || '', uploadedPartIds } }),
+              });
+              if (!finalizeRes.ok) throw new Error(`Failed to finalize video upload: ${await finalizeRes.text()}`);
+            } else {
+              const uploadRes = await fetchWithRetry(uploadUrl, {
+                method: 'PUT',
+                headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': contentType },
+                body: imageBuffer,
+              });
+              if (!uploadRes.ok) throw new Error(`Failed to upload media binary: ${await uploadRes.text()}`);
             }
+
+            contentObj = { media: { id: mediaUrn, ...(isPdf ? { title: 'Attached Document' } : {}) } };
           } else {
-            // Single payload upload (Images)
-            const uploadRes = await fetchWithRetry(uploadUrl, {
-              method: 'PUT',
-              headers: {
-                Authorization: `Bearer ${accessToken}`,
-                'Content-Type': contentType,
-              },
-              body: imageBuffer,
-            });
+            // Multi-image upload (LinkedIn supports up to 9 images)
+            const imageUrls = input.mediaUrls.slice(0, 9);
+            const uploadedImageUrns: string[] = [];
 
-            if (!uploadRes.ok) {
-              const errText = await uploadRes.text();
-              throw new Error(`Failed to upload media binary: ${errText}`);
+            for (const imageUrl of imageUrls) {
+              const imageRes = await fetch(imageUrl);
+              if (!imageRes.ok) continue; // Skip failed images
+              const imageBuffer = await imageRes.arrayBuffer();
+              const contentType = imageRes.headers.get('content-type') || 'image/jpeg';
+              
+              const initRes = await fetchWithRetry(`${LINKEDIN_V1_API_BASE}/images?action=initializeUpload`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json', 'X-Restli-Protocol-Version': '2.0.0', 'LinkedIn-Version': '202606' },
+                body: JSON.stringify({ initializeUploadRequest: { owner: authorUrn } }),
+              });
+              
+              if (!initRes.ok) continue;
+              const initData = await initRes.json();
+              const mediaUrn = initData.value.image;
+              const uploadUrl = initData.value.uploadUrl;
+
+              const uploadRes = await fetchWithRetry(uploadUrl, {
+                method: 'PUT',
+                headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': contentType },
+                body: imageBuffer,
+              });
+              
+              if (uploadRes.ok) {
+                uploadedImageUrns.push(mediaUrn);
+              }
+            }
+
+            if (uploadedImageUrns.length === 1) {
+              contentObj = { media: { id: uploadedImageUrns[0] } };
+            } else if (uploadedImageUrns.length > 1) {
+              contentObj = { multiImage: { images: uploadedImageUrns.map(urn => ({ id: urn })) } };
             }
           }
-
-          // 4. Set content object for post payload
-          contentObj = { 
-            media: { 
-              id: mediaUrn,
-              ...(isPdf ? { title: 'Attached Document' } : {}) 
-            } 
-          };
         } catch (error) {
           logger.error('LinkedIn media upload failed', { error });
-          // Fall back to text post if image fails, or throw? Better to throw so user knows.
           throw error;
         }
       }

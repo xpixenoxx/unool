@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
           postId: post.id,
           platform,
           adaptedContent: rawContent,
-          mediaUrls: mediaItems || [],
+          mediaUrls: mediaItems ? mediaItems.map((m: any) => typeof m === 'string' ? m : m.url).filter(Boolean) : [],
           characterCount: rawContent.length,
           hashtagStrategy: [],
           firstCommentHint: undefined,
