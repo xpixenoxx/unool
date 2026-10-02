@@ -50,10 +50,15 @@ const configSchema = z.object({
   THREADS_CLIENT_SECRET: z.string().optional(),
   THREADS_REDIRECT_URI: z.string().url().optional(),
 
-  // Facebook & Instagram OAuth (Meta Graph API)
+  // Facebook OAuth (Meta Graph API)
   FACEBOOK_CLIENT_ID: z.string().optional(),
   FACEBOOK_CLIENT_SECRET: z.string().optional(),
   FACEBOOK_REDIRECT_URI: z.string().url().optional(),
+
+  // Instagram OAuth
+  INSTAGRAM_CLIENT_ID: z.string().optional(),
+  INSTAGRAM_CLIENT_SECRET: z.string().optional(),
+  INSTAGRAM_REDIRECT_URI: z.string().url().optional(),
 
   // X (Twitter) OAuth
   X_CLIENT_ID: z.string().optional(),

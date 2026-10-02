@@ -10,18 +10,24 @@ import {
 } from './adapter';
 import { platformFetch, fetchWithRetry, TokenExpiredError } from '@/lib/utils/retry';
 
-const META_AUTH_URL = 'https://www.facebook.com/v20.0/dialog/oauth';
-const META_TOKEN_URL = 'https://graph.facebook.com/v20.0/oauth/access_token';
+const META_AUTH_URL = 'https://www.instagram.com/oauth/authorize';
+const META_TOKEN_URL = 'https://api.instagram.com/oauth/access_token';
 const FACEBOOK_API_BASE = 'https://graph.facebook.com/v20.0';
 
 export class InstagramAdapter implements PlatformAdapter {
   readonly platform = 'instagram' as const;
 
   readonly authConfig: PlatformAuthConfig = {
-    clientId: config.FACEBOOK_CLIENT_ID || '',
-    clientSecret: config.FACEBOOK_CLIENT_SECRET || '',
-    redirectUri: config.FACEBOOK_REDIRECT_URI || `${config.NEXT_PUBLIC_APP_URL}/api/auth/platform/callback`,
-    scopes: ['instagram_basic', 'instagram_content_publish', 'pages_show_list', 'pages_read_engagement'],
+    clientId: config.INSTAGRAM_CLIENT_ID || config.FACEBOOK_CLIENT_ID || '',
+    clientSecret: config.INSTAGRAM_CLIENT_SECRET || config.FACEBOOK_CLIENT_SECRET || '',
+    redirectUri: config.INSTAGRAM_REDIRECT_URI || config.FACEBOOK_REDIRECT_URI || `${config.NEXT_PUBLIC_APP_URL}/api/auth/platform/callback`,
+    scopes: [
+      'instagram_business_basic',
+      'instagram_business_manage_messages',
+      'instagram_business_manage_comments',
+      'instagram_business_content_publish',
+      'instagram_business_manage_insights'
+    ],
   };
 
   getAuthUrl(state: string): string {
@@ -30,6 +36,7 @@ export class InstagramAdapter implements PlatformAdapter {
       redirect_uri: this.authConfig.redirectUri,
       scope: this.authConfig.scopes.join(','),
       response_type: 'code',
+      force_reauth: 'true',
       state,
     });
     return `${META_AUTH_URL}?${params.toString()}`;
