@@ -43,11 +43,20 @@ export async function POST(request: NextRequest) {
     try {
       profile = await adapter.getUserProfile(tokenPayload);
     } catch (err) {
-      logger.warn('Bluesky connect: invalid credentials', { handle: normalisedHandle, err });
-      return NextResponse.json(
-        { error: 'Could not log in to Bluesky. Please check your handle and App Password.' },
-        { status: 400 }
-      );
+      const errMsg = err instanceof Error ? err.message : String(err);
+      logger.warn('Bluesky connect: login failed', { handle: normalisedHandle, errMsg });
+
+      // Give specific feedback based on the error
+      let userFacingError = 'Could not log in to Bluesky. Please check your handle and App Password.';
+      if (errMsg.includes('Authentication Required') || errMsg.includes('Invalid identifier') || errMsg.includes('Invalid password') || errMsg.includes('401')) {
+        userFacingError = 'Wrong handle or App Password. Make sure you are using an App Password from Bluesky Settings → App Passwords, NOT your regular login password.';
+      } else if (errMsg.includes('not found') || errMsg.includes('404')) {
+        userFacingError = `Handle "${normalisedHandle}" was not found on Bluesky. Please check it is correct (e.g. yourname.bsky.social).`;
+      } else if (errMsg.includes('fetch') || errMsg.includes('network') || errMsg.includes('ENOTFOUND')) {
+        userFacingError = 'Could not reach Bluesky servers. Please try again in a moment.';
+      }
+
+      return NextResponse.json({ error: userFacingError }, { status: 400 });
     }
 
     // Encrypt the token payload for storage
