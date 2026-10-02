@@ -52,6 +52,7 @@ export class InstagramAdapter implements PlatformAdapter {
     });
 
     return platformFetch('instagram', async () => {
+      // Step 1: Exchange code for short-lived token (valid ~1 hour)
       const response = await fetchWithRetry(META_TOKEN_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -64,26 +65,59 @@ export class InstagramAdapter implements PlatformAdapter {
         throw new Error(`Token exchange failed: ${error}`);
       }
 
-      const data = await response.json();
+      const shortLivedData = await response.json();
+      const shortLivedToken = shortLivedData.access_token;
+
+      // Step 2: Exchange short-lived token for long-lived token (valid ~60 days)
+      const longLivedParams = new URLSearchParams({
+        grant_type: 'ig_exchange_token',
+        client_secret: this.authConfig.clientSecret,
+        access_token: shortLivedToken,
+      });
+
+      const longLivedResponse = await fetchWithRetry(
+        `https://graph.instagram.com/access_token?${longLivedParams.toString()}`,
+        {}
+      );
+
+      if (!longLivedResponse.ok) {
+        const error = await longLivedResponse.text();
+        logger.warn('Instagram long-lived token exchange failed, using short-lived token', { errorMessage: error });
+        // Fall back to short-lived token
+        return {
+          accessToken: shortLivedToken,
+          refreshToken: shortLivedToken, // Store as refresh token for later refresh
+          expiresIn: shortLivedData.expires_in || 3600,
+          scope: shortLivedData.scope,
+        };
+      }
+
+      const longLivedData = await longLivedResponse.json();
+      logger.info('Instagram: obtained long-lived token', { expiresIn: longLivedData.expires_in });
+      
       return {
-        accessToken: data.access_token,
-        refreshToken: data.refresh_token,
-        expiresIn: data.expires_in,
-        scope: data.scope,
+        accessToken: longLivedData.access_token,
+        // Store long-lived token as refresh token too - Instagram refresh uses the token itself
+        refreshToken: longLivedData.access_token,
+        expiresIn: longLivedData.expires_in || 5184000, // 60 days
+        scope: shortLivedData.scope,
       };
     });
   }
 
   async refreshAccessToken(refreshToken: string): Promise<TokenResponse> {
+    // Instagram uses ig_refresh_token grant type at /refresh_access_token endpoint
+    // The "refreshToken" here is actually the long-lived access token itself
     const params = new URLSearchParams({
-      grant_type: 'th_exchange_token', // Using same extension pattern as Threads/Facebook
-      client_id: this.authConfig.clientId,
-      client_secret: this.authConfig.clientSecret,
+      grant_type: 'ig_refresh_token',
       access_token: refreshToken,
     });
 
     return platformFetch('instagram', async () => {
-      const response = await fetchWithRetry(`${META_TOKEN_URL}?${params.toString()}`, {});
+      const response = await fetchWithRetry(
+        `https://graph.instagram.com/refresh_access_token?${params.toString()}`,
+        {}
+      );
 
       if (!response.ok) {
         const error = await response.text();
@@ -94,6 +128,8 @@ export class InstagramAdapter implements PlatformAdapter {
       const data = await response.json();
       return {
         accessToken: data.access_token,
+        // Instagram refresh returns same token type - store it as refresh token too
+        refreshToken: data.access_token,
         expiresIn: data.expires_in,
       };
     });
@@ -134,7 +170,15 @@ export class InstagramAdapter implements PlatformAdapter {
         {}
       );
       if (!profileResponse.ok) {
-        throw new Error('Could not fetch instagram profile for publishing');
+        const errorText = await profileResponse.text();
+        // Check for token expiry — Instagram returns 400 with code 190 for expired tokens
+        if (profileResponse.status === 400 && (errorText.includes('190') || errorText.includes('OAuthException') || errorText.includes('Session has expired'))) {
+          throw new TokenExpiredError('Instagram access token expired', 'instagram');
+        }
+        if (profileResponse.status === 401 || profileResponse.status === 403) {
+          throw new TokenExpiredError('Instagram access token expired', 'instagram');
+        }
+        throw new Error(`Could not fetch instagram profile for publishing: ${errorText}`);
       }
       const profileData = await profileResponse.json();
       const igAccountId = profileData.id;

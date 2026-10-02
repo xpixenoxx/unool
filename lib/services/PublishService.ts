@@ -159,11 +159,29 @@ export class PublishService {
     const results: Record<string, PublishJobResult> = {};
 
     // Publish each variant to its platform in parallel
+    logger.info('PublishService: publishing to all platforms', {
+      postId,
+      variantCount: variants.length,
+      platforms: variants.map(v => v.platform),
+    });
+
     const publishPromises = variants.map(async (variant) => {
+      logger.info(`PublishService: starting publish for ${variant.platform}`, {
+        postId,
+        variantId: variant.id,
+        platform: variant.platform,
+      });
       const result = await this.publishPost({
         postVariantId: variant.id,
         platform: variant.platform,
         workspaceId,
+      });
+      const jobResult = result.ok ? result.value : { success: false, error: result.error?.message };
+      logger.info(`PublishService: finished publish for ${variant.platform}`, {
+        postId,
+        platform: variant.platform,
+        success: jobResult.success,
+        error: jobResult.success ? undefined : jobResult.error,
       });
       return { platform: variant.platform, result };
     });

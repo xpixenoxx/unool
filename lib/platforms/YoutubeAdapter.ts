@@ -143,7 +143,16 @@ export class YoutubeAdapter implements PlatformAdapter {
         throw new Error('YouTube requires a video media URL to publish.');
       }
 
-      const videoUrl = input.mediaUrls[0];
+      // YouTube only supports video - find the first video URL from the media list
+      const videoExtensions = ['.mp4', '.mov', '.avi', '.mkv', '.webm', '.wmv', '.flv'];
+      const videoUrl = input.mediaUrls.find(url => {
+        const lowerUrl = url.toLowerCase();
+        return videoExtensions.some(ext => lowerUrl.includes(ext)) || lowerUrl.includes('video/');
+      });
+
+      if (!videoUrl) {
+        throw new Error('YouTube requires video content. No video file found among attached media (only images were attached). YouTube does not support image-only posts.');
+      }
 
       try {
         // 1. Fetch video binary
@@ -217,7 +226,11 @@ export class YoutubeAdapter implements PlatformAdapter {
 
       } catch (error: any) {
         logger.error('YouTube publish failed', { error });
-        if (error.message && (error.message.includes('401') || error.message.includes('403'))) {
+        // Re-throw TokenExpiredError so PublishService can auto-refresh
+        if (error instanceof TokenExpiredError) {
+          throw error;
+        }
+        if (error.message && (error.message.includes('401') || error.message.includes('403') || error.message.includes('Token expired'))) {
            throw new TokenExpiredError('Token expired or invalid', 'youtube');
         }
         throw new Error(error.message);

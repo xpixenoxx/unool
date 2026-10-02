@@ -227,6 +227,13 @@ export async function fetchWithRetry(
 
       if (response.status === 400) {
         const text = await response.text().catch(() => '');
+        // Meta/Instagram returns expired tokens as 400 with code 190 (OAuthException)
+        // Detect this and throw TokenExpiredError so the PublishService can auto-refresh
+        if (text.includes('"code":190') || text.includes('"code": 190') || 
+            text.includes('OAuthException') || text.includes('Session has expired') ||
+            text.includes('Error validating access token')) {
+          throw new TokenExpiredError(`Token expired: ${text}`, '');
+        }
         throw new ValidationError(
           `Bad request: ${text}`,
           '',

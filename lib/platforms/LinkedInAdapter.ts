@@ -252,6 +252,13 @@ export class LinkedInAdapter implements PlatformAdapter {
         }
       }
 
+      logger.info('LinkedIn: creating post', { 
+        authorUrn, 
+        hasContent: !!contentObj, 
+        contentLength: input.content?.length,
+        mediaCount: input.mediaUrls?.length || 0
+      });
+
       const postBody: any = {
         author: authorUrn,
         commentary: input.content,
@@ -292,7 +299,29 @@ export class LinkedInAdapter implements PlatformAdapter {
 
       // The /posts API returns 201 Created with an empty body and the ID in the x-restli-id header
       const platformPostId = response.headers.get('x-restli-id') || '';
-      const platformUrl = `https://www.linkedin.com/feed/update/${platformPostId}`;
+      const locationHeader = response.headers.get('x-linkedin-id') || response.headers.get('location') || '';
+      
+      logger.info('LinkedIn: post created', { 
+        status: response.status, 
+        platformPostId, 
+        locationHeader,
+        allHeaders: Object.fromEntries(response.headers.entries()),
+      });
+      
+      // Build the correct URL - LinkedIn post URNs use the format urn:li:share:XXXXXXX
+      let platformUrl: string;
+      if (platformPostId) {
+        platformUrl = `https://www.linkedin.com/feed/update/${platformPostId}`;
+      } else {
+        // Fallback: try to read from response body if available  
+        try {
+          const bodyText = await response.text();
+          logger.warn('LinkedIn: no x-restli-id header, response body:', { bodyText });
+        } catch {
+          // 201 with empty body is expected
+        }
+        platformUrl = `https://www.linkedin.com/feed/`;
+      }
 
       return {
         platformPostId,
