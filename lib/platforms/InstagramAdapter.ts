@@ -179,9 +179,8 @@ export class InstagramAdapter implements PlatformAdapter {
         }
         creationId = (await containerRes.json()).id;
         
-        if (isVideo) {
-          await this.waitForVideoReady(accessToken, creationId);
-        }
+        // Always wait for the media container to be ready (Instagram processes both images and videos asynchronously)
+        await this.waitForMediaReady(accessToken, creationId);
       } else {
         // Carousel
         const itemIds: string[] = [];
@@ -216,12 +215,9 @@ export class InstagramAdapter implements PlatformAdapter {
           throw new Error('Failed to create any carousel items for Instagram');
         }
 
-        // Wait for all items to be ready (especially videos)
-        for (const url of mediaUrls) {
-           if (this.isVideoUrl(url)) {
-              // Note: Ideally we wait for specific video IDs. For simplicity, just wait a bit.
-              await new Promise(r => setTimeout(r, 5000));
-           }
+        // Wait for all individual carousel items to be ready before bundling them
+        for (const itemId of itemIds) {
+           await this.waitForMediaReady(accessToken, itemId);
         }
 
         // Create carousel container
@@ -243,6 +239,9 @@ export class InstagramAdapter implements PlatformAdapter {
           throw new Error(`Instagram carousel container creation failed: ${error}`);
         }
         creationId = (await carouselRes.json()).id;
+
+        // Wait for the carousel container itself to be ready
+        await this.waitForMediaReady(accessToken, creationId);
       }
 
       // 2. Publish the Container
@@ -290,21 +289,28 @@ export class InstagramAdapter implements PlatformAdapter {
     });
   }
   
-  private async waitForVideoReady(accessToken: string, containerId: string, maxAttempts = 30): Promise<void> {
+  private async waitForMediaReady(accessToken: string, containerId: string, maxAttempts = 30): Promise<void> {
     for (let i = 0; i < maxAttempts; i++) {
         await new Promise(resolve => setTimeout(resolve, 3000));
-        const statusRes = await fetchWithRetry(
-          `https://graph.instagram.com/v20.0/${containerId}?fields=status_code&access_token=${accessToken}`,
-          {}
-        );
+        let statusRes;
+        
+        try {
+          statusRes = await fetchWithRetry(
+            `https://graph.instagram.com/v20.0/${containerId}?fields=status_code&access_token=${accessToken}`,
+            {}
+          );
+        } catch (err) {
+          // fetch network error, skip attempt
+          continue;
+        }
         
         if (!statusRes.ok) continue;
         const statusData = await statusRes.json();
         
         if (statusData.status_code === 'FINISHED') return;
-        if (statusData.status_code === 'ERROR') throw new Error('Instagram video processing failed.');
+        if (statusData.status_code === 'ERROR') throw new Error('Instagram media processing failed or timed out on Meta servers.');
     }
-    throw new Error('Instagram video processing timeout.');
+    throw new Error('Instagram media processing timeout.');
   }
 
   private isVideoUrl(url: string): boolean {
