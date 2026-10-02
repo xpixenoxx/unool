@@ -16,7 +16,7 @@ const APP_NAME     = 'Unool';
 export async function sendOtpEmail(opts: {
   to:      string;
   otp:     string;
-  purpose: 'signup' | 'signin';
+  purpose: 'signup' | 'signin' | 'reset';
 }): Promise<void> {
   const { to, otp, purpose } = opts;
 
@@ -42,11 +42,15 @@ export async function sendOtpEmail(opts: {
   // ── Production: send via Resend ───────────────────────────────────────────
   const subject = purpose === 'signup'
     ? `${APP_NAME} — Verify your email`
-    : `${APP_NAME} — Sign in code`;
+    : purpose === 'reset'
+      ? `${APP_NAME} — Reset your password`
+      : `${APP_NAME} — Sign in code`;
 
   const action = purpose === 'signup'
     ? 'complete your registration'
-    : 'sign in to your account';
+    : purpose === 'reset'
+      ? 'reset your password'
+      : 'sign in to your account';
 
   const html = `
 <!DOCTYPE html>

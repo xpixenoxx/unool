@@ -22,7 +22,7 @@ import { logger } from '@/lib/logger';
 
 const OTP_PEPPER = process.env.OTP_PEPPER || process.env.ENCRYPTION_KEY || 'dev-otp-pepper-change-in-prod';
 
-export type OtpPurpose = 'signup' | 'signin';
+export type OtpPurpose = 'signup' | 'signin' | 'reset';
 
 // ── Generation ────────────────────────────────────────────────────────────────
 
