@@ -152,11 +152,19 @@ export class BlueskyAdapter implements PlatformAdapter {
                 logger.error(`Bluesky: image ${idx} has zero bytes`, { url: url.substring(0, 100) });
                 return null;
               }
-              const mimeType = response.headers.get('content-type') || 'image/jpeg';
+              
+              let mimeType = response.headers.get('content-type') || 'image/jpeg';
+              // Bluesky strictly requires image/jpeg, image/png, or image/webp
+              if (!['image/jpeg', 'image/png', 'image/webp'].includes(mimeType)) {
+                const lowerUrl = url.toLowerCase();
+                if (lowerUrl.includes('.png')) mimeType = 'image/png';
+                else if (lowerUrl.includes('.webp')) mimeType = 'image/webp';
+                else mimeType = 'image/jpeg';
+              }
+              
               logger.info(`Bluesky: uploading blob ${idx}`, { size: buffer.byteLength, mimeType });
               const upload = await agent.uploadBlob(new Uint8Array(buffer), { encoding: mimeType });
               return {
-                $type: 'app.bsky.embed.images#image',
                 image: upload.data.blob,
                 alt: '',
               };
