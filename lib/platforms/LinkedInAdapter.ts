@@ -136,8 +136,9 @@ export class LinkedInAdapter implements PlatformAdapter {
           if (input.mediaUrls.length === 1) {
             // Single media upload
             const imageUrl = input.mediaUrls[0];
-            const imageRes = await fetch(imageUrl);
-            if (!imageRes.ok) throw new Error(`Failed to fetch image: ${imageRes.statusText}`);
+            logger.info('LinkedIn: downloading media from storage', { url: imageUrl.substring(0, 80) });
+            const imageRes = await fetchWithRetry(imageUrl, {}, { maxRetries: 2, baseDelayMs: 2000, maxDelayMs: 10000, retryableStatuses: [408, 429, 500, 502, 503, 504], isRetryableError: (e) => e instanceof TypeError });
+            if (!imageRes.ok) throw new Error(`Failed to fetch media: ${imageRes.status} ${imageRes.statusText}`);
             const imageBuffer = await imageRes.arrayBuffer();
             const contentType = imageRes.headers.get('content-type') || 'application/octet-stream';
             const isVideo = contentType.startsWith('video/');

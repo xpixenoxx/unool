@@ -102,22 +102,23 @@ export async function POST(request: NextRequest) {
         postId: post.id,
       });
 
-      // We use Next.js 15 after() to run the publishing in the background
-      // This prevents Vercel Serverless Functions from timing out and returning 504 (which causes the "Unexpected token" JSON parse error in the client).
-      const { after } = await import('next/server');
-
-      after(async () => {
-        try {
-          logger.info('Background publish starting', { traceId, postId: post.id });
-          await publishService.publishToAllPlatforms(post.id, workspaceId);
-        } catch (bgError) {
-          logger.error('Background publish failed', { traceId, postId: post.id, error: bgError });
-        }
-      });
+      // Publish synchronously — after() was killing long-running LinkedIn video uploads
+      // before they could complete (Vercel terminates the Lambda shortly after the response
+      // is sent, which caused LinkedIn variants to stay stuck as "draft").
+      // maxDuration = 300 gives us 5 minutes to finish all platform uploads.
+      let publishResults: Record<string, any> = {};
+      try {
+        logger.info('Publishing to all platforms', { traceId, postId: post.id });
+        publishResults = await publishService.publishToAllPlatforms(post.id, workspaceId);
+        logger.info('All platform publishing complete', { traceId, postId: post.id, results: publishResults });
+      } catch (bgError) {
+        logger.error('Publish failed for some platforms', { traceId, postId: post.id, error: bgError });
+      }
 
       return NextResponse.json({
         success: true,
         postId: post.id,
+        results: publishResults,
       });
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));

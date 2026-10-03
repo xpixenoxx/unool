@@ -18,21 +18,21 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // We use Next.js 15 after() to run the publishing in the background
-      // This prevents Vercel Serverless Functions from timing out on long video uploads.
-      const { after } = await import('next/server');
-
-      after(async () => {
-        try {
-          logger.info('Background publish starting', { postId, workspaceId });
-          await publishService.publishToAllPlatforms(postId, workspaceId);
-        } catch (bgError) {
-          logger.error('Background publish failed', { postId, workspaceId, error: bgError });
-        }
-      });
+      // Publish synchronously — after() was getting killed by Vercel before
+      // LinkedIn video uploads could complete, leaving variants stuck as "draft".
+      // maxDuration = 300 gives us 5 minutes to finish all uploads.
+      let results: Record<string, any> = {};
+      try {
+        logger.info('Publish starting', { postId, workspaceId });
+        results = await publishService.publishToAllPlatforms(postId, workspaceId);
+        logger.info('Publish complete', { postId, workspaceId, results });
+      } catch (bgError) {
+        logger.error('Publish failed', { postId, workspaceId, error: bgError });
+      }
 
       return NextResponse.json({
         success: true,
+        results,
       });
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
