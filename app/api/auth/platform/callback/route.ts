@@ -16,7 +16,7 @@ export const dynamic = 'force-dynamic';
  * Falls back to /dashboard/settings if no returnUrl is available.
  */
 function buildRedirectUrl(request: NextRequest, returnUrl: string | undefined, params: Record<string, string>): string {
-  const fallback = returnUrl || '/dashboard/settings';
+  const fallback = returnUrl || '/dashboard';
   const url = new URL(fallback, request.url);
   for (const [key, value] of Object.entries(params)) {
     url.searchParams.set(key, value);
