@@ -289,31 +289,38 @@ function LoneTemplate({ profile }: any) {
   const links = profile?.links || [];
   const stats = profile?.proofs || [];
 
-  const getStatStyle = (index: number) => index % 2 === 0 ? { dark: true } : { dark: false };
   const getStatIcon = (index: number) => {
-    if (index === 0) return <Users size={16} className="mb-2 opacity-80" />;
-    if (index === 1) return <LinkIcon size={16} className="mb-2 opacity-80" />;
-    return <Eye size={16} className="mb-2 opacity-80" />;
+    if (index === 0) return <Users size={14} className="mb-1 opacity-70" />;
+    if (index === 1) return <LinkIcon size={14} className="mb-1 opacity-70 text-black/70" />;
+    return <Eye size={14} className="mb-1 opacity-70" />;
+  };
+
+  const getStatBg = (index: number) => {
+    if (index === 1) return "url('https://images.unsplash.com/photo-1508610048659-a06b669e3321?q=80&w=1000&auto=format&fit=crop')";
+    return "url('https://images.unsplash.com/photo-1534248842426-e131d5b74100?q=80&w=1000&auto=format&fit=crop')";
   };
 
   const getLinkStyle = (index: number, iconName: string) => {
     if (iconName?.toLowerCase() === 'linkedin') {
       return { 
         iconBg: 'bg-[#0077b5]', 
-        cardBg: 'bg-gradient-to-r from-[#1a1a2e] to-[#0d1b2a]',
+        cardBg: "url('https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=1000&auto=format&fit=crop')",
+        overlay: 'bg-black/60',
         light: false 
       };
     }
     if (iconName?.toLowerCase() === 'instagram') {
       return { 
         iconBg: 'bg-gradient-to-tr from-[#f09433] via-[#dc2743] to-[#bc1888]', 
-        cardBg: 'bg-gradient-to-r from-[#f8f1e9] to-[#e8d8c8]',
+        cardBg: "url('https://images.unsplash.com/photo-1508610048659-a06b669e3321?q=80&w=1000&auto=format&fit=crop')",
+        overlay: 'bg-white/40',
         light: true 
       };
     }
     return { 
-      iconBg: 'bg-black border border-white/10', 
-      cardBg: 'bg-gradient-to-r from-[#111111] to-[#0a0a0a]',
+      iconBg: 'bg-black border border-white/20', 
+      cardBg: "url('https://images.unsplash.com/photo-1522030299830-16b8d3d049fe?q=80&w=1000&auto=format&fit=crop')",
+      overlay: 'bg-black/60',
       light: false 
     };
   };
@@ -328,49 +335,73 @@ function LoneTemplate({ profile }: any) {
   };
 
   return (
-    <div className="relative min-h-[100dvh] w-full bg-[#050505] text-white overflow-hidden font-sans">
-      <div className="relative z-10 h-full w-full max-w-md mx-auto px-5 py-8 flex flex-col gap-6 selection:bg-[#2563EB] selection:text-white min-h-[100dvh]">
+    <div 
+      className="relative min-h-[100dvh] w-full text-white overflow-hidden font-sans bg-black"
+      style={{
+        backgroundImage: "url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop')",
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed'
+      }}
+    >
+      {/* Dark overlay for better text readability */}
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px] pointer-events-none" />
+
+      <div className="relative z-10 h-full w-full max-w-[400px] mx-auto px-5 py-8 flex flex-col gap-6 min-h-[100dvh]">
         
+        {/* Menu Button */}
+        <div className="absolute top-8 right-5 z-20">
+          <button className="h-[42px] w-[42px] rounded-full border border-white/10 bg-black/40 flex items-center justify-center backdrop-blur-xl shadow-lg transition-colors hover:bg-white/10">
+            <Menu size={18} className="text-white" />
+          </button>
+        </div>
+
         {/* Top Header */}
-        <header className="flex justify-between items-start relative w-full mb-2">
-          <div className="flex flex-col z-10 pt-2 flex-1">
-            <h1 className="text-4xl font-bold tracking-tight leading-[1.1]">
-              <span className="text-[#FFFFFF] block font-serif">{firstName}</span>
-              <span className="text-[#3b82f6] block font-serif">{lastName}</span>
+        <header className="flex justify-between items-end relative w-full mb-3 mt-4">
+          <div className="flex flex-col z-10 pb-2">
+            <h1 className="font-bold tracking-tight leading-[1.05] drop-shadow-2xl">
+              <span className="text-[#FFFFFF] block font-serif" style={{ fontSize: '3rem' }}>{firstName}</span>
+              <span className="block font-serif" style={{ color: '#2563EB', fontSize: '3rem' }}>{lastName}</span>
             </h1>
-            <p className="text-[#FFFFFF]/60 text-[10px] tracking-[0.3em] uppercase mt-3">
-              {profile?.role || 'Professional'}
+            <p className="text-white/70 text-[10px] tracking-[0.4em] uppercase mt-3 font-medium ml-1">
+              {profile?.role || 'PROFESIONAL'}
             </p>
           </div>
           
-          <div className="flex items-start gap-4 z-10">
-            <div className="relative">
-              <Sparkles size={16} className="text-[#FFFFFF] absolute -top-3 -left-3 opacity-80" />
-              <div className="w-20 h-20 rounded-full border border-[#3b82f6] shadow-[0_0_25px_rgba(59,130,246,0.3)] relative">
-                <div className="w-full h-full rounded-full overflow-hidden bg-[#111] flex items-center justify-center">
-                  {profile?.avatarUrl ? (
-                    <img src={profile.avatarUrl} alt={profile.name || 'Avatar'} className="w-full h-full object-cover opacity-90 mix-blend-luminosity hover:mix-blend-normal transition-all" />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-b from-[#1a1a2e] to-[#0d1b2a]" />
-                  )}
-                </div>
-                <div className="absolute bottom-1 right-1 h-3.5 w-3.5 bg-[#3b82f6] rounded-full border-2 border-[#050505]" />
+          <div className="relative z-10 mr-4">
+            <Sparkles size={24} className="text-white absolute -top-4 -left-6 opacity-90 drop-shadow-lg" />
+            <div className="w-[110px] h-[110px] rounded-full border-[1.5px] border-[#2563EB]/80 shadow-[0_0_35px_rgba(37,99,235,0.4)] relative p-[3px]">
+              <div className="w-full h-full rounded-full overflow-hidden bg-black/40 flex items-center justify-center">
+                {profile?.avatarUrl ? (
+                  <img src={profile.avatarUrl} alt={profile.name || 'Avatar'} className="w-full h-full object-cover mix-blend-luminosity brightness-110 contrast-125" />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-[#1a1a2e] to-[#0d1b2a]" />
+                )}
               </div>
+              <div className="absolute bottom-[8px] right-[4px] h-[14px] w-[14px] bg-[#2563EB] rounded-full border-[2.5px] border-[#0a0a0a] shadow-[0_0_10px_rgba(37,99,235,0.8)]" />
             </div>
-            
-            <button className="h-10 w-10 rounded-full border border-[#FFFFFF]/10 bg-[#FFFFFF]/5 flex items-center justify-center backdrop-blur-md transition-colors hover:bg-[#FFFFFF]/10">
-              <Menu size={18} className="text-[#FFFFFF]" />
-            </button>
           </div>
         </header>
 
-        {/* Bio / Quote Section (Parallelogram) */}
+        {/* Bio / Quote Section */}
         {(profile?.bio || profile?.headline) && (
-          <div className="transform -skew-x-12 bg-gradient-to-br from-white/10 to-transparent border border-white/10 rounded-2xl overflow-hidden relative shadow-xl backdrop-blur-sm">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-[#3b82f6]/20 blur-3xl pointer-events-none" />
-            <div className="transform skew-x-12 p-5 py-6 flex gap-4 items-start relative">
-              <Quote size={20} className="text-[#FFFFFF] shrink-0 fill-current opacity-60 mt-1" />
-              <p className="text-[#FFFFFF]/80 text-sm leading-relaxed italic pr-2 font-light">
+          <div 
+            className="rounded-[22px] overflow-hidden shadow-2xl border-t border-l border-white/20 relative"
+            style={{ transform: 'skewX(-24deg)' }}
+          >
+            <div 
+              className="absolute inset-0 bg-cover bg-center"
+              style={{ backgroundImage: "url('https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=2000&auto=format&fit=crop')" }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-br from-[#1a1a2e]/90 to-black/80" />
+            <div className="absolute inset-0 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] pointer-events-none" />
+            
+            <div 
+              className="p-5 py-6 flex gap-4 items-start relative z-10"
+              style={{ transform: 'skewX(24deg)' }}
+            >
+              <Quote size={24} className="text-white shrink-0 fill-current opacity-70 mt-1" />
+              <p className="text-white/90 text-[13px] leading-relaxed italic pr-2 font-light">
                 {profile?.bio || profile?.headline}
               </p>
             </div>
@@ -383,11 +414,26 @@ function LoneTemplate({ profile }: any) {
             {stats.slice(0, 3).map((stat: any, i: number) => {
               const isMiddle = i === 1;
               return (
-                <div key={i} className={`transform -skew-x-12 border rounded-xl overflow-hidden shadow-lg ${isMiddle ? 'bg-gradient-to-br from-[#f8f1e9] to-[#e8d8c8] border-[#f8f1e9]/50' : 'bg-gradient-to-br from-[#1a1a2e] to-[#0f0f1a] border-white/10'}`}>
-                  <div className={`transform skew-x-12 p-3 py-4 flex flex-col items-center justify-center text-center ${isMiddle ? 'text-[#111]' : 'text-white'}`}>
+                <div 
+                  key={i} 
+                  className={`rounded-[18px] overflow-hidden shadow-xl border-t border-l ${isMiddle ? 'border-white/40' : 'border-white/10'} relative`}
+                  style={{ transform: 'skewX(-24deg)' }}
+                >
+                  <div 
+                    className="absolute inset-0 bg-cover bg-center"
+                    style={{ backgroundImage: getStatBg(i) }}
+                  />
+                  <div className={`absolute inset-0 ${isMiddle ? 'bg-white/80' : 'bg-black/70'}`} />
+                  
+                  <div 
+                    className={`p-3 py-4 flex flex-col items-center justify-center text-center relative z-10 ${isMiddle ? 'text-black' : 'text-white'}`}
+                    style={{ transform: 'skewX(24deg)' }}
+                  >
                     {getStatIcon(i)}
-                    <span className="text-xl font-bold font-serif mb-0.5">{stat.value}</span>
-                    <span className={`text-[9px] uppercase tracking-wider ${isMiddle ? 'text-black/60 font-medium' : 'text-white/50'}`}>{stat.title}</span>
+                    <span className="text-[22px] font-bold font-serif leading-none tracking-wide">{stat.value}</span>
+                    <span className={`text-[9px] mt-1 capitalize ${isMiddle ? 'text-black/70 font-medium' : 'text-white/50'}`}>
+                      {stat.title}
+                    </span>
                   </div>
                 </div>
               );
@@ -397,12 +443,12 @@ function LoneTemplate({ profile }: any) {
 
         {/* Official Links Section */}
         {links.filter((l: any) => l.isVisible !== false).length > 0 && (
-          <section className="flex flex-col gap-3 mt-2">
-            <div className="flex justify-between items-center text-xs uppercase tracking-widest text-[#FFFFFF]/60 px-1 mb-1">
+          <section className="flex flex-col gap-3 mt-1">
+            <div className="flex justify-between items-center text-xs uppercase tracking-[0.2em] text-white/70 px-1 mb-1 font-medium">
               <span>Official Links</span>
-              <div className="flex items-center gap-1.5 capitalize tracking-normal text-[#3b82f6]/90 font-medium text-[11px]">
+              <div className="flex items-center gap-1.5 capitalize tracking-normal text-[#3b82f6] text-[11px]">
                 Verified Profiles
-                <BadgeCheck size={14} className="text-[#3b82f6] fill-[#3b82f6] text-[#050505]" />
+                <BadgeCheck size={14} className="text-[#3b82f6] fill-[#3b82f6] text-black" />
               </div>
             </div>
             
@@ -412,29 +458,37 @@ function LoneTemplate({ profile }: any) {
                 const style = getLinkStyle(i, link.icon);
                 
                 return (
-                  <a key={link.id || i} href={link.url} target="_blank" rel="noopener noreferrer" className={`group transform -skew-x-12 border overflow-hidden transition-all hover:scale-[1.02] shadow-xl ${style.cardBg} ${style.light ? 'border-transparent' : 'border-white/10'} rounded-2xl relative`}>
+                  <a 
+                    key={link.id || i} 
+                    href={link.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="group rounded-[20px] border-t border-l border-white/20 overflow-hidden shadow-xl relative block hover:scale-[1.02] transition-transform"
+                    style={{ transform: 'skewX(-24deg)' }}
+                  >
+                    <div 
+                      className="absolute inset-0 bg-cover bg-center"
+                      style={{ backgroundImage: style.cardBg }}
+                    />
+                    <div className={`absolute inset-0 ${style.overlay}`} />
                     
-                    {/* Background Texture Simulation */}
-                    <div className="absolute inset-0 opacity-30 mix-blend-overlay bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white via-transparent to-transparent pointer-events-none" />
-                    {!style.light && <div className="absolute -right-10 top-0 bottom-0 w-32 bg-white/5 blur-2xl transform skew-x-12 pointer-events-none" />}
-                    
-                    <div className="transform skew-x-12 p-3 flex items-center gap-4 relative">
-                      {/* Icon Box */}
-                      <div className={`w-12 h-12 rounded-[14px] flex items-center justify-center shrink-0 shadow-md ${style.iconBg} text-white`}>
-                        <IconComponent size={20} className={link.icon !== 'linkedin' && link.icon !== 'instagram' ? 'fill-current' : ''} />
+                    <div 
+                      className="p-3 pr-4 flex items-center gap-4 relative z-10"
+                      style={{ transform: 'skewX(24deg)' }}
+                    >
+                      <div className={`w-[52px] h-[52px] rounded-[14px] flex items-center justify-center shrink-0 shadow-lg ${style.iconBg} text-white`}>
+                        <IconComponent size={22} className={link.icon !== 'linkedin' && link.icon !== 'instagram' ? 'fill-current' : ''} />
                       </div>
                       
-                      {/* Text */}
                       <div className={`flex-1 ${style.light ? 'text-[#111]' : 'text-white'}`}>
-                        <h3 className="font-semibold text-sm truncate max-w-[150px]">{link.label}</h3>
-                        <p className={`text-xs truncate max-w-[150px] ${style.light ? 'text-black/50' : 'text-white/40'}`}>
+                        <h3 className="font-semibold text-[15px] truncate max-w-[150px] tracking-wide">{link.label}</h3>
+                        <p className={`text-[11px] truncate max-w-[150px] ${style.light ? 'text-black/60' : 'text-white/50'}`}>
                           {link.url.replace(/^https?:\/\//, '')}
                         </p>
                       </div>
                       
-                      {/* Arrow */}
-                      <div className={`h-8 w-8 rounded-full flex items-center justify-center shrink-0 mr-2 transition-transform group-hover:translate-x-1 ${style.light ? 'bg-black/5 text-black' : 'bg-white/5 text-white'}`}>
-                        <ArrowRight size={14} />
+                      <div className={`h-[34px] w-[34px] rounded-full flex items-center justify-center shrink-0 ml-2 transition-transform group-hover:translate-x-1 ${style.light ? 'bg-black/10 text-black' : 'bg-white/10 text-white'}`}>
+                        <ArrowRight size={16} />
                       </div>
                     </div>
                   </a>
@@ -445,27 +499,33 @@ function LoneTemplate({ profile }: any) {
         )}
 
         {/* Bottom Actions */}
-        <div className="flex gap-3 mt-4 mb-2">
-          <button className="flex-[3] transform -skew-x-12 bg-gradient-to-r from-[#2563EB] to-[#1d4ed8] text-white overflow-hidden shadow-lg shadow-blue-900/20 hover:opacity-90 transition-opacity rounded-xl">
-            <div className="transform skew-x-12 p-3.5 flex items-center justify-between px-5">
-              <Send size={16} className="opacity-80" />
-              <span className="font-medium text-sm">Get in Touch</span>
-              <ArrowRight size={16} />
+        <div className="flex gap-3 mt-4 mb-8">
+          <button 
+            className="flex-[1.2] rounded-[18px] bg-gradient-to-r from-[#2563EB] to-[#1d4ed8] text-white overflow-hidden shadow-[0_10px_20px_rgba(37,99,235,0.3)] hover:opacity-90 transition-opacity border-t border-l border-white/30 relative"
+            style={{ transform: 'skewX(-24deg)' }}
+          >
+            <div className="p-4 flex items-center justify-between px-6" style={{ transform: 'skewX(24deg)' }}>
+              <Send size={18} className="opacity-90" />
+              <span className="font-semibold text-[13px] tracking-wide">Get in Touch</span>
+              <ArrowRight size={18} />
             </div>
           </button>
           
-          <button className="flex-[2] transform -skew-x-12 bg-[#111] border border-white/10 text-[#FFFFFF] overflow-hidden hover:bg-[#222] transition-colors backdrop-blur-sm rounded-xl">
-            <div className="transform skew-x-12 p-3.5 flex items-center justify-center gap-2">
-              <Bookmark size={14} className="opacity-60" />
-              <span className="font-medium text-xs">Save Contact</span>
+          <button 
+            className="flex-1 rounded-[18px] bg-black/60 border-t border-l border-white/20 text-white overflow-hidden shadow-xl hover:bg-black/80 transition-colors backdrop-blur-xl relative"
+            style={{ transform: 'skewX(-24deg)' }}
+          >
+            <div className="p-4 flex items-center justify-center gap-2" style={{ transform: 'skewX(24deg)' }}>
+              <Bookmark size={16} className="opacity-70" />
+              <span className="font-semibold text-[13px] tracking-wide">Save Contact</span>
             </div>
           </button>
         </div>
 
         {/* Footer */}
-        <footer className="flex justify-between items-center text-[#FFFFFF]/30 text-xs px-2 mt-auto mb-2">
+        <footer className="flex justify-between items-center text-white/30 text-[10px] px-2 mt-auto mb-2 uppercase tracking-widest">
           <span>{profile?.subdomain ? `${profile.subdomain}.unool.co` : 'ipras.unool.co'}</span>
-          <span className="font-serif text-[#FFFFFF]/50 tracking-wide">Unool</span>
+          <span className="font-serif tracking-widest opacity-80">Unool</span>
         </footer>
       </div>
     </div>
