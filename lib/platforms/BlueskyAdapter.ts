@@ -125,9 +125,35 @@ export class BlueskyAdapter implements PlatformAdapter {
           }
 
           // 1. Get service auth token
-          logger.info('Bluesky: getting video service auth token');
+          // The audience (aud) MUST be the user's PDS DID, not video.bsky.app
+          let pdsDid = 'did:web:bsky.network'; // fallback
+          try {
+             let didDocUrl = '';
+             if (agent.session.did.startsWith('did:plc:')) {
+               didDocUrl = `https://plc.directory/${agent.session.did}`;
+             } else if (agent.session.did.startsWith('did:web:')) {
+               const domain = agent.session.did.replace('did:web:', '');
+               didDocUrl = `https://${domain}/.well-known/did.json`;
+             }
+             
+             if (didDocUrl) {
+               const didRes = await fetch(didDocUrl);
+               if (didRes.ok) {
+                 const didDoc = await didRes.json();
+                 const pdsService = didDoc.service?.find((s: any) => s.id === '#atproto_pds');
+                 if (pdsService?.serviceEndpoint) {
+                   const endpointUrl = new URL(pdsService.serviceEndpoint);
+                   pdsDid = `did:web:${endpointUrl.hostname}`;
+                 }
+               }
+             }
+          } catch (e) {
+             logger.warn('Bluesky: failed to resolve PDS DID', { error: e });
+          }
+
+          logger.info('Bluesky: getting video service auth token for PDS', { aud: pdsDid });
           const { data: serviceAuth } = await agent.com.atproto.server.getServiceAuth({
-            aud: 'did:web:video.bsky.app',
+            aud: pdsDid,
             lxm: 'com.atproto.repo.uploadBlob',
             exp: Math.floor(Date.now() / 1000) + 60 * 30, // 30 mins
           });
