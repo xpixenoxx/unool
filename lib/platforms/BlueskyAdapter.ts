@@ -162,6 +162,11 @@ export class BlueskyAdapter implements PlatformAdapter {
                 else mimeType = 'image/jpeg';
               }
               
+              if (buffer.byteLength > 1999999) {
+                logger.error(`Bluesky: image ${idx} exceeds 2MB limit`, { url: url.substring(0, 100), size: buffer.byteLength });
+                throw new Error('Image exceeds Bluesky\'s strict 2MB limit. Please compress it before uploading.');
+              }
+              
               logger.info(`Bluesky: uploading blob ${idx}`, { size: buffer.byteLength, mimeType });
               const upload = await agent.uploadBlob(new Uint8Array(buffer), { encoding: mimeType });
               return {
