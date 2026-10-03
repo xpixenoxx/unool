@@ -119,14 +119,69 @@ export class BlueskyAdapter implements PlatformAdapter {
             throw new Error(`Failed to fetch video: ${response.statusText}`);
           }
           const buffer = await response.arrayBuffer();
-          const mimeType = response.headers.get('content-type') || 'video/mp4';
           
-          logger.info('Bluesky: uploading video blob', { size: buffer.byteLength, mimeType });
-          const upload = await agent.uploadBlob(new Uint8Array(buffer), { encoding: mimeType });
+          if (!agent.session?.did) {
+             throw new Error('Bluesky session missing DID');
+          }
+
+          // 1. Get service auth token
+          logger.info('Bluesky: getting video service auth token');
+          const { data: serviceAuth } = await agent.com.atproto.server.getServiceAuth({
+            aud: 'did:web:video.bsky.app',
+            lxm: 'com.atproto.repo.uploadBlob',
+            exp: Math.floor(Date.now() / 1000) + 60 * 30, // 30 mins
+          });
+
+          // 2. Upload to the video service
+          logger.info('Bluesky: uploading to video.bsky.app');
+          const uploadUrl = new URL('https://video.bsky.app/xrpc/app.bsky.video.uploadVideo');
+          uploadUrl.searchParams.append('did', agent.session.did);
+          uploadUrl.searchParams.append('name', 'video.mp4');
+
+          const uploadResponse = await fetch(uploadUrl, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${serviceAuth.token}`,
+              'Content-Type': 'video/mp4',
+            },
+            body: buffer,
+          });
           
+          if (!uploadResponse.ok) {
+             const errorText = await uploadResponse.text();
+             throw new Error(`Video upload failed: ${uploadResponse.status} ${errorText}`);
+          }
+
+          const jobStatus = await uploadResponse.json();
+          logger.info('Bluesky: video upload initiated, job ID:', { jobId: jobStatus.jobId });
+
+          // 3. Poll for processing status
+          const videoAgent = new AtpAgent({ service: 'https://video.bsky.app' });
+          let blob = jobStatus.jobStatus?.blob || jobStatus.blob;
+          let attempts = 0;
+          while (!blob && attempts < 90) { // Max 3 minutes
+            await new Promise((r) => setTimeout(r, 2000));
+            try {
+              const { data } = await videoAgent.app.bsky.video.getJobStatus({ 
+                jobId: jobStatus.jobId 
+              });
+              blob = data.jobStatus.blob;
+              if (data.jobStatus.state === 'JOB_STATE_FAILED' || data.jobStatus.state === 'FAILED') {
+                 throw new Error(`Video processing failed: ${data.jobStatus.error}`);
+              }
+            } catch (err) {
+               logger.warn('Bluesky: error polling video status, retrying...', { err: err instanceof Error ? err.message : String(err) });
+            }
+            attempts++;
+          }
+          
+          if (!blob) {
+             throw new Error('Video processing timed out after 3 minutes');
+          }
+
           embed = {
             $type: 'app.bsky.embed.video',
-            video: upload.data.blob,
+            video: blob,
             aspectRatio: { width: 1920, height: 1080 }, // Provide a default aspect ratio
           };
           logger.info('Bluesky: video embed ready');

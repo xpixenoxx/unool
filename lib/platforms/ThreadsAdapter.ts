@@ -102,16 +102,16 @@ export class ThreadsAdapter implements PlatformAdapter {
   }
 
   async refreshAccessToken(refreshToken: string): Promise<TokenResponse> {
-    // Threads uses long-lived tokens; refresh via Facebook OAuth
+    // Threads uses long-lived tokens; refresh them via the refresh_access_token endpoint
     const params = new URLSearchParams({
-      grant_type: 'th_exchange_token',
-      client_id: this.authConfig.clientId,
-      client_secret: this.authConfig.clientSecret,
+      grant_type: 'th_refresh_token',
       access_token: refreshToken,
     });
 
     return platformFetch('threads', async () => {
-      const response = await fetchWithRetry(`${META_TOKEN_URL}?${params.toString()}`, {});
+      const response = await fetchWithRetry(`https://graph.threads.net/refresh_access_token?${params.toString()}`, {
+        method: 'GET'
+      });
 
       if (!response.ok) {
         const error = await response.text();
