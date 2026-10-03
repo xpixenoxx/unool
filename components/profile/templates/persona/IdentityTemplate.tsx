@@ -332,7 +332,14 @@ function LoneTemplate({ profile }: any) {
   return (
     <div 
       className="relative min-h-[100dvh] w-full text-[#F4EFE7] overflow-hidden font-sans"
-      style={{ backgroundColor: '#08090C' }}
+      style={{ 
+        backgroundColor: '#08090C',
+        backgroundImage: 'url("https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop")',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed',
+        backgroundBlendMode: 'overlay'
+      }}
     >
       {/* Subtle radial glow background to prevent pure flat black, adjusted for glass visibility */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-[radial-gradient(ellipse_at_center,_rgba(18,61,255,0.15)_0%,_rgba(8,9,12,0)_70%)] pointer-events-none" />
@@ -352,8 +359,8 @@ function LoneTemplate({ profile }: any) {
         <header className="flex justify-between items-end relative w-full mt-4">
           <div className="flex flex-col z-10 pb-2">
             <h1 className="font-bold tracking-tight leading-[1.05]">
-              <span className="text-[#F4EFE7] block font-serif" style={{ fontSize: '3.2rem' }}>{firstName}</span>
-              <span className="block font-serif" style={{ color: '#123DFF', fontSize: '3.2rem' }}>{lastName}</span>
+              <span className="text-[#F4EFE7] block font-serif font-black" style={{ fontSize: '3.2rem' }}>{firstName}</span>
+              <span className="block font-serif font-black" style={{ color: '#123DFF', fontSize: '3.2rem' }}>{lastName}</span>
             </h1>
             <p className="text-[#9296A0] text-[10px] tracking-[0.4em] uppercase mt-4 font-medium">
               {profile?.role || 'PROFESSIONAL'}
@@ -381,10 +388,12 @@ function LoneTemplate({ profile }: any) {
         {/* Bio / Quote Section (LEVEL 1 GLASS) */}
         {(profile?.bio || profile?.headline) && (
           <div 
-            className="rounded-[24px] overflow-hidden relative shadow-[0_12px_30px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.08)]"
+            className="rounded-[24px] overflow-hidden relative shadow-[0_12px_30px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.15)]"
             style={{ 
               transform: 'skewX(-20deg)',
-              background: 'rgba(20, 23, 30, 0.55)',
+              background: 'linear-gradient(rgba(15, 17, 21, 0.75), rgba(15, 17, 21, 0.85)), url("https://images.unsplash.com/photo-1549880338-65dd4bc83f06?q=80&w=600&auto=format&fit=crop")',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
               backdropFilter: 'blur(14px)',
               WebkitBackdropFilter: 'blur(14px)',
               border: '1px solid rgba(255, 255, 255, 0.16)'
@@ -397,8 +406,8 @@ function LoneTemplate({ profile }: any) {
               className="p-7 py-8 flex gap-4 items-start relative z-10"
               style={{ transform: 'skewX(20deg)' }}
             >
-              <Quote size={24} className="text-[#F4EFE7] shrink-0 fill-current opacity-30 mt-1" />
-              <p className="text-[#F4EFE7]/85 text-[14px] leading-relaxed italic pr-2 font-light">
+              <Quote size={24} className="text-[#F4EFE7] shrink-0 fill-current opacity-80 mt-1" />
+              <p className="text-[#F4EFE7]/90 text-[14px] leading-relaxed pr-2 font-medium">
                 {profile?.bio || profile?.headline}
               </p>
             </div>
@@ -412,24 +421,26 @@ function LoneTemplate({ profile }: any) {
               const isMiddle = i === 1;
               const isThird = i === 2;
               
-              let glassBg = 'rgba(20, 23, 30, 0.45)'; // dark charcoal
+              let glassBg = 'linear-gradient(rgba(20, 23, 30, 0.6), rgba(20, 23, 30, 0.8)), url("https://images.unsplash.com/photo-1454496522488-7a8e488e8606?q=80&w=600&auto=format&fit=crop")'; 
               let borderCol = 'rgba(255, 255, 255, 0.15)';
               
               if (isMiddle) {
-                glassBg = 'rgba(244, 239, 231, 0.85)'; // soft ivory glass
+                glassBg = 'linear-gradient(rgba(244, 239, 231, 0.85), rgba(244, 239, 231, 0.95)), url("https://images.unsplash.com/photo-1509316785289-025f5b846b35?q=80&w=600&auto=format&fit=crop")'; 
                 borderCol = 'rgba(255, 255, 255, 0.4)';
               } else if (isThird) {
-                glassBg = 'rgba(16, 27, 58, 0.45)'; // deep navy/cobalt glass
+                glassBg = 'linear-gradient(rgba(16, 27, 58, 0.7), rgba(16, 27, 58, 0.85)), url("https://images.unsplash.com/photo-1518098268026-4e89f1a2cd8e?q=80&w=600&auto=format&fit=crop")'; 
                 borderCol = 'rgba(18, 61, 255, 0.2)';
               }
 
               return (
                 <div 
                   key={i} 
-                  className={`rounded-[20px] overflow-hidden relative shadow-[0_8px_20px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.05)]`}
+                  className={`rounded-[20px] overflow-hidden relative shadow-[0_8px_20px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)]`}
                   style={{ 
                     transform: 'skewX(-20deg)',
                     background: glassBg,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
                     backdropFilter: 'blur(12px)',
                     WebkitBackdropFilter: 'blur(12px)',
                     border: `1px solid ${borderCol}`
@@ -466,23 +477,24 @@ function LoneTemplate({ profile }: any) {
               {links.filter((l: any) => l.isVisible !== false).map((link: any, i: number) => {
                 const IconComponent = getIconComponent(link.icon);
                 
-                // Specific subtle glass tints based on link type
-                let glassBg = 'rgba(22, 25, 34, 0.55)'; // dark translucent charcoal
+                let glassBg = 'linear-gradient(rgba(22, 25, 34, 0.7), rgba(22, 25, 34, 0.8)), url("https://images.unsplash.com/photo-1549880338-65dd4bc83f06?q=80&w=600&auto=format&fit=crop")';
                 let iconBgStyle = 'bg-[#08090C] text-[#F4EFE7] border border-white/10';
                 let textPrimary = 'text-[#F4EFE7]';
                 let textSecondary = 'text-[#9296A0]';
                 let arrowBg = 'bg-white/10 text-white border border-white/5';
                 
                 if (link.icon?.toLowerCase() === 'linkedin') {
-                  glassBg = 'rgba(18, 61, 255, 0.1)'; // dark glass + subtle cobalt tint
+                  glassBg = 'linear-gradient(rgba(18, 61, 255, 0.2), rgba(10, 20, 50, 0.7)), url("https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=600&auto=format&fit=crop")'; 
                   iconBgStyle = 'bg-[#123DFF] text-white shadow-[0_0_15px_rgba(18,61,255,0.4)]';
                   arrowBg = 'bg-[#123DFF]/20 text-[#123DFF] border border-[#123DFF]/30';
                 } else if (link.icon?.toLowerCase() === 'instagram') {
-                  glassBg = 'rgba(244, 239, 231, 0.08)'; // dark/ivory glass + subtle warm
+                  glassBg = 'linear-gradient(rgba(244, 239, 231, 0.75), rgba(220, 200, 180, 0.85)), url("https://images.unsplash.com/photo-1508610048659-a06b669e3321?q=80&w=600&auto=format&fit=crop")'; 
                   iconBgStyle = 'bg-gradient-to-tr from-[#f09433] via-[#dc2743] to-[#bc1888] text-white shadow-[0_0_15px_rgba(220,39,67,0.3)]';
-                  arrowBg = 'bg-white/15 text-white border border-white/20';
+                  arrowBg = 'bg-black/10 text-black border border-black/10';
+                  textPrimary = 'text-[#2A1710]';
+                  textSecondary = 'text-[#2A1710]/70';
                 } else if (link.icon?.toLowerCase() === 'github') {
-                  glassBg = 'rgba(16, 27, 58, 0.3)'; // dark glass + subtle navy tint
+                  glassBg = 'linear-gradient(rgba(16, 27, 58, 0.5), rgba(10, 15, 30, 0.7)), url("https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?q=80&w=600&auto=format&fit=crop")'; 
                   iconBgStyle = 'bg-[#111318] text-[#F4EFE7] border border-white/15 shadow-[0_0_10px_rgba(0,0,0,0.5)]';
                   arrowBg = 'bg-[#111318]/50 text-white border border-white/10';
                 }
@@ -493,17 +505,19 @@ function LoneTemplate({ profile }: any) {
                     href={link.url} 
                     target="_blank" 
                     rel="noopener noreferrer" 
-                    className="group rounded-[22px] overflow-hidden relative block hover:scale-[1.01] transition-transform shadow-[0_12px_30px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.08)]"
+                    className="group rounded-[22px] overflow-hidden relative block hover:scale-[1.01] transition-transform shadow-[0_12px_30px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.15)]"
                     style={{ 
                       transform: 'skewX(-20deg)',
                       background: glassBg,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
                       backdropFilter: 'blur(16px)',
                       WebkitBackdropFilter: 'blur(16px)',
                       border: '1px solid rgba(255, 255, 255, 0.16)'
                     }}
                   >
                     {/* Inner highlight */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-white/[0.05] to-transparent pointer-events-none" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/[0.1] to-transparent pointer-events-none" />
                     
                     <div 
                       className="p-4 pr-5 flex items-center gap-4 relative z-10"
@@ -549,19 +563,18 @@ function LoneTemplate({ profile }: any) {
               {recentActivity.map((activity, i) => {
                 const IconComponent = getIconComponent(activity.icon);
                 
-                // Extremely subtle glass
-                let glassBg = 'rgba(17, 19, 24, 0.3)';
+                let glassBg = 'linear-gradient(rgba(17, 19, 24, 0.6), rgba(17, 19, 24, 0.8)), url("https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?q=80&w=600&auto=format&fit=crop")';
                 let iconBgStyle = 'bg-[#08090C] text-[#F4EFE7] border border-white/5';
                 let textPrimary = 'text-[#F4EFE7]';
                 let textSecondary = 'text-[#9296A0]';
                 
                 if (activity.icon === 'linkedin') {
-                  glassBg = 'rgba(244, 239, 231, 0.7)';
+                  glassBg = 'linear-gradient(rgba(244, 239, 231, 0.85), rgba(244, 239, 231, 0.95)), url("https://images.unsplash.com/photo-1509316785289-025f5b846b35?q=80&w=600&auto=format&fit=crop")';
                   iconBgStyle = 'bg-[#123DFF] text-white';
                   textPrimary = 'text-[#111318]';
                   textSecondary = 'text-[#111318]/70';
                 } else if (activity.icon === 'instagram') {
-                  glassBg = 'rgba(17, 19, 24, 0.4)';
+                  glassBg = 'linear-gradient(rgba(30, 20, 20, 0.6), rgba(30, 20, 20, 0.8)), url("https://images.unsplash.com/photo-1508610048659-a06b669e3321?q=80&w=600&auto=format&fit=crop")';
                   iconBgStyle = 'bg-gradient-to-tr from-[#f09433] via-[#dc2743] to-[#bc1888] text-white';
                 }
                 
@@ -571,16 +584,18 @@ function LoneTemplate({ profile }: any) {
                     <div className="absolute left-[-2px] w-[9px] h-[9px] rounded-full bg-[#F4EFE7] border-2 border-[#08090C] shadow-[0_0_8px_rgba(255,255,255,0.3)] z-10" />
                     
                     <div 
-                      className={`w-full rounded-[18px] overflow-hidden relative shadow-sm`}
+                      className={`w-full rounded-[18px] overflow-hidden relative shadow-[0_4px_15px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.1)]`}
                       style={{ 
                         transform: 'skewX(-20deg)',
                         background: glassBg,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
                         backdropFilter: 'blur(8px)',
                         WebkitBackdropFilter: 'blur(8px)',
-                        border: '1px solid rgba(255, 255, 255, 0.06)'
+                        border: '1px solid rgba(255, 255, 255, 0.08)'
                       }}
                     >
-                      <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent pointer-events-none" />
+                      <div className="absolute inset-0 bg-gradient-to-br from-white/[0.05] to-transparent pointer-events-none" />
                       
                       <div 
                         className="p-3 pr-4 flex items-center gap-3 relative z-10"
@@ -615,12 +630,12 @@ function LoneTemplate({ profile }: any) {
         {/* Bottom Actions */}
         <div className="flex gap-4 mt-8 mb-6">
           <button 
-            className="flex-[1.2] rounded-[20px] text-white overflow-hidden shadow-[0_12px_25px_rgba(18,61,255,0.25)] hover:opacity-90 transition-opacity relative"
+            className="flex-[1.2] rounded-[20px] text-white overflow-hidden shadow-[0_12px_25px_rgba(18,61,255,0.4),inset_0_1px_0_rgba(255,255,255,0.3)] hover:opacity-90 transition-opacity relative"
             style={{ 
               transform: 'skewX(-20deg)',
-              background: 'rgba(18, 61, 255, 0.85)',
+              background: 'linear-gradient(135deg, rgba(30, 80, 255, 0.95), rgba(10, 40, 200, 0.95))',
               backdropFilter: 'blur(10px)',
-              border: '1px solid rgba(255,255,255,0.2)'
+              border: '1px solid rgba(100,150,255,0.4)'
             }}
           >
             <div className="absolute inset-0 bg-gradient-to-tr from-[#123DFF] to-transparent opacity-50 pointer-events-none" />
@@ -632,17 +647,17 @@ function LoneTemplate({ profile }: any) {
           </button>
           
           <button 
-            className="flex-1 rounded-[20px] text-[#F4EFE7] overflow-hidden shadow-sm hover:bg-white/5 transition-colors relative"
+            className="flex-1 rounded-[20px] text-[#F4EFE7] overflow-hidden shadow-[0_8px_20px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] hover:bg-white/5 transition-colors relative"
             style={{ 
               transform: 'skewX(-20deg)',
-              background: 'rgba(17, 19, 24, 0.6)',
+              background: 'rgba(25, 28, 35, 0.8)',
               backdropFilter: 'blur(12px)',
-              border: '1px solid rgba(244, 239, 231, 0.3)'
+              border: '1px solid rgba(255, 255, 255, 0.15)'
             }}
           >
             <div className="absolute inset-0 bg-gradient-to-br from-white/[0.05] to-transparent pointer-events-none" />
             <div className="p-4 flex items-center justify-center gap-2 relative z-10" style={{ transform: 'skewX(20deg)' }}>
-              <Bookmark size={15} className="opacity-70" />
+              <Bookmark size={15} className="opacity-80" />
               <span className="font-semibold text-[13px] tracking-wide">Save Contact</span>
             </div>
           </button>
