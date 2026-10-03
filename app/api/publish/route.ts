@@ -3,6 +3,8 @@ import { publishService } from '@/lib/services/PublishService';
 import { logger } from '@/lib/logger';
 import { planEnforcement } from '@/lib/middleware/plan-enforcement-middleware';
 
+export const maxDuration = 300; // 5 minutes (max allowed on Vercel Pro/Hobby for long-running publish tasks)
+
 export async function POST(request: NextRequest) {
   return planEnforcement.createPost(request, async (request) => {
     try {

@@ -10,6 +10,8 @@ import { publishService } from '@/lib/services/PublishService';
 const postRepository = new SupabasePostRepository();
 const profileRepository = new SupabaseProfileRepository();
 
+export const maxDuration = 300; // 5 mins max duration
+
 export async function POST(request: NextRequest) {
   // Use createPost plan enforcement instead of useAI
   return planEnforcement.createPost(request, async (request) => {
