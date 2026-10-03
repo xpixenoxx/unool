@@ -13,6 +13,7 @@ import {
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { BlueskyConnectDialog } from './BlueskyConnectDialog';
 
 const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'whatsapp', 'instagram', 'youtube', 'pinterest', 'bluesky'] as const;
 type Platform = typeof SUPPORTED_PLATFORMS[number];
@@ -147,133 +148,6 @@ const PLATFORM_CONFIG: Record<
     customConnect: true, // uses handle + app password, not OAuth
   },
 };
-
-/* ─── Bluesky Connect Dialog ───────────────────────────────── */
-
-function BlueskyConnectDialog({
-  open,
-  onClose,
-  workspaceId,
-  onSuccess,
-}: {
-  open: boolean;
-  onClose: () => void;
-  workspaceId: string;
-  onSuccess: (username: string) => void;
-}) {
-  const [handle, setHandle] = useState('');
-  const [appPassword, setAppPassword] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setSubmitting(true);
-
-    try {
-      const res = await fetch('/api/auth/platform/bluesky/connect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ handle, appPassword, workspaceId }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || 'Connection failed. Please try again.');
-        return;
-      }
-
-      toast.success(`Bluesky connected as @${data.username}!`);
-      onSuccess(data.username);
-      onClose();
-    } catch {
-      setError('Network error. Please check your connection and try again.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-[#0085ff] text-white">
-              <Cloud className="h-4 w-4" />
-            </div>
-            Connect Bluesky
-          </DialogTitle>
-          <DialogDescription>
-            Bluesky uses App Passwords instead of OAuth. Your credentials are stored
-            encrypted and used only to post on your behalf.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="space-y-4 mt-2">
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Bluesky Handle</label>
-            <Input
-              placeholder="yourname.bsky.social"
-              value={handle}
-              onChange={(e) => setHandle(e.target.value)}
-              disabled={submitting}
-              required
-            />
-            <p className="text-xs text-muted-foreground">Without the leading @</p>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">App Password</label>
-            <Input
-              type="password"
-              placeholder="xxxx-xxxx-xxxx-xxxx"
-              value={appPassword}
-              onChange={(e) => setAppPassword(e.target.value)}
-              disabled={submitting}
-              required
-            />
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
-              Generate one in{' '}
-              <a
-                href="https://bsky.app/settings/app-passwords"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-0.5 text-primary hover:underline font-medium"
-              >
-                Bluesky Settings → App Passwords
-                <ExternalLink className="h-3 w-3" />
-              </a>
-            </p>
-          </div>
-
-          {error && (
-            <p className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 px-3 py-2 rounded-lg">
-              {error}
-            </p>
-          )}
-
-          <div className="flex gap-2 pt-1">
-            <Button type="button" variant="outline" className="flex-1" onClick={onClose} disabled={submitting}>
-              Cancel
-            </Button>
-            <Button type="submit" className="flex-1" disabled={submitting || !handle || !appPassword}>
-              {submitting ? (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
-                  Connecting…
-                </>
-              ) : (
-                'Connect Bluesky'
-              )}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 /* ─── Component ────────────────────────────────────────────── */
 

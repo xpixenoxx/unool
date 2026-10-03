@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
   Globe, PenTool, CheckCircle, ExternalLink, TrendingUp,
@@ -11,6 +12,7 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { PlatformConnections } from '@/components/dashboard/PlatformConnections';
+import { BlueskyConnectDialog } from '@/components/dashboard/BlueskyConnectDialog';
 import { OnboardingChecklist } from '@/components/onboarding/OnboardingChecklist';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogTrigger, DialogTitle } from '@/components/ui/dialog';
@@ -142,6 +144,10 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
 
   /* Heatmap data — generate from real posts */
   const heatmapData = useMemo(() => generateHeatmapData(recentPosts), [recentPosts]);
+
+  const searchParams = useSearchParams();
+  const [blueskyDialogOpen, setBlueskyDialogOpen] = useState(searchParams.get('connect') === 'bluesky');
+
 
   return (
     <motion.div
@@ -371,7 +377,11 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      window.location.href = `/api/auth/platform/connect?platform=${platform.id}&workspaceId=${data.workspaceId}`;
+                      if (platform.id === 'bluesky') {
+                        setBlueskyDialogOpen(true);
+                      } else {
+                        window.location.href = `/api/auth/platform/connect?platform=${platform.id}&workspaceId=${data.workspaceId}`;
+                      }
                     }}
                     className="text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
                     style={{ backgroundColor: B.accentBg, color: B.accent }}
@@ -463,6 +473,14 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       <motion.div variants={fadeUp} transition={transition}>
         <RecentBroadcasts posts={recentPosts} />
       </motion.div>
+
+      {/* Dialogs */}
+      <BlueskyConnectDialog
+        open={blueskyDialogOpen}
+        onClose={() => setBlueskyDialogOpen(false)}
+        workspaceId={data.workspaceId}
+        onSuccess={() => window.location.reload()}
+      />
     </motion.div>
   );
 }

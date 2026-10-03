@@ -119,10 +119,16 @@ async function getDashboardData(): Promise<{
   };
 }
 
+import { Suspense } from 'react';
+
 export default async function DashboardPage() {
   try {
     const data = await getDashboardData();
-    return <DashboardClient data={data} />;
+    return (
+      <Suspense fallback={<div className="p-8 text-center text-muted-foreground animate-pulse">Loading dashboard...</div>}>
+        <DashboardClient data={data} />
+      </Suspense>
+    );
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     return (
