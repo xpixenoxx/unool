@@ -260,7 +260,16 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         body: JSON.stringify({ content: sourceContent, profileId: profile.id, mediaItems: media }),
       });
 
-      const data: AdaptResponse = await res.json();
+      let data;
+      const responseText = await res.text();
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        if (!res.ok) {
+          throw new Error(`Server error (${res.status}): The request took too long or failed unexpectedly.`);
+        }
+        throw new Error('Invalid response from server');
+      }
 
       if (!res.ok) {
         const errorData = data as { error?: string; code?: string };
@@ -320,7 +329,16 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         body: JSON.stringify({ postId, workspaceId: profile?.id }),
       });
 
-      const data = await res.json();
+      let data;
+      const responseText = await res.text();
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        if (!res.ok) {
+          throw new Error(`Server error (${res.status}): The request took too long or failed unexpectedly.`);
+        }
+        throw new Error('Invalid response from server');
+      }
 
       if (!res.ok) {
         const errorData = data as { error?: string; code?: string };
@@ -368,7 +386,16 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         body: JSON.stringify({ content: quickContent, profileId: profile.id, mediaItems: media }),
       });
 
-      const data = await res.json();
+      let data;
+      const responseText = await res.text();
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        if (!res.ok) {
+          throw new Error(`Server error (${res.status}): The request took too long or failed unexpectedly. Please try again with a smaller file or wait a moment.`);
+        }
+        throw new Error('Invalid response from server');
+      }
 
       if (!res.ok) {
         const errorData = data as { error?: string; code?: string };
