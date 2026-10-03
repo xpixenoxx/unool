@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import type { TemplateProps } from '@/components/profile/templates/types';
 import { getTemplateById } from '@/components/profile/templates/registry';
 import { motion } from 'framer-motion';
-import { Menu, BadgeCheck, ArrowRight, Bookmark, Send, Sparkles, Quote, Github, Linkedin, Instagram, ExternalLink } from 'lucide-react';
+import { Menu, BadgeCheck, ArrowRight, Bookmark, Send, Sparkles, Quote, Github, Linkedin, Instagram, ExternalLink, Users, Link as LinkIcon, Eye } from 'lucide-react';
 
 // --- 01 INDIVIDUAL --- //
 
@@ -290,11 +290,34 @@ function LoneTemplate({ profile }: any) {
   const stats = profile?.proofs || [];
 
   const getStatStyle = (index: number) => index % 2 === 0 ? { dark: true } : { dark: false };
-  const getLinkStyle = (index: number, iconName: string) => {
-    if (iconName?.toLowerCase() === 'linkedin') return { color: 'bg-[#2C3480]', light: false };
-    if (iconName?.toLowerCase() === 'instagram') return { color: 'bg-gradient-to-tr from-[#2C3480] to-[#FFFFFF]/40', light: true };
-    return { color: 'bg-[#FFFFFF]/10', light: false };
+  const getStatIcon = (index: number) => {
+    if (index === 0) return <Users size={16} className="mb-2 opacity-80" />;
+    if (index === 1) return <LinkIcon size={16} className="mb-2 opacity-80" />;
+    return <Eye size={16} className="mb-2 opacity-80" />;
   };
+
+  const getLinkStyle = (index: number, iconName: string) => {
+    if (iconName?.toLowerCase() === 'linkedin') {
+      return { 
+        iconBg: 'bg-[#0077b5]', 
+        cardBg: 'bg-gradient-to-r from-[#1a1a2e] to-[#0d1b2a]',
+        light: false 
+      };
+    }
+    if (iconName?.toLowerCase() === 'instagram') {
+      return { 
+        iconBg: 'bg-gradient-to-tr from-[#f09433] via-[#dc2743] to-[#bc1888]', 
+        cardBg: 'bg-gradient-to-r from-[#f8f1e9] to-[#e8d8c8]',
+        light: true 
+      };
+    }
+    return { 
+      iconBg: 'bg-black border border-white/10', 
+      cardBg: 'bg-gradient-to-r from-[#111111] to-[#0a0a0a]',
+      light: false 
+    };
+  };
+
   const getIconComponent = (iconName: string) => {
     switch (iconName?.toLowerCase()) {
       case 'github': return Github;
@@ -305,140 +328,145 @@ function LoneTemplate({ profile }: any) {
   };
 
   return (
-    <div className="relative min-h-[100dvh] w-full bg-[#000000] text-white overflow-hidden">
-      <div className="relative z-10 h-full w-full max-w-md mx-auto">
-        <div className="px-6 py-10 flex flex-col gap-8 font-sans selection:bg-[#2C3480] selection:text-white min-h-[100dvh]">
-          {/* Header Section */}
-          <header className="flex justify-between items-start relative">
-            <div className="flex flex-col z-10 pt-4">
-              <h1 className="text-4xl font-bold tracking-tight leading-tight">
-                <span className="text-[#FFFFFF] block font-serif">{firstName}</span>
-                <span className="text-[#2C3480] block font-serif">{lastName}</span>
-              </h1>
-              <p className="text-[#FFFFFF]/60 text-xs tracking-[0.3em] uppercase mt-4">
-                {profile?.role || 'Professional'}
-              </p>
+    <div className="relative min-h-[100dvh] w-full bg-[#050505] text-white overflow-hidden font-sans">
+      <div className="relative z-10 h-full w-full max-w-md mx-auto px-5 py-8 flex flex-col gap-6 selection:bg-[#2563EB] selection:text-white min-h-[100dvh]">
+        
+        {/* Top Header */}
+        <header className="flex justify-between items-start relative w-full mb-2">
+          <div className="flex flex-col z-10 pt-2 flex-1">
+            <h1 className="text-4xl font-bold tracking-tight leading-[1.1]">
+              <span className="text-[#FFFFFF] block font-serif">{firstName}</span>
+              <span className="text-[#3b82f6] block font-serif">{lastName}</span>
+            </h1>
+            <p className="text-[#FFFFFF]/60 text-[10px] tracking-[0.3em] uppercase mt-3">
+              {profile?.role || 'Professional'}
+            </p>
+          </div>
+          
+          <div className="flex items-start gap-4 z-10">
+            <div className="relative">
+              <Sparkles size={16} className="text-[#FFFFFF] absolute -top-3 -left-3 opacity-80" />
+              <div className="w-20 h-20 rounded-full border border-[#3b82f6] shadow-[0_0_25px_rgba(59,130,246,0.3)] relative">
+                <div className="w-full h-full rounded-full overflow-hidden bg-[#111] flex items-center justify-center">
+                  {profile?.avatarUrl ? (
+                    <img src={profile.avatarUrl} alt={profile.name || 'Avatar'} className="w-full h-full object-cover opacity-90 mix-blend-luminosity hover:mix-blend-normal transition-all" />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-b from-[#1a1a2e] to-[#0d1b2a]" />
+                  )}
+                </div>
+                <div className="absolute bottom-1 right-1 h-3.5 w-3.5 bg-[#3b82f6] rounded-full border-2 border-[#050505]" />
+              </div>
             </div>
             
-            <div className="flex flex-col items-end gap-6 z-10">
-              <button className="h-10 w-10 rounded-full border border-[#FFFFFF]/20 bg-[#FFFFFF]/5 flex items-center justify-center backdrop-blur-md transition-colors hover:bg-[#FFFFFF]/10">
-                <Menu size={18} className="text-[#FFFFFF]" />
-              </button>
-              <div className="relative">
-                <Sparkles size={16} className="text-[#FFFFFF] absolute -top-4 -left-4" />
-                <div className="h-24 w-24 rounded-full p-1 bg-gradient-to-tr from-[#2C3480] to-transparent">
-                  <div className="h-full w-full rounded-full overflow-hidden bg-black border border-[#2C3480]/50 relative flex items-center justify-center">
-                    {profile?.avatarUrl ? (
-                      <img src={profile.avatarUrl} alt={profile.name || 'Avatar'} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-b from-[#FFFFFF]/10 to-[#2C3480]/20 flex items-center justify-center">
-                        <span className="text-[#FFFFFF]/50 text-xs">Photo</span>
-                      </div>
-                    )}
+            <button className="h-10 w-10 rounded-full border border-[#FFFFFF]/10 bg-[#FFFFFF]/5 flex items-center justify-center backdrop-blur-md transition-colors hover:bg-[#FFFFFF]/10">
+              <Menu size={18} className="text-[#FFFFFF]" />
+            </button>
+          </div>
+        </header>
+
+        {/* Bio / Quote Section (Parallelogram) */}
+        {(profile?.bio || profile?.headline) && (
+          <div className="transform -skew-x-12 bg-gradient-to-br from-white/10 to-transparent border border-white/10 rounded-2xl overflow-hidden relative shadow-xl backdrop-blur-sm">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-[#3b82f6]/20 blur-3xl pointer-events-none" />
+            <div className="transform skew-x-12 p-5 py-6 flex gap-4 items-start relative">
+              <Quote size={20} className="text-[#FFFFFF] shrink-0 fill-current opacity-60 mt-1" />
+              <p className="text-[#FFFFFF]/80 text-sm leading-relaxed italic pr-2 font-light">
+                {profile?.bio || profile?.headline}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Stats Section */}
+        {stats.length > 0 && (
+          <div className="grid grid-cols-3 gap-2">
+            {stats.slice(0, 3).map((stat: any, i: number) => {
+              const isMiddle = i === 1;
+              return (
+                <div key={i} className={`transform -skew-x-12 border rounded-xl overflow-hidden shadow-lg ${isMiddle ? 'bg-gradient-to-br from-[#f8f1e9] to-[#e8d8c8] border-[#f8f1e9]/50' : 'bg-gradient-to-br from-[#1a1a2e] to-[#0f0f1a] border-white/10'}`}>
+                  <div className={`transform skew-x-12 p-3 py-4 flex flex-col items-center justify-center text-center ${isMiddle ? 'text-[#111]' : 'text-white'}`}>
+                    {getStatIcon(i)}
+                    <span className="text-xl font-bold font-serif mb-0.5">{stat.value}</span>
+                    <span className={`text-[9px] uppercase tracking-wider ${isMiddle ? 'text-black/60 font-medium' : 'text-white/50'}`}>{stat.title}</span>
                   </div>
                 </div>
-                <div className="absolute bottom-1 right-1 h-3 w-3 bg-[#2C3480] rounded-full border-2 border-black" />
+              );
+            })}
+          </div>
+        )}
+
+        {/* Official Links Section */}
+        {links.filter((l: any) => l.isVisible !== false).length > 0 && (
+          <section className="flex flex-col gap-3 mt-2">
+            <div className="flex justify-between items-center text-xs uppercase tracking-widest text-[#FFFFFF]/60 px-1 mb-1">
+              <span>Official Links</span>
+              <div className="flex items-center gap-1.5 capitalize tracking-normal text-[#3b82f6]/90 font-medium text-[11px]">
+                Verified Profiles
+                <BadgeCheck size={14} className="text-[#3b82f6] fill-[#3b82f6] text-[#050505]" />
               </div>
             </div>
-            {/* Subtle background glow */}
-            <div className="absolute top-10 right-10 w-32 h-32 bg-[#2C3480]/20 rounded-full blur-3xl pointer-events-none" />
-          </header>
-
-          {/* Quote / Bio Section (Parallelogram) */}
-          {(profile?.bio || profile?.headline) && (
-            <div className="transform -skew-x-12 bg-[#FFFFFF]/5 border border-[#FFFFFF]/10 rounded-2xl overflow-hidden relative shadow-lg">
-              <div className="transform skew-x-12 p-5 flex gap-4 items-start relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-[#2C3480]/10 to-transparent pointer-events-none" />
-                <Quote size={24} className="text-[#FFFFFF] shrink-0 fill-current opacity-80" />
-                <p className="text-[#FFFFFF]/80 text-sm leading-relaxed italic pr-4">
-                  {profile?.bio || profile?.headline}
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Stats Section */}
-          {stats.length > 0 && (
-            <div className="grid grid-cols-3 gap-3">
-              {stats.slice(0, 3).map((stat: any, i: number) => {
-                const style = getStatStyle(i);
+            
+            <div className="flex flex-col gap-3">
+              {links.filter((l: any) => l.isVisible !== false).map((link: any, i: number) => {
+                const IconComponent = getIconComponent(link.icon);
+                const style = getLinkStyle(i, link.icon);
+                
                 return (
-                  <div key={i} className={`transform -skew-x-12 border rounded-xl overflow-hidden shadow-lg ${style.dark ? 'bg-[#FFFFFF]/5 border-[#FFFFFF]/10' : 'bg-[#FFFFFF] border-[#FFFFFF]'}`}>
-                    <div className={`transform skew-x-12 p-4 flex flex-col items-center justify-center text-center ${style.dark ? 'text-[#FFFFFF]' : 'text-black'}`}>
-                      <span className="text-xl font-bold font-serif mb-1">{stat.value}</span>
-                      <span className={`text-[10px] uppercase tracking-wider ${style.dark ? 'text-[#FFFFFF]/60' : 'text-black/60'}`}>{stat.title}</span>
+                  <a key={link.id || i} href={link.url} target="_blank" rel="noopener noreferrer" className={`group transform -skew-x-12 border overflow-hidden transition-all hover:scale-[1.02] shadow-xl ${style.cardBg} ${style.light ? 'border-transparent' : 'border-white/10'} rounded-2xl relative`}>
+                    
+                    {/* Background Texture Simulation */}
+                    <div className="absolute inset-0 opacity-30 mix-blend-overlay bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white via-transparent to-transparent pointer-events-none" />
+                    {!style.light && <div className="absolute -right-10 top-0 bottom-0 w-32 bg-white/5 blur-2xl transform skew-x-12 pointer-events-none" />}
+                    
+                    <div className="transform skew-x-12 p-3 flex items-center gap-4 relative">
+                      {/* Icon Box */}
+                      <div className={`w-12 h-12 rounded-[14px] flex items-center justify-center shrink-0 shadow-md ${style.iconBg} text-white`}>
+                        <IconComponent size={20} className={link.icon !== 'linkedin' && link.icon !== 'instagram' ? 'fill-current' : ''} />
+                      </div>
+                      
+                      {/* Text */}
+                      <div className={`flex-1 ${style.light ? 'text-[#111]' : 'text-white'}`}>
+                        <h3 className="font-semibold text-sm truncate max-w-[150px]">{link.label}</h3>
+                        <p className={`text-xs truncate max-w-[150px] ${style.light ? 'text-black/50' : 'text-white/40'}`}>
+                          {link.url.replace(/^https?:\/\//, '')}
+                        </p>
+                      </div>
+                      
+                      {/* Arrow */}
+                      <div className={`h-8 w-8 rounded-full flex items-center justify-center shrink-0 mr-2 transition-transform group-hover:translate-x-1 ${style.light ? 'bg-black/5 text-black' : 'bg-white/5 text-white'}`}>
+                        <ArrowRight size={14} />
+                      </div>
                     </div>
-                  </div>
+                  </a>
                 );
               })}
             </div>
-          )}
+          </section>
+        )}
 
-          {/* Official Links Section */}
-          {links.filter((l: any) => l.isVisible !== false).length > 0 && (
-            <section className="flex flex-col gap-4 mt-2">
-              <div className="flex justify-between items-center text-xs uppercase tracking-widest text-[#FFFFFF]/70">
-                <span>Official Links</span>
-                <div className="flex items-center gap-1.5 capitalize tracking-normal text-[#FFFFFF]/50">
-                  Verified Profiles
-                  <BadgeCheck size={14} className="text-[#2C3480] fill-[#2C3480] text-black" />
-                </div>
-              </div>
-              
-              <div className="flex flex-col gap-3">
-                {links.filter((l: any) => l.isVisible !== false).map((link: any, i: number) => {
-                  const IconComponent = getIconComponent(link.icon);
-                  const style = getLinkStyle(i, link.icon);
-                  
-                  return (
-                    <a key={link.id || i} href={link.url} target="_blank" rel="noopener noreferrer" className={`group transform -skew-x-12 border overflow-hidden transition-all hover:scale-[1.02] shadow-lg ${style.light ? 'bg-[#FFFFFF] border-[#FFFFFF]' : 'bg-[#FFFFFF]/5 border-[#FFFFFF]/10'}`}>
-                      <div className="transform skew-x-12 p-3 flex items-center gap-4 relative">
-                        <div className={`absolute right-0 top-0 bottom-0 w-32 blur-2xl opacity-20 pointer-events-none ${style.light ? 'bg-[#2C3480]' : 'bg-[#FFFFFF]'}`} />
-                        
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${style.color} ${!style.light ? 'text-[#FFFFFF]' : 'text-white'}`}>
-                          <IconComponent size={20} className={!style.light && link.icon !== 'linkedin' ? 'fill-current text-[#FFFFFF]' : ''} />
-                        </div>
-                        <div className={`flex-1 ${style.light ? 'text-black' : 'text-[#FFFFFF]'}`}>
-                          <h3 className="font-semibold text-sm truncate max-w-[150px]">{link.label}</h3>
-                          <p className={`text-xs truncate max-w-[150px] ${style.light ? 'text-black/60' : 'text-[#FFFFFF]/50'}`}>
-                            {link.url.replace(/^https?:\/\//, '')}
-                          </p>
-                        </div>
-                        <div className={`h-8 w-8 rounded-full border flex items-center justify-center shrink-0 mr-2 transition-transform group-hover:-rotate-45 ${style.light ? 'border-black/10 text-black' : 'border-[#FFFFFF]/20 text-[#FFFFFF]'}`}>
-                          <ArrowRight size={14} />
-                        </div>
-                      </div>
-                    </a>
-                  );
-                })}
-              </div>
-            </section>
-          )}
-
-          {/* Bottom Actions */}
-          <div className="flex gap-3 mt-4 mb-4">
-            <button className="flex-1 transform -skew-x-12 bg-[#2C3480] text-white overflow-hidden shadow-lg shadow-[#2C3480]/20 hover:bg-[#2C3480]/90 transition-colors">
-              <div className="transform skew-x-12 p-4 flex items-center justify-between px-6">
-                <Send size={18} />
-                <span className="font-medium text-sm">Get in Touch</span>
-                <ArrowRight size={16} />
-              </div>
-            </button>
-            
-            <button className="flex-1 transform -skew-x-12 bg-[#FFFFFF]/5 border border-[#FFFFFF]/20 text-[#FFFFFF] overflow-hidden hover:bg-[#FFFFFF]/10 transition-colors backdrop-blur-sm">
-              <div className="transform skew-x-12 p-4 flex items-center justify-center gap-3">
-                <Bookmark size={16} />
-                <span className="font-medium text-sm">Save Contact</span>
-              </div>
-            </button>
-          </div>
-
-          {/* Footer */}
-          <footer className="flex justify-between items-center text-[#FFFFFF]/40 text-xs px-2 mt-auto">
-            <span>{profile?.subdomain ? `${profile.subdomain}.unool.co` : 'ipras.unool.co'}</span>
-            <span className="font-serif text-[#FFFFFF]/60">Unool</span>
-          </footer>
+        {/* Bottom Actions */}
+        <div className="flex gap-3 mt-4 mb-2">
+          <button className="flex-[3] transform -skew-x-12 bg-gradient-to-r from-[#2563EB] to-[#1d4ed8] text-white overflow-hidden shadow-lg shadow-blue-900/20 hover:opacity-90 transition-opacity rounded-xl">
+            <div className="transform skew-x-12 p-3.5 flex items-center justify-between px-5">
+              <Send size={16} className="opacity-80" />
+              <span className="font-medium text-sm">Get in Touch</span>
+              <ArrowRight size={16} />
+            </div>
+          </button>
+          
+          <button className="flex-[2] transform -skew-x-12 bg-[#111] border border-white/10 text-[#FFFFFF] overflow-hidden hover:bg-[#222] transition-colors backdrop-blur-sm rounded-xl">
+            <div className="transform skew-x-12 p-3.5 flex items-center justify-center gap-2">
+              <Bookmark size={14} className="opacity-60" />
+              <span className="font-medium text-xs">Save Contact</span>
+            </div>
+          </button>
         </div>
+
+        {/* Footer */}
+        <footer className="flex justify-between items-center text-[#FFFFFF]/30 text-xs px-2 mt-auto mb-2">
+          <span>{profile?.subdomain ? `${profile.subdomain}.unool.co` : 'ipras.unool.co'}</span>
+          <span className="font-serif text-[#FFFFFF]/50 tracking-wide">Unool</span>
+        </footer>
       </div>
     </div>
   );
