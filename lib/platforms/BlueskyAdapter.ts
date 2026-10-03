@@ -187,7 +187,7 @@ export class BlueskyAdapter implements PlatformAdapter {
           logger.info('Bluesky: video embed ready');
         } catch (vidErr) {
           logger.error('Bluesky: video upload failed', { error: vidErr instanceof Error ? vidErr.message : String(vidErr) });
-          throw new Error('Bluesky video upload failed');
+          throw new Error(`Bluesky video upload failed: ${vidErr instanceof Error ? vidErr.message : String(vidErr)}`);
         }
       } else {
         // Handle images (max 4)
