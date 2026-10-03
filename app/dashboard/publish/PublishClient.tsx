@@ -86,16 +86,16 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
   const [publishResults, setPublishResults] = useState<Record<string, { success: boolean; platformUrl?: string; error?: string }>>({});
   const springConfig: Transition = reducedMotion ? { type: 'tween', duration: 0.01 } : spring.standard;
 
-  const loadPost = useCallback(async () => {
+  const loadPost = useCallback(async (isPolling = false) => {
     if (!postId) return;
 
     try {
       const res = await fetch(`/api/publish/${postId}`, { credentials: 'include' });
       if (!res.ok) {
-        if (res.status === 404) {
+        if (res.status === 404 && !isPolling) {
           toast.error('Post not found');
           router.push('/dashboard/composer');
-        } else {
+        } else if (!isPolling) {
           toast.error('Failed to load post');
         }
         return;
@@ -116,9 +116,9 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
       }));
       setDrafts(initialDrafts);
     } catch {
-      toast.error('Failed to load post');
+      if (!isPolling) toast.error('Failed to load post');
     } finally {
-      setLoading(false);
+      if (!isPolling) setLoading(false);
     }
   }, [postId, router]);
 
@@ -130,6 +130,18 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
     }
     loadPost();
   }, [postId, router, loadPost]);
+
+  // Poll for background publish updates if any variant is still in 'draft' state
+  useEffect(() => {
+    const hasPendingDrafts = drafts.some(d => d.status === 'draft');
+    if (!hasPendingDrafts || publishing) return;
+
+    const intervalId = setInterval(() => {
+      loadPost(true);
+    }, 3000);
+
+    return () => clearInterval(intervalId);
+  }, [drafts, publishing, loadPost]);
 
   const updateDraft = (platform: Platform, content: string) => {
     setDrafts(d => d.map(d => d.platform === platform ? { ...d, content, characterCount: content.length } : d));
