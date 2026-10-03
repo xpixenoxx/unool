@@ -223,38 +223,43 @@ export class InstagramAdapter implements PlatformAdapter {
         await this.waitForMediaReady(accessToken, creationId);
       } else {
         // Carousel
-        // Process all carousel items concurrently
-        const itemPromises = mediaUrls.map(async (url) => {
-          const isVid = this.isVideoUrl(url);
-          const itemParams = new URLSearchParams({
-            access_token: accessToken,
-            is_carousel_item: 'true',
+        // Process carousel items in batches of 3 to avoid Instagram rate limiting / connection drops
+        const itemIds: string[] = [];
+        const batchSize = 3;
+        
+        for (let i = 0; i < mediaUrls.length; i += batchSize) {
+          const batch = mediaUrls.slice(i, i + batchSize);
+          const itemPromises = batch.map(async (url) => {
+            const isVid = this.isVideoUrl(url);
+            const itemParams = new URLSearchParams({
+              access_token: accessToken,
+              is_carousel_item: 'true',
+            });
+
+            if (isVid) {
+              itemParams.append('media_type', 'VIDEO');
+              itemParams.append('video_url', url);
+            } else {
+              itemParams.append('image_url', url);
+            }
+
+            const itemRes = await fetchWithRetry(`https://graph.instagram.com/v20.0/${igAccountId}/media`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: itemParams.toString(),
+            });
+
+            if (itemRes.ok) {
+              return (await itemRes.json()).id as string;
+            } else {
+              logger.warn('Failed to upload Instagram carousel item', { url, error: await itemRes.text() });
+              return null;
+            }
           });
 
-          if (isVid) {
-            itemParams.append('media_type', 'VIDEO');
-            itemParams.append('video_url', url);
-          } else {
-            itemParams.append('image_url', url);
-          }
-
-          const itemRes = await fetchWithRetry(`https://graph.instagram.com/v20.0/${igAccountId}/media`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: itemParams.toString(),
-          });
-
-          if (itemRes.ok) {
-            return (await itemRes.json()).id as string;
-          } else {
-            logger.warn('Failed to upload Instagram carousel item', { url, error: await itemRes.text() });
-            return null;
-          }
-        });
-
-        // Wait for all container creation requests
-        const createdIds = await Promise.all(itemPromises);
-        const itemIds = createdIds.filter((id): id is string => id !== null);
+          const createdIds = await Promise.all(itemPromises);
+          itemIds.push(...createdIds.filter((id): id is string => id !== null));
+        }
 
         if (itemIds.length === 0) {
           throw new Error('Failed to create any carousel items for Instagram');
