@@ -183,7 +183,7 @@ export class LinkedInAdapter implements PlatformAdapter {
               // Process chunks in batches of 3 to avoid rate limits / overwhelming the connection
               const uploadedPartIds: string[] = [];
               const instructions = initData.value.uploadInstructions;
-              const batchSize = 3;
+              const batchSize = 5;
               
               for (let i = 0; i < instructions.length; i += batchSize) {
                 const batch = instructions.slice(i, i + batchSize);
