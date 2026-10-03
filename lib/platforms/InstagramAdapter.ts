@@ -223,8 +223,8 @@ export class InstagramAdapter implements PlatformAdapter {
         await this.waitForMediaReady(accessToken, creationId);
       } else {
         // Carousel
-        const itemIds: string[] = [];
-        for (const url of mediaUrls) {
+        // Process all carousel items concurrently
+        const itemPromises = mediaUrls.map(async (url) => {
           const isVid = this.isVideoUrl(url);
           const itemParams = new URLSearchParams({
             access_token: accessToken,
@@ -245,20 +245,23 @@ export class InstagramAdapter implements PlatformAdapter {
           });
 
           if (itemRes.ok) {
-            itemIds.push((await itemRes.json()).id);
+            return (await itemRes.json()).id as string;
           } else {
             logger.warn('Failed to upload Instagram carousel item', { url, error: await itemRes.text() });
+            return null;
           }
-        }
+        });
+
+        // Wait for all container creation requests
+        const createdIds = await Promise.all(itemPromises);
+        const itemIds = createdIds.filter((id): id is string => id !== null);
 
         if (itemIds.length === 0) {
           throw new Error('Failed to create any carousel items for Instagram');
         }
 
-        // Wait for all individual carousel items to be ready before bundling them
-        for (const itemId of itemIds) {
-          await this.waitForMediaReady(accessToken, itemId);
-        }
+        // Wait for all individual carousel items to be ready concurrently before bundling them
+        await Promise.all(itemIds.map(itemId => this.waitForMediaReady(accessToken, itemId)));
 
         // Create carousel container
         const carouselParams = new URLSearchParams({

@@ -179,8 +179,7 @@ export class LinkedInAdapter implements PlatformAdapter {
             }
 
             if (isVideo && initData?.value?.uploadInstructions) {
-              const uploadedPartIds: string[] = [];
-              for (const instruction of initData.value.uploadInstructions) {
+              const uploadPromises = initData.value.uploadInstructions.map(async (instruction: any) => {
                 const chunk = imageBuffer.slice(instruction.firstByte, instruction.lastByte + 1);
                 const uploadRes = await fetchWithRetry(instruction.uploadUrl, {
                   method: 'PUT',
@@ -189,8 +188,11 @@ export class LinkedInAdapter implements PlatformAdapter {
                 });
                 if (!uploadRes.ok) throw new Error(`Failed to upload video chunk: ${await uploadRes.text()}`);
                 const etag = uploadRes.headers.get('etag');
-                if (etag) uploadedPartIds.push(etag.replace(/"/g, ''));
-              }
+                return etag ? etag.replace(/"/g, '') : null;
+              });
+              
+              const results = await Promise.all(uploadPromises);
+              const uploadedPartIds = results.filter((id): id is string => id !== null);
               const finalizeRes = await fetchWithRetry(`${LINKEDIN_V1_API_BASE}/videos?action=finalizeUpload`, {
                 method: 'POST',
                 headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json', 'X-Restli-Protocol-Version': '2.0.0', 'LinkedIn-Version': '202606' },
@@ -210,35 +212,41 @@ export class LinkedInAdapter implements PlatformAdapter {
           } else {
             // Multi-image upload (LinkedIn supports up to 9 images)
             const imageUrls = input.mediaUrls.slice(0, 9);
-            const uploadedImageUrns: string[] = [];
+            const imagePromises = imageUrls.map(async (imageUrl) => {
+              try {
+                const imageRes = await fetch(imageUrl);
+                if (!imageRes.ok) return null;
+                const imageBuffer = await imageRes.arrayBuffer();
+                const contentType = imageRes.headers.get('content-type') || 'image/jpeg';
+                
+                const initRes = await fetchWithRetry(`${LINKEDIN_V1_API_BASE}/images?action=initializeUpload`, {
+                  method: 'POST',
+                  headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json', 'X-Restli-Protocol-Version': '2.0.0', 'LinkedIn-Version': '202606' },
+                  body: JSON.stringify({ initializeUploadRequest: { owner: authorUrn } }),
+                });
+                
+                if (!initRes.ok) return null;
+                const initData = await initRes.json();
+                const mediaUrn = initData.value.image;
+                const uploadUrl = initData.value.uploadUrl;
 
-            for (const imageUrl of imageUrls) {
-              const imageRes = await fetch(imageUrl);
-              if (!imageRes.ok) continue; // Skip failed images
-              const imageBuffer = await imageRes.arrayBuffer();
-              const contentType = imageRes.headers.get('content-type') || 'image/jpeg';
-              
-              const initRes = await fetchWithRetry(`${LINKEDIN_V1_API_BASE}/images?action=initializeUpload`, {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json', 'X-Restli-Protocol-Version': '2.0.0', 'LinkedIn-Version': '202606' },
-                body: JSON.stringify({ initializeUploadRequest: { owner: authorUrn } }),
-              });
-              
-              if (!initRes.ok) continue;
-              const initData = await initRes.json();
-              const mediaUrn = initData.value.image;
-              const uploadUrl = initData.value.uploadUrl;
-
-              const uploadRes = await fetchWithRetry(uploadUrl, {
-                method: 'PUT',
-                headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': contentType },
-                body: imageBuffer,
-              });
-              
-              if (uploadRes.ok) {
-                uploadedImageUrns.push(mediaUrn);
+                const uploadRes = await fetchWithRetry(uploadUrl, {
+                  method: 'PUT',
+                  headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': contentType },
+                  body: imageBuffer,
+                });
+                
+                if (uploadRes.ok) {
+                  return mediaUrn;
+                }
+                return null;
+              } catch (e) {
+                return null;
               }
-            }
+            });
+
+            const results = await Promise.all(imagePromises);
+            const uploadedImageUrns = results.filter((urn): urn is string => urn !== null);
 
             if (uploadedImageUrns.length === 1) {
               contentObj = { media: { id: uploadedImageUrns[0] } };
