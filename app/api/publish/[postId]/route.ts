@@ -35,6 +35,17 @@ export async function GET(
 
     const allVariants = await postRepository.findVariantsByPostId(postId);
 
+    // Look up platform_posts for each variant to get the live platformUrl
+    const variantPlatformUrls: Record<string, string> = {};
+    for (const v of allVariants) {
+      if (v.status === 'published') {
+        const platformPosts = await platformRepo.findPlatformPostsByVariant(v.id);
+        if (platformPosts.length > 0 && platformPosts[0].platformUrl) {
+          variantPlatformUrls[v.id] = platformPosts[0].platformUrl;
+        }
+      }
+    }
+
     logger.info('Post with variants fetched', { traceId, postId, variantCount: allVariants.length });
 
     return NextResponse.json({
@@ -58,6 +69,7 @@ export async function GET(
         firstCommentHint: v.firstCommentHint,
         status: v.status,
         error: v.error,
+        platformUrl: variantPlatformUrls[v.id] || null,
         createdAt: v.createdAt.toISOString(),
         updatedAt: v.updatedAt.toISOString(),
       })),

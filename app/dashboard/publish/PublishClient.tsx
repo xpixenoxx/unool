@@ -29,6 +29,7 @@ interface PostVariant {
   firstCommentHint: string | null;
   status: DraftStatus;
   error: { code: string; message: string; details?: Record<string, unknown> } | null;
+  platformUrl: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -52,6 +53,7 @@ interface PlatformDraft {
   mediaUrls: { url: string; type: 'image' | 'video'; alt?: string }[];
   status: DraftStatus;
   error?: string;
+  platformUrl?: string | null;
   variantId: string;
 }
 
@@ -112,6 +114,7 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
         mediaUrls: v.mediaUrls,
         status: v.status,
         error: v.error?.message,
+        platformUrl: v.platformUrl,
         variantId: v.id,
       }));
       setDrafts(initialDrafts);
@@ -188,7 +191,12 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
       setDrafts(d => d.map(d => {
         const result = results[d.platform];
         if (result) {
-          return { ...d, status: result.success ? 'published' : 'failed', error: result.error };
+          return {
+            ...d,
+            status: result.success ? 'published' as DraftStatus : 'failed' as DraftStatus,
+            error: result.error,
+            platformUrl: result.platformUrl || d.platformUrl,
+          };
         }
         return d;
       }));
@@ -348,11 +356,6 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
                           {isPublished && <CircleCheckBig className="mr-1 h-3 w-3" />}
                           {isPublished ? 'Published' : isFailed ? 'Failed' : draft.status.charAt(0).toUpperCase() + draft.status.slice(1)}
                         </Badge>
-                        {result?.platformUrl && (
-                          <a href={result.platformUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline">
-                            View Post
-                          </a>
-                        )}
                       </Flex>
                     </Flex>
 
@@ -382,23 +385,34 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
                       </Flex>
                     )}
 
-                    {/* Display success/failure from either recent result or draft status */}
+                    {/* Display success with View Live button */}
                     {(result?.success || (isPublished && !result)) && (
-                      <Box className="mt-3 p-3 rounded-lg bg-green-50/50 dark:bg-green-900/10 border border-green-200/50 dark:border-green-900/50 flex items-center gap-2">
-                        <CircleCheckBig className="h-4 w-4 text-green-600" />
-                        <Text size="sm" color="green-700 dark:text-green-300">Published successfully</Text>
-                        {result?.platformUrl && (
-                          <a href={result.platformUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline ml-2">
-                            View on {config.name}
-                          </a>
-                        )}
+                      <Box className="mt-3 p-3 rounded-lg bg-green-50/50 dark:bg-green-900/10 border border-green-200/50 dark:border-green-900/50">
+                        <Flex between center>
+                          <Flex center gap={2}>
+                            <CircleCheckBig className="h-4 w-4 text-green-600" />
+                            <Text size="sm" className="text-green-700 dark:text-green-300">Published successfully</Text>
+                          </Flex>
+                          {(result?.platformUrl || draft.platformUrl) && (
+                            <a
+                              href={result?.platformUrl || draft.platformUrl || '#'}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity shadow-sm"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                              View Live
+                            </a>
+                          )}
+                        </Flex>
                       </Box>
                     )}
 
+                    {/* Display failure */}
                     {(!result?.success && (result?.error || draft.error)) && (
                       <Box className="mt-3 p-3 rounded-lg bg-red-50/50 dark:bg-red-900/10 border border-red-200/50 dark:border-red-900/50 flex items-center gap-2">
                         <AlertCircle className="h-4 w-4 text-red-600" />
-                        <Text size="sm" color="red-700 dark:text-red-300">Failed: {result?.error || draft.error}</Text>
+                        <Text size="sm" className="text-red-700 dark:text-red-300">Failed: {result?.error || draft.error}</Text>
                       </Box>
                     )}
 
