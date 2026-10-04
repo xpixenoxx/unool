@@ -376,13 +376,6 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
                       </Text>
                     )}
 
-                    {draft.error && (
-                      <Text size="sm" color="destructive" className="mt-2 flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" />
-                        {draft.error}
-                      </Text>
-                    )}
-
                     {draft.hashtags.length > 0 && (
                       <Flex wrap gap={1} className="mt-3">
                         {draft.hashtags.map(tag => (
@@ -391,30 +384,23 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
                       </Flex>
                     )}
 
-                    {draft.mediaUrls.length > 0 && (
-                      <Flex center gap={2} className="mt-3">
-                        <Text size="sm" color="muted">Media: {draft.mediaUrls.map(m => m.url).join(', ')}</Text>
-                      </Flex>
+                    {/* Display success/failure from either recent result or draft status */}
+                    {(result?.success || (isPublished && !result)) && (
+                      <Box className="mt-3 p-3 rounded-lg bg-green-50/50 dark:bg-green-900/10 border border-green-200/50 dark:border-green-900/50 flex items-center gap-2">
+                        <CircleCheckBig className="h-4 w-4 text-green-600" />
+                        <Text size="sm" color="green-700 dark:text-green-300">Published successfully</Text>
+                        {result?.platformUrl && (
+                          <a href={result.platformUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline ml-2">
+                            View on {config.name}
+                          </a>
+                        )}
+                      </Box>
                     )}
 
-                    {result && (
-                      <Box className="mt-3 p-3 rounded-lg bg-muted flex items-center gap-2">
-                        {result.success ? (
-                          <>
-                            <CircleCheckBig className="h-4 w-4 text-green-600" />
-                            <Text size="sm" color="green-700 dark:text-green-300">Published successfully</Text>
-                            {result.platformUrl && (
-                              <a href={result.platformUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline ml-2">
-                                View on {config.name}
-                              </a>
-                            )}
-                          </>
-                        ) : (
-                          <>
-                            <AlertCircle className="h-4 w-4 text-red-600" />
-                            <Text size="sm" color="red-700 dark:text-red-300">Failed: {result.error || 'Unknown error'}</Text>
-                          </>
-                        )}
+                    {(!result?.success && (result?.error || draft.error)) && (
+                      <Box className="mt-3 p-3 rounded-lg bg-red-50/50 dark:bg-red-900/10 border border-red-200/50 dark:border-red-900/50 flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4 text-red-600" />
+                        <Text size="sm" color="red-700 dark:text-red-300">Failed: {result?.error || draft.error}</Text>
                       </Box>
                     )}
 
