@@ -785,9 +785,12 @@ function HumanTemplate({ profile, accentColor }: any) {
     setToastTimer(timer);
   };
 
-  const copyEmail = () => {
-    navigator.clipboard.writeText(profile.email || 'hello@example.com');
-    showToast('Email copied to clipboard!');
+  const handleContact = () => {
+    if (profile.email) {
+      window.location.href = `mailto:${profile.email}`;
+    } else {
+      showToast('Contact email not available.');
+    }
   };
 
   const downloadVCard = () => {
@@ -898,7 +901,11 @@ function HumanTemplate({ profile, accentColor }: any) {
   `;
 
   return (
-    <div className="human-theme min-h-[100dvh] w-full relative overflow-x-hidden antialiased flex flex-col">
+    <div className="w-full min-h-[100dvh] flex flex-col items-center justify-start bg-[#0a161e] p-[clamp(8px,2.5vw,24px)]">
+      <div 
+        className="human-theme w-full relative flex-1 max-w-[1440px] overflow-hidden antialiased flex flex-col shadow-2xl"
+        style={{ borderRadius: 'clamp(24px, 5vw, 48px)' }}
+      >
       <style dangerouslySetInnerHTML={{ __html: customStyles }} />
       <div className="human-texture" />
       <div className="human-blob-bg-1" />
@@ -927,24 +934,24 @@ function HumanTemplate({ profile, accentColor }: any) {
       <main className="relative z-10 w-full flex-1 pb-16">
         
         {/* Hero Section */}
-        <section className="relative w-full max-w-[1300px] mx-auto px-6 mt-4 md:mt-12 flex flex-col lg:flex-row items-center lg:items-stretch justify-end min-h-[500px]">
+        <section className="relative w-full max-w-[1300px] mx-auto px-6 mt-0 md:mt-12 flex flex-col lg:flex-row items-center lg:items-stretch justify-end min-h-[auto] lg:min-h-[500px]">
           
           {/* Text Content (Overlapping) */}
-          <div className="w-full lg:w-3/5 flex flex-col z-20 lg:absolute lg:left-8 lg:top-1/2 lg:-translate-y-1/2 mt-12 lg:mt-0 text-center lg:text-left order-2 lg:order-1">
-            <span className="font-serif italic text-[#F4EDDC] text-xl md:text-2xl opacity-90 block mb-2">
+          <div className="w-full lg:w-3/5 flex flex-col z-20 lg:absolute lg:left-8 lg:top-1/2 lg:-translate-y-1/2 mt-6 lg:mt-0 text-center lg:text-left order-2 lg:order-1">
+            <span className="font-serif italic text-[#F4EDDC] text-lg sm:text-xl md:text-2xl opacity-90 block mb-1 lg:mb-2">
               @{profile.subdomain || 'identity'}
             </span>
-            <h1 className="font-serif text-[#F4EDDC] text-[4.5rem] sm:text-[6rem] lg:text-[8.5rem] leading-[0.9] tracking-tight mb-4 drop-shadow-lg lg:drop-shadow-none">
+            <h1 className="font-serif text-[#F4EDDC] text-[clamp(3.5rem,14vw,6rem)] lg:text-[8.5rem] leading-[0.9] tracking-tight mb-2 lg:mb-4 drop-shadow-md lg:drop-shadow-none">
               {profile.name}
             </h1>
-            <h2 className="font-sans text-[#AEA997] text-xl sm:text-2xl md:text-3xl font-light tracking-wide max-w-2xl mx-auto lg:mx-0">
+            <h2 className="font-sans text-[#AEA997] text-lg sm:text-2xl md:text-3xl font-light tracking-wide max-w-2xl mx-auto lg:mx-0">
               {profile.headline || profile.role || 'Professional Profile'}
             </h2>
           </div>
 
           {/* Image Content */}
-          <div className="w-full lg:w-[55%] relative flex justify-center lg:justify-end order-1 lg:order-2">
-            <div className="w-[300px] h-[340px] sm:w-[420px] sm:h-[480px] lg:w-[540px] lg:h-[600px] relative z-10">
+          <div className="w-full lg:w-[55%] relative flex justify-center lg:justify-end order-1 lg:order-2 mt-4 lg:mt-0">
+            <div className="w-[min(70vw,280px)] h-[min(80vw,320px)] sm:w-[420px] sm:h-[480px] lg:w-[540px] lg:h-[600px] relative z-10 mx-auto lg:mr-0">
                <div className="absolute inset-0 human-img-bg scale-110 -translate-x-6 -translate-y-8 lg:-translate-x-12 lg:-translate-y-12 opacity-90 transition-transform duration-700 hover:scale-105" />
                <img 
                  src={profile.avatarUrl || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=800&q=80'} 
@@ -961,14 +968,14 @@ function HumanTemplate({ profile, accentColor }: any) {
 
         {/* Bio / About */}
         {(profile.bio || profile.headline) && (
-          <section className="relative w-full mt-24 md:mt-32 lg:mt-40 z-10 px-4 md:px-8">
+          <section className="relative w-full mt-16 md:mt-32 lg:mt-40 z-10 px-4 md:px-8">
             <div className="human-bio-surface absolute inset-0 -mx-4 md:-mx-8 scale-x-[1.02] -rotate-1 shadow-2xl" />
             
-            <div className="relative z-10 max-w-6xl mx-auto py-16 md:py-24 flex flex-col lg:flex-row items-center lg:items-start gap-12 lg:gap-16 px-4 md:px-8">
+            <div className="relative z-10 max-w-6xl mx-auto py-12 md:py-24 flex flex-col lg:flex-row items-center lg:items-start gap-8 lg:gap-16 px-4 md:px-8">
               
-              <div className="relative flex-1 text-center lg:text-left mt-12 lg:mt-0">
-                <div className="absolute -top-16 left-1/2 -translate-x-1/2 lg:translate-x-0 lg:-top-16 lg:-left-12 text-[#E2B746] font-serif text-[10rem] md:text-[14rem] leading-none select-none opacity-90">“</div>
-                <h3 className="font-serif text-[#1B1D1B] text-4xl md:text-5xl lg:text-[4.5rem] leading-[1.05] tracking-tight relative z-10 max-w-3xl">
+              <div className="relative flex-1 text-center lg:text-left mt-8 lg:mt-0">
+                <div className="absolute -top-12 left-1/2 -translate-x-1/2 lg:translate-x-0 lg:-top-16 lg:-left-12 text-[#E2B746] font-serif text-[6rem] md:text-[14rem] leading-none select-none opacity-90">“</div>
+                <h3 className="font-serif text-[#1B1D1B] text-3xl sm:text-4xl md:text-5xl lg:text-[4.5rem] leading-[1.05] tracking-tight relative z-10 max-w-3xl">
                   {profile.bio || profile.headline}
                 </h3>
               </div>
@@ -1103,7 +1110,7 @@ function HumanTemplate({ profile, accentColor }: any) {
 
           <div className="flex flex-col sm:flex-row gap-4 md:gap-6 w-full md:w-auto mx-auto md:ml-auto md:mr-16">
             <button 
-              onClick={copyEmail} 
+              onClick={handleContact} 
               className="w-full sm:w-auto px-8 py-4 md:py-5 rounded-full border border-[#1B1D1B]/30 text-[#1B1D1B] font-sans font-bold flex items-center justify-center gap-3 hover:bg-white/10 hover:border-[#1B1D1B] transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1B1D1B]"
             >
               <Send size={20} strokeWidth={2} />
@@ -1152,7 +1159,7 @@ function HumanTemplate({ profile, accentColor }: any) {
             </div>
             
             <nav className="flex flex-col gap-8 text-[#1B1D1B]">
-              <a href="#" onClick={(e) => { e.preventDefault(); copyEmail(); setMenuOpen(false); }} className="text-3xl font-serif hover:italic transition-all opacity-90 hover:opacity-100">Contact</a>
+              <a href="#" onClick={(e) => { e.preventDefault(); handleContact(); setMenuOpen(false); }} className="text-3xl font-serif hover:italic transition-all opacity-90 hover:opacity-100">Contact</a>
               <a href="#" onClick={(e) => { e.preventDefault(); downloadVCard(); setMenuOpen(false); }} className="text-3xl font-serif hover:italic transition-all opacity-90 hover:opacity-100">Save Profile</a>
               {profile.links && profile.links.length > 0 && (
                 <div className="mt-12 pt-12 border-t border-[#1B1D1B]/10 flex flex-col gap-5">
@@ -1170,6 +1177,7 @@ function HumanTemplate({ profile, accentColor }: any) {
       {/* Toast */}
       <div className={`fixed bottom-10 left-1/2 -translate-x-1/2 px-8 py-4 bg-[#1B1D1B] text-[#F4EDDC] text-sm font-sans font-bold tracking-wide rounded-full shadow-2xl transition-all duration-300 z-50 ${toastVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
         {toastMsg}
+      </div>
       </div>
     </div>
   );
