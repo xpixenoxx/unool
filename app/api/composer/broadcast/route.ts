@@ -6,6 +6,7 @@ import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseP
 import { getCurrentAuth } from '@/lib/auth/server';
 import { planEnforcement } from '@/lib/middleware/plan-enforcement-middleware';
 import { publishService } from '@/lib/services/PublishService';
+import { optimizeMediaForPlatform } from '@/lib/media/ImageOptimizer';
 
 const postRepository = new SupabasePostRepository();
 const profileRepository = new SupabaseProfileRepository();
@@ -109,12 +110,14 @@ export async function POST(request: NextRequest) {
           errorObj = { code: 'UNSUPPORTED_MEDIA', message: 'Bluesky does not support video uploads.' };
         }
         // You can add more platform media validations here as needed.
+        
+        const finalMedia = await optimizeMediaForPlatform(normalizedMedia, platform);
 
         await postRepository.createVariant({
           postId: post.id,
           platform,
           adaptedContent: rawContent,
-          mediaUrls: normalizedMedia,
+          mediaUrls: finalMedia,
           characterCount: rawContent.length,
           hashtagStrategy: [],
           firstCommentHint: undefined,

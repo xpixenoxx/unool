@@ -8,6 +8,7 @@ import { SupabasePostRepository } from '@/lib/repositories/supabase/SupabasePost
 import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseProfileRepository';
 import { getCurrentAuth } from '@/lib/auth/server';
 import { planEnforcement } from '@/lib/middleware/plan-enforcement-middleware';
+import { optimizeMediaForPlatform } from '@/lib/media/ImageOptimizer';
 
 const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
 const postRepository = new SupabasePostRepository();
@@ -123,8 +124,14 @@ export async function POST(request: NextRequest) {
 
         let status: 'draft' | 'failed' | 'published' = 'draft';
         let errorObj: any = null;
+        const normalizedMedia = (mediaItems || []).map((m: any) => {
+          if (typeof m === 'string') {
+            return { url: m, type: 'image' as const };
+          }
+          return { url: m.url as string, type: (m.type || 'image') as 'image' | 'video' };
+        }).filter((m: any) => Boolean(m.url));
 
-        const hasVideo = (mediaItems || []).some((m: any) => m.type === 'video');
+        const hasVideo = normalizedMedia.some((m: any) => m.type === 'video');
 
         if (platform === 'threads' && hasVideo) {
           status = 'failed';
@@ -137,11 +144,13 @@ export async function POST(request: NextRequest) {
           errorObj = { code: 'UNSUPPORTED_MEDIA', message: 'Bluesky does not support video uploads.' };
         }
 
+        const finalMedia = await optimizeMediaForPlatform(normalizedMedia, platform);
+
         await postRepository.createVariant({
           postId: post.id,
           platform,
           adaptedContent: adapted.content,
-          mediaUrls: mediaItems || [],
+          mediaUrls: finalMedia,
           characterCount: adapted.characterCount,
           hashtagStrategy: adapted.hashtags,
           firstCommentHint: adapted.firstCommentHint || undefined,
