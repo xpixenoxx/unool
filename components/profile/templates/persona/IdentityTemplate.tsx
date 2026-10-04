@@ -1488,7 +1488,6 @@ function VoiceTemplate({ profile }: any) {
 
     .voice-template {
       font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-      background-color: #F4EEE6;
       color: #2B2321;
       line-height: 1.5;
     }
@@ -1573,268 +1572,272 @@ function VoiceTemplate({ profile }: any) {
   const statementSub = profile.metadata?.statementSub || "Every episode, essay, and conversation starts with curiosity — then gets a little braver.";
 
   return (
-    <div className="voice-template w-full min-h-screen relative overflow-hidden flex justify-center py-4 md:py-12 px-4 md:px-8">
+    <div className="voice-template w-full min-h-screen bg-[#FAF8F5] p-6 md:p-8 lg:p-12 flex justify-center">
       <style>{customStyles}</style>
 
-      {/* Main Container */}
-      <div className="w-full max-w-[1100px] mx-auto relative z-10">
+      {/* Main Card Wrapper */}
+      <div className="w-full max-w-[1200px] bg-[#F4EEE6] rounded-[32px] md:rounded-[48px] shadow-2xl relative overflow-hidden flex justify-center py-10 md:py-16 px-6 md:px-12 lg:px-16 border border-[#A99C91]/15">
         
-        {/* Header */}
-        <header className="flex justify-between items-center py-6 mb-8 md:mb-16">
-          <div className="flex items-center gap-2">
-             <div className="w-4 h-4 bg-[#DF5B4C] rounded-sm transform rotate-45"></div>
-             <span className="font-bold tracking-widest text-xs uppercase">The Voice</span>
-          </div>
-          <div className="text-[10px] md:text-xs font-bold tracking-widest uppercase text-[#DF5B4C] flex items-center gap-2 md:gap-4">
-             <span className="text-[#766B64]">Influencer / 03</span>
-             <span>↗</span>
-          </div>
-        </header>
-
-        {/* 1. Hero */}
-        <section className="flex flex-col-reverse md:flex-row gap-12 md:gap-8 items-center md:items-start mb-24 md:mb-32">
-          <div className="w-full md:w-1/2 flex flex-col justify-center mt-4 md:mt-16 text-center md:text-left items-center md:items-start">
-            <p className="text-[#A99C91] text-xs font-bold tracking-[0.2em] uppercase mb-6 md:mb-8 flex items-center justify-center md:justify-start gap-4 w-full">
-              <span className="w-8 h-px bg-[#A99C91] hidden md:block"></span>
-              A voice in progress
-            </p>
-            <h1 className="font-serif text-6xl sm:text-7xl md:text-8xl lg:text-9xl leading-[0.9] text-[#2B2321] mb-6 tracking-tight">
-              {profile.name?.split(' ')[0] || "Maya"} <br className="hidden md:block" />
-              <span className="text-[#DF5B4C] italic pr-0 md:pr-4">{profile.name?.split(' ').slice(1).join(' ') || "Vale"}</span>
-            </h1>
-            <p className="text-lg md:text-xl text-[#766B64] font-medium mb-6">
-              {profile.role || profile.headline || "Writer, host & cultural commentator"}
-            </p>
-            <p className="text-sm md:text-base text-[#2B2321] max-w-md leading-relaxed mb-10">
-              {profile.bio || "I make room for the complicated thought, the honest question, and the story you carry home."}
-            </p>
-            <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
-              <a href={`mailto:${profile.email || 'hello@example.com'}`} className="btn-primary w-full sm:w-auto justify-center px-8 py-3.5 rounded-full font-semibold text-sm tracking-wide flex items-center gap-2 group">
-                Get in touch
-                <ArrowRight className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" />
-              </a>
-              <button 
-                onClick={() => {
-                  navigator.clipboard.writeText(typeof window !== 'undefined' ? window.location.href : '');
-                  showToast('Profile link copied!');
-                }}
-                className="btn-secondary w-full sm:w-auto justify-center px-6 py-3.5 rounded-full font-semibold text-sm tracking-wide flex items-center gap-2 group">
-                Share profile
-                <ArrowRight className="w-4 h-4 transform rotate-[-45deg] group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-              </button>
-            </div>
-          </div>
+        {/* Main Content Container */}
+        <div className="w-full max-w-[960px] mx-auto relative z-10">
           
-          <div className="w-full md:w-1/2 flex justify-center md:justify-end relative mt-8 md:mt-0">
-            <div className="hidden md:block absolute top-12 left-12 text-[#DF5B4C] z-10">
-               <ArrowRight className="w-6 h-6 transform rotate-[135deg]" />
-            </div>
-            {profile.avatarUrl ? (
-              <img 
-                src={profile.avatarUrl} 
-                alt={profile.name} 
-                className="arch-image w-full max-w-[360px] md:max-w-[420px] h-[450px] md:h-[600px] object-cover shadow-xl relative z-0"
-              />
-            ) : (
-              <div className="arch-image w-full max-w-[360px] md:max-w-[420px] h-[450px] md:h-[600px] bg-[#D9D2E6] flex items-center justify-center shadow-xl relative z-0">
-                <span className="font-serif text-4xl text-[#766B64] opacity-50">Profile</span>
-              </div>
-            )}
-            <div className="absolute bottom-4 left-4 md:bottom-8 md:left-16 text-white text-xs font-bold tracking-widest uppercase z-10 drop-shadow-md">
-              {new Date().getFullYear()} / Profile
-            </div>
-          </div>
-        </section>
-
-        {/* 2. Point of View */}
-        <section className="mb-24 md:mb-40 relative">
-          <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/4 w-[300px] h-[300px] rounded-full bg-[#A8B89D] opacity-20 blur-3xl -z-10 pointer-events-none"></div>
-          
-          <div className="flex flex-col md:flex-row md:items-end gap-8 md:gap-24 relative z-10">
-            <div className="relative">
-              <span className="text-[#DF5B4C] text-xs font-bold tracking-widest block md:absolute md:-left-12 md:top-2 mb-4 md:mb-0">01</span>
-              <h2 className="font-serif text-4xl md:text-5xl lg:text-7xl leading-[1.1] text-[#2B2321] max-w-2xl relative z-10">
-                <span className="absolute -left-2 md:-left-8 -top-4 md:-top-8 text-6xl md:text-8xl text-[#A8B89D] opacity-40 -z-10 select-none">“</span>
-                {statement}
-              </h2>
-            </div>
-            <div className="md:w-1/3 md:pb-4 border-l-2 border-[#A8B89D]/30 pl-6 md:border-none md:pl-0">
-              <p className="text-[#766B64] leading-relaxed text-sm md:text-base">
-                {statementSub}
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* 3. Proof */}
-        {stats && stats.length > 0 && (
-          <section className="mb-24 md:mb-32">
-            <div className="flex items-center justify-between mb-8 md:mb-12 relative">
-              <span className="text-[#DF5B4C] text-xs font-bold tracking-widest md:absolute md:-left-12">02</span>
-              <span className="text-[#A99C91] text-xs font-bold tracking-[0.15em] uppercase ml-auto">A little proof</span>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-8 md:gap-12 pl-0 md:pl-8">
-              {stats.map((stat: any, i: number) => (
-                <div key={i} className="flex flex-col border-t border-[rgba(169,156,145,0.3)] pt-6">
-                  <span className="font-serif text-5xl md:text-6xl lg:text-7xl text-[#2B2321] mb-2">{stat.value}</span>
-                  <span className="text-[10px] md:text-xs font-bold tracking-widest uppercase text-[#766B64]">{stat.label}</span>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* 4. Links */}
-        {profile.links && profile.links.length > 0 && (
-          <section className="mb-24 md:mb-32 relative">
-            <div className="flex items-center justify-between mb-8 relative">
-                <span className="text-[#DF5B4C] text-xs font-bold tracking-widest md:absolute md:-left-12">03</span>
-                <span className="text-[#A99C91] text-xs font-bold tracking-[0.15em] uppercase ml-auto">Official Links</span>
-            </div>
-            
-            <div className="flex flex-col gap-4 pl-0 md:pl-8">
-              {profile.links.map((link: any, i: number) => (
-                <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="paper-card p-4 md:p-6 flex items-center justify-between group">
-                  <div className="flex items-center gap-4 md:gap-6">
-                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-[#F4EEE6] text-[#DF5B4C] flex items-center justify-center group-hover:bg-[#DF5B4C] group-hover:text-white transition-colors shrink-0">
-                        <LinkIcon className="w-4 h-4 md:w-5 md:h-5" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-[#2B2321] text-base md:text-lg">{link.label}</h3>
-                      <p className="text-xs md:text-sm text-[#766B64] mt-0.5 truncate max-w-[150px] sm:max-w-[300px] md:max-w-[500px]">
-                        {link.url.replace(/^https?:\/\/(www\.)?/, '')}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-[#DF5B4C] md:text-[#A99C91] group-hover:text-[#DF5B4C] transition-colors pl-4 shrink-0">
-                    <ArrowRight className="w-5 h-5 transform rotate-[-45deg] group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-                  </div>
-                </a>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* 5. Featured Work */}
-        {featured && featured.length > 0 && (
-          <section className="mb-24 md:mb-32 relative">
-            <div className="flex items-center justify-between mb-8 relative">
-              <span className="text-[#DF5B4C] text-xs font-bold tracking-widest md:absolute md:-left-12">04</span>
-              <span className="text-[#A99C91] text-xs font-bold tracking-[0.15em] uppercase ml-auto">On the record</span>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pl-0 md:pl-8">
-              {featured.map((item: any, i: number) => (
-                <a key={i} href={item.url} target="_blank" rel="noopener noreferrer" className="paper-card overflow-hidden flex flex-col md:flex-row group col-span-1 md:col-span-2">
-                  <div className="md:w-5/12 h-56 md:h-auto bg-[#766B64] relative overflow-hidden shrink-0">
-                    {item.image ? (
-                       <img src={item.image} alt={item.title} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity group-hover:scale-105 duration-700" />
-                    ) : (
-                       <div className="w-full h-full bg-[#2B2321] flex items-center justify-center p-6">
-                         <div className="w-24 h-24 rounded-full border border-[rgba(255,250,243,0.1)] flex items-center justify-center">
-                           <Sparkles className="w-8 h-8 text-[#A8B89D]" />
-                         </div>
-                       </div>
-                    )}
-                    <div className="absolute top-4 right-4 w-8 h-8 rounded-full bg-[#DF5B4C] text-white flex items-center justify-center transform rotate-[-45deg] opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all md:translate-y-2 md:group-hover:translate-y-0">
-                      <ArrowRight className="w-4 h-4" />
-                    </div>
-                  </div>
-                  <div className="p-6 md:p-10 md:w-7/12 flex flex-col justify-center">
-                    <p className="text-[10px] font-bold tracking-[0.2em] text-[#A99C91] uppercase mb-4">
-                      <span className="text-[#DF5B4C]">{item.category}</span> <span className="mx-2">·</span> {item.date}
-                    </p>
-                    <h3 className="font-serif text-3xl md:text-5xl text-[#2B2321] leading-tight mb-4 group-hover:text-[#DF5B4C] transition-colors">
-                      {item.title}
-                    </h3>
-                    <p className="text-sm md:text-base text-[#766B64] leading-relaxed mb-8 max-w-xl">
-                      {item.desc}
-                    </p>
-                    <div className="text-xs font-bold uppercase tracking-widest text-[#DF5B4C] flex items-center gap-2 border-b border-[#DF5B4C]/30 pb-1 w-fit group-hover:pr-2 group-hover:border-[#DF5B4C] transition-all">
-                      Read the full piece <ArrowRight className="w-3 h-3 transform rotate-[-45deg]" />
-                    </div>
-                  </div>
-                </a>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* 6. Activity */}
-        {activities && activities.length > 0 && (
-          <section className="mb-24 md:mb-32 relative">
-            <div className="flex items-center justify-between mb-8 relative">
-              <span className="text-[#DF5B4C] text-xs font-bold tracking-widest md:absolute md:-left-12">05</span>
-              <span className="text-[#A99C91] text-xs font-bold tracking-[0.15em] uppercase ml-auto">Recently Said</span>
-            </div>
-
-            <div className="pl-0 md:pl-8 flex flex-col gap-0">
-              {activities.map((act: any, i: number) => (
-                <a key={i} href={act.url} target="_blank" rel="noopener noreferrer" className="py-6 border-b border-[rgba(169,156,145,0.2)] group flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-[rgba(255,250,243,0.5)] px-4 -mx-4 rounded-xl transition-colors">
-                  <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-12 w-full md:w-auto">
-                    <span className="text-[10px] font-bold tracking-[0.2em] text-[#DF5B4C] uppercase w-28 shrink-0">
-                      {act.type}
-                    </span>
-                    <span className="font-medium text-[#2B2321] text-base md:text-lg group-hover:text-[#DF5B4C] transition-colors leading-snug">
-                      {act.title}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between md:justify-end gap-6 w-full md:w-auto mt-2 md:mt-0 shrink-0">
-                    <span className="text-xs font-semibold text-[#A99C91] uppercase tracking-wider">{act.date}</span>
-                    <ArrowRight className="w-4 h-4 text-[#DF5B4C] md:text-[#A99C91] group-hover:text-[#DF5B4C] transform rotate-[-45deg]" />
-                  </div>
-                </a>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* 7. Contact & Footer */}
-        <section className="relative mt-24 md:mt-40 pt-16 md:pt-24 border-t border-[rgba(169,156,145,0.3)]">
-          <span className="text-[#DF5B4C] text-xs font-bold tracking-widest md:absolute md:-left-12 md:top-24 mb-12 block text-center md:text-left">06</span>
-          
-          <div className="flex flex-col items-center text-center mb-24 md:mb-32">
-            <p className="text-[#A99C91] text-xs font-bold tracking-[0.15em] uppercase mb-8">Keep in touch</p>
-            <h2 className="font-serif text-5xl md:text-7xl lg:text-8xl leading-[1.1] text-[#2B2321] mb-12">
-              Bring me into <br className="hidden sm:block" /> <span className="text-[#DF5B4C] italic">the conversation.</span>
-            </h2>
-            <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto justify-center">
-              <a href={`mailto:${profile.email || 'hello@example.com'}`} className="btn-primary w-full sm:w-auto justify-center px-10 py-4 rounded-full font-semibold text-sm tracking-wide flex items-center gap-2 group">
-                Get in touch
-                <ArrowRight className="w-4 h-4 transform rotate-[-45deg] group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-              </a>
-              <button 
-                onClick={() => {
-                  const vcard = `BEGIN:VCARD\nVERSION:3.0\nN:${profile.name};;;;\nFN:${profile.name}\nORG:${profile.company || ''}\nTITLE:${profile.role || ''}\nURL:${typeof window !== 'undefined' ? window.location.origin : ''}\nEND:VCARD`;
-                  const blob = new Blob([vcard], { type: 'text/vcard' });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `${profile.name?.replace(/\s+/g, '_') || 'Contact'}.vcf`;
-                  a.click();
-                  showToast('Contact saved!');
-                }}
-                className="btn-secondary w-full sm:w-auto justify-center px-10 py-4 rounded-full font-semibold text-sm tracking-wide flex items-center gap-2 group hover:bg-[#FFFAF3]">
-                Save contact
-                <ArrowRight className="w-4 h-4 transform group-hover:translate-y-1 transition-transform" />
-              </button>
-            </div>
-            <p className="text-[#A99C91] text-xs font-medium mt-8">For talks, collaborations, and good questions.</p>
-          </div>
-
-          <footer className="flex flex-col md:flex-row justify-between items-center gap-6 pb-8 text-[10px] font-bold tracking-[0.2em] uppercase text-[#A99C91] border-t border-[rgba(169,156,145,0.15)] pt-8">
+          {/* Header */}
+          <header className="flex justify-between items-center pb-6 mb-8 md:mb-12">
             <div className="flex items-center gap-2">
-              <span className="text-[#2B2321]">{profile.name?.toUpperCase() || "MAYA VALE"}</span>
+               <div className="w-4 h-4 bg-[#DF5B4C] rounded-sm transform rotate-45"></div>
+               <span className="font-bold tracking-widest text-xs uppercase">The Voice</span>
             </div>
-            <div className="text-center text-[#766B64]">
-              MATERIAL DRAWING / THE VOICE.
+            <div className="text-[10px] md:text-xs font-bold tracking-widest uppercase text-[#DF5B4C] flex items-center gap-2 md:gap-4">
+               <span className="text-[#766B64]">Influencer / 03</span>
+               <span>↗</span>
             </div>
-            <div>
-              &copy; {new Date().getFullYear()}
-            </div>
-          </footer>
-        </section>
+          </header>
 
+          {/* 1. Hero */}
+          <section className="flex flex-col-reverse md:flex-row gap-10 md:gap-8 items-center md:items-start mb-16 md:mb-24">
+            <div className="w-full md:w-1/2 flex flex-col justify-center mt-2 md:mt-10 text-center md:text-left items-center md:items-start">
+              <p className="text-[#A99C91] text-xs font-bold tracking-[0.2em] uppercase mb-4 md:mb-6 flex items-center justify-center md:justify-start gap-4 w-full">
+                <span className="w-8 h-px bg-[#A99C91] hidden md:block"></span>
+                A voice in progress
+              </p>
+              <h1 className="font-serif text-5xl sm:text-6xl md:text-7xl lg:text-8xl leading-[0.95] text-[#2B2321] mb-5 tracking-tight">
+                {profile.name?.split(' ')[0] || "Maya"} <br className="hidden md:block" />
+                <span className="text-[#DF5B4C] italic pr-0 md:pr-4">{profile.name?.split(' ').slice(1).join(' ') || "Vale"}</span>
+              </h1>
+              <p className="text-base md:text-lg text-[#766B64] font-medium mb-5">
+                {profile.role || profile.headline || "Writer, host & cultural commentator"}
+              </p>
+              <p className="text-sm md:text-base text-[#2B2321] max-w-sm leading-relaxed mb-8">
+                {profile.bio || "I make room for the complicated thought, the honest question, and the story you carry home."}
+              </p>
+              <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                <a href={`mailto:${profile.email || 'hello@example.com'}`} className="btn-primary w-full sm:w-auto justify-center px-6 py-3 rounded-full font-semibold text-sm tracking-wide flex items-center gap-2 group">
+                  Get in touch
+                  <ArrowRight className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" />
+                </a>
+                <button 
+                  onClick={() => {
+                    navigator.clipboard.writeText(typeof window !== 'undefined' ? window.location.href : '');
+                    showToast('Profile link copied!');
+                  }}
+                  className="btn-secondary w-full sm:w-auto justify-center px-6 py-3 rounded-full font-semibold text-sm tracking-wide flex items-center gap-2 group">
+                  Share profile
+                  <ArrowRight className="w-4 h-4 transform rotate-[-45deg] group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                </button>
+              </div>
+            </div>
+            
+            <div className="w-full md:w-1/2 flex justify-center md:justify-end relative mt-4 md:mt-0">
+              <div className="hidden md:block absolute top-8 left-8 text-[#DF5B4C] z-10">
+                 <ArrowRight className="w-6 h-6 transform rotate-[135deg]" />
+              </div>
+              {profile.avatarUrl ? (
+                <img 
+                  src={profile.avatarUrl} 
+                  alt={profile.name} 
+                  className="arch-image w-full max-w-[320px] md:max-w-[380px] h-[380px] md:h-[480px] object-cover shadow-xl relative z-0"
+                />
+              ) : (
+                <div className="arch-image w-full max-w-[320px] md:max-w-[380px] h-[380px] md:h-[480px] bg-[#D9D2E6] flex items-center justify-center shadow-xl relative z-0">
+                  <span className="font-serif text-4xl text-[#766B64] opacity-50">Profile</span>
+                </div>
+              )}
+              <div className="absolute bottom-4 left-4 md:bottom-8 md:left-12 text-white text-xs font-bold tracking-widest uppercase z-10 drop-shadow-md">
+                {new Date().getFullYear()} / Profile
+              </div>
+            </div>
+          </section>
+
+          {/* 2. Point of View */}
+          <section className="mb-16 md:mb-24 relative">
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/4 w-[250px] h-[250px] rounded-full bg-[#A8B89D] opacity-20 blur-3xl -z-10 pointer-events-none"></div>
+            
+            <div className="flex flex-col md:flex-row md:items-end gap-6 md:gap-16 relative z-10">
+              <div className="relative">
+                <span className="text-[#DF5B4C] text-[10px] md:text-xs font-bold tracking-widest block md:absolute md:-left-10 md:top-2 mb-3 md:mb-0">01</span>
+                <h2 className="font-serif text-3xl md:text-5xl lg:text-6xl leading-[1.1] text-[#2B2321] max-w-2xl relative z-10">
+                  <span className="absolute -left-2 md:-left-6 -top-3 md:-top-6 text-5xl md:text-7xl text-[#A8B89D] opacity-40 -z-10 select-none">“</span>
+                  {statement}
+                </h2>
+              </div>
+              <div className="md:w-1/3 md:pb-2 border-l-2 border-[#A8B89D]/30 pl-4 md:border-none md:pl-0">
+                <p className="text-[#766B64] leading-relaxed text-sm">
+                  {statementSub}
+                </p>
+              </div>
+            </div>
+          </section>
+
+          {/* 3. Proof */}
+          {stats && stats.length > 0 && (
+            <section className="mb-16 md:mb-24">
+              <div className="flex items-center justify-between mb-6 md:mb-10 relative">
+                <span className="text-[#DF5B4C] text-[10px] md:text-xs font-bold tracking-widest md:absolute md:-left-10">02</span>
+                <span className="text-[#A99C91] text-[10px] md:text-xs font-bold tracking-[0.15em] uppercase ml-auto">A little proof</span>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-6 md:gap-10 pl-0 md:pl-6">
+                {stats.map((stat: any, i: number) => (
+                  <div key={i} className="flex flex-col border-t border-[rgba(169,156,145,0.3)] pt-4 md:pt-5">
+                    <span className="font-serif text-4xl md:text-5xl lg:text-6xl text-[#2B2321] mb-1">{stat.value}</span>
+                    <span className="text-[10px] font-bold tracking-widest uppercase text-[#766B64]">{stat.label}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* 4. Links */}
+          {profile.links && profile.links.length > 0 && (
+            <section className="mb-16 md:mb-24 relative">
+              <div className="flex items-center justify-between mb-6 md:mb-10 relative">
+                  <span className="text-[#DF5B4C] text-[10px] md:text-xs font-bold tracking-widest md:absolute md:-left-10">03</span>
+                  <span className="text-[#A99C91] text-[10px] md:text-xs font-bold tracking-[0.15em] uppercase ml-auto">Official Links</span>
+              </div>
+              
+              <div className="flex flex-col gap-3 pl-0 md:pl-6">
+                {profile.links.map((link: any, i: number) => (
+                  <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="paper-card p-3 md:p-5 flex items-center justify-between group">
+                    <div className="flex items-center gap-3 md:gap-5">
+                      <div className="w-10 h-10 rounded-full bg-[#F4EEE6] text-[#DF5B4C] flex items-center justify-center group-hover:bg-[#DF5B4C] group-hover:text-white transition-colors shrink-0">
+                          <LinkIcon className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-[#2B2321] text-sm md:text-base">{link.label}</h3>
+                        <p className="text-xs text-[#766B64] mt-0.5 truncate max-w-[150px] sm:max-w-[300px] md:max-w-[400px]">
+                          {link.url.replace(/^https?:\/\/(www\.)?/, '')}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-[#DF5B4C] md:text-[#A99C91] group-hover:text-[#DF5B4C] transition-colors pl-4 shrink-0">
+                      <ArrowRight className="w-5 h-5 transform rotate-[-45deg] group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* 5. Featured Work */}
+          {featured && featured.length > 0 && (
+            <section className="mb-16 md:mb-24 relative">
+              <div className="flex items-center justify-between mb-6 md:mb-10 relative">
+                <span className="text-[#DF5B4C] text-[10px] md:text-xs font-bold tracking-widest md:absolute md:-left-10">04</span>
+                <span className="text-[#A99C91] text-[10px] md:text-xs font-bold tracking-[0.15em] uppercase ml-auto">On the record</span>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pl-0 md:pl-6">
+                {featured.map((item: any, i: number) => (
+                  <a key={i} href={item.url} target="_blank" rel="noopener noreferrer" className="paper-card overflow-hidden flex flex-col md:flex-row group col-span-1 md:col-span-2">
+                    <div className="md:w-5/12 h-48 md:h-auto bg-[#766B64] relative overflow-hidden shrink-0">
+                      {item.image ? (
+                         <img src={item.image} alt={item.title} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity group-hover:scale-105 duration-700" />
+                      ) : (
+                         <div className="w-full h-full bg-[#2B2321] flex items-center justify-center p-6">
+                           <div className="w-20 h-20 rounded-full border border-[rgba(255,250,243,0.1)] flex items-center justify-center">
+                             <Sparkles className="w-6 h-6 text-[#A8B89D]" />
+                           </div>
+                         </div>
+                      )}
+                      <div className="absolute top-4 right-4 w-8 h-8 rounded-full bg-[#DF5B4C] text-white flex items-center justify-center transform rotate-[-45deg] opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all md:translate-y-2 md:group-hover:translate-y-0">
+                        <ArrowRight className="w-4 h-4" />
+                      </div>
+                    </div>
+                    <div className="p-5 md:p-8 md:w-7/12 flex flex-col justify-center">
+                      <p className="text-[9px] font-bold tracking-[0.2em] text-[#A99C91] uppercase mb-3">
+                        <span className="text-[#DF5B4C]">{item.category}</span> <span className="mx-1.5">·</span> {item.date}
+                      </p>
+                      <h3 className="font-serif text-2xl md:text-4xl text-[#2B2321] leading-tight mb-3 group-hover:text-[#DF5B4C] transition-colors">
+                        {item.title}
+                      </h3>
+                      <p className="text-sm text-[#766B64] leading-relaxed mb-6 max-w-lg">
+                        {item.desc}
+                      </p>
+                      <div className="text-[10px] font-bold uppercase tracking-widest text-[#DF5B4C] flex items-center gap-2 border-b border-[#DF5B4C]/30 pb-1 w-fit group-hover:pr-2 group-hover:border-[#DF5B4C] transition-all">
+                        Read the full piece <ArrowRight className="w-3 h-3 transform rotate-[-45deg]" />
+                      </div>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* 6. Activity */}
+          {activities && activities.length > 0 && (
+            <section className="mb-16 md:mb-24 relative">
+              <div className="flex items-center justify-between mb-6 md:mb-10 relative">
+                <span className="text-[#DF5B4C] text-[10px] md:text-xs font-bold tracking-widest md:absolute md:-left-10">05</span>
+                <span className="text-[#A99C91] text-[10px] md:text-xs font-bold tracking-[0.15em] uppercase ml-auto">Recently Said</span>
+              </div>
+
+              <div className="pl-0 md:pl-6 flex flex-col gap-0">
+                {activities.map((act: any, i: number) => (
+                  <a key={i} href={act.url} target="_blank" rel="noopener noreferrer" className="py-4 md:py-5 border-b border-[rgba(169,156,145,0.2)] group flex flex-col md:flex-row md:items-center justify-between gap-3 hover:bg-[rgba(255,250,243,0.5)] px-4 -mx-4 rounded-xl transition-colors">
+                    <div className="flex flex-col md:flex-row md:items-center gap-1.5 md:gap-10 w-full md:w-auto">
+                      <span className="text-[9px] font-bold tracking-[0.2em] text-[#DF5B4C] uppercase w-24 shrink-0">
+                        {act.type}
+                      </span>
+                      <span className="font-medium text-[#2B2321] text-sm md:text-base group-hover:text-[#DF5B4C] transition-colors leading-snug">
+                        {act.title}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between md:justify-end gap-5 w-full md:w-auto mt-1 md:mt-0 shrink-0">
+                      <span className="text-[10px] font-semibold text-[#A99C91] uppercase tracking-wider">{act.date}</span>
+                      <ArrowRight className="w-4 h-4 text-[#DF5B4C] md:text-[#A99C91] group-hover:text-[#DF5B4C] transform rotate-[-45deg]" />
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* 7. Contact & Footer */}
+          <section className="relative mt-16 md:mt-24 pt-12 md:pt-16 border-t border-[rgba(169,156,145,0.3)]">
+            <span className="text-[#DF5B4C] text-[10px] md:text-xs font-bold tracking-widest md:absolute md:-left-10 md:top-16 mb-8 block text-center md:text-left">06</span>
+            
+            <div className="flex flex-col items-center text-center mb-16 md:mb-20">
+              <p className="text-[#A99C91] text-[10px] md:text-xs font-bold tracking-[0.15em] uppercase mb-6">Keep in touch</p>
+              <h2 className="font-serif text-4xl md:text-6xl lg:text-7xl leading-[1.1] text-[#2B2321] mb-8">
+                Bring me into <br className="hidden sm:block" /> <span className="text-[#DF5B4C] italic">the conversation.</span>
+              </h2>
+              <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto justify-center">
+                <a href={`mailto:${profile.email || 'hello@example.com'}`} className="btn-primary w-full sm:w-auto justify-center px-8 py-3.5 rounded-full font-semibold text-sm tracking-wide flex items-center gap-2 group">
+                  Get in touch
+                  <ArrowRight className="w-4 h-4 transform rotate-[-45deg] group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                </a>
+                <button 
+                  onClick={() => {
+                    const vcard = `BEGIN:VCARD\nVERSION:3.0\nN:${profile.name};;;;\nFN:${profile.name}\nORG:${profile.company || ''}\nTITLE:${profile.role || ''}\nURL:${typeof window !== 'undefined' ? window.location.origin : ''}\nEND:VCARD`;
+                    const blob = new Blob([vcard], { type: 'text/vcard' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${profile.name?.replace(/\s+/g, '_') || 'Contact'}.vcf`;
+                    a.click();
+                    showToast('Contact saved!');
+                  }}
+                  className="btn-secondary w-full sm:w-auto justify-center px-8 py-3.5 rounded-full font-semibold text-sm tracking-wide flex items-center gap-2 group hover:bg-[#FFFAF3]">
+                  Save contact
+                  <ArrowRight className="w-4 h-4 transform group-hover:translate-y-1 transition-transform" />
+                </button>
+              </div>
+              <p className="text-[#A99C91] text-[10px] md:text-xs font-medium mt-6">For talks, collaborations, and good questions.</p>
+            </div>
+
+            <footer className="flex flex-col md:flex-row justify-between items-center gap-4 pb-4 text-[9px] font-bold tracking-[0.2em] uppercase text-[#A99C91] border-t border-[rgba(169,156,145,0.15)] pt-6">
+              <div className="flex items-center gap-2">
+                <span className="text-[#2B2321]">{profile.name?.toUpperCase() || "MAYA VALE"}</span>
+              </div>
+              <div className="text-center text-[#766B64]">
+                MATERIAL DRAWING / THE VOICE.
+              </div>
+              <div>
+                &copy; {new Date().getFullYear()}
+              </div>
+            </footer>
+          </section>
+
+        </div>
       </div>
       
       {/* Toast */}
