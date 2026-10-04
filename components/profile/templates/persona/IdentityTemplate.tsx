@@ -901,7 +901,7 @@ function HumanTemplate({ profile, accentColor }: any) {
   `;
 
   return (
-    <div className="w-full min-h-[100dvh] flex flex-col items-center justify-start bg-[#0a161e] p-[clamp(8px,2.5vw,24px)]">
+    <div className="w-full min-h-[100dvh] flex flex-col items-center justify-start bg-[#0a161e] p-[clamp(16px,5vw,48px)]">
       <div 
         className="human-theme w-full relative flex-1 max-w-[1440px] overflow-hidden antialiased flex flex-col shadow-2xl"
         style={{ borderRadius: 'clamp(24px, 5vw, 48px)' }}
@@ -1099,7 +1099,7 @@ function HumanTemplate({ profile, accentColor }: any) {
         {/* Organic layered backgrounds */}
         <div className="absolute bottom-0 right-0 w-[85%] md:w-[70%] h-full bg-[#EFE4CC] human-footer-shape-1 z-0 shadow-2xl" />
         <div className="absolute bottom-0 left-0 w-[70%] md:w-[45%] h-[85%] bg-[#BE5B42] human-footer-shape-2 z-0 shadow-2xl" />
-        <div className="absolute -bottom-16 left-[20%] w-[35%] h-[60%] bg-[#123040] human-footer-shape-3 z-0 shadow-2xl" />
+        <div className="absolute -bottom-16 -left-4 md:left-[5%] w-[50%] md:w-[28%] h-[60%] md:h-[50%] bg-[#123040] human-footer-shape-3 z-0 shadow-2xl" />
 
         <div className="relative z-10 w-full max-w-[1300px] mx-auto px-6 md:px-12 flex flex-col md:flex-row justify-between items-end gap-12 h-full pb-4">
           
@@ -1108,7 +1108,7 @@ function HumanTemplate({ profile, accentColor }: any) {
             <div className="w-8 h-[2px] bg-[#1B1D1B] mt-3"></div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4 md:gap-6 w-full md:w-auto mx-auto md:ml-auto md:mr-16">
+          <div className="flex flex-col sm:flex-row gap-4 md:gap-6 w-full md:w-auto mx-auto md:ml-auto md:mr-8 z-10">
             <button 
               onClick={handleContact} 
               className="w-full sm:w-auto px-8 py-4 md:py-5 rounded-full border border-[#1B1D1B]/30 text-[#1B1D1B] font-sans font-bold flex items-center justify-center gap-3 hover:bg-white/10 hover:border-[#1B1D1B] transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1B1D1B]"
