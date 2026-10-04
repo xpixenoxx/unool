@@ -8,12 +8,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Linkedin, Twitter, MessageSquare, CheckCircle, Edit, Send, AlertCircle, Sparkles, CircleCheckBig, X, ExternalLink, Facebook, Youtube, Instagram, Cloud, MessageCircle, Image as ImageIcon, Send as SendIcon } from 'lucide-react';
+import { Loader2, Linkedin, Twitter, MessageSquare, CheckCircle, Edit, Send, AlertCircle, Sparkles, CircleCheckBig, X, ExternalLink, Facebook, Youtube, Instagram, Cloud, MessageCircle, Image as ImageIcon, Send as SendIcon, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import { Flex, Box, Stack, Text, Display, Divider } from '@/components/ui/layout';
 import { MotionBox, MotionStack, spring, stagger } from '@/components/ui/motion';
 import { cn } from '@/lib/utils';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { PlatformPreview } from './PlatformPreview';
 
 type Platform = 'linkedin' | 'x' | 'threads' | 'manual' | 'facebook' | 'whatsapp' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky';
 type DraftStatus = 'draft' | 'published' | 'failed';
@@ -86,6 +87,7 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
   const [loading, setLoading] = useState(true);
   const [publishing, setPublishing] = useState(false);
   const [publishResults, setPublishResults] = useState<Record<string, { success: boolean; platformUrl?: string; error?: string }>>({});
+  const [previewMode, setPreviewMode] = useState<Record<string, boolean>>({});
   const springConfig: Transition = reducedMotion ? { type: 'tween', duration: 0.01 } : spring.standard;
 
   const loadPost = useCallback(async (isPolling = false) => {
@@ -359,15 +361,52 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
                       </Flex>
                     </Flex>
 
-                    {!isPublished && (
-                      <Textarea
-                        value={draft.content}
-                        onChange={e => updateDraft(draft.platform, e.target.value)}
-                        className={cn('min-h-[120px]', isOverLimit && 'border-destructive')}
-                        rows={5}
-                        disabled={isPublished || isFailed}
-                        placeholder={isPublished ? 'Published — view on platform' : isFailed ? 'Publish failed' : 'Edit your draft'}
+                    {/* Preview / Edit toggle */}
+                    {isPublished ? (
+                      <PlatformPreview
+                        platform={draft.platform}
+                        content={draft.content}
+                        mediaUrls={draft.mediaUrls}
                       />
+                    ) : (
+                      <>
+                        {/* Toggle buttons */}
+                        <Flex gap={1} className="mb-2">
+                          <Button
+                            variant={!previewMode[draft.platform] ? 'default' : 'ghost'}
+                            size="sm"
+                            onClick={() => setPreviewMode(p => ({ ...p, [draft.platform]: false }))}
+                          >
+                            <Edit className="mr-1 h-3 w-3" />
+                            Edit
+                          </Button>
+                          <Button
+                            variant={previewMode[draft.platform] ? 'default' : 'ghost'}
+                            size="sm"
+                            onClick={() => setPreviewMode(p => ({ ...p, [draft.platform]: true }))}
+                          >
+                            <Eye className="mr-1 h-3 w-3" />
+                            Preview
+                          </Button>
+                        </Flex>
+
+                        {previewMode[draft.platform] ? (
+                          <PlatformPreview
+                            platform={draft.platform}
+                            content={draft.content}
+                            mediaUrls={draft.mediaUrls}
+                          />
+                        ) : (
+                          <Textarea
+                            value={draft.content}
+                            onChange={e => updateDraft(draft.platform, e.target.value)}
+                            className={cn('min-h-[120px]', isOverLimit && 'border-destructive')}
+                            rows={5}
+                            disabled={isFailed}
+                            placeholder={isFailed ? 'Publish failed' : 'Edit your draft'}
+                          />
+                        )}
+                      </>
                     )}
 
                     {isOverLimit && (
@@ -422,11 +461,7 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
                         <Flex wrap gap={2}>
                           <Button variant="ghost" size="sm" disabled>
                             <CheckCircle className="mr-1 h-3 w-3" />
-                            Editing...
-                          </Button>
-                          <Button variant="ghost" size="sm" disabled>
-                            <Edit className="mr-1 h-3 w-3" />
-                            Manual Edit
+                            Ready to publish
                           </Button>
                         </Flex>
                       </>
