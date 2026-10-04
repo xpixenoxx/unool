@@ -220,19 +220,17 @@ export class ThreadsAdapter implements PlatformAdapter {
       const publishData = await publishResponse.json();
       const platformPostId = publishData.id;
 
-      // If first comment was provided, post it as a reply
+      // If first comment was provided, post it as a reply (fire-and-forget)
       if (input.firstComment) {
-        try {
-          await this.postReply(accessToken, platformPostId, input.firstComment);
-        } catch (replyError) {
+        this.postReply(accessToken, platformPostId, input.firstComment).catch((replyError) => {
           const err = replyError instanceof Error ? replyError : new Error(String(replyError));
           logger.warn('Threads first comment reply failed', { error: err });
-          // Don't fail the main post if reply fails
-        }
+        });
       }
 
-      const profile = await this.getUserProfile(accessToken);
-      const platformUrl = `https://www.threads.net/@${profile.username}/post/${platformPostId}`;
+      // Use pre-fetched username from connection data instead of making another API call
+      const username = input.username || 'unknown';
+      const platformUrl = `https://www.threads.net/@${username}/post/${platformPostId}`;
 
       return {
         platformPostId,
@@ -244,7 +242,7 @@ export class ThreadsAdapter implements PlatformAdapter {
 
   private async waitForContainerReady(accessToken: string, creationId: string, maxAttempts = 10): Promise<void> {
     for (let i = 0; i < maxAttempts; i++) {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       const response = await fetchWithRetry(
         `${THREADS_API_BASE}/${creationId}?fields=status&access_token=${accessToken}`,

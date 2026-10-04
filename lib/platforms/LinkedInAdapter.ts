@@ -127,7 +127,11 @@ export class LinkedInAdapter implements PlatformAdapter {
 
   async publish(accessToken: string, input: PublishInput): Promise<PublishResult> {
     return platformFetch('linkedin', async () => {
-      const authorUrn = await this.getAuthorUrn(accessToken);
+      // Use pre-fetched platformUserId from the connection if available,
+      // avoiding an extra API call to /v2/userinfo on every publish
+      const authorUrn = input.platformUserId
+        ? `urn:li:person:${input.platformUserId}`
+        : await this.getAuthorUrn(accessToken);
 
       let contentObj: any = undefined;
 

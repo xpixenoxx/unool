@@ -69,6 +69,8 @@ export class PublishService {
       content: variant.adaptedContent,
       mediaUrls,
       firstComment: variant.firstCommentHint || undefined,
+      platformUserId: connection.platformUserId,
+      username: connection.username,
     };
 
     logger.info('PublishService: prepared publish input', {

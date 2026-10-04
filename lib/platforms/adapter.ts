@@ -24,6 +24,10 @@ export interface PublishInput {
   content: string;
   mediaUrls?: string[];
   firstComment?: string;
+  /** Pre-fetched from the stored connection — avoids an extra API call during publish */
+  platformUserId?: string;
+  /** Pre-fetched username from the stored connection */
+  username?: string;
   // WhatsApp-specific
   whatsappMessageType?: 'text' | 'image' | 'video' | 'document' | 'status';
   whatsappRecipientType?: 'contact' | 'status';  // 'status' = broadcast to all contacts
