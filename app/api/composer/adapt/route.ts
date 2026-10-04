@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       const { userId, workspaceId } = auth;
 
       const body = await request.json();
-      const { content, profileId, mediaItems } = body;
+      const { content, profileId, mediaItems, selectedPlatforms } = body;
 
       if (!content || typeof content !== 'string' || !content.trim()) {
         return NextResponse.json({ error: 'Content is required' }, { status: 400 });
@@ -69,9 +69,13 @@ export async function POST(request: NextRequest) {
       const { SupabasePlatformRepository } = await import('@/lib/repositories/supabase/SupabasePlatformRepository');
       const platformRepo = new SupabasePlatformRepository();
       const connections = await platformRepo.findByWorkspaceId(workspaceId);
-      const activePlatforms = connections
+      let activePlatforms = connections
         .filter(c => c.status === 'connected')
         .map(c => c.platform as PlatformType);
+
+      if (selectedPlatforms && Array.isArray(selectedPlatforms) && selectedPlatforms.length > 0) {
+        activePlatforms = activePlatforms.filter(p => selectedPlatforms.includes(p));
+      }
 
       if (activePlatforms.length === 0) {
         return NextResponse.json(
@@ -82,8 +86,8 @@ export async function POST(request: NextRequest) {
 
       logger.info('Composer adaptation requested', { traceId, workspaceId, contentLength: content.length, activePlatforms });
 
-      // Adapt content for all platforms
-      const results = await PostAdapter.adaptForAllPlatforms(content.trim(), profileContext);
+      // Adapt content for all connected platforms
+      const results = await PostAdapter.adaptForPlatforms(content.trim(), activePlatforms, profileContext);
 
       const variants: Record<PlatformType, AdaptedPost> = {} as Record<PlatformType, AdaptedPost>;
       let totalTokensIn = 0;
@@ -114,6 +118,23 @@ export async function POST(request: NextRequest) {
       // Create variants
       for (const platform of activePlatforms) {
         const adapted = variants[platform];
+
+        let status: 'draft' | 'failed' | 'published' = 'draft';
+        let errorObj: any = null;
+
+        const hasVideo = (mediaItems || []).some((m: any) => m.type === 'video');
+
+        if (platform === 'threads' && hasVideo) {
+          status = 'failed';
+          errorObj = { code: 'UNSUPPORTED_MEDIA', message: 'Threads does not support video uploads.' };
+        } else if (platform === 'pinterest' && hasVideo) {
+          status = 'failed';
+          errorObj = { code: 'UNSUPPORTED_MEDIA', message: 'Pinterest does not support video uploads.' };
+        } else if (platform === 'bluesky' && hasVideo) {
+          status = 'failed';
+          errorObj = { code: 'UNSUPPORTED_MEDIA', message: 'Bluesky does not support video uploads.' };
+        }
+
         await postRepository.createVariant({
           postId: post.id,
           platform,
@@ -122,6 +143,8 @@ export async function POST(request: NextRequest) {
           characterCount: adapted.characterCount,
           hashtagStrategy: adapted.hashtags,
           firstCommentHint: adapted.firstCommentHint || undefined,
+          status,
+          error: errorObj,
         });
       }
 

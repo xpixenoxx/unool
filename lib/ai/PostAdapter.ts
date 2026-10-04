@@ -150,11 +150,11 @@ ${context ? `**Author Context:** ${context.profileName} - ${context.profileHeadl
     }
   }
 
-  static async adaptForAllPlatforms(
+  static async adaptForPlatforms(
     sourceContent: string,
+    platforms: PlatformType[],
     context?: { profileName?: string; profileHeadline?: string }
   ): Promise<Record<PlatformType, Result<AdaptedPost, Error>>> {
-    const platforms: PlatformType[] = ['linkedin', 'x', 'threads', 'facebook', 'whatsapp', 'instagram'];
     const results = await Promise.all(
       platforms.map(platform => this.adaptForPlatform(sourceContent, platform, context))
     );

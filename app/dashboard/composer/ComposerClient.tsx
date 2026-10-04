@@ -18,6 +18,12 @@ import {
   Linkedin,
   Twitter,
   MessageSquare,
+  Facebook,
+  MessageCircle,
+  Instagram,
+  Youtube,
+  Image as ImageIcon,
+  Cloud,
   Zap,
   ArrowUpRight,
   AlertTriangle,
@@ -27,19 +33,26 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Box, Flex, Text, Display } from '@/components/ui/layout';
 import { MotionBox, spring } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { cn } from '@/lib/utils';
 import { getSupabaseBrowserClient } from '@/lib/supabase/browser';
 
+type PlatformType = 'linkedin' | 'x' | 'threads' | 'facebook' | 'whatsapp' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky';
+
 const PLATFORM_CONFIG: Record<PlatformType, { icon: React.ElementType; name: string; maxChars: number; color: string }> = {
   linkedin: { icon: Linkedin, name: 'LinkedIn', maxChars: 3000, color: 'bg-blue-600' },
   x: { icon: Twitter, name: 'X (Twitter)', maxChars: 280, color: 'bg-gray-800 dark:bg-gray-200' },
   threads: { icon: MessageSquare, name: 'Threads', maxChars: 500, color: 'bg-black dark:bg-white' },
+  facebook: { icon: Facebook, name: 'Facebook', maxChars: 63206, color: 'bg-blue-600' },
+  whatsapp: { icon: MessageCircle, name: 'WhatsApp', maxChars: 1024, color: 'bg-green-600' },
+  instagram: { icon: Instagram, name: 'Instagram', maxChars: 2200, color: 'bg-pink-600' },
+  youtube: { icon: Youtube, name: 'YouTube', maxChars: 5000, color: 'bg-red-600' },
+  pinterest: { icon: ImageIcon, name: 'Pinterest', maxChars: 500, color: 'bg-red-600' },
+  bluesky: { icon: Cloud, name: 'Bluesky', maxChars: 300, color: 'bg-blue-400' },
 };
-
-type PlatformType = 'linkedin' | 'x' | 'threads';
 
 interface PlatformDraft {
   platform: PlatformType;
@@ -83,13 +96,11 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const [sourceContent, setSourceContent] = useState('');
   const [quickContent, setQuickContent] = useState('');
   const [mode, setMode] = useState<'ai' | 'quick'>('ai');
-  const [isBroadcasting, setIsBroadcasting] = useState(false);
-  const [drafts, setDrafts] = useState<PlatformDraft[]>([
-    { platform: 'linkedin', content: '', characterCount: 0, hashtags: [], status: 'idle' },
-    { platform: 'x', content: '', characterCount: 0, hashtags: [], status: 'idle' },
-    { platform: 'threads', content: '', characterCount: 0, hashtags: [], status: 'idle' },
-  ]);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [broadcastingType, setBroadcastingType] = useState<'selected' | 'all' | null>(null);
+  const isBroadcasting = broadcastingType !== null;
+  const [drafts, setDrafts] = useState<PlatformDraft[]>([]);
+  const [generatingType, setGeneratingType] = useState<'selected' | 'all' | null>(null);
+  const isGenerating = generatingType !== null;
   const [postId, setPostId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<PlatformType>('linkedin');
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -98,7 +109,33 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const [media, setMedia] = useState<{url: string; type: 'image' | 'video' | 'document'}[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [connectedPlatforms, setConnectedPlatforms] = useState<PlatformType[]>([]);
+  const [selectedPlatforms, setSelectedPlatforms] = useState<PlatformType[]>([]);
   const springConfig: Transition = reducedMotion ? { type: 'tween', duration: 0.01 } : spring.snappy;
+
+  const loadConnections = useCallback(async () => {
+    try {
+      const res = await fetch('/api/platform/connections', { credentials: 'include' });
+      const data = await res.json();
+      if (data.connections) {
+        const active = Object.values(data.connections)
+          .filter((c: any) => c.status === 'connected')
+          .map((c: any) => c.platform as PlatformType);
+        setConnectedPlatforms(active);
+        setSelectedPlatforms([]);
+      }
+    } catch {
+      // Ignore
+    }
+  }, []);
+
+  const togglePlatform = (platform: PlatformType) => {
+    setSelectedPlatforms(prev => 
+      prev.includes(platform) 
+        ? prev.filter(p => p !== platform)
+        : [...prev, platform]
+    );
+  };
 
   const processFiles = async (files: File[]) => {
     let currentImages = media.filter(m => m.type === 'image').length;
@@ -240,16 +277,17 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
 
   useEffect(() => {
     loadProfile();
-  }, [loadProfile]);
+    loadConnections();
+  }, [loadProfile, loadConnections]);
 
-  const generateDrafts = async () => {
+  const generateDrafts = async (useSelectedOnly: boolean = false) => {
     if (!sourceContent.trim() || !profile) {
       toast.error('Please complete your profile first in the Presence tab');
       return;
     }
 
     setPlanError(null);
-    setIsGenerating(true);
+    setGeneratingType(useSelectedOnly ? 'selected' : 'all');
     setDrafts(d => d.map(d => ({ ...d, status: 'generating' })));
 
     try {
@@ -257,7 +295,12 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ content: sourceContent, profileId: profile.id, mediaItems: media }),
+        body: JSON.stringify({ 
+          content: sourceContent, 
+          profileId: profile.id, 
+          mediaItems: media,
+          selectedPlatforms: useSelectedOnly ? selectedPlatforms : connectedPlatforms
+        }),
       });
 
       let data;
@@ -283,7 +326,10 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
 
       setPostId(data.postId);
 
-      const platforms: PlatformType[] = ['linkedin', 'x', 'threads'];
+      const platforms = Object.keys(data.variants) as PlatformType[];
+      if (platforms.length > 0) {
+        setActiveTab(platforms[0]);
+      }
       setDrafts(platforms.map(platform => {
         const result = data.variants[platform];
         return {
@@ -296,13 +342,13 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         };
       }));
 
-      toast.success('Generated drafts for 3 platforms');
+      toast.success(`Generated drafts for ${platforms.length} platforms`);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Failed to generate drafts';
       toast.error(errorMsg);
       setDrafts(d => d.map(d => ({ ...d, status: 'error', error: errorMsg })));
     } finally {
-      setIsGenerating(false);
+      setGeneratingType(null);
     }
   };
 
@@ -369,21 +415,26 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
     }
   };
 
-  const handleDirectBroadcast = async () => {
+  const handleDirectBroadcast = async (useSelectedOnly: boolean = false) => {
     if (!quickContent.trim() || !profile) {
       toast.error('Please complete your profile first');
       return;
     }
 
     setPlanError(null);
-    setIsBroadcasting(true);
+    setBroadcastingType(useSelectedOnly ? 'selected' : 'all');
 
     try {
       const res = await fetch('/api/composer/broadcast', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ content: quickContent, profileId: profile.id, mediaItems: media }),
+        body: JSON.stringify({ 
+          content: quickContent, 
+          profileId: profile.id, 
+          mediaItems: media,
+          selectedPlatforms: useSelectedOnly ? selectedPlatforms : connectedPlatforms
+        }),
       });
 
       let data;
@@ -425,11 +476,39 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       const errorMsg = err instanceof Error ? err.message : 'Broadcast failed';
       toast.error(errorMsg);
     } finally {
-      setIsBroadcasting(false);
+      setBroadcastingType(null);
     }
   };
 
   const readyCount = drafts.filter(d => d.status === 'ready').length;
+
+  const PlatformSelector = () => (
+    <div className="mb-4 space-y-2">
+      <p className="text-sm font-medium">Select Platforms:</p>
+      <div className="flex flex-wrap gap-3">
+        {connectedPlatforms.map(platform => {
+          const cfg = PLATFORM_CONFIG[platform];
+          const Icon = cfg.icon;
+          const isSelected = selectedPlatforms.includes(platform);
+          return (
+            <label key={platform} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 p-1.5 rounded-md transition-colors border border-transparent hover:border-border">
+              <Checkbox 
+                checked={isSelected} 
+                onCheckedChange={() => togglePlatform(platform)} 
+              />
+              <span className={cn('p-1 rounded-md text-white', cfg.color)}>
+                <Icon className="w-3 h-3" />
+              </span>
+              {cfg.name}
+            </label>
+          );
+        })}
+        {connectedPlatforms.length === 0 && (
+          <p className="text-sm text-muted-foreground italic">No platforms connected. Please connect platforms in Settings.</p>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <Box className="max-w-4xl mx-auto px-4 py-8 space-y-6">
@@ -559,6 +638,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
             >
+              <PlatformSelector />
               <Textarea
                 placeholder="What do you want to share? Drag and drop an image here, or type your exact text."
                 value={quickContent}
@@ -574,22 +654,31 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   {quickContent.length} characters
                   {quickContent.length > 280 && ' · exceeds X/Twitter limit (280)'}
                 </span>
-                <Button
-                  onClick={handleDirectBroadcast}
-                  disabled={isBroadcasting || !quickContent.trim() || !profile}
-                >
-                  {isBroadcasting ? (
-                    <>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => handleDirectBroadcast(true)}
+                    disabled={isBroadcasting || !quickContent.trim() || !profile || selectedPlatforms.length === 0}
+                  >
+                    {broadcastingType === 'selected' ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Publishing...
-                    </>
-                  ) : (
-                    <>
+                    ) : (
                       <Send className="mr-2 h-4 w-4" />
-                      Publish to All Platforms
-                    </>
-                  )}
-                </Button>
+                    )}
+                    Publish to Selected
+                  </Button>
+                  <Button
+                    onClick={() => handleDirectBroadcast(false)}
+                    disabled={isBroadcasting || !quickContent.trim() || !profile || connectedPlatforms.length === 0}
+                  >
+                    {broadcastingType === 'all' ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="mr-2 h-4 w-4" />
+                    )}
+                    Publish to All
+                  </Button>
+                </div>
               </div>
               
               {/* Media Upload (Quick Broadcast) */}
@@ -660,6 +749,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
               >
+                <PlatformSelector />
                 <Textarea
                   placeholder="e.g. 'Just launched v2 of our product...' (Drag and drop media here to attach it!)"
                   value={sourceContent}
@@ -671,22 +761,31 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   <span className="text-sm text-muted-foreground tabular-nums">
                     {sourceContent.length} characters
                   </span>
-                  <Button
-                    onClick={generateDrafts}
-                    disabled={isGenerating || !sourceContent.trim() || !profile}
-                  >
-                    {isGenerating ? (
-                      <>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => generateDrafts(true)}
+                      disabled={isGenerating || !sourceContent.trim() || !profile || selectedPlatforms.length === 0}
+                    >
+                      {generatingType === 'selected' ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Adapting for 3 platforms...
-                      </>
-                    ) : (
-                      <>
+                      ) : (
                         <Sparkles className="mr-2 h-4 w-4" />
-                        Generate Platform Drafts
-                      </>
-                    )}
-                  </Button>
+                      )}
+                      Draft for Selected
+                    </Button>
+                    <Button
+                      onClick={() => generateDrafts(false)}
+                      disabled={isGenerating || !sourceContent.trim() || !profile || connectedPlatforms.length === 0}
+                    >
+                      {generatingType === 'all' ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Sparkles className="mr-2 h-4 w-4" />
+                      )}
+                      Draft for All
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Media Upload (AI Composer) */}
@@ -756,28 +855,28 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   </CardHeader>
                   <CardContent>
                     <Tabs value={activeTab} onValueChange={(value: string) => setActiveTab(value as PlatformType)}>
-                      <TabsList className="w-full mb-4">
-                        {(['linkedin', 'x', 'threads'] as const).map(platform => {
+                      <TabsList className="w-full mb-4 flex-wrap h-auto">
+                        {drafts.map(draft => {
+                          const platform = draft.platform;
                           const cfg = PLATFORM_CONFIG[platform];
-                          const draft = drafts.find(d => d.platform === platform);
                           const Icon = cfg.icon;
                           return (
-                            <TabsTrigger key={platform} value={platform} className="flex-1 flex items-center justify-center gap-1.5">
+                            <TabsTrigger key={platform} value={platform} className="flex-1 min-w-[80px] flex items-center justify-center gap-1.5 py-2">
                               <span className={cn('p-1 rounded-md text-white', cfg.color)}>
                                 <Icon className="w-3 h-3" />
                               </span>
                               <span className="hidden sm:inline text-xs font-medium">{cfg.name}</span>
-                              {draft?.status === 'generating' && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
-                              {draft?.status === 'ready' && <CheckCircle className="h-3 w-3 text-green-500" />}
-                              {draft?.status === 'error' && <X className="h-3 w-3 text-destructive" />}
+                              {draft.status === 'generating' && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
+                              {draft.status === 'ready' && <CheckCircle className="h-3 w-3 text-green-500" />}
+                              {draft.status === 'error' && <X className="h-3 w-3 text-destructive" />}
                             </TabsTrigger>
                           );
                         })}
                       </TabsList>
 
-                      {(['linkedin', 'x', 'threads'] as PlatformType[]).map(platform => {
+                      {drafts.map(draft => {
+                        const platform = draft.platform;
                         const cfg = PLATFORM_CONFIG[platform];
-                        const draft = drafts.find(d => d.platform === platform);
                         const isOverLimit = draft && draft.characterCount > cfg.maxChars;
 
                         return (
