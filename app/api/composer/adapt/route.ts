@@ -82,8 +82,8 @@ export async function POST(request: NextRequest) {
 
       logger.info('Composer adaptation requested', { traceId, workspaceId, contentLength: content.length, activePlatforms });
 
-      // Adapt content for all platforms
-      const results = await PostAdapter.adaptForAllPlatforms(content.trim(), profileContext);
+      // Adapt content for all connected platforms
+      const results = await PostAdapter.adaptForPlatforms(content.trim(), activePlatforms, profileContext);
 
       const variants: Record<PlatformType, AdaptedPost> = {} as Record<PlatformType, AdaptedPost>;
       let totalTokensIn = 0;
@@ -114,6 +114,23 @@ export async function POST(request: NextRequest) {
       // Create variants
       for (const platform of activePlatforms) {
         const adapted = variants[platform];
+
+        let status: 'draft' | 'failed' | 'published' = 'draft';
+        let errorObj: any = null;
+
+        const hasVideo = (mediaItems || []).some((m: any) => m.type === 'video');
+
+        if (platform === 'threads' && hasVideo) {
+          status = 'failed';
+          errorObj = { code: 'UNSUPPORTED_MEDIA', message: 'Threads does not support video uploads.' };
+        } else if (platform === 'pinterest' && hasVideo) {
+          status = 'failed';
+          errorObj = { code: 'UNSUPPORTED_MEDIA', message: 'Pinterest does not support video uploads.' };
+        } else if (platform === 'bluesky' && hasVideo) {
+          status = 'failed';
+          errorObj = { code: 'UNSUPPORTED_MEDIA', message: 'Bluesky does not support video uploads.' };
+        }
+
         await postRepository.createVariant({
           postId: post.id,
           platform,
@@ -122,6 +139,8 @@ export async function POST(request: NextRequest) {
           characterCount: adapted.characterCount,
           hashtagStrategy: adapted.hashtags,
           firstCommentHint: adapted.firstCommentHint || undefined,
+          status,
+          error: errorObj,
         });
       }
 

@@ -86,6 +86,25 @@ export async function POST(request: NextRequest) {
           return { url: m.url as string, type: (m.type || 'image') as 'image' | 'video' };
         }).filter((m: any) => Boolean(m.url));
 
+        // Media validation
+        let status: 'draft' | 'failed' | 'published' = 'draft';
+        let errorObj: any = null;
+
+        const hasVideo = normalizedMedia.some((m: any) => m.type === 'video');
+        const hasImage = normalizedMedia.some((m: any) => m.type === 'image');
+
+        if (platform === 'threads' && hasVideo) {
+          status = 'failed';
+          errorObj = { code: 'UNSUPPORTED_MEDIA', message: 'Threads does not support video uploads.' };
+        } else if (platform === 'pinterest' && hasVideo) {
+          status = 'failed';
+          errorObj = { code: 'UNSUPPORTED_MEDIA', message: 'Pinterest does not support video uploads.' };
+        } else if (platform === 'bluesky' && hasVideo) {
+          status = 'failed';
+          errorObj = { code: 'UNSUPPORTED_MEDIA', message: 'Bluesky does not support video uploads.' };
+        }
+        // You can add more platform media validations here as needed.
+
         await postRepository.createVariant({
           postId: post.id,
           platform,
@@ -94,6 +113,8 @@ export async function POST(request: NextRequest) {
           characterCount: rawContent.length,
           hashtagStrategy: [],
           firstCommentHint: undefined,
+          status,
+          error: errorObj,
         });
       }
 

@@ -38,7 +38,7 @@ const configSchema = z.object({
   RATE_LIMIT_OTP_VERIFY_PER_15MIN: z.coerce.number().default(10),
 
   // Sentry
-  SENTRY_DSN: z.string().url().optional(),
+  SENTRY_DSN: z.union([z.string().url(), z.literal('')]).optional(),
 
   // LinkedIn OAuth
   LINKEDIN_CLIENT_ID: z.string().optional(),
