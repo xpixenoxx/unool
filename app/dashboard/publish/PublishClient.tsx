@@ -295,16 +295,14 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
 
       {/* Platform Drafts */}
       <MotionBox variant="slide-up" delay={0.1}>
-        <Card variant="elevated">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
-              Review & Edit ({drafts.filter(d => d.status === 'draft').length} ready)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Stack space={6}>
-              {drafts.map((draft) => {
+        <div className="mb-4">
+          <h2 className="text-xl font-bold flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            Review & Edit ({drafts.filter(d => d.status === 'draft').length} ready)
+          </h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {drafts.map((draft) => {
                 const config = PLATFORM_CONFIG[draft.platform];
                 const Icon = config.icon;
                 const isOverLimit = draft.characterCount > draft.maxChars;
@@ -422,9 +420,7 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
                   </motion.div>
                 );
               })}
-            </Stack>
-          </CardContent>
-        </Card>
+        </div>
       </MotionBox>
 
       {/* Post Info */}
