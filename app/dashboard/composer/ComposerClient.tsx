@@ -96,9 +96,11 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const [sourceContent, setSourceContent] = useState('');
   const [quickContent, setQuickContent] = useState('');
   const [mode, setMode] = useState<'ai' | 'quick'>('ai');
-  const [isBroadcasting, setIsBroadcasting] = useState(false);
+  const [broadcastingType, setBroadcastingType] = useState<'selected' | 'all' | null>(null);
+  const isBroadcasting = broadcastingType !== null;
   const [drafts, setDrafts] = useState<PlatformDraft[]>([]);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatingType, setGeneratingType] = useState<'selected' | 'all' | null>(null);
+  const isGenerating = generatingType !== null;
   const [postId, setPostId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<PlatformType>('linkedin');
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -285,7 +287,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
     }
 
     setPlanError(null);
-    setIsGenerating(true);
+    setGeneratingType(useSelectedOnly ? 'selected' : 'all');
     setDrafts(d => d.map(d => ({ ...d, status: 'generating' })));
 
     try {
@@ -346,7 +348,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       toast.error(errorMsg);
       setDrafts(d => d.map(d => ({ ...d, status: 'error', error: errorMsg })));
     } finally {
-      setIsGenerating(false);
+      setGeneratingType(null);
     }
   };
 
@@ -420,7 +422,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
     }
 
     setPlanError(null);
-    setIsBroadcasting(true);
+    setBroadcastingType(useSelectedOnly ? 'selected' : 'all');
 
     try {
       const res = await fetch('/api/composer/broadcast', {
@@ -474,7 +476,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       const errorMsg = err instanceof Error ? err.message : 'Broadcast failed';
       toast.error(errorMsg);
     } finally {
-      setIsBroadcasting(false);
+      setBroadcastingType(null);
     }
   };
 
@@ -658,7 +660,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                     onClick={() => handleDirectBroadcast(true)}
                     disabled={isBroadcasting || !quickContent.trim() || !profile || selectedPlatforms.length === 0}
                   >
-                    {isBroadcasting ? (
+                    {broadcastingType === 'selected' ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
                       <Send className="mr-2 h-4 w-4" />
@@ -669,7 +671,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                     onClick={() => handleDirectBroadcast(false)}
                     disabled={isBroadcasting || !quickContent.trim() || !profile || connectedPlatforms.length === 0}
                   >
-                    {isBroadcasting ? (
+                    {broadcastingType === 'all' ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
                       <Send className="mr-2 h-4 w-4" />
@@ -765,7 +767,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                       onClick={() => generateDrafts(true)}
                       disabled={isGenerating || !sourceContent.trim() || !profile || selectedPlatforms.length === 0}
                     >
-                      {isGenerating ? (
+                      {generatingType === 'selected' ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       ) : (
                         <Sparkles className="mr-2 h-4 w-4" />
@@ -776,7 +778,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                       onClick={() => generateDrafts(false)}
                       disabled={isGenerating || !sourceContent.trim() || !profile || connectedPlatforms.length === 0}
                     >
-                      {isGenerating ? (
+                      {generatingType === 'all' ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       ) : (
                         <Sparkles className="mr-2 h-4 w-4" />
