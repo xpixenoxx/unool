@@ -1805,12 +1805,12 @@ function VoiceTemplate({ profile }: any) {
               </a>
               <button 
                 onClick={() => {
-                  const vcard = \`BEGIN:VCARD\\nVERSION:3.0\\nN:\${profile.name};;;;\\nFN:\${profile.name}\\nORG:\${profile.company || ''}\\nTITLE:\${profile.role || ''}\\nURL:\${typeof window !== 'undefined' ? window.location.origin : ''}\\nEND:VCARD\`;
+                  const vcard = `BEGIN:VCARD\nVERSION:3.0\nN:${profile.name};;;;\nFN:${profile.name}\nORG:${profile.company || ''}\nTITLE:${profile.role || ''}\nURL:${typeof window !== 'undefined' ? window.location.origin : ''}\nEND:VCARD`;
                   const blob = new Blob([vcard], { type: 'text/vcard' });
                   const url = URL.createObjectURL(blob);
                   const a = document.createElement('a');
                   a.href = url;
-                  a.download = \`\${profile.name?.replace(/\\s+/g, '_') || 'Contact'}.vcf\`;
+                  a.download = `${profile.name?.replace(/\s+/g, '_') || 'Contact'}.vcf`;
                   a.click();
                   showToast('Contact saved!');
                 }}
