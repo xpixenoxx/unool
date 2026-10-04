@@ -104,7 +104,9 @@ export async function GET(request: NextRequest) {
       for (const row of rows) {
         const now = new Date();
         const expiresAt = row.expires_at ? new Date(row.expires_at) : null;
-        const isExpired = expiresAt && expiresAt <= now;
+        // If a refresh token exists, the connection is not truly expired (we can refresh it)
+        const hasRefreshToken = Boolean(row.refresh_token_encrypted || row.refresh_token);
+        const isExpired = expiresAt && expiresAt <= now && !hasRefreshToken;
 
         result[row.platform] = {
           platform: row.platform,
