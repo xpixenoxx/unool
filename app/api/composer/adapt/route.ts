@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       const { userId, workspaceId } = auth;
 
       const body = await request.json();
-      const { content, profileId, mediaItems } = body;
+      const { content, profileId, mediaItems, selectedPlatforms } = body;
 
       if (!content || typeof content !== 'string' || !content.trim()) {
         return NextResponse.json({ error: 'Content is required' }, { status: 400 });
@@ -69,9 +69,13 @@ export async function POST(request: NextRequest) {
       const { SupabasePlatformRepository } = await import('@/lib/repositories/supabase/SupabasePlatformRepository');
       const platformRepo = new SupabasePlatformRepository();
       const connections = await platformRepo.findByWorkspaceId(workspaceId);
-      const activePlatforms = connections
+      let activePlatforms = connections
         .filter(c => c.status === 'connected')
         .map(c => c.platform as PlatformType);
+
+      if (selectedPlatforms && Array.isArray(selectedPlatforms) && selectedPlatforms.length > 0) {
+        activePlatforms = activePlatforms.filter(p => selectedPlatforms.includes(p));
+      }
 
       if (activePlatforms.length === 0) {
         return NextResponse.json(

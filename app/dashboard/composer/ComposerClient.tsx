@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Box, Flex, Text, Display } from '@/components/ui/layout';
 import { MotionBox, spring } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
@@ -106,7 +107,33 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const [media, setMedia] = useState<{url: string; type: 'image' | 'video' | 'document'}[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [connectedPlatforms, setConnectedPlatforms] = useState<PlatformType[]>([]);
+  const [selectedPlatforms, setSelectedPlatforms] = useState<PlatformType[]>([]);
   const springConfig: Transition = reducedMotion ? { type: 'tween', duration: 0.01 } : spring.snappy;
+
+  const loadConnections = useCallback(async () => {
+    try {
+      const res = await fetch('/api/platform/connections', { credentials: 'include' });
+      const data = await res.json();
+      if (data.connections) {
+        const active = Object.values(data.connections)
+          .filter((c: any) => c.status === 'connected')
+          .map((c: any) => c.platform as PlatformType);
+        setConnectedPlatforms(active);
+        setSelectedPlatforms(active);
+      }
+    } catch {
+      // Ignore
+    }
+  }, []);
+
+  const togglePlatform = (platform: PlatformType) => {
+    setSelectedPlatforms(prev => 
+      prev.includes(platform) 
+        ? prev.filter(p => p !== platform)
+        : [...prev, platform]
+    );
+  };
 
   const processFiles = async (files: File[]) => {
     let currentImages = media.filter(m => m.type === 'image').length;
@@ -248,9 +275,10 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
 
   useEffect(() => {
     loadProfile();
-  }, [loadProfile]);
+    loadConnections();
+  }, [loadProfile, loadConnections]);
 
-  const generateDrafts = async () => {
+  const generateDrafts = async (useSelectedOnly: boolean = false) => {
     if (!sourceContent.trim() || !profile) {
       toast.error('Please complete your profile first in the Presence tab');
       return;
@@ -265,7 +293,12 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ content: sourceContent, profileId: profile.id, mediaItems: media }),
+        body: JSON.stringify({ 
+          content: sourceContent, 
+          profileId: profile.id, 
+          mediaItems: media,
+          selectedPlatforms: useSelectedOnly ? selectedPlatforms : connectedPlatforms
+        }),
       });
 
       let data;
@@ -380,7 +413,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
     }
   };
 
-  const handleDirectBroadcast = async () => {
+  const handleDirectBroadcast = async (useSelectedOnly: boolean = false) => {
     if (!quickContent.trim() || !profile) {
       toast.error('Please complete your profile first');
       return;
@@ -394,7 +427,12 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ content: quickContent, profileId: profile.id, mediaItems: media }),
+        body: JSON.stringify({ 
+          content: quickContent, 
+          profileId: profile.id, 
+          mediaItems: media,
+          selectedPlatforms: useSelectedOnly ? selectedPlatforms : connectedPlatforms
+        }),
       });
 
       let data;
@@ -441,6 +479,34 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   };
 
   const readyCount = drafts.filter(d => d.status === 'ready').length;
+
+  const PlatformSelector = () => (
+    <div className="mb-4 space-y-2">
+      <p className="text-sm font-medium">Select Platforms:</p>
+      <div className="flex flex-wrap gap-3">
+        {connectedPlatforms.map(platform => {
+          const cfg = PLATFORM_CONFIG[platform];
+          const Icon = cfg.icon;
+          const isSelected = selectedPlatforms.includes(platform);
+          return (
+            <label key={platform} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 p-1.5 rounded-md transition-colors border border-transparent hover:border-border">
+              <Checkbox 
+                checked={isSelected} 
+                onCheckedChange={() => togglePlatform(platform)} 
+              />
+              <span className={cn('p-1 rounded-md text-white', cfg.color)}>
+                <Icon className="w-3 h-3" />
+              </span>
+              {cfg.name}
+            </label>
+          );
+        })}
+        {connectedPlatforms.length === 0 && (
+          <p className="text-sm text-muted-foreground italic">No platforms connected. Please connect platforms in Settings.</p>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <Box className="max-w-4xl mx-auto px-4 py-8 space-y-6">
@@ -570,6 +636,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
             >
+              <PlatformSelector />
               <Textarea
                 placeholder="What do you want to share? Drag and drop an image here, or type your exact text."
                 value={quickContent}
@@ -585,22 +652,31 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   {quickContent.length} characters
                   {quickContent.length > 280 && ' · exceeds X/Twitter limit (280)'}
                 </span>
-                <Button
-                  onClick={handleDirectBroadcast}
-                  disabled={isBroadcasting || !quickContent.trim() || !profile}
-                >
-                  {isBroadcasting ? (
-                    <>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => handleDirectBroadcast(true)}
+                    disabled={isBroadcasting || !quickContent.trim() || !profile || selectedPlatforms.length === 0}
+                  >
+                    {isBroadcasting ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Publishing...
-                    </>
-                  ) : (
-                    <>
+                    ) : (
                       <Send className="mr-2 h-4 w-4" />
-                      Publish to All Platforms
-                    </>
-                  )}
-                </Button>
+                    )}
+                    Publish to Selected
+                  </Button>
+                  <Button
+                    onClick={() => handleDirectBroadcast(false)}
+                    disabled={isBroadcasting || !quickContent.trim() || !profile || connectedPlatforms.length === 0}
+                  >
+                    {isBroadcasting ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="mr-2 h-4 w-4" />
+                    )}
+                    Publish to All
+                  </Button>
+                </div>
               </div>
               
               {/* Media Upload (Quick Broadcast) */}
@@ -671,6 +747,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
               >
+                <PlatformSelector />
                 <Textarea
                   placeholder="e.g. 'Just launched v2 of our product...' (Drag and drop media here to attach it!)"
                   value={sourceContent}
@@ -682,22 +759,31 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   <span className="text-sm text-muted-foreground tabular-nums">
                     {sourceContent.length} characters
                   </span>
-                  <Button
-                    onClick={generateDrafts}
-                    disabled={isGenerating || !sourceContent.trim() || !profile}
-                  >
-                    {isGenerating ? (
-                      <>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => generateDrafts(true)}
+                      disabled={isGenerating || !sourceContent.trim() || !profile || selectedPlatforms.length === 0}
+                    >
+                      {isGenerating ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Adapting for 3 platforms...
-                      </>
-                    ) : (
-                      <>
+                      ) : (
                         <Sparkles className="mr-2 h-4 w-4" />
-                        Generate Platform Drafts
-                      </>
-                    )}
-                  </Button>
+                      )}
+                      Draft for Selected
+                    </Button>
+                    <Button
+                      onClick={() => generateDrafts(false)}
+                      disabled={isGenerating || !sourceContent.trim() || !profile || connectedPlatforms.length === 0}
+                    >
+                      {isGenerating ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Sparkles className="mr-2 h-4 w-4" />
+                      )}
+                      Draft for All
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Media Upload (AI Composer) */}
