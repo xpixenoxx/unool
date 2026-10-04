@@ -769,6 +769,8 @@ function VisionTemplate({ profile, accentColor }: any) {
   );
 }
 
+// --- 02 HUMAN --- //
+
 function HumanTemplate({ profile, accentColor }: any) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
@@ -779,9 +781,7 @@ function HumanTemplate({ profile, accentColor }: any) {
     setToastMsg(msg);
     setToastVisible(true);
     if (toastTimer) clearTimeout(toastTimer);
-    const timer = setTimeout(() => {
-      setToastVisible(false);
-    }, 2200);
+    const timer = setTimeout(() => setToastVisible(false), 2200);
     setToastTimer(timer);
   };
 
@@ -796,7 +796,7 @@ function HumanTemplate({ profile, accentColor }: any) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${profile.name?.replace(/\\s+/g, '_') || 'Contact'}.vcf`;
+    a.download = `${profile.name?.replace(/\s+/g, '_') || 'Contact'}.vcf`;
     a.click();
     showToast('Contact saved!');
   };
@@ -808,16 +808,6 @@ function HumanTemplate({ profile, accentColor }: any) {
       case 'instagram': return <Instagram size={20} />;
       default: return <ExternalLink size={20} />;
     }
-  };
-
-  const getSocialCardStyle = (index: number) => {
-    const styles = [
-      { bg: '#EFE4CC', text: '#1B1D1B', iconBg: 'rgba(27,29,27,0.05)' },
-      { bg: '#A5AE89', text: '#1B1D1B', iconBg: 'rgba(27,29,27,0.1)' },
-      { bg: '#BE5B42', text: '#F4EDDC', iconBg: 'rgba(244,237,220,0.15)' },
-      { bg: '#E2B746', text: '#1B1D1B', iconBg: 'rgba(27,29,27,0.05)' }
-    ];
-    return styles[index % styles.length];
   };
 
   const customStyles = `
@@ -837,108 +827,63 @@ function HumanTemplate({ profile, accentColor }: any) {
       top: 0; left: 0; right: 0; bottom: 0;
       pointer-events: none;
       z-index: 50;
-      opacity: 0.12;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+      opacity: 0.04;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
     }
 
     .human-blob-bg-1 {
       position: absolute;
-      top: -10%; left: -10%;
-      width: 70vw; height: 70vw;
-      max-width: 800px; max-height: 800px;
-      background-color: #E2B746;
-      border-radius: 45% 55% 40% 60% / 55% 45% 60% 40%;
-      opacity: 0.06;
+      top: -5%; left: -10%;
+      width: 50vw; height: 50vw;
+      max-width: 600px; max-height: 600px;
+      background-color: #1a4358;
+      border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
+      opacity: 0.5;
       pointer-events: none;
       z-index: 0;
-    }
-    
-    .human-blob-bg-2 {
-      position: absolute;
-      bottom: -10%; right: -5%;
-      width: 60vw; height: 80vw;
-      max-width: 700px; max-height: 900px;
-      background-color: #BE5B42;
-      border-radius: 60% 40% 50% 50% / 45% 55% 45% 55%;
-      opacity: 0.08;
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    .human-cream-card {
-      background-color: #EFE4CC;
-      color: #1B1D1B;
-      border-radius: 20px 40px 16px 32px;
     }
 
     .human-img-mask {
-      border-radius: 45% 55% 40% 60% / 55% 45% 60% 40%;
+      border-radius: 50% 50% 40% 60% / 60% 40% 60% 40%;
     }
 
     .human-img-bg {
-      border-radius: 60% 40% 50% 50% / 45% 55% 45% 55%;
+      border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
       background-color: #E2B746;
     }
     
+    .human-quote-card {
+      background-color: #EFE4CC;
+      color: #1B1D1B;
+      border-radius: 30px;
+    }
+    @media (min-width: 768px) {
+      .human-quote-card {
+        border-radius: 140px 40px 140px 40px / 60px 100px 60px 100px;
+      }
+    }
+
     .human-metric-1 {
       background-color: #E2B746;
       color: #1B1D1B;
-      border-radius: 24px 16px 32px 20px;
+      border-radius: 40px 30px 40px 60px / 50px 40px 60px 40px;
     }
     .human-metric-2 {
       background-color: #A5AE89;
       color: #1B1D1B;
-      border-radius: 16px 32px 20px 24px;
+      border-radius: 50px 60px 40px 40px / 60px 50px 40px 50px;
     }
     .human-metric-3 {
       background-color: #BE5B42;
       color: #F4EDDC;
-      border-radius: 32px 20px 24px 16px;
+      border-radius: 40px 50px 60px 40px / 40px 60px 50px 60px;
     }
     
-    .human-social-link {
-      border-radius: 12px 24px 12px 20px;
-      transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+    .human-footer-bg-1 {
+      border-radius: 120px 120px 0 0 / 60px 60px 0 0;
     }
-    .human-social-link:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 16px rgba(0,0,0,0.15);
-      filter: brightness(0.95);
-    }
-    .human-social-link:active {
-      transform: translateY(1px);
-    }
-    .human-social-link:focus-visible {
-      outline: 2px solid #E2B746;
-      outline-offset: 2px;
-    }
-
-    .human-btn-primary {
-      background-color: #BE5B42;
-      color: #F4EDDC;
-      border-radius: 24px 12px 24px 16px;
-      transition: all 0.2s ease;
-    }
-    .human-btn-primary:hover {
-      background-color: #a84b34;
-      transform: translateY(-2px);
-    }
-    .human-btn-primary:active {
-      transform: translateY(1px);
-    }
-    .human-btn-secondary {
-      background-color: #123040;
-      color: #F4EDDC;
-      border: 1px solid #AEA997;
-      border-radius: 12px 24px 16px 24px;
-      transition: all 0.2s ease;
-    }
-    .human-btn-secondary:hover {
-      background-color: #1a4257;
-      transform: translateY(-2px);
-    }
-    .human-btn-secondary:active {
-      transform: translateY(1px);
+    .human-footer-bg-2 {
+      border-radius: 120px 0 0 0 / 80px 0 0 0;
     }
   `;
 
@@ -947,53 +892,54 @@ function HumanTemplate({ profile, accentColor }: any) {
       <style dangerouslySetInnerHTML={{ __html: customStyles }} />
       <div className="human-texture" />
       <div className="human-blob-bg-1" />
-      <div className="human-blob-bg-2" />
 
-      {/* Navigation */}
-      <nav className="relative z-20 w-full p-6 md:p-10 flex justify-between items-center max-w-7xl mx-auto">
-        <div className="font-serif text-2xl font-bold tracking-tight leading-none">
-          {profile.name?.split(' ')[0] || 'Profile'}<br/>
-          <span className="text-[#AEA997] font-sans text-xs uppercase tracking-widest mt-1 block">
-            {profile.company || 'Identity'}
+      {/* Navigation & Header */}
+      <nav className="relative z-20 w-full p-6 md:p-10 flex justify-between items-start max-w-7xl mx-auto">
+        <div className="flex flex-col">
+          <span className="font-serif font-bold text-xl md:text-2xl tracking-wide text-[#F4EDDC] leading-none mb-2 uppercase">
+            The<br/>{profile.company ? profile.company.substring(0,10) : 'Human'}
+          </span>
+          <span className="font-sans text-[10px] md:text-xs uppercase tracking-[0.2em] text-[#AEA997] leading-relaxed max-w-[150px]">
+            People are the product.
           </span>
         </div>
         <button 
           onClick={() => setMenuOpen(true)}
-          className="w-12 h-12 flex flex-col items-end justify-center gap-2 hover:opacity-70 transition-opacity focus:outline-none"
+          className="w-12 h-12 flex flex-col items-end justify-start gap-[6px] hover:opacity-70 transition-opacity focus:outline-none mt-1"
           aria-label="Open menu"
         >
           <div className="w-8 h-[2px] bg-[#F4EDDC]"></div>
-          <div className="w-6 h-[2px] bg-[#F4EDDC]"></div>
+          <div className="w-8 h-[2px] bg-[#F4EDDC]"></div>
         </button>
       </nav>
 
       {/* Main Content */}
-      <main className="relative z-10 w-full max-w-4xl mx-auto px-6 pb-24 flex-1">
+      <main className="relative z-10 w-full max-w-[1400px] mx-auto px-4 md:px-8 pb-12 flex-1">
         
         {/* Hero */}
-        <section className="grid grid-cols-1 md:grid-cols-12 gap-12 md:gap-6 mt-4 md:mt-12 items-center">
-          <div className="md:col-span-6 flex flex-col justify-center order-2 md:order-1">
-            {profile.subdomain && (
-              <span className="text-[#AEA997] font-sans text-sm mb-3 italic">@{profile.subdomain}</span>
-            )}
-            <h1 className="text-5xl md:text-7xl lg:text-8xl font-serif text-[#F4EDDC] leading-tight mb-4">
+        <section className="flex flex-col lg:flex-row items-center justify-between gap-12 mt-6 md:mt-12 max-w-6xl mx-auto">
+          <div className="flex-1 flex flex-col justify-center order-2 lg:order-1 text-center lg:text-left">
+            <span className="font-serif italic text-lg md:text-xl text-[#F4EDDC] opacity-90 mb-2">
+              @{profile.subdomain || 'identity'}
+            </span>
+            <h1 className="text-[3.5rem] md:text-[5.5rem] lg:text-[7rem] font-serif text-[#F4EDDC] leading-[1.05] mb-4 md:mb-6">
               {profile.name}
             </h1>
-            <h2 className="text-xl md:text-2xl text-[#AEA997] font-sans font-light tracking-wide mb-6">
+            <h2 className="text-xl md:text-2xl text-[#AEA997] font-sans font-light tracking-wide max-w-xl mx-auto lg:mx-0">
               {profile.headline || profile.role || 'Professional Profile'}
             </h2>
           </div>
 
-          <div className="md:col-span-6 flex justify-center md:justify-end order-1 md:order-2 relative">
-            <div className="w-[260px] h-[280px] sm:w-[320px] sm:h-[340px] md:w-[380px] md:h-[420px] relative">
-               <div className="absolute inset-0 human-img-bg translate-x-4 translate-y-4 md:translate-x-6 md:translate-y-6" />
+          <div className="order-1 lg:order-2 relative flex justify-center w-full lg:w-auto">
+            <div className="w-[280px] h-[320px] sm:w-[380px] sm:h-[420px] md:w-[460px] md:h-[500px] relative">
+               <div className="absolute inset-0 human-img-bg scale-105 translate-x-4 md:translate-x-8 translate-y-4 md:translate-y-8" />
                <img 
                  src={profile.avatarUrl || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=800&q=80'} 
                  alt={profile.name} 
                  className="absolute inset-0 w-full h-full object-cover human-img-mask shadow-2xl" 
                />
-               <div className="absolute bottom-2 right-2 md:bottom-6 md:right-6 w-12 h-12 md:w-14 md:h-14 bg-[#E2B746] flex items-center justify-center text-[#123040] shadow-xl" style={{ borderRadius: '40% 60% 70% 30% / 40% 50% 60% 50%'}}>
-                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+               <div className="absolute bottom-6 right-2 md:bottom-10 md:right-8 w-12 h-12 md:w-16 md:h-16 bg-[#E2B746] rounded-full flex items-center justify-center text-[#123040] shadow-xl z-20">
+                 <BadgeCheck size={28} strokeWidth={2} />
                </div>
             </div>
           </div>
@@ -1001,16 +947,26 @@ function HumanTemplate({ profile, accentColor }: any) {
 
         {/* Bio / About */}
         {(profile.bio || profile.headline) && (
-          <section className="mt-16 md:mt-24 human-cream-card p-8 md:p-12 shadow-xl flex flex-col sm:flex-row gap-6 md:gap-8 items-start relative">
-            <div className="text-6xl md:text-7xl text-[#E2B746] font-serif shrink-0 leading-none h-10 mt-1 md:mt-2">“</div>
-            <div className="flex-1">
-              <h3 className="text-2xl md:text-3xl lg:text-4xl font-serif text-[#1B1D1B] leading-snug mb-6">
-                {profile.bio || profile.headline}
-              </h3>
-              <div className="border-l-2 border-[#AEA997] pl-4">
-                <p className="text-[#1B1D1B] font-sans font-semibold text-xs md:text-sm opacity-70 uppercase tracking-widest max-w-sm leading-relaxed">
-                  {profile.role && profile.company ? `${profile.role} at ${profile.company}` : (profile.role || profile.company || 'Discover the journey')}
+          <section className="mt-20 md:mt-32 max-w-6xl mx-auto relative z-10">
+            <div className="human-quote-card p-10 md:p-16 lg:p-24 shadow-2xl flex flex-col lg:flex-row gap-8 lg:gap-16 items-center lg:items-start relative">
+              <div className="text-[#E2B746] font-serif text-[6rem] md:text-[10rem] leading-none absolute -top-12 md:-top-16 left-6 md:left-16 opacity-90 select-none">“</div>
+              <div className="flex-1 mt-10 md:mt-16 lg:mt-0 relative z-10 w-full">
+                <h3 className="font-serif text-3xl md:text-5xl lg:text-[3.5rem] leading-[1.1] tracking-tight text-[#1B1D1B]">
+                  {profile.bio || profile.headline}
+                </h3>
+              </div>
+              <div className="w-full lg:w-[35%] flex flex-col gap-6 lg:border-l border-[#1B1D1B]/20 lg:pl-12 pt-6 lg:pt-0">
+                <p className="font-sans text-base md:text-lg leading-relaxed opacity-80 text-[#1B1D1B] font-medium">
+                  {profile.role && profile.company ? `${profile.role} at ${profile.company}. ` : ''}
+                  {(profile.headline && profile.headline !== profile.bio) ? profile.headline : 'Creating impact and driving innovation across projects.'}
                 </p>
+                <div className="flex flex-col text-[9px] md:text-[10px] uppercase tracking-[0.2em] opacity-40 font-bold gap-1 mt-4 text-[#1B1D1B]">
+                  <span>People</span>
+                  <span>Ideas</span>
+                  <span>Places</span>
+                  <span>Possibilities</span>
+                  <div className="w-6 h-[2px] bg-[#1B1D1B] mt-2"></div>
+                </div>
               </div>
             </div>
           </section>
@@ -1018,13 +974,21 @@ function HumanTemplate({ profile, accentColor }: any) {
 
         {/* Metrics */}
         {profile.proofs && profile.proofs.length > 0 && (
-          <section className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
+          <section className="mt-16 md:mt-24 max-w-5xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-6 md:gap-8 relative z-10">
             {profile.proofs.slice(0,3).map((proof: any, i: number) => {
               const cardClass = i === 0 ? 'human-metric-1' : i === 1 ? 'human-metric-2' : 'human-metric-3';
+              const icons = [
+                <Users size={32} key="users" strokeWidth={1.5} />,
+                <div key="circles" className="flex -space-x-2"><div className="w-8 h-8 rounded-full border border-current opacity-60"></div><div className="w-8 h-8 rounded-full border border-current opacity-80"></div><div className="w-8 h-8 rounded-full border border-current"></div></div>,
+                <Eye size={32} key="eye" strokeWidth={1.5} />
+              ];
               return (
-                <div key={i} className={`${cardClass} p-6 md:p-8 flex flex-col justify-center items-center text-center shadow-lg hover:scale-[1.02] transition-transform`}>
-                   <span className="text-3xl md:text-4xl font-serif font-bold mb-1 md:mb-2">{proof.value}</span>
-                   <span className="font-sans text-xs md:text-sm font-semibold tracking-wide uppercase opacity-90">{proof.title || proof.type}</span>
+                <div key={i} className={`${cardClass} p-8 md:p-10 flex flex-col justify-between shadow-xl hover:-translate-y-1 transition-transform min-h-[180px] md:min-h-[220px]`}>
+                   <div className="mb-4 opacity-80">{icons[i]}</div>
+                   <div>
+                     <div className="text-4xl md:text-5xl font-serif font-bold mb-2 tracking-tight">{proof.value}</div>
+                     <div className="font-sans text-xs md:text-sm font-semibold tracking-wide capitalize opacity-90">{proof.title || proof.type}</div>
+                   </div>
                 </div>
               );
             })}
@@ -1033,27 +997,36 @@ function HumanTemplate({ profile, accentColor }: any) {
 
         {/* Social Links */}
         {profile.links && profile.links.length > 0 && (
-          <section className="mt-12 md:mt-20">
-            <h4 className="text-[#F4EDDC] font-serif text-2xl md:text-3xl mb-6 ml-2 md:ml-4">Official links</h4>
-            <div className="flex flex-col gap-4">
+          <section className="mt-20 md:mt-32 max-w-4xl mx-auto relative z-10 px-4 md:px-0">
+            <div className="flex flex-col sm:flex-row justify-between items-end mb-8 md:mb-12">
+              <h4 className="text-[#F4EDDC] font-serif text-3xl md:text-4xl">Official links</h4>
+              <span className="text-[#AEA997] font-sans text-xs uppercase tracking-[0.15em] opacity-80 hidden sm:block">Same humans. Different places.</span>
+            </div>
+            
+            <div className="flex flex-col gap-4 md:gap-6">
               {profile.links.map((link: any, i: number) => {
-                const style = getSocialCardStyle(i);
+                const styles = [
+                  { bg: '#EFE4CC', text: '#1B1D1B', iconBg: '#1B1D1B', iconColor: '#EFE4CC' },
+                  { bg: '#A5AE89', text: '#1B1D1B', iconBg: '#1B1D1B', iconColor: '#A5AE89' },
+                  { bg: '#eed9d3', text: '#1B1D1B', iconBg: '#1B1D1B', iconColor: '#eed9d3' }
+                ];
+                const s = styles[i % styles.length];
                 return (
                   <a key={i} href={link.url} target="_blank" rel="noreferrer" 
-                     className="human-social-link p-4 md:p-5 flex items-center justify-between group focus:outline-none"
-                     style={{ backgroundColor: style.bg, color: style.text }}>
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center shrink-0 transition-colors"
-                           style={{ backgroundColor: style.iconBg }}>
+                     className="p-3 pr-6 md:p-4 md:pr-8 flex items-center justify-between group focus:outline-none rounded-full shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all"
+                     style={{ backgroundColor: s.bg, color: s.text }}>
+                    <div className="flex items-center gap-4 md:gap-6 w-full">
+                      <div className="w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center shrink-0"
+                           style={{ backgroundColor: s.iconBg, color: s.iconColor }}>
                         {getIcon(link.icon || link.label)}
                       </div>
-                      <div className="flex flex-col overflow-hidden">
-                        <h5 className="font-bold text-base md:text-lg">{link.label}</h5>
-                        <span className="text-xs md:text-sm opacity-80 font-medium truncate max-w-[200px] md:max-w-none">{link.url.replace(/^https?:\/\//, '').replace(/^www\./, '')}</span>
+                      <div className="flex flex-col overflow-hidden w-full">
+                        <h5 className="font-bold text-lg md:text-xl tracking-tight">{link.label}</h5>
+                        <span className="text-sm opacity-70 font-medium truncate">{link.url.replace(/^https?:\/\//, '').replace(/^www\./, '')}</span>
                       </div>
                     </div>
-                    <div className="mr-2 opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all shrink-0">
-                      <ArrowRight size={20} />
+                    <div className="ml-4 opacity-40 group-hover:opacity-100 group-hover:translate-x-2 transition-all shrink-0">
+                      <ArrowRight size={24} />
                     </div>
                   </a>
                 );
@@ -1061,30 +1034,57 @@ function HumanTemplate({ profile, accentColor }: any) {
             </div>
           </section>
         )}
-
-        {/* CTAs */}
-        <section className="mt-16 pt-12 border-t border-[#AEA997]/30 flex flex-col sm:flex-row gap-4 justify-center items-center relative z-20">
-          <button 
-            onClick={copyEmail}
-            className="human-btn-primary px-8 py-4 font-bold tracking-wide flex items-center gap-3 w-full sm:w-auto justify-center shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#123040] focus-visible:ring-[#BE5B42]"
-          >
-            <Send size={18} />
-            <span>Get in touch</span>
-          </button>
-          <button 
-            onClick={downloadVCard}
-            className="human-btn-secondary px-8 py-4 font-bold tracking-wide flex items-center gap-3 w-full sm:w-auto justify-center shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#123040] focus-visible:ring-[#AEA997]"
-          >
-            <Bookmark size={18} />
-            <span>Save contact</span>
-          </button>
-        </section>
-
       </main>
+
+      {/* Footer / CTAs */}
+      <footer className="relative mt-24 pt-32 pb-16 overflow-hidden w-full min-h-[300px]">
+        {/* Organic Backgrounds */}
+        <div className="absolute bottom-0 right-0 w-full md:w-[75%] h-full bg-[#EFE4CC] human-footer-bg-1 z-0 shadow-2xl" />
+        <div className="absolute bottom-0 left-0 w-[60%] md:w-[45%] h-[80%] bg-[#BE5B42] human-footer-bg-2 z-0 shadow-2xl" />
+        
+        {/* Foreground Content */}
+        <div className="relative z-10 w-full max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-12 md:gap-0 h-full">
+          
+          <div className="flex flex-col text-left justify-end self-end text-[#1B1D1B] opacity-50 font-serif italic text-sm md:text-base leading-snug w-full md:w-auto mt-auto order-2 md:order-1 hidden md:flex">
+            Kinder<br/>People<br/>Braver<br/>Tomorrows<br/>
+            <div className="w-6 h-[1px] bg-[#1B1D1B] mt-2"></div>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row gap-6 md:gap-8 items-center justify-center order-1 md:order-2 w-full md:w-auto mt-auto">
+            <button 
+              onClick={copyEmail}
+              className="px-8 py-5 bg-transparent border border-[#1B1D1B]/20 text-[#1B1D1B] rounded-full font-sans font-bold tracking-wide flex items-center justify-center gap-3 w-full sm:w-auto shadow-lg hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
+            >
+              <Send size={20} />
+              <span>Get in touch</span>
+            </button>
+            <button 
+              onClick={downloadVCard}
+              className="px-8 py-5 bg-[#123040] text-[#F4EDDC] rounded-full font-sans font-bold tracking-wide flex items-center justify-center gap-3 w-full sm:w-auto shadow-2xl hover:bg-[#1a4257] hover:-translate-y-1 transition-all focus:outline-none focus:ring-2 focus:ring-offset-2"
+            >
+              <Bookmark size={20} />
+              <span>Save contact</span>
+            </button>
+          </div>
+
+          <div className="hidden lg:flex flex-col items-end gap-3 order-3 opacity-80 self-end mt-auto">
+            <div className="flex gap-2">
+              <div className="w-5 h-5 rounded-full bg-[#123040]"></div>
+              <div className="w-5 h-5 rounded-full bg-[#E2B746]"></div>
+              <div className="w-5 h-5 rounded-full bg-[#A5AE89]"></div>
+              <div className="w-5 h-5 rounded-full bg-[#BE5B42]"></div>
+            </div>
+            <span className="text-[10px] uppercase tracking-[0.2em] text-[#1B1D1B] font-bold text-right">
+              Better people<br/>brighter together.
+            </span>
+          </div>
+
+        </div>
+      </footer>
 
       {/* Mobile Menu Drawer */}
       {menuOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-[#123040]/80 backdrop-blur-sm" onClick={() => setMenuOpen(false)}>
+        <div className="fixed inset-0 z-50 flex justify-end bg-[#123040]/80 backdrop-blur-sm transition-opacity" onClick={() => setMenuOpen(false)}>
           <div 
             className="w-full max-w-sm bg-[#EFE4CC] h-full shadow-2xl flex flex-col p-8 transform transition-transform duration-300"
             style={{ borderRadius: '40px 0 0 40px' }}
@@ -1117,12 +1117,13 @@ function HumanTemplate({ profile, accentColor }: any) {
       )}
 
       {/* Toast */}
-      <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 px-6 py-3 bg-[#E2B746] text-[#1B1D1B] text-sm font-bold rounded-full shadow-2xl transition-all duration-300 z-50 ${toastVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
+      <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 px-6 py-3 bg-[#1B1D1B] text-[#F4EDDC] text-sm font-bold rounded-full shadow-2xl transition-all duration-300 z-50 ${toastVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
         {toastMsg}
       </div>
     </div>
   );
 }
+
 
 // --- 03 AGENCY --- //
 

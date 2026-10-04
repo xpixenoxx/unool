@@ -1,0 +1,15 @@
+From https://github.com/xpixenoxx/unool
+ * branch            main       -> FETCH_HEAD
+Merge made by the 'ort' strategy.
+ app/api/composer/adapt/route.ts           |  31 ++++-
+ app/api/composer/broadcast/route.ts       |  29 +++-
+ app/dashboard/composer/ComposerClient.tsx | 213 ++++++++++++++++++++++--------
+ app/dashboard/publish/PublishClient.tsx   |  44 +++---
+ app/dashboard/publish/PublishContent.tsx  |  44 +++---
+ check_connections.js                      |  28 ++++
+ lib/ai/PostAdapter.ts                     |   4 +-
+ lib/config/schema.ts                      |   2 +-
+ scratch/check-linkedin-errors.js          | 116 ++++++++++++++++
+ 9 files changed, 387 insertions(+), 124 deletions(-)
+ create mode 100644 check_connections.js
+ create mode 100644 scratch/check-linkedin-errors.js
