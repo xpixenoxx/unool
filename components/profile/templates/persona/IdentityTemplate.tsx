@@ -1004,7 +1004,7 @@ function HumanTemplate({ profile, accentColor }: any) {
               ][i % 3];
 
               return (
-                <div key={i} className={\`\${s.cls} p-8 md:p-10 flex flex-row items-center justify-between shadow-xl relative overflow-hidden transition-transform duration-300 hover:-translate-y-2\`}>
+                <div key={i} className={`${s.cls} p-8 md:p-10 flex flex-row items-center justify-between shadow-xl relative overflow-hidden transition-transform duration-300 hover:-translate-y-2`}>
                   <div className="flex flex-col justify-between h-full min-h-[90px] gap-6">
                     <div className="opacity-80">{s.icon}</div>
                     <div className="opacity-40">
