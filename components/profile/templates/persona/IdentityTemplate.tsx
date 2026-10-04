@@ -1629,9 +1629,9 @@ function VoiceTemplate({ profile }: any) {
             <div className="hidden md:block absolute top-12 left-12 text-[#DF5B4C] z-10">
                <ArrowRight className="w-6 h-6 transform rotate-[135deg]" />
             </div>
-            {profile.image ? (
+            {profile.avatarUrl ? (
               <img 
-                src={profile.image} 
+                src={profile.avatarUrl} 
                 alt={profile.name} 
                 className="arch-image w-full max-w-[360px] md:max-w-[420px] h-[450px] md:h-[600px] object-cover shadow-xl relative z-0"
               />
