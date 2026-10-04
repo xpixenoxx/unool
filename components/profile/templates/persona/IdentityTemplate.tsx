@@ -901,7 +901,7 @@ function HumanTemplate({ profile, accentColor }: any) {
   `;
 
   return (
-    <div className="w-full min-h-[100dvh] flex flex-col items-center justify-start bg-[#0a161e] p-[clamp(16px,5vw,48px)]">
+    <div className="w-full min-h-[100dvh] flex flex-col items-center justify-start bg-[#0a161e] p-[clamp(24px,6vw,64px)]">
       <div 
         className="human-theme w-full relative flex-1 max-w-[1440px] overflow-hidden antialiased flex flex-col shadow-2xl"
         style={{ borderRadius: 'clamp(24px, 5vw, 48px)' }}
@@ -968,14 +968,14 @@ function HumanTemplate({ profile, accentColor }: any) {
 
         {/* Bio / About */}
         {(profile.bio || profile.headline) && (
-          <section className="relative w-full mt-16 md:mt-32 lg:mt-40 z-10 px-4 md:px-8">
+          <section className="relative w-full mt-12 md:mt-20 lg:mt-24 z-10 px-4 md:px-8">
             <div className="human-bio-surface absolute inset-0 -mx-4 md:-mx-8 scale-x-[1.02] -rotate-1 shadow-2xl" />
             
-            <div className="relative z-10 max-w-6xl mx-auto py-12 md:py-24 flex flex-col lg:flex-row items-center lg:items-start gap-8 lg:gap-16 px-4 md:px-8">
+            <div className="relative z-10 max-w-6xl mx-auto py-8 md:py-16 flex flex-col lg:flex-row items-center lg:items-start gap-6 lg:gap-12 px-4 md:px-8">
               
-              <div className="relative flex-1 text-center lg:text-left mt-8 lg:mt-0">
-                <div className="absolute -top-12 left-1/2 -translate-x-1/2 lg:translate-x-0 lg:-top-16 lg:-left-12 text-[#E2B746] font-serif text-[6rem] md:text-[14rem] leading-none select-none opacity-90">“</div>
-                <h3 className="font-serif text-[#1B1D1B] text-3xl sm:text-4xl md:text-5xl lg:text-[4.5rem] leading-[1.05] tracking-tight relative z-10 max-w-3xl">
+              <div className="relative flex-1 text-center lg:text-left mt-6 lg:mt-0">
+                <div className="absolute -top-10 left-1/2 -translate-x-1/2 lg:translate-x-0 lg:-top-16 lg:-left-12 text-[#E2B746] font-serif text-[5rem] md:text-[10rem] leading-none select-none opacity-90">“</div>
+                <h3 className="font-serif text-[#1B1D1B] text-2xl sm:text-3xl md:text-5xl lg:text-[4.5rem] leading-[1.05] tracking-tight relative z-10 max-w-3xl">
                   {profile.bio || profile.headline}
                 </h3>
               </div>
@@ -1002,7 +1002,7 @@ function HumanTemplate({ profile, accentColor }: any) {
 
         {/* Metrics */}
         {profile.proofs && profile.proofs.length > 0 && (
-          <section className="w-full max-w-6xl mx-auto px-6 mt-20 md:mt-32 grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 relative z-10">
+          <section className="w-full max-w-5xl mx-auto px-6 mt-12 md:mt-24 grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 relative z-10">
             {profile.proofs.slice(0,3).map((proof: any, i: number) => {
               const s = [
                 { bg: '#E2B746', text: '#1B1D1B', cls: 'human-metric-1', icon: <Users size={32} strokeWidth={1.5} />, dec: 'chart' },
@@ -1011,9 +1011,9 @@ function HumanTemplate({ profile, accentColor }: any) {
               ][i % 3];
 
               return (
-                <div key={i} className={`${s.cls} p-8 md:p-10 flex flex-row items-center justify-between shadow-xl relative overflow-hidden transition-transform duration-300 hover:-translate-y-2`}>
-                  <div className="flex flex-col justify-between h-full min-h-[90px] gap-6">
-                    <div className="opacity-80">{s.icon}</div>
+                <div key={i} className={`${s.cls} p-5 md:p-6 flex flex-row items-center justify-between shadow-xl relative overflow-hidden transition-transform duration-300 hover:-translate-y-2`}>
+                  <div className="flex flex-col justify-between h-full min-h-[60px] md:min-h-[80px] gap-4 md:gap-6">
+                    <div className="opacity-80 scale-90 md:scale-100 origin-left">{s.icon}</div>
                     <div className="opacity-40">
                       {s.dec === 'chart' && (
                         <div className="flex items-end gap-1.5 h-6">
@@ -1035,9 +1035,9 @@ function HumanTemplate({ profile, accentColor }: any) {
                     </div>
                   </div>
                   
-                  <div className="flex flex-col text-left items-start ml-6 flex-1 overflow-hidden">
-                    <span className="font-serif text-[2.5rem] md:text-[3.25rem] font-bold tracking-tight leading-none mb-2 break-all">{proof.value}</span>
-                    <span className="font-sans text-sm md:text-base font-bold tracking-wide capitalize truncate w-full">{proof.title || proof.type}</span>
+                  <div className="flex flex-col text-left items-start ml-4 md:ml-6 flex-1 overflow-hidden">
+                    <span className="font-serif text-[2rem] md:text-[2.75rem] font-bold tracking-tight leading-none mb-2 break-all">{proof.value}</span>
+                    <span className="font-sans text-xs md:text-sm font-bold tracking-wide capitalize truncate w-full">{proof.title || proof.type}</span>
                     {proof.description && (
                       <span className="font-sans text-[10px] md:text-xs mt-2 opacity-80 max-w-[140px] leading-snug font-medium line-clamp-2">
                         {proof.description}
@@ -1052,8 +1052,8 @@ function HumanTemplate({ profile, accentColor }: any) {
 
         {/* Social Links */}
         {profile.links && profile.links.length > 0 && (
-          <section className="w-full max-w-4xl mx-auto px-6 mt-24 md:mt-32 relative z-10">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-8 md:mb-12 border-b border-[#AEA997]/20 pb-4 md:pb-6">
+          <section className="w-full max-w-3xl mx-auto px-6 mt-16 md:mt-24 relative z-10">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-6 md:mb-10 border-b border-[#AEA997]/20 pb-3 md:pb-5">
               <h4 className="font-serif text-3xl md:text-4xl text-[#F4EDDC] font-bold mb-2 sm:mb-0">Official links</h4>
               <span className="font-sans text-[9px] md:text-[10px] uppercase tracking-[0.2em] text-[#AEA997] font-bold opacity-70">
                 Same humans. Different places.
@@ -1070,20 +1070,20 @@ function HumanTemplate({ profile, accentColor }: any) {
 
                 return (
                   <a key={i} href={link.url} target="_blank" rel="noreferrer"
-                     className="human-social-link flex items-center justify-between p-3 md:p-4 shadow-lg group"
+                     className="human-social-link flex items-center justify-between p-2 md:p-3 shadow-lg group"
                      style={{ backgroundColor: style.bg, color: style.text }}>
-                    <div className="flex items-center gap-5 md:gap-6">
-                      <div className="w-14 h-14 md:w-16 md:h-16 bg-white/60 rounded-2xl flex items-center justify-center shrink-0 shadow-sm text-[#1B1D1B]">
+                    <div className="flex items-center gap-4 md:gap-5">
+                      <div className="w-12 h-12 md:w-14 md:h-14 bg-white/60 rounded-xl md:rounded-2xl flex items-center justify-center shrink-0 shadow-sm text-[#1B1D1B]">
                         {getIcon(link.icon || link.label)}
                       </div>
                       <div className="flex flex-col overflow-hidden">
-                        <span className="font-sans font-bold text-lg md:text-xl tracking-tight">{link.label}</span>
-                        <span className="font-sans text-xs md:text-sm opacity-70 font-medium truncate max-w-[200px] md:max-w-none mt-0.5">
+                        <span className="font-sans font-bold text-base md:text-lg tracking-tight">{link.label}</span>
+                        <span className="font-sans text-[10px] md:text-xs opacity-70 font-medium truncate max-w-[180px] md:max-w-none mt-0.5">
                           {link.url.replace(/^https?:\/\//, '').replace(/^www\./, '')}
                         </span>
                       </div>
                     </div>
-                    <div className="pr-4 md:pr-6 opacity-40 group-hover:opacity-100 group-hover:translate-x-2 transition-all">
+                    <div className="pr-3 md:pr-4 opacity-40 group-hover:opacity-100 group-hover:translate-x-2 transition-all">
                       <ArrowRight size={24} strokeWidth={1.5} />
                     </div>
                   </a>
@@ -1095,13 +1095,13 @@ function HumanTemplate({ profile, accentColor }: any) {
       </main>
 
       {/* Footer / CTAs */}
-      <footer className="relative mt-24 md:mt-40 pt-32 pb-16 overflow-hidden w-full flex items-center min-h-[350px]">
+      <footer className="relative mt-16 md:mt-24 pt-20 md:pt-24 pb-12 overflow-hidden w-full flex items-center min-h-[250px] md:min-h-[300px]">
         {/* Organic layered backgrounds */}
         <div className="absolute bottom-0 right-0 w-[85%] md:w-[70%] h-full bg-[#EFE4CC] human-footer-shape-1 z-0 shadow-2xl" />
         <div className="absolute bottom-0 left-0 w-[70%] md:w-[45%] h-[85%] bg-[#BE5B42] human-footer-shape-2 z-0 shadow-2xl" />
         <div className="absolute -bottom-16 -left-4 md:left-[5%] w-[50%] md:w-[28%] h-[60%] md:h-[50%] bg-[#123040] human-footer-shape-3 z-0 shadow-2xl" />
 
-        <div className="relative z-10 w-full max-w-[1300px] mx-auto px-6 md:px-12 flex flex-col md:flex-row justify-between items-end gap-12 h-full pb-4">
+        <div className="relative z-10 w-full max-w-[1300px] mx-auto px-6 md:px-12 flex flex-col md:flex-row justify-between items-end gap-8 h-full pb-2">
           
           <div className="flex flex-col text-[9px] uppercase tracking-[0.25em] font-bold text-[#1B1D1B] opacity-50 leading-[2] hidden md:flex pb-2">
             Kinder<br/>People<br/>Braver<br/>Tomorrows<br/>
