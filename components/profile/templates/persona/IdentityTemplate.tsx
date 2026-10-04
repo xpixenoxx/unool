@@ -770,29 +770,355 @@ function VisionTemplate({ profile, accentColor }: any) {
 }
 
 function HumanTemplate({ profile, accentColor }: any) {
-  const accent = accentColor || '#FFD666';
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastTimer, setToastTimer] = useState<NodeJS.Timeout | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    setToastVisible(true);
+    if (toastTimer) clearTimeout(toastTimer);
+    const timer = setTimeout(() => {
+      setToastVisible(false);
+    }, 2200);
+    setToastTimer(timer);
+  };
+
+  const copyEmail = () => {
+    navigator.clipboard.writeText(profile.email || 'hello@example.com');
+    showToast('Email copied to clipboard!');
+  };
+
+  const downloadVCard = () => {
+    const vcard = `BEGIN:VCARD\nVERSION:3.0\nN:${profile.name || ''};;;;\nFN:${profile.name || ''}\nORG:${profile.company || ''}\nTITLE:${profile.role || profile.headline || ''}\nURL:${typeof window !== 'undefined' ? window.location.origin : ''}\nEND:VCARD`;
+    const blob = new Blob([vcard], { type: 'text/vcard' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${profile.name?.replace(/\\s+/g, '_') || 'Contact'}.vcf`;
+    a.click();
+    showToast('Contact saved!');
+  };
+
+  const getIcon = (iconName?: string) => {
+    switch (iconName?.toLowerCase()) {
+      case 'github': return <Github size={20} />;
+      case 'linkedin': return <Linkedin size={20} />;
+      case 'instagram': return <Instagram size={20} />;
+      default: return <ExternalLink size={20} />;
+    }
+  };
+
+  const getSocialCardStyle = (index: number) => {
+    const styles = [
+      { bg: '#EFE4CC', text: '#1B1D1B', iconBg: 'rgba(27,29,27,0.05)' },
+      { bg: '#A5AE89', text: '#1B1D1B', iconBg: 'rgba(27,29,27,0.1)' },
+      { bg: '#BE5B42', text: '#F4EDDC', iconBg: 'rgba(244,237,220,0.15)' },
+      { bg: '#E2B746', text: '#1B1D1B', iconBg: 'rgba(27,29,27,0.05)' }
+    ];
+    return styles[index % styles.length];
+  };
+
+  const customStyles = `
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap');
+
+    .human-theme {
+      font-family: 'DM Sans', sans-serif;
+      background-color: #123040;
+      color: #F4EDDC;
+    }
+    .human-theme .font-serif {
+      font-family: 'Playfair Display', serif;
+    }
+    
+    .human-texture {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      pointer-events: none;
+      z-index: 50;
+      opacity: 0.12;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    }
+
+    .human-blob-bg-1 {
+      position: absolute;
+      top: -10%; left: -10%;
+      width: 70vw; height: 70vw;
+      max-width: 800px; max-height: 800px;
+      background-color: #E2B746;
+      border-radius: 45% 55% 40% 60% / 55% 45% 60% 40%;
+      opacity: 0.06;
+      pointer-events: none;
+      z-index: 0;
+    }
+    
+    .human-blob-bg-2 {
+      position: absolute;
+      bottom: -10%; right: -5%;
+      width: 60vw; height: 80vw;
+      max-width: 700px; max-height: 900px;
+      background-color: #BE5B42;
+      border-radius: 60% 40% 50% 50% / 45% 55% 45% 55%;
+      opacity: 0.08;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .human-cream-card {
+      background-color: #EFE4CC;
+      color: #1B1D1B;
+      border-radius: 20px 40px 16px 32px;
+    }
+
+    .human-img-mask {
+      border-radius: 45% 55% 40% 60% / 55% 45% 60% 40%;
+    }
+
+    .human-img-bg {
+      border-radius: 60% 40% 50% 50% / 45% 55% 45% 55%;
+      background-color: #E2B746;
+    }
+    
+    .human-metric-1 {
+      background-color: #E2B746;
+      color: #1B1D1B;
+      border-radius: 24px 16px 32px 20px;
+    }
+    .human-metric-2 {
+      background-color: #A5AE89;
+      color: #1B1D1B;
+      border-radius: 16px 32px 20px 24px;
+    }
+    .human-metric-3 {
+      background-color: #BE5B42;
+      color: #F4EDDC;
+      border-radius: 32px 20px 24px 16px;
+    }
+    
+    .human-social-link {
+      border-radius: 12px 24px 12px 20px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+    }
+    .human-social-link:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+      filter: brightness(0.95);
+    }
+    .human-social-link:active {
+      transform: translateY(1px);
+    }
+    .human-social-link:focus-visible {
+      outline: 2px solid #E2B746;
+      outline-offset: 2px;
+    }
+
+    .human-btn-primary {
+      background-color: #BE5B42;
+      color: #F4EDDC;
+      border-radius: 24px 12px 24px 16px;
+      transition: all 0.2s ease;
+    }
+    .human-btn-primary:hover {
+      background-color: #a84b34;
+      transform: translateY(-2px);
+    }
+    .human-btn-primary:active {
+      transform: translateY(1px);
+    }
+    .human-btn-secondary {
+      background-color: #123040;
+      color: #F4EDDC;
+      border: 1px solid #AEA997;
+      border-radius: 12px 24px 16px 24px;
+      transition: all 0.2s ease;
+    }
+    .human-btn-secondary:hover {
+      background-color: #1a4257;
+      transform: translateY(-2px);
+    }
+    .human-btn-secondary:active {
+      transform: translateY(1px);
+    }
+  `;
+
   return (
-    <div className="min-h-screen w-full bg-[#FFFDF8] text-[#3D3A33] p-6 md:p-12 flex flex-col items-center">
-      <div className="max-w-xl w-full space-y-10 text-center mt-12">
-        <div className="relative inline-block">
-          <div className="absolute inset-0 rounded-[3rem] rotate-6" style={{ backgroundColor: accent, opacity: 0.5 }} />
-          <img src={profile.avatarUrl} alt={profile.name} className="relative w-40 h-40 rounded-[3rem] object-cover border-4 border-white shadow-xl" />
+    <div className="human-theme min-h-[100dvh] w-full relative overflow-x-hidden antialiased flex flex-col">
+      <style dangerouslySetInnerHTML={{ __html: customStyles }} />
+      <div className="human-texture" />
+      <div className="human-blob-bg-1" />
+      <div className="human-blob-bg-2" />
+
+      {/* Navigation */}
+      <nav className="relative z-20 w-full p-6 md:p-10 flex justify-between items-center max-w-7xl mx-auto">
+        <div className="font-serif text-2xl font-bold tracking-tight leading-none">
+          {profile.name?.split(' ')[0] || 'Profile'}<br/>
+          <span className="text-[#AEA997] font-sans text-xs uppercase tracking-widest mt-1 block">
+            {profile.company || 'Identity'}
+          </span>
         </div>
-        <div className="space-y-4">
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight rounded-2xl">{profile.name}</h1>
-          <div className="inline-block px-6 py-2 rounded-full font-medium shadow-sm" style={{ backgroundColor: accent, color: '#3D3A33' }}>
-            {profile.headline}
-          </div>
-          <p className="text-lg opacity-80 max-w-md mx-auto leading-relaxed">{profile.bio}</p>
-        </div>
+        <button 
+          onClick={() => setMenuOpen(true)}
+          className="w-12 h-12 flex flex-col items-end justify-center gap-2 hover:opacity-70 transition-opacity focus:outline-none"
+          aria-label="Open menu"
+        >
+          <div className="w-8 h-[2px] bg-[#F4EDDC]"></div>
+          <div className="w-6 h-[2px] bg-[#F4EDDC]"></div>
+        </button>
+      </nav>
+
+      {/* Main Content */}
+      <main className="relative z-10 w-full max-w-4xl mx-auto px-6 pb-24 flex-1">
         
-        <div className="space-y-4 pt-4">
-          {profile.links?.map((link: any, i: number) => (
-            <a key={i} href={link.url} className="block w-full py-4 px-8 bg-white border-2 border-[#F0EBE0] rounded-full font-medium text-lg shadow-sm hover:border-gray-300 hover:shadow-md transition-all hover:scale-[1.02]">
-              {link.label}
-            </a>
-          ))}
+        {/* Hero */}
+        <section className="grid grid-cols-1 md:grid-cols-12 gap-12 md:gap-6 mt-4 md:mt-12 items-center">
+          <div className="md:col-span-6 flex flex-col justify-center order-2 md:order-1">
+            {profile.subdomain && (
+              <span className="text-[#AEA997] font-sans text-sm mb-3 italic">@{profile.subdomain}</span>
+            )}
+            <h1 className="text-5xl md:text-7xl lg:text-8xl font-serif text-[#F4EDDC] leading-tight mb-4">
+              {profile.name}
+            </h1>
+            <h2 className="text-xl md:text-2xl text-[#AEA997] font-sans font-light tracking-wide mb-6">
+              {profile.headline || profile.role || 'Professional Profile'}
+            </h2>
+          </div>
+
+          <div className="md:col-span-6 flex justify-center md:justify-end order-1 md:order-2 relative">
+            <div className="w-[260px] h-[280px] sm:w-[320px] sm:h-[340px] md:w-[380px] md:h-[420px] relative">
+               <div className="absolute inset-0 human-img-bg translate-x-4 translate-y-4 md:translate-x-6 md:translate-y-6" />
+               <img 
+                 src={profile.avatarUrl || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=800&q=80'} 
+                 alt={profile.name} 
+                 className="absolute inset-0 w-full h-full object-cover human-img-mask shadow-2xl" 
+               />
+               <div className="absolute bottom-2 right-2 md:bottom-6 md:right-6 w-12 h-12 md:w-14 md:h-14 bg-[#E2B746] flex items-center justify-center text-[#123040] shadow-xl" style={{ borderRadius: '40% 60% 70% 30% / 40% 50% 60% 50%'}}>
+                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Bio / About */}
+        {(profile.bio || profile.headline) && (
+          <section className="mt-16 md:mt-24 human-cream-card p-8 md:p-12 shadow-xl flex flex-col sm:flex-row gap-6 md:gap-8 items-start relative">
+            <div className="text-6xl md:text-7xl text-[#E2B746] font-serif shrink-0 leading-none h-10 mt-1 md:mt-2">“</div>
+            <div className="flex-1">
+              <h3 className="text-2xl md:text-3xl lg:text-4xl font-serif text-[#1B1D1B] leading-snug mb-6">
+                {profile.bio || profile.headline}
+              </h3>
+              <div className="border-l-2 border-[#AEA997] pl-4">
+                <p className="text-[#1B1D1B] font-sans font-semibold text-xs md:text-sm opacity-70 uppercase tracking-widest max-w-sm leading-relaxed">
+                  {profile.role && profile.company ? \`\${profile.role} at \${profile.company}\` : (profile.role || profile.company || 'Discover the journey')}
+                </p>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Metrics */}
+        {profile.proofs && profile.proofs.length > 0 && (
+          <section className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
+            {profile.proofs.slice(0,3).map((proof: any, i: number) => {
+              const cardClass = i === 0 ? 'human-metric-1' : i === 1 ? 'human-metric-2' : 'human-metric-3';
+              return (
+                <div key={i} className={`${cardClass} p-6 md:p-8 flex flex-col justify-center items-center text-center shadow-lg hover:scale-[1.02] transition-transform`}>
+                   <span className="text-3xl md:text-4xl font-serif font-bold mb-1 md:mb-2">{proof.value}</span>
+                   <span className="font-sans text-xs md:text-sm font-semibold tracking-wide uppercase opacity-90">{proof.title || proof.type}</span>
+                </div>
+              );
+            })}
+          </section>
+        )}
+
+        {/* Social Links */}
+        {profile.links && profile.links.length > 0 && (
+          <section className="mt-12 md:mt-20">
+            <h4 className="text-[#F4EDDC] font-serif text-2xl md:text-3xl mb-6 ml-2 md:ml-4">Official links</h4>
+            <div className="flex flex-col gap-4">
+              {profile.links.map((link: any, i: number) => {
+                const style = getSocialCardStyle(i);
+                return (
+                  <a key={i} href={link.url} target="_blank" rel="noreferrer" 
+                     className="human-social-link p-4 md:p-5 flex items-center justify-between group focus:outline-none"
+                     style={{ backgroundColor: style.bg, color: style.text }}>
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center shrink-0 transition-colors"
+                           style={{ backgroundColor: style.iconBg }}>
+                        {getIcon(link.icon || link.label)}
+                      </div>
+                      <div className="flex flex-col overflow-hidden">
+                        <h5 className="font-bold text-base md:text-lg">{link.label}</h5>
+                        <span className="text-xs md:text-sm opacity-80 font-medium truncate max-w-[200px] md:max-w-none">{link.url.replace(/^https?:\\/\\//, '').replace(/^www\\./, '')}</span>
+                      </div>
+                    </div>
+                    <div className="mr-2 opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all shrink-0">
+                      <ArrowRight size={20} />
+                    </div>
+                  </a>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* CTAs */}
+        <section className="mt-16 pt-12 border-t border-[#AEA997]/30 flex flex-col sm:flex-row gap-4 justify-center items-center relative z-20">
+          <button 
+            onClick={copyEmail}
+            className="human-btn-primary px-8 py-4 font-bold tracking-wide flex items-center gap-3 w-full sm:w-auto justify-center shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#123040] focus-visible:ring-[#BE5B42]"
+          >
+            <Send size={18} />
+            <span>Get in touch</span>
+          </button>
+          <button 
+            onClick={downloadVCard}
+            className="human-btn-secondary px-8 py-4 font-bold tracking-wide flex items-center gap-3 w-full sm:w-auto justify-center shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#123040] focus-visible:ring-[#AEA997]"
+          >
+            <Bookmark size={18} />
+            <span>Save contact</span>
+          </button>
+        </section>
+
+      </main>
+
+      {/* Mobile Menu Drawer */}
+      {menuOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-[#123040]/80 backdrop-blur-sm" onClick={() => setMenuOpen(false)}>
+          <div 
+            className="w-full max-w-sm bg-[#EFE4CC] h-full shadow-2xl flex flex-col p-8 transform transition-transform duration-300"
+            style={{ borderRadius: '40px 0 0 40px' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex justify-end mb-12">
+              <button 
+                onClick={() => setMenuOpen(false)}
+                className="w-10 h-10 flex items-center justify-center rounded-full bg-[#1B1D1B]/10 text-[#1B1D1B] hover:bg-[#1B1D1B]/20 transition-colors focus:outline-none focus:ring-2 focus:ring-[#1B1D1B]"
+                aria-label="Close menu"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              </button>
+            </div>
+            
+            <nav className="flex flex-col gap-6 text-[#1B1D1B]">
+              <a href="#" onClick={(e) => { e.preventDefault(); copyEmail(); setMenuOpen(false); }} className="text-2xl font-serif hover:italic transition-all">Contact</a>
+              <a href="#" onClick={(e) => { e.preventDefault(); downloadVCard(); setMenuOpen(false); }} className="text-2xl font-serif hover:italic transition-all">Save Profile</a>
+              {profile.links && profile.links.length > 0 && (
+                <div className="mt-8 pt-8 border-t border-[#1B1D1B]/10 flex flex-col gap-4">
+                  <span className="text-xs uppercase tracking-widest font-bold opacity-50">Links</span>
+                  {profile.links.map((l: any, i: number) => (
+                    <a key={i} href={l.url} target="_blank" rel="noreferrer" className="font-sans font-medium hover:text-[#BE5B42] transition-colors">{l.label}</a>
+                  ))}
+                </div>
+              )}
+            </nav>
+          </div>
         </div>
+      )}
+
+      {/* Toast */}
+      <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 px-6 py-3 bg-[#E2B746] text-[#1B1D1B] text-sm font-bold rounded-full shadow-2xl transition-all duration-300 z-50 ${toastVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
+        {toastMsg}
       </div>
     </div>
   );
