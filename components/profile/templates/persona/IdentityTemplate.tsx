@@ -1009,7 +1009,7 @@ function HumanTemplate({ profile, accentColor }: any) {
               </h3>
               <div className="border-l-2 border-[#AEA997] pl-4">
                 <p className="text-[#1B1D1B] font-sans font-semibold text-xs md:text-sm opacity-70 uppercase tracking-widest max-w-sm leading-relaxed">
-                  {profile.role && profile.company ? \`\${profile.role} at \${profile.company}\` : (profile.role || profile.company || 'Discover the journey')}
+                  {profile.role && profile.company ? `${profile.role} at ${profile.company}` : (profile.role || profile.company || 'Discover the journey')}
                 </p>
               </div>
             </div>
@@ -1049,7 +1049,7 @@ function HumanTemplate({ profile, accentColor }: any) {
                       </div>
                       <div className="flex flex-col overflow-hidden">
                         <h5 className="font-bold text-base md:text-lg">{link.label}</h5>
-                        <span className="text-xs md:text-sm opacity-80 font-medium truncate max-w-[200px] md:max-w-none">{link.url.replace(/^https?:\\/\\//, '').replace(/^www\\./, '')}</span>
+                        <span className="text-xs md:text-sm opacity-80 font-medium truncate max-w-[200px] md:max-w-none">{link.url.replace(/^https?:\/\//, '').replace(/^www\./, '')}</span>
                       </div>
                     </div>
                     <div className="mr-2 opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all shrink-0">
