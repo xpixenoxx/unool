@@ -65,16 +65,18 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Fetch active platform connections for this workspace
-      const { SupabasePlatformRepository } = await import('@/lib/repositories/supabase/SupabasePlatformRepository');
-      const platformRepo = new SupabasePlatformRepository();
-      const connections = await platformRepo.findByWorkspaceId(workspaceId);
-      let activePlatforms = connections
-        .filter(c => c.status === 'connected')
-        .map(c => c.platform as PlatformType);
+      let activePlatforms: PlatformType[] = [];
 
       if (selectedPlatforms && Array.isArray(selectedPlatforms) && selectedPlatforms.length > 0) {
-        activePlatforms = activePlatforms.filter(p => selectedPlatforms.includes(p));
+        activePlatforms = selectedPlatforms as PlatformType[];
+      } else {
+        // Fetch active platform connections for this workspace
+        const { SupabasePlatformRepository } = await import('@/lib/repositories/supabase/SupabasePlatformRepository');
+        const platformRepo = new SupabasePlatformRepository();
+        const connections = await platformRepo.findByWorkspaceId(workspaceId);
+        activePlatforms = connections
+          .filter(c => c.status === 'connected')
+          .map(c => c.platform as PlatformType);
       }
 
       if (activePlatforms.length === 0) {

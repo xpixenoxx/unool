@@ -35,10 +35,7 @@ export async function GET(
 
     const allVariants = await postRepository.findVariantsByPostId(postId);
 
-    // Filter to only show variants for connected platforms, OR variants that were already successfully published
-    const visibleVariants = allVariants.filter(v => connectedPlatforms.has(v.platform) || v.status === 'published');
-
-    logger.info('Post with variants fetched', { traceId, postId, variantCount: visibleVariants.length });
+    logger.info('Post with variants fetched', { traceId, postId, variantCount: allVariants.length });
 
     return NextResponse.json({
       post: {
@@ -50,7 +47,7 @@ export async function GET(
         createdAt: post.createdAt.toISOString(),
         updatedAt: post.updatedAt.toISOString(),
       },
-      variants: visibleVariants.map((v) => ({
+      variants: allVariants.map((v) => ({
         id: v.id,
         postId: v.postId,
         platform: v.platform,
