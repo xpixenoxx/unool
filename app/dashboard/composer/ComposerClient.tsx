@@ -122,7 +122,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           .filter((c: any) => c.status === 'connected')
           .map((c: any) => c.platform as PlatformType);
         setConnectedPlatforms(active);
-        setSelectedPlatforms(active);
+        setSelectedPlatforms([]);
       }
     } catch {
       // Ignore
