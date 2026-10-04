@@ -833,8 +833,8 @@ function HumanTemplate({ profile, accentColor }: any) {
 
     .human-blob-bg-1 {
       position: absolute;
-      top: -10%; left: -10%;
-      width: 70vw; height: 70vw;
+      top: -5%; left: -5%;
+      width: 85vw; height: 85vw;
       max-width: 800px; max-height: 800px;
       background-color: #E2B746;
       border-radius: 45% 55% 40% 60% / 55% 45% 60% 40%;
@@ -854,27 +854,27 @@ function HumanTemplate({ profile, accentColor }: any) {
     
     .human-bio-surface {
       background-color: #EFE4CC;
-      border-radius: 40px 100px 40px 100px / 80px 40px 80px 40px;
+      border-radius: 20px 40px 20px 40px / 40px 20px 40px 20px;
     }
 
     .human-metric-1 {
       background-color: #E2B746;
       color: #1B1D1B;
-      border-radius: 30px 40px 30px 40px / 40px 30px 40px 30px;
+      border-radius: 20px 24px 20px 24px / 24px 20px 24px 20px;
     }
     .human-metric-2 {
       background-color: #A5AE89;
       color: #1B1D1B;
-      border-radius: 40px 30px 40px 30px / 30px 40px 30px 40px;
+      border-radius: 24px 20px 24px 20px / 20px 24px 20px 24px;
     }
     .human-metric-3 {
       background-color: #BE5B42;
       color: #F4EDDC;
-      border-radius: 35px 35px 35px 35px / 45px 45px 25px 25px;
+      border-radius: 22px 22px 22px 22px / 26px 26px 18px 18px;
     }
     
     .human-social-link {
-      border-radius: 30px 12px 30px 12px / 20px 30px 20px 30px;
+      border-radius: 20px 10px 20px 10px / 16px 20px 16px 20px;
       transition: all 0.25s ease;
     }
     .human-social-link:hover {
@@ -887,13 +887,44 @@ function HumanTemplate({ profile, accentColor }: any) {
     }
     
     .human-footer-shape-1 {
-      border-radius: 140px 20px 0 0 / 100px 40px 0 0;
+      border-radius: 60px 10px 0 0 / 40px 20px 0 0;
     }
     .human-footer-shape-2 {
-      border-radius: 40px 140px 0 0 / 20px 100px 0 0;
+      border-radius: 20px 60px 0 0 / 10px 40px 0 0;
     }
     .human-footer-shape-3 {
-      border-radius: 50% 50% 0 0 / 100px 100px 0 0;
+      border-radius: 50% 50% 0 0 / 40px 40px 0 0;
+    }
+
+    @media (min-width: 768px) {
+      .human-bio-surface {
+        border-radius: 40px 100px 40px 100px / 80px 40px 80px 40px;
+      }
+      .human-metric-1 {
+        border-radius: 30px 40px 30px 40px / 40px 30px 40px 30px;
+      }
+      .human-metric-2 {
+        border-radius: 40px 30px 40px 30px / 30px 40px 30px 40px;
+      }
+      .human-metric-3 {
+        border-radius: 35px 35px 35px 35px / 45px 45px 25px 25px;
+      }
+      .human-social-link {
+        border-radius: 30px 12px 30px 12px / 20px 30px 20px 30px;
+      }
+      .human-footer-shape-1 {
+        border-radius: 140px 20px 0 0 / 100px 40px 0 0;
+      }
+      .human-footer-shape-2 {
+        border-radius: 40px 140px 0 0 / 20px 100px 0 0;
+      }
+      .human-footer-shape-3 {
+        border-radius: 50% 50% 0 0 / 100px 100px 0 0;
+      }
+      .human-blob-bg-1 {
+        top: -10%; left: -10%;
+        width: 70vw; height: 70vw;
+      }
     }
   `;
 
@@ -927,32 +958,32 @@ function HumanTemplate({ profile, accentColor }: any) {
       <main className="relative z-10 w-full flex-1 pb-16">
         
         {/* Hero Section */}
-        <section className="relative w-full max-w-[1300px] mx-auto px-6 mt-4 md:mt-12 flex flex-col lg:flex-row items-center lg:items-stretch justify-end min-h-[500px]">
+        <section className="relative w-full max-w-[1300px] mx-auto px-6 mt-4 md:mt-12 flex flex-col lg:flex-row items-center lg:items-stretch justify-end min-h-[auto] lg:min-h-[500px]">
           
           {/* Text Content (Overlapping) */}
-          <div className="w-full lg:w-3/5 flex flex-col z-20 lg:absolute lg:left-8 lg:top-1/2 lg:-translate-y-1/2 mt-12 lg:mt-0 text-center lg:text-left order-2 lg:order-1">
-            <span className="font-serif italic text-[#F4EDDC] text-xl md:text-2xl opacity-90 block mb-2">
+          <div className="w-full lg:w-3/5 flex flex-col z-20 lg:absolute lg:left-8 lg:top-1/2 lg:-translate-y-1/2 mt-6 lg:mt-0 text-center lg:text-left order-2 lg:order-1">
+            <span className="font-serif italic text-[#F4EDDC] text-lg sm:text-xl md:text-2xl opacity-90 block mb-1 md:mb-2">
               @{profile.subdomain || 'identity'}
             </span>
-            <h1 className="font-serif text-[#F4EDDC] text-[4.5rem] sm:text-[6rem] lg:text-[8.5rem] leading-[0.9] tracking-tight mb-4 drop-shadow-lg lg:drop-shadow-none">
+            <h1 className="font-serif text-[#F4EDDC] text-[clamp(3.5rem,12vw,6rem)] lg:text-[8.5rem] leading-[0.95] tracking-tight mb-2 md:mb-4 drop-shadow-md lg:drop-shadow-none mx-auto lg:mx-0 max-w-[90%] lg:max-w-none">
               {profile.name}
             </h1>
-            <h2 className="font-sans text-[#AEA997] text-xl sm:text-2xl md:text-3xl font-light tracking-wide max-w-2xl mx-auto lg:mx-0">
+            <h2 className="font-sans text-[#AEA997] text-lg sm:text-2xl md:text-3xl font-light tracking-wide max-w-[280px] sm:max-w-2xl mx-auto lg:mx-0 leading-snug">
               {profile.headline || profile.role || 'Professional Profile'}
             </h2>
           </div>
 
           {/* Image Content */}
-          <div className="w-full lg:w-[55%] relative flex justify-center lg:justify-end order-1 lg:order-2">
-            <div className="w-[300px] h-[340px] sm:w-[420px] sm:h-[480px] lg:w-[540px] lg:h-[600px] relative z-10">
-               <div className="absolute inset-0 human-img-bg scale-110 -translate-x-6 -translate-y-8 lg:-translate-x-12 lg:-translate-y-12 opacity-90 transition-transform duration-700 hover:scale-105" />
+          <div className="w-full lg:w-[55%] relative flex justify-center lg:justify-end order-1 lg:order-2 mt-4 lg:mt-0">
+            <div className="w-[min(70vw,280px)] h-[min(80vw,320px)] sm:w-[380px] sm:h-[440px] lg:w-[540px] lg:h-[600px] relative z-10 mx-auto lg:mr-0">
+               <div className="absolute inset-0 human-img-bg scale-110 -translate-x-4 -translate-y-6 lg:-translate-x-12 lg:-translate-y-12 opacity-90 transition-transform duration-700 hover:scale-105" />
                <img 
                  src={profile.avatarUrl || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=800&q=80'} 
                  alt={profile.name} 
-                 className="absolute inset-0 w-full h-full object-cover human-img-mask shadow-2xl transition-transform duration-700 hover:scale-[1.02]" 
+                 className="absolute inset-0 w-full h-full object-cover human-img-mask shadow-xl lg:shadow-2xl transition-transform duration-700 hover:scale-[1.02]" 
                />
-               <div className="absolute bottom-4 right-4 md:bottom-8 md:right-8 lg:bottom-12 lg:right-12 w-14 h-14 md:w-16 md:h-16 bg-[#E2B746] text-[#123040] flex items-center justify-center shadow-xl z-20" style={{ borderRadius: '50% 50% 40% 60% / 60% 40% 60% 40%' }}>
-                 <BadgeCheck size={32} strokeWidth={2} />
+               <div className="absolute bottom-2 right-2 sm:bottom-4 sm:right-4 md:bottom-8 md:right-8 lg:bottom-12 lg:right-12 w-10 h-10 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-[#E2B746] text-[#123040] flex items-center justify-center shadow-lg z-20" style={{ borderRadius: '50% 50% 40% 60% / 60% 40% 60% 40%' }}>
+                 <BadgeCheck className="w-6 h-6 sm:w-8 sm:h-8" strokeWidth={2} />
                </div>
             </div>
           </div>
@@ -961,24 +992,24 @@ function HumanTemplate({ profile, accentColor }: any) {
 
         {/* Bio / About */}
         {(profile.bio || profile.headline) && (
-          <section className="relative w-full mt-24 md:mt-32 lg:mt-40 z-10 px-4 md:px-8">
-            <div className="human-bio-surface absolute inset-0 -mx-4 md:-mx-8 scale-x-[1.02] -rotate-1 shadow-2xl" />
+          <section className="relative w-full mt-16 md:mt-32 lg:mt-40 z-10 px-4 md:px-8">
+            <div className="human-bio-surface absolute inset-0 -mx-2 md:-mx-8 scale-x-[1.02] -rotate-1 shadow-lg md:shadow-2xl" />
             
-            <div className="relative z-10 max-w-6xl mx-auto py-16 md:py-24 flex flex-col lg:flex-row items-center lg:items-start gap-12 lg:gap-16 px-4 md:px-8">
+            <div className="relative z-10 max-w-6xl mx-auto py-12 md:py-24 flex flex-col lg:flex-row items-center lg:items-start gap-8 lg:gap-16 px-4 md:px-8">
               
-              <div className="relative flex-1 text-center lg:text-left mt-12 lg:mt-0">
-                <div className="absolute -top-16 left-1/2 -translate-x-1/2 lg:translate-x-0 lg:-top-16 lg:-left-12 text-[#E2B746] font-serif text-[10rem] md:text-[14rem] leading-none select-none opacity-90">“</div>
-                <h3 className="font-serif text-[#1B1D1B] text-4xl md:text-5xl lg:text-[4.5rem] leading-[1.05] tracking-tight relative z-10 max-w-3xl">
+              <div className="relative flex-1 text-center lg:text-left mt-8 lg:mt-0">
+                <div className="absolute -top-12 left-1/2 -translate-x-1/2 lg:translate-x-0 lg:-top-16 lg:-left-12 text-[#E2B746] font-serif text-[6rem] lg:text-[10rem] leading-none select-none opacity-90">“</div>
+                <h3 className="font-serif text-[#1B1D1B] text-3xl sm:text-4xl lg:text-[4.5rem] leading-[1.1] tracking-tight relative z-10 max-w-3xl px-2 sm:px-0">
                   {profile.bio || profile.headline}
                 </h3>
               </div>
 
-              <div className="w-full lg:w-[40%] flex flex-col sm:flex-row lg:flex-row items-stretch gap-8 lg:border-l border-[#1B1D1B]/20 lg:pl-10 pt-4 lg:pt-0">
-                <p className="font-sans text-[#1B1D1B] text-base md:text-lg leading-relaxed font-medium opacity-80 flex-1">
+              <div className="w-full lg:w-[40%] flex flex-col sm:flex-row lg:flex-row items-stretch gap-6 lg:border-l border-[#1B1D1B]/20 lg:pl-10 pt-2 lg:pt-0">
+                <p className="font-sans text-[#1B1D1B] text-sm md:text-lg leading-relaxed font-medium opacity-80 flex-1 px-4 sm:px-0 text-center sm:text-left">
                   {profile.description || (profile.role && profile.company ? `${profile.role} at ${profile.company}. ` : '') + 'Creating impact and driving innovation across projects and teams.'}
                 </p>
                 
-                <div className="sm:border-l border-[#1B1D1B]/20 sm:pl-8 flex flex-col justify-center sm:justify-end">
+                <div className="hidden sm:flex border-l border-[#1B1D1B]/20 pl-8 flex-col justify-center sm:justify-end">
                   <div className="flex flex-col text-[#1B1D1B] text-[9px] md:text-[10px] uppercase tracking-[0.25em] font-bold gap-2 opacity-60">
                     <span>People</span>
                     <span>Ideas</span>
@@ -995,19 +1026,19 @@ function HumanTemplate({ profile, accentColor }: any) {
 
         {/* Metrics */}
         {profile.proofs && profile.proofs.length > 0 && (
-          <section className="w-full max-w-6xl mx-auto px-6 mt-20 md:mt-32 grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 relative z-10">
+          <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 mt-16 md:mt-32 grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 md:gap-8 relative z-10">
             {profile.proofs.slice(0,3).map((proof: any, i: number) => {
               const s = [
-                { bg: '#E2B746', text: '#1B1D1B', cls: 'human-metric-1', icon: <Users size={32} strokeWidth={1.5} />, dec: 'chart' },
-                { bg: '#A5AE89', text: '#1B1D1B', cls: 'human-metric-2', icon: <div className="flex -space-x-3"><div className="w-8 h-8 rounded-full border border-current opacity-60"></div><div className="w-8 h-8 rounded-full border border-current opacity-80"></div><div className="w-8 h-8 rounded-full border border-current"></div></div>, dec: 'dots' },
-                { bg: '#BE5B42', text: '#F4EDDC', cls: 'human-metric-3', icon: <Eye size={32} strokeWidth={1.5} />, dec: 'wave' }
+                { bg: '#E2B746', text: '#1B1D1B', cls: 'human-metric-1', icon: <Users className="w-6 h-6 md:w-8 md:h-8" strokeWidth={1.5} />, dec: 'chart' },
+                { bg: '#A5AE89', text: '#1B1D1B', cls: 'human-metric-2', icon: <div className="flex -space-x-2 md:-space-x-3"><div className="w-6 h-6 md:w-8 md:h-8 rounded-full border border-current opacity-60"></div><div className="w-6 h-6 md:w-8 md:h-8 rounded-full border border-current opacity-80"></div><div className="w-6 h-6 md:w-8 md:h-8 rounded-full border border-current"></div></div>, dec: 'dots' },
+                { bg: '#BE5B42', text: '#F4EDDC', cls: 'human-metric-3', icon: <Eye className="w-6 h-6 md:w-8 md:h-8" strokeWidth={1.5} />, dec: 'wave' }
               ][i % 3];
 
               return (
-                <div key={i} className={`${s.cls} p-8 md:p-10 flex flex-row items-center justify-between shadow-xl relative overflow-hidden transition-transform duration-300 hover:-translate-y-2`}>
-                  <div className="flex flex-col justify-between h-full min-h-[90px] gap-6">
+                <div key={i} className={`${s.cls} p-5 md:p-10 flex flex-row items-center justify-between shadow-md md:shadow-xl relative overflow-hidden transition-transform duration-300 hover:-translate-y-1 md:hover:-translate-y-2`}>
+                  <div className="flex flex-col justify-between h-full min-h-[60px] md:min-h-[90px] gap-4 md:gap-6">
                     <div className="opacity-80">{s.icon}</div>
-                    <div className="opacity-40">
+                    <div className="opacity-40 hidden sm:block">
                       {s.dec === 'chart' && (
                         <div className="flex items-end gap-1.5 h-6">
                           <div className="w-1.5 h-3 bg-current rounded-sm"></div>
@@ -1023,16 +1054,16 @@ function HumanTemplate({ profile, accentColor }: any) {
                         </div>
                       )}
                       {s.dec === 'wave' && (
-                        <svg width="32" height="12" viewBox="0 0 32 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M2 6C6 1 10 11 16 6C22 1 26 11 30 6"/></svg>
+                        <svg width="24" height="8" viewBox="0 0 32 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="md:w-[32px] md:h-[12px]"><path d="M2 6C6 1 10 11 16 6C22 1 26 11 30 6"/></svg>
                       )}
                     </div>
                   </div>
                   
-                  <div className="flex flex-col text-left items-start ml-6 flex-1 overflow-hidden">
-                    <span className="font-serif text-[2.5rem] md:text-[3.25rem] font-bold tracking-tight leading-none mb-2 break-all">{proof.value}</span>
-                    <span className="font-sans text-sm md:text-base font-bold tracking-wide capitalize truncate w-full">{proof.title || proof.type}</span>
+                  <div className="flex flex-col text-left items-start ml-4 md:ml-6 flex-1 overflow-hidden">
+                    <span className="font-serif text-3xl sm:text-[2.5rem] md:text-[3.25rem] font-bold tracking-tight leading-none mb-1 md:mb-2 break-all">{proof.value}</span>
+                    <span className="font-sans text-xs md:text-base font-bold tracking-wide capitalize truncate w-full">{proof.title || proof.type}</span>
                     {proof.description && (
-                      <span className="font-sans text-[10px] md:text-xs mt-2 opacity-80 max-w-[140px] leading-snug font-medium line-clamp-2">
+                      <span className="hidden sm:inline-block font-sans text-[10px] md:text-xs mt-1 md:mt-2 opacity-80 max-w-[140px] leading-snug font-medium line-clamp-2">
                         {proof.description}
                       </span>
                     )}
@@ -1045,15 +1076,15 @@ function HumanTemplate({ profile, accentColor }: any) {
 
         {/* Social Links */}
         {profile.links && profile.links.length > 0 && (
-          <section className="w-full max-w-4xl mx-auto px-6 mt-24 md:mt-32 relative z-10">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-8 md:mb-12 border-b border-[#AEA997]/20 pb-4 md:pb-6">
-              <h4 className="font-serif text-3xl md:text-4xl text-[#F4EDDC] font-bold mb-2 sm:mb-0">Official links</h4>
+          <section className="w-full max-w-4xl mx-auto px-4 md:px-6 mt-16 md:mt-32 relative z-10">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-6 md:mb-12 border-b border-[#AEA997]/20 pb-4 md:pb-6">
+              <h4 className="font-serif text-2xl md:text-4xl text-[#F4EDDC] font-bold mb-1 sm:mb-0">Official links</h4>
               <span className="font-sans text-[9px] md:text-[10px] uppercase tracking-[0.2em] text-[#AEA997] font-bold opacity-70">
                 Same humans. Different places.
               </span>
             </div>
             
-            <div className="flex flex-col gap-4 md:gap-5">
+            <div className="flex flex-col gap-3 md:gap-5">
               {profile.links.map((link: any, i: number) => {
                 const style = [
                   { bg: '#EFE4CC', text: '#1B1D1B' },
@@ -1063,21 +1094,21 @@ function HumanTemplate({ profile, accentColor }: any) {
 
                 return (
                   <a key={i} href={link.url} target="_blank" rel="noreferrer"
-                     className="human-social-link flex items-center justify-between p-3 md:p-4 shadow-lg group"
+                     className="human-social-link flex items-center justify-between p-2.5 md:p-4 shadow-md md:shadow-lg group"
                      style={{ backgroundColor: style.bg, color: style.text }}>
-                    <div className="flex items-center gap-5 md:gap-6">
-                      <div className="w-14 h-14 md:w-16 md:h-16 bg-white/60 rounded-2xl flex items-center justify-center shrink-0 shadow-sm text-[#1B1D1B]">
+                    <div className="flex items-center gap-4 md:gap-6">
+                      <div className="w-12 h-12 md:w-16 md:h-16 bg-white/60 rounded-xl md:rounded-2xl flex items-center justify-center shrink-0 shadow-sm text-[#1B1D1B]">
                         {getIcon(link.icon || link.label)}
                       </div>
                       <div className="flex flex-col overflow-hidden">
-                        <span className="font-sans font-bold text-lg md:text-xl tracking-tight">{link.label}</span>
-                        <span className="font-sans text-xs md:text-sm opacity-70 font-medium truncate max-w-[200px] md:max-w-none mt-0.5">
+                        <span className="font-sans font-bold text-base md:text-xl tracking-tight">{link.label}</span>
+                        <span className="font-sans text-[11px] md:text-sm opacity-70 font-medium truncate max-w-[160px] md:max-w-none mt-0.5">
                           {link.url.replace(/^https?:\/\//, '').replace(/^www\./, '')}
                         </span>
                       </div>
                     </div>
-                    <div className="pr-4 md:pr-6 opacity-40 group-hover:opacity-100 group-hover:translate-x-2 transition-all">
-                      <ArrowRight size={24} strokeWidth={1.5} />
+                    <div className="pr-3 md:pr-6 opacity-40 group-hover:opacity-100 group-hover:translate-x-1 md:group-hover:translate-x-2 transition-all">
+                      <ArrowRight size={20} className="md:w-6 md:h-6" strokeWidth={1.5} />
                     </div>
                   </a>
                 );
@@ -1088,32 +1119,32 @@ function HumanTemplate({ profile, accentColor }: any) {
       </main>
 
       {/* Footer / CTAs */}
-      <footer className="relative mt-24 md:mt-40 pt-32 pb-16 overflow-hidden w-full flex items-center min-h-[350px]">
+      <footer className="relative mt-16 md:mt-40 pt-16 md:pt-32 pb-10 md:pb-16 overflow-hidden w-full flex items-center min-h-[auto] md:min-h-[350px]">
         {/* Organic layered backgrounds */}
-        <div className="absolute bottom-0 right-0 w-[85%] md:w-[70%] h-full bg-[#EFE4CC] human-footer-shape-1 z-0 shadow-2xl" />
-        <div className="absolute bottom-0 left-0 w-[70%] md:w-[45%] h-[85%] bg-[#BE5B42] human-footer-shape-2 z-0 shadow-2xl" />
-        <div className="absolute -bottom-16 left-[20%] w-[35%] h-[60%] bg-[#123040] human-footer-shape-3 z-0 shadow-2xl" />
+        <div className="absolute bottom-0 right-0 w-full md:w-[70%] h-[120%] md:h-full bg-[#EFE4CC] human-footer-shape-1 z-0 shadow-xl md:shadow-2xl opacity-90 md:opacity-100" />
+        <div className="absolute bottom-0 left-0 w-[80%] md:w-[45%] h-[90%] md:h-[85%] bg-[#BE5B42] human-footer-shape-2 z-0 shadow-xl md:shadow-2xl opacity-90 md:opacity-100" />
+        <div className="absolute -bottom-10 md:-bottom-16 left-[10%] md:left-[20%] w-[50%] md:w-[35%] h-[70%] md:h-[60%] bg-[#123040] human-footer-shape-3 z-0 shadow-xl md:shadow-2xl" />
 
-        <div className="relative z-10 w-full max-w-[1300px] mx-auto px-6 md:px-12 flex flex-col md:flex-row justify-between items-end gap-12 h-full pb-4">
+        <div className="relative z-10 w-full max-w-[1300px] mx-auto px-4 md:px-12 flex flex-col md:flex-row justify-between items-end gap-10 md:gap-12 h-full pb-2 md:pb-4">
           
           <div className="flex flex-col text-[9px] uppercase tracking-[0.25em] font-bold text-[#1B1D1B] opacity-50 leading-[2] hidden md:flex pb-2">
             Kinder<br/>People<br/>Braver<br/>Tomorrows<br/>
             <div className="w-8 h-[2px] bg-[#1B1D1B] mt-3"></div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4 md:gap-6 w-full md:w-auto mx-auto md:ml-auto md:mr-16">
+          <div className="flex flex-col sm:flex-row gap-3 md:gap-6 w-full md:w-auto mx-auto md:ml-auto md:mr-16 bg-white/5 md:bg-transparent p-4 md:p-0 rounded-3xl md:rounded-none backdrop-blur-sm md:backdrop-blur-none border border-white/10 md:border-none shadow-xl md:shadow-none">
             <button 
               onClick={copyEmail} 
-              className="w-full sm:w-auto px-8 py-4 md:py-5 rounded-full border border-[#1B1D1B]/30 text-[#1B1D1B] font-sans font-bold flex items-center justify-center gap-3 hover:bg-white/10 hover:border-[#1B1D1B] transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1B1D1B]"
+              className="w-full sm:w-auto px-6 py-4 md:px-8 md:py-5 rounded-full border border-[#1B1D1B]/30 text-[#1B1D1B] font-sans font-bold flex items-center justify-center gap-3 hover:bg-white/10 hover:border-[#1B1D1B] transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1B1D1B] bg-white/40 md:bg-transparent backdrop-blur-md md:backdrop-blur-none"
             >
-              <Send size={20} strokeWidth={2} />
+              <Send size={18} className="md:w-[20px] md:h-[20px]" strokeWidth={2} />
               Get in touch
             </button>
             <button 
               onClick={downloadVCard} 
-              className="w-full sm:w-auto px-8 py-4 md:py-5 rounded-full bg-[#123040] text-[#F4EDDC] font-sans font-bold flex items-center justify-center gap-3 hover:bg-[#1a4358] hover:-translate-y-1 transition-all shadow-2xl focus:outline-none focus:ring-2 focus:ring-[#1B1D1B]"
+              className="w-full sm:w-auto px-6 py-4 md:px-8 md:py-5 rounded-full bg-[#123040] text-[#F4EDDC] font-sans font-bold flex items-center justify-center gap-3 hover:bg-[#1a4358] hover:-translate-y-1 transition-all shadow-xl md:shadow-2xl focus:outline-none focus:ring-2 focus:ring-[#1B1D1B]"
             >
-              <Bookmark size={20} strokeWidth={2} />
+              <Bookmark size={18} className="md:w-[20px] md:h-[20px]" strokeWidth={2} />
               Save contact
             </button>
           </div>
