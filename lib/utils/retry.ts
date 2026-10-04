@@ -263,34 +263,31 @@ export async function fetchWithRetry(
 export async function platformFetch<T>(
   platform: string,
   fn: () => Promise<T>,
-  retryOptions?: Partial<RetryOptions>
 ): Promise<T> {
-  return withRetry(
-    async () => {
-      try {
-        return await fn();
-      } catch (error) {
-        if (error instanceof RateLimitedError) {
-          throw new RateLimitedError(
-            error.message,
-            error.retryAfterMs,
-            error.limit,
-            error.remaining,
-            error.resetAt
-          );
-        }
-        if (error instanceof TokenExpiredError) {
-          throw new TokenExpiredError(error.message, platform);
-        }
-        if (error instanceof APIError) {
-          throw new APIError(error.message, platform, error.statusCode, error.isRetryable);
-        }
-        if (error instanceof ValidationError) {
-          throw new ValidationError(error.message, platform, error.statusCode, error.details);
-        }
-        throw error;
-      }
-    },
-    retryOptions
-  );
+  try {
+    return await fn();
+  } catch (error) {
+    // Map errors to include the platform name — no retry here since
+    // inner fetchWithRetry calls already handle retries.  The previous
+    // double-retry could cause up to 12 attempts per request.
+    if (error instanceof RateLimitedError) {
+      throw new RateLimitedError(
+        error.message,
+        error.retryAfterMs,
+        error.limit,
+        error.remaining,
+        error.resetAt
+      );
+    }
+    if (error instanceof TokenExpiredError) {
+      throw new TokenExpiredError(error.message, platform);
+    }
+    if (error instanceof APIError) {
+      throw new APIError(error.message, platform, error.statusCode, error.isRetryable);
+    }
+    if (error instanceof ValidationError) {
+      throw new ValidationError(error.message, platform, error.statusCode, error.details);
+    }
+    throw error;
+  }
 }

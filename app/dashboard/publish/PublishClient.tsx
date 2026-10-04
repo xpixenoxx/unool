@@ -138,7 +138,7 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
 
     const intervalId = setInterval(() => {
       loadPost(true);
-    }, 3000);
+    }, 1500);
 
     return () => clearInterval(intervalId);
   }, [drafts, publishing, loadPost]);
