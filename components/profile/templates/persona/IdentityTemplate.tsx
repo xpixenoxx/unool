@@ -1189,11 +1189,36 @@ function HumanTemplate({ profile, accentColor }: any) {
 function StudioTemplate({ profile }: any) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  // default to Jane Doe if no name
-  const nameParts = profile.name ? profile.name.split(' ') : ['Jane', 'Doe.'];
-  const firstName = nameParts[0];
-  const lastName = nameParts.slice(1).join(' ') || 'Doe.';
+  const nameParts = profile.name ? profile.name.split(' ') : [];
+  const firstName = nameParts[0] || '';
+  const lastName = nameParts.slice(1).join(' ') || '';
 
+  const generateVCard = () => {
+    let vcard = "BEGIN:VCARD\nVERSION:3.0\n";
+    if (profile.name) vcard += `FN:${profile.name}\n`;
+    if (profile.headline) vcard += `TITLE:${profile.headline}\n`;
+    if (profile.email) vcard += `EMAIL:${profile.email}\n`;
+    if (profile.phone) vcard += `TEL:${profile.phone}\n`;
+    if (profile.location) vcard += `ADR:;;${profile.location};;;;\n`;
+    if (profile.website || (profile.links && profile.links.length > 0)) {
+       const url = profile.website || profile.links[0].url;
+       vcard += `URL:${url}\n`;
+    }
+    vcard += "END:VCARD";
+    
+    const blob = new Blob([vcard], { type: 'text/vcard' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${firstName || 'contact'}.vcf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const hasAboutData = profile.headline || profile.location || profile.focus || profile.interests || profile.expertise || profile.experience;
+  const hasContactInfo = profile.email || profile.phone || profile.links?.length > 0;
+  
   return (
     <div className="min-h-screen w-full bg-[#F5F4F0] text-[#2C2E2A] font-sans selection:bg-[#8CA290] selection:text-white overflow-x-hidden">
       {/* Header */}
@@ -1207,18 +1232,20 @@ function StudioTemplate({ profile }: any) {
               <div className="w-2 h-2 rounded-full bg-[#2C2E2A]"></div>
               <div className="w-2 h-2 rounded-full bg-[#8CA290]"></div>
             </div>
-            <span>{profile.name || 'Personal Profile'}</span>
-            <span className="text-[#888] ml-2 hidden sm:inline-block">Profile / 2026</span>
+            {profile.name && <span>{profile.name}</span>}
+            <span className="text-[#888] ml-2 hidden sm:inline-block">Profile</span>
           </div>
           
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-8 z-20 relative">
             <a href="#profile" className="hover:opacity-60 transition-opacity">Profile</a>
-            <a href="#about" className="hover:opacity-60 transition-opacity">About</a>
-            <a href="#work" className="hover:opacity-60 transition-opacity">Work</a>
-            <a href="#contact" className="px-4 py-2 border border-[#2C2E2A] rounded-full hover:bg-[#2C2E2A] hover:text-[#F5F4F0] transition-colors flex items-center gap-2">
-              Contact <span className="text-[10px]">↗</span>
-            </a>
+            {hasAboutData && <a href="#about" className="hover:opacity-60 transition-opacity">About</a>}
+            {profile.projects?.length > 0 && <a href="#work" className="hover:opacity-60 transition-opacity">Work</a>}
+            {profile.email && (
+              <a href={`mailto:${profile.email}`} className="px-4 py-2 border border-[#2C2E2A] rounded-full hover:bg-[#2C2E2A] hover:text-[#F5F4F0] transition-colors flex items-center gap-2">
+                Contact <span className="text-[10px]">↗</span>
+              </a>
+            )}
           </nav>
 
           {/* Mobile Nav Toggle */}
@@ -1232,13 +1259,13 @@ function StudioTemplate({ profile }: any) {
           </div>
         </div>
 
-        {/* Mobile Nav Menu (Below Header, pushing content) */}
+        {/* Mobile Nav Menu */}
         {isMenuOpen && (
           <div className="md:hidden mt-6 bg-[#FCFBFA] border border-[#2C2E2A]/10 rounded-xl p-6 flex flex-col gap-4 text-xs tracking-wider uppercase font-medium shadow-sm relative z-10">
             <a href="#profile" onClick={() => setIsMenuOpen(false)} className="py-2 border-b border-[#2C2E2A]/10 hover:text-[#8CA290]">Profile</a>
-            <a href="#about" onClick={() => setIsMenuOpen(false)} className="py-2 border-b border-[#2C2E2A]/10 hover:text-[#8CA290]">About</a>
-            <a href="#work" onClick={() => setIsMenuOpen(false)} className="py-2 border-b border-[#2C2E2A]/10 hover:text-[#8CA290]">Work</a>
-            <a href="#contact" onClick={() => setIsMenuOpen(false)} className="py-2 hover:text-[#8CA290]">Contact ↗</a>
+            {hasAboutData && <a href="#about" onClick={() => setIsMenuOpen(false)} className="py-2 border-b border-[#2C2E2A]/10 hover:text-[#8CA290]">About</a>}
+            {profile.projects?.length > 0 && <a href="#work" onClick={() => setIsMenuOpen(false)} className="py-2 border-b border-[#2C2E2A]/10 hover:text-[#8CA290]">Work</a>}
+            {profile.email && <a href={`mailto:${profile.email}`} onClick={() => setIsMenuOpen(false)} className="py-2 hover:text-[#8CA290]">Contact ↗</a>}
           </div>
         )}
       </header>
@@ -1256,7 +1283,7 @@ function StudioTemplate({ profile }: any) {
                className="relative w-full aspect-[4/5] object-cover rounded-[2rem] rounded-tl-[10rem] rounded-br-[10rem] border-2 border-[#2C2E2A]/10 shadow-sm transition-all duration-700 group-hover:scale-[1.02] group-hover:brightness-105"
              />
              <div className="absolute bottom-6 left-6 text-[10px] tracking-widest uppercase text-white mix-blend-difference font-medium">Personal Profile</div>
-             <div className="absolute top-6 right-6 text-[10px] tracking-widest uppercase text-white mix-blend-difference font-medium">{profile.location || 'Lisbon'}</div>
+             {profile.location && <div className="absolute top-6 right-6 text-[10px] tracking-widest uppercase text-white mix-blend-difference font-medium">{profile.location}</div>}
           </div>
 
           {/* Right: Info */}
@@ -1266,50 +1293,55 @@ function StudioTemplate({ profile }: any) {
                 <span className="text-[10px] tracking-widest uppercase font-medium">Personal Profile</span>
              </div>
              
-             <h1 className="text-6xl md:text-8xl font-serif tracking-tight mb-4 text-[#1A1A1A]">
-                <span className="font-normal">{firstName}</span> <span className="italic text-[#8CA290]">{lastName}</span>
-             </h1>
+             {profile.name && (
+               <h1 className="text-6xl md:text-8xl font-serif tracking-tight mb-4 text-[#1A1A1A]">
+                  <span className="font-normal">{firstName}</span> <span className="italic text-[#8CA290]">{lastName}</span>
+               </h1>
+             )}
              
-             <p className="text-xl md:text-2xl font-serif text-[#555] mb-6">
-               {profile.headline || 'Creative Technologist · Product Designer'}
-             </p>
+             {profile.headline && (
+               <p className="text-xl md:text-2xl font-serif text-[#555] mb-6">
+                 {profile.headline}
+               </p>
+             )}
              
-             <p className="text-base text-[#666] leading-relaxed max-w-md mb-10">
-               {profile.bio || 'I make calm digital tools for people working through complex ideas — from first question to something you can use.'}
-             </p>
+             {profile.bio && (
+               <p className="text-base text-[#666] leading-relaxed max-w-md mb-10">
+                 {profile.bio}
+               </p>
+             )}
 
              {/* Metadata */}
-             <div className="flex flex-wrap gap-4 text-[10px] tracking-widest uppercase text-[#555] mb-8 font-medium">
-               <span>{profile.location || 'Lisbon'}</span>
-               <span>·</span>
-               <span>Worldwide</span>
-               <span>·</span>
-               <span>Available Q3</span>
-             </div>
+             {(profile.location || profile.availability) && (
+               <div className="flex flex-wrap gap-4 text-[10px] tracking-widest uppercase text-[#555] mb-8 font-medium">
+                 {profile.location && <span>{profile.location}</span>}
+                 {profile.location && profile.availability && <span>·</span>}
+                 {profile.availability && <span>{profile.availability}</span>}
+               </div>
+             )}
 
              {/* Status */}
-             <div className="inline-flex items-center gap-2 px-3 py-1.5 border border-[#2C2E2A]/10 rounded-full text-[10px] uppercase tracking-wider mb-12 bg-white/50 shadow-sm">
-               <span className="w-2 h-2 rounded-full bg-[#8CA290] animate-pulse"></span>
-               Open to collaborations
-             </div>
+             {profile.availability && (
+               <div className="inline-flex items-center gap-2 px-3 py-1.5 border border-[#2C2E2A]/10 rounded-full text-[10px] uppercase tracking-wider mb-12 bg-white/50 shadow-sm">
+                 <span className="w-2 h-2 rounded-full bg-[#8CA290] animate-pulse"></span>
+                 {profile.availability}
+               </div>
+             )}
 
              {/* Social Links */}
-             <div className="w-full border border-[#2C2E2A]/10 p-6 md:p-8 bg-[#FCFBFA] relative">
-               <div className="text-[10px] tracking-widest uppercase text-[#888] mb-6 font-medium">Find me in the open</div>
-               <div className="flex flex-wrap gap-x-8 gap-y-4">
-                 {(profile.links && profile.links.length > 0 ? profile.links : [
-                   {label: 'LinkedIn', url: '#'},
-                   {label: 'GitHub', url: '#'},
-                   {label: 'Instagram', url: '#'},
-                   {label: 'X', url: '#'},
-                 ]).map((link: any, i: number) => (
-                   <a key={i} href={link.url} className="text-sm font-medium border-b border-[#2C2E2A]/20 pb-1 hover:border-[#2C2E2A] transition-colors flex items-center gap-1 group">
-                     {link.label}
-                     <span className="text-[10px] text-[#888] group-hover:text-[#2C2E2A] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform">↗</span>
-                   </a>
-                 ))}
+             {profile.links && profile.links.length > 0 && (
+               <div className="w-full border border-[#2C2E2A]/10 p-6 md:p-8 bg-[#FCFBFA] relative">
+                 <div className="text-[10px] tracking-widest uppercase text-[#888] mb-6 font-medium">Find me online</div>
+                 <div className="flex flex-wrap gap-x-8 gap-y-4">
+                   {profile.links.map((link: any, i: number) => (
+                     <a key={i} href={link.url} className="text-sm font-medium border-b border-[#2C2E2A]/20 pb-1 hover:border-[#2C2E2A] transition-colors flex items-center gap-1 group">
+                       {link.label}
+                       <span className="text-[10px] text-[#888] group-hover:text-[#2C2E2A] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform">↗</span>
+                     </a>
+                   ))}
+                 </div>
                </div>
-             </div>
+             )}
           </div>
         </section>
 
@@ -1320,178 +1352,176 @@ function StudioTemplate({ profile }: any) {
         </div>
 
         {/* ABOUT */}
-        <section id="about" className="py-12 md:py-24 grid grid-cols-1 md:grid-cols-12 gap-12 border-b border-[#2C2E2A]/10">
-          
-          <div className="md:col-span-6 flex flex-col">
-            <div className="flex items-center gap-4 mb-12">
-                <div className="w-6 h-[1px] bg-[#2C2E2A]"></div>
-                <span className="text-[10px] tracking-widest uppercase font-bold">About</span>
+        {hasAboutData && (
+          <section id="about" className="py-12 md:py-24 grid grid-cols-1 md:grid-cols-12 gap-12 border-b border-[#2C2E2A]/10">
+            
+            <div className="md:col-span-6 flex flex-col">
+              <div className="flex items-center gap-4 mb-12">
+                  <div className="w-6 h-[1px] bg-[#2C2E2A]"></div>
+                  <span className="text-[10px] tracking-widest uppercase font-bold">About</span>
+              </div>
+              
+              <h2 className="text-4xl md:text-6xl font-serif tracking-tight leading-tight mb-8">
+                Designing with a <br/><span className="italic text-[#8CA290]">little more</span> attention.
+              </h2>
+              
+              {profile.bio && (
+                <p className="text-base text-[#555] leading-relaxed max-w-md">
+                  {profile.bio}
+                </p>
+              )}
             </div>
             
-            <h2 className="text-4xl md:text-6xl font-serif tracking-tight leading-tight mb-8">
-              Designing with a <br/><span className="italic text-[#8CA290]">little more</span> attention.
-            </h2>
-            
-            <p className="text-base text-[#555] leading-relaxed max-w-md">
-              {firstName} is a creative technologist and product designer based in {profile.location || 'Lisbon'}. Their work sits between useful systems, expressive interfaces, and the details that make digital things feel human.
-            </p>
-          </div>
-          
-          <div className="md:col-span-6 flex flex-col justify-start pt-12 md:pt-0">
-             <div className="text-right text-[10px] tracking-widest uppercase text-[#888] mb-12 font-medium hidden md:block">02 / 04</div>
-             
-             <div className="w-full">
-               <div className="grid grid-cols-[1fr_2fr] py-4 border-b border-[#2C2E2A]/10 text-xs">
-                 <span className="text-[#888] tracking-widest uppercase">Role</span>
-                 <span className="font-medium">Creative technologist</span>
+            <div className="md:col-span-6 flex flex-col justify-start pt-12 md:pt-0">
+               <div className="text-right text-[10px] tracking-widest uppercase text-[#888] mb-12 font-medium hidden md:block">02</div>
+               
+               <div className="w-full">
+                 {profile.headline && (
+                   <div className="grid grid-cols-[1fr_2fr] py-4 border-b border-[#2C2E2A]/10 text-xs">
+                     <span className="text-[#888] tracking-widest uppercase">Role</span>
+                     <span className="font-medium">{profile.headline}</span>
+                   </div>
+                 )}
+                 {profile.location && (
+                   <div className="grid grid-cols-[1fr_2fr] py-4 border-b border-[#2C2E2A]/10 text-xs">
+                     <span className="text-[#888] tracking-widest uppercase">Based In</span>
+                     <span className="font-medium">{profile.location}</span>
+                   </div>
+                 )}
+                 {profile.focus && (
+                   <div className="grid grid-cols-[1fr_2fr] py-4 border-b border-[#2C2E2A]/10 text-xs">
+                     <span className="text-[#888] tracking-widest uppercase">Focus</span>
+                     <span className="font-medium">{profile.focus}</span>
+                   </div>
+                 )}
+                 {profile.interests && (
+                   <div className="grid grid-cols-[1fr_2fr] py-4 border-b border-[#2C2E2A]/10 text-xs">
+                     <span className="text-[#888] tracking-widest uppercase">Interests</span>
+                     <span className="font-medium">{profile.interests}</span>
+                   </div>
+                 )}
                </div>
-               <div className="grid grid-cols-[1fr_2fr] py-4 border-b border-[#2C2E2A]/10 text-xs">
-                 <span className="text-[#888] tracking-widest uppercase">Based In</span>
-                 <span className="font-medium">{profile.location || 'Lisbon, Portugal'}</span>
-               </div>
-               <div className="grid grid-cols-[1fr_2fr] py-4 border-b border-[#2C2E2A]/10 text-xs">
-                 <span className="text-[#888] tracking-widest uppercase">Focus</span>
-                 <span className="font-medium">AI · Design · Development · Research</span>
-               </div>
-               <div className="grid grid-cols-[1fr_2fr] py-4 border-b border-[#2C2E2A]/10 text-xs">
-                 <span className="text-[#888] tracking-widest uppercase">Interests</span>
-                 <span className="font-medium">Open-source tools · Ceramics · Long walks</span>
-               </div>
-             </div>
 
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-12">
-               <div>
-                  <div className="text-[10px] tracking-widest uppercase text-[#888] mb-4">Expertise</div>
-                  <div className="flex flex-wrap gap-2">
-                    {['Product design', 'Creative code', 'AI prototyping', 'Research'].map(skill => (
-                      <span key={skill} className="px-3 py-1 text-[10px] border border-[#2C2E2A]/20 rounded-full">{skill}</span>
-                    ))}
-                  </div>
-               </div>
-               <div>
-                  <div className="text-[10px] tracking-widest uppercase text-[#888] mb-4">Recent</div>
-                  <div className="text-xs space-y-2 text-[#555] leading-relaxed">
-                     <div><span className="font-medium text-[#2C2E2A]">2024—now /</span> Independent</div>
-                     <div><span className="font-medium text-[#2C2E2A]">2021—24 /</span> Field Assembly</div>
-                     <div><span className="font-medium text-[#2C2E2A]">2018—21 /</span> Common Room</div>
-                  </div>
-               </div>
-             </div>
-          </div>
-        </section>
+               {(profile.expertise?.length > 0 || profile.experience?.length > 0) && (
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-12">
+                   {profile.expertise?.length > 0 && (
+                     <div>
+                        <div className="text-[10px] tracking-widest uppercase text-[#888] mb-4">Expertise</div>
+                        <div className="flex flex-wrap gap-2">
+                          {profile.expertise.map((skill: string) => (
+                            <span key={skill} className="px-3 py-1 text-[10px] border border-[#2C2E2A]/20 rounded-full">{skill}</span>
+                          ))}
+                        </div>
+                     </div>
+                   )}
+                   {profile.experience?.length > 0 && (
+                     <div>
+                        <div className="text-[10px] tracking-widest uppercase text-[#888] mb-4">Experience</div>
+                        <div className="text-xs space-y-2 text-[#555] leading-relaxed">
+                           {profile.experience.map((exp: any, i: number) => (
+                             <div key={i}><span className="font-medium text-[#2C2E2A]">{exp.year || exp.date} /</span> {exp.company || exp.role}</div>
+                           ))}
+                        </div>
+                     </div>
+                   )}
+                 </div>
+               )}
+            </div>
+          </section>
+        )}
 
         {/* WORK */}
-        <section id="work" className="py-16 md:py-32">
-           <div className="flex justify-between items-start mb-16">
-              <div>
-                <div className="flex items-center gap-4 mb-8">
-                    <div className="w-6 h-[1px] bg-[#2C2E2A]"></div>
-                    <span className="text-[10px] tracking-widest uppercase font-bold">Selected Work</span>
+        {profile.projects?.length > 0 && (
+          <section id="work" className="py-16 md:py-32 border-b border-[#2C2E2A]/10">
+             <div className="flex justify-between items-start mb-16">
+                <div>
+                  <div className="flex items-center gap-4 mb-8">
+                      <div className="w-6 h-[1px] bg-[#2C2E2A]"></div>
+                      <span className="text-[10px] tracking-widest uppercase font-bold">Selected Work</span>
+                  </div>
+                  <h2 className="text-4xl md:text-6xl font-serif tracking-tight leading-tight">
+                    A few things <br/><span className="italic text-[#8CA290]">made with care.</span>
+                  </h2>
                 </div>
-                <h2 className="text-4xl md:text-6xl font-serif tracking-tight leading-tight">
-                  A few things <br/><span className="italic text-[#8CA290]">made with care.</span>
-                </h2>
-              </div>
-              <div className="text-right flex flex-col items-end">
-                <div className="text-[10px] tracking-widest uppercase text-[#888] mb-8 font-medium">03 / 04</div>
-                <p className="text-xs text-[#666] max-w-[200px] text-right mt-auto hidden md:block">
-                  Three highlights from recent collaborations and experiments.
-                </p>
-              </div>
-           </div>
+                <div className="text-right flex flex-col items-end">
+                  <div className="text-[10px] tracking-widest uppercase text-[#888] mb-8 font-medium">03</div>
+                </div>
+             </div>
 
-           <div className="space-y-4">
-             {/* Project 1 */}
-             <a href="#" className="group flex flex-col md:flex-row items-start md:items-center py-6 md:py-4 px-4 border border-transparent hover:border-[#2C2E2A]/10 hover:bg-[#FCFBFA] transition-all rounded-lg gap-6">
-               <span className="text-[10px] tracking-widest text-[#888] w-6 shrink-0">01</span>
-               <div className="w-16 h-12 rounded bg-[#8CA290]/40 shrink-0 overflow-hidden relative">
-                 <div className="absolute inset-x-2 bottom-0 h-8 rounded-t-full border border-white/40"></div>
-               </div>
-               <div className="flex-1">
-                 <h3 className="text-lg font-serif mb-1 group-hover:text-[#8CA290] transition-colors">Mosslight Archive</h3>
-                 <p className="text-xs text-[#666]">A digital garden for local knowledge.</p>
-               </div>
-               <div className="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end mt-4 md:mt-0">
-                 <span className="text-[10px] tracking-widest text-[#888] uppercase">2026 · Product / AI</span>
-                 <span className="text-[#2C2E2A] group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform">↗</span>
-               </div>
-             </a>
-
-             {/* Project 2 */}
-             <a href="#" className="group flex flex-col md:flex-row items-start md:items-center py-6 md:py-4 px-4 border border-transparent hover:border-[#2C2E2A]/10 hover:bg-[#FCFBFA] transition-all rounded-lg gap-6">
-               <span className="text-[10px] tracking-widest text-[#888] w-6 shrink-0">02</span>
-               <div className="w-16 h-12 rounded bg-[#D3CEE3]/60 shrink-0 overflow-hidden relative">
-                  <div className="absolute top-1/2 left-0 w-full h-px bg-white/60 -rotate-12"></div>
-               </div>
-               <div className="flex-1">
-                 <h3 className="text-lg font-serif mb-1 group-hover:text-[#8CA290] transition-colors">Soft Hours</h3>
-                 <p className="text-xs text-[#666]">A tactile identity for a slower studio.</p>
-               </div>
-               <div className="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end mt-4 md:mt-0">
-                 <span className="text-[10px] tracking-widest text-[#888] uppercase">2025 · Direction</span>
-                 <span className="text-[#2C2E2A] group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform">↗</span>
-               </div>
-             </a>
-
-             {/* Project 3 */}
-             <a href="#" className="group flex flex-col md:flex-row items-start md:items-center py-6 md:py-4 px-4 border border-transparent hover:border-[#2C2E2A]/10 hover:bg-[#FCFBFA] transition-all rounded-lg gap-6">
-               <span className="text-[10px] tracking-widest text-[#888] w-6 shrink-0">03</span>
-               <div className="w-16 h-12 rounded bg-[#EAD7C3]/70 shrink-0 overflow-hidden relative p-1">
-                 <div className="w-full h-full border border-white/50 grid grid-cols-3 grid-rows-2">
-                   <div className="border-b border-r border-white/50"></div>
-                   <div className="border-b border-r border-white/50"></div>
-                   <div className="border-b border-white/50"></div>
-                   <div className="border-r border-white/50"></div>
-                   <div className="border-r border-white/50"></div>
-                 </div>
-               </div>
-               <div className="flex-1">
-                 <h3 className="text-lg font-serif mb-1 group-hover:text-[#8CA290] transition-colors">North Common</h3>
-                 <p className="text-xs text-[#666]">A toolkit for navigating the everyday online.</p>
-               </div>
-               <div className="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end mt-4 md:mt-0">
-                 <span className="text-[10px] tracking-widest text-[#888] uppercase">2024 · UX / Code</span>
-                 <span className="text-[#2C2E2A] group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform">↗</span>
-               </div>
-             </a>
-           </div>
-        </section>
+             <div className="space-y-4">
+               {profile.projects.map((project: any, i: number) => (
+                 <a key={i} href={project.url || '#'} className="group flex flex-col md:flex-row items-start md:items-center py-6 md:py-4 px-4 border border-transparent hover:border-[#2C2E2A]/10 hover:bg-[#FCFBFA] transition-all rounded-lg gap-6">
+                   <span className="text-[10px] tracking-widest text-[#888] w-6 shrink-0">{(i + 1).toString().padStart(2, '0')}</span>
+                   <div className="w-16 h-12 rounded bg-[#8CA290]/20 shrink-0 overflow-hidden relative flex items-center justify-center">
+                     {project.imageUrl ? (
+                       <img src={project.imageUrl} alt={project.title} className="w-full h-full object-cover" />
+                     ) : (
+                       <div className="w-6 h-6 border border-[#8CA290]/50 rounded-full"></div>
+                     )}
+                   </div>
+                   <div className="flex-1">
+                     <h3 className="text-lg font-serif mb-1 group-hover:text-[#8CA290] transition-colors">{project.title}</h3>
+                     {project.description && <p className="text-xs text-[#666]">{project.description}</p>}
+                   </div>
+                   <div className="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end mt-4 md:mt-0">
+                     {(project.year || project.category) && (
+                       <span className="text-[10px] tracking-widest text-[#888] uppercase">
+                         {[project.year, project.category].filter(Boolean).join(' · ')}
+                       </span>
+                     )}
+                     <span className="text-[#2C2E2A] group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform">↗</span>
+                   </div>
+                 </a>
+               ))}
+             </div>
+          </section>
+        )}
       </main>
 
       {/* CONTACT FOOTER */}
-      <footer id="contact" className="w-full bg-[#8CA290] text-[#F5F4F0] px-6 py-16 md:py-24 relative overflow-hidden">
-         {/* Decorative circle graphic */}
-         <div className="absolute right-0 md:right-[20%] top-1/2 -translate-y-1/2 opacity-20 pointer-events-none">
-            <div className="w-48 h-48 md:w-96 md:h-96 rounded-full border-[1px] border-[#F5F4F0] flex items-center justify-center">
-               <div className="w-full h-px bg-[#F5F4F0] -rotate-45 absolute"></div>
-               <div className="w-full h-px bg-[#F5F4F0] rotate-45 absolute"></div>
-            </div>
-         </div>
-
-         <div className="max-w-6xl mx-auto relative z-10">
-            <div className="flex justify-between items-start mb-12">
-              <div className="flex items-center gap-4 text-[#F5F4F0]/80">
-                  <div className="w-6 h-[1px] bg-[#F5F4F0]/80"></div>
-                  <span className="text-[10px] tracking-widest uppercase font-bold">Get In Touch</span>
+      {(hasContactInfo) && (
+        <footer id="contact" className="w-full bg-[#8CA290] text-[#F5F4F0] px-6 py-16 md:py-24 relative overflow-hidden">
+           {/* Decorative circle graphic */}
+           <div className="absolute right-0 md:right-[20%] top-1/2 -translate-y-1/2 opacity-20 pointer-events-none">
+              <div className="w-48 h-48 md:w-96 md:h-96 rounded-full border-[1px] border-[#F5F4F0] flex items-center justify-center">
+                 <div className="w-full h-px bg-[#F5F4F0] -rotate-45 absolute"></div>
+                 <div className="w-full h-px bg-[#F5F4F0] rotate-45 absolute"></div>
               </div>
-              <div className="text-[10px] tracking-widest uppercase text-[#F5F4F0]/60 font-medium">04 / 04</div>
-            </div>
+           </div>
 
-            <h2 className="text-5xl md:text-7xl font-serif tracking-tight leading-tight mb-12">
-              Let's make something<br/><span className="italic text-white">useful.</span>
-            </h2>
+           <div className="max-w-6xl mx-auto relative z-10">
+              <div className="flex justify-between items-start mb-12">
+                <div className="flex items-center gap-4 text-[#F5F4F0]/80">
+                    <div className="w-6 h-[1px] bg-[#F5F4F0]/80"></div>
+                    <span className="text-[10px] tracking-widest uppercase font-bold">Get In Touch</span>
+                </div>
+                <div className="text-[10px] tracking-widest uppercase text-[#F5F4F0]/60 font-medium">04</div>
+              </div>
 
-            <a href={`mailto:${firstName.toLowerCase()}@example.com`} className="inline-flex items-center gap-3 bg-[#2C2E2A] text-[#F5F4F0] px-8 py-4 text-xs font-bold uppercase tracking-widest hover:bg-[#1A1A1A] transition-colors group rounded-sm">
-              WRITE TO {firstName.toUpperCase()}
-              <span className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform">↗</span>
-            </a>
+              <h2 className="text-5xl md:text-7xl font-serif tracking-tight leading-tight mb-12">
+                Let's make something<br/><span className="italic text-white">useful.</span>
+              </h2>
 
-            <div className="mt-24 pt-8 border-t border-[#F5F4F0]/20 flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] tracking-widest uppercase text-[#F5F4F0]/80">
-              <span>© 2026 / Personal Profile</span>
-              <a href="#" className="hover:text-[#F5F4F0] transition-colors">Back to top ↑</a>
-            </div>
-         </div>
-      </footer>
+              <div className="flex flex-wrap items-center gap-6">
+                {profile.email && (
+                  <a href={`mailto:${profile.email}`} className="inline-flex items-center gap-3 bg-[#2C2E2A] text-[#F5F4F0] px-8 py-4 text-xs font-bold uppercase tracking-widest hover:bg-[#1A1A1A] transition-colors group rounded-sm">
+                    WRITE TO {firstName ? firstName.toUpperCase() : 'ME'}
+                    <span className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform">↗</span>
+                  </a>
+                )}
+                
+                <button onClick={generateVCard} className="inline-flex items-center gap-2 text-[#F5F4F0] px-4 py-4 text-xs font-bold uppercase tracking-widest hover:text-white transition-colors">
+                  + Save Contact
+                </button>
+              </div>
+
+              <div className="mt-24 pt-8 border-t border-[#F5F4F0]/20 flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] tracking-widest uppercase text-[#F5F4F0]/80">
+                <span>© {new Date().getFullYear()} / {profile.name || 'Personal Profile'}</span>
+                <a href="#" className="hover:text-[#F5F4F0] transition-colors">Back to top ↑</a>
+              </div>
+           </div>
+        </footer>
+      )}
     </div>
   );
 }
