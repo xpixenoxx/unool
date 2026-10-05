@@ -1192,6 +1192,9 @@ function StudioTemplate({ profile }: any) {
   const nameParts = profile.name ? profile.name.split(' ') : [];
   const firstName = nameParts[0] || '';
   const lastName = nameParts.slice(1).join(' ') || '';
+  
+  const contactEmail = profile.email || profile.socialHandles?.email || profile.socialHandles?.contactEmail || '';
+  const proofs = profile.proofs || profile.proofPoints || profile.proof_points || [];
 
   const socialLinks = Object.entries(profile.socialHandles || {})
     .filter(([_, val]) => !!val)
@@ -1215,7 +1218,7 @@ function StudioTemplate({ profile }: any) {
     let vcard = "BEGIN:VCARD\nVERSION:3.0\n";
     if (profile.name) vcard += `FN:${profile.name}\n`;
     if (profile.headline) vcard += `TITLE:${profile.headline}\n`;
-    if (profile.email) vcard += `EMAIL:${profile.email}\n`;
+    if (contactEmail) vcard += `EMAIL:${contactEmail}\n`;
     if (profile.phone) vcard += `TEL:${profile.phone}\n`;
     if (profile.location) vcard += `ADR:;;${profile.location};;;;\n`;
     if (profile.website || (profile.links && profile.links.length > 0)) {
@@ -1235,7 +1238,7 @@ function StudioTemplate({ profile }: any) {
   };
 
   const hasAboutData = profile.headline || profile.location || profile.focus || profile.interests || profile.expertise || profile.experience;
-  const hasContactInfo = profile.email || profile.phone || allLinks.length > 0;
+  const hasContactInfo = contactEmail || profile.phone || allLinks.length > 0;
   const hasHeroData = profile.name || profile.headline || profile.bio || profile.avatarUrl || profile.location || profile.availability || allLinks.length > 0;
   const hasMainData = hasHeroData || hasAboutData || (profile.projects && profile.projects.length > 0);
   
@@ -1285,7 +1288,7 @@ function StudioTemplate({ profile }: any) {
             <a href="#profile" onClick={() => setIsMenuOpen(false)} className="py-2 border-b border-[#2C2E2A]/10 hover:text-[#8CA290]">Profile</a>
             {hasAboutData && <a href="#about" onClick={() => setIsMenuOpen(false)} className="py-2 border-b border-[#2C2E2A]/10 hover:text-[#8CA290]">About</a>}
             {profile.projects?.length > 0 && <a href="#work" onClick={() => setIsMenuOpen(false)} className="py-2 border-b border-[#2C2E2A]/10 hover:text-[#8CA290]">Work</a>}
-            {profile.email && <a href={`mailto:${profile.email}`} onClick={() => setIsMenuOpen(false)} className="py-2 hover:text-[#8CA290]">Contact ↗</a>}
+            {contactEmail && <a href={`mailto:${contactEmail}`} onClick={() => setIsMenuOpen(false)} className="py-2 hover:text-[#8CA290]">Contact ↗</a>}
           </div>
         )}
       </header>
@@ -1448,7 +1451,7 @@ function StudioTemplate({ profile }: any) {
 
         {/* PROOF POINTS */}
         {(() => {
-          const validProofs = profile.proofs?.filter((p: any) => p.value && p.title) || [];
+          const validProofs = proofs.filter((p: any) => p.value && (p.title || p.label));
           if (validProofs.length === 0) return null;
           
           return (
@@ -1461,7 +1464,7 @@ function StudioTemplate({ profile }: any) {
                      </span>
                      <div className="flex flex-col">
                        <div className="text-4xl md:text-5xl font-serif text-[#1A1A1A] mb-3">{proof.value}</div>
-                       <div className="text-xs uppercase tracking-widest text-[#555] font-medium leading-relaxed">{proof.title}</div>
+                       <div className="text-xs uppercase tracking-widest text-[#555] font-medium leading-relaxed">{proof.title || proof.label}</div>
                      </div>
                    </div>
                  ))}
@@ -1543,8 +1546,8 @@ function StudioTemplate({ profile }: any) {
             </h2>
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-6">
-              {profile.email && (
-                <a href={`mailto:${profile.email}`} className="inline-flex items-center justify-center gap-3 bg-[#2C2E2A] text-[#F5F4F0] px-8 py-5 text-xs font-bold uppercase tracking-widest hover:bg-[#1A1A1A] transition-colors group rounded-sm w-full sm:w-auto">
+              {contactEmail && (
+                <a href={`mailto:${contactEmail}`} className="inline-flex items-center justify-center gap-3 bg-[#2C2E2A] text-[#F5F4F0] px-8 py-5 text-xs font-bold uppercase tracking-widest hover:bg-[#1A1A1A] transition-colors group rounded-sm w-full sm:w-auto">
                   WRITE TO {profile.name ? profile.name.toUpperCase() : 'ME'}
                   <span className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform">↗</span>
                 </a>
