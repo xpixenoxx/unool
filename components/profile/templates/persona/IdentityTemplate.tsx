@@ -1220,9 +1220,10 @@ function StudioTemplate({ profile }: any) {
   const hasContactInfo = profile.email || profile.phone || profile.links?.length > 0;
   
   return (
-    <div className="min-h-screen w-full bg-[#F5F4F0] text-[#2C2E2A] font-sans selection:bg-[#8CA290] selection:text-white overflow-x-hidden">
-      {/* Header */}
-      <header className="w-full max-w-6xl mx-auto px-6 py-8 relative">
+    <div className="min-h-screen w-full bg-[#E5E4DF] p-3 md:p-8 lg:p-12 flex flex-col font-sans selection:bg-[#8CA290] selection:text-white overflow-x-hidden">
+      <div className="w-full max-w-[1600px] mx-auto bg-[#F5F4F0] text-[#2C2E2A] shadow-2xl shadow-black/10 border border-[#2C2E2A]/15 relative flex-1 flex flex-col">
+        {/* Header */}
+        <header className="w-full max-w-6xl mx-auto px-6 py-8 relative">
         <div className="flex justify-between items-center text-xs tracking-wider uppercase font-medium">
           <div className="flex items-center gap-3 relative z-20">
             {/* Logo mark */}
@@ -1479,49 +1480,54 @@ function StudioTemplate({ profile }: any) {
       </main>
 
       {/* CONTACT FOOTER */}
-      {(hasContactInfo) && (
-        <footer id="contact" className="w-full bg-[#8CA290] text-[#F5F4F0] px-6 py-16 md:py-24 relative overflow-hidden">
-           {/* Decorative circle graphic */}
-           <div className="absolute right-0 md:right-[20%] top-1/2 -translate-y-1/2 opacity-20 pointer-events-none">
-              <div className="w-48 h-48 md:w-96 md:h-96 rounded-full border-[1px] border-[#F5F4F0] flex items-center justify-center">
-                 <div className="w-full h-px bg-[#F5F4F0] -rotate-45 absolute"></div>
-                 <div className="w-full h-px bg-[#F5F4F0] rotate-45 absolute"></div>
+      <footer id="contact" className="w-full bg-[#8CA290] text-[#F5F4F0] px-6 py-16 md:py-24 relative overflow-hidden mt-auto">
+         {/* Decorative circle graphic */}
+         <div className="absolute right-0 md:right-[20%] top-1/2 -translate-y-1/2 opacity-20 pointer-events-none">
+            <div className="w-48 h-48 md:w-96 md:h-96 rounded-full border-[1px] border-[#F5F4F0] flex items-center justify-center">
+               <div className="w-full h-px bg-[#F5F4F0] -rotate-45 absolute"></div>
+               <div className="w-full h-px bg-[#F5F4F0] rotate-45 absolute"></div>
+            </div>
+         </div>
+
+         <div className="max-w-6xl mx-auto relative z-10">
+            <div className="flex justify-between items-start mb-12">
+              <div className="flex items-center gap-4 text-[#F5F4F0]/80">
+                  <div className="w-6 h-[1px] bg-[#F5F4F0]/80"></div>
+                  <span className="text-[10px] tracking-widest uppercase font-bold">Get In Touch</span>
               </div>
-           </div>
+              <div className="text-[10px] tracking-widest uppercase text-[#F5F4F0]/60 font-medium">04</div>
+            </div>
 
-           <div className="max-w-6xl mx-auto relative z-10">
-              <div className="flex justify-between items-start mb-12">
-                <div className="flex items-center gap-4 text-[#F5F4F0]/80">
-                    <div className="w-6 h-[1px] bg-[#F5F4F0]/80"></div>
-                    <span className="text-[10px] tracking-widest uppercase font-bold">Get In Touch</span>
-                </div>
-                <div className="text-[10px] tracking-widest uppercase text-[#F5F4F0]/60 font-medium">04</div>
-              </div>
+            <h2 className="text-5xl md:text-7xl font-serif tracking-tight leading-tight mb-12">
+              Let's make something<br/><span className="italic text-white">useful.</span>
+            </h2>
 
-              <h2 className="text-5xl md:text-7xl font-serif tracking-tight leading-tight mb-12">
-                Let's make something<br/><span className="italic text-white">useful.</span>
-              </h2>
-
-              <div className="flex flex-wrap items-center gap-6">
-                {profile.email && (
-                  <a href={`mailto:${profile.email}`} className="inline-flex items-center gap-3 bg-[#2C2E2A] text-[#F5F4F0] px-8 py-4 text-xs font-bold uppercase tracking-widest hover:bg-[#1A1A1A] transition-colors group rounded-sm">
-                    WRITE TO {firstName ? firstName.toUpperCase() : 'ME'}
-                    <span className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform">↗</span>
-                  </a>
-                )}
-                
-                <button onClick={generateVCard} className="inline-flex items-center gap-2 text-[#F5F4F0] px-4 py-4 text-xs font-bold uppercase tracking-widest hover:text-white transition-colors">
-                  + Save Contact
+            <div className="flex flex-wrap items-center gap-6">
+              {profile.email ? (
+                <a href={`mailto:${profile.email}`} className="inline-flex items-center gap-3 bg-[#2C2E2A] text-[#F5F4F0] px-8 py-4 text-xs font-bold uppercase tracking-widest hover:bg-[#1A1A1A] transition-colors group rounded-sm">
+                  WRITE TO {firstName ? firstName.toUpperCase() : 'ME'}
+                  <span className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform">↗</span>
+                </a>
+              ) : (
+                <button disabled className="inline-flex items-center gap-3 bg-[#2C2E2A]/40 text-[#F5F4F0]/60 px-8 py-4 text-xs font-bold uppercase tracking-widest cursor-not-allowed rounded-sm">
+                  WRITE TO {firstName ? firstName.toUpperCase() : 'ME'}
+                  <span>↗</span>
                 </button>
-              </div>
+              )}
+              
+              <button onClick={generateVCard} className="inline-flex items-center gap-2 text-[#F5F4F0] px-4 py-4 text-xs font-bold uppercase tracking-widest hover:text-white transition-colors">
+                + Save Contact
+              </button>
+            </div>
 
               <div className="mt-24 pt-8 border-t border-[#F5F4F0]/20 flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] tracking-widest uppercase text-[#F5F4F0]/80">
                 <span>© {new Date().getFullYear()} / {profile.name || 'Personal Profile'}</span>
                 <a href="#" className="hover:text-[#F5F4F0] transition-colors">Back to top ↑</a>
               </div>
            </div>
+           </div>
         </footer>
-      )}
+      </div>
     </div>
   );
 }
