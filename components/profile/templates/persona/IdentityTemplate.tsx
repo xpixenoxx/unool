@@ -1238,8 +1238,7 @@ function StudioTemplate({ profile }: any) {
   const hasContactInfo = profile.email || profile.phone || allLinks.length > 0;
   
   return (
-    <div className="min-h-screen w-full bg-[#E5E4DF] p-3 md:p-8 lg:p-12 flex flex-col font-sans selection:bg-[#8CA290] selection:text-white overflow-x-hidden">
-      <div className="w-full max-w-[1600px] mx-auto bg-[#F5F4F0] text-[#2C2E2A] shadow-2xl shadow-black/10 border border-[#2C2E2A]/15 relative flex-1 flex flex-col">
+    <div className="min-h-screen w-full bg-[#F5F4F0] text-[#2C2E2A] font-sans selection:bg-[#8CA290] selection:text-white overflow-x-hidden">
         {/* Header */}
         <header className="w-full max-w-6xl mx-auto px-6 py-8 relative">
         <div className="flex justify-between items-center text-xs tracking-wider uppercase font-medium">
@@ -1252,7 +1251,6 @@ function StudioTemplate({ profile }: any) {
               <div className="w-2 h-2 rounded-full bg-[#8CA290]"></div>
             </div>
             {profile.name && <span>{profile.name}</span>}
-            <span className="text-[#888] ml-2 hidden sm:inline-block">Profile</span>
           </div>
           
           {/* Desktop Nav */}
@@ -1294,23 +1292,20 @@ function StudioTemplate({ profile }: any) {
         <section id="profile" className="py-12 md:py-24 grid grid-cols-1 md:grid-cols-12 gap-12 md:gap-24 items-center border-b border-[#2C2E2A]/10">
           
           {/* Left: Photograph */}
+          {profile.avatarUrl && (
           <div className="md:col-span-5 relative group order-2 md:order-1">
              <div className="absolute inset-0 bg-[#8CA290] rounded-[2rem] rounded-tl-[10rem] rounded-br-[10rem] rotate-3 scale-105 opacity-20 transition-transform duration-700 group-hover:rotate-6"></div>
              <img 
-               src={profile.avatarUrl || "profile-photo.jpg"} 
+               src={profile.avatarUrl} 
                alt={profile.name || "Profile Photograph"}
                className="relative w-full aspect-[4/5] object-cover rounded-[2rem] rounded-tl-[10rem] rounded-br-[10rem] border-2 border-[#2C2E2A]/10 shadow-sm transition-all duration-700 group-hover:scale-[1.02] group-hover:brightness-105"
              />
-             <div className="absolute bottom-6 left-6 text-[10px] tracking-widest uppercase text-white mix-blend-difference font-medium">Personal Profile</div>
              {profile.location && <div className="absolute top-6 right-6 text-[10px] tracking-widest uppercase text-white mix-blend-difference font-medium">{profile.location}</div>}
           </div>
+          )}
 
           {/* Right: Info */}
-          <div className="md:col-span-7 flex flex-col items-start order-1 md:order-2">
-             <div className="flex items-center gap-4 mb-6">
-                <div className="w-8 h-[1px] bg-[#2C2E2A]"></div>
-                <span className="text-[10px] tracking-widest uppercase font-medium">Personal Profile</span>
-             </div>
+          <div className={`${profile.avatarUrl ? 'md:col-span-7' : 'md:col-span-12 max-w-4xl'} flex flex-col items-start order-1 md:order-2`}>
              
              {profile.name && (
                <h1 className="text-6xl md:text-8xl font-serif tracking-tight mb-4 text-[#1A1A1A]">
@@ -1364,11 +1359,7 @@ function StudioTemplate({ profile }: any) {
           </div>
         </section>
 
-        {/* BOTTOM METADATA ROW */}
-        <div className="flex justify-between py-4 text-[10px] tracking-widest uppercase text-[#888] font-medium border-b border-[#2C2E2A]/10 mb-16 md:mb-24">
-           <span>Profile / 01</span>
-           <span>Personal Profile</span>
-        </div>
+
 
         {/* ABOUT */}
         {hasAboutData && (
@@ -1516,9 +1507,15 @@ function StudioTemplate({ profile }: any) {
               <div className="text-[10px] tracking-widest uppercase text-[#F5F4F0]/60 font-medium">04</div>
             </div>
 
-            <h2 className="text-5xl md:text-7xl font-serif tracking-tight leading-tight mb-12">
-              Let's make something<br/><span className="italic text-white">useful.</span>
-            </h2>
+            {profile.headline ? (
+              <h2 className="text-5xl md:text-7xl font-serif tracking-tight leading-tight mb-12 text-white">
+                {profile.headline}
+              </h2>
+            ) : (
+              <h2 className="text-5xl md:text-7xl font-serif tracking-tight leading-tight mb-12 text-white">
+                Get in <span className="italic text-white">touch.</span>
+              </h2>
+            )}
 
             <div className="flex flex-wrap items-center gap-6">
               {profile.email && (
@@ -1534,12 +1531,11 @@ function StudioTemplate({ profile }: any) {
             </div>
 
               <div className="mt-24 pt-8 border-t border-[#F5F4F0]/20 flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] tracking-widest uppercase text-[#F5F4F0]/80">
-                <span>© {new Date().getFullYear()} / {profile.name || 'Personal Profile'}</span>
+                <span>© {new Date().getFullYear()}{profile.name ? ` / ${profile.name}` : ''}</span>
                 <a href="#" className="hover:text-[#F5F4F0] transition-colors">Back to top ↑</a>
               </div>
            </div>
         </footer>
-      </div>
     </div>
   );
 }
