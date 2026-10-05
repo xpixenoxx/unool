@@ -1240,8 +1240,8 @@ function StudioTemplate({ profile }: any) {
   const hasMainData = hasHeroData || hasAboutData || (profile.projects && profile.projects.length > 0);
   
   return (
-    <div className="min-h-screen w-full bg-[#EBE9E4] p-4 md:p-12 lg:p-16 flex flex-col font-sans text-[#2C2E2A] selection:bg-[#8CA290] selection:text-white overflow-x-hidden">
-      <div className="flex-1 w-full max-w-[1400px] mx-auto bg-[#F5F4F0] rounded-2xl md:rounded-[2rem] border border-[#2C2E2A]/10 shadow-sm overflow-hidden flex flex-col relative">
+    <div className="min-h-screen w-full bg-[#EBE9E4] p-4 sm:p-6 md:p-12 lg:p-16 flex flex-col font-sans text-[#2C2E2A] selection:bg-[#8CA290] selection:text-white overflow-x-hidden">
+      <div className="flex-1 w-full max-w-[1400px] mx-auto bg-[#F5F4F0] rounded-xl md:rounded-2xl border border-[#2C2E2A]/10 shadow-sm overflow-hidden flex flex-col relative">
         {/* Header */}
         <header className="w-full max-w-6xl mx-auto px-6 py-8 relative">
         <div className="flex justify-between items-center text-xs tracking-wider uppercase font-medium">
@@ -1447,18 +1447,28 @@ function StudioTemplate({ profile }: any) {
         )}
 
         {/* PROOF POINTS */}
-        {profile.proofs?.length > 0 && (
-          <section id="proof-points" className="py-12 md:py-16 border-b border-[#2C2E2A]/10">
-             <div className="flex flex-wrap md:flex-nowrap gap-8 md:gap-16 items-start justify-start">
-               {profile.proofs.map((proof: any, i: number) => (
-                 <div key={i} className="flex flex-col">
-                   <div className="text-3xl md:text-4xl font-serif text-[#1A1A1A] mb-2">{proof.value}</div>
-                   <div className="text-[10px] uppercase tracking-widest text-[#888] font-medium">{proof.title}</div>
-                 </div>
-               ))}
-             </div>
-          </section>
-        )}
+        {(() => {
+          const validProofs = profile.proofs?.filter((p: any) => p.value && p.title) || [];
+          if (validProofs.length === 0) return null;
+          
+          return (
+            <section id="proof-points" className="py-16 md:py-24 border-b border-[#2C2E2A]/10">
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12 md:gap-16">
+                 {validProofs.map((proof: any, i: number) => (
+                   <div key={i} className="flex items-start gap-6">
+                     <span className="text-[10px] tracking-widest text-[#888] w-6 shrink-0 pt-3 font-medium">
+                       {(i + 1).toString().padStart(2, '0')}
+                     </span>
+                     <div className="flex flex-col">
+                       <div className="text-4xl md:text-5xl font-serif text-[#1A1A1A] mb-3">{proof.value}</div>
+                       <div className="text-xs uppercase tracking-widest text-[#555] font-medium leading-relaxed">{proof.title}</div>
+                     </div>
+                   </div>
+                 ))}
+               </div>
+            </section>
+          );
+        })()}
 
         {/* WORK */}
         {profile.projects?.length > 0 && (
@@ -1528,25 +1538,19 @@ function StudioTemplate({ profile }: any) {
               <div className="text-[10px] tracking-widest uppercase text-[#F5F4F0]/60 font-medium">04</div>
             </div>
 
-            {profile.headline ? (
-              <h2 className="text-5xl md:text-7xl font-serif tracking-tight leading-tight mb-12 text-white">
-                {profile.headline}
-              </h2>
-            ) : (
-              <h2 className="text-5xl md:text-7xl font-serif tracking-tight leading-tight mb-12 text-white">
-                Get in <span className="italic text-white">touch.</span>
-              </h2>
-            )}
+            <h2 className="text-5xl md:text-7xl font-serif tracking-tight leading-tight mb-12 text-white">
+              Let's make something<br/><span className="italic text-white">useful.</span>
+            </h2>
 
-            <div className="flex flex-wrap items-center gap-6">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-6">
               {profile.email && (
-                <a href={`mailto:${profile.email}`} className="inline-flex items-center gap-3 bg-[#2C2E2A] text-[#F5F4F0] px-8 py-4 text-xs font-bold uppercase tracking-widest hover:bg-[#1A1A1A] transition-colors group rounded-sm">
+                <a href={`mailto:${profile.email}`} className="inline-flex items-center justify-center gap-3 bg-[#2C2E2A] text-[#F5F4F0] px-8 py-5 text-xs font-bold uppercase tracking-widest hover:bg-[#1A1A1A] transition-colors group rounded-sm w-full sm:w-auto">
                   WRITE TO {profile.name ? profile.name.toUpperCase() : 'ME'}
                   <span className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform">↗</span>
                 </a>
               )}
               
-              <button onClick={generateVCard} className="inline-flex items-center justify-center px-6 py-4 border border-[#F5F4F0]/30 text-[#F5F4F0] hover:bg-[#F5F4F0]/10 text-xs font-bold uppercase tracking-widest transition-colors rounded-sm">
+              <button onClick={generateVCard} className="inline-flex items-center justify-center px-6 py-5 border border-[#F5F4F0]/30 text-[#F5F4F0] hover:bg-[#F5F4F0]/10 text-xs font-bold uppercase tracking-widest transition-colors rounded-sm w-full sm:w-auto">
                 + SAVE CONTACT
               </button>
             </div>
