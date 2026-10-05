@@ -160,9 +160,10 @@ export default function PublicProfilePage({ params }: { params: Promise<{ subdom
 
   // Normalize raw API data into the PublicProfile shape that templates expect
   const normalizedProfile = {
+    ...profile,
     id: profile.id,
     subdomain: profile.subdomain,
-    name: profile.name || 'Anonymous',
+    name: profile.name || '',
     headline: profile.headline || '',
     bio: profile.bio || '',
     role: profile.role || '',

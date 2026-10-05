@@ -1193,6 +1193,24 @@ function StudioTemplate({ profile }: any) {
   const firstName = nameParts[0] || '';
   const lastName = nameParts.slice(1).join(' ') || '';
 
+  const socialLinks = Object.entries(profile.socialHandles || {})
+    .filter(([_, val]) => !!val)
+    .map(([key, val]) => {
+      const getUrl = (k: string, v: any) => {
+        if (k === 'twitter' || k === 'x') return `https://x.com/${v}`;
+        if (k === 'github') return `https://github.com/${v}`;
+        if (k === 'linkedin') return `https://linkedin.com/in/${v}`;
+        if (k === 'instagram') return `https://instagram.com/${v}`;
+        if (k === 'dribbble') return `https://dribbble.com/${v}`;
+        if (k === 'behance') return `https://behance.net/${v}`;
+        if (k === 'youtube') return `https://youtube.com/@${v}`;
+        return v;
+      };
+      return { label: key.charAt(0).toUpperCase() + key.slice(1), url: getUrl(key, val) };
+    });
+
+  const allLinks = [...(profile.links || []), ...socialLinks];
+
   const generateVCard = () => {
     let vcard = "BEGIN:VCARD\nVERSION:3.0\n";
     if (profile.name) vcard += `FN:${profile.name}\n`;
@@ -1217,7 +1235,7 @@ function StudioTemplate({ profile }: any) {
   };
 
   const hasAboutData = profile.headline || profile.location || profile.focus || profile.interests || profile.expertise || profile.experience;
-  const hasContactInfo = profile.email || profile.phone || profile.links?.length > 0;
+  const hasContactInfo = profile.email || profile.phone || allLinks.length > 0;
   
   return (
     <div className="min-h-screen w-full bg-[#E5E4DF] p-3 md:p-8 lg:p-12 flex flex-col font-sans selection:bg-[#8CA290] selection:text-white overflow-x-hidden">
@@ -1330,12 +1348,12 @@ function StudioTemplate({ profile }: any) {
              )}
 
              {/* Social Links */}
-             {profile.links && profile.links.length > 0 && (
+             {allLinks.length > 0 && (
                <div className="w-full border border-[#2C2E2A]/10 p-6 md:p-8 bg-[#FCFBFA] relative">
                  <div className="text-[10px] tracking-widest uppercase text-[#888] mb-6 font-medium">Find me online</div>
                  <div className="flex flex-wrap gap-x-8 gap-y-4">
-                   {profile.links.map((link: any, i: number) => (
-                     <a key={i} href={link.url} className="text-sm font-medium border-b border-[#2C2E2A]/20 pb-1 hover:border-[#2C2E2A] transition-colors flex items-center gap-1 group">
+                   {allLinks.map((link: any, i: number) => (
+                     <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium border-b border-[#2C2E2A]/20 pb-1 hover:border-[#2C2E2A] transition-colors flex items-center gap-1 group">
                        {link.label}
                        <span className="text-[10px] text-[#888] group-hover:text-[#2C2E2A] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform">↗</span>
                      </a>
@@ -1503,16 +1521,11 @@ function StudioTemplate({ profile }: any) {
             </h2>
 
             <div className="flex flex-wrap items-center gap-6">
-              {profile.email ? (
+              {profile.email && (
                 <a href={`mailto:${profile.email}`} className="inline-flex items-center gap-3 bg-[#2C2E2A] text-[#F5F4F0] px-8 py-4 text-xs font-bold uppercase tracking-widest hover:bg-[#1A1A1A] transition-colors group rounded-sm">
                   WRITE TO {firstName ? firstName.toUpperCase() : 'ME'}
                   <span className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform">↗</span>
                 </a>
-              ) : (
-                <button disabled className="inline-flex items-center gap-3 bg-[#2C2E2A]/40 text-[#F5F4F0]/60 px-8 py-4 text-xs font-bold uppercase tracking-widest cursor-not-allowed rounded-sm">
-                  WRITE TO {firstName ? firstName.toUpperCase() : 'ME'}
-                  <span>↗</span>
-                </button>
               )}
               
               <button onClick={generateVCard} className="inline-flex items-center gap-2 text-[#F5F4F0] px-4 py-4 text-xs font-bold uppercase tracking-widest hover:text-white transition-colors">
