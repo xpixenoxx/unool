@@ -133,6 +133,10 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
     links: [], proofPoints: [], theme: { template: DEFAULT_TEMPLATE }, visibility: 'public',
   });
 
+  // Guard: prevent auto-save from firing before initial data is loaded from the server.
+  // Without this, the empty initial state can be saved over real data if loadProfile() is slow.
+  const profileLoaded = useRef(false);
+
   const [viewers, setViewers] = useState<ProfileViewer[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<{id: string, email: string, full_name: string}[]>([]);
@@ -145,12 +149,16 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
       const res = await fetch('/api/profile', { credentials: 'include' });
       const data = await res.json();
       if (data.profile) {
+        profileLoaded.current = true; // Mark as loaded BEFORE setProfile to avoid race
         setProfile(data.profile);
         if (data.profile.subdomain && !data.profile.subdomain.startsWith('user-')) {
           setClaimedSubdomain(data.profile.subdomain);
           setSubdomain(data.profile.subdomain);
         }
         if (data.profile.visibility === 'private') loadViewers();
+      } else {
+        // No profile yet — still mark as loaded so user edits can be saved
+        profileLoaded.current = true;
       }
     } catch (error) { console.error('Failed to load profile:', error); }
   };
@@ -314,6 +322,10 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
       initialMount.current = false;
       return;
     }
+
+    // Do not auto-save until the server data has been loaded.
+    // This prevents overwriting real data with the empty initial state.
+    if (!profileLoaded.current) return;
 
     setSaveStatus('saving');
 
