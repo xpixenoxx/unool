@@ -1525,7 +1525,6 @@ function StudioTemplate({ profile }: any) {
                 <a href="#" className="hover:text-[#F5F4F0] transition-colors">Back to top ↑</a>
               </div>
            </div>
-           </div>
         </footer>
       </div>
     </div>
