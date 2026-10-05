@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import type { TemplateProps } from '@/components/profile/templates/types';
@@ -113,7 +113,7 @@ function LoverTemplate({ profile, accentColor }: any) {
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-[#CF5628] animate-pulse"></span>
             <span className="font-mono-tag text-xs font-bold text-[#2A1710] uppercase tracking-wider">
-              {profile.role || 'PROFESSIONAL'} • {profile.company || 'INDEPENDENT'}
+              {profile.role || 'PROFESSIONAL'} ΓÇó {profile.company || 'INDEPENDENT'}
             </span>
           </div>
           <span className="font-mono-tag text-xs font-bold accent-badge px-2.5 py-0.5 rounded-full border">
@@ -132,7 +132,7 @@ function LoverTemplate({ profile, accentColor }: any) {
               />
             </div>
             <div className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-[#2A1710] text-[#FFFDF9] flex items-center justify-center font-bold text-[10px] shadow-sm border border-white">
-              ✓
+              Γ£ô
             </div>
           </div>
 
@@ -184,7 +184,7 @@ function LoverTemplate({ profile, accentColor }: any) {
                     <p className="text-[11px] text-stone-500 truncate max-w-[150px]">{link.url.replace(/^https?:\/\//, '').replace(/^www\./, '')}</p>
                   </div>
                 </div>
-                <span className="text-stone-400 font-bold text-xs pr-1">↗</span>
+                <span className="text-stone-400 font-bold text-xs pr-1">Γåù</span>
               </a>
             ))}
           </div>
@@ -216,7 +216,7 @@ function LoverTemplate({ profile, accentColor }: any) {
                   Pushed commits to <span className="font-mono-tag text-[#A64522] font-semibold">unool-platform</span>: updated layout components
                 </p>
               </div>
-              <span className="text-stone-400 text-xs mt-1">↗</span>
+              <span className="text-stone-400 text-xs mt-1">Γåù</span>
             </a>
 
             {/* 2. LinkedIn Recent Activity */}
@@ -233,7 +233,7 @@ function LoverTemplate({ profile, accentColor }: any) {
                   Shared update on internship progress at Pixenox Solutions & Unool platform features
                 </p>
               </div>
-              <span className="text-stone-400 text-xs mt-1">↗</span>
+              <span className="text-stone-400 text-xs mt-1">Γåù</span>
             </a>
 
             {/* 3. Instagram Recent Activity */}
@@ -250,7 +250,7 @@ function LoverTemplate({ profile, accentColor }: any) {
                   Workspace snapshot: prototyping claymorphic UI cards
                 </p>
               </div>
-              <span className="text-stone-400 text-xs mt-1">↗</span>
+              <span className="text-stone-400 text-xs mt-1">Γåù</span>
             </a>
           </div>
         </div>
@@ -258,10 +258,10 @@ function LoverTemplate({ profile, accentColor }: any) {
         {/* Quick Action Bar */}
         <div className="flex items-center gap-2">
           <button onClick={copyEmail} className="clay-btn-accent flex-1 text-xs font-bold flex items-center justify-center gap-1.5 shadow-md">
-            <span>✉️</span> Get in Touch
+            <span>Γ£ë∩╕Å</span> Get in Touch
           </button>
           <button onClick={downloadVCard} className="clay-card px-4 py-2.5 text-xs font-bold text-[#2A1710] flex items-center justify-center gap-1.5 shrink-0">
-            <span>💾</span> Save Contact
+            <span>≡ƒÆ╛</span> Save Contact
           </button>
         </div>
 
@@ -695,7 +695,7 @@ function EnergyTemplate({ profile, accentColor }: any) {
             <a key={i} href={link.url} className="group block relative w-full overflow-hidden bg-[#111] p-6 transition-all hover:pl-8 rounded-sm" style={{ borderLeft: `8px solid ${accent}`}}>
               <div className="relative z-10 flex justify-between uppercase text-xl md:text-2xl tracking-wider">
                 <span>{link.label}</span>
-                <span className="opacity-0 group-hover:opacity-100 transition-opacity">►</span>
+                <span className="opacity-0 group-hover:opacity-100 transition-opacity">Γû║</span>
               </div>
             </a>
           ))}
@@ -714,7 +714,7 @@ function RebellionTemplate({ profile, accentColor }: any) {
       <div className="max-w-3xl w-full rotate-[-1deg]">
         <div className="border-[6px] border-black bg-white p-8 md:p-12 shadow-[12px_12px_0_0_rgba(0,0,0,1)] relative">
           <div className="absolute -top-6 -right-6 w-16 h-16 rounded-full border-4 border-black flex items-center justify-center animate-spin-slow" style={{ backgroundColor: accent }}>
-             <span className="text-3xl">★</span>
+             <span className="text-3xl">Γÿà</span>
           </div>
           <h1 className="text-5xl md:text-7xl font-black uppercase tracking-tighter leading-none mb-6">{profile.name}</h1>
           <div className="inline-block px-4 py-2 text-white font-bold text-xl mb-8 border-2 border-black" style={{ backgroundColor: accent }}>
@@ -727,7 +727,7 @@ function RebellionTemplate({ profile, accentColor }: any) {
             {profile.links?.map((link: any, i: number) => (
               <a key={i} href={link.url} className="block w-full p-4 border-4 border-black bg-[#EAEAEA] hover:bg-black hover:text-white font-bold uppercase transition-colors flex justify-between shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1">
                 <span>{link.label}</span>
-                <span>⟶</span>
+                <span>Γƒ╢</span>
               </a>
             ))}
           </div>
@@ -760,7 +760,7 @@ function VisionTemplate({ profile, accentColor }: any) {
             <a key={i} href={link.url} className="group relative overflow-hidden rounded-xl border border-blue-900/40 bg-blue-950/20 p-5 hover:bg-blue-900/40 transition-all flex justify-between items-center">
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
               <span className="font-medium tracking-wide">{link.label}</span>
-              <span className="opacity-40 group-hover:opacity-100 group-hover:text-[#00F0FF]">→</span>
+              <span className="opacity-40 group-hover:opacity-100 group-hover:text-[#00F0FF]">ΓåÆ</span>
             </a>
           ))}
         </div>
@@ -974,7 +974,7 @@ function HumanTemplate({ profile, accentColor }: any) {
             <div className="relative z-10 max-w-6xl mx-auto py-8 md:py-16 flex flex-col lg:flex-row items-center lg:items-start gap-6 lg:gap-12 px-4 md:px-8">
               
               <div className="relative flex-1 text-center lg:text-left mt-6 lg:mt-0">
-                <div className="absolute -top-10 left-1/2 -translate-x-1/2 lg:translate-x-0 lg:-top-16 lg:-left-12 text-[#E2B746] font-serif text-[5rem] md:text-[10rem] leading-none select-none opacity-90">“</div>
+                <div className="absolute -top-10 left-1/2 -translate-x-1/2 lg:translate-x-0 lg:-top-16 lg:-left-12 text-[#E2B746] font-serif text-[5rem] md:text-[10rem] leading-none select-none opacity-90">ΓÇ£</div>
                 <h3 className="font-serif text-[#1B1D1B] text-2xl sm:text-3xl md:text-5xl lg:text-[4.5rem] leading-[1.05] tracking-tight relative z-10 max-w-3xl">
                   {profile.bio || profile.headline}
                 </h3>
@@ -1187,376 +1187,29 @@ function HumanTemplate({ profile, accentColor }: any) {
 // --- 03 AGENCY --- //
 
 function StudioTemplate({ profile }: any) {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-
-  const nameParts = profile.name ? profile.name.split(' ') : [];
-  const firstName = nameParts[0] || '';
-  const lastName = nameParts.slice(1).join(' ') || '';
-
-  const socialLinks = Object.entries(profile.socialHandles || {})
-    .filter(([_, val]) => !!val)
-    .map(([key, val]) => {
-      const getUrl = (k: string, v: any) => {
-        if (k === 'twitter' || k === 'x') return `https://x.com/${v}`;
-        if (k === 'github') return `https://github.com/${v}`;
-        if (k === 'linkedin') return `https://linkedin.com/in/${v}`;
-        if (k === 'instagram') return `https://instagram.com/${v}`;
-        if (k === 'dribbble') return `https://dribbble.com/${v}`;
-        if (k === 'behance') return `https://behance.net/${v}`;
-        if (k === 'youtube') return `https://youtube.com/@${v}`;
-        return v;
-      };
-      return { label: key.charAt(0).toUpperCase() + key.slice(1), url: getUrl(key, val) };
-    });
-
-  const allLinks = [...(profile.links || []), ...socialLinks];
-
-  const generateVCard = () => {
-    let vcard = "BEGIN:VCARD\nVERSION:3.0\n";
-    if (profile.name) vcard += `FN:${profile.name}\n`;
-    if (profile.headline) vcard += `TITLE:${profile.headline}\n`;
-    if (profile.email) vcard += `EMAIL:${profile.email}\n`;
-    if (profile.phone) vcard += `TEL:${profile.phone}\n`;
-    if (profile.location) vcard += `ADR:;;${profile.location};;;;\n`;
-    if (profile.website || (profile.links && profile.links.length > 0)) {
-       const url = profile.website || profile.links[0].url;
-       vcard += `URL:${url}\n`;
-    }
-    vcard += "END:VCARD";
-    
-    const blob = new Blob([vcard], { type: 'text/vcard' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${firstName || 'contact'}.vcf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const hasAboutData = profile.headline || profile.location || profile.focus || profile.interests || profile.expertise || profile.experience;
-  const hasContactInfo = profile.email || profile.phone || allLinks.length > 0;
-  const hasHeroData = profile.name || profile.headline || profile.bio || profile.avatarUrl || profile.location || profile.availability || allLinks.length > 0;
-  const hasMainData = hasHeroData || hasAboutData || (profile.projects && profile.projects.length > 0);
-  
   return (
-    <div className="min-h-screen w-full bg-[#EBE9E4] p-4 md:p-12 lg:p-16 flex flex-col font-sans text-[#2C2E2A] selection:bg-[#8CA290] selection:text-white overflow-x-hidden">
-      <div className="flex-1 w-full max-w-[1400px] mx-auto bg-[#F5F4F0] rounded-2xl md:rounded-[2rem] border border-[#2C2E2A]/10 shadow-sm overflow-hidden flex flex-col relative">
-        {/* Header */}
-        <header className="w-full max-w-6xl mx-auto px-6 py-8 relative">
-        <div className="flex justify-between items-center text-xs tracking-wider uppercase font-medium">
-          <div className="flex items-center gap-3 relative z-20">
-            {/* Logo mark */}
-            <div className="w-5 h-5 flex flex-wrap gap-1">
-              <div className="w-2 h-2 rounded-full bg-[#8CA290]"></div>
-              <div className="w-2 h-2 rounded-full bg-[#2C2E2A]"></div>
-              <div className="w-2 h-2 rounded-full bg-[#2C2E2A]"></div>
-              <div className="w-2 h-2 rounded-full bg-[#8CA290]"></div>
-            </div>
-            {profile.name && <span>{profile.name}</span>}
-          </div>
-          
-          {/* Desktop Nav */}
-          <nav className="hidden md:flex items-center gap-8 z-20 relative">
-            <a href="#profile" className="hover:opacity-60 transition-opacity">Profile</a>
-            {hasAboutData && <a href="#about" className="hover:opacity-60 transition-opacity">About</a>}
-            {profile.projects?.length > 0 && <a href="#work" className="hover:opacity-60 transition-opacity">Work</a>}
-            {profile.email && (
-              <a href={`mailto:${profile.email}`} className="px-4 py-2 border border-[#2C2E2A] rounded-full hover:bg-[#2C2E2A] hover:text-[#F5F4F0] transition-colors flex items-center gap-2">
-                Contact <span className="text-[10px]">↗</span>
-              </a>
-            )}
-          </nav>
-
-          {/* Mobile Nav Toggle */}
-          <div className="md:hidden z-20 relative">
-            <button 
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="px-4 py-2 border border-[#2C2E2A] rounded-full flex items-center gap-2"
-            >
-              {isMenuOpen ? 'Close' : 'Menu'}
-            </button>
-          </div>
-        </div>
-
-        {/* Mobile Nav Menu */}
-        {isMenuOpen && (
-          <div className="md:hidden mt-6 bg-[#FCFBFA] border border-[#2C2E2A]/10 rounded-xl p-6 flex flex-col gap-4 text-xs tracking-wider uppercase font-medium shadow-sm relative z-10">
-            <a href="#profile" onClick={() => setIsMenuOpen(false)} className="py-2 border-b border-[#2C2E2A]/10 hover:text-[#8CA290]">Profile</a>
-            {hasAboutData && <a href="#about" onClick={() => setIsMenuOpen(false)} className="py-2 border-b border-[#2C2E2A]/10 hover:text-[#8CA290]">About</a>}
-            {profile.projects?.length > 0 && <a href="#work" onClick={() => setIsMenuOpen(false)} className="py-2 border-b border-[#2C2E2A]/10 hover:text-[#8CA290]">Work</a>}
-            {profile.email && <a href={`mailto:${profile.email}`} onClick={() => setIsMenuOpen(false)} className="py-2 hover:text-[#8CA290]">Contact ↗</a>}
-          </div>
-        )}
-      </header>
-
-      {hasMainData && (
-        <main className="max-w-6xl mx-auto px-6 pb-24">
-          {/* HERO */}
-          {hasHeroData && (
-          <section id="profile" className="py-12 md:py-24 grid grid-cols-1 md:grid-cols-12 gap-12 md:gap-24 items-center border-b border-[#2C2E2A]/10">
-          
-          {/* Left: Photograph */}
-          {profile.avatarUrl && (
-          <div className="md:col-span-5 relative group order-2 md:order-1">
-             <div className="absolute inset-0 bg-[#8CA290] rounded-[2rem] rounded-tl-[10rem] rounded-br-[10rem] rotate-3 scale-105 opacity-20 transition-transform duration-700 group-hover:rotate-6"></div>
-             <img 
-               src={profile.avatarUrl} 
-               alt={profile.name || "Profile Photograph"}
-               className="relative w-full aspect-[4/5] object-cover rounded-[2rem] rounded-tl-[10rem] rounded-br-[10rem] border-2 border-[#2C2E2A]/10 shadow-sm transition-all duration-700 group-hover:scale-[1.02] group-hover:brightness-105"
-             />
-             {profile.location && <div className="absolute top-6 right-6 text-[10px] tracking-widest uppercase text-white mix-blend-difference font-medium">{profile.location}</div>}
-          </div>
-          )}
-
-          {/* Right: Info */}
-          <div className={`${profile.avatarUrl ? 'md:col-span-7' : 'md:col-span-12 max-w-4xl'} flex flex-col items-start order-1 md:order-2`}>
-             
-             {profile.name && (
-               <h1 className="text-6xl md:text-8xl font-serif tracking-tight mb-4 text-[#1A1A1A]">
-                  <span className="font-normal">{firstName}</span> <span className="italic text-[#8CA290]">{lastName}</span>
-               </h1>
-             )}
-             
-             {profile.headline && (
-               <p className="text-xl md:text-2xl font-serif text-[#555] mb-6">
-                 {profile.headline}
-               </p>
-             )}
-             
-             {profile.bio && (
-               <p className="text-base text-[#666] leading-relaxed max-w-md mb-10">
-                 {profile.bio}
-               </p>
-             )}
-
-             {/* Metadata */}
-             {(profile.location || profile.availability) && (
-               <div className="flex flex-wrap gap-4 text-[10px] tracking-widest uppercase text-[#555] mb-8 font-medium">
-                 {profile.location && <span>{profile.location}</span>}
-                 {profile.location && profile.availability && <span>·</span>}
-                 {profile.availability && <span>{profile.availability}</span>}
-               </div>
-             )}
-
-             {/* Status */}
-             {profile.availability && (
-               <div className="inline-flex items-center gap-2 px-3 py-1.5 border border-[#2C2E2A]/10 rounded-full text-[10px] uppercase tracking-wider mb-12 bg-white/50 shadow-sm">
-                 <span className="w-2 h-2 rounded-full bg-[#8CA290] animate-pulse"></span>
-                 {profile.availability}
-               </div>
-             )}
-
-             {/* Social Links */}
-             {allLinks.length > 0 && (
-               <div className="w-full border border-[#2C2E2A]/10 p-6 md:p-8 bg-[#FCFBFA] relative">
-                 <div className="text-[10px] tracking-widest uppercase text-[#888] mb-6 font-medium">Find me online</div>
-                 <div className="flex flex-wrap gap-x-8 gap-y-4">
-                   {allLinks.map((link: any, i: number) => (
-                     <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium border-b border-[#2C2E2A]/20 pb-1 hover:border-[#2C2E2A] transition-colors flex items-center gap-1 group">
-                       {link.label}
-                       <span className="text-[10px] text-[#888] group-hover:text-[#2C2E2A] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform">↗</span>
-                     </a>
-                   ))}
-                 </div>
-               </div>
-             )}
-          </div>
-        </section>
-        )}
-
-
-
-        {/* ABOUT */}
-        {hasAboutData && (
-          <section id="about" className="py-12 md:py-24 grid grid-cols-1 md:grid-cols-12 gap-12 border-b border-[#2C2E2A]/10">
-            
-            <div className="md:col-span-6 flex flex-col">
-              <div className="flex items-center gap-4 mb-12">
-                  <div className="w-6 h-[1px] bg-[#2C2E2A]"></div>
-                  <span className="text-[10px] tracking-widest uppercase font-bold">About</span>
-              </div>
-              
-              <h2 className="text-4xl md:text-6xl font-serif tracking-tight leading-tight mb-8">
-                Designing with a <br/><span className="italic text-[#8CA290]">little more</span> attention.
-              </h2>
-              
-              {profile.bio && (
-                <p className="text-base text-[#555] leading-relaxed max-w-md">
-                  {profile.bio}
-                </p>
-              )}
-            </div>
-            
-            <div className="md:col-span-6 flex flex-col justify-start pt-12 md:pt-0">
-               <div className="text-right text-[10px] tracking-widest uppercase text-[#888] mb-12 font-medium hidden md:block">02</div>
-               
-               <div className="w-full">
-                 {profile.headline && (
-                   <div className="grid grid-cols-[1fr_2fr] py-4 border-b border-[#2C2E2A]/10 text-xs">
-                     <span className="text-[#888] tracking-widest uppercase">Role</span>
-                     <span className="font-medium">{profile.headline}</span>
-                   </div>
-                 )}
-                 {profile.location && (
-                   <div className="grid grid-cols-[1fr_2fr] py-4 border-b border-[#2C2E2A]/10 text-xs">
-                     <span className="text-[#888] tracking-widest uppercase">Based In</span>
-                     <span className="font-medium">{profile.location}</span>
-                   </div>
-                 )}
-                 {profile.focus && (
-                   <div className="grid grid-cols-[1fr_2fr] py-4 border-b border-[#2C2E2A]/10 text-xs">
-                     <span className="text-[#888] tracking-widest uppercase">Focus</span>
-                     <span className="font-medium">{profile.focus}</span>
-                   </div>
-                 )}
-                 {profile.interests && (
-                   <div className="grid grid-cols-[1fr_2fr] py-4 border-b border-[#2C2E2A]/10 text-xs">
-                     <span className="text-[#888] tracking-widest uppercase">Interests</span>
-                     <span className="font-medium">{profile.interests}</span>
-                   </div>
-                 )}
-               </div>
-
-               {(profile.expertise?.length > 0 || profile.experience?.length > 0) && (
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-12">
-                   {profile.expertise?.length > 0 && (
-                     <div>
-                        <div className="text-[10px] tracking-widest uppercase text-[#888] mb-4">Expertise</div>
-                        <div className="flex flex-wrap gap-2">
-                          {profile.expertise.map((skill: string) => (
-                            <span key={skill} className="px-3 py-1 text-[10px] border border-[#2C2E2A]/20 rounded-full">{skill}</span>
-                          ))}
-                        </div>
-                     </div>
-                   )}
-                   {profile.experience?.length > 0 && (
-                     <div>
-                        <div className="text-[10px] tracking-widest uppercase text-[#888] mb-4">Experience</div>
-                        <div className="text-xs space-y-2 text-[#555] leading-relaxed">
-                           {profile.experience.map((exp: any, i: number) => (
-                             <div key={i}><span className="font-medium text-[#2C2E2A]">{exp.year || exp.date} /</span> {exp.company || exp.role}</div>
-                           ))}
-                        </div>
-                     </div>
-                   )}
-                 </div>
-               )}
-            </div>
-          </section>
-        )}
-
-        {/* PROOF POINTS */}
-        {profile.proofs?.length > 0 && (
-          <section id="proof-points" className="py-12 md:py-16 border-b border-[#2C2E2A]/10">
-             <div className="flex flex-wrap md:flex-nowrap gap-8 md:gap-16 items-start justify-start">
-               {profile.proofs.map((proof: any, i: number) => (
-                 <div key={i} className="flex flex-col">
-                   <div className="text-3xl md:text-4xl font-serif text-[#1A1A1A] mb-2">{proof.value}</div>
-                   <div className="text-[10px] uppercase tracking-widest text-[#888] font-medium">{proof.title}</div>
-                 </div>
-               ))}
-             </div>
-          </section>
-        )}
-
-        {/* WORK */}
-        {profile.projects?.length > 0 && (
-          <section id="work" className="py-16 md:py-32 border-b border-[#2C2E2A]/10">
-             <div className="flex justify-between items-start mb-16">
-                <div>
-                  <div className="flex items-center gap-4 mb-8">
-                      <div className="w-6 h-[1px] bg-[#2C2E2A]"></div>
-                      <span className="text-[10px] tracking-widest uppercase font-bold">Selected Work</span>
-                  </div>
-                  <h2 className="text-4xl md:text-6xl font-serif tracking-tight leading-tight">
-                    A few things <br/><span className="italic text-[#8CA290]">made with care.</span>
-                  </h2>
-                </div>
-                <div className="text-right flex flex-col items-end">
-                  <div className="text-[10px] tracking-widest uppercase text-[#888] mb-8 font-medium">03</div>
-                </div>
-             </div>
-
-             <div className="space-y-4">
-               {profile.projects.map((project: any, i: number) => (
-                 <a key={i} href={project.url || '#'} className="group flex flex-col md:flex-row items-start md:items-center py-6 md:py-4 px-4 border border-transparent hover:border-[#2C2E2A]/10 hover:bg-[#FCFBFA] transition-all rounded-lg gap-6">
-                   <span className="text-[10px] tracking-widest text-[#888] w-6 shrink-0">{(i + 1).toString().padStart(2, '0')}</span>
-                   <div className="w-16 h-12 rounded bg-[#8CA290]/20 shrink-0 overflow-hidden relative flex items-center justify-center">
-                     {project.imageUrl ? (
-                       <img src={project.imageUrl} alt={project.title} className="w-full h-full object-cover" />
-                     ) : (
-                       <div className="w-6 h-6 border border-[#8CA290]/50 rounded-full"></div>
-                     )}
-                   </div>
-                   <div className="flex-1">
-                     <h3 className="text-lg font-serif mb-1 group-hover:text-[#8CA290] transition-colors">{project.title}</h3>
-                     {project.description && <p className="text-xs text-[#666]">{project.description}</p>}
-                   </div>
-                   <div className="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end mt-4 md:mt-0">
-                     {(project.year || project.category) && (
-                       <span className="text-[10px] tracking-widest text-[#888] uppercase">
-                         {[project.year, project.category].filter(Boolean).join(' · ')}
-                       </span>
-                     )}
-                     <span className="text-[#2C2E2A] group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform">↗</span>
-                   </div>
-                 </a>
-               ))}
-             </div>
-          </section>
-        )}
-      </main>
-      )}
-
-      {/* CONTACT FOOTER */}
-      <footer id="contact" className="w-full bg-[#8CA290] text-[#F5F4F0] px-6 py-16 md:py-24 relative overflow-hidden mt-auto">
-         {/* Decorative circle graphic */}
-         <div className="absolute right-0 md:right-[20%] top-1/2 -translate-y-1/2 opacity-20 pointer-events-none">
-            <div className="w-48 h-48 md:w-96 md:h-96 rounded-full border-[1px] border-[#F5F4F0] flex items-center justify-center">
-               <div className="w-full h-px bg-[#F5F4F0] -rotate-45 absolute"></div>
-               <div className="w-full h-px bg-[#F5F4F0] rotate-45 absolute"></div>
-            </div>
-         </div>
-
-         <div className="max-w-6xl mx-auto relative z-10">
-            <div className="flex justify-between items-start mb-12">
-              <div className="flex items-center gap-4 text-[#F5F4F0]/80">
-                  <div className="w-6 h-[1px] bg-[#F5F4F0]/80"></div>
-                  <span className="text-[10px] tracking-widest uppercase font-bold">Get In Touch</span>
-              </div>
-              <div className="text-[10px] tracking-widest uppercase text-[#F5F4F0]/60 font-medium">04</div>
-            </div>
-
-            {profile.headline ? (
-              <h2 className="text-5xl md:text-7xl font-serif tracking-tight leading-tight mb-12 text-white">
-                {profile.headline}
-              </h2>
-            ) : (
-              <h2 className="text-5xl md:text-7xl font-serif tracking-tight leading-tight mb-12 text-white">
-                Get in <span className="italic text-white">touch.</span>
-              </h2>
-            )}
-
-            <div className="flex flex-wrap items-center gap-6">
-              {profile.email && (
-                <a href={`mailto:${profile.email}`} className="inline-flex items-center gap-3 bg-[#2C2E2A] text-[#F5F4F0] px-8 py-4 text-xs font-bold uppercase tracking-widest hover:bg-[#1A1A1A] transition-colors group rounded-sm">
-                  WRITE TO {profile.name ? profile.name.toUpperCase() : 'ME'}
-                  <span className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform">↗</span>
-                </a>
-              )}
-              
-              <button onClick={generateVCard} className="inline-flex items-center justify-center px-6 py-4 border border-[#F5F4F0]/30 text-[#F5F4F0] hover:bg-[#F5F4F0]/10 text-xs font-bold uppercase tracking-widest transition-colors rounded-sm">
-                + SAVE CONTACT
-              </button>
-            </div>
-
-              <div className="mt-24 pt-8 border-t border-[#F5F4F0]/20 flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] tracking-widest uppercase text-[#F5F4F0]/80">
-                <span>© {new Date().getFullYear()}{profile.name ? ` / ${profile.name}` : ''}</span>
-                <a href="#" className="hover:text-[#F5F4F0] transition-colors">Back to top ↑</a>
-              </div>
+    <div className="min-h-screen w-full bg-white text-[#111] p-12 md:p-24 flex flex-col justify-center font-sans tracking-tight">
+      <div className="max-w-6xl w-full mx-auto grid grid-cols-1 md:grid-cols-12 gap-12 items-center">
+        <div className="md:col-span-5 space-y-8 relative">
+           <div className="absolute -left-12 -top-12 text-[200px] text-gray-100 font-serif leading-none select-none z-0">
+             {profile.name?.charAt(0)}
            </div>
-        </footer>
+           <div className="relative z-10">
+             <h1 className="text-5xl md:text-7xl font-light mb-4">{profile.name}</h1>
+             <div className="w-12 h-1 bg-black mb-8" />
+             <p className="text-2xl font-serif italic text-gray-500 mb-6">{profile.headline}</p>
+             <p className="text-sm uppercase tracking-widest text-gray-400 leading-loose max-w-sm">{profile.bio}</p>
+           </div>
+        </div>
+        
+        <div className="md:col-span-7 flex flex-col gap-6 items-end w-full">
+          {profile.links?.map((link: any, i: number) => (
+            <a key={i} href={link.url} className={`block w-full max-w-md p-8 bg-gray-50 hover:bg-black hover:text-white transition-all border border-gray-100 flex justify-between ${i % 2 !== 0 ? 'md:mr-12' : ''}`}>
+              <span className="font-serif italic text-xl">{link.label}</span>
+              <span className="font-sans text-xs uppercase tracking-widest opacity-50 block mt-2">View Project Γåù</span>
+            </a>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -1591,7 +1244,7 @@ function MachineTemplate({ profile, accentColor }: any) {
         <div className="border border-zinc-800 rounded mb-4">
           <div className="bg-zinc-900 border-b border-zinc-800 px-4 py-2 flex justify-between text-xs">
             <span>[ MODULES ( {profile.links?.length} ) ]</span>
-            <span style={{ color: accent }}>● ROUTING OK</span>
+            <span style={{ color: accent }}>ΓùÅ ROUTING OK</span>
           </div>
           <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {profile.links?.map((link: any, i: number) => (
@@ -1628,7 +1281,7 @@ function ClubTemplate({ profile, accentColor }: any) {
             <div className="w-64 h-80 md:w-96 md:h-[500px] bg-zinc-900 rotate-[-4deg] border-4 border-white shadow-2xl overflow-hidden group">
                <img src={profile.avatarUrl} alt={profile.name} className="w-full h-full object-cover grayscale mix-blend-luminosity group-hover:mix-blend-normal transition-all" />
                <div className="absolute bottom-[-1px] left-[-1px] right-[-1px] bg-white text-black p-4 font-bold text-2xl uppercase tracking-tighter">
-                 ★ {profile.name}
+                 Γÿà {profile.name}
                </div>
             </div>
             {/* Collage stickers */}
@@ -1674,7 +1327,7 @@ function BuilderTemplate({ profile }: any) {
                 {i + 1}
               </span>
               <span className="font-medium text-sm text-gray-800 flex-1">{link.label}</span>
-              <span className="text-gray-300">→</span>
+              <span className="text-gray-300">ΓåÆ</span>
             </a>
           ))}
         </div>
@@ -1719,7 +1372,7 @@ function HustlerTemplate({ profile, accentColor }: any) {
        <div className="w-full bg-black text-white p-2 overflow-hidden mb-6 flex rounded shadow-lg whitespace-nowrap text-xs md:text-sm">
          <div className="animate-pulse mr-4" style={{ color: accent }}>LIVE UPDATE</div>
          <div className="overflow-hidden w-full relative">
-           <div className="inline-block animate-marquee">{profile.bio} — {profile.bio} — {profile.bio}</div>
+           <div className="inline-block animate-marquee">{profile.bio} ΓÇö {profile.bio} ΓÇö {profile.bio}</div>
          </div>
        </div>
 
@@ -1756,7 +1409,7 @@ function AestheteTemplate({ profile }: any) {
     <div className="min-h-screen w-full bg-[#E5E0D8] text-[#2C2B29] p-4 md:p-12 font-serif flex justify-center">
       <div className="max-w-4xl w-full bg-[#EFEDE6] shadow-2xl relative">
         <div className="p-8 md:p-16 text-center space-y-8 flex flex-col items-center">
-          <p className="uppercase tracking-[0.3em] text-xs font-sans text-gray-500">Vol. I — Identity</p>
+          <p className="uppercase tracking-[0.3em] text-xs font-sans text-gray-500">Vol. I ΓÇö Identity</p>
           <h1 className="text-5xl md:text-8xl tracking-tight text-[#1A1A1A]">{profile.name}</h1>
           <p className="text-xl md:text-2xl max-w-lg mb-12 italic text-gray-700">{profile.headline}</p>
           
@@ -1803,7 +1456,7 @@ function CreatorTemplate({ profile, accentColor }: any) {
               <div className="w-full h-full bg-zinc-950 rounded-xl relative z-10 flex items-center px-6 overflow-hidden">
                 <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-black/50 to-transparent pointer-events-none" style={{ background: `linear-gradient(to left, ${accent}20, transparent)` }} />
                 <div className="bg-white/10 p-3 rounded-full mr-4 group-hover:scale-110 transition-transform">
-                  ▶
+                  Γû╢
                 </div>
                 <span className="text-lg md:text-xl font-bold">{link.label}</span>
               </div>
@@ -1916,7 +1569,7 @@ function VoiceTemplate({ profile }: any) {
   ];
 
   const statement = profile.metadata?.statement || "Say the thing that stays with them.";
-  const statementSub = profile.metadata?.statementSub || "Every episode, essay, and conversation starts with curiosity — then gets a little braver.";
+  const statementSub = profile.metadata?.statementSub || "Every episode, essay, and conversation starts with curiosity ΓÇö then gets a little braver.";
 
   return (
     <div className="voice-template w-full min-h-screen bg-[#FAF8F5] p-6 md:p-8 lg:p-12 flex justify-center">
@@ -1936,7 +1589,7 @@ function VoiceTemplate({ profile }: any) {
             </div>
             <div className="text-[10px] md:text-xs font-bold tracking-widest uppercase text-[#DF5B4C] flex items-center gap-2 md:gap-4">
                <span className="text-[#766B64]">Influencer / 03</span>
-               <span>↗</span>
+               <span>Γåù</span>
             </div>
           </header>
 
@@ -2003,7 +1656,7 @@ function VoiceTemplate({ profile }: any) {
               <div className="relative">
                 <span className="text-[#DF5B4C] text-[10px] md:text-xs font-bold tracking-widest block md:absolute md:-left-10 md:top-2 mb-3 md:mb-0">01</span>
                 <h2 className="font-serif text-3xl md:text-5xl lg:text-6xl leading-[1.1] text-[#2B2321] max-w-2xl relative z-10">
-                  <span className="absolute -left-2 md:-left-6 -top-3 md:-top-6 text-5xl md:text-7xl text-[#A8B89D] opacity-40 -z-10 select-none">“</span>
+                  <span className="absolute -left-2 md:-left-6 -top-3 md:-top-6 text-5xl md:text-7xl text-[#A8B89D] opacity-40 -z-10 select-none">ΓÇ£</span>
                   {statement}
                 </h2>
               </div>
@@ -2091,7 +1744,7 @@ function VoiceTemplate({ profile }: any) {
                     </div>
                     <div className="p-5 md:p-8 md:w-7/12 flex flex-col justify-center">
                       <p className="text-[9px] font-bold tracking-[0.2em] text-[#A99C91] uppercase mb-3">
-                        <span className="text-[#DF5B4C]">{item.category}</span> <span className="mx-1.5">·</span> {item.date}
+                        <span className="text-[#DF5B4C]">{item.category}</span> <span className="mx-1.5">┬╖</span> {item.date}
                       </p>
                       <h3 className="font-serif text-2xl md:text-4xl text-[#2B2321] leading-tight mb-3 group-hover:text-[#DF5B4C] transition-colors">
                         {item.title}

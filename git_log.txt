@@ -1,0 +1,10 @@
+﻿56b62ea Restore profile data binding and remove Anonymous fallbacks
+85470b2 Fix JSX syntax error in StudioTemplate footer
+197b443 Refactor StudioTemplate to add framed editorial layout and restore disabled state of contact CTA
+175b40c Refactor StudioTemplate to conditionally render sections and add vCard generation
+1998bec Redesign StudioTemplate into a premium personal profile template
+c952adb Add card wrapper for 24px minimum screen gap and reduce vertical scrolling spacing in VoiceTemplate
+e683d79 Fix profile image property key
+59e4eaf Fix template literal escaping syntax error in VoiceTemplate
+3989a55 Redesign VoiceTemplate based on reference image
+03aa2f9 Decrease card sizes and drastically increase outer wrapper padding
