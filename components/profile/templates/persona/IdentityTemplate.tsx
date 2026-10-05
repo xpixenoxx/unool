@@ -1236,6 +1236,8 @@ function StudioTemplate({ profile }: any) {
 
   const hasAboutData = profile.headline || profile.location || profile.focus || profile.interests || profile.expertise || profile.experience;
   const hasContactInfo = profile.email || profile.phone || allLinks.length > 0;
+  const hasHeroData = profile.name || profile.headline || profile.bio || profile.avatarUrl || profile.location || profile.availability || allLinks.length > 0;
+  const hasMainData = hasHeroData || hasAboutData || (profile.projects && profile.projects.length > 0);
   
   return (
     <div className="min-h-screen w-full bg-[#F5F4F0] text-[#2C2E2A] font-sans selection:bg-[#8CA290] selection:text-white overflow-x-hidden">
@@ -1287,9 +1289,11 @@ function StudioTemplate({ profile }: any) {
         )}
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 pb-24">
-        {/* HERO */}
-        <section id="profile" className="py-12 md:py-24 grid grid-cols-1 md:grid-cols-12 gap-12 md:gap-24 items-center border-b border-[#2C2E2A]/10">
+      {hasMainData && (
+        <main className="max-w-6xl mx-auto px-6 pb-24">
+          {/* HERO */}
+          {hasHeroData && (
+          <section id="profile" className="py-12 md:py-24 grid grid-cols-1 md:grid-cols-12 gap-12 md:gap-24 items-center border-b border-[#2C2E2A]/10">
           
           {/* Left: Photograph */}
           {profile.avatarUrl && (
@@ -1358,6 +1362,7 @@ function StudioTemplate({ profile }: any) {
              )}
           </div>
         </section>
+        )}
 
 
 
@@ -1487,6 +1492,7 @@ function StudioTemplate({ profile }: any) {
           </section>
         )}
       </main>
+      )}
 
       {/* CONTACT FOOTER */}
       <footer id="contact" className="w-full bg-[#8CA290] text-[#F5F4F0] px-6 py-16 md:py-24 relative overflow-hidden mt-auto">
