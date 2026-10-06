@@ -942,9 +942,9 @@ export function ClubTemplate({
                     />
 
                     {/* Left: Authentic Brand SVG Icon in Plum & Title */}
-                    <div className="flex items-center gap-3 relative z-10">
-                      <div className="w-5 h-5 flex items-center justify-center text-[var(--wine)] transition-transform duration-200 group-hover:scale-105">
-                        {renderClubSocialIcon(social.platform, 'w-4 h-4')}
+                    <div className="flex items-center gap-3 md:gap-4 relative z-10">
+                      <div className="w-5 h-5 md:w-[32px] md:h-[32px] flex items-center justify-center text-[var(--wine)] transition-transform duration-200 group-hover:scale-105">
+                        {renderClubSocialIcon(social.platform, 'w-4 h-4 md:w-[26px] md:h-[26px]')}
                       </div>
 
                       <div className="flex flex-col">
