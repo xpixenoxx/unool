@@ -121,9 +121,7 @@ const BrandIcons = {
     </svg>
   ),
   InstagramText: () => (
-    <svg viewBox="0 0 103 29" height="29" fill="#262626">
-      <path d="M49.6 12.7c-2.4 0-4.3 1.9-4.3 4.3 0 2.4 1.9 4.3 4.3 4.3s4.3-1.9 4.3-4.3-1.9-4.3-4.3-4.3zm0 7.2c-1.6 0-2.8-1.3-2.8-2.8s1.3-2.8 2.8-2.8 2.8 1.3 2.8 2.8-1.2 2.8-2.8 2.8zm15.4-8.8c-.8-1-2.1-1.6-3.4-1.6-2.5 0-4.6 2.1-4.6 4.6 0 2.5 2.1 4.6 4.6 4.6 1.4 0 2.6-.6 3.4-1.6v1.3c0 2.3-1.3 3.6-3.4 3.6-1.7 0-2.8-1.1-3.2-2.3l-1.3.5c.6 1.7 2.2 3.1 4.5 3.1 2.9 0 4.7-1.7 4.7-5.1v-6.9h-1.3v1.4zm-3.4 7c-1.8 0-3.2-1.4-3.2-3.2 0-1.8 1.4-3.2 3.2-3.2 1.8 0 3.2 1.4 3.2 3.2 0 1.8-1.4 3.2-3.2 3.2zm-12.7-8.3c-1.2 0-2.3.6-2.8 1.5v-1.3H45v9.8h1.4v-5.2c0-2 .8-3.3 2.4-3.3.4 0 .9.1 1.2.3l.4-1.3c-.3-.1-.6-.2-.9-.2-1.3 0-2.4.7-3 1.7h-.1v-1.4l-.1-.6zM32 15.6c0-2.4-1.8-4.5-4.4-4.5-2.6 0-4.6 2-4.6 4.6 0 2.5 1.9 4.6 4.6 4.6 2.1 0 3.6-1.2 4.2-2.9l-1.3-.5c-.4 1.2-1.6 2.1-2.9 2.1-1.8 0-3.2-1.4-3.2-3.2h7.6v-.2zm-7.6-.9c0-1.7 1.3-3.2 3.1-3.2 1.8 0 3.1 1.4 3.1 3.2H24.4zm-3.8-.4v-1.1c0-1.8-1.2-3-3-3-2.1 0-3.5 1.4-3.5 3.3v.1h-1.4v.8h1.4v4.4h1.4v-4.4h2.2v-.8h-2.2v-1.1c0-1.1.6-1.7 1.7-1.7.5 0 1 .1 1.3.4l.4-1.2c-.4-.3-1-.5-1.6-.5-1.6-.2-2.7.7-2.7 2.3v1.3H21v.8h-.5v4.4h1.4v-4.4h2.5l2.4 4.4h1.6l-2.7-4.7c1.3-.5 2.1-1.6 2.1-3zM10.8 18.2c-.4 1.2-1.6 2.1-2.9 2.1-1.8 0-3.2-1.4-3.2-3.2 0-1.8 1.4-3.2 3.2-3.2 1.3 0 2.5.9 2.9 2.1l1.3-.5c-.6-1.7-2.1-2.9-4.2-2.9-2.6 0-4.6 2-4.6 4.6 0 2.5 2 4.6 4.6 4.6 2.1 0 3.6-1.2 4.2-2.9l-1.3-.7zm-10.8.7V9.7h1.4v9.2H0zM73.5 9.7h-1.4v9.8h1.4V9.7zm-2.8 1.5c-.5-.9-1.6-1.5-2.8-1.5-2.5 0-4.6 2.1-4.6 4.6 0 2.5 2.1 4.6 4.6 4.6 1.2 0 2.3-.6 2.8-1.5v1.3h1.4V9.7h-1.4v1.5zm-3.3 7.8c-1.8 0-3.2-1.4-3.2-3.2 0-1.8 1.4-3.2 3.2-3.2 1.8 0 3.2 1.4 3.2 3.2 0 1.8-1.4 3.2-3.2 3.2zm11.9-9.4c-1.3 0-2.3.6-2.9 1.6v-1.4H75v9.8h1.4v-5c0-1.9.9-3.2 2.3-3.2 1.2 0 2 .8 2 2.3v5.9h1.4v-6.3c.1-2.3-1.3-3.7-2.8-3.7zm11.3 0c-1.1 0-2.2.5-2.7 1.4-.4-.9-1.4-1.4-2.5-1.4-1.2 0-2.2.5-2.7 1.4v-1.3h-1.4v9.8h1.4v-5.2c0-1.7.9-2.9 2.1-2.9.9 0 1.6.6 1.6 1.9v6.1h1.4v-5.2c0-1.7.9-2.9 2.1-2.9.9 0 1.6.6 1.6 1.9v6.1H92v-6.5c0-2.1-1.2-3.2-2.6-3.2zm10 2c-1.1 0-1.7.6-1.7.6V9.7h-1.4v9.8h1.4v-1.3s.6.6 1.7.6c2.1 0 4.1-1.9 4.1-4.5-.1-2.7-2-4.7-4.1-4.7zm-.3 7.8c-1.6 0-3-1.4-3-3.1 0-1.7 1.4-3.1 3-3.1s3 1.4 3 3.1c0 1.7-1.4 3.1-3 3.1z"></path>
-    </svg>
+    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/Instagram_logo.svg/800px-Instagram_logo.svg.png" width="90" style={{ objectFit: 'contain' }} alt="Instagram" />
   ),
   Threads: () => (
     <svg viewBox="0 0 192 192" width="100%" height="100%" fill="currentColor">
@@ -548,7 +546,7 @@ function XPreview({ content, isEmpty, media, profileName, initials, avatarUrl }:
                 <path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z" />
               </svg>
               <span style={{ fontSize: 15, color: '#71767B' }} className="truncate">
-                @{(profileName || 'username').toLowerCase().replace(/\s+/g, '')}
+                @{profileName || 'username'}
               </span>
               <span style={{ fontSize: 15, color: '#71767B' }}>· 1m</span>
               <MoreHorizontal className="w-4 h-4 ml-auto text-[#71767B]" />
@@ -620,7 +618,7 @@ function InstagramPreview({ content, isEmpty, media, profileName, initials, avat
     <div style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', minHeight: 600 }}>
       {/* Instagram Header */}
       <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid #EFEFEF' }}>
-        <div className="w-[103px]"><BrandIcons.InstagramText /></div>
+        <div className="flex items-center h-[30px]"><BrandIcons.InstagramText /></div>
         <div className="flex items-center gap-5">
           <Heart className="w-[22px] h-[22px]" style={{ color: '#000' }} strokeWidth={2} />
           <MessageCircle className="w-[22px] h-[22px]" style={{ color: '#000' }} strokeWidth={2} />
@@ -636,7 +634,7 @@ function InstagramPreview({ content, isEmpty, media, profileName, initials, avat
               <AvatarCircle initials={initials} avatarUrl={avatarUrl} size={30} />
             </div>
           </div>
-          <span style={{ fontSize: 14, fontWeight: 600, color: '#000' }}>{(profileName || 'username').toLowerCase().replace(/\s+/g, '_')}</span>
+          <span style={{ fontSize: 14, fontWeight: 600, color: '#000' }}>{profileName || 'username'}</span>
           <MoreHorizontal className="w-5 h-5 ml-auto" style={{ color: '#000' }} />
         </div>
 
@@ -667,7 +665,7 @@ function InstagramPreview({ content, isEmpty, media, profileName, initials, avat
           <p style={{ fontSize: 14, fontWeight: 600, color: '#000' }}>142 likes</p>
           <div className="mt-1 flex items-start gap-1">
             <span style={{ fontSize: 14, fontWeight: 600, color: '#000', whiteSpace: 'nowrap' }}>
-              {(profileName || 'username').toLowerCase().replace(/\s+/g, '_')}
+              {profileName || 'username'}
             </span>
             <div style={{ flex: 1, paddingLeft: '4px' }}>
               <ExpandableText content={content} maxLength={90} isEmpty={isEmpty} color="#000" highlightColor="#999" />
