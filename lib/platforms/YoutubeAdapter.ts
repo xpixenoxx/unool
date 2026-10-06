@@ -230,7 +230,7 @@ export class YoutubeAdapter implements PlatformAdapter {
         if (error instanceof TokenExpiredError) {
           throw error;
         }
-        if (error.message && (error.message.includes('401') || error.message.includes('403') || error.message.includes('Token expired'))) {
+        if (error.message && (error.message.includes('401') || error.message.includes('Token expired'))) {
            throw new TokenExpiredError('Token expired or invalid', 'youtube');
         }
         throw new Error(error.message);

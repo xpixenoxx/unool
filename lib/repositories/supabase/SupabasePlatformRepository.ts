@@ -102,12 +102,17 @@ export class SupabasePlatformRepository implements IPlatformRepository {
         platform_user_id: input.platformUserId,
         username: input.username,
         access_token_encrypted: input.accessToken,
-        refresh_token_encrypted: input.refreshToken,
         expires_at: input.expiresAt?.toISOString(),
         scopes: input.scopes || [],
         status: 'connected',
         updated_at: new Date().toISOString(),
       };
+      
+      // Only overwrite the refresh token if a new one was provided
+      if (input.refreshToken) {
+        updatePayload.refresh_token_encrypted = input.refreshToken;
+      }
+
       // Only set user_id if provided (column may not exist in DB)
       if (input.userId) {
         updatePayload.user_id = input.userId;

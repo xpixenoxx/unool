@@ -228,9 +228,25 @@ export class ThreadsAdapter implements PlatformAdapter {
         });
       }
 
-      // Use pre-fetched username from connection data instead of making another API call
-      const username = input.username || 'unknown';
-      const platformUrl = `https://www.threads.net/@${username}/post/${platformPostId}`;
+      // The numeric ID doesn't work directly in URLs. We must fetch the actual permalink (which uses a shortcode)
+      let platformUrl = `https://www.threads.net/@${input.username || 'unknown'}/post/${platformPostId}`;
+      
+      try {
+        const permalinkRes = await fetchWithRetry(
+          `${THREADS_API_BASE}/${platformPostId}?fields=permalink&access_token=${accessToken}`,
+          { method: 'GET' }
+        );
+        if (permalinkRes.ok) {
+          const data = await permalinkRes.json();
+          if (data.permalink) {
+            platformUrl = data.permalink;
+          }
+        }
+      } catch (err) {
+        logger.warn('Failed to fetch permalink for Threads post', { 
+          error: err instanceof Error ? err.message : String(err) 
+        });
+      }
 
       return {
         platformPostId,

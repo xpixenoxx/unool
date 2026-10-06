@@ -139,9 +139,6 @@ export async function POST(request: NextRequest) {
         } else if (platform === 'pinterest' && hasVideo) {
           status = 'failed';
           errorObj = { code: 'UNSUPPORTED_MEDIA', message: 'Pinterest does not support video uploads.' };
-        } else if (platform === 'bluesky' && hasVideo) {
-          status = 'failed';
-          errorObj = { code: 'UNSUPPORTED_MEDIA', message: 'Bluesky does not support video uploads.' };
         }
 
         const finalMedia = await optimizeMediaForPlatform(normalizedMedia, platform);
