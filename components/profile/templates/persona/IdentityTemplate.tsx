@@ -1912,8 +1912,27 @@ export function ClubTemplate({ profile, accentColor, onLinkClick, isPreview, dat
     const initial = directData?.initial || (nameLineOne ? nameLineOne.charAt(0).toUpperCase() : 'C');
     const monogram = directData?.monogram || (nameLineOne.charAt(0) + (nameLineTwo ? nameLineTwo.charAt(0) : '')).toUpperCase() || 'TC';
 
-    const role = directData?.role || profile?.role || profile?.headline || null;
-    const category = directData?.category || profile?.category || profile?.company || null;
+    // Role and Category / Kicker resolution
+    const role = directData?.role !== undefined 
+      ? directData.role 
+      : (profile?.role || profile?.headline || null);
+
+    // Kicker / Category resolution: NEVER promote company name to category!
+    let identityKicker: string | null = null;
+    if (directData?.category) {
+      identityKicker = directData.category;
+    } else if ((profile as any)?.category) {
+      const cat = (profile as any).category;
+      const comp = profile?.company || (profile as any)?.employer || (profile as any)?.organization;
+      if (!comp || cat.trim().toLowerCase() !== comp.trim().toLowerCase()) {
+        identityKicker = cat;
+      } else if (role) {
+        identityKicker = role;
+      }
+    } else if (role) {
+      identityKicker = role;
+    }
+
     const bio = directData?.bio !== undefined ? directData.bio : (profile?.bio || '');
 
     // Location & Availability: NEVER hardcode or default to fake values like Mumbai, India
@@ -2039,13 +2058,13 @@ export function ClubTemplate({ profile, accentColor, onLinkClick, isPreview, dat
       : (profile?.email || profile?.socialHandles?.email || null);
     
     const firstName = (nameLineOne || '').toUpperCase();
-    const ctaLabel = directData?.ctaLabel || (firstName ? `WORK WITH ${firstName}` : 'START A CONVERSATION');
+    const ctaLabel = directData?.ctaLabel || (firstName && firstName !== 'THE' ? `WORK WITH ${firstName}` : 'START A CONVERSATION');
 
     return {
       nameLineOne,
       nameLineTwo,
       role: role ? role.toUpperCase() : null,
-      category: category ? category.toUpperCase() : null,
+      category: identityKicker ? identityKicker.toUpperCase() : null,
       bio,
       location,
       availability,
@@ -2055,8 +2074,6 @@ export function ClubTemplate({ profile, accentColor, onLinkClick, isPreview, dat
       monogram,
       portraitImage: directData?.portraitImage !== undefined ? directData.portraitImage : (profile?.avatarUrl || null),
       portraitAlt: directData?.portraitAlt || `Editorial portrait of ${nameLineOne} ${nameLineTwo}`,
-      portraitCaption: directData?.portraitCaption || 'PROFILE PORTRAIT',
-      plateLabel: directData?.plateLabel || 'PLATE / A',
       email,
       ctaLabel,
       footerStatement: directData?.footerStatement || 'ONE PROFILE · ONE VISUAL LANGUAGE',
@@ -2190,7 +2207,7 @@ export function ClubTemplate({ profile, accentColor, onLinkClick, isPreview, dat
         ================================================== */}
         <header className="relative pt-4 sm:pt-5 pb-3 px-5 sm:px-6">
           <div className="flex items-center justify-between">
-            {/* Left: Square Monogram & Label */}
+            {/* Left: Square Monogram & Label (Clean 'THE CLUB' without '/ 01') */}
             <div className="flex items-center gap-2.5">
               <div 
                 className="w-7 h-7 border border-[#241E1B] p-[1.5px] bg-[#FDFBF7] flex items-center justify-center relative select-none"
@@ -2203,30 +2220,18 @@ export function ClubTemplate({ profile, accentColor, onLinkClick, isPreview, dat
                 </div>
               </div>
 
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center">
                 <span className="text-[10px] tracking-[0.22em] font-semibold text-[#241E1B] uppercase">
                   THE CLUB
-                </span>
-                <span className="text-[10px] tracking-[0.22em] font-medium text-[#7A726A]">
-                  /
-                </span>
-                <span className="text-[10px] tracking-[0.22em] font-medium text-[#241E1B]">
-                  {clubData.edition || '01'}
                 </span>
               </div>
             </div>
 
             {/* Right: Profile Indicator in Wine */}
             <div className="text-right">
-              {clubData.established ? (
-                <span className="text-[10px] tracking-[0.22em] font-semibold text-[#6E1E24] uppercase">
-                  PROFILE {clubData.established}
-                </span>
-              ) : (
-                <span className="text-[10px] tracking-[0.22em] font-semibold text-[#6E1E24] uppercase">
-                  PROFILE
-                </span>
-              )}
+              <span className="text-[10px] tracking-[0.22em] font-semibold text-[#6E1E24] uppercase">
+                PROFILE {clubData.established || currentYear}
+              </span>
             </div>
           </div>
 
@@ -2264,7 +2269,7 @@ export function ClubTemplate({ profile, accentColor, onLinkClick, isPreview, dat
 
           {/* Two-Column Composition: Portrait + Information */}
           <div className="grid grid-cols-1 sm:grid-cols-[142px_1fr] gap-5 items-start">
-            {/* Left: Editorial Portrait Treatment with True Color Language */}
+            {/* Left: Editorial Portrait Treatment (Clean & Intentional, NO 'PLATE / A', NO empty caption space) */}
             <div className="flex flex-col items-center sm:items-start">
               <div 
                 className="club-portrait-lift relative w-[138px] sm:w-[142px] aspect-[4/5] transition-transform duration-500 ease-out hover:-translate-y-1 hover:rotate-[-0.8deg] cursor-pointer group"
@@ -2281,11 +2286,6 @@ export function ClubTemplate({ profile, accentColor, onLinkClick, isPreview, dat
                       className="w-full h-full object-cover contrast-[1.02] brightness-[0.98] group-hover:scale-105 transition-transform duration-700 ease-out"
                     />
                     <div className="pointer-events-none absolute inset-0 club-chamfer-shape border border-[#241E1B]/30" />
-                    <div className="absolute top-2.5 right-2 bg-[#E0D7CC]/90 backdrop-blur-[2px] border border-[#241E1B]/80 px-1 py-1.5 flex items-center justify-center">
-                      <span className="text-[6.5px] tracking-[0.22em] font-semibold text-[#6E665E] uppercase [writing-mode:vertical-rl] rotate-180 select-none">
-                        {clubData.plateLabel}
-                      </span>
-                    </div>
                     <div className="absolute bottom-1 left-2 font-club-serif italic font-semibold text-[26px] text-[#FAF6F0] drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)] select-none">
                       {clubData.initial}
                     </div>
@@ -2333,21 +2333,8 @@ export function ClubTemplate({ profile, accentColor, onLinkClick, isPreview, dat
                         fill="none" 
                       />
                     </svg>
-
-                    <div className="absolute top-2.5 right-2 bg-[#E0D7CC] border border-[#241E1B]/70 px-1 py-1.5 flex items-center justify-center select-none shadow-sm">
-                      <span className="text-[6.5px] tracking-[0.22em] font-semibold text-[#6E665E] uppercase [writing-mode:vertical-rl] rotate-180">
-                        {clubData.plateLabel}
-                      </span>
-                    </div>
                   </div>
                 )}
-              </div>
-
-              {/* Caption */}
-              <div className="mt-2 text-center w-full">
-                <span className="text-[7.5px] tracking-[0.24em] font-semibold text-[#7A726A] uppercase">
-                  {clubData.portraitCaption}
-                </span>
               </div>
             </div>
 
@@ -2608,15 +2595,19 @@ export function ClubTemplate({ profile, accentColor, onLinkClick, isPreview, dat
                 </a>
               ) : (
                 <div 
-                  className="relative inline-flex items-stretch border border-[#B37B82]/40 bg-black/20 opacity-60 cursor-not-allowed select-none"
-                  title="Inquiries currently unavailable"
+                  className="relative inline-flex items-stretch border border-[#B37B82]/70 bg-transparent opacity-80 cursor-default select-none"
                   aria-disabled="true"
+                  aria-label={clubData.ctaLabel}
                 >
-                  <div className="pointer-events-none absolute inset-[2px] border border-[#B37B82]/20" aria-hidden="true" />
-                  <span className="px-3.5 py-2.5 text-[9px] font-semibold tracking-[0.2em] text-[#FAF6F0]/60 uppercase border-r border-[#B37B82]/40">
-                    INQUIRIES CLOSED
+                  <div className="pointer-events-none absolute inset-[2px] border border-[#B37B82]/30" aria-hidden="true" />
+                  <div className="pointer-events-none absolute bottom-1 right-1 w-2 h-2 border-b border-r border-[#E8C4C4]" aria-hidden="true" />
+
+                  {/* Always use configured ctaLabel — NEVER 'INQUIRIES CLOSED' */}
+                  <span className="px-3.5 py-2.5 text-[9px] font-semibold tracking-[0.2em] text-[#FAF6F0] uppercase border-r border-[#B37B82]/70">
+                    {clubData.ctaLabel}
                   </span>
-                  <span className="px-2.5 py-2.5 flex items-center justify-center text-[#FAF6F0]/40">
+
+                  <span className="px-2.5 py-2.5 flex items-center justify-center text-[#FAF6F0]/80">
                     <ClubArrowUpRightIcon className="w-3.5 h-3.5" />
                   </span>
                 </div>
