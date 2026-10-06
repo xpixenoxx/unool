@@ -89,10 +89,15 @@ const configSchema = z.object({
 export type Config = z.infer<typeof configSchema>;
 
 // Pre-process env matching NEXT_PUBLIC vars if server counterparts are missing
+// Also map legacy META_* env vars to THREADS_* (env files historically used META_ prefix for Threads OAuth)
 const env = {
   ...process.env,
   SUPABASE_URL: process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL,
   SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  // Threads OAuth: support both THREADS_* and legacy META_* env var names
+  THREADS_CLIENT_ID: process.env.THREADS_CLIENT_ID || process.env.META_CLIENT_ID,
+  THREADS_CLIENT_SECRET: process.env.THREADS_CLIENT_SECRET || process.env.META_CLIENT_SECRET,
+  THREADS_REDIRECT_URI: process.env.THREADS_REDIRECT_URI || process.env.META_REDIRECT_URI,
 };
 
 export const config = configSchema.parse(env);

@@ -7,6 +7,70 @@ import { config } from '@/lib/config/schema';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * Proactively refresh an expired access token using the stored refresh token.
+ * Returns true if refresh succeeded (row updated in DB), false otherwise.
+ */
+async function tryRefreshToken(row: Record<string, any>, adminSupabase: any): Promise<boolean> {
+  try {
+    const { getPlatformAdapter } = await import('@/lib/platforms');
+    const { decryptToken, encryptToken } = await import('@/lib/crypto/encryption');
+
+    const adapter = getPlatformAdapter(row.platform);
+    if (!adapter) return false;
+
+    const refreshTokenEncrypted = row.refresh_token_encrypted || row.refresh_token;
+    if (!refreshTokenEncrypted) return false;
+
+    const refreshToken = await decryptToken(refreshTokenEncrypted);
+    const tokenResponse = await adapter.refreshAccessToken(refreshToken);
+
+    // Encrypt the new tokens
+    const newAccessTokenEncrypted = await encryptToken(tokenResponse.accessToken);
+    const newRefreshTokenEncrypted = tokenResponse.refreshToken
+      ? await encryptToken(tokenResponse.refreshToken)
+      : refreshTokenEncrypted; // Keep original if no new refresh token returned
+    const newExpiresAt = tokenResponse.expiresIn
+      ? new Date(Date.now() + tokenResponse.expiresIn * 1000)
+      : null;
+
+    // Update the DB row with fresh tokens
+    await adminSupabase
+      .from('platform_connections')
+      .update({
+        access_token_encrypted: newAccessTokenEncrypted,
+        refresh_token_encrypted: newRefreshTokenEncrypted,
+        expires_at: newExpiresAt?.toISOString(),
+        status: 'connected',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', row.id);
+
+    logger.info('Proactive token refresh succeeded', {
+      platform: row.platform,
+      connectionId: row.id,
+      newExpiresIn: tokenResponse.expiresIn,
+    });
+
+    return true;
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.warn('Proactive token refresh failed', {
+      platform: row.platform,
+      connectionId: row.id,
+      error: err.message,
+    });
+
+    // Mark connection as expired so user knows to reconnect
+    await adminSupabase
+      .from('platform_connections')
+      .update({ status: 'expired', updated_at: new Date().toISOString() })
+      .eq('id', row.id);
+
+    return false;
+  }
+}
+
 export async function GET(request: NextRequest) {
   const traceId = crypto.randomUUID();
   const debug: string[] = [];
@@ -101,20 +165,63 @@ export async function GET(request: NextRequest) {
     }
 
     if (rows && rows.length > 0) {
+      // Collect refresh promises for connections with expired access tokens
+      const refreshPromises: Promise<{ platform: string; refreshed: boolean }>[] = [];
+
       for (const row of rows) {
         const now = new Date();
         const expiresAt = row.expires_at ? new Date(row.expires_at) : null;
-        // If a refresh token exists, the connection is not truly expired (we can refresh it)
         const hasRefreshToken = Boolean(row.refresh_token_encrypted || row.refresh_token);
-        const isExpired = expiresAt && expiresAt <= now && !hasRefreshToken;
+        const accessTokenExpired = expiresAt && expiresAt <= now;
+        const dbStatus = row.status as string;
+
+        // Determine connection status
+        let status: string;
+
+        if (dbStatus === 'error' || dbStatus === 'revoked') {
+          // PublishService marked this connection as broken — user must reconnect
+          status = 'expired';
+        } else if (accessTokenExpired && !hasRefreshToken) {
+          // Access token expired and no refresh token — truly expired
+          status = 'expired';
+        } else if (accessTokenExpired && hasRefreshToken) {
+          // Access token expired but we have a refresh token — proactively refresh
+          // Show as connected optimistically; the refresh runs in the background
+          status = 'connected';
+          refreshPromises.push(
+            tryRefreshToken(row, adminSupabase).then((refreshed) => ({
+              platform: row.platform,
+              refreshed,
+            }))
+          );
+        } else {
+          status = 'connected';
+        }
 
         result[row.platform] = {
           platform: row.platform,
-          status: isExpired ? 'expired' : 'connected',
+          status,
           username: row.username || undefined,
           connectedAt: row.created_at,
           expiresAt: row.expires_at || undefined,
         };
+      }
+
+      // Run all token refreshes in parallel (fire-and-forget with logging)
+      // We don't block the response — the tokens get refreshed in the background.
+      // On the next page load or publish, the tokens will be fresh.
+      if (refreshPromises.length > 0) {
+        Promise.allSettled(refreshPromises).then((results) => {
+          for (const r of results) {
+            if (r.status === 'fulfilled' && !r.value.refreshed) {
+              logger.warn('Background token refresh failed for platform', {
+                platform: r.value.platform,
+                traceId,
+              });
+            }
+          }
+        });
+        debug.push(`refresh_queued:${refreshPromises.length}`);
       }
     }
 

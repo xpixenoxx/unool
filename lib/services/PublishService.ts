@@ -241,6 +241,7 @@ export class PublishService {
         accessTokenEncrypted,
         refreshTokenEncrypted,
         expiresAt,
+        status: 'connected',
       });
 
       return ok(accessTokenEncrypted);
