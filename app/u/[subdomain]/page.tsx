@@ -102,6 +102,37 @@ export default function PublicProfilePage({ params }: { params: Promise<{ subdom
     };
   }, [params]);
 
+  // Global Link Click Tracking for "Link Engagement"
+  useEffect(() => {
+    if (!profile) return;
+
+    const handleGlobalClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const anchor = target.closest('a');
+      
+      // If it's a link and it's not pointing to the same page (like # anchors)
+      if (anchor && anchor.href && !anchor.href.startsWith('javascript:')) {
+        // Send tracking event without blocking navigation
+        fetch('/api/analytics/track', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            events: [{
+              eventType: 'link_click',
+              workspaceId: profile.workspaceId,
+              profileId: profile.id,
+              eventData: { link_url: anchor.href }
+            }]
+          }),
+          keepalive: true
+        }).catch(err => console.error('[Analytics] Failed to track click:', err));
+      }
+    };
+
+    document.addEventListener('click', handleGlobalClick);
+    return () => document.removeEventListener('click', handleGlobalClick);
+  }, [profile]);
+
   if (loading) {
     return <ProfileLoading />;
   }

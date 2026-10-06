@@ -172,15 +172,17 @@ export async function getCurrentUsage(
       .gte('created_at', dayStart.toISOString()),
 
     supabase
-      .from('profile_views')
+      .from('analytics_events')
       .select('id', { count: 'exact', head: true })
       .eq('workspace_id', workspaceId)
+      .eq('event_type', 'profile_view')
       .gte('created_at', monthStart.toISOString()),
 
     supabase
-      .from('link_clicks')
+      .from('analytics_events')
       .select('id', { count: 'exact', head: true })
       .eq('workspace_id', workspaceId)
+      .eq('event_type', 'link_click')
       .gte('created_at', monthStart.toISOString()),
   ]);
 
