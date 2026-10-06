@@ -121,7 +121,7 @@ const BrandIcons = {
     </svg>
   ),
   InstagramText: () => (
-    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/Instagram_logo.svg/800px-Instagram_logo.svg.png" width="90" style={{ objectFit: 'contain' }} alt="Instagram" />
+    <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDMgMjkiPjxwYXRoIGQ9Ik00OS42IDEyLjdjLTIuNCAwLTQuMyAxLjktNC4zIDQuMyAwIDIuNCAxLjkgNC4zIDQuMyA0LjNzNC4zLTEuOSA0LjMtNC4zLTEuOS00LjMtNC4zLTQuM3ptMCA3LjJjLTEuNiAwLTIuOC0xLjMtMi44LTIuOHMxLjMtMi44IDIuOC0yLjggMi44IDEuMyAyLjggMi44LTEuMiAyLjgtMi44IDIuOHptMTUuNC04LjhjLS44LTEtMi4xLTEuNi0zLjQtMS42LTIuNSAwLTQuNiAyLjEtNC42IDQuNiAwIDIuNSAyLjEgNC42IDQuNiA0LjYgMS40IDAgMi42LS42IDMuNC0xLjZ2MS4zYzAgMi4zLTEuMyAzLjYtMy40IDMuNi0xLjcgMC0yLjgtMS4xLTMuMi0yLjNsLTEuMy41Yy42IDEuNyAyLjIgMy4xIDQuNSAzLjEgMi45IDAgNC43LTEuNyA0LjctNS4xdi02LjloLTEuM3YxLjR6bS0zLjQgN2MtMS44IDAtMy4yLTEuNC0zLjItMy4yIDAtMS44IDEuNC0zLjIgMy4yLTMuMiAxLjggMCAzLjIgMS40IDMuMiAzLjIgMCAxLjgtMS40IDMuMi0zLjIgMy4yem0tMTIuNy04LjNjLTEuMiAwLTIuMy42LTIuOCAxLjV2LTEuM0g0NXY5LjhoMS40di01LjJjMC0yIC44LTMuMyAyLjQtMy4zLjQgMCAuOS4xIDEuMi4zbC40LTEuM3MtLjMtLjEtLjYtLjItLjktLjItMS4zIDAtMi40LjctMyAxLjdoLS4xdi0xLjRsLS4xLS42ek0zMiAxNS42YzAtMi40LTEuOC00LjUtNC40LTQuNS0yLjYgMC00LjYgMi00LjYgNC42IDAgMi41IDEuOSA0LjYgNC42IDQuNiAyLjEgMCAzLjYtMS4yIDQuMi0yLjlsLTEuMy0uNWMtLjQgMS4yLTEuNiAyLjEtMi45IDIuMS0xLjggMC0zLjItMS40LTMuMi0zLjJoNy42di0uMnptLTcuNi0uOWMwLTEuNyAxLjMtMy4yIDMuMS0zLjIgMS44IDAgMy4xIDEuNCAzLjEgMy4ySDI0LjR6bS0zLjgtLjR2LTEuMWMwLTEuOC0xLjItMy0zLTMtMi4xIDAtMy41IDEuNC0zLjUgMy4zdi4xaC0xLjR2LjhoMS40djQuNGgxLjR2LTQuNGgyLjJ2LS44aC0yLjJ2LTEuMWMwLTEuMS42LTEuNyAxLjctMS43LjUgMCAxIC4xIDEuMy40bC40LTEuMmMtLjQtLjMtMS0uNS0xLjYtLjUtMS42LS4yLTIuNy43LTIuNyAyLjN2MS4zSDIxdi44aC0uNXY0LjRoMS40di00LjRoMi41bDIuNCA0LjRoMS42bC0yLjctNC43YzEuMy0uNSAyLjEtMS42IDIuMS0zM00xMC44IDE4LjJjLS40IDEuMi0xLjYgMi4xLTIuOSAyLjEtMS44IDAtMy4yLTEuNC0zLjItMy4yIDAtMS44IDEuNC0zLjIgMy4yLTMuMiAxLjMgMCAyLjUuOSAyLjkgMi4xbDEuMy0uNWMtLjYtMS43LTIuMS0yLjktNC4yLTIuOS0yLjYgMC00LjYgMi00LjYgNC42IDAgMi41IDIgNC42IDQuNiA0LjYgMi4xIDAgMy42LTEuMiA0LjItMi45bC0xLjMtLjd6bS0xMC44LjdWOS43aDEuNHY5LjJIMHpNNzMuNSA5LjdoLTEuNHY5LjhoMS40VjkuN3ptLTIuOCAxLjVjLS41LS45LTEuNi0xLjUtMi44LTEuNS0yLjUgMC00LjYgMi4xLTQuNiA0LjYgMCAyLjUgMi4xIDQuNiA0LjYgNC42IDEuMiAwIDIuMy0uNiAyLjgtMS41djEuM2gxLjRWOS43aC0xLjR2MS41em0tMy4zIDcuOGMtMS44IDAtMy4yLTEuNC0zLjItMy4yIDAtMS44IDEuNC0zLjIgMy4yLTMuMiAxLjggMCAzLjIgMS40IDMuMiAzLjIgMCAxLjgtMS40IDMuMi0zLjIgMy4yem0xMS45LTkuNGMtMS4zIDAtMi4zLjYtMi45IDEuNnYtMS40SDc1djkuOGgxLjR2LTVjMC0xLjkuOS0zLjIgMi4zLTMuMiAxLjIgMCAyIC44IDIgMi4zdjUuOWgxLjR2LTYuM2MuMS0yLjMtMS4zLTMuNy0yLjgtMy43em0xMS4zIDBjLTEuMSAwLTIuMi41LTIuNyAxLjQtLjQtLjktMS40LTEuNC0yLjUtMS40LTEuMiAwLTIuMi41LTIuNyAxLjR2LTEuM2gtMS40djkuOGgxLjR2LTUuMmMwLTEuNy45LTIuOSAyLjEtMi45LjkgMCAxLjYuNiAxLjYgMS45djYuMWgxLjR2LTUuMmMwLTEuNy45LTIuOSAyLjEtMi45LjkgMCAxLjYuNiAxLjYgMS45djYuMUg5MnYtNi41YzAtMi4xLTEuMi0zLjItMi42LTMuMnptMTAgMmMtMS4xIDAtMS43LjYtMS43LjZWOS43aC0xLjR2OS44aDEuNHYtMS4zczcuNiAxLjcgLjZjMi4xIDAgNC4xLTEuOSA0LjEtNC41LS4xLTIuNy0yLTQuNy00LjEtNC43em0tLjMgNy44Yy0xLjYgMC0zLTEuNC0zLTMuMSAwLTEuNyAxLjQtMy4xIDMtMy4xczMgMS40IDMgMy4xYzAgMS43LTEuNCAzLjEtMyAzLjF6Ii8+PC9zdmc+" width="90" style={{ objectFit: 'contain' }} alt="Instagram" />
   ),
   Threads: () => (
     <svg viewBox="0 0 192 192" width="100%" height="100%" fill="currentColor">
@@ -152,9 +152,10 @@ function IPhonePreview({
   profileHeadline: string;
   avatarUrl?: string;
   connectedPlatforms: PlatformType[];
+  selectedPlatforms: PlatformType[];
 }) {
   const previewablePlatforms: PlatformType[] = ['linkedin', 'x', 'instagram', 'facebook', 'threads'];
-  const activePreviews = previewablePlatforms.filter(p => connectedPlatforms.includes(p));
+  const activePreviews = previewablePlatforms.filter(p => selectedPlatforms.length > 0 ? selectedPlatforms.includes(p) : connectedPlatforms.includes(p));
   const platformsToShow = activePreviews.length > 0 ? activePreviews : previewablePlatforms.slice(0, 3);
 
   const now = useMemo(() => {
@@ -612,6 +613,11 @@ function XPreview({ content, isEmpty, media, profileName, initials, avatarUrl }:
   );
 }
 
+const IgHeart = () => <svg aria-label="Like" fill="currentColor" height="24" role="img" viewBox="0 0 24 24" width="24"><path d="M16.792 3.904A4.989 4.989 0 0 1 21.5 9.122c0 3.072-2.652 4.959-5.197 7.222-2.512 2.243-3.865 3.469-4.303 3.752-.477-.309-2.143-1.823-4.303-3.752C5.141 14.072 2.5 12.167 2.5 9.122a4.989 4.989 0 0 1 4.708-5.218 4.21 4.21 0 0 1 3.675 1.941c.84 1.174 1.8 1.174 2.634 0a4.212 4.212 0 0 1 3.275-1.941Z" stroke="currentColor" strokeWidth="2" fill="none" /></svg>;
+const IgComment = () => <svg aria-label="Comment" fill="currentColor" height="24" role="img" viewBox="0 0 24 24" width="24"><path d="M20.656 17.008a9.993 9.993 0 1 0-3.59 3.615L22 22Z" fill="none" stroke="currentColor" strokeLinejoin="round" strokeWidth="2"/></svg>;
+const IgShare = () => <svg aria-label="Share Post" fill="currentColor" height="24" role="img" viewBox="0 0 24 24" width="24"><line fill="none" stroke="currentColor" strokeLinejoin="round" strokeWidth="2" x1="22" x2="9.218" y1="3" y2="10.083"/><polygon fill="none" points="11.698 20.334 22 3.001 2 3.001 9.218 10.084 11.698 20.334" stroke="currentColor" strokeLinejoin="round" strokeWidth="2"/></svg>;
+const IgBookmark = () => <svg aria-label="Save" fill="currentColor" height="24" role="img" viewBox="0 0 24 24" width="24"><polygon fill="none" points="20 21 12 13.44 4 21 4 3 20 3 20 21" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"/></svg>;
+
 function InstagramPreview({ content, isEmpty, media, profileName, initials, avatarUrl }: PreviewProps) {
   const hasImage = media.some(m => m.type === 'image');
   return (
@@ -620,8 +626,8 @@ function InstagramPreview({ content, isEmpty, media, profileName, initials, avat
       <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid #EFEFEF' }}>
         <div className="flex items-center h-[30px]"><BrandIcons.InstagramText /></div>
         <div className="flex items-center gap-5">
-          <Heart className="w-[22px] h-[22px]" style={{ color: '#000' }} strokeWidth={2} />
-          <MessageCircle className="w-[22px] h-[22px]" style={{ color: '#000' }} strokeWidth={2} />
+          <IgHeart />
+          <IgShare />
         </div>
       </div>
 
@@ -653,11 +659,11 @@ function InstagramPreview({ content, isEmpty, media, profileName, initials, avat
         {/* Actions */}
         <div className="flex items-center justify-between px-3 py-3">
           <div className="flex items-center gap-4">
-            <Heart className="w-[24px] h-[24px]" style={{ color: '#000' }} strokeWidth={2} />
-            <CommentIcon className="w-[24px] h-[24px]" style={{ color: '#000' }} strokeWidth={2} />
-            <Send className="w-[24px] h-[24px]" style={{ color: '#000' }} strokeWidth={2} />
+            <IgHeart />
+            <IgComment />
+            <IgShare />
           </div>
-          <Bookmark className="w-[24px] h-[24px]" style={{ color: '#000' }} strokeWidth={2} />
+          <IgBookmark />
         </div>
 
         {/* Likes & Caption */}
@@ -1768,6 +1774,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           profileHeadline={profile?.headline || ''}
           avatarUrl={user?.avatarUrl}
           connectedPlatforms={connectedPlatforms}
+          selectedPlatforms={selectedPlatforms}
         />
       </div>
     </div>
