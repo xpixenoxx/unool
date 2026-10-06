@@ -855,24 +855,24 @@ export function ClubTemplate({
             {/* Right: Profile Info */}
             <div className="flex flex-col justify-start pt-0 md:pt-0.5 min-w-0">
               {clubData.role && (
-                <div className="text-[9px] font-bold tracking-[0.2em] text-[var(--wine)] uppercase mb-1.5 leading-snug">
+                <div className="text-[9px] md:text-[0.76rem] font-bold tracking-[0.2em] md:tracking-[0.22em] text-[var(--wine)] uppercase mb-1.5 md:mb-2.5 leading-snug">
                   {clubData.role}
                 </div>
               )}
 
               <h1 className="font-club-serif tracking-[-0.015em] leading-[0.92] select-text">
-                <span className="block text-[40px] md:text-[clamp(4.8rem,7vw,7rem)] font-normal text-[var(--ink)]">
+                <span className="block text-[40px] md:text-[clamp(4.2rem,6.5vw,6.2rem)] font-normal text-[var(--ink)]">
                   {clubData.nameLineOne}
                 </span>
                 {clubData.nameLineTwo && (
-                  <span className="block text-[40px] md:text-[clamp(4.8rem,7vw,7rem)] font-normal italic text-[var(--wine)] leading-[0.98]">
+                  <span className="block text-[40px] md:text-[clamp(4.2rem,6.5vw,6.2rem)] font-normal italic text-[var(--wine)] leading-[0.98]">
                     {clubData.nameLineTwo}
                   </span>
                 )}
               </h1>
 
               {clubData.bio && (
-                <p className="text-[12px] md:text-[12.5px] leading-[1.48] text-[var(--muted)] font-normal mt-3 max-w-[280px] md:max-w-[85%] md:text-[1.3rem]">
+                <p className="text-[12px] leading-[1.48] md:leading-[1.2] text-[var(--muted)] font-normal mt-3 md:mt-5 max-w-[280px] md:max-w-[85%] md:text-[1.25rem]">
                   {clubData.bio}
                 </p>
               )}
