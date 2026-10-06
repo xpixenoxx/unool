@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import type { TemplateProps } from '@/components/profile/templates/types';
 import { getTemplateById } from '@/components/profile/templates/registry';
 import { motion } from 'framer-motion';
@@ -1624,36 +1624,759 @@ function Badge({ text, accent }: { text: string; accent: string }) {
   )
 }
 
-function ClubTemplate({ profile, accentColor }: any) {
-  const accent = accentColor || '#D600FF';
-  return (
-    <div className="min-h-screen w-full bg-black text-white overflow-hidden relative">
-      <div className="absolute inset-0 bg-cover bg-center opacity-30 blur-xl scale-110" style={{ backgroundImage: `url(${profile.avatarUrl})` }} />
-      <div className="relative z-10 p-6 md:p-12 flex flex-col md:flex-row gap-8 items-center md:items-stretch max-w-7xl mx-auto min-h-screen py-20">
-        
-        <div className="flex-1 relative flex items-center justify-center">
-            <div className="w-64 h-80 md:w-96 md:h-[500px] bg-zinc-900 rotate-[-4deg] border-4 border-white shadow-2xl overflow-hidden group">
-               <img src={profile.avatarUrl} alt={profile.name} className="w-full h-full object-cover grayscale mix-blend-luminosity group-hover:mix-blend-normal transition-all" />
-               <div className="absolute bottom-[-1px] left-[-1px] right-[-1px] bg-white text-black p-4 font-bold text-2xl uppercase tracking-tighter">
-                 ★ {profile.name}
-               </div>
-            </div>
-            {/* Collage stickers */}
-            <div className="absolute top-10 right-10 md:top-20 md:-right-10 bg-white text-black font-black uppercase italic p-3 text-xl rotate-12">{profile.headline}</div>
-        </div>
-        
-        <div className="flex-1 flex flex-col justify-center space-y-6 w-full max-w-md">
-          <p className="bg-black/80 backdrop-blur text-white p-6 font-mono border border-zinc-800 text-sm leading-relaxed">{profile.bio}</p>
-          <div className="space-y-3">
-            {profile.links?.map((link: any, i: number) => (
-              <a key={i} href={link.url} className={`block w-full p-5 font-bold uppercase tracking-tighter text-xl border-l-[6px] bg-zinc-900/80 hover:bg-white hover:text-black transition-all`} style={{ borderLeftColor: i % 2 === 0 ? accent : '#00F0FF' }}>
-                {link.label}
-              </a>
-            ))}
-          </div>
-        </div>
+// --- THE CLUB PROFILE TEMPLATE HELPER & ICONS --- //
 
-      </div>
+function ClubInstagramIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+      <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" strokeWidth="2" />
+    </svg>
+  );
+}
+
+function ClubLinkedInIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
+      <rect width="4" height="12" x="2" y="9" />
+      <circle cx="4" cy="4" r="2" />
+    </svg>
+  );
+}
+
+function ClubWebsiteIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="2" y1="12" x2="22" y2="12" />
+      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+    </svg>
+  );
+}
+
+function ClubYouTubeIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17" />
+      <polygon points="10 15 15 12 10 9 10 15" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function ClubNewsletterIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect width="20" height="16" x="2" y="4" rx="2" />
+      <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+    </svg>
+  );
+}
+
+function ClubGenericLinkIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+    </svg>
+  );
+}
+
+function ClubArrowUpRightIcon({ className = 'w-3.5 h-3.5' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <line x1="4" y1="12" x2="12" y2="4" />
+      <polyline points="5 4 12 4 12 11" />
+    </svg>
+  );
+}
+
+function ClubArrowUpIcon({ className = 'w-3.5 h-3.5' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <line x1="8" y1="13" x2="8" y2="3" />
+      <polyline points="4 7 8 3 12 7" />
+    </svg>
+  );
+}
+
+function renderClubSocialIcon(platform: string, className?: string) {
+  const p = platform.toLowerCase();
+  if (p.includes('instagram')) return <ClubInstagramIcon className={className} />;
+  if (p.includes('linkedin')) return <ClubLinkedInIcon className={className} />;
+  if (p.includes('youtube')) return <ClubYouTubeIcon className={className} />;
+  if (p.includes('newsletter') || p.includes('substack') || p.includes('mail')) return <ClubNewsletterIcon className={className} />;
+  if (p.includes('web') || p.includes('site') || p.includes('domain')) return <ClubWebsiteIcon className={className} />;
+  return <ClubGenericLinkIcon className={className} />;
+}
+
+export function ClubTemplate({ profile, accentColor, onLinkClick, isPreview, data: directData }: any) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const currentYear = useMemo(() => new Date().getFullYear(), []);
+
+  // Compute profile data dynamically with high-fidelity defaults from reference image
+  const clubData = useMemo(() => {
+    const rawName = (profile?.name || '').trim();
+    const nameParts = rawName ? rawName.split(/\s+/) : ['Maya', 'Laurent'];
+    const nameLineOne = directData?.nameLineOne || nameParts[0] || 'Maya';
+    const nameLineTwo = directData?.nameLineTwo !== undefined 
+      ? directData.nameLineTwo 
+      : (nameParts.slice(1).join(' ') || (nameParts.length === 1 ? '' : 'Laurent'));
+
+    const initial = directData?.initial || (nameLineOne ? nameLineOne.charAt(0).toUpperCase() : 'M');
+    const monogram = directData?.monogram || (nameLineOne.charAt(0) + (nameLineTwo ? nameLineTwo.charAt(0) : 'C')).toUpperCase() || 'TC';
+
+    const role = directData?.role || profile?.role || profile?.headline || 'CREATIVE DIRECTOR / BRAND STRATEGIST';
+    const category = directData?.category || profile?.category || profile?.company || 'INDEPENDENT CREATIVE PRACTICE';
+    const bio = directData?.bio || profile?.bio || 'I build distinctive identities for people, products and ideas that deserve to be remembered.';
+    const location = directData?.location || profile?.location || 'MUMBAI, INDIA';
+    const availability = directData?.availability || profile?.availability || 'AVAILABLE FOR SELECTED COLLABORATIONS';
+    const established = directData?.established || profile?.established || '2019';
+    const edition = directData?.edition || '01';
+
+    // Social links extraction
+    const socialList: Array<{ platform: string; label: string; sublabel?: string; url: string }> = [];
+    if (directData?.socials && directData.socials.length > 0) {
+      socialList.push(...directData.socials);
+    } else {
+      const links = (profile?.links || []).filter((l: any) => l && l.url && l.isVisible !== false);
+      if (links.length > 0) {
+        links.slice(0, 5).forEach((link: any, idx: number) => {
+          const lowerUrl = (link.url || '').toLowerCase();
+          const lowerLabel = (link.label || '').toLowerCase();
+          let platform = 'website';
+          if (lowerUrl.includes('instagram.com') || lowerLabel.includes('instagram')) platform = 'instagram';
+          else if (lowerUrl.includes('linkedin.com') || lowerLabel.includes('linkedin')) platform = 'linkedin';
+          else if (lowerUrl.includes('youtube.com') || lowerLabel.includes('youtube')) platform = 'youtube';
+          else if (lowerUrl.includes('substack.com') || lowerUrl.includes('newsletter') || lowerLabel.includes('newsletter')) platform = 'newsletter';
+
+          socialList.push({
+            platform,
+            label: link.label ? link.label.toUpperCase() : platform.toUpperCase(),
+            sublabel: `SOCIAL / 0${idx + 1}`,
+            url: link.url,
+          });
+        });
+      } else if (profile?.socialHandles && Object.keys(profile.socialHandles).length > 0) {
+        const keys = Object.keys(profile.socialHandles);
+        keys.slice(0, 5).forEach((key, idx) => {
+          const val = profile.socialHandles[key];
+          if (!val) return;
+          let url = val;
+          if (!val.startsWith('http://') && !val.startsWith('https://')) {
+            if (key.toLowerCase() === 'instagram') url = `https://instagram.com/${val.replace('@', '')}`;
+            else if (key.toLowerCase() === 'linkedin') url = `https://linkedin.com/in/${val}`;
+            else if (key.toLowerCase() === 'youtube') url = `https://youtube.com/@${val}`;
+            else url = `https://${val}`;
+          }
+          socialList.push({
+            platform: key.toLowerCase(),
+            label: key.toUpperCase(),
+            sublabel: `SOCIAL / 0${idx + 1}`,
+            url,
+          });
+        });
+      }
+    }
+
+    // Default social fallback to reference
+    const finalSocials = socialList.length > 0 ? socialList : [
+      { platform: 'instagram', label: 'INSTAGRAM', sublabel: 'SOCIAL / 01', url: 'https://instagram.com' },
+      { platform: 'linkedin', label: 'LINKEDIN', sublabel: 'SOCIAL / 02', url: 'https://linkedin.com' },
+      { platform: 'website', label: 'WEBSITE', sublabel: 'SOCIAL / 03', url: 'https://theclub.design' },
+      { platform: 'youtube', label: 'YOUTUBE', sublabel: 'SOCIAL / 04', url: 'https://youtube.com' },
+      { platform: 'newsletter', label: 'NEWSLETTER', sublabel: 'SOCIAL / 05', url: 'https://newsletter.theclub.design' },
+    ];
+
+    // Metrics
+    const metricList: Array<{ index?: string; value: string; label: string }> = [];
+    if (directData?.metrics && directData.metrics.length > 0) {
+      metricList.push(...directData.metrics.slice(0, 3));
+    } else {
+      const proofs = profile?.proofs || profile?.proofPoints || profile?.proof_points || [];
+      if (Array.isArray(proofs) && proofs.length > 0) {
+        proofs.slice(0, 3).forEach((p: any, idx: number) => {
+          metricList.push({
+            index: `0${idx + 1}`,
+            value: p.value || `${p.title || ''}`,
+            label: (p.description || p.title || `METRIC 0${idx + 1}`).toUpperCase(),
+          });
+        });
+      }
+    }
+
+    // Default 3 metrics matching reference
+    const defaultMetrics = [
+      { index: '01', value: '08+', label: 'YEARS IN PRACTICE' },
+      { index: '02', value: '42', label: 'SELECTED COMMISSIONS' },
+      { index: '03', value: 'II', label: 'BRANDS BUILT' },
+    ];
+    while (metricList.length < 3) {
+      metricList.push(defaultMetrics[metricList.length]);
+    }
+
+    // Email & CTA
+    const email = directData?.email !== undefined 
+      ? directData.email 
+      : (profile?.email || profile?.socialHandles?.email || 'maya@theclub.design');
+    const firstName = nameLineOne.toUpperCase();
+    const ctaLabel = directData?.ctaLabel || `WORK WITH ${firstName || 'MAYA'}`;
+
+    return {
+      nameLineOne,
+      nameLineTwo,
+      role: role.toUpperCase(),
+      category: category.toUpperCase(),
+      bio,
+      location,
+      availability,
+      established,
+      edition,
+      initial,
+      monogram,
+      portraitImage: directData?.portraitImage !== undefined ? directData.portraitImage : (profile?.avatarUrl || null),
+      portraitAlt: directData?.portraitAlt || `Editorial portrait of ${nameLineOne} ${nameLineTwo}`,
+      portraitCaption: directData?.portraitCaption || 'PROFILE PORTRAIT',
+      plateLabel: directData?.plateLabel || 'PLATE / A',
+      email,
+      ctaLabel,
+      footerStatement: directData?.footerStatement || 'ONE PROFILE · ONE VISUAL LANGUAGE',
+      metrics: metricList.slice(0, 3),
+      socials: finalSocials,
+    };
+  }, [profile, directData]);
+
+  // Subtle scroll reveal with IntersectionObserver & reduced-motion support
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReducedMotion) return;
+
+    const sections = containerRef.current?.querySelectorAll<HTMLElement>('.club-reveal-section');
+    if (!sections || sections.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('club-revealed');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      {
+        threshold: 0.1,
+        rootMargin: '0px 0px -40px 0px',
+      }
+    );
+
+    sections.forEach((sec) => observer.observe(sec));
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  const scrollToTop = () => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth',
+      });
+    }
+  };
+
+  const handleSocialClick = (social: any) => {
+    if (onLinkClick) {
+      onLinkClick({
+        id: social.platform,
+        label: social.label,
+        url: social.url,
+        clicks: 0,
+        order: 0,
+        isVisible: true,
+      });
+    }
+  };
+
+  const primaryAccent = accentColor || '#6E1E24';
+
+  return (
+    <div className="club-template-root min-h-screen w-full bg-[#F5EFEB] text-[#241E1B] py-6 sm:py-12 px-3 sm:px-6 flex justify-center items-start selection:bg-[#6E1E24] selection:text-[#FAF6F0]">
+      {/* Editorial Google Fonts & Micro-CSS */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+
+        .club-template-root .font-club-serif {
+          font-family: 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
+        }
+
+        .club-template-root .font-club-sans {
+          font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        .club-chamfer-shape {
+          clip-path: polygon(18px 0, 100% 0, 100% 100%, 0 100%, 0 18px);
+        }
+
+        .club-reveal-section {
+          opacity: 0;
+          transform: translateY(14px);
+          transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .club-reveal-section.club-revealed {
+          opacity: 1;
+          transform: translateY(0);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .club-reveal-section {
+            opacity: 1 !important;
+            transform: none !important;
+            transition: none !important;
+          }
+          .club-pulse-line {
+            animation: none !important;
+          }
+          .club-portrait-lift {
+            transition: none !important;
+          }
+          .club-portrait-lift:hover {
+            transform: none !important;
+          }
+        }
+
+        @keyframes clubLinePulse {
+          0%, 100% { opacity: 0.35; transform: scaleX(0.96); }
+          50% { opacity: 0.9; transform: scaleX(1); }
+        }
+
+        .club-pulse-line {
+          animation: clubLinePulse 4s ease-in-out infinite;
+        }
+      `}} />
+
+      {/* Main Profile Shell */}
+      <article
+        ref={containerRef}
+        aria-label={`${clubData.nameLineOne} ${clubData.nameLineTwo} — The Club Profile`}
+        className="font-club-sans relative w-full max-w-[490px] bg-[#FDFBF7] border border-[#241E1B] rounded-[28px] sm:rounded-[32px] shadow-[0_20px_50px_-12px_rgba(40,24,18,0.14)] overflow-hidden transition-all duration-300"
+      >
+        {/* Registration Corner Marks on Shell */}
+        <div className="pointer-events-none absolute top-3.5 left-3.5 w-3.5 h-3.5 border-t border-l border-[#241E1B]/50" aria-hidden="true" />
+        <div className="pointer-events-none absolute top-3.5 right-3.5 w-3.5 h-3.5 border-t border-r border-[#241E1B]/50" aria-hidden="true" />
+        <div className="pointer-events-none absolute top-3.5 right-8 w-4 h-[1px] bg-[#241E1B]/40" aria-hidden="true" />
+
+        {/* ==================================================
+            TOP PROFILE BAR
+        ================================================== */}
+        <header className="relative pt-4 sm:pt-5 pb-3 px-5 sm:px-6">
+          <div className="flex items-center justify-between">
+            {/* Left: Square Monogram & Label */}
+            <div className="flex items-center gap-2.5">
+              <div 
+                className="w-7 h-7 border border-[#241E1B] p-[1.5px] bg-[#FDFBF7] flex items-center justify-center relative select-none"
+                title={`${clubData.monogram} Monogram`}
+              >
+                <div className="w-full h-full border border-[#6E1E24]/30 flex items-center justify-center bg-[#FDFBF7]">
+                  <span className="font-club-serif font-semibold text-[9.5px] tracking-wider text-[#241E1B]">
+                    {clubData.monogram || 'TC'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] tracking-[0.22em] font-semibold text-[#241E1B] uppercase">
+                  THE CLUB
+                </span>
+                <span className="text-[10px] tracking-[0.22em] font-medium text-[#7A726A]">
+                  /
+                </span>
+                <span className="text-[10px] tracking-[0.22em] font-medium text-[#241E1B]">
+                  {clubData.edition || '01'}
+                </span>
+              </div>
+            </div>
+
+            {/* Right: Profile Indicator in Wine */}
+            <div className="text-right">
+              <span className="text-[10px] tracking-[0.22em] font-semibold text-[#6E1E24] uppercase">
+                PROFILE {clubData.established || '2019'}
+              </span>
+            </div>
+          </div>
+
+          {/* Bottom Divider with intersecting diamond */}
+          <div className="relative mt-3.5 w-full flex items-center justify-center">
+            <div className="w-full h-[1px] bg-[#241E1B]/25" />
+            <div className="absolute bg-[#FDFBF7] px-1.5 flex items-center justify-center">
+              <svg width="8" height="8" viewBox="0 0 10 10" fill="none" className="text-[#6E1E24]" aria-hidden="true">
+                <polygon points="5,0 10,5 5,10 0,5" stroke="currentColor" strokeWidth="1.2" fill="#FDFBF7" />
+              </svg>
+            </div>
+          </div>
+        </header>
+
+        {/* ==================================================
+            01 / IDENTITY SECTION
+        ================================================== */}
+        <section 
+          id="identity" 
+          aria-label="Identity"
+          className="club-reveal-section px-5 sm:px-6 pt-3 pb-4"
+        >
+          {/* Section Header */}
+          <div className="flex items-center justify-between gap-3 mb-5">
+            <h2 className="text-[9.5px] font-bold tracking-[0.22em] text-[#6E1E24] uppercase whitespace-nowrap">
+              01 / IDENTITY
+            </h2>
+            <div className="h-[1px] bg-[#241E1B]/20 flex-1 min-w-[20px]" aria-hidden="true" />
+            <span className="text-[8.5px] font-medium tracking-[0.2em] text-[#736B63] uppercase text-right truncate">
+              {clubData.category}
+            </span>
+          </div>
+
+          {/* Two-Column Composition: Portrait + Information */}
+          <div className="grid grid-cols-1 sm:grid-cols-[142px_1fr] gap-5 items-start">
+            {/* Left: Editorial Abstract Portrait Artwork or Photograph */}
+            <div className="flex flex-col items-center sm:items-start">
+              <div 
+                className="club-portrait-lift relative w-[138px] sm:w-[142px] aspect-[4/5] transition-transform duration-500 ease-out hover:-translate-y-1 hover:rotate-[-0.8deg] cursor-pointer group"
+                tabIndex={0}
+                role="img"
+                aria-label={clubData.portraitAlt}
+              >
+                {clubData.portraitImage ? (
+                  /* Real Portrait Image */
+                  <div className="relative w-full h-full club-chamfer-shape bg-[#E5DDD3] overflow-hidden border border-[#241E1B]/80">
+                    <img 
+                      src={clubData.portraitImage} 
+                      alt={clubData.portraitAlt}
+                      className="w-full h-full object-cover grayscale contrast-[1.05] brightness-95 group-hover:scale-105 transition-transform duration-700 ease-out"
+                    />
+                    <div className="pointer-events-none absolute inset-0 club-chamfer-shape border border-[#241E1B]/30" />
+                    <div className="absolute top-2.5 right-2 bg-[#E0D7CC]/90 backdrop-blur-[2px] border border-[#241E1B]/80 px-1 py-1.5 flex items-center justify-center">
+                      <span className="text-[6.5px] tracking-[0.22em] font-semibold text-[#6E665E] uppercase [writing-mode:vertical-rl] rotate-180 select-none">
+                        {clubData.plateLabel}
+                      </span>
+                    </div>
+                    <div className="absolute bottom-1 left-2 font-club-serif italic font-semibold text-[26px] text-[#FAF6F0] drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)] select-none">
+                      {clubData.initial}
+                    </div>
+                  </div>
+                ) : (
+                  /* Built-in Abstract Editorial Artwork */
+                  <div className="relative w-full h-full club-chamfer-shape bg-[#E5DDD3] overflow-hidden border border-[#241E1B]/80 shadow-[inset_0_0_12px_rgba(40,24,18,0.06)]">
+                    <svg viewBox="0 0 142 178" className="w-full h-full" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <rect width="142" height="178" fill="#E5DDD3" />
+                      <line x1="16" y1="0" x2="16" y2="178" stroke="#241E1B" strokeWidth="0.7" strokeOpacity="0.45" />
+                      <line x1="0" y1="18" x2="142" y2="128" stroke="#241E1B" strokeWidth="0.75" strokeOpacity="0.5" />
+                      <line x1="28" y1="0" x2="120" y2="178" stroke="#241E1B" strokeWidth="0.6" strokeOpacity="0.3" />
+                      <ellipse cx="88" cy="66" rx="27" ry="25" fill="#D8A5A5" />
+                      <circle cx="95" cy="58" r="3" fill="#241E1B" />
+                      <path 
+                        d="M 0,112 Q 38,98 76,112 Q 114,126 142,116 L 142,178 L 0,178 Z" 
+                        fill="#6E1E24" 
+                      />
+                      <text 
+                        x="22" 
+                        y="156" 
+                        fontFamily="'Cormorant Garamond', Georgia, serif" 
+                        fontSize="34" 
+                        fontStyle="italic" 
+                        fontWeight="600" 
+                        fill="#FAF6F0"
+                        className="select-none"
+                      >
+                        {clubData.initial}
+                      </text>
+                      <polygon 
+                        points="18,1 141,1 141,177 1,177 1,18" 
+                        stroke="#241E1B" 
+                        strokeWidth="0.8" 
+                        strokeOpacity="0.35" 
+                        fill="none" 
+                      />
+                    </svg>
+
+                    <div className="absolute top-2.5 right-2 bg-[#E0D7CC] border border-[#241E1B]/70 px-1 py-1.5 flex items-center justify-center select-none shadow-sm">
+                      <span className="text-[6.5px] tracking-[0.22em] font-semibold text-[#6E665E] uppercase [writing-mode:vertical-rl] rotate-180">
+                        {clubData.plateLabel}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Caption */}
+              <div className="mt-2 text-center w-full">
+                <span className="text-[7.5px] tracking-[0.24em] font-semibold text-[#7A726A] uppercase">
+                  {clubData.portraitCaption}
+                </span>
+              </div>
+            </div>
+
+            {/* Right: Profile Info */}
+            <div className="flex flex-col justify-start pt-0 sm:pt-0.5">
+              <div className="text-[9px] font-bold tracking-[0.2em] text-[#6E1E24] uppercase mb-1.5 leading-snug">
+                {clubData.role}
+              </div>
+
+              <h1 className="font-club-serif tracking-[-0.015em] leading-[0.92] select-text">
+                <span className="block text-[42px] sm:text-[46px] font-normal text-[#241E1B]">
+                  {clubData.nameLineOne}
+                </span>
+                {clubData.nameLineTwo && (
+                  <span className="block text-[42px] sm:text-[46px] font-normal italic text-[#6E1E24] leading-[0.98]">
+                    {clubData.nameLineTwo}
+                  </span>
+                )}
+              </h1>
+
+              <p className="text-[12px] sm:text-[12.5px] leading-[1.48] text-[#4A433D] font-normal mt-3 max-w-[270px]">
+                {clubData.bio}
+              </p>
+
+              <div className="mt-3.5 pt-2 border-t border-[#241E1B]/15 flex items-center gap-1.5 text-[8px] font-medium tracking-[0.16em] uppercase text-[#736B63] flex-wrap">
+                {clubData.location && <span>{clubData.location}</span>}
+                {clubData.location && clubData.availability && (
+                  <span className="text-[#6E1E24] text-[9px] leading-none" aria-hidden="true">•</span>
+                )}
+                {clubData.availability && <span>{clubData.availability}</span>}
+              </div>
+            </div>
+          </div>
+
+          {/* Micro Navigation / Identity Footer */}
+          <div className="mt-5 pt-3 border-t border-[#241E1B]/15 flex items-center justify-between text-[8px] font-semibold tracking-[0.2em] uppercase text-[#7A726A]">
+            <span className="whitespace-nowrap">
+              CURATED PROFILE / EDITION {clubData.edition || '01'}
+            </span>
+            <div className="club-pulse-line h-[1px] bg-[#241E1B]/30 flex-1 mx-3" aria-hidden="true" />
+            <a 
+              href="#socials" 
+              className="hover:text-[#6E1E24] transition-colors flex items-center gap-0.5 whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#6E1E24]"
+            >
+              SCROLL TO EXPLORE ↓
+            </a>
+          </div>
+        </section>
+
+        {/* ==================================================
+            02 / SOCIALS SECTION
+        ================================================== */}
+        <section 
+          id="socials" 
+          aria-label="Social Links"
+          className="club-reveal-section px-5 sm:px-6 pt-3 pb-4"
+        >
+          {/* Section Header */}
+          <div className="flex items-center justify-between gap-3 mb-3.5">
+            <h2 className="text-[9.5px] font-bold tracking-[0.22em] text-[#6E1E24] uppercase whitespace-nowrap">
+              02 / SOCIALS
+            </h2>
+            <div className="h-[1px] bg-[#241E1B]/20 flex-1 min-w-[20px]" aria-hidden="true" />
+            <span className="text-[8.5px] font-medium tracking-[0.2em] text-[#736B63] uppercase">
+              STAY CLOSE
+            </span>
+          </div>
+
+          {/* Social Cards Grid: Desktop 2 cols + full width 5th; Mobile 1 col */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {clubData.socials.map((social: any, index: number) => {
+              const isFullWidth = index === 4 && clubData.socials.length === 5;
+
+              return (
+                <a
+                  key={`${social.platform}-${index}`}
+                  href={social.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => handleSocialClick(social)}
+                  aria-label={`${social.label} — ${social.sublabel || 'Social Link'}`}
+                  className={`
+                    group relative bg-[#ECE4D8] border border-[#241E1B]/80 px-3.5 py-3 
+                    flex items-center justify-between rounded-[2px] transition-all duration-200 
+                    hover:bg-[#E4D8D2] hover:border-[#6E1E24] hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(40,24,18,0.08)]
+                    active:translate-y-0 active:scale-[0.99]
+                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6E1E24]
+                    ${isFullWidth ? 'sm:col-span-2' : ''}
+                  `}
+                >
+                  {/* Inset Hairline Frame */}
+                  <div className="pointer-events-none absolute inset-[2.5px] border border-[#241E1B]/15" aria-hidden="true" />
+
+                  {/* Deep Wine Corner Bracket Mark in Bottom-Right Corner (Exact Reference Detail!) */}
+                  <div 
+                    className="pointer-events-none absolute bottom-1.5 right-1.5 w-2.5 h-2.5 border-b-[1.5px] border-r-[1.5px] border-[#6E1E24]" 
+                    aria-hidden="true" 
+                  />
+
+                  {/* Left: Icon & Title */}
+                  <div className="flex items-center gap-3 relative z-10">
+                    <div className="w-5 h-5 flex items-center justify-center text-[#6E1E24] transition-transform duration-200 group-hover:scale-105">
+                      {renderClubSocialIcon(social.platform, 'w-4 h-4')}
+                    </div>
+
+                    <div className="flex flex-col">
+                      <span className="text-[10.5px] font-bold tracking-[0.16em] text-[#241E1B] uppercase leading-tight">
+                        {social.label}
+                      </span>
+                      <span className="text-[7.5px] font-medium tracking-[0.18em] text-[#7A726A] uppercase mt-0.5">
+                        {social.sublabel || `SOCIAL / 0${index + 1}`}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Right: Upward-Right Arrow */}
+                  <div className="relative z-10 text-[#241E1B]/70 group-hover:text-[#6E1E24] transition-all duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 pr-2">
+                    <ClubArrowUpRightIcon className="w-3.5 h-3.5" />
+                  </div>
+                </a>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* ==================================================
+            03 / THE RECORD SECTION (METRICS)
+        ================================================== */}
+        <section 
+          id="record" 
+          aria-label="The Record"
+          className="club-reveal-section px-5 sm:px-6 pt-3 pb-4"
+        >
+          {/* Section Header */}
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <h2 className="text-[9.5px] font-bold tracking-[0.22em] text-[#6E1E24] uppercase whitespace-nowrap">
+              03 / THE RECORD
+            </h2>
+            <div className="h-[1px] bg-[#241E1B]/20 flex-1 min-w-[20px]" aria-hidden="true" />
+            <span className="text-[8.5px] font-medium tracking-[0.2em] text-[#736B63] uppercase">
+              SELECTED SIGNALS
+            </span>
+          </div>
+
+          {/* Continuous Editorial Metric Strip */}
+          <div className="relative bg-[#ECE4D8] border-t border-b border-[#241E1B]/80 py-3.5 px-3">
+            {/* Top Corner Registration Marks */}
+            <div className="pointer-events-none absolute top-1 left-1.5 w-2 h-2 border-t border-l border-[#241E1B]/60" aria-hidden="true" />
+            <div className="pointer-events-none absolute top-1 right-1.5 w-2 h-2 border-t border-r border-[#241E1B]/60" aria-hidden="true" />
+
+            <div className="grid grid-cols-3 divide-x divide-[#241E1B]/25">
+              {clubData.metrics.slice(0, 3).map((metric: any, idx: number) => (
+                <div 
+                  key={idx} 
+                  className={`flex flex-col px-2 sm:px-3 relative ${idx === 0 ? 'pl-1 sm:pl-2' : ''}`}
+                >
+                  <div className="flex justify-end">
+                    <span className="text-[7.5px] font-mono tracking-wider text-[#7A726A]">
+                      {metric.index || `0${idx + 1}`}
+                    </span>
+                  </div>
+
+                  <div className="font-club-serif text-[28px] sm:text-[34px] font-normal leading-none text-[#241E1B] my-1">
+                    {metric.value}
+                  </div>
+
+                  <div className="text-[7px] sm:text-[7.5px] font-medium tracking-[0.16em] uppercase text-[#5A524A] leading-tight">
+                    {metric.label}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ==================================================
+            04 / INVITATION SECTION (CONTACT & CTA)
+        ================================================== */}
+        <section 
+          id="invitation" 
+          aria-label="Invitation"
+          className="club-reveal-section bg-[#4E141A] text-[#FAF6F0] px-5 sm:px-6 py-5 sm:py-6 transition-colors"
+        >
+          <div className="text-[8.5px] font-semibold tracking-[0.25em] text-[#D4A3A8] uppercase mb-2">
+            04 / INVITATION
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+            <div>
+              <h2 className="font-club-serif tracking-[-0.015em] leading-[0.95] select-text">
+                <span className="block text-[30px] sm:text-[34px] font-normal text-[#FAF6F0]">
+                  Start a
+                </span>
+                <span className="block text-[30px] sm:text-[34px] font-normal italic text-[#E8C4C4] leading-[1.05]">
+                  conversation.
+                </span>
+              </h2>
+            </div>
+
+            <div className="self-start sm:self-end">
+              {clubData.email ? (
+                <a
+                  href={`mailto:${clubData.email}?subject=Collaboration%20Inquiry%20via%20The%20Club`}
+                  className="group relative inline-flex items-stretch border border-[#B37B82] bg-transparent hover:bg-[#5E1A22] transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8C4C4]"
+                  aria-label={`${clubData.ctaLabel} — Email ${clubData.email}`}
+                >
+                  <div className="pointer-events-none absolute inset-[2px] border border-[#B37B82]/30" aria-hidden="true" />
+                  <div className="pointer-events-none absolute bottom-1 right-1 w-2 h-2 border-b border-r border-[#E8C4C4]" aria-hidden="true" />
+
+                  <span className="px-3.5 py-2.5 text-[9px] font-semibold tracking-[0.2em] text-[#FAF6F0] uppercase border-r border-[#B37B82] group-hover:text-white transition-colors">
+                    {clubData.ctaLabel}
+                  </span>
+
+                  <span className="px-2.5 py-2.5 flex items-center justify-center text-[#FAF6F0] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform">
+                    <ClubArrowUpRightIcon className="w-3.5 h-3.5" />
+                  </span>
+                </a>
+              ) : (
+                <div 
+                  className="relative inline-flex items-stretch border border-[#B37B82]/40 bg-black/20 opacity-60 cursor-not-allowed select-none"
+                  title="Inquiries currently unavailable"
+                  aria-disabled="true"
+                >
+                  <div className="pointer-events-none absolute inset-[2px] border border-[#B37B82]/20" aria-hidden="true" />
+                  <span className="px-3.5 py-2.5 text-[9px] font-semibold tracking-[0.2em] text-[#FAF6F0]/60 uppercase border-r border-[#B37B82]/40">
+                    INQUIRIES CLOSED
+                  </span>
+                  <span className="px-2.5 py-2.5 flex items-center justify-center text-[#FAF6F0]/40">
+                    <ClubArrowUpRightIcon className="w-3.5 h-3.5" />
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* ==================================================
+            10 / FOOTER
+        ================================================== */}
+        <footer 
+          aria-label="Profile Footer"
+          className="bg-[#ECE4D8] border-t border-[#241E1B]/20 px-5 sm:px-6 py-3 flex items-center justify-between text-[8px] font-semibold tracking-[0.2em] uppercase text-[#5A524A]"
+        >
+          <div>
+            THE CLUB / {currentYear}
+          </div>
+
+          <div className="hidden xs:block text-[#7A726A] text-[7.5px] truncate max-w-[200px] text-center">
+            {clubData.footerStatement}
+          </div>
+
+          <button
+            type="button"
+            onClick={scrollToTop}
+            aria-label="Back to top of profile"
+            className="flex items-center gap-1 hover:text-[#6E1E24] transition-colors p-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#6E1E24]"
+          >
+            <span className="sr-only">Back to top</span>
+            <ClubArrowUpIcon className="w-3.5 h-3.5 text-[#241E1B] hover:text-[#6E1E24]" />
+          </button>
+        </footer>
+      </article>
     </div>
   );
 }
