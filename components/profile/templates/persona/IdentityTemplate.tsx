@@ -2678,30 +2678,402 @@ function BuilderTemplate({ profile }: any) {
   );
 }
 
-function VisionaryTemplate({ profile, accentColor }: any) {
-  const accent = accentColor || '#D4AF37';
+function VisionaryTemplate({ profile, onLinkClick }: any) {
+  const name = profile?.name || "Aria Mehta";
+  const nameParts = name.split(' ');
+  const firstName = nameParts[0];
+  const lastName = nameParts.slice(1).join(' ') || '';
+
+  const headline = profile?.headline || profile?.role || "FOUNDER - FUTURE SYSTEMS DESIGNER";
+  const bio = profile?.bio || "I build products and systems around ideas that feel slightly ahead of their time — turning emerging technology into experiences people can actually understand and use.";
+  const exploring = (profile as any)?.exploring || "AI + HUMAN EXPERIENCE";
+  const location = (profile as any)?.location || "BENGALURU, INDIA";
+
+  const question = (profile as any)?.question || "What do you build when the future has not been named yet?";
+  const positioning = (profile as any)?.positioning || "I work at the intersection of emerging technology, product thinking, and human behavior — turning uncertain possibilities into useful experiences.";
+
+  const metrics = profile?.proofs || profile?.proofPoints || [
+    { value: "12+", label: "EXPERIMENTS SHIPPED", description: "BUILD / LAST 3 YEARS" },
+    { value: "48K", label: "PEOPLE REACHED", description: "REACH / ACROSS PROJECTS" },
+    { value: "07", label: "PRODUCTS & PROTOTYPES", description: "SIGNAL / SELECTED WORK" }
+  ];
+
+  const links = profile?.links || [
+    { label: "LINKEDIN", url: "https://linkedin.com", description: "PROFESSIONAL / NETWORK", icon: "linkedin" },
+    { label: "INSTAGRAM", url: "https://instagram.com", description: "VISUAL / JOURNAL", icon: "instagram" },
+    { label: "X / TWITTER", url: "https://x.com", description: "IDEAS / SIGNAL", icon: "x" }
+  ];
+
+  const imageUrl = profile?.avatarUrl;
+  const email = profile?.email || "aria@example.com";
+  const contactLink = email.includes('@') ? `mailto:${email}` : email;
+
+  const currentYear = new Date().getFullYear();
+
+  const getPlatformIcon = (platform: string) => {
+    const p = (platform || '').toLowerCase();
+    if (p.includes('linkedin')) return <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 8.76a1.67 1.67 0 1 0 0-3.34 1.67 1.67 0 0 0 0 3.34M7.86 18.5V10.13H5.07V18.5h2.79z" /></svg>;
+    if (p.includes('insta')) return <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" /></svg>;
+    if (p.includes('x') || p.includes('twitter')) return <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>;
+    return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>;
+  };
+
   return (
-    <div className="min-h-screen w-full bg-[#141414] text-white p-8 md:p-16 flex flex-col justify-center items-center text-center font-sans font-light">
-      <div className="max-w-3xl w-full flex flex-col items-center space-y-10">
-        <img src={profile.avatarUrl} alt={profile.name} className="w-28 h-28 rounded-full border border-gray-700 p-1 object-cover" />
-        <div className="space-y-4">
-          <h1 className="text-5xl md:text-6xl tracking-widest uppercase">{profile.name}</h1>
-          <div className="w-24 h-[1px] mx-auto bg-gray-700" />
-          <p className="text-lg md:text-xl text-gray-400 uppercase tracking-widest">{profile.headline}</p>
-        </div>
+    <div className="min-h-screen w-full bg-[#F5EFEB] py-8 sm:py-16 px-4 sm:px-8 flex justify-center items-start text-[#2C2825] font-['Manrope',sans-serif] antialiased selection:bg-[#704E59] selection:text-white">
+      <style dangerouslySetInnerHTML={{ __html: `
+        @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Manrope:wght@300;400;500;600;700&display=swap');
+        .visionary-serif { font-family: 'DM Serif Display', serif; }
+        .visionary-sans { font-family: 'Manrope', sans-serif; }
         
-        <p className="max-w-xl text-gray-300/80 leading-loose text-sm md:text-base border-l border-gray-700 pl-6 pb-6 border-b text-left">
-          {profile.bio}
-        </p>
+        .visionary-outer-shell {
+          background-color: #F8F5F0;
+          background-image: 
+            radial-gradient(circle at 50% 0%, rgba(220, 209, 195, 0.15) 0%, transparent 70%),
+            url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+          box-shadow: 0 20px 40px -10px rgba(44, 40, 37, 0.08), inset 0 0 0 1px rgba(44, 40, 37, 0.05);
+        }
         
-        <div className="w-full max-w-xl pt-12 space-y-4">
-          {profile.links?.map((link: any, i: number) => (
-            <a key={i} href={link.url} className="block w-full border border-gray-800 bg-[#1A1A1A] p-5 uppercase tracking-widest text-xs md:text-sm hover:border-gray-500 transition-colors flex justify-between group">
-              <span className="text-gray-400 group-hover:text-white transition-colors">{link.label}</span>
-              <span style={{ color: accent }} className="opacity-0 group-hover:opacity-100 transition-opacity">Discover</span>
+        @keyframes visionaryFloat {
+          0% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-8px) rotate(1deg); }
+          100% { transform: translateY(0px) rotate(0deg); }
+        }
+        @keyframes visionarySpinSlow {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        
+        .anim-float { animation: visionaryFloat 12s ease-in-out infinite; }
+        .anim-spin-slow { animation: visionarySpinSlow 40s linear infinite; }
+        
+        @media (prefers-reduced-motion: reduce) {
+          .anim-float, .anim-spin-slow { animation: none !important; }
+          .transition-all, .transition-colors, .transition-transform, .transition-opacity { transition: none !important; }
+        }
+      `}} />
+      
+      <div className="visionary-outer-shell relative w-full max-w-[1040px] rounded-[32px] sm:rounded-[48px] border border-[#2C2825]/10 overflow-hidden">
+        
+        {/* Registration Marks */}
+        <div className="absolute top-6 left-6 w-3 h-3 border-t border-l border-[#2C2825]/30 pointer-events-none" />
+        <div className="absolute top-6 right-6 w-3 h-3 border-t border-r border-[#2C2825]/30 pointer-events-none" />
+        <div className="absolute bottom-6 left-6 w-3 h-3 border-b border-l border-[#2C2825]/30 pointer-events-none" />
+        <div className="absolute bottom-6 right-6 w-3 h-3 border-b border-r border-[#2C2825]/30 pointer-events-none" />
+
+        {/* 1. Top Navigation */}
+        <header className="relative pt-8 pb-4 px-8 sm:px-12 flex justify-between items-center text-[9px] tracking-[0.2em] uppercase font-bold text-[#2C2825]">
+          <div className="flex items-center gap-3">
+            <div className="w-4 h-4 rounded-full border border-[#2C2825] flex items-center justify-center p-[2px]">
+              <div className="w-1.5 h-1.5 rounded-full bg-[#2C2825]" />
+            </div>
+            <span>UNOOL / FIELD NOTE</span>
+          </div>
+          <div className="hidden sm:flex items-center gap-4 text-[#8B958A]">
+            <span>PROFILE / 01—04</span>
+            <span className="w-1 h-1 rotate-45 bg-[#8B958A]" />
+            <span>ARCHIVE / 01</span>
+          </div>
+        </header>
+
+        {/* 2. Hero Section */}
+        <section className="relative px-8 sm:px-12 pt-12 pb-20 flex flex-col md:flex-row gap-12 md:gap-20 items-center md:items-start border-b border-[#2C2825]/10">
+          
+          {/* Left: Portrait Instrument */}
+          <div className="w-full md:w-[400px] flex flex-col items-center shrink-0">
+            <div className="absolute top-16 left-12 w-4 h-4 border-t border-l border-[#2C2825]/20 hidden md:block" />
+            <div className="absolute bottom-20 right-[55%] w-4 h-4 border-b border-r border-[#2C2825]/20 hidden md:block" />
+            
+            <div className="relative w-64 h-72 sm:w-80 sm:h-96 group perspective-1000 mt-4 md:mt-0">
+              {/* Orbital Rings */}
+              <div className="absolute inset-[-10%] rounded-full border-[0.5px] border-[#A599B5]/30 anim-spin-slow pointer-events-none" />
+              <div className="absolute inset-[-5%] rounded-full border-[0.5px] border-[#BA6F61]/20 anim-float pointer-events-none" style={{ animationDelay: '-4s' }} />
+              
+              <div className="relative w-full h-full rounded-[40%_60%_70%_30%/40%_50%_60%_50%] overflow-hidden border border-[#2C2825]/20 transition-transform duration-700 md:group-hover:-translate-y-2 md:group-hover:rotate-1 bg-[#DCD1C3]/30 flex items-center justify-center shadow-lg">
+                {imageUrl ? (
+                  <img src={imageUrl} alt={name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="flex flex-col items-center justify-center text-[#704E59]">
+                    <div className="w-8 h-8 rounded-full border border-current flex items-center justify-center mb-3">
+                      <div className="w-2 h-2 rounded-full bg-current" />
+                    </div>
+                    <span className="text-[10px] tracking-[0.2em] font-bold">PORTRAIT FIELD</span>
+                  </div>
+                )}
+              </div>
+              
+              <div className="absolute top-1/2 -left-4 w-2 h-[1px] bg-[#2C2825]/30 pointer-events-none" />
+              <div className="absolute top-1/2 -right-4 w-2 h-[1px] bg-[#2C2825]/30 pointer-events-none" />
+              <div className="absolute -top-4 left-1/2 h-2 w-[1px] bg-[#2C2825]/30 pointer-events-none" />
+              <div className="absolute -bottom-4 left-1/2 h-2 w-[1px] bg-[#2C2825]/30 pointer-events-none" />
+              
+              <span className="absolute top-[20%] -right-8 text-[8px] tracking-widest text-[#8B958A] rotate-90 origin-left pointer-events-none hidden sm:block">E. 17° 39'</span>
+              <span className="absolute bottom-[20%] -left-8 text-[8px] tracking-widest text-[#8B958A] -rotate-90 origin-right pointer-events-none hidden sm:block">N. 41° 21'</span>
+            </div>
+            
+            <div className="mt-10 flex flex-col items-center gap-2 text-[9px] tracking-[0.2em] text-[#8B958A] uppercase">
+              <span>OPTICAL FRAME / 38° 18'</span>
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-[#2C2825]" />
+                <span>LOCATION / {location}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Hero Identity */}
+          <div className="flex-1 w-full flex flex-col relative z-10 pt-4 items-center text-center md:items-start md:text-left">
+            
+            <div className="absolute top-0 right-0 hidden md:flex flex-col items-end">
+               <div className="w-20 h-20 rounded-[40%_60%_70%_30%/40%_50%_60%_50%] border-[0.5px] border-[#704E59]/30 anim-float flex items-center justify-center pointer-events-none">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#704E59]/40" />
+               </div>
+               <span className="text-[8px] tracking-[0.2em] text-[#8B958A] uppercase mt-2">FIELD / 01</span>
+            </div>
+
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-8 h-[1px] bg-[#2C2825]/30 hidden md:block" />
+              <span className="text-[9px] tracking-[0.2em] text-[#8B958A] uppercase font-bold">
+                THE VISIONARY / FUTURE SYSTEMS
+              </span>
+            </div>
+            
+            <h1 className="visionary-serif text-[clamp(4rem,10vw,6.5rem)] leading-[0.85] text-[#2C2825] mb-8">
+              {firstName}
+              <br className="hidden md:block" />
+              {lastName ? (
+                <>
+                  <span className="md:hidden"> </span>
+                  {lastName}
+                </>
+              ) : null}
+            </h1>
+            
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-6 h-[1px] bg-[#2C2825]/30 hidden md:block" />
+              <span className="text-[9px] tracking-[0.2em] text-[#8B958A] uppercase font-bold text-center md:text-left">
+                FIELD 01 / VISION INDEX / FUTURE SYSTEMS
+              </span>
+            </div>
+            
+            <h2 className="text-[11px] sm:text-[13px] tracking-[0.15em] font-bold uppercase text-[#2C2825] mb-6">
+              {headline}
+            </h2>
+            
+            <p className="text-sm sm:text-base leading-[1.8] text-[#2C2825]/80 max-w-lg font-medium mb-10">
+              {bio}
+            </p>
+            
+            <div className="flex gap-4 mb-10 items-stretch">
+              <div className="w-[1px] bg-[#704E59]/40 hidden md:block" />
+              <div className="flex flex-col justify-center items-center md:items-start">
+                <span className="text-[8px] tracking-[0.2em] text-[#8B958A] uppercase mb-1">CURRENTLY EXPLORING</span>
+                <span className="text-[10px] tracking-[0.1em] font-bold uppercase text-[#2C2825]">{exploring}</span>
+              </div>
+            </div>
+            
+            <a 
+              href={contactLink}
+              className="group inline-flex items-center self-center md:self-start gap-4 pr-6 rounded-full border border-[#2C2825]/20 bg-white/50 hover:bg-white transition-all hover:shadow-[0_8px_20px_rgba(112,78,89,0.1)] md:hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-[#704E59] focus:ring-offset-2 focus:ring-offset-[#F8F5F0]"
+            >
+              <div className="w-12 h-12 rounded-full bg-[#704E59] flex items-center justify-center text-white transition-transform group-hover:rotate-45">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="19" x2="19" y2="5"></line><polyline points="12 5 19 5 19 12"></polyline></svg>
+              </div>
+              <div className="flex flex-col py-2 text-left">
+                <span className="text-[8px] tracking-[0.2em] text-[#8B958A] uppercase font-bold">PRIMARY SIGNAL</span>
+                <span className="text-[11px] font-bold text-[#2C2825]">Start a conversation</span>
+              </div>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#8B958A] ml-2 group-hover:translate-x-1 transition-transform"><polyline points="9 18 15 12 9 6"></polyline></svg>
             </a>
-          ))}
-        </div>
+            
+            <div className="mt-16 flex items-center gap-4 w-full justify-center md:justify-start">
+              <span className="text-[9px] tracking-[0.2em] text-[#8B958A] uppercase font-bold">01</span>
+              <div className="h-[1px] flex-1 bg-[#2C2825]/10" />
+              <span className="text-[9px] tracking-[0.2em] text-[#8B958A] uppercase font-bold">MAKE THE NEXT POSSIBILITY LEGIBLE</span>
+            </div>
+
+          </div>
+        </section>
+
+        {/* 3. Philosophy Section */}
+        <section className="relative px-8 sm:px-12 py-16 md:py-20 border-b border-[#2C2825]/10 flex flex-col md:flex-row gap-12">
+          
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] md:w-[60%] h-[150%] md:h-[200%] rounded-[100%] border-[0.5px] border-[#A599B5]/20 -rotate-12 pointer-events-none" />
+          
+          <div className="w-full md:w-32 flex flex-col shrink-0 text-[#704E59] items-center md:items-start">
+            <span className="visionary-serif text-3xl mb-2">02</span>
+            <span className="text-[9px] tracking-[0.2em] font-bold uppercase text-center md:text-left">POINT OF VIEW</span>
+            
+            <div className="mt-6 md:mt-auto pt-4 md:pt-0 pb-4 text-[#8B958A] text-[8px] tracking-[0.1em] uppercase leading-relaxed max-w-[100px] text-center md:text-left hidden md:block">
+              A FIELD NOTE<br/>ON POSSIBILITY
+            </div>
+          </div>
+          
+          <div className="flex-1 max-w-3xl relative z-10 text-center md:text-left flex flex-col items-center md:items-start">
+            <div className="text-[9px] tracking-[0.2em] text-[#8B958A] uppercase font-bold mb-6">
+              THE QUESTION BENEATH THE WORK
+            </div>
+            
+            <h3 className="visionary-serif text-[clamp(2.5rem,6vw,4.5rem)] leading-[1.05] text-[#2C2825] mb-8 relative inline-block">
+              {question}
+              <span className="absolute -right-4 sm:-right-8 md:-right-16 -top-4 md:-top-8 visionary-serif text-5xl sm:text-6xl md:text-8xl text-[#A599B5]/40 rotate-12 select-none">
+                ?
+              </span>
+            </h3>
+            
+            <p className="text-sm sm:text-base leading-[1.8] text-[#2C2825]/80 font-medium max-w-xl">
+              {positioning}
+            </p>
+          </div>
+          
+          <div className="hidden md:flex flex-col items-center justify-center shrink-0 w-8">
+             <span className="text-[8px] tracking-[0.2em] text-[#BA6F61] rotate-90 uppercase whitespace-nowrap">SEQ / 02A</span>
+          </div>
+
+        </section>
+
+        {/* 4. Proof Section */}
+        {metrics && metrics.length > 0 && (
+          <section className="relative px-8 sm:px-12 py-16 border-b border-[#2C2825]/10">
+            <div className="text-[9px] tracking-[0.2em] text-[#8B958A] uppercase font-bold mb-8 text-center md:text-left">
+              PROOF / SIGNAL / TRACE
+            </div>
+            
+            <div className="flex flex-col md:flex-row items-center md:items-end justify-between gap-6 md:gap-8 mb-12">
+              <h3 className="visionary-serif text-4xl sm:text-5xl text-[#2C2825] text-center md:text-left">
+                Evidence, <span className="text-[#704E59] italic">in orbit.</span>
+              </h3>
+              <p className="text-[10px] tracking-[0.05em] text-[#8B958A] max-w-[200px] text-center md:text-left leading-relaxed">
+                Small, legible markers of momentum. Add only what is true, useful, and yours.
+              </p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {metrics.slice(0, 3).map((metric: any, idx: number) => {
+                const colors = [
+                  { bg: 'bg-[#FDFBF7]', border: 'border-[#704E59]/20', accent: 'text-[#704E59]' },
+                  { bg: 'bg-[#F2F4F2]', border: 'border-[#8B958A]/30', accent: 'text-[#8B958A]' },
+                  { bg: 'bg-[#FDF8F6]', border: 'border-[#BA6F61]/20', accent: 'text-[#BA6F61]' },
+                ];
+                const theme = colors[idx % 3];
+                
+                return (
+                  <div key={idx} className={`relative p-8 rounded-tr-3xl rounded-bl-3xl border ${theme.border} ${theme.bg} transition-all duration-300 md:hover:-translate-y-1 hover:shadow-md group overflow-hidden`}>
+                    <span className={`absolute top-6 right-6 text-[8px] font-bold ${theme.accent}`}>0{idx + 1}</span>
+                    
+                    {idx === 0 && (
+                      <div className="absolute top-10 right-16 w-10 h-6 rounded-full border-[0.5px] border-[#704E59]/40 rotate-12 flex items-center justify-end pr-1 pointer-events-none hidden sm:flex">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#704E59]/60" />
+                      </div>
+                    )}
+                    
+                    <div className="visionary-serif text-5xl sm:text-6xl text-[#2C2825] mb-8 group-hover:scale-105 transition-transform origin-left">
+                      {metric.value}
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="text-[9px] tracking-[0.1em] font-bold uppercase text-[#2C2825]">
+                        {metric.label}
+                      </div>
+                      <div className="text-[8px] tracking-[0.2em] uppercase text-[#8B958A]">
+                        {metric.description}
+                      </div>
+                    </div>
+                    
+                    <div className="absolute bottom-6 left-6 w-3 h-3 border-b border-l border-[#2C2825]/20 pointer-events-none" />
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* 5. Social / Signal Section */}
+        {links && links.length > 0 && (
+          <section className="relative px-8 sm:px-12 py-16 border-b border-[#2C2825]/10 flex flex-col md:flex-row gap-12 md:gap-20">
+            <div className="w-full md:w-1/3 shrink-0 relative text-center md:text-left">
+              <div className="text-[9px] tracking-[0.2em] text-[#8B958A] uppercase font-bold mb-6">
+                THE INDEX
+              </div>
+              <h3 className="visionary-serif text-5xl sm:text-6xl text-[#2C2825] leading-[1]">
+                Find the <br className="hidden md:block" /> <span className="text-[#A599B5] italic">signal.</span>
+              </h3>
+              
+              <div className="absolute top-12 right-12 md:-right-8 w-16 h-12 rounded-[50%] border-[0.5px] border-[#A599B5]/40 -rotate-12 items-center justify-start pl-2 anim-float pointer-events-none hidden sm:flex">
+                <div className="w-1.5 h-1.5 rounded-full bg-[#A599B5]" />
+              </div>
+              
+              <div className="mt-12 md:mt-16 text-[8px] tracking-[0.2em] uppercase text-[#8B958A] border-l-2 border-[#A599B5]/30 pl-3 inline-block text-left">
+                SOCIAL FIELD <br/> 0{links.length} SIGNALS
+              </div>
+            </div>
+            
+            <div className="flex-1 flex flex-col justify-center border-t border-[#2C2825]/10 pt-8 md:pt-0 md:border-none">
+              {links.map((link: any, idx: number) => {
+                const accents = ['text-[#704E59]', 'text-[#BA6F61]', 'text-[#8B958A]'];
+                const bgAccents = ['bg-[#704E59]', 'bg-[#BA6F61]', 'bg-[#8B958A]'];
+                const accentClass = accents[idx % 3];
+                const bgClass = bgAccents[idx % 3];
+                
+                return (
+                  <a 
+                    key={idx} 
+                    href={link.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={`Visit ${link.label}`}
+                    className="group relative flex items-center gap-4 sm:gap-6 py-6 border-b border-[#2C2825]/10 hover:bg-black/[0.02] transition-colors -mx-4 px-4 sm:mx-0 sm:px-0"
+                  >
+                    <div className="absolute left-0 bottom-0 w-0 h-[1px] bg-current transition-all duration-500 group-hover:w-full opacity-30" />
+                    
+                    <div className={`text-[9px] tracking-[0.2em] font-bold ${accentClass} flex items-center gap-2 w-8 shrink-0`}>
+                      <span className="w-1.5 h-[1px] bg-current opacity-0 group-hover:opacity-100 transition-opacity" />
+                      0{idx + 1}
+                    </div>
+                    
+                    <div className={`w-10 h-10 rounded-full border border-[#2C2825]/10 flex items-center justify-center text-[#2C2825] md:group-hover:scale-110 md:group-hover:-rotate-12 transition-transform duration-300 bg-white shadow-sm shrink-0`}>
+                      <div className="w-4 h-4">
+                        {getPlatformIcon(link.icon)}
+                      </div>
+                    </div>
+                    
+                    <div className="flex-1 flex flex-col justify-center min-w-0">
+                      <span className="text-[11px] font-bold uppercase text-[#2C2825] mb-1 truncate">{link.label}</span>
+                      <span className="text-[8px] tracking-[0.2em] uppercase text-[#8B958A] truncate">{link.description || 'SIGNAL / LINK'}</span>
+                    </div>
+                    
+                    <div className={`w-1.5 h-1.5 rounded-full ${bgClass} mx-2 md:mr-4 opacity-0 group-hover:opacity-100 transition-opacity shrink-0`} />
+                    
+                    <div className="text-[#2C2825] opacity-30 group-hover:opacity-100 md:group-hover:translate-x-1 md:group-hover:-translate-y-1 transition-all shrink-0">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="19" x2="19" y2="5"></line><polyline points="12 5 19 5 19 12"></polyline></svg>
+                    </div>
+                  </a>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* 6. Footer */}
+        <footer className="px-8 sm:px-12 py-12 flex flex-col items-center text-center">
+          <div className="text-[8px] tracking-[0.25em] text-[#8B958A] uppercase font-bold mb-8">
+            THE END OF THE PAGE / THE START OF THE CONVERSATION
+          </div>
+          
+          <p className="visionary-serif text-xl sm:text-2xl text-[#2C2825] italic mb-12">
+            Tomorrow is easier to build when someone is willing to see it early.
+          </p>
+          
+          <div className="flex flex-wrap justify-center items-center gap-4 sm:gap-8 text-[8px] tracking-[0.2em] text-[#8B958A] uppercase font-bold mb-6">
+            <span className="text-[#2C2825]">VISION INDEX</span>
+            <span>01 — BUILD</span>
+            <span>02 — EXPLORE</span>
+            <span>03 — CONNECT</span>
+          </div>
+          
+          <div className="text-[8px] tracking-[0.3em] text-[#2C2825] uppercase font-bold">
+            UNOOL / {currentYear}
+          </div>
+        </footer>
+        
       </div>
     </div>
   );
