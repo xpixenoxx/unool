@@ -959,7 +959,7 @@ export function ClubTemplate({
 
                     {/* Right: Upward-Right Arrow */}
                     <div className="relative z-10 text-[var(--ink)]/70 group-hover:text-[var(--wine)] transition-all duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 pr-2">
-                      <ArrowUpRightIcon className="w-3.5 h-3.5" />
+                      <ArrowUpRightIcon className="w-3.5 h-3.5 md:w-5 md:h-5" />
                     </div>
                   </a>
                 );
@@ -1093,7 +1093,7 @@ export function ClubTemplate({
 
                 {/* Right Arrow Segment */}
                 <span className="px-3 py-2.5 md:px-5 md:py-3.5 flex items-center justify-center text-[var(--paper)] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform duration-200 shrink-0">
-                  <ArrowUpRightIcon className="w-3.5 h-3.5" />
+                  <ArrowUpRightIcon className="w-3.5 h-3.5 md:w-5 md:h-5" />
                 </span>
               </a>
             </div>
@@ -1122,7 +1122,7 @@ export function ClubTemplate({
             className="flex items-center gap-1 hover:text-[var(--wine)] transition-colors p-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#6b2436]"
           >
             <span className="sr-only">Back to top</span>
-            <ArrowUpIcon className="w-3.5 h-3.5 text-[var(--ink)] hover:text-[var(--wine)]" />
+            <ArrowUpIcon className="w-3.5 h-3.5 md:w-4 md:h-4 text-[var(--ink)] hover:text-[var(--wine)]" />
           </button>
         </footer>
       </article>
