@@ -142,7 +142,8 @@ function IPhonePreview({
   profileName,
   profileHeadline,
   avatarUrl,
-  connectedPlatforms,
+  connectedPlatforms = [],
+  selectedPlatforms = [],
 }: {
   content: string;
   media: { url: string; type: 'image' | 'video' | 'document' }[];
