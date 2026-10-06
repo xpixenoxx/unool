@@ -639,7 +639,7 @@ export function ClubTemplate({
   }, [clubData.email, clubData.nameLineOne]);
 
   return (
-    <div className="club-template-root min-h-screen w-full bg-[#F2EEE7] text-[#302925] py-8 sm:py-14 px-3 sm:px-6 md:px-8 flex justify-center items-start selection:bg-[#63384D] selection:text-[#FAF7F1]">
+    <div className="club-template-root min-h-screen w-full bg-[#f3eee6] text-[#282321] py-8 md:py-16 px-3 md:px-6 md:px-8 flex justify-center items-start selection:bg-[#6b2436] selection:text-[#fcf9f3]">
       {/* Editorial Google Fonts & Micro-CSS */}
       <style dangerouslySetInnerHTML={{ __html: `
         @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
@@ -654,6 +654,16 @@ export function ClubTemplate({
 
         .club-chamfer-shape {
           clip-path: polygon(18px 0, 100% 0, 100% 100%, 0 100%, 0 18px);
+        }
+
+        
+        @media (min-width: 768px) {
+          .metrics-desktop { display: grid !important; }
+          .metrics-mobile { display: none !important; }
+        }
+        @media (max-width: 767px) {
+          .metrics-desktop { display: none !important; }
+          .metrics-mobile { display: block !important; }
         }
 
         .club-reveal-section {
@@ -686,33 +696,33 @@ export function ClubTemplate({
       <article
         ref={containerRef}
         aria-label={`${clubData.nameLineOne} ${clubData.nameLineTwo} — The Club Profile`}
-        className="font-club-sans relative w-full max-w-[500px] bg-[#FAF7F1] border border-[#302925]/85 rounded-[28px] sm:rounded-[34px] shadow-[0_20px_50px_-12px_rgba(48,41,37,0.12)] overflow-hidden transition-all duration-300"
+        className="font-club-sans relative w-full max-w-[440px] md:max-w-[860px] bg-[#fcf9f3] border border-[#282321]/85 rounded-[28px] md:rounded-[34px] shadow-[0_20px_50px_-12px_rgba(40,35,33,0.12)] overflow-hidden transition-all duration-300"
       >
         {/* Registration Corner Marks on Shell */}
-        <div className="pointer-events-none absolute top-3.5 left-3.5 w-3.5 h-3.5 border-t border-l border-[#302925]/45" aria-hidden="true" />
-        <div className="pointer-events-none absolute top-3.5 right-3.5 w-3.5 h-3.5 border-t border-r border-[#302925]/45" aria-hidden="true" />
-        <div className="pointer-events-none absolute top-3.5 right-8 w-4 h-[1px] bg-[#302925]/30" aria-hidden="true" />
+        <div className="pointer-events-none absolute top-3.5 left-3.5 w-3.5 h-3.5 border-t border-l border-[#282321]/45" aria-hidden="true" />
+        <div className="pointer-events-none absolute top-3.5 right-3.5 w-3.5 h-3.5 border-t border-r border-[#282321]/45" aria-hidden="true" />
+        <div className="pointer-events-none absolute top-3.5 right-8 w-4 h-[1px] bg-[#282321]/30" aria-hidden="true" />
 
         {/* ==================================================
             TOP PROFILE BAR
         ================================================== */}
-        <header className="relative pt-4 sm:pt-5 pb-3 px-5 sm:px-6">
+        <header className="relative pt-4 md:pt-5 pb-3 px-5 md:px-6">
           <div className="flex items-center justify-between">
             {/* Left: Square Monogram & Label (Clean 'THE CLUB' without '/ 01') */}
             <div className="flex items-center gap-2.5">
               <div 
-                className="w-7 h-7 border border-[#302925] p-[1.5px] bg-[#FAF7F1] flex items-center justify-center relative select-none"
+                className="w-7 h-7 border border-[#282321] p-[1.5px] bg-[#fcf9f3] flex items-center justify-center relative select-none"
                 title={`${clubData.monogram} Monogram`}
               >
-                <div className="w-full h-full border border-[#63384D]/35 flex items-center justify-center bg-[#FAF7F1]">
-                  <span className="font-club-serif font-semibold text-[9.5px] tracking-wider text-[#302925]">
+                <div className="w-full h-full border border-[#6b2436]/35 flex items-center justify-center bg-[#fcf9f3]">
+                  <span className="font-club-serif font-semibold text-[9.5px] md:text-[10.5px] tracking-wider text-[#282321]">
                     {clubData.monogram || 'TC'}
                   </span>
                 </div>
               </div>
 
               <div className="flex items-center">
-                <span className="text-[10px] tracking-[0.22em] font-semibold text-[#302925] uppercase">
+                <span className="text-[10px] tracking-[0.22em] font-semibold text-[#282321] uppercase">
                   THE CLUB
                 </span>
               </div>
@@ -720,7 +730,7 @@ export function ClubTemplate({
 
             {/* Right: Profile Indicator in Muted Plum */}
             <div className="text-right">
-              <span className="text-[10px] tracking-[0.22em] font-semibold text-[#63384D] uppercase">
+              <span className="text-[10px] tracking-[0.22em] font-semibold text-[#6b2436] uppercase">
                 PROFILE {clubData.established || currentYear}
               </span>
             </div>
@@ -728,10 +738,10 @@ export function ClubTemplate({
 
           {/* Bottom Divider with intersecting diamond */}
           <div className="relative mt-3.5 w-full flex items-center justify-center">
-            <div className="w-full h-[1px] bg-[#302925]/20" />
-            <div className="absolute bg-[#FAF7F1] px-1.5 flex items-center justify-center">
-              <svg width="8" height="8" viewBox="0 0 10 10" fill="none" className="text-[#63384D]" aria-hidden="true">
-                <polygon points="5,0 10,5 5,10 0,5" stroke="currentColor" strokeWidth="1.2" fill="#FAF7F1" />
+            <div className="w-full h-[1px] bg-[#282321]/20" />
+            <div className="absolute bg-[#fcf9f3] px-1.5 flex items-center justify-center">
+              <svg width="8" height="8" viewBox="0 0 10 10" fill="none" className="text-[#6b2436]" aria-hidden="true">
+                <polygon points="5,0 10,5 5,10 0,5" stroke="currentColor" strokeWidth="1.2" fill="#fcf9f3" />
               </svg>
             </div>
           </div>
@@ -743,62 +753,62 @@ export function ClubTemplate({
         <section 
           id="identity" 
           aria-label="Identity"
-          className="club-reveal-section px-5 sm:px-6 pt-3 pb-5"
+          className="club-reveal-section px-5 md:px-6 pt-3 pb-5"
         >
           {/* Section Header: Clean flex arrangement with NO horizontal connecting line */}
           <div className="flex items-baseline justify-between gap-3 mb-4">
-            <h2 className="text-[9.5px] font-bold tracking-[0.22em] text-[#63384D] uppercase whitespace-nowrap">
+            <h2 className="text-[9.5px] font-bold tracking-[0.22em] text-[#6b2436] uppercase whitespace-nowrap">
               01 / IDENTITY
             </h2>
             {clubData.category && (
-              <span className="text-[8.5px] font-medium tracking-[0.2em] text-[#786C65] uppercase text-right truncate">
+              <span className="text-[8.5px] font-medium tracking-[0.2em] text-[#756c65] uppercase text-right truncate">
                 {clubData.category}
               </span>
             )}
           </div>
 
           {/* Two-Column Composition: Portrait + Information */}
-          <div className="grid grid-cols-1 sm:grid-cols-[144px_1fr] gap-5 items-start">
+          <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-6 md:gap-14 items-start">
             {/* Left: Editorial Portrait Treatment (Clean & Intentional, NO 'PLATE / A', NO empty caption space) */}
-            <div className="flex flex-col items-center sm:items-start shrink-0">
+            <div className="flex flex-col items-center md:items-start shrink-0">
               <div 
-                className="club-portrait-lift relative w-[138px] sm:w-[144px] aspect-[4/5] transition-transform duration-500 ease-out hover:-translate-y-1 hover:rotate-[-0.8deg] cursor-pointer group"
+                className="club-portrait-lift relative w-[138px] md:w-full aspect-[4/5] transition-transform duration-500 ease-out hover:-translate-y-1 hover:rotate-[-0.8deg] cursor-pointer group"
                 tabIndex={0}
                 role="img"
                 aria-label={clubData.portraitAlt}
               >
                 {clubData.portraitImage ? (
                   /* Real Portrait Image without Grayscale (Retains Natural Color with Editorial Polish) */
-                  <div className="relative w-full h-full club-chamfer-shape bg-[#E5DED4] overflow-hidden border border-[#302925]/80 shadow-[0_4px_12px_rgba(48,41,37,0.06)]">
+                  <div className="relative w-full h-full club-chamfer-shape bg-[#e9dfd2] overflow-hidden border border-[#282321]/80 shadow-[0_4px_12px_rgba(40,35,33,0.06)]">
                     <img 
                       src={clubData.portraitImage} 
                       alt={clubData.portraitAlt}
                       className="w-full h-full object-cover contrast-[1.02] brightness-[0.98] group-hover:scale-105 transition-transform duration-700 ease-out"
                     />
-                    <div className="pointer-events-none absolute inset-0 club-chamfer-shape border border-[#302925]/30" />
-                    <div className="absolute bottom-1 left-2 font-club-serif italic font-semibold text-[26px] text-[#FAF7F1] drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)] select-none">
+                    <div className="pointer-events-none absolute inset-0 club-chamfer-shape border border-[#282321]/30" />
+                    <div className="absolute bottom-1 left-2 font-club-serif italic font-semibold text-[26px] text-[#fcf9f3] drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)] select-none">
                       {clubData.initial}
                     </div>
                   </div>
                 ) : (
                   /* Built-in Abstract Editorial Artwork with Warm Palette */
-                  <div className="relative w-full h-full club-chamfer-shape bg-[#E5DED4] overflow-hidden border border-[#302925]/80 shadow-[inset_0_0_12px_rgba(48,41,37,0.06)]">
+                  <div className="relative w-full h-full club-chamfer-shape bg-[#e9dfd2] overflow-hidden border border-[#282321]/80 shadow-[inset_0_0_12px_rgba(40,35,33,0.06)]">
                     <svg viewBox="0 0 142 178" className="w-full h-full" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <rect width="142" height="178" fill="#E5DED4" />
-                      <line x1="16" y1="0" x2="16" y2="178" stroke="#302925" strokeWidth="0.7" strokeOpacity="0.4" />
-                      <line x1="0" y1="18" x2="142" y2="128" stroke="#302925" strokeWidth="0.75" strokeOpacity="0.45" />
-                      <line x1="28" y1="0" x2="120" y2="178" stroke="#302925" strokeWidth="0.6" strokeOpacity="0.25" />
+                      <rect width="142" height="178" fill="#e9dfd2" />
+                      <line x1="16" y1="0" x2="16" y2="178" stroke="#282321" strokeWidth="0.7" strokeOpacity="0.4" />
+                      <line x1="0" y1="18" x2="142" y2="128" stroke="#282321" strokeWidth="0.75" strokeOpacity="0.45" />
+                      <line x1="28" y1="0" x2="120" y2="178" stroke="#282321" strokeWidth="0.6" strokeOpacity="0.25" />
                       
                       {/* Dusty Mauve Oval */}
-                      <ellipse cx="88" cy="66" rx="27" ry="25" fill="#C8AEBB" />
+                      <ellipse cx="88" cy="66" rx="27" ry="25" fill="#d7aeaa" />
                       
                       {/* Deep Cocoa Focal Dot */}
-                      <circle cx="95" cy="58" r="3" fill="#302925" />
+                      <circle cx="95" cy="58" r="3" fill="#282321" />
                       
                       {/* Muted Plum Organic Mound */}
                       <path 
                         d="M 0,112 Q 38,98 76,112 Q 114,126 142,116 L 142,178 L 0,178 Z" 
-                        fill="#63384D" 
+                        fill="#6b2436" 
                       />
                       
                       {/* High-Contrast Serif Initial in Parchment */}
@@ -809,7 +819,7 @@ export function ClubTemplate({
                         fontSize="34" 
                         fontStyle="italic" 
                         fontWeight="600" 
-                        fill="#FAF7F1"
+                        fill="#fcf9f3"
                         className="select-none"
                       >
                         {clubData.initial}
@@ -817,7 +827,7 @@ export function ClubTemplate({
                       
                       <polygon 
                         points="18,1 141,1 141,177 1,177 1,18" 
-                        stroke="#302925" 
+                        stroke="#282321" 
                         strokeWidth="0.8" 
                         strokeOpacity="0.35" 
                         fill="none" 
@@ -829,36 +839,36 @@ export function ClubTemplate({
             </div>
 
             {/* Right: Profile Info */}
-            <div className="flex flex-col justify-start pt-0 sm:pt-0.5 min-w-0">
+            <div className="flex flex-col justify-start pt-0 md:pt-0.5 min-w-0">
               {clubData.role && (
-                <div className="text-[9px] font-bold tracking-[0.2em] text-[#63384D] uppercase mb-1.5 leading-snug">
+                <div className="text-[9px] font-bold tracking-[0.2em] text-[#6b2436] uppercase mb-1.5 leading-snug">
                   {clubData.role}
                 </div>
               )}
 
               <h1 className="font-club-serif tracking-[-0.015em] leading-[0.92] select-text">
-                <span className="block text-[40px] sm:text-[46px] font-normal text-[#302925]">
+                <span className="block text-[40px] md:text-[68px] font-normal text-[#282321]">
                   {clubData.nameLineOne}
                 </span>
                 {clubData.nameLineTwo && (
-                  <span className="block text-[40px] sm:text-[46px] font-normal italic text-[#63384D] leading-[0.98]">
+                  <span className="block text-[40px] md:text-[68px] font-normal italic text-[#6b2436] leading-[0.98]">
                     {clubData.nameLineTwo}
                   </span>
                 )}
               </h1>
 
               {clubData.bio && (
-                <p className="text-[12px] sm:text-[12.5px] leading-[1.48] text-[#524741] font-normal mt-3 max-w-[280px]">
+                <p className="text-[12px] md:text-[12.5px] leading-[1.48] text-[#524741] font-normal mt-3 max-w-[280px] md:max-w-[420px] md:text-[14.5px]">
                   {clubData.bio}
                 </p>
               )}
 
               {/* Location & Status Metadata */}
               {(clubData.location || clubData.availability) && (
-                <div className="mt-3.5 pt-2 border-t border-[#302925]/15 flex items-center gap-1.5 text-[8px] font-medium tracking-[0.16em] uppercase text-[#786C65] flex-wrap">
+                <div className="mt-3.5 pt-2 border-t border-[#282321]/15 flex items-center gap-1.5 text-[8px] font-medium tracking-[0.16em] uppercase text-[#756c65] flex-wrap">
                   {clubData.location && <span>{clubData.location}</span>}
                   {clubData.location && clubData.availability && (
-                    <span className="text-[#63384D] text-[9px] leading-none" aria-hidden="true">•</span>
+                    <span className="text-[#6b2436] text-[9px] leading-none" aria-hidden="true">•</span>
                   )}
                   {clubData.availability && <span>{clubData.availability}</span>}
                 </div>
@@ -874,20 +884,20 @@ export function ClubTemplate({
           <section 
             id="socials" 
             aria-label="Social Links"
-            className="club-reveal-section px-5 sm:px-6 pt-3 pb-4"
+            className="club-reveal-section px-5 md:px-6 pt-3 pb-4"
           >
             {/* Section Header: Clean flex arrangement with NO horizontal connecting line */}
             <div className="flex items-baseline justify-between gap-3 mb-3.5">
-              <h2 className="text-[9.5px] font-bold tracking-[0.22em] text-[#63384D] uppercase whitespace-nowrap">
+              <h2 className="text-[9.5px] font-bold tracking-[0.22em] text-[#6b2436] uppercase whitespace-nowrap">
                 02 / SOCIALS
               </h2>
-              <span className="text-[8.5px] font-medium tracking-[0.2em] text-[#786C65] uppercase">
+              <span className="text-[8.5px] font-medium tracking-[0.2em] text-[#756c65] uppercase">
                 STAY CLOSE
               </span>
             </div>
 
             {/* Social Cards Grid: Desktop 2 cols + full width 5th; Mobile 1 col */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-6">
               {clubData.socials.map((social, index) => {
                 const isFullWidth = index === 4 && clubData.socials.length === 5;
 
@@ -900,41 +910,41 @@ export function ClubTemplate({
                     onClick={() => handleSocialClick(social)}
                     aria-label={`${social.label} — ${social.sublabel || 'Social Link'}`}
                     className={`
-                      group relative bg-[#E5DED4] border border-[#302925]/75 px-3.5 py-3 
+                      group relative bg-[#e9dfd2] border border-[#282321]/75 px-3.5 py-3 md:px-5 md:py-4 
                       flex items-center justify-between rounded-[2px] transition-all duration-200 
-                      hover:bg-[#DCD4C9] hover:border-[#63384D] hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(48,41,37,0.08)]
+                      hover:bg-[#DCD4C9] hover:border-[#6b2436] hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(40,35,33,0.08)]
                       active:translate-y-0 active:scale-[0.99]
-                      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#63384D]
-                      ${isFullWidth ? 'sm:col-span-2' : ''}
+                      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6b2436]
+                      ${isFullWidth ? 'md:col-span-2' : ''}
                     `}
                   >
                     {/* Inset Hairline Frame */}
-                    <div className="pointer-events-none absolute inset-[2.5px] border border-[#302925]/15" aria-hidden="true" />
+                    <div className="pointer-events-none absolute inset-[2.5px] border border-[#282321]/15" aria-hidden="true" />
 
                     {/* Corner Bracket Mark in Bottom-Right Corner in Muted Plum */}
                     <div 
-                      className="pointer-events-none absolute bottom-1.5 right-1.5 w-2.5 h-2.5 border-b-[1.5px] border-r-[1.5px] border-[#63384D]" 
+                      className="pointer-events-none absolute bottom-1.5 right-1.5 w-2.5 h-2.5 border-b-[1.5px] border-r-[1.5px] border-[#6b2436]" 
                       aria-hidden="true" 
                     />
 
                     {/* Left: Authentic Brand SVG Icon in Plum & Title */}
                     <div className="flex items-center gap-3 relative z-10">
-                      <div className="w-5 h-5 flex items-center justify-center text-[#63384D] transition-transform duration-200 group-hover:scale-105">
+                      <div className="w-5 h-5 flex items-center justify-center text-[#6b2436] transition-transform duration-200 group-hover:scale-105">
                         {renderClubSocialIcon(social.platform, 'w-4 h-4')}
                       </div>
 
                       <div className="flex flex-col">
-                        <span className="text-[10.5px] font-bold tracking-[0.16em] text-[#302925] uppercase leading-tight">
+                        <span className="text-[10.5px] md:text-[12.5px] font-bold tracking-[0.16em] text-[#282321] uppercase leading-tight">
                           {social.label}
                         </span>
-                        <span className="text-[7.5px] font-medium tracking-[0.18em] text-[#786C65] uppercase mt-0.5">
+                        <span className="text-[7.5px] font-medium tracking-[0.18em] text-[#756c65] uppercase mt-0.5">
                           {social.sublabel || `SOCIAL / 0${index + 1}`}
                         </span>
                       </div>
                     </div>
 
                     {/* Right: Upward-Right Arrow */}
-                    <div className="relative z-10 text-[#302925]/70 group-hover:text-[#63384D] transition-all duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 pr-2">
+                    <div className="relative z-10 text-[#282321]/70 group-hover:text-[#6b2436] transition-all duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 pr-2">
                       <ArrowUpRightIcon className="w-3.5 h-3.5" />
                     </div>
                   </a>
@@ -951,44 +961,44 @@ export function ClubTemplate({
           <section 
             id="record" 
             aria-label="The Record"
-            className="club-reveal-section px-5 sm:px-6 pt-3 pb-4"
+            className="club-reveal-section px-5 md:px-6 pt-3 pb-4"
           >
             {/* Section Header: Clean flex arrangement with NO horizontal connecting line */}
             <div className="flex items-baseline justify-between gap-3 mb-3">
-              <h2 className="text-[9.5px] font-bold tracking-[0.22em] text-[#63384D] uppercase whitespace-nowrap">
+              <h2 className="text-[9.5px] font-bold tracking-[0.22em] text-[#6b2436] uppercase whitespace-nowrap">
                 03 / THE RECORD
               </h2>
-              <span className="text-[8.5px] font-medium tracking-[0.2em] text-[#786C65] uppercase">
+              <span className="text-[8.5px] font-medium tracking-[0.2em] text-[#756c65] uppercase">
                 SELECTED SIGNALS
               </span>
             </div>
 
             {/* DESKTOP METRICS VIEW (.club-metrics-desktop: visible on desktop/tablet, hidden on mobile) */}
-            <div className="club-metrics-desktop hidden sm:block relative bg-[#E5DED4] border-t border-b border-[#302925]/80 py-3.5 px-3">
+            <div className="club-metrics-desktop  relative bg-[#e9dfd2] border-t border-b border-[#282321]/80 py-3.5 px-3">
               {/* Top Corner Registration Marks in Muted Plum */}
-              <div className="pointer-events-none absolute top-1 left-1.5 w-2 h-2 border-t border-l border-[#63384D]" aria-hidden="true" />
-              <div className="pointer-events-none absolute top-1 right-1.5 w-2 h-2 border-t border-r border-[#63384D]" aria-hidden="true" />
+              <div className="pointer-events-none absolute top-1 left-1.5 w-2 h-2 border-t border-l border-[#6b2436]" aria-hidden="true" />
+              <div className="pointer-events-none absolute top-1 right-1.5 w-2 h-2 border-t border-r border-[#6b2436]" aria-hidden="true" />
 
-              <div className="grid grid-cols-3 divide-x divide-[#302925]/20">
+              <div className="grid grid-cols-3 divide-x divide-[#282321]/20">
                 {clubData.metrics.map((metric, idx) => (
                   <div 
                     key={idx} 
-                    className={`flex flex-col px-2 sm:px-3 relative ${idx === 0 ? 'pl-1 sm:pl-2' : ''}`}
+                    className={`flex flex-col px-2 md:px-3 relative ${idx === 0 ? 'pl-1 md:pl-2' : ''}`}
                   >
                     {/* Small editorial index in top-right */}
                     <div className="flex justify-end">
-                      <span className="text-[7.5px] font-mono tracking-wider text-[#786C65]">
+                      <span className="text-[7.5px] font-mono tracking-wider text-[#756c65]">
                         {metric.index || `0${idx + 1}`}
                       </span>
                     </div>
 
                     {/* Large High-Contrast Editorial Serif Number */}
-                    <div className="font-club-serif text-[30px] sm:text-[36px] font-normal leading-none text-[#302925] my-1">
+                    <div className="font-club-serif text-[30px] md:text-[36px] font-normal leading-none text-[#282321] my-1">
                       {metric.value}
                     </div>
 
                     {/* Actual Metric Label */}
-                    <div className="text-[7.5px] sm:text-[8px] font-semibold tracking-[0.16em] uppercase text-[#5A4F48] leading-tight">
+                    <div className="text-[7.5px] md:text-[8px] font-semibold tracking-[0.16em] uppercase text-[#756c65] leading-tight">
                       {metric.label}
                     </div>
                   </div>
@@ -997,26 +1007,26 @@ export function ClubTemplate({
             </div>
 
             {/* MOBILE METRICS VIEW (.club-metrics-mobile: visible on mobile, hidden on desktop/tablet) */}
-            <div className="club-metrics-mobile block sm:hidden relative bg-[#E5DED4] border border-[#302925]/60 rounded-[2px] divide-y divide-[#302925]/20 overflow-hidden shadow-sm">
+            <div className="club-metrics-mobile  relative bg-[#e9dfd2] border border-[#282321]/60 rounded-[2px] divide-y divide-[#282321]/20 overflow-hidden shadow-sm">
               {clubData.metrics.map((metric, idx) => (
                 <div 
                   key={idx} 
                   className="flex items-baseline justify-between px-3.5 py-2.5 relative group"
                 >
-                  <div className="pointer-events-none absolute bottom-1 right-1 w-1.5 h-1.5 border-b border-r border-[#63384D]" aria-hidden="true" />
+                  <div className="pointer-events-none absolute bottom-1 right-1 w-1.5 h-1.5 border-b border-r border-[#6b2436]" aria-hidden="true" />
 
                   {/* Left: Value + Actual Metric Label */}
                   <div className="flex items-baseline gap-2.5 min-w-0 pr-2">
-                    <span className="font-club-serif text-[26px] font-normal leading-none text-[#302925] shrink-0">
+                    <span className="font-club-serif text-[26px] font-normal leading-none text-[#282321] shrink-0">
                       {metric.value}
                     </span>
-                    <span className="text-[8px] font-semibold tracking-[0.16em] uppercase text-[#5A4F48] truncate">
+                    <span className="text-[8px] font-semibold tracking-[0.16em] uppercase text-[#756c65] truncate">
                       {metric.label}
                     </span>
                   </div>
 
                   {/* Right: Small Index */}
-                  <span className="text-[7.5px] font-mono text-[#786C65] shrink-0">
+                  <span className="text-[7.5px] font-mono text-[#756c65] shrink-0">
                     {metric.index || `0${idx + 1}`}
                   </span>
                 </div>
@@ -1031,44 +1041,44 @@ export function ClubTemplate({
         <section 
           id="invitation" 
           aria-label="Invitation"
-          className="club-reveal-section bg-[#4A2537] text-[#FAF7F1] px-5 sm:px-6 py-5 sm:py-6 transition-colors"
+          className="club-reveal-section bg-[#4a1725] text-[#fcf9f3] px-5 md:px-6 py-5 md:py-6 transition-colors"
         >
-          <div className="text-[8.5px] font-semibold tracking-[0.25em] text-[#C8AEBB] uppercase mb-2">
+          <div className="text-[8.5px] font-semibold tracking-[0.25em] text-[#d7aeaa] uppercase mb-2">
             04 / INVITATION
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div>
               <h2 className="font-club-serif tracking-[-0.015em] leading-[0.95] select-text">
-                <span className="block text-[30px] sm:text-[34px] font-normal text-[#FAF7F1]">
+                <span className="block text-[30px] md:text-[34px] font-normal text-[#fcf9f3]">
                   Start a
                 </span>
-                <span className="block text-[30px] sm:text-[34px] font-normal italic text-[#C8AEBB] leading-[1.05]">
+                <span className="block text-[30px] md:text-[34px] font-normal italic text-[#d7aeaa] leading-[1.05]">
                   conversation.
                 </span>
               </h2>
             </div>
 
             {/* Right: Framed Interactive CTA Button */}
-            <div className="w-full sm:w-auto self-start sm:self-end">
+            <div className="w-full md:w-auto self-start md:self-end">
               <a
                 href={mailtoHref}
-                className="group relative w-full sm:w-auto inline-flex items-stretch justify-between border border-[#C8AEBB] bg-transparent hover:bg-[#562C40] active:bg-[#3D1E2D] transition-all duration-200 hover:-translate-y-0.5 hover:translate-x-0.5 active:translate-y-0 active:translate-x-0 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C8AEBB] focus-visible:ring-offset-2 focus-visible:ring-offset-[#4A2537]"
+                className="group relative w-full md:w-auto inline-flex items-stretch justify-between border border-[#d7aeaa] bg-transparent hover:bg-[#5d1c2e] active:bg-[#3c131e] transition-all duration-200 hover:-translate-y-0.5 hover:translate-x-0.5 active:translate-y-0 active:translate-x-0 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d7aeaa] focus-visible:ring-offset-2 focus-visible:ring-offset-[#4a1725]"
                 aria-label={`${clubData.ctaLabel}${clubData.email ? ` — Email ${clubData.email}` : ''}`}
               >
                 {/* Inset Hairline Frame */}
-                <div className="pointer-events-none absolute inset-[2px] border border-[#C8AEBB]/30" aria-hidden="true" />
+                <div className="pointer-events-none absolute inset-[2px] border border-[#d7aeaa]/30" aria-hidden="true" />
 
                 {/* Bottom-Right Corner Registration Accent */}
-                <div className="pointer-events-none absolute bottom-1 right-1 w-2 h-2 border-b border-r border-[#C8AEBB]" aria-hidden="true" />
+                <div className="pointer-events-none absolute bottom-1 right-1 w-2 h-2 border-b border-r border-[#d7aeaa]" aria-hidden="true" />
 
                 {/* Left Text Segment */}
-                <span className="flex-1 sm:flex-initial px-4 py-2.5 text-[9.5px] font-semibold tracking-[0.2em] text-[#FAF7F1] uppercase border-r border-[#C8AEBB]/80 group-hover:border-[#C8AEBB] group-hover:text-white transition-colors truncate">
+                <span className="flex-1 md:flex-initial px-4 py-2.5 md:px-6 md:py-3.5 text-[9.5px] font-semibold tracking-[0.2em] text-[#fcf9f3] uppercase border-r border-[#d7aeaa]/80 group-hover:border-[#d7aeaa] group-hover:text-white transition-colors truncate">
                   {clubData.ctaLabel}
                 </span>
 
                 {/* Right Arrow Segment */}
-                <span className="px-3 py-2.5 flex items-center justify-center text-[#FAF7F1] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform duration-200 shrink-0">
+                <span className="px-3 py-2.5 md:px-5 md:py-3.5 flex items-center justify-center text-[#fcf9f3] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform duration-200 shrink-0">
                   <ArrowUpRightIcon className="w-3.5 h-3.5" />
                 </span>
               </a>
@@ -1081,13 +1091,13 @@ export function ClubTemplate({
         ================================================== */}
         <footer 
           aria-label="Profile Footer"
-          className="bg-[#E5DED4] border-t border-[#302925]/20 px-5 sm:px-6 py-3.5 flex items-center justify-between text-[8px] font-semibold tracking-[0.2em] uppercase text-[#5A4F48]"
+          className="bg-[#e9dfd2] border-t border-[#282321]/20 px-5 md:px-6 py-3.5 flex items-center justify-between text-[8px] font-semibold tracking-[0.2em] uppercase text-[#756c65]"
         >
           <div>
             THE CLUB / {currentYear}
           </div>
 
-          <div className="hidden xs:block text-[#786C65] text-[7.5px] truncate max-w-[200px] text-center">
+          <div className="hidden xs:block text-[#756c65] text-[7.5px] truncate max-w-[200px] text-center">
             {clubData.footerStatement}
           </div>
 
@@ -1095,10 +1105,10 @@ export function ClubTemplate({
             type="button"
             onClick={scrollToTop}
             aria-label="Back to top of profile"
-            className="flex items-center gap-1 hover:text-[#63384D] transition-colors p-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#63384D]"
+            className="flex items-center gap-1 hover:text-[#6b2436] transition-colors p-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#6b2436]"
           >
             <span className="sr-only">Back to top</span>
-            <ArrowUpIcon className="w-3.5 h-3.5 text-[#302925] hover:text-[#63384D]" />
+            <ArrowUpIcon className="w-3.5 h-3.5 text-[#282321] hover:text-[#6b2436]" />
           </button>
         </footer>
       </article>
