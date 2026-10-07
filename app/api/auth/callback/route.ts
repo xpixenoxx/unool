@@ -13,7 +13,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { code, token_hash, type, redirectTo } = body;
 
-    if (!code && !token_hash) {
+    // For OAuth flows, the browser client already exchanged the code.
+    // We only need to do profile/workspace upsert here.
+    const isOAuthProfileUpsert = type === 'oauth';
+
+    if (!code && !token_hash && !isOAuthProfileUpsert) {
       return NextResponse.json({ error: 'Missing authorization credentials' }, { status: 400 });
     }
 
@@ -36,17 +40,19 @@ export async function POST(request: NextRequest) {
 
     let error;
 
-    if (code) {
-      const resp = await supabase.auth.exchangeCodeForSession(code);
-      error = resp.error;
-    } else if (token_hash) {
-      const resp = await supabase.auth.verifyOtp({ token_hash, type: type as any });
-      error = resp.error;
-    }
+    if (!isOAuthProfileUpsert) {
+      if (code) {
+        const resp = await supabase.auth.exchangeCodeForSession(code);
+        error = resp.error;
+      } else if (token_hash) {
+        const resp = await supabase.auth.verifyOtp({ token_hash, type: type as any });
+        error = resp.error;
+      }
 
-    if (error) {
-      logger.error('Auth callback error', { error, traceId });
-      return NextResponse.json({ error: error.message || 'Invalid or expired magic link' }, { status: 400 });
+      if (error) {
+        logger.error('Auth callback error', { error, traceId });
+        return NextResponse.json({ error: error.message || 'Invalid or expired magic link' }, { status: 400 });
+      }
     }
 
     const { data: { user } } = await supabase.auth.getUser();

@@ -4,12 +4,16 @@ import type { NextRequest } from 'next/server';
 const publicPaths = [
   '/',
   '/signup',
+  '/signin',
   '/auth/callback',
   '/api/auth',
   '/api/health',
   '/u',
   '/privacy',
+  '/privacy-policy',
   '/terms',
+  '/terms-of-service',
+  '/forgot-password',
 ];
 
 // Admin paths that should be public (no auth required)

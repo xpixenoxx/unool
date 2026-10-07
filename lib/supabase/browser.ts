@@ -1,20 +1,16 @@
-import { createClient } from '@supabase/supabase-js';
+import { createBrowserClient } from '@supabase/ssr';
 
-// Browser-side singleton Supabase client
-// Uses NEXT_PUBLIC_ env vars so they are available client-side
+// Browser-side Supabase client using @supabase/ssr
+// This correctly syncs session cookies between client and server,
+// preventing "session expired" errors after OAuth login.
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-let _client: ReturnType<typeof createClient> | null = null;
+let _client: ReturnType<typeof createBrowserClient> | null = null;
 
 export function getSupabaseBrowserClient() {
   if (!_client) {
-    _client = createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-      },
-    });
+    _client = createBrowserClient(supabaseUrl, supabaseAnonKey);
   }
   return _client;
 }

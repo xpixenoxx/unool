@@ -2,167 +2,174 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Loader2, ArrowRight, CheckCircle, AlertCircle, Mail } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Flex, Box, Text, Display } from '@/components/ui/layout';
-import { MotionBox, spring } from '@/components/ui/motion';
-import { Container, Section } from '@/components/ui/layout';
-import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { Transition } from 'framer-motion';
+import { Loader2, ArrowRight, AlertCircle } from 'lucide-react';
+import { getSupabaseBrowserClient } from '@/lib/supabase/browser';
+import { motion } from 'framer-motion';
+
+const C = {
+  oxblood: '#3A0B1A',
+  terracotta: '#8C2A25',
+  clay: '#C84B31',
+};
 
 function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get('redirect') || '/dashboard';
-  const [errorMessage, setErrorMessage] = useState<string | null>(searchParams.get('error'));
-  const [isExchanging, setIsExchanging] = useState(false);
-  const reducedMotion = useReducedMotion();
-  const springConfig: Transition = reducedMotion ? { type: 'tween', duration: 0.01 } : spring.snappy;
+  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check for error in hash fragment (Supabase often puts OAuth/Magic Link errors here)
-    const hash = window.location.hash;
-    if (hash && hash.includes('error=')) {
-      const hashParams = new URLSearchParams(hash.substring(1));
-      const hashError = hashParams.get('error_description') || hashParams.get('error');
-      if (hashError) {
-        setErrorMessage(hashError.replace(/\+/g, ' '));
-        return;
-      }
-    }
-
-    if (errorMessage) return;
-
-    // Check for implicit flow success in hash fragment
-    if (hash && hash.includes('access_token=')) {
-      setIsExchanging(true);
-      // The Supabase browser client automatically intercepts this hash and sets the session.
-      // We just need to wait briefly for it to complete the storage process, then redirect.
-      setTimeout(() => {
-        router.push(redirect);
-      }, 500);
-      return;
-    }
-
-    const code = searchParams.get('code');
-    const token_hash = searchParams.get('token_hash');
-    const type = searchParams.get('type') || 'magiclink';
-
-    if (!code && !token_hash) {
-      // If we don't have a code or token_hash, and we didn't find an error in the hash,
-      // something is wrong.
-      setErrorMessage('Missing authorization credentials');
-      return;
-    }
-
-    const exchangeCode = async () => {
-      setIsExchanging(true);
+    const handleCallback = async () => {
       try {
-        const res = await fetch('/api/auth/callback', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            code,
-            token_hash,
-            type,
-            redirectTo: `${window.location.origin}${redirect}`,
-          }),
-        });
-
-        if (res.ok) {
-          const data = await res.json().catch(() => ({}));
-          const target = data.redirectTo || redirect;
-
-          // Use router.push for client-side navigation if possible,
-          // but fall back to window.location for hard redirect
-          // This ensures cookies are sent properly and state is clean
-          router.push(target);
-        } else {
-          const data = await res.json().catch(() => ({}));
-          setErrorMessage(data.error || 'Failed to authenticate');
+        // Check for error in query params (OAuth error)
+        const queryError = searchParams.get('error');
+        const queryErrorDesc = searchParams.get('error_description');
+        if (queryError) {
+          setErrorMessage(queryErrorDesc || queryError);
+          setStatus('error');
+          return;
         }
-      } catch {
-        setErrorMessage('Network error occurred during authentication');
-      } finally {
-        setIsExchanging(false);
+
+        // Check for error in hash fragment
+        const hash = window.location.hash;
+        if (hash && hash.includes('error=')) {
+          const hashParams = new URLSearchParams(hash.substring(1));
+          const hashError = hashParams.get('error_description') || hashParams.get('error');
+          if (hashError) {
+            setErrorMessage(hashError.replace(/\+/g, ' '));
+            setStatus('error');
+            return;
+          }
+        }
+
+        const supabase = getSupabaseBrowserClient();
+        const code = searchParams.get('code');
+
+        if (code) {
+          // PKCE flow: Exchange the code for a session using the BROWSER client.
+          // This is correct — the browser client knows the PKCE verifier it stored.
+          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+
+          if (error || !data.session) {
+            setErrorMessage(error?.message || 'Authentication failed. Please try again.');
+            setStatus('error');
+            return;
+          }
+
+          // Session is now active in the browser client. 
+          // Ensure user profile and workspace exist via server-side upsert.
+          try {
+            await fetch('/api/auth/callback', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                // No code — session already exchanged. Just trigger profile/workspace creation.
+                token_hash: null,
+                type: 'oauth',
+                redirectTo: `${window.location.origin}${redirect}`,
+              }),
+            });
+          } catch {
+            // Non-fatal: profile upsert can fail silently; the session is still valid.
+          }
+
+          setStatus('success');
+          setTimeout(() => router.push(redirect), 300);
+          return;
+        }
+
+        // Handle hash-based implicit flow (fallback for older configs)
+        if (hash && hash.includes('access_token=')) {
+          // The Supabase client auto-processes the hash fragment on instantiation.
+          // Wait briefly for it to complete, then verify the session.
+          await new Promise(resolve => setTimeout(resolve, 400));
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            setStatus('success');
+            setTimeout(() => router.push(redirect), 300);
+          } else {
+            setErrorMessage('Could not establish session. Please try signing in again.');
+            setStatus('error');
+          }
+          return;
+        }
+
+        // No code or token — something went wrong
+        setErrorMessage('Missing authorization credentials. Please try again.');
+        setStatus('error');
+      } catch (err) {
+        setErrorMessage('An unexpected error occurred. Please try again.');
+        setStatus('error');
       }
     };
 
-    exchangeCode();
-  }, [searchParams, redirect, router, errorMessage]);
+    handleCallback();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  if (errorMessage) {
+  if (status === 'error') {
     return (
-      <Section size="lg" className="flex items-center justify-center">
-        <Container size="sm">
-          <MotionBox variant="slide-up">
-            <Card className="border-destructive/30 bg-destructive/5">
-              <CardContent className="pt-8 text-center">
-                <MotionBox variant="scale" delay={0.1} initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={springConfig}>
-                  <div className="mx-auto w-14 h-14 bg-destructive/10 rounded-2xl flex items-center justify-center mb-4">
-                    <AlertCircle className="w-7 h-7 text-destructive" />
-                  </div>
-                </MotionBox>
-                <Display size="md" weight="bold" className="mb-2">Authentication Failed</Display>
-                <Text color="muted" className="mb-6 max-w-sm mx-auto">{errorMessage}</Text>
-                <MotionBox variant="scale" delay={0.2}>
-                  <Button onClick={() => router.push('/signup')} variant="outline" size="lg" className="w-full sm:w-auto">
-                    <ArrowRight className="mr-2 h-4 w-4" />
-                    Try Again
-                  </Button>
-                </MotionBox>
-              </CardContent>
-            </Card>
-          </MotionBox>
-        </Container>
-      </Section>
+      <div className="flex flex-col items-center justify-center gap-6 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center">
+          <AlertCircle className="w-8 h-8 text-red-400" />
+        </div>
+        <div>
+          <h2 className="text-2xl font-bold text-white mb-2">Authentication Failed</h2>
+          <p className="text-white/50 max-w-sm">{errorMessage}</p>
+        </div>
+        <button
+          onClick={() => router.push('/signin')}
+          className="flex items-center gap-2 px-6 py-3 rounded-full bg-white text-black font-bold hover:bg-white/90 transition-all active:scale-95"
+        >
+          <ArrowRight className="w-4 h-4" />
+          Try Again
+        </button>
+      </div>
     );
   }
 
   return (
-    <Section size="lg" className="flex items-center justify-center">
-      <Container size="sm">
-        <MotionBox variant="slide-up">
-          <Card className="border-primary/20 bg-primary/5">
-            <CardContent className="pt-8 text-center">
-              <MotionBox variant="scale" delay={0.1} initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={springConfig}>
-                <div className="mx-auto w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center mb-4">
-                  <Loader2 className="w-7 h-7 text-primary animate-spin" />
-                </div>
-              </MotionBox>
-              <Display size="md" weight="bold" className="mb-2">Completing Sign In</Display>
-              <Text color="muted" className="mb-6 max-w-sm mx-auto">
-                {isExchanging ? 'Creating your secure session...' : 'Please wait while we log you in...' }
-              </Text>
-              <MotionBox variant="slide-up" delay={0.3}>
-                <Flex center gap={2} className="text-xs text-muted-foreground">
-                  <Mail className="w-3 h-3" />
-                  <span>Sent to your inbox</span>
-                </Flex>
-              </MotionBox>
-            </CardContent>
-          </Card>
-        </MotionBox>
-      </Container>
-    </Section>
+    <div className="flex flex-col items-center justify-center gap-6 text-center">
+      <div className="relative">
+        <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${C.clay}, ${C.terracotta})` }}>
+          <Loader2 className="w-8 h-8 text-white animate-spin" />
+        </div>
+        {/* Glow ring */}
+        <motion.div
+          className="absolute inset-0 rounded-2xl"
+          style={{ boxShadow: `0 0 30px rgba(200,75,49,0.5)` }}
+          animate={{ opacity: [0.5, 1, 0.5] }}
+          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+        />
+      </div>
+      <div>
+        <h2 className="text-2xl font-bold text-white mb-2">
+          {status === 'success' ? 'Welcome back!' : 'Signing you in…'}
+        </h2>
+        <p className="text-white/50">
+          {status === 'success' ? 'Taking you to your dashboard.' : 'Verifying your identity securely.'}
+        </p>
+      </div>
+    </div>
   );
 }
 
 export default function AuthCallbackPage() {
   return (
-    <Suspense fallback={
-      <Section size="lg" className="flex items-center justify-center">
-        <Container size="sm">
-          <div className="text-center">
-            <Loader2 className="mx-auto w-8 h-8 text-primary animate-spin" />
+    <div
+      className="min-h-screen w-full flex items-center justify-center font-sans"
+      style={{ background: `linear-gradient(180deg, #3A0B1A 0%, #8C2A25 50%, #1A0A05 100%)` }}
+    >
+      <Suspense
+        fallback={
+          <div className="flex items-center justify-center">
+            <Loader2 className="w-8 h-8 text-white animate-spin" />
           </div>
-        </Container>
-      </Section>
-    }>
-      <MotionBox variant="fade">
+        }
+      >
         <AuthCallbackContent />
-      </MotionBox>
-    </Suspense>
+      </Suspense>
+    </div>
   );
 }
