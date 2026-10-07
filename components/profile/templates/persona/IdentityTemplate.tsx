@@ -2399,147 +2399,133 @@ function HustlerTemplate({ profile }: any) {
     .hustler-mono {
       font-family: 'JetBrains Mono', monospace;
     }
-
-    .hustler-organic {
-      border-radius: 4px 24px 4px 12px;
-    }
-    
-    .hustler-organic-sm {
-      border-radius: 4px 12px 4px 8px;
-    }
   `;
 
   return (
-    <div className="hustler-theme min-h-screen w-full relative overflow-x-hidden bg-[#E2CDC6] selection:bg-[#B35E4F] selection:text-[#FAF3F0] p-4 sm:p-8 md:p-12 lg:p-16 flex items-center justify-center">
+    <div className="hustler-theme min-h-screen w-full relative overflow-x-hidden bg-[#BCC5BF] selection:bg-[#C95D40] selection:text-[#F9FAF9] p-4 sm:p-8 md:p-12 lg:p-16 xl:p-20 flex items-center justify-center">
       <style>{customStyles}</style>
 
       {/* OUTER PREMIUM CONTAINER */}
-      <div className="w-full max-w-[960px] bg-[#F0E3DF] hustler-organic shadow-2xl border border-[rgba(54,41,39,0.12)] flex flex-col md:flex-row relative z-10 overflow-hidden">
+      <div className="w-full max-w-[920px] rounded-[24px] shadow-[0_30px_80px_-20px_rgba(34,37,35,0.4)] flex flex-col relative z-10">
          
-         {/* LEFT: IDENTITY (Fixed width on desktop) */}
-         <div className="w-full md:w-[300px] lg:w-[340px] p-6 md:p-8 lg:p-10 border-b md:border-b-0 md:border-r border-[rgba(54,41,39,0.12)] flex flex-col bg-[#FAF3F0] shrink-0">
-            {/* Avatar */}
-            <div className="w-[120px] h-[120px] md:w-[140px] md:h-[140px] mb-8 relative group cursor-pointer">
-               <div className="absolute inset-0 bg-[#F0E3DF] hustler-organic rotate-6 group-hover:rotate-12 transition-transform duration-500 border border-[rgba(54,41,39,0.12)]"></div>
-               <div className="absolute inset-0 bg-[#F0E3DF] hustler-organic overflow-hidden border border-[rgba(54,41,39,0.12)] z-10">
-                 {profile?.avatarUrl ? (
-                    <img src={profile.avatarUrl} className="w-full h-full object-cover filter contrast-[1.05] brightness-95" alt={name} />
-                 ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <span className="hustler-serif text-[4rem] text-[#8A7470] opacity-40">{name ? name[0] : 'H'}</span>
-                    </div>
-                 )}
+         {/* TOP ZONE: DARK (IDENTITY & MOMENTUM) */}
+         <div className="bg-[#222523] text-[#E8EBE9] p-8 sm:p-12 md:p-16 rounded-t-[24px] flex flex-col gap-10 sm:gap-14 relative z-10">
+            {/* Header Flex */}
+            <div className="flex flex-col md:flex-row justify-between items-start gap-10 md:gap-12">
+               {/* Identity */}
+               <div className="flex flex-col gap-5 max-w-xl">
+                  <div className="flex items-center gap-3">
+                     <span className="w-2 h-2 bg-[#C95D40]"></span>
+                     <span className="text-[10px] sm:text-xs uppercase tracking-[0.3em] font-bold text-[#7A857D]">{role}</span>
+                  </div>
+                  <h1 className="hustler-serif text-6xl sm:text-7xl md:text-[5.5rem] leading-[0.85] tracking-tight uppercase break-words hyphens-auto">
+                     {name || 'HUSTLER'}
+                  </h1>
                </div>
+               
+               {/* Metrics */}
+               {validMetrics.length > 0 && (
+                 <div className="flex flex-wrap md:justify-end gap-8 md:gap-10 shrink-0 md:pt-2">
+                    {validMetrics.map((m: any, i: number) => (
+                      <div key={i} className="flex flex-col md:items-end group cursor-default">
+                         <span className="hustler-serif text-4xl sm:text-5xl leading-none tracking-tighter group-hover:text-[#C95D40] transition-colors">{m.value}</span>
+                         <span className="text-[9px] sm:text-[10px] uppercase tracking-widest font-bold text-[#7A857D] mt-2 group-hover:text-[#E8EBE9] transition-colors">{m.label || m.title || m.name}</span>
+                      </div>
+                    ))}
+                 </div>
+               )}
             </div>
 
-            {/* Typography Identity */}
-            <div className="flex flex-col gap-2 mb-6">
-               <h1 className="hustler-serif text-4xl md:text-5xl leading-[0.95] tracking-tight text-[#362927] break-words">
-                  {name || 'HUSTLER'}
-               </h1>
-               <div className="flex items-center gap-2 mt-1">
-                  <span className="w-4 h-[2px] bg-[#B35E4F]"></span>
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#8A7470]">{role}</span>
-               </div>
-            </div>
-
-            <p className="text-[14px] md:text-[15px] font-medium leading-relaxed text-[#362927] mb-10">
+            {/* Bio */}
+            <p className="max-w-2xl text-lg sm:text-xl md:text-2xl font-medium leading-snug text-[#949E97]">
                {bio}
             </p>
-
-            {/* Actions at the bottom of the left column */}
-            <div className="mt-auto flex flex-col gap-3">
-               <a href={email ? `mailto:${email}` : '#'} className="w-full py-3.5 px-5 bg-[#362927] border border-[#362927] hustler-organic-sm flex items-center justify-between group hover:bg-[#B35E4F] hover:border-[#B35E4F] transition-colors shadow-md">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#FAF3F0] transition-colors">Initiate Action</span>
-                  <span className="text-[#FAF3F0] group-hover:translate-x-1 transition-transform text-lg leading-none">→</span>
-               </a>
-               <button onClick={handleSave} className="w-full py-3.5 px-5 bg-transparent border border-[rgba(54,41,39,0.12)] hustler-organic-sm flex items-center justify-center gap-2 group hover:bg-[#F0E3DF] hover:border-[rgba(54,41,39,0.2)] transition-colors">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#8A7470] group-hover:text-[#362927] transition-colors">Save Contact</span>
-               </button>
-            </div>
          </div>
 
-         {/* RIGHT: COMPACT CONTENT */}
-         <div className="flex-1 p-6 md:p-8 lg:p-10 flex flex-col gap-10 bg-[#F0E3DF]">
+         {/* MIDDLE ZONE: LIGHT (BRIDGE & PROOF) */}
+         <div className="bg-[#E8EBE9] px-6 sm:px-12 md:px-16 pb-12 sm:pb-16 flex flex-col gap-12 sm:gap-16 relative">
             
-            {/* UNIFIED NETWORK */}
-            {validLinks.length > 0 && (
-              <div className="flex flex-col gap-3">
-                 <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#8A7470] flex items-center gap-3">
-                   Network
-                   <span className="flex-1 h-[1px] bg-[rgba(54,41,39,0.08)]"></span>
-                 </h3>
-                 <div className="flex flex-wrap gap-2.5">
-                    {validLinks.map((link: any, i: number) => {
-                      const icon = getAestheteSocialIcon(link.label || link.title);
+            {/* THE BRIDGE: Avatar + Network */}
+            <div className="flex flex-col md:flex-row md:items-end gap-6 sm:gap-8 -mt-16 sm:-mt-20 z-30">
+               {/* Avatar */}
+               <div className="w-[120px] h-[120px] sm:w-[150px] sm:h-[150px] md:w-[180px] md:h-[180px] bg-[#E8EBE9] rounded-[4px_24px_4px_24px] p-2 sm:p-2.5 shadow-2xl shrink-0 border border-[rgba(34,37,35,0.05)]">
+                  <div className="w-full h-full rounded-[2px_16px_2px_16px] overflow-hidden bg-[#222523]">
+                     {profile?.avatarUrl ? (
+                        <img src={profile.avatarUrl} className="w-full h-full object-cover filter contrast-[1.1] grayscale hover:grayscale-0 transition-all duration-700" alt={name} />
+                     ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                           <span className="hustler-serif text-5xl sm:text-7xl text-[#7A857D] opacity-50">{name ? name[0] : 'H'}</span>
+                        </div>
+                     )}
+                  </div>
+               </div>
+               
+               {/* Network Links */}
+               {validLinks.length > 0 && (
+                 <div className="flex flex-wrap items-center gap-2 mb-1 sm:mb-2">
+                    {validLinks.map((l: any, i: number) => {
+                      const icon = getAestheteSocialIcon(l.label || l.title);
                       return (
-                        <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2.5 bg-[#FAF3F0] border border-[rgba(54,41,39,0.12)] hustler-organic-sm group hover:border-[#B35E4F] hover:bg-[#B35E4F] transition-all shadow-sm">
-                           <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-current text-[#8A7470] group-hover:text-[#FAF3F0] transition-colors">
+                        <a key={i} href={l.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 bg-[#222523] px-4 sm:px-5 py-2.5 sm:py-3 rounded-[4px_12px_4px_12px] group hover:bg-[#C95D40] hover:-translate-y-1 transition-all shadow-lg">
+                           <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current text-[#949E97] group-hover:text-[#F9FAF9] transition-colors">
                              {icon}
                            </svg>
-                           <span className="text-[11px] font-bold text-[#362927] group-hover:text-[#FAF3F0] transition-colors">{link.label || link.title}</span>
+                           <span className="text-[10px] sm:text-[11px] uppercase tracking-widest font-bold text-[#E8EBE9] group-hover:text-[#F9FAF9] transition-colors mt-0.5">{l.label || l.title}</span>
                         </a>
                       );
                     })}
                  </div>
-              </div>
-            )}
+               )}
+            </div>
 
-            {/* MOMENTUM */}
-            {validMetrics.length > 0 && (
-              <div className="flex flex-col gap-3">
-                 <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#8A7470] flex items-center gap-3">
-                   Momentum
-                   <span className="flex-1 h-[1px] bg-[rgba(54,41,39,0.08)]"></span>
-                 </h3>
-                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                   {validMetrics.map((m: any, i: number) => (
-                     <div key={i} className="flex flex-col px-5 py-4 bg-[#FAF3F0] border border-[rgba(54,41,39,0.12)] hustler-organic-sm group hover:border-[#B35E4F] transition-colors shadow-sm cursor-default">
-                        <div className="hustler-serif text-3xl md:text-4xl leading-none text-[#362927] group-hover:text-[#FAF3F0] transition-colors">
-                           {m.value}
-                        </div>
-                        <div className="text-[9px] font-bold uppercase tracking-widest text-[#8A7470] mt-1.5 group-hover:text-[#FAF3F0] group-hover:opacity-80 transition-colors">
-                           {m.label || m.title || m.name}
-                        </div>
-                     </div>
-                   ))}
-                 </div>
-              </div>
-            )}
-
-            {/* PROOF POINTS (Timeline) */}
+            {/* TRACK RECORD */}
             {validProofs.length > 0 && (
-              <div className="flex flex-col gap-4">
-                 <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#8A7470] flex items-center gap-3">
-                   Track Record
-                   <span className="flex-1 h-[1px] bg-[rgba(54,41,39,0.08)]"></span>
-                 </h3>
-                 <div className="flex flex-col relative before:absolute before:left-[5px] before:top-2 before:bottom-2 before:w-[2px] before:bg-[rgba(54,41,39,0.08)] ml-1">
-                   {validProofs.map((proof: any, i: number) => (
-                     <div key={i} className="relative pl-7 pb-6 group last:pb-0">
-                        <div className="absolute left-0 top-1.5 w-3 h-3 rounded-full bg-[#FAF3F0] border-2 border-[#B35E4F] group-hover:bg-[#B35E4F] group-hover:scale-125 transition-all z-10 shadow-sm"></div>
-                        <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1 sm:gap-4">
-                           <h4 className="text-[15px] font-bold text-[#362927] leading-snug group-hover:text-[#B35E4F] transition-colors">{proof.title || proof.label}</h4>
-                           {(proof.date || proof.metadata) && (
-                             <span className="hustler-mono text-[9px] uppercase tracking-widest text-[#8A7470] shrink-0">{proof.date || proof.metadata}</span>
+               <div className="flex flex-col gap-8 sm:gap-10">
+                  <div className="flex items-center gap-4">
+                     <h3 className="text-[10px] sm:text-xs uppercase tracking-[0.2em] font-bold text-[#7A857D]">Track Record</h3>
+                     <span className="flex-1 h-[2px] bg-[rgba(34,37,35,0.08)]"></span>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 lg:gap-x-16 gap-y-10 sm:gap-y-12">
+                     {validProofs.map((p: any, i: number) => (
+                        <div key={i} className="flex flex-col group cursor-default">
+                           <div className="w-full h-[3px] bg-[#C2CAC4] group-hover:bg-[#C95D40] transition-colors mb-5"></div>
+                           <div className="flex justify-between items-start gap-4 mb-3">
+                              <h4 className="text-xl sm:text-2xl font-bold text-[#222523] leading-tight group-hover:text-[#C95D40] transition-colors">{p.title || p.label}</h4>
+                              {(p.date || p.metadata) && (
+                                <span className="hustler-mono text-[9px] sm:text-[10px] uppercase tracking-widest font-bold text-[#7A857D] shrink-0 pt-1">{p.date || p.metadata}</span>
+                              )}
+                           </div>
+                           {(p.description || p.desc) && (
+                              <p className="text-[13px] sm:text-sm font-medium text-[#5B605D] leading-relaxed group-hover:text-[#222523] transition-colors">
+                                 {p.description || p.desc}
+                              </p>
                            )}
                         </div>
-                        {(proof.description || proof.desc) && (
-                          <p className="text-[13px] font-medium leading-relaxed text-[#8A7470] mt-1.5 max-w-md group-hover:text-[#362927] transition-colors">{proof.description || proof.desc}</p>
-                        )}
-                     </div>
-                   ))}
-                 </div>
-              </div>
+                     ))}
+                  </div>
+               </div>
             )}
-
          </div>
+
+         {/* BOTTOM ZONE: ACTIONS */}
+         <div className="bg-[#1A1C1B] p-2 sm:p-3 rounded-b-[24px] flex flex-col sm:flex-row gap-2 sm:gap-3 z-20">
+            <a href={email ? `mailto:${email}` : '#'} className="flex-1 bg-[#C95D40] px-6 sm:px-8 py-5 sm:py-6 flex items-center justify-between rounded-[20px_6px_20px_6px] group hover:bg-[#E86D4A] transition-colors cursor-pointer">
+               <span className="text-[11px] sm:text-xs uppercase tracking-[0.2em] font-bold text-[#F9FAF9]">Initiate Action</span>
+               <span className="text-2xl text-[#F9FAF9] group-hover:translate-x-3 transition-transform">→</span>
+            </a>
+            <button onClick={handleSave} className="sm:w-1/3 bg-[#2A2F2D] px-6 sm:px-8 py-5 sm:py-6 flex items-center justify-center gap-3 rounded-[6px_20px_6px_20px] group hover:bg-[#383E3B] transition-colors">
+               <span className="text-[10px] sm:text-[11px] uppercase tracking-[0.2em] font-bold text-[#949E97] group-hover:text-[#E8EBE9] transition-colors">Save Contact</span>
+               <span className="text-sm text-[#C95D40] opacity-0 -translate-y-2 group-hover:translate-y-0 group-hover:opacity-100 transition-all">↓</span>
+            </button>
+         </div>
+
       </div>
-      
+
       {/* Toast Notification */}
       {toastVisible && (
-        <div className="fixed bottom-8 right-8 bg-[#FAF3F0] border border-[rgba(54,41,39,0.12)] text-[#362927] px-6 py-4 shadow-xl z-50 flex items-center gap-4 text-[10px] font-bold tracking-widest uppercase hustler-organic-sm animate-in fade-in slide-in-from-bottom-4">
-          <span className="w-2 h-2 rounded-full bg-[#B35E4F] animate-pulse" />
+        <div className="fixed bottom-8 right-8 bg-[#222523] text-[#E8EBE9] px-6 py-4 shadow-2xl z-50 flex items-center gap-4 text-[10px] font-bold tracking-widest uppercase rounded-[4px_12px_4px_12px] animate-in fade-in slide-in-from-bottom-4">
+          <span className="w-2 h-2 rounded-full bg-[#C95D40] animate-pulse" />
           {toastMsg}
         </div>
       )}
