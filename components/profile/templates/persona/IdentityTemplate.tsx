@@ -2069,27 +2069,176 @@ function HustlerTemplate({ profile, accentColor }: any) {
 // --- 05 INFLUENCER --- //
 
 function AestheteTemplate({ profile }: any) {
+  const firstName = profile.name?.split(' ')[0] || "Aesthete";
+  const lastName = profile.name?.split(' ').slice(1).join(' ') || "";
+  
   return (
-    <div className="min-h-screen w-full bg-[#E5E0D8] text-[#2C2B29] p-4 md:p-12 font-serif flex justify-center">
-      <div className="max-w-4xl w-full bg-[#EFEDE6] shadow-2xl relative">
-        <div className="p-8 md:p-16 text-center space-y-8 flex flex-col items-center">
-          <p className="uppercase tracking-[0.3em] text-xs font-sans text-gray-500">Vol. I — Identity</p>
-          <h1 className="text-5xl md:text-8xl tracking-tight text-[#1A1A1A]">{profile.name}</h1>
-          <p className="text-xl md:text-2xl max-w-lg mb-12 italic text-gray-700">{profile.headline}</p>
-          
-          <img src={profile.avatarUrl} alt={profile.name} className="w-full aspect-[4/3] object-cover mb-12 sepia-[0.1] shadow-lg" />
-          
-          <p className="text-sm md:text-base max-w-xl mx-auto leading-loose text-gray-600 font-sans font-light tracking-wide mb-16 text-justify">
-            {profile.bio}
-          </p>
+    <div className="w-full min-h-screen bg-[#DCD8D3] flex items-center justify-center p-0 md:p-8 overflow-hidden font-sans">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,700;1,6..96,400&family=Inter:wght@300;400;500&display=swap');
+        
+        .font-bodoni {
+          font-family: 'Bodoni Moda', serif;
+        }
+        .font-inter {
+          font-family: 'Inter', sans-serif;
+        }
+        
+        .no-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        .no-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        
+        .editorial-image {
+          clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+          transition: clip-path 1.2s cubic-bezier(0.19, 1, 0.22, 1), transform 1.2s ease;
+        }
+        .editorial-column:hover .editorial-image {
+          clip-path: polygon(4% 4%, 96% 4%, 96% 96%, 4% 96%);
+          transform: scale(1.02);
+        }
+        
+        .link-item {
+          position: relative;
+          display: inline-block;
+        }
+        .link-item::before {
+          content: '';
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          width: 0%;
+          height: 1px;
+          background-color: #232322;
+          transition: width 0.6s cubic-bezier(0.19, 1, 0.22, 1);
+        }
+        .link-item-wrapper:hover .link-item::before {
+          width: 100%;
+        }
+      `}</style>
 
-          <div className="w-full flex flex-col items-center gap-6 z-10">
-            {profile.links?.map((link: any, i: number) => (
-              <a key={i} href={link.url} className="text-xl md:text-3xl hover:italic transition-all border-b border-transparent hover:border-[#1A1A1A] pb-1 font-light flex items-center justify-center">
-                {link.label}
-              </a>
-            ))}
+      <div className="w-full max-w-[1600px] md:h-[90vh] bg-[#F3F1ED] md:rounded-[2px] shadow-2xl flex flex-col md:flex-row relative overflow-hidden">
+        
+        {/* Mobile Header */}
+        <div className="md:hidden flex justify-between items-center p-6 border-b border-[#232322]/10 bg-[#F3F1ED] z-20">
+          <span className="font-inter text-[10px] tracking-[0.25em] uppercase text-[#232322]">The Aesthete</span>
+          <span className="font-bodoni italic text-sm text-[#8A8275]">Vol. I</span>
+        </div>
+
+        {/* Left Column: Visual Canvas */}
+        <div className="editorial-column w-full md:w-[55%] h-[60vh] md:h-full relative overflow-hidden bg-[#E5E3DC] cursor-crosshair">
+          {profile.avatarUrl ? (
+            <img 
+              src={profile.avatarUrl} 
+              alt={profile.name} 
+              className="editorial-image w-full h-full object-cover grayscale-[0.2] contrast-110 object-center"
+            />
+          ) : (
+            <div className="editorial-image w-full h-full flex items-center justify-center bg-[#D4D0C8]">
+              <span className="font-bodoni italic text-3xl text-[#232322]/20">Canvas</span>
+            </div>
+          )}
+          
+          <div className="absolute inset-0 bg-black/5 pointer-events-none transition-opacity duration-1000" />
+          
+          <div className="hidden md:flex absolute top-8 left-8 flex-col text-[#F3F1ED] mix-blend-difference pointer-events-none z-10">
+            <span className="font-inter text-[10px] tracking-[0.3em] uppercase opacity-80">Portfolio</span>
+            <span className="w-8 h-px bg-[#F3F1ED] mt-2 opacity-50" />
           </div>
+
+          <div className="hidden md:block absolute bottom-8 left-8 mix-blend-difference z-10 pointer-events-none">
+            <h1 className="font-bodoni text-7xl lg:text-9xl text-[#F3F1ED] leading-[0.8] tracking-tighter uppercase">
+              {firstName} <br />
+              <span className="italic normal-case ml-8 text-[#F3F1ED]/90">{lastName}</span>
+            </h1>
+          </div>
+        </div>
+
+        {/* Right Column: Content */}
+        <div className="w-full md:w-[45%] h-auto md:h-full flex flex-col bg-[#F3F1ED] z-10 relative">
+          
+          {/* Desktop Header */}
+          <div className="hidden md:flex justify-between items-center p-10 lg:p-14 pb-0">
+            <span className="font-inter text-[10px] tracking-[0.3em] uppercase text-[#232322]/50">
+              {profile.role || 'Digital Creator'}
+            </span>
+            <span className="font-bodoni italic text-lg text-[#8A8275]">Vol. I</span>
+          </div>
+
+          <div className="flex-1 overflow-y-auto no-scrollbar p-8 md:p-10 lg:p-14 flex flex-col">
+            
+            <div className="md:hidden mb-8">
+              <h1 className="font-bodoni text-5xl text-[#232322] leading-[0.9] tracking-tight uppercase">
+                {firstName} <br />
+                <span className="italic normal-case text-[#8A8275]">{lastName}</span>
+              </h1>
+            </div>
+
+            <h2 className="font-bodoni text-3xl md:text-4xl lg:text-5xl text-[#232322] leading-[1.1] mb-8 relative">
+              <span className="absolute -left-6 -top-4 text-6xl text-[#8A8275]/20 font-serif leading-none">"</span>
+              {profile.headline || 'My world is my canvas.'}
+            </h2>
+            
+            <p className="font-inter text-sm md:text-base text-[#232322]/70 leading-relaxed font-light mb-12 max-w-md text-justify md:text-left">
+              {profile.bio || 'Fashion, beauty, lifestyle. Elegant, curated, premium. Editorial magazine aesthetic, sophisticated typography.'}
+            </p>
+
+            {profile.proofPoints && profile.proofPoints.length > 0 && (
+              <div className="grid grid-cols-2 gap-6 mb-12">
+                {profile.proofPoints.map((point: any, i: number) => (
+                  <div key={i} className="flex flex-col border-l border-[#232322]/20 pl-4">
+                    <span className="font-bodoni text-2xl md:text-3xl text-[#232322]">{point.value}</span>
+                    <span className="font-inter text-[9px] tracking-[0.2em] uppercase text-[#8A8275] mt-1">{point.type}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-auto">
+              <div className="flex items-center gap-4 mb-6">
+                <span className="font-inter text-[9px] tracking-[0.2em] uppercase text-[#232322]/40">Featured Directories</span>
+                <div className="flex-1 h-px bg-[#232322]/10" />
+              </div>
+
+              <div className="flex flex-col gap-6">
+                {profile.links?.map((link: any, i: number) => (
+                  <a 
+                    key={i} 
+                    href={link.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="link-item-wrapper group flex items-end justify-between cursor-pointer"
+                  >
+                    <div className="flex flex-col gap-1">
+                      <span className="font-bodoni italic text-sm text-[#8A8275] group-hover:text-[#232322] transition-colors">
+                        0{i + 1}
+                      </span>
+                      <span className="link-item font-inter text-lg md:text-xl text-[#232322] tracking-wide pb-1">
+                        {link.label}
+                      </span>
+                    </div>
+                    <div className="w-8 h-8 rounded-full border border-[#232322]/20 flex items-center justify-center group-hover:bg-[#232322] group-hover:border-[#232322] transition-all duration-500 mb-1">
+                      <svg className="w-3 h-3 text-[#232322] group-hover:text-[#F3F1ED] transform group-hover:rotate-45 transition-transform duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 19L19 5M19 5H7M19 5V17" />
+                      </svg>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </div>
+          </div>
+          
+          <div className="p-6 md:p-10 lg:p-14 pt-0">
+             <div className="w-full h-px bg-[#232322]/10 mb-6" />
+             <div className="flex justify-between items-center text-[#232322]/40 font-inter text-[9px] tracking-[0.2em] uppercase">
+                <span>© {new Date().getFullYear()}</span>
+                <span>The Aesthete</span>
+             </div>
+          </div>
+
         </div>
       </div>
     </div>
