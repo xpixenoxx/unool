@@ -2388,6 +2388,7 @@ function BuilderTemplate({ profile }: any) {
 
   const links = profile?.links || [];
   const metrics = profile?.metrics || [];
+  const proofs = profile?.proofPoints || profile?.proofs || [];
 
   const customStyles = `
     @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Outfit:wght@300;400;500;600;700&display=swap');
@@ -2439,9 +2440,6 @@ function BuilderTemplate({ profile }: any) {
              </div>
              <span className="text-xs uppercase tracking-[0.2em] font-bold text-[#342632]">BUILDER // {name ? name.split(' ')[0] : 'ID'}</span>
           </div>
-          <a href={email ? `mailto:${email}` : '#contact'} className="text-[10px] uppercase tracking-[0.2em] font-bold bg-[#A85C4A] text-[#F3EEE6] px-5 py-2.5 hover:bg-[#342632] transition-colors">
-            CONTACT
-          </a>
         </header>
 
         <div className="px-6 md:px-12 pt-16 md:pt-24 max-w-[960px] mx-auto w-full">
@@ -2519,6 +2517,28 @@ function BuilderTemplate({ profile }: any) {
                       <div key={i} className="bg-[#342632] border border-[#292226]/20 p-6 flex flex-col justify-center items-center text-center hover:border-[#A85C4A] transition-colors group">
                          <div className="builder-serif text-5xl md:text-6xl text-[#F3EEE6] mb-2 group-hover:text-[#A85C4A] transition-colors">{m.value}</div>
                          <div className="text-[10px] font-bold tracking-[0.2em] uppercase text-[#C5A86A]">{m.label || m.title || m.name}</div>
+                      </div>
+                   ))}
+                </div>
+             </section>
+          )}
+
+          {/* PROOF POINTS */}
+          {proofs && proofs.length > 0 && (
+             <section className="mb-24">
+                <h3 className="text-[10px] uppercase tracking-[0.2em] text-[#87958A] mb-8 font-bold border-l-2 border-[#A85C4A] pl-3">SYSTEM CREDENTIALS</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                   {proofs.filter((p: any) => p.type || p.title || p.label).map((p: any, i: number) => (
+                      <div key={i} className="bg-[#F3EEE6] border border-[#292226]/20 p-6 flex flex-col justify-center hover:border-[#A85C4A] transition-colors group relative overflow-hidden builder-module-shadow">
+                         <div className="flex items-baseline gap-4 mb-2">
+                           <div className="text-[12px] font-bold tracking-[0.2em] uppercase text-[#342632]">{p.type || p.title || p.label}</div>
+                           <div className="builder-serif text-3xl md:text-4xl text-[#A85C4A]">{p.value}</div>
+                         </div>
+                         {p.url && (
+                           <a href={p.url} target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold uppercase tracking-widest text-[#87958A] hover:text-[#A85C4A] border-b border-transparent hover:border-[#A85C4A] w-max mt-4">
+                             VERIFY PROOF ↗
+                           </a>
+                         )}
                       </div>
                    ))}
                 </div>
@@ -2931,8 +2951,8 @@ function HustlerTemplate({ profile }: any) {
   const metrics = profile?.metrics || [];
   const validMetrics = metrics.filter((m: any) => m.value && (m.label || m.title || m.name));
   
-  const proofs = profile?.proofs || profile?.featured || profile?.milestones || [];
-  const validProofs = proofs.filter((p: any) => p.title || p.label || p.description);
+  const proofs = profile?.proofPoints || profile?.proofs || profile?.featured || profile?.milestones || [];
+  const validProofs = proofs.filter((p: any) => p.type || p.title || p.label || p.description);
 
   const handleSave = () => {
     const vcard = `BEGIN:VCARD\nVERSION:3.0\nN:${name};;;;\nFN:${name}\nORG:${profile?.company || ''}\nTITLE:${role}\nURL:${typeof window !== 'undefined' ? window.location.origin : ''}\nEND:VCARD`;
@@ -3047,7 +3067,7 @@ function HustlerTemplate({ profile }: any) {
                {validProofs.length > 0 ? validProofs.map((p: any, i: number) => (
                   <div key={i} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-6 sm:p-8 border-2 border-[#292724] bg-[#EAE8E3] hover:bg-[#292724] hover:text-[#EAE8E3] transition-colors group">
                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-8">
-                        <h4 className="text-xl sm:text-2xl font-bold hustler-serif leading-tight group-hover:text-[#D64924]">{p.title || p.label}</h4>
+                        <h4 className="text-xl sm:text-2xl font-bold hustler-serif leading-tight group-hover:text-[#D64924]">{p.type || p.title || p.label}</h4>
                         <span className="text-2xl sm:text-3xl font-bold hustler-serif text-[#D64924] group-hover:text-[#EAE8E3]">{p.value}</span>
                      </div>
                      {p.url && (
@@ -3311,19 +3331,20 @@ function AestheteTemplate({ profile }: any) {
 
 function CreatorTemplate({ profile, accentColor }: any) {
   const accent = accentColor || '#7C3AED';
+  const proofs = profile?.proofPoints || profile?.proofs || [];
   
   // Custom chamfered shape string
   const chamferedShape = 'polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px)';
   const avatarShape = 'polygon(30% 0%, 100% 0, 100% 70%, 70% 100%, 0 100%, 0 30%)';
 
   return (
-    <div className="min-h-screen w-full bg-[#0F0F13] text-white p-4 font-sans flex justify-center selection:bg-zinc-800">
+    <div className="min-h-screen w-full bg-[#FAFAFA] text-[#0F172A] p-4 font-sans flex justify-center selection:bg-zinc-200">
       <div className="max-w-2xl w-full pt-16 flex flex-col items-center space-y-10">
         
         {/* Avatar with unique shape */}
         <div className="relative group">
           <div 
-            className="absolute -inset-2 blur-md opacity-70 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-pulse" 
+            className="absolute -inset-2 blur-md opacity-40 group-hover:opacity-80 transition duration-1000 group-hover:duration-200 animate-pulse" 
             style={{ 
               backgroundImage: `linear-gradient(135deg, ${accent}, #FF0080)`,
               clipPath: avatarShape 
@@ -3332,20 +3353,20 @@ function CreatorTemplate({ profile, accentColor }: any) {
           <img 
             src={profile.avatarUrl} 
             alt={profile.name} 
-            className="relative w-48 h-48 md:w-64 md:h-64 object-cover transition-transform duration-700 group-hover:scale-105 bg-[#0F0F13]"
+            className="relative w-48 h-48 md:w-64 md:h-64 object-cover transition-transform duration-700 group-hover:scale-105 bg-white shadow-sm"
             style={{ clipPath: avatarShape }}
           />
           {/* Decorative Corner Borders */}
-          <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-white/30 pointer-events-none" />
-          <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-white/30 pointer-events-none" />
+          <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-zinc-300 pointer-events-none" />
+          <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-zinc-300 pointer-events-none" />
         </div>
         
         <div className="text-center space-y-2">
-           <h1 className="text-4xl md:text-5xl font-black tracking-tight uppercase" style={{ textShadow: `2px 2px 0 ${accent}40` }}>
+           <h1 className="text-4xl md:text-5xl font-black tracking-tight uppercase" style={{ textShadow: `2px 2px 0 ${accent}20` }}>
              {profile.name}
            </h1>
-           <p className="text-[#A1A1AA] font-bold text-lg tracking-widest uppercase">{profile.headline}</p>
-           <p className="max-w-md text-sm text-[#71717A] mt-4 leading-relaxed mx-auto font-medium border-l border-white/20 pl-4 text-left">{profile.bio}</p>
+           <p className="text-zinc-500 font-bold text-lg tracking-widest uppercase">{profile.headline}</p>
+           <p className="max-w-md text-sm text-zinc-600 mt-4 leading-relaxed mx-auto font-medium border-l-2 border-zinc-200 pl-4 text-left">{profile.bio}</p>
         </div>
 
         {/* METRICS SECTION WITH CHAMFERED CARDS */}
@@ -3354,12 +3375,12 @@ function CreatorTemplate({ profile, accentColor }: any) {
             {profile.metrics.map((metric: any, i: number) => (
               <div 
                 key={i} 
-                className="bg-zinc-900/80 p-6 flex flex-col items-center text-center hover:bg-zinc-800 transition-colors relative group"
+                className="bg-white p-6 flex flex-col items-center text-center hover:bg-zinc-50 transition-colors relative group border border-zinc-100 shadow-sm"
                 style={{ clipPath: 'polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px)' }}
               >
                 {/* Accent bar */}
                 <div className="absolute top-0 left-0 w-full h-1 opacity-50 group-hover:opacity-100 transition-opacity" style={{ backgroundColor: accent }} />
-                <span className="text-3xl font-black mb-1 text-white">{metric.value}</span>
+                <span className="text-3xl font-black mb-1 text-zinc-900">{metric.value}</span>
                 <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">{metric.label || metric.title || metric.type || metric.name}</span>
                 {metric.description && metric.description !== (metric.label || metric.title || metric.type || metric.name) && (
                   <span className="text-[9px] text-zinc-500 mt-2 uppercase">{metric.description}</span>
@@ -3370,32 +3391,32 @@ function CreatorTemplate({ profile, accentColor }: any) {
         )}
 
         {/* PROOF POINTS SECTION */}
-        {profile.proofs && profile.proofs.length > 0 && (
+        {proofs.length > 0 && (
           <div className="w-full mt-12 flex flex-col gap-4">
              <div className="flex items-center gap-4 mb-2">
                 <span className="text-[10px] tracking-widest uppercase font-bold text-zinc-400">Credentials & Milestones</span>
-                <div className="flex-1 h-px bg-zinc-800" />
+                <div className="flex-1 h-px bg-zinc-200" />
              </div>
-             {profile.proofs.filter((p: any) => p.title || p.label).map((proof: any, i: number) => (
+             {proofs.filter((p: any) => p.type || p.title || p.label).map((proof: any, i: number) => (
                 <div 
                   key={i} 
-                  className="bg-zinc-900/50 hover:bg-zinc-800/80 p-6 flex flex-col md:flex-row justify-between items-start md:items-center transition-all group relative border border-zinc-800/50"
+                  className="bg-white hover:bg-zinc-50 p-6 flex flex-col md:flex-row justify-between items-start md:items-center transition-all group relative border border-zinc-200 shadow-sm"
                   style={{ clipPath: 'polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px)' }}
                 >
                   <div className="absolute left-0 top-0 bottom-0 w-1 opacity-0 group-hover:opacity-100 transition-opacity" style={{ backgroundColor: accent }} />
                   <div className="flex flex-col gap-1 pr-6">
                      <div className="flex items-baseline gap-3">
-                        <span className="text-xl md:text-2xl font-bold text-zinc-100">{proof.title || proof.label}</span>
+                        <span className="text-xl md:text-2xl font-bold text-zinc-900">{proof.type || proof.title || proof.label}</span>
                         {proof.value && (
                            <span className="text-lg md:text-xl font-bold" style={{ color: accent }}>{proof.value}</span>
                         )}
                      </div>
                      {proof.description && (
-                        <span className="text-sm text-zinc-400 font-medium">{proof.description}</span>
+                        <span className="text-sm text-zinc-500 font-medium">{proof.description}</span>
                      )}
                   </div>
                   {proof.url && (
-                     <a href={proof.url} target="_blank" rel="noopener noreferrer" className="mt-4 md:mt-0 text-[10px] uppercase tracking-widest font-bold text-zinc-500 hover:text-white transition-colors border-b border-zinc-700 hover:border-white pb-1 shrink-0">
+                     <a href={proof.url} target="_blank" rel="noopener noreferrer" className="mt-4 md:mt-0 text-[10px] uppercase tracking-widest font-bold text-zinc-400 hover:text-zinc-800 transition-colors border-b border-zinc-300 hover:border-zinc-800 pb-1 shrink-0">
                         View Proof ↗
                      </a>
                   )}
@@ -3412,26 +3433,26 @@ function CreatorTemplate({ profile, accentColor }: any) {
               href={link.url} 
               target="_blank" 
               rel="noopener noreferrer" 
-              className="relative w-full h-20 md:h-24 bg-gradient-to-r from-zinc-900 to-zinc-950 p-[2px] group"
+              className="relative w-full h-20 md:h-24 bg-gradient-to-r from-zinc-100 to-zinc-200 p-[2px] group"
               style={{ clipPath: chamferedShape }}
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
               <div 
-                className="w-full h-full bg-zinc-950 relative z-10 flex items-center px-6"
+                className="w-full h-full bg-white relative z-10 flex items-center px-6"
                 style={{ clipPath: 'polygon(18px 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%, 0 18px)' }}
               >
-                <div className="absolute right-0 top-0 bottom-0 w-48 bg-gradient-to-l from-black/80 to-transparent pointer-events-none" style={{ background: `linear-gradient(to left, ${accent}30, transparent)` }} />
+                <div className="absolute right-0 top-0 bottom-0 w-48 bg-gradient-to-l from-zinc-50/80 to-transparent pointer-events-none" style={{ background: `linear-gradient(to left, ${accent}15, transparent)` }} />
                 
                 {/* SVG Icon Container with geometric shape */}
                 <div 
-                  className="bg-white/5 p-3 mr-6 flex items-center justify-center w-12 h-12 group-hover:bg-white/10 transition-colors border border-white/10"
+                  className="bg-zinc-100 p-3 mr-6 flex items-center justify-center w-12 h-12 group-hover:bg-zinc-200 transition-colors border border-zinc-200"
                   style={{ clipPath: 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)' }}
                 >
-                  <svg className="w-5 h-5 text-white group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 text-zinc-700 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
                      {getAestheteSocialIcon(link.label)}
                   </svg>
                 </div>
-                <span className="text-lg md:text-xl font-bold uppercase tracking-wide group-hover:text-white text-zinc-200 transition-colors">{link.label}</span>
+                <span className="text-lg md:text-xl font-bold uppercase tracking-wide group-hover:text-zinc-900 text-zinc-700 transition-colors">{link.label}</span>
                 
                 {/* Right decorative elements */}
                 <div className="absolute right-6 flex items-center opacity-0 group-hover:opacity-100 transition-opacity translate-x-4 group-hover:translate-x-0 duration-300">
