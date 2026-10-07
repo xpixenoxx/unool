@@ -1281,9 +1281,9 @@ function RebellionTemplate({ profile, accentColor }: any) {
     /* ── RESPONSIVE ── */
     @media (max-width: 1024px) {
       .reb-hero { grid-template-columns: 1fr; gap: 40px; text-align: center; }
-      .reb-hero-left { padding-right: 0; margin-bottom: 24px; display: flex; flex-direction: column; align-items: center; }
+      .reb-hero-left { padding-right: 0; margin-bottom: 24px; display: flex; flex-direction: column; align-items: center; order: 2; }
       .reb-bio { text-align: center; margin: 0 auto; }
-      .reb-card-3d-wrap { max-width: 380px; margin: 0 auto; width: 100%; }
+      .reb-card-3d-wrap { max-width: 380px; margin: 0 auto; width: 100%; order: 1; }
       .reb-gem, .reb-float-crown, .reb-sparkle, .reb-float-orb { display: none; }
     }
     @media (max-width: 640px) {
