@@ -1632,30 +1632,351 @@ function Badge({ text, accent }: { text: string; accent: string }) {
 // --- 04 ENTREPRENEUR --- //
 
 function BuilderTemplate({ profile }: any) {
+  const [buildState, setBuildState] = useState(1);
+  const [philosophyState, setPhilosophyState] = useState(0);
+
+  const name = profile?.name || "";
+  const role = profile?.role || profile?.headline || "BUILDER & ARCHITECT";
+  const bio = profile?.bio || "I construct systems and experiences that turn abstract possibilities into tangible utility.";
+  const location = profile?.location || "GLOBAL GRID";
+  const email = profile?.email || "";
+
+  const links = profile?.links || [];
+  const metrics = profile?.metrics || [];
+
+  const headlineQuote = profile?.metadata?.statement || "How do you build?";
+
+  const defaultBuildAreas = [
+    { title: "SYSTEMS", description: "Architectural foundations for scalable, resilient ideas." },
+    { title: "PRODUCTS", description: "Tangible, functional tools with immediate utility." },
+    { title: "EXPERIENCES", description: "Tactile interactions bridging logic and human emotion." },
+    { title: "TEAMS", description: "Assembling modular talent to execute high-density outputs." }
+  ];
+
+  const defaultPhilosophy = [
+    { title: "THINK", description: "Every structure begins with an intentional blueprint. We measure twice to ensure the foundation can bear the weight of future scale." },
+    { title: "MAKE", description: "Theory meets material. The process of translating abstract logic into functional, tactile interfaces that withstand real-world usage." },
+    { title: "ITERATE", description: "No structure is ever truly finished. We observe stress points, reinforce weak load paths, and continuously refine the architecture." }
+  ];
+
+  const defaultExperience = [
+    { year: "CURRENT", role: "SYSTEM ARCHITECT", description: "[ SYSTEM PLACEHOLDER ] Building scalable foundations and modular components." },
+    { year: "PREVIOUS", role: "PRODUCT ENGINEER", description: "[ SYSTEM PLACEHOLDER ] Shipped core features and optimized execution pipelines." }
+  ];
+
+  const defaultProjects = [
+    { title: "CORE PROTOCOL", category: "SYSTEM", desc: "[ SYSTEM PLACEHOLDER ] A robust underlying logic engine powering modular applications.", role: "LEAD ARCHITECT" },
+    { title: "TACTILE UI", category: "INTERFACE", desc: "[ SYSTEM PLACEHOLDER ] A physical-feeling interaction model for digital surfaces.", role: "PROTOTYPER" },
+    { title: "DATA LATTICE", category: "INFRASTRUCTURE", desc: "[ SYSTEM PLACEHOLDER ] High-density data visualization framework.", role: "ENGINEER" }
+  ];
+
+  const buildAreas = profile?.buildAreas?.length > 0 ? profile.buildAreas : defaultBuildAreas;
+  const philosophy = profile?.philosophy?.length > 0 ? profile.philosophy : defaultPhilosophy;
+  const experience = profile?.experience?.length > 0 ? profile.experience : defaultExperience;
+  const projects = profile?.projects?.length > 0 ? profile.projects : defaultProjects;
+
+  const customStyles = `
+    @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Outfit:wght@300;400;500;600;700&display=swap');
+    
+    .builder-theme {
+      background-color: #E8E0D5;
+      color: #292226;
+      font-family: 'Outfit', sans-serif;
+    }
+    
+    .builder-serif {
+      font-family: 'DM Serif Display', serif;
+    }
+
+    .builder-container {
+      background-color: #F3EEE6;
+      box-shadow: 0 20px 40px rgba(52, 38, 50, 0.08);
+    }
+      
+    .builder-blueprint-grid {
+      background-image: 
+        linear-gradient(rgba(135, 149, 138, 0.15) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(135, 149, 138, 0.15) 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+
+    .builder-module-shadow {
+      box-shadow: 4px 4px 0px rgba(52, 38, 50, 1);
+      transition: all 0.2s ease;
+    }
+    .builder-module-shadow:hover {
+      box-shadow: 2px 2px 0px rgba(52, 38, 50, 1);
+      transform: translate(2px, 2px);
+    }
+  `;
+
   return (
-    <div className="min-h-screen w-full bg-[#FAFAFA] text-[#111111] p-8 flex justify-center font-sans">
-      <div className="max-w-2xl w-full bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden h-fit mt-12">
-        <div className="border-b border-gray-100 flex p-6 gap-6 items-start">
-          <img src={profile.avatarUrl} alt={profile.name} className="w-16 h-16 rounded-md object-cover border border-gray-200" />
-          <div className="flex-1">
-             <h1 className="text-xl font-bold tracking-tight mb-1">{profile.name}</h1>
-             <p className="text-sm font-medium text-gray-500 mb-3">{profile.headline}</p>
-             <p className="text-sm text-gray-600 leading-relaxed text-balance">{profile.bio}</p>
-          </div>
-        </div>
+    <div className="builder-theme min-h-screen w-full flex justify-center py-4 md:py-12 px-4 md:px-8">
+      <style>{customStyles}</style>
+
+      {/* Outer Canvas Container */}
+      <div className="builder-container w-full max-w-[1200px] rounded-[32px] md:rounded-[40px] border border-[#292226]/10 overflow-hidden flex flex-col relative pb-20">
         
-        <div className="p-2 space-y-1 bg-gray-50/50">
-          <div className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 mt-2">Resources</div>
-          {profile.links?.map((link: any, i: number) => (
-            <a key={i} href={link.url} className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 transition-colors mx-2">
-              <span className="w-8 h-8 rounded shrink-0 bg-white border border-gray-200 flex items-center justify-center text-gray-400 shadow-sm text-xs">
-                {i + 1}
-              </span>
-              <span className="font-medium text-sm text-gray-800 flex-1">{link.label}</span>
-              <span className="text-gray-300">→</span>
-            </a>
-          ))}
+        {/* HEADER */}
+        <header className="px-6 md:px-12 py-8 flex justify-between items-center border-b border-[#292226]/10">
+          <div className="flex items-center gap-3">
+             <div className="w-5 h-5 bg-[#342632] flex items-center justify-center">
+                <div className="w-1.5 h-1.5 bg-[#C5A86A]" />
+             </div>
+             <span className="text-xs uppercase tracking-[0.2em] font-bold text-[#342632]">BUILDER // {name ? name.split(' ')[0] : 'ID'}</span>
+          </div>
+          <nav className="hidden md:flex gap-8 text-[10px] uppercase tracking-widest font-bold text-[#87958A]">
+            <span className="hover:text-[#342632] transition-colors cursor-pointer">ABOUT</span>
+            <span className="hover:text-[#342632] transition-colors cursor-pointer">BUILD</span>
+            <span className="hover:text-[#342632] transition-colors cursor-pointer">WORK</span>
+            <span className="hover:text-[#342632] transition-colors cursor-pointer">JOURNEY</span>
+          </nav>
+          <a href={email ? `mailto:${email}` : '#contact'} className="text-[10px] uppercase tracking-[0.2em] font-bold bg-[#A85C4A] text-[#F3EEE6] px-5 py-2.5 hover:bg-[#342632] transition-colors">
+            CONTACT
+          </a>
+        </header>
+
+        <div className="px-6 md:px-12 pt-16 md:pt-24 max-w-[960px] mx-auto w-full">
+          {/* HERO */}
+          <section className="mb-16">
+             <div className="text-[10px] tracking-widest text-[#87958A] uppercase mb-6 flex items-center gap-4 font-bold">
+               <div className="w-12 h-[1px] bg-[#87958A]/50" />
+               ENTREPRENEUR
+             </div>
+             <h1 className="builder-serif text-5xl sm:text-6xl md:text-[5.5rem] text-[#342632] leading-[0.95] tracking-tight mb-12">
+                {headlineQuote}
+             </h1>
+             <div className="w-full h-px bg-[#292226]/10 mb-16" />
+             
+             {/* BUILDER IDENTITY MODULE */}
+             <div 
+               className="w-full bg-[#342632] text-[#F3EEE6] p-8 md:p-12 relative overflow-hidden flex flex-col md:flex-row gap-8 md:gap-16 group cursor-pointer builder-module-shadow border border-[#292226]" 
+               onClick={() => setBuildState(prev => prev === 3 ? 1 : prev + 1)}
+             >
+                {/* Blueprint grid */}
+                <div className="absolute inset-0 builder-blueprint-grid opacity-[0.25]" />
+                
+                {/* Visual Column (Abstract Symbol) */}
+                <div className="w-full md:w-[35%] relative min-h-[220px] md:min-h-full flex items-center justify-center shrink-0 border-b md:border-b-0 md:border-r border-white/10 pb-8 md:pb-0 md:pr-8">
+                   <div className="relative w-32 h-32 md:w-48 md:h-48 transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]">
+                     {buildState === 1 && (
+                       <div className="absolute inset-0 flex items-center justify-center animate-in fade-in zoom-in duration-500">
+                         <div className="w-24 h-24 border-2 border-[#C5A86A] rotate-45 flex items-center justify-center">
+                           <div className="w-8 h-8 bg-[#A85C4A]" />
+                         </div>
+                       </div>
+                     )}
+                     {buildState === 2 && (
+                       <div className="absolute inset-0 flex items-center justify-center animate-in fade-in zoom-in duration-500">
+                         <div className="w-32 h-16 border-2 border-[#C5A86A] flex gap-2 p-2">
+                           <div className="w-1/2 h-full bg-[#A85C4A]" />
+                           <div className="w-1/2 h-full bg-[#A85C4A]/50" />
+                         </div>
+                       </div>
+                     )}
+                     {buildState === 3 && (
+                       <div className="absolute inset-0 flex items-center justify-center animate-in fade-in zoom-in duration-500">
+                         <div className="w-24 h-24 bg-[#A85C4A] flex items-center justify-center translate-x-4 -translate-y-4 shadow-[-16px_16px_0_0_#C5A86A]">
+                            <div className="w-3 h-3 bg-[#342632]" />
+                         </div>
+                       </div>
+                     )}
+                   </div>
+                   
+                   {/* Annotations */}
+                   <div className="absolute top-0 left-0 text-[8px] text-white/40 tracking-widest">+Y.AXIS</div>
+                   <div className="absolute bottom-0 right-0 text-[8px] text-white/40 tracking-widest">+X.AXIS</div>
+                   <div className="absolute top-1/2 -right-1 w-2 h-[1px] bg-[#C5A86A]" />
+                </div>
+
+                {/* Content Column */}
+                <div className="flex-1 relative z-10 flex flex-col justify-center">
+                   <div className="text-[#C5A86A] text-[9px] uppercase tracking-[0.2em] mb-5 flex items-center gap-3 font-bold">
+                      <div className="w-2 h-2 bg-current rounded-full animate-pulse" />
+                      {buildState === 1 ? 'BUILD MODE / 01' : buildState === 2 ? 'ITERATE / 02' : 'SHIP / 03'}
+                   </div>
+                   
+                   <div className="flex items-center gap-5 mb-6">
+                     {profile?.avatarUrl ? (
+                       <img src={profile.avatarUrl} alt={name} className="w-14 h-14 rounded-full border border-white/20 object-cover grayscale mix-blend-luminosity" />
+                     ) : (
+                       <div className="w-14 h-14 rounded-full bg-[#A85C4A] border border-[#C5A86A] flex items-center justify-center text-xs font-bold text-[#F3EEE6]">ID</div>
+                     )}
+                     <h2 className="builder-serif text-4xl md:text-5xl">{name || "[ BUILDER ]"}</h2>
+                   </div>
+                   
+                   <div className="text-[11px] font-bold text-[#C5A86A] mb-3 uppercase tracking-widest">{role}</div>
+                   <p className="text-sm text-[#E8E0D5]/80 max-w-sm mb-8 leading-relaxed font-medium">{bio}</p>
+                   
+                   <div className="mt-auto text-[9px] tracking-widest font-bold uppercase border border-[#A85C4A] px-4 py-2 w-fit text-[#A85C4A] group-hover:bg-[#A85C4A] group-hover:text-[#F3EEE6] transition-colors">
+                      Tap visual to cycle state
+                   </div>
+                </div>
+             </div>
+          </section>
+
+          {/* INTRODUCTION ROWS */}
+          <section className="mb-24 flex flex-col text-xs font-bold uppercase tracking-widest">
+             <div className="flex flex-col md:flex-row md:items-center py-5 border-b border-[#292226]/10 gap-3 md:gap-12 group">
+                <span className="text-[#87958A] w-32 shrink-0 group-hover:text-[#A85C4A] transition-colors">POSITION</span>
+                <span className="text-[#342632]">{role}</span>
+             </div>
+             <div className="flex flex-col md:flex-row md:items-center py-5 border-b border-[#292226]/10 gap-3 md:gap-12 group">
+                <span className="text-[#87958A] w-32 shrink-0 group-hover:text-[#A85C4A] transition-colors">LOCATION</span>
+                <span className="text-[#342632]">{location}</span>
+             </div>
+             {links.length > 0 && (
+               <div className="flex flex-col md:flex-row md:items-center py-5 border-b border-[#292226]/10 gap-3 md:gap-12 group">
+                  <span className="text-[#87958A] w-32 shrink-0 group-hover:text-[#A85C4A] transition-colors">NETWORK</span>
+                  <div className="flex gap-6 flex-wrap">
+                     {links.map((link: any, i: number) => (
+                        <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:text-[#A85C4A] transition-colors text-[#342632]">
+                           <span className="text-[10px] text-[#A85C4A]">↗</span> {link.label}
+                        </a>
+                     ))}
+                  </div>
+               </div>
+             )}
+          </section>
+
+          {/* WHAT I BUILD */}
+          {buildAreas.length > 0 && (
+            <section className="mb-24">
+               <h3 className="text-[10px] uppercase tracking-[0.2em] text-[#87958A] mb-8 font-bold">SYSTEMS & ARTIFACTS</h3>
+               <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-[#292226]/10 border border-[#292226]/10 p-px">
+                  {buildAreas.map((area: any, i: number) => (
+                    <div key={i} className="bg-[#F3EEE6] p-8 md:p-10 flex flex-col relative group hover:bg-[#342632] transition-colors duration-300">
+                      <span className="absolute top-8 right-8 text-[9px] tracking-widest text-[#C5A86A] font-bold">0{i+1}</span>
+                      <h4 className="builder-serif text-3xl mb-4 text-[#342632] group-hover:text-[#F3EEE6]">{area.title}</h4>
+                      <p className="text-sm font-medium text-[#292226]/70 group-hover:text-[#F3EEE6]/70 max-w-[85%] leading-relaxed">{area.description}</p>
+                      <div className="mt-12 w-8 h-8 border border-[#292226]/20 group-hover:border-[#C5A86A] flex items-center justify-center group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform">
+                         <span className="text-[12px] text-[#292226] group-hover:text-[#C5A86A]">↗</span>
+                      </div>
+                    </div>
+                  ))}
+               </div>
+            </section>
+          )}
+
+          {/* PHILOSOPHY */}
+          {philosophy.length > 0 && (
+            <section className="mb-24 bg-[#342632] text-[#F3EEE6] p-8 md:p-16 relative overflow-hidden builder-module-shadow">
+               <div className="absolute right-0 bottom-0 text-[200px] leading-none text-white/[0.03] builder-serif select-none pointer-events-none -translate-y-8 translate-x-8">
+                  0{philosophyState + 1}
+               </div>
+               <h3 className="text-[10px] uppercase tracking-[0.2em] text-[#C5A86A] mb-12 font-bold">BUILD PHILOSOPHY</h3>
+               <div className="flex flex-col md:flex-row gap-12 relative z-10">
+                  <div className="w-full md:w-[35%] flex flex-col gap-0 border-l border-white/10">
+                     {philosophy.map((p: any, i: number) => (
+                        <button 
+                          key={i} 
+                          onClick={() => setPhilosophyState(i)}
+                          className={`text-left text-xs tracking-widest font-bold uppercase py-5 px-6 border-b border-white/10 transition-colors ${philosophyState === i ? 'bg-[#A85C4A] text-white border-transparent' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
+                        >
+                          0{i+1} — {p.title}
+                        </button>
+                     ))}
+                  </div>
+                  <div className="w-full md:w-[65%] flex items-center pl-0 md:pl-8">
+                     <p className="builder-serif text-3xl md:text-4xl leading-snug text-[#E8E0D5]">
+                       {philosophy[philosophyState]?.description}
+                     </p>
+                  </div>
+               </div>
+            </section>
+          )}
+
+          {/* EXPERIENCE / JOURNEY */}
+          {experience.length > 0 && (
+            <section className="mb-24">
+               <h3 className="text-[10px] uppercase tracking-[0.2em] text-[#87958A] mb-8 font-bold">STRUCTURAL TIMELINE</h3>
+               <div className="flex flex-col">
+                  {experience.map((exp: any, i: number) => (
+                     <div key={i} className="flex flex-col md:flex-row py-6 border-b border-[#292226]/10 group hover:pl-4 transition-all cursor-default">
+                        <div className="w-full md:w-32 text-[10px] font-bold uppercase tracking-widest text-[#A85C4A] shrink-0 mb-2 md:mb-0 pt-1">
+                           {exp.year}
+                        </div>
+                        <div className="flex flex-col flex-1">
+                           <span className="text-sm font-bold uppercase tracking-widest text-[#342632] mb-1 group-hover:text-[#A85C4A] transition-colors">{exp.role}</span>
+                           <span className="text-sm font-medium text-[#87958A] max-w-lg leading-relaxed">{exp.description}</span>
+                        </div>
+                        <div className="w-8 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity mt-2 md:mt-0">
+                           <span className="text-[#C5A86A]">↗</span>
+                        </div>
+                     </div>
+                  ))}
+               </div>
+            </section>
+          )}
+
+          {/* PROOF / METRICS */}
+          {metrics && metrics.length > 0 && (
+             <section className="mb-24">
+                <h3 className="text-[10px] uppercase tracking-[0.2em] text-[#87958A] mb-8 font-bold">STRUCTURAL LOAD</h3>
+                <div className="flex flex-col md:flex-row border-y border-[#292226]/20 divide-y md:divide-y-0 md:divide-x divide-[#292226]/20">
+                   {metrics.map((m: any, i: number) => (
+                      <div key={i} className="flex-1 py-8 md:py-12 md:px-8 flex flex-col justify-center first:pl-0 last:pr-0">
+                         <div className="builder-serif text-6xl md:text-[5rem] text-[#342632] mb-4 tracking-tighter">{m.value}</div>
+                         <div className="text-[10px] font-bold tracking-[0.2em] uppercase text-[#A85C4A] mb-2">{m.label || m.title || m.name}</div>
+                         {m.description && <div className="text-xs font-medium text-[#87958A] max-w-[200px] uppercase tracking-wider">{m.description}</div>}
+                      </div>
+                   ))}
+                </div>
+             </section>
+          )}
+
+          {/* SELECTED WORK */}
+          {projects.length > 0 && (
+            <section className="mb-24">
+               <h3 className="text-[10px] uppercase tracking-[0.2em] text-[#87958A] mb-8 font-bold">MANUFACTURED OUTPUT</h3>
+               <div className="flex flex-col gap-6">
+                  {projects.map((proj: any, i: number) => (
+                     <div key={i} className={`p-8 md:p-12 relative overflow-hidden group border ${i === 0 ? 'bg-[#E8E0D5] border-[#292226]/10' : i === 1 ? 'bg-[#F3EEE6] border-[#292226]/10 md:w-[85%] md:ml-auto' : 'bg-[#342632] text-[#F3EEE6] border-transparent md:w-[70%]'}`}>
+                        {i === 0 && <div className="absolute inset-0 builder-blueprint-grid opacity-30 pointer-events-none" />}
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8 relative z-10">
+                           <div className="flex flex-col">
+                              <span className={`text-[9px] uppercase tracking-[0.2em] font-bold mb-4 ${i === 2 ? 'text-[#C5A86A]' : 'text-[#87958A]'}`}>
+                                 0{i+1} — {proj.category}
+                              </span>
+                              <h4 className={`builder-serif text-4xl md:text-5xl mb-4 ${i === 2 ? 'text-[#F3EEE6]' : 'text-[#342632]'}`}>{proj.title}</h4>
+                              <p className={`text-sm font-medium max-w-sm leading-relaxed ${i === 2 ? 'text-[#E8E0D5]/70' : 'text-[#292226]/70'}`}>{proj.desc}</p>
+                           </div>
+                           <div className="flex flex-col items-start md:items-end gap-4 shrink-0">
+                              <span className={`text-[10px] uppercase tracking-[0.2em] font-bold ${i === 2 ? 'text-[#C5A86A]' : 'text-[#A85C4A]'}`}>
+                                 [ {proj.role} ]
+                              </span>
+                              <button className={`w-12 h-12 flex items-center justify-center transition-transform group-hover:-translate-y-1 group-hover:translate-x-1 ${i === 2 ? 'bg-[#C5A86A] text-[#342632]' : 'bg-[#342632] text-[#F3EEE6]'}`}>
+                                 ↗
+                              </button>
+                           </div>
+                        </div>
+                     </div>
+                  ))}
+               </div>
+            </section>
+          )}
+
+          {/* CONTACT CTA */}
+          <section className="mt-32 mb-16 bg-[#A85C4A] text-[#F3EEE6] p-8 md:p-16 flex flex-col items-center text-center builder-module-shadow border border-[#292226]">
+             <h2 className="builder-serif text-5xl md:text-7xl mb-6 max-w-2xl leading-[1.05]">Have something worth building?</h2>
+             <p className="text-xs text-[#F3EEE6]/80 mb-10 max-w-md uppercase tracking-widest font-bold">
+               Initiate sequence.
+             </p>
+             <a href={email ? `mailto:${email}` : '#contact'} className="bg-[#342632] text-[#C5A86A] px-8 py-4 text-[10px] uppercase tracking-[0.2em] font-bold flex items-center gap-4 hover:bg-[#292226] transition-colors">
+                START A CONVERSATION <span className="text-[#F3EEE6]">↗</span>
+             </a>
+          </section>
+          
         </div>
+
+        {/* FOOTER */}
+        <footer className="absolute bottom-0 left-0 w-full px-6 md:px-12 py-6 border-t border-[#292226]/10 bg-[#F3EEE6] flex flex-col md:flex-row justify-between items-center gap-4 text-[9px] uppercase tracking-[0.2em] font-bold text-[#87958A]">
+           <div>© {new Date().getFullYear()} / {name?.toUpperCase() || 'BUILDER'}</div>
+           <div className="text-center">SYSTEMS & STRUCTURES</div>
+           <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="hover:text-[#A85C4A] transition-colors">
+             RETURN TO ORIGIN ↑
+           </button>
+        </footer>
       </div>
     </div>
   );
@@ -2023,44 +2344,251 @@ function VisionaryTemplate({ profile, onLinkClick }: any) {
             Tomorrow is easier to build when someone is willing to see it early.
           </p>
         </footer>
-        
       </div>
     </div>
   );
 }
 
-function HustlerTemplate({ profile, accentColor }: any) {
-  const accent = accentColor || '#FF5500';
+function HustlerTemplate({ profile }: any) {
+  const [toastMsg, setToastMsg] = useState('');
+  const [toastVisible, setToastVisible] = useState(false);
+
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    setToastVisible(true);
+    setTimeout(() => setToastVisible(false), 2200);
+  };
+
+  const name = profile?.name || "";
+  const role = profile?.role || profile?.headline || "ENTREPRENEUR";
+  const bio = profile?.bio || "Building high-leverage products and moving with absolute velocity.";
+  const email = profile?.email;
+  
+  const allLinks = profile?.links || [];
+  const socialDomains = ['twitter', 'x', 'linkedin', 'github', 'instagram', 'youtube', 'dribbble', 'behance', 'tiktok'];
+  const socialLinks = allLinks.filter((l: any) => socialDomains.some(d => l.url?.toLowerCase().includes(d) || l.label?.toLowerCase().includes(d)));
+  const contentLinks = allLinks.filter((l: any) => !socialDomains.some(d => l.url?.toLowerCase().includes(d) || l.label?.toLowerCase().includes(d)));
+  
+  const metrics = profile?.metrics || [];
+  const proofs = profile?.proofs || profile?.featured || profile?.milestones || [];
+
+  const handleSave = () => {
+    const vcard = `BEGIN:VCARD\nVERSION:3.0\nN:${name};;;;\nFN:${name}\nORG:${profile?.company || ''}\nTITLE:${role}\nURL:${typeof window !== 'undefined' ? window.location.origin : ''}\nEND:VCARD`;
+    const blob = new Blob([vcard], { type: 'text/vcard' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${name.replace(/\s+/g, '_') || 'Contact'}.vcf`;
+    a.click();
+    showToast('CONTACT SAVED');
+  };
+
+  const customStyles = `
+    @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap');
+    
+    .hustler-theme {
+      background-color: #F4F0EA;
+      color: #2A2726;
+      font-family: 'Inter', sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    
+    .hustler-serif {
+      font-family: 'Instrument Serif', serif;
+    }
+
+    .hustler-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .hustler-theme ::selection {
+      background: #B86F5D;
+      color: #F4F0EA;
+    }
+  `;
+
   return (
-    <div className="min-h-screen w-full bg-[#F3F4F6] text-[#111] p-4 flex flex-col font-sans uppercase font-black">
-       <div className="w-full bg-black text-white p-2 overflow-hidden mb-6 flex rounded shadow-lg whitespace-nowrap text-xs md:text-sm">
-         <div className="animate-pulse mr-4" style={{ color: accent }}>LIVE UPDATE</div>
-         <div className="overflow-hidden w-full relative">
-           <div className="inline-block animate-marquee">{profile.bio} — {profile.bio} — {profile.bio}</div>
-         </div>
-       </div>
+    <div className="hustler-theme min-h-screen w-full relative overflow-hidden">
+      <style>{customStyles}</style>
 
-       <div className="flex-1 w-full max-w-3xl mx-auto flex flex-col gap-6">
-         <div className="bg-white p-6 shadow-xl border-l-[8px] flex items-center gap-6" style={{ borderLeftColor: accent }}>
-           <img src={profile.avatarUrl} alt={profile.name} className="w-20 h-20 rounded shadow-inner" />
-           <div>
-             <h1 className="text-3xl md:text-5xl tracking-tighter mb-1">{profile.name}</h1>
-             <h2 className="text-gray-500 font-bold tracking-tight">{profile.headline}</h2>
+      <div className="max-w-[1440px] mx-auto px-6 md:px-12 lg:px-20 py-16 md:py-24 grid grid-cols-1 lg:grid-cols-12 gap-y-24 lg:gap-x-24">
+        
+        {/* LEFT COLUMN: PERSONAL CORE */}
+        <div className="lg:col-span-5 relative z-10">
+           <div className="lg:sticky lg:top-24 flex flex-col min-h-[calc(100vh-12rem)]">
+              
+              {/* Avatar Object */}
+              <div className="relative inline-block mt-4 md:mt-8 mb-20 md:mb-32">
+                <div className="absolute top-4 left-4 w-full h-full border border-[#2A2726]/15 z-0 transition-transform duration-700 ease-out hover:translate-x-1 hover:translate-y-1"></div>
+                <div className="relative z-10 w-[200px] h-[260px] sm:w-[260px] sm:h-[340px] overflow-hidden bg-[#E9E3DD] rounded-tl-[4px] rounded-tr-[48px] rounded-bl-[4px] rounded-br-[4px]">
+                  {profile?.avatarUrl ? (
+                    <img src={profile.avatarUrl} className="w-full h-full object-cover transition-transform duration-700 hover:scale-105" alt={name} />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <span className="hustler-serif text-[6rem] text-[#716B68] opacity-30">{name ? name[0] : 'H'}</span>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Typographic Intrusion */}
+                <div className="absolute -bottom-12 -right-[20%] sm:-right-[40%] md:-right-[60%] lg:-right-[50%] z-20 pointer-events-none select-none">
+                  <h1 className="hustler-serif text-[4.5rem] sm:text-[6rem] md:text-[7rem] leading-[0.85] tracking-tight text-[#2A2726] mix-blend-multiply drop-shadow-sm">
+                    {name ? name.split(' ').map((word: string, i: number) => (
+                       <span key={i} className="block">{word}</span>
+                    )) : 'HUSTLER'}
+                  </h1>
+                </div>
+              </div>
+
+              {/* Bio & Actions */}
+              <div className="flex flex-col gap-8 max-w-sm relative z-30">
+                <div className="text-[11px] font-semibold uppercase tracking-widest text-[#716B68] flex items-center gap-4">
+                  <span className="w-8 h-[1px] bg-[#B86F5D]"></span>
+                  {role}
+                </div>
+                <p className="text-xl leading-relaxed text-[#2A2726] font-medium">
+                  {bio}
+                </p>
+                
+                <div className="flex flex-wrap items-center gap-8 mt-4">
+                  <a href={email ? `mailto:${email}` : '#'} className="group flex items-center gap-4 border-b-2 border-[#2A2726] pb-2">
+                     <span className="font-semibold text-sm uppercase tracking-widest text-[#2A2726] group-hover:text-[#B86F5D] transition-colors">
+                       Initiate Action
+                     </span>
+                     <span className="text-lg leading-none transition-transform group-hover:translate-x-1 group-hover:-translate-y-1 text-[#2A2726] group-hover:text-[#B86F5D]">↗</span>
+                  </a>
+                  
+                  <button onClick={handleSave} className="group text-xs font-semibold uppercase tracking-widest text-[#716B68] hover:text-[#2A2726] transition-colors flex items-center gap-2">
+                    Save Contact <span className="opacity-0 -translate-y-1 group-hover:translate-y-0 group-hover:opacity-100 transition-all text-[#B86F5D]">↓</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Social Utility Rail */}
+              {socialLinks.length > 0 && (
+                <div className="flex flex-wrap gap-x-8 gap-y-4 items-center border-t border-[#2A2726]/10 pt-6 mt-16 md:mt-auto relative z-30">
+                  {socialLinks.map((link: any, i: number) => (
+                    <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 group">
+                      <span className="text-[#716B68] group-hover:text-[#2A2726] transition-colors">
+                        <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
+                          {getAestheteSocialIcon(link.label)}
+                        </svg>
+                      </span>
+                      <span className="text-[10px] font-semibold uppercase tracking-widest text-[#716B68] group-hover:text-[#2A2726] transition-colors mt-0.5">
+                        {link.label}
+                      </span>
+                    </a>
+                  ))}
+                </div>
+              )}
+
            </div>
-         </div>
+        </div>
 
-         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-           {profile.links?.map((link: any, i: number) => (
-             <a key={i} href={link.url} className="bg-white p-6 shadow-[4px_4px_0_0_#9CA3AF] hover:shadow-[0_0_0_0_#9CA3AF] hover:translate-x-1 hover:translate-y-1 transition-all border-2 border-gray-300 relative group overflow-hidden">
-               <div className="absolute inset-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-in-out opacity-20" style={{ backgroundColor: accent }} />
-               <span className="relative z-10 text-xl tracking-tight block truncate">{link.label}</span>
-               <div className="relative z-10 w-full h-1 bg-gray-200 mt-4 rounded-full overflow-hidden">
-                 <div className="h-full bg-black block" style={{ width: `${(100 - i * 15)}%` }} />
+        {/* RIGHT COLUMN: PROOF OF MOMENTUM */}
+        <div className="lg:col-span-7 pt-0 lg:pt-16 relative z-10">
+           
+           {/* METRICS */}
+           {metrics.length > 0 && (
+             <section className="mb-24 md:mb-32">
+               <div className="flex items-center gap-4 mb-12">
+                 <h2 className="hustler-serif text-3xl md:text-4xl italic text-[#716B68]">Momentum</h2>
+                 <div className="h-[1px] flex-1 bg-[#2A2726]/10"></div>
                </div>
-             </a>
-           ))}
-         </div>
-       </div>
+               
+               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-16">
+                 {metrics.map((m: any, i: number) => {
+                   const isDominant = i === 0;
+                   return (
+                     <div key={i} className={`flex flex-col group ${isDominant ? 'sm:col-span-2' : ''}`}>
+                        <div className="flex justify-between items-end border-b border-[#2A2726]/15 pb-2 mb-4">
+                           <span className="text-[10px] font-semibold uppercase tracking-widest text-[#716B68] group-hover:text-[#2A2726] transition-colors">{m.label || m.title || m.name}</span>
+                           <span className="hustler-mono text-[9px] text-[#B86F5D] opacity-0 group-hover:opacity-100 transition-opacity">0{i+1}</span>
+                        </div>
+                        <div className={`hustler-serif text-[#2A2726] ${isDominant ? 'text-[6rem] md:text-[8rem]' : 'text-[4.5rem] md:text-[5.5rem]'} leading-[0.85] tracking-tight group-hover:translate-x-1 transition-transform origin-left`}>
+                           {m.value}
+                        </div>
+                     </div>
+                   );
+                 })}
+               </div>
+             </section>
+           )}
+
+           {/* PROOF POINTS */}
+           {proofs.length > 0 && (
+             <section className="mb-24 md:mb-32">
+               <div className="flex items-center gap-4 mb-12">
+                 <h2 className="hustler-serif text-3xl md:text-4xl italic text-[#716B68]">Track Record</h2>
+                 <div className="h-[1px] flex-1 bg-[#2A2726]/10"></div>
+               </div>
+               
+               <div className="flex flex-col gap-12">
+                 {proofs.map((proof: any, i: number) => (
+                   <div key={i} className="flex flex-col md:flex-row gap-4 md:gap-8 group">
+                      <div className="w-5 h-5 mt-1.5 shrink-0 border border-[#2A2726]/20 rounded-full flex items-center justify-center group-hover:border-[#B86F5D] transition-colors">
+                         <div className="w-1.5 h-1.5 rounded-full bg-[#B86F5D] opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                      </div>
+                      <div>
+                         <h3 className="hustler-serif text-3xl md:text-4xl text-[#2A2726] mb-3 group-hover:text-[#B86F5D] transition-colors">{proof.title || proof.label}</h3>
+                         <p className="text-[15px] leading-relaxed text-[#716B68] max-w-lg font-medium">{proof.description || proof.desc || proof.date}</p>
+                      </div>
+                   </div>
+                 ))}
+               </div>
+             </section>
+           )}
+
+           {/* RESOURCES */}
+           {contentLinks.length > 0 && (
+             <section className="mb-24 md:mb-32">
+               <div className="flex items-center gap-4 mb-12">
+                 <h2 className="hustler-serif text-3xl md:text-4xl italic text-[#716B68]">Destinations</h2>
+                 <div className="h-[1px] flex-1 bg-[#2A2726]/10"></div>
+               </div>
+               
+               <div className="flex flex-col">
+                 {contentLinks.map((item: any, i: number) => (
+                   <a key={i} href={item.url} target="_blank" rel="noopener noreferrer" className="group block relative py-6 md:py-10 border-b border-[#2A2726]/10">
+                     <div className="absolute bottom-[-1px] left-0 h-[2px] bg-[#B86F5D] w-0 group-hover:w-full transition-all duration-500 ease-out"></div>
+                     
+                     <div className="flex items-center justify-between">
+                        <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-12 group-hover:translate-x-3 transition-transform duration-300">
+                           <h3 className="hustler-serif text-3xl md:text-4xl text-[#2A2726]">{item.title || item.label}</h3>
+                           <span className="text-[10px] uppercase tracking-widest text-[#716B68] font-semibold mt-1 md:mt-0">{item.category || 'External Link'}</span>
+                        </div>
+                        <div className="w-10 h-10 shrink-0 border border-[#2A2726]/10 rounded-full flex items-center justify-center group-hover:bg-[#B86F5D] group-hover:border-[#B86F5D] group-hover:text-[#F4F0EA] transition-all duration-300 text-[#2A2726]">
+                           <span className="text-lg leading-none mb-0.5 ml-0.5">→</span>
+                        </div>
+                     </div>
+                   </a>
+                 ))}
+               </div>
+             </section>
+           )}
+
+           {/* FOOTER */}
+           <footer className="mt-16 md:mt-32 pt-8 border-t border-[#2A2726]/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+             <div className="flex items-center gap-4">
+                <div className="hustler-serif text-2xl italic text-[#2A2726]">{name || 'HUSTLER'}</div>
+                <div className="w-1.5 h-1.5 rounded-full bg-[#B86F5D]"></div>
+                <div className="text-[10px] uppercase tracking-widest text-[#716B68] font-semibold">Active Profile</div>
+             </div>
+             <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="text-[10px] font-bold uppercase tracking-widest text-[#2A2726] hover:text-[#B86F5D] transition-colors flex items-center gap-2 group">
+               Back to Top <span className="group-hover:-translate-y-1 transition-transform">↑</span>
+             </button>
+           </footer>
+
+        </div>
+      </div>
+      
+      {/* Toast Notification */}
+      {toastVisible && (
+        <div className="fixed bottom-8 right-8 bg-[#FAF8F4] border border-[#2A2726]/10 text-[#2A2726] px-6 py-4 shadow-xl z-50 flex items-center gap-4 text-[10px] font-bold tracking-widest uppercase animate-in fade-in slide-in-from-bottom-4">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#B86F5D] animate-pulse" />
+          {toastMsg}
+        </div>
+      )}
     </div>
   );
 }
@@ -2287,33 +2815,98 @@ function AestheteTemplate({ profile }: any) {
 
 function CreatorTemplate({ profile, accentColor }: any) {
   const accent = accentColor || '#7C3AED';
+  
+  // Custom chamfered shape string
+  const chamferedShape = 'polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px)';
+  const avatarShape = 'polygon(30% 0%, 100% 0, 100% 70%, 70% 100%, 0 100%, 0 30%)';
+
   return (
-    <div className="min-h-screen w-full bg-[#0F0F13] text-white p-4 font-sans flex justify-center">
+    <div className="min-h-screen w-full bg-[#0F0F13] text-white p-4 font-sans flex justify-center selection:bg-zinc-800">
       <div className="max-w-2xl w-full pt-16 flex flex-col items-center space-y-10">
         
+        {/* Avatar with unique shape */}
         <div className="relative group">
-          <div className="absolute -inset-1 rounded-full blur opacity-70 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-tilt" style={{ backgroundImage: `linear-gradient(to right, ${accent}, #FF0080)` }} />
-          <img src={profile.avatarUrl} alt={profile.name} className="relative w-32 h-32 rounded-full border-2 border-black object-cover" />
+          <div 
+            className="absolute -inset-2 blur-md opacity-70 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-pulse" 
+            style={{ 
+              backgroundImage: `linear-gradient(135deg, ${accent}, #FF0080)`,
+              clipPath: avatarShape 
+            }} 
+          />
+          <img 
+            src={profile.avatarUrl} 
+            alt={profile.name} 
+            className="relative w-40 h-40 md:w-48 md:h-48 object-cover transition-transform duration-700 group-hover:scale-105 bg-[#0F0F13]"
+            style={{ clipPath: avatarShape }}
+          />
+          {/* Decorative Corner Borders */}
+          <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-white/30 pointer-events-none" />
+          <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-white/30 pointer-events-none" />
         </div>
         
         <div className="text-center space-y-2">
-           <h1 className="text-4xl font-black tracking-tight">{profile.name}</h1>
-           <p className="text-[#A1A1AA] font-medium">{profile.headline}</p>
-           <p className="max-w-sm text-sm text-[#71717A] mt-4 leading-relaxed">{profile.bio}</p>
+           <h1 className="text-4xl md:text-5xl font-black tracking-tight uppercase" style={{ textShadow: `2px 2px 0 ${accent}40` }}>
+             {profile.name}
+           </h1>
+           <p className="text-[#A1A1AA] font-bold text-lg tracking-widest uppercase">{profile.headline}</p>
+           <p className="max-w-md text-sm text-[#71717A] mt-4 leading-relaxed mx-auto font-medium border-l border-white/20 pl-4 text-left">{profile.bio}</p>
         </div>
 
+        {/* METRICS SECTION WITH CHAMFERED CARDS */}
+        {profile.metrics && profile.metrics.length > 0 && (
+          <div className="w-full grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
+            {profile.metrics.map((metric: any, i: number) => (
+              <div 
+                key={i} 
+                className="bg-zinc-900/80 p-6 flex flex-col items-center text-center hover:bg-zinc-800 transition-colors relative group"
+                style={{ clipPath: 'polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px)' }}
+              >
+                {/* Accent bar */}
+                <div className="absolute top-0 left-0 w-full h-1 opacity-50 group-hover:opacity-100 transition-opacity" style={{ backgroundColor: accent }} />
+                <span className="text-3xl font-black mb-1 text-white">{metric.value}</span>
+                <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">{metric.label || metric.title || metric.type || metric.name}</span>
+                {metric.description && metric.description !== (metric.label || metric.title || metric.type || metric.name) && (
+                  <span className="text-[9px] text-zinc-500 mt-2 uppercase">{metric.description}</span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* LINKS WITH UNIQUE GEOMETRY */}
         <div className="w-full grid gap-4 mt-8 pb-12">
           {profile.links?.map((link: any, i: number) => (
-            <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="relative w-full h-20 md:h-24 bg-gradient-to-r from-zinc-900 to-zinc-950 rounded-2xl p-[2px] overflow-hidden group">
+            <a 
+              key={i} 
+              href={link.url} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="relative w-full h-20 md:h-24 bg-gradient-to-r from-zinc-900 to-zinc-950 p-[2px] group"
+              style={{ clipPath: chamferedShape }}
+            >
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
-              <div className="w-full h-full bg-zinc-950 rounded-xl relative z-10 flex items-center px-6 overflow-hidden">
-                <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-black/50 to-transparent pointer-events-none" style={{ background: `linear-gradient(to left, ${accent}20, transparent)` }} />
-                <div className="bg-white/10 p-3 rounded-full mr-4 group-hover:scale-110 transition-transform flex items-center justify-center w-12 h-12">
-                  <svg className="w-6 h-6 text-white" viewBox="0 0 24 24">
+              <div 
+                className="w-full h-full bg-zinc-950 relative z-10 flex items-center px-6"
+                style={{ clipPath: 'polygon(18px 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%, 0 18px)' }}
+              >
+                <div className="absolute right-0 top-0 bottom-0 w-48 bg-gradient-to-l from-black/80 to-transparent pointer-events-none" style={{ background: `linear-gradient(to left, ${accent}30, transparent)` }} />
+                
+                {/* SVG Icon Container with geometric shape */}
+                <div 
+                  className="bg-white/5 p-3 mr-6 flex items-center justify-center w-12 h-12 group-hover:bg-white/10 transition-colors border border-white/10"
+                  style={{ clipPath: 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)' }}
+                >
+                  <svg className="w-5 h-5 text-white group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
                      {getAestheteSocialIcon(link.label)}
                   </svg>
                 </div>
-                <span className="text-lg md:text-xl font-bold">{link.label}</span>
+                <span className="text-lg md:text-xl font-bold uppercase tracking-wide group-hover:text-white text-zinc-200 transition-colors">{link.label}</span>
+                
+                {/* Right decorative elements */}
+                <div className="absolute right-6 flex items-center opacity-0 group-hover:opacity-100 transition-opacity translate-x-4 group-hover:translate-x-0 duration-300">
+                   <span className="text-[10px] tracking-widest uppercase mr-4" style={{ color: accent }}>Execute</span>
+                   <div className="w-4 h-px bg-current" style={{ color: accent }}></div>
+                </div>
               </div>
             </a>
           ))}
@@ -2400,31 +2993,13 @@ function VoiceTemplate({ profile }: any) {
     }
   `;
 
-  // Fallbacks
-  const stats = profile.stats || [
-    { label: "People listening", value: "284K" },
-    { label: "Monthly reach", value: "6.8M" },
-    { label: "Return rate", value: "92%" }
-  ];
+  const metrics = profile.metrics || [];
+  const links = profile.links || [];
+  const statement = profile.metadata?.statement;
+  const statementSub = profile.metadata?.statementSub;
 
-  const featured = profile.featured || [
-    { 
-      title: "Attention is a practice.", 
-      category: "ESSAY / 10 MIN READ", 
-      date: "SEP 2026", 
-      desc: "A field note on making meaningful work in a world that keeps asking for more of you.",
-      url: "#"
-    }
-  ];
-
-  const activities = profile.activity || [
-    { type: "NEWSLETTER", title: "Field Notes 014: the joy of changing your mind", date: "2 days ago", url: "#" },
-    { type: "PODCAST", title: "A conversation about ambition without the performance", date: "1 week ago", url: "#" },
-    { type: "NOTES", title: "Three questions I ask before I say yes", date: "2 weeks ago", url: "#" }
-  ];
-
-  const statement = profile.metadata?.statement || "Say the thing that stays with them.";
-  const statementSub = profile.metadata?.statementSub || "Every episode, essay, and conversation starts with curiosity — then gets a little braver.";
+  let sectionCounter = 1;
+  const getSectionNumber = () => `0${sectionCounter++}`;
 
   return (
     <div className="voice-template w-full min-h-screen bg-[#FAF8F5] p-6 md:p-8 lg:p-12 flex justify-center">
@@ -2443,7 +3018,7 @@ function VoiceTemplate({ profile }: any) {
                <span className="font-bold tracking-widest text-xs uppercase">The Voice</span>
             </div>
             <div className="text-[10px] md:text-xs font-bold tracking-widest uppercase text-[#DF5B4C] flex items-center gap-2 md:gap-4">
-               <span className="text-[#766B64]">Influencer / 03</span>
+               <span className="text-[#766B64]">Editorial</span>
                <span>↗</span>
             </div>
           </header>
@@ -2456,15 +3031,19 @@ function VoiceTemplate({ profile }: any) {
                 A voice in progress
               </p>
               <h1 className="font-serif text-5xl sm:text-6xl md:text-7xl lg:text-8xl leading-[0.95] text-[#2B2321] mb-5 tracking-tight">
-                {profile.name?.split(' ')[0] || "Maya"} <br className="hidden md:block" />
-                <span className="text-[#DF5B4C] italic pr-0 md:pr-4">{profile.name?.split(' ').slice(1).join(' ') || "Vale"}</span>
+                {profile.name?.split(' ')[0] || "Name"} <br className="hidden md:block" />
+                <span className="text-[#DF5B4C] italic pr-0 md:pr-4">{profile.name?.split(' ').slice(1).join(' ')}</span>
               </h1>
-              <p className="text-base md:text-lg text-[#766B64] font-medium mb-5">
-                {profile.role || profile.headline || "Writer, host & cultural commentator"}
-              </p>
-              <p className="text-sm md:text-base text-[#2B2321] max-w-sm leading-relaxed mb-8">
-                {profile.bio || "I make room for the complicated thought, the honest question, and the story you carry home."}
-              </p>
+              {profile.headline && (
+                <p className="text-base md:text-lg text-[#766B64] font-medium mb-5">
+                  {profile.headline}
+                </p>
+              )}
+              {profile.bio && (
+                <p className="text-sm md:text-base text-[#2B2321] max-w-sm leading-relaxed mb-8">
+                  {profile.bio}
+                </p>
+              )}
               <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
                 <a href={`mailto:${profile.email || 'hello@example.com'}`} className="btn-primary w-full sm:w-auto justify-center px-6 py-3 rounded-full font-semibold text-sm tracking-wide flex items-center gap-2 group">
                   Get in touch
@@ -2504,37 +3083,41 @@ function VoiceTemplate({ profile }: any) {
           </section>
 
           {/* 2. Point of View */}
-          <section className="mb-16 md:mb-24 relative">
-            <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/4 w-[250px] h-[250px] rounded-full bg-[#A8B89D] opacity-20 blur-3xl -z-10 pointer-events-none"></div>
-            
-            <div className="flex flex-col md:flex-row md:items-end gap-6 md:gap-16 relative z-10">
-              <div className="relative">
-                <span className="text-[#DF5B4C] text-[10px] md:text-xs font-bold tracking-widest block md:absolute md:-left-10 md:top-2 mb-3 md:mb-0">01</span>
-                <h2 className="font-serif text-3xl md:text-5xl lg:text-6xl leading-[1.1] text-[#2B2321] max-w-2xl relative z-10">
-                  <span className="absolute -left-2 md:-left-6 -top-3 md:-top-6 text-5xl md:text-7xl text-[#A8B89D] opacity-40 -z-10 select-none">“</span>
-                  {statement}
-                </h2>
+          {statement && (
+            <section className="mb-16 md:mb-24 relative">
+              <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/4 w-[250px] h-[250px] rounded-full bg-[#A8B89D] opacity-20 blur-3xl -z-10 pointer-events-none"></div>
+              
+              <div className="flex flex-col md:flex-row md:items-end gap-6 md:gap-16 relative z-10">
+                <div className="relative">
+                  <span className="text-[#DF5B4C] text-[10px] md:text-xs font-bold tracking-widest block md:absolute md:-left-10 md:top-2 mb-3 md:mb-0">{getSectionNumber()}</span>
+                  <h2 className="font-serif text-3xl md:text-5xl lg:text-6xl leading-[1.1] text-[#2B2321] max-w-2xl relative z-10">
+                    <span className="absolute -left-2 md:-left-6 -top-3 md:-top-6 text-5xl md:text-7xl text-[#A8B89D] opacity-40 -z-10 select-none">“</span>
+                    {statement}
+                  </h2>
+                </div>
+                {statementSub && (
+                  <div className="md:w-1/3 md:pb-2 border-l-2 border-[#A8B89D]/30 pl-4 md:border-none md:pl-0">
+                    <p className="text-[#766B64] leading-relaxed text-sm">
+                      {statementSub}
+                    </p>
+                  </div>
+                )}
               </div>
-              <div className="md:w-1/3 md:pb-2 border-l-2 border-[#A8B89D]/30 pl-4 md:border-none md:pl-0">
-                <p className="text-[#766B64] leading-relaxed text-sm">
-                  {statementSub}
-                </p>
-              </div>
-            </div>
-          </section>
+            </section>
+          )}
 
           {/* 3. Proof */}
-          {stats && stats.length > 0 && (
+          {metrics && metrics.length > 0 && (
             <section className="mb-16 md:mb-24">
               <div className="flex items-center justify-between mb-6 md:mb-10 relative">
-                <span className="text-[#DF5B4C] text-[10px] md:text-xs font-bold tracking-widest md:absolute md:-left-10">02</span>
+                <span className="text-[#DF5B4C] text-[10px] md:text-xs font-bold tracking-widest md:absolute md:-left-10">{getSectionNumber()}</span>
                 <span className="text-[#A99C91] text-[10px] md:text-xs font-bold tracking-[0.15em] uppercase ml-auto">A little proof</span>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-6 md:gap-10 pl-0 md:pl-6">
-                {stats.map((stat: any, i: number) => (
+                {metrics.map((metric: any, i: number) => (
                   <div key={i} className="flex flex-col border-t border-[rgba(169,156,145,0.3)] pt-4 md:pt-5">
-                    <span className="font-serif text-4xl md:text-5xl lg:text-6xl text-[#2B2321] mb-1">{stat.value}</span>
-                    <span className="text-[10px] font-bold tracking-widest uppercase text-[#766B64]">{stat.label}</span>
+                    <span className="font-serif text-4xl md:text-5xl lg:text-6xl text-[#2B2321] mb-1">{metric.value}</span>
+                    <span className="text-[10px] font-bold tracking-widest uppercase text-[#766B64]">{metric.label || metric.title || metric.type || metric.name}</span>
                   </div>
                 ))}
               </div>
@@ -2542,15 +3125,15 @@ function VoiceTemplate({ profile }: any) {
           )}
 
           {/* 4. Links */}
-          {profile.links && profile.links.length > 0 && (
+          {links && links.length > 0 && (
             <section className="mb-16 md:mb-24 relative">
               <div className="flex items-center justify-between mb-6 md:mb-10 relative">
-                  <span className="text-[#DF5B4C] text-[10px] md:text-xs font-bold tracking-widest md:absolute md:-left-10">03</span>
+                  <span className="text-[#DF5B4C] text-[10px] md:text-xs font-bold tracking-widest md:absolute md:-left-10">{getSectionNumber()}</span>
                   <span className="text-[#A99C91] text-[10px] md:text-xs font-bold tracking-[0.15em] uppercase ml-auto">Official Links</span>
               </div>
               
               <div className="flex flex-col gap-3 pl-0 md:pl-6">
-                {profile.links.map((link: any, i: number) => (
+                {links.map((link: any, i: number) => (
                   <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="paper-card p-3 md:p-5 flex items-center justify-between group">
                     <div className="flex items-center gap-3 md:gap-5">
                       <div className="w-10 h-10 rounded-full bg-[#F4EEE6] text-[#DF5B4C] flex items-center justify-center group-hover:bg-[#DF5B4C] group-hover:text-white transition-colors shrink-0">
@@ -2572,116 +3155,11 @@ function VoiceTemplate({ profile }: any) {
             </section>
           )}
 
-          {/* 5. Featured Work */}
-          {featured && featured.length > 0 && (
-            <section className="mb-16 md:mb-24 relative">
-              <div className="flex items-center justify-between mb-6 md:mb-10 relative">
-                <span className="text-[#DF5B4C] text-[10px] md:text-xs font-bold tracking-widest md:absolute md:-left-10">04</span>
-                <span className="text-[#A99C91] text-[10px] md:text-xs font-bold tracking-[0.15em] uppercase ml-auto">On the record</span>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pl-0 md:pl-6">
-                {featured.map((item: any, i: number) => (
-                  <a key={i} href={item.url} target="_blank" rel="noopener noreferrer" className="paper-card overflow-hidden flex flex-col md:flex-row group col-span-1 md:col-span-2">
-                    <div className="md:w-5/12 h-48 md:h-auto bg-[#766B64] relative overflow-hidden shrink-0">
-                      {item.image ? (
-                         <img src={item.image} alt={item.title} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity group-hover:scale-105 duration-700" />
-                      ) : (
-                         <div className="w-full h-full bg-[#2B2321] flex items-center justify-center p-6">
-                           <div className="w-20 h-20 rounded-full border border-[rgba(255,250,243,0.1)] flex items-center justify-center">
-                             <Sparkles className="w-6 h-6 text-[#A8B89D]" />
-                           </div>
-                         </div>
-                      )}
-                      <div className="absolute top-4 right-4 w-8 h-8 rounded-full bg-[#DF5B4C] text-white flex items-center justify-center transform rotate-[-45deg] opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all md:translate-y-2 md:group-hover:translate-y-0">
-                        <ArrowRight className="w-4 h-4" />
-                      </div>
-                    </div>
-                    <div className="p-5 md:p-8 md:w-7/12 flex flex-col justify-center">
-                      <p className="text-[9px] font-bold tracking-[0.2em] text-[#A99C91] uppercase mb-3">
-                        <span className="text-[#DF5B4C]">{item.category}</span> <span className="mx-1.5">·</span> {item.date}
-                      </p>
-                      <h3 className="font-serif text-2xl md:text-4xl text-[#2B2321] leading-tight mb-3 group-hover:text-[#DF5B4C] transition-colors">
-                        {item.title}
-                      </h3>
-                      <p className="text-sm text-[#766B64] leading-relaxed mb-6 max-w-lg">
-                        {item.desc}
-                      </p>
-                      <div className="text-[10px] font-bold uppercase tracking-widest text-[#DF5B4C] flex items-center gap-2 border-b border-[#DF5B4C]/30 pb-1 w-fit group-hover:pr-2 group-hover:border-[#DF5B4C] transition-all">
-                        Read the full piece <ArrowRight className="w-3 h-3 transform rotate-[-45deg]" />
-                      </div>
-                    </div>
-                  </a>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* 6. Activity */}
-          {activities && activities.length > 0 && (
-            <section className="mb-16 md:mb-24 relative">
-              <div className="flex items-center justify-between mb-6 md:mb-10 relative">
-                <span className="text-[#DF5B4C] text-[10px] md:text-xs font-bold tracking-widest md:absolute md:-left-10">05</span>
-                <span className="text-[#A99C91] text-[10px] md:text-xs font-bold tracking-[0.15em] uppercase ml-auto">Recently Said</span>
-              </div>
-
-              <div className="pl-0 md:pl-6 flex flex-col gap-0">
-                {activities.map((act: any, i: number) => (
-                  <a key={i} href={act.url} target="_blank" rel="noopener noreferrer" className="py-4 md:py-5 border-b border-[rgba(169,156,145,0.2)] group flex flex-col md:flex-row md:items-center justify-between gap-3 hover:bg-[rgba(255,250,243,0.5)] px-4 -mx-4 rounded-xl transition-colors">
-                    <div className="flex flex-col md:flex-row md:items-center gap-1.5 md:gap-10 w-full md:w-auto">
-                      <span className="text-[9px] font-bold tracking-[0.2em] text-[#DF5B4C] uppercase w-24 shrink-0">
-                        {act.type}
-                      </span>
-                      <span className="font-medium text-[#2B2321] text-sm md:text-base group-hover:text-[#DF5B4C] transition-colors leading-snug">
-                        {act.title}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between md:justify-end gap-5 w-full md:w-auto mt-1 md:mt-0 shrink-0">
-                      <span className="text-[10px] font-semibold text-[#A99C91] uppercase tracking-wider">{act.date}</span>
-                      <ArrowRight className="w-4 h-4 text-[#DF5B4C] md:text-[#A99C91] group-hover:text-[#DF5B4C] transform rotate-[-45deg]" />
-                    </div>
-                  </a>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* 7. Contact & Footer */}
-          <section className="relative mt-16 md:mt-24 pt-12 md:pt-16 border-t border-[rgba(169,156,145,0.3)]">
-            <span className="text-[#DF5B4C] text-[10px] md:text-xs font-bold tracking-widest md:absolute md:-left-10 md:top-16 mb-8 block text-center md:text-left">06</span>
-            
-            <div className="flex flex-col items-center text-center mb-16 md:mb-20">
-              <p className="text-[#A99C91] text-[10px] md:text-xs font-bold tracking-[0.15em] uppercase mb-6">Keep in touch</p>
-              <h2 className="font-serif text-4xl md:text-6xl lg:text-7xl leading-[1.1] text-[#2B2321] mb-8">
-                Bring me into <br className="hidden sm:block" /> <span className="text-[#DF5B4C] italic">the conversation.</span>
-              </h2>
-              <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto justify-center">
-                <a href={`mailto:${profile.email || 'hello@example.com'}`} className="btn-primary w-full sm:w-auto justify-center px-8 py-3.5 rounded-full font-semibold text-sm tracking-wide flex items-center gap-2 group">
-                  Get in touch
-                  <ArrowRight className="w-4 h-4 transform rotate-[-45deg] group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-                </a>
-                <button 
-                  onClick={() => {
-                    const vcard = `BEGIN:VCARD\nVERSION:3.0\nN:${profile.name};;;;\nFN:${profile.name}\nORG:${profile.company || ''}\nTITLE:${profile.role || ''}\nURL:${typeof window !== 'undefined' ? window.location.origin : ''}\nEND:VCARD`;
-                    const blob = new Blob([vcard], { type: 'text/vcard' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `${profile.name?.replace(/\s+/g, '_') || 'Contact'}.vcf`;
-                    a.click();
-                    showToast('Contact saved!');
-                  }}
-                  className="btn-secondary w-full sm:w-auto justify-center px-8 py-3.5 rounded-full font-semibold text-sm tracking-wide flex items-center gap-2 group hover:bg-[#FFFAF3]">
-                  Save contact
-                  <ArrowRight className="w-4 h-4 transform group-hover:translate-y-1 transition-transform" />
-                </button>
-              </div>
-              <p className="text-[#A99C91] text-[10px] md:text-xs font-medium mt-6">For talks, collaborations, and good questions.</p>
-            </div>
-
-            <footer className="flex flex-col md:flex-row justify-between items-center gap-4 pb-4 text-[9px] font-bold tracking-[0.2em] uppercase text-[#A99C91] border-t border-[rgba(169,156,145,0.15)] pt-6">
+          {/* Footer */}
+          <section className="relative mt-16 md:mt-24 pt-6 border-t border-[rgba(169,156,145,0.3)]">
+            <footer className="flex flex-col md:flex-row justify-between items-center gap-4 pb-4 text-[9px] font-bold tracking-[0.2em] uppercase text-[#A99C91]">
               <div className="flex items-center gap-2">
-                <span className="text-[#2B2321]">{profile.name?.toUpperCase() || "MAYA VALE"}</span>
+                <span className="text-[#2B2321]">{profile.name?.toUpperCase() || "PROFILE"}</span>
               </div>
               <div className="text-center text-[#766B64]">
                 MATERIAL DRAWING / THE VOICE.
@@ -2705,7 +3183,6 @@ function VoiceTemplate({ profile }: any) {
     </div>
   );
 }
-
 
 // A dynamic template that adjusts its vibe based on the selected identity template ID.
 export function IdentityTemplate(props: TemplateProps & { templateId: string }) {
