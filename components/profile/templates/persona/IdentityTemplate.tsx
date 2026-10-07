@@ -2286,176 +2286,216 @@ function AestheteTemplate({ profile }: any) {
 }
 
 function CreatorTemplate({ profile }: any) {
-  const [time, setTime] = useState("00:00:00:00");
-  
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const d = new Date();
-      setTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}:${String(Math.floor(d.getMilliseconds()/10)).padStart(2, '0')}`);
-    }, 50);
-    return () => clearInterval(interval);
-  }, []);
+  const getIcon = (label: string) => {
+    const l = label.toLowerCase();
+    if (l.includes('github')) return <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" fill="currentColor"/>;
+    if (l.includes('linkedin')) return <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" fill="currentColor"/>;
+    if (l.includes('twitter') || l.includes('x')) return <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" fill="currentColor"/>;
+    if (l.includes('instagram')) return <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.7-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.012-3.584.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z" fill="currentColor"/>;
+    if (l.includes('hackerrank') || l.includes('hacker rank')) return <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm3.5 16.5h-2v-3h-3v3h-2v-9h2v4h3v-4h2v9z" fill="currentColor"/>;
+    if (l.includes('behance')) return <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm-1.895 15.696H6.182V8.305h3.923c1.375 0 2.477.195 3.307.585.83.39 1.245 1.045 1.245 1.965 0 .59-.2 1.077-.6 1.46-.4.384-1.004.664-1.81.84.974.12 1.693.425 2.158.915.465.49.697 1.155.697 1.995 0 .91-.453 1.636-1.36 2.175-.907.54-2.122.81-3.645.81zm9.055-.915c-.48.6-1.125 1.05-1.935 1.35-.81.3-1.69.45-2.64.45-1.28 0-2.34-.275-3.18-.825-.84-.55-1.47-1.3-1.89-2.25-.42-.95-.63-2.025-.63-3.225 0-1.21.215-2.29.645-3.24.43-.95 1.06-1.685 1.89-2.205.83-.52 1.805-.78 2.925-.78 1.1 0 2.03.245 2.79.735.76.49 1.33 1.18 1.71 2.07.38.89.57 1.935.57 3.135 0 .15-.01.35-.03.6h-6.75c.03.95.34 1.71.93 2.28.59.57 1.33.855 2.22.855.77 0 1.42-.195 1.95-.585.53-.39.92-.885 1.17-1.485h1.725c-.23.82-.62 1.52-1.17 2.12zm-8.815-4.83h2.385c.61 0 1.09-.12 1.44-.36.35-.24.525-.615.525-1.125 0-.49-.17-.85-.51-1.08-.34-.23-.84-.345-1.5-.345H10.34v2.91zm0 3.735h2.52c.76 0 1.33-.14 1.71-.42.38-.28.57-.7.57-1.26 0-.57-.2-1.01-.6-1.32-.4-.31-1.05-.465-1.95-.465H10.34v3.465zm4.86-5.805h3.9v-1.11h-3.9v1.11zm.33 1.965h4.155c-.06-.71-.3-1.26-.72-1.65-.42-.39-.98-.585-1.68-.585-.66 0-1.205.195-1.635.585-.43.39-.715.94-.855 1.65z" fill="currentColor"/>;
+    if (l.includes('medium')) return <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm-4.32 16.486c-2.316 0-4.194-2.008-4.194-4.486 0-2.477 1.878-4.485 4.194-4.485 2.315 0 4.193 2.008 4.193 4.485 0 2.478-1.878 4.486-4.193 4.486zm7.25-1.157c-.89 0-1.613-1.49-1.613-3.329 0-1.838.723-3.328 1.613-3.328.89 0 1.612 1.49 1.612 3.328 0 1.839-.722 3.329-1.612 3.329zm2.42-1.183c-.313 0-.568-1.205-.568-2.693 0-1.488.255-2.693.568-2.693.314 0 .568 1.205.568 2.693 0 1.488-.254 2.693-.568 2.693z" fill="currentColor"/>;
+    if (l.includes('spotify')) return <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.517 17.31c-.218.356-.684.472-1.04.254-2.85-1.74-6.438-2.134-10.666-1.168-.403.092-.81-.16-.902-.563-.093-.404.16-.81.564-.903 4.622-1.057 8.583-.616 11.79 1.343.355.218.47.684.254 1.037zm1.48-3.308c-.276.45-.86.592-1.31.316-3.265-2.007-8.243-2.613-12.015-1.432-.51.156-1.043-.13-1.198-.638-.155-.51.13-1.044.638-1.2 4.34-1.357 9.84-.678 13.57 1.615.45.276.592.86.315 1.338zm.135-3.447c-3.92-2.327-10.387-2.54-14.15-1.403-.61.184-1.256-.16-1.44-.77-.184-.61.16-1.256.77-1.44 4.316-1.3 11.455-1.05 16.002 1.65.548.326.728 1.036.402 1.584-.326.548-1.036.728-1.584.403z" fill="currentColor"/>;
+    return <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" fill="none" stroke="currentColor"/>;
+  };
 
   return (
-    <div className="min-h-screen w-full bg-[#050505] flex items-center justify-center p-4 md:p-8 font-sans overflow-hidden">
+    <div className="w-full min-h-[100vh] bg-[#020202] text-[#E0E0E0] overflow-hidden relative font-sans selection:bg-[#FF0044] selection:text-white">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100;400;700;800&display=swap');
         
-        .creator-font-main {
-          font-family: 'Outfit', sans-serif;
-        }
-        .creator-font-mono {
-          font-family: 'Space Mono', monospace;
-        }
-        
-        .scanline {
-          width: 100%;
-          height: 100%;
-          z-index: 50;
-          position: absolute;
-          pointer-events: none;
-          background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
-          background-size: 100% 4px;
+        .sys-mono {
+          font-family: 'JetBrains Mono', monospace;
         }
 
-        .viewfinder-corner {
-          position: absolute;
-          width: 24px;
-          height: 24px;
-          border-color: #333;
-          border-style: solid;
-        }
-        .vf-tl { top: 0; left: 0; border-width: 2px 0 0 2px; }
-        .vf-tr { top: 0; right: 0; border-width: 2px 2px 0 0; }
-        .vf-bl { bottom: 0; left: 0; border-width: 0 0 2px 2px; }
-        .vf-br { bottom: 0; right: 0; border-width: 0 2px 2px 0; }
-        
-        .timeline-track {
-          transition: all 0.2s ease;
-        }
-        .timeline-track:hover {
-          transform: translateX(8px);
-          background-color: #1a1a1a;
-          border-left: 4px solid #FF0055;
-        }
-        
-        .playhead-line {
-          position: absolute;
-          left: 16px;
+        .master-playhead {
+          position: fixed;
           top: 0;
           bottom: 0;
-          width: 2px;
-          background-color: rgba(255, 0, 85, 0.3);
-          z-index: 0;
+          left: 20%;
+          width: 1px;
+          background: #FF0044;
+          z-index: 50;
+          box-shadow: 0 0 10px #FF0044, 0 0 20px #FF0044;
+        }
+
+        .data-stream {
+          width: 100%;
+          border-top: 1px solid rgba(255,255,255,0.05);
+          border-bottom: 1px solid rgba(255,255,255,0.05);
+          position: relative;
+          transition: background 0.3s ease;
+        }
+        .data-stream:hover {
+          background: rgba(255,0,68,0.05);
+        }
+
+        .track-node {
+          position: absolute;
+          left: 20%;
+          top: 50%;
+          transform: translate(-50%, -50%);
+          width: 24px;
+          height: 24px;
+          background: #020202;
+          border: 1px solid #FF0044;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 51;
+          color: #FF0044;
+          transition: all 0.3s ease;
+        }
+        
+        .data-stream:hover .track-node {
+          background: #FF0044;
+          color: #020202;
+          transform: translate(-50%, -50%) scale(1.2);
+          box-shadow: 0 0 15px rgba(255,0,68,0.5);
+        }
+
+        .marquee-container {
+          overflow: hidden;
+          white-space: nowrap;
+          width: 100vw;
+          border-bottom: 1px solid #FF0044;
+          background: #000;
+        }
+        
+        .marquee-text {
+          display: inline-block;
+          animation: marquee 20s linear infinite;
+        }
+        
+        @keyframes marquee {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+
+        .glitch-img {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          opacity: 0.15;
+          mix-blend-mode: screen;
+          filter: grayscale(100%) contrast(150%);
+        }
+
+        @media (max-width: 768px) {
+          .master-playhead { left: 30px; }
+          .track-node { left: 30px; }
+          .right-panel { margin-left: 60px; }
+        }
+        @media (min-width: 769px) {
+          .right-panel { margin-left: calc(20% + 40px); }
         }
       `}</style>
 
-      <div className="w-full max-w-3xl bg-[#0A0A0A] border border-[#222] relative overflow-hidden flex flex-col shadow-[0_0_50px_rgba(255,0,85,0.05)] rounded-md">
-        
-        {/* Overlay Effects */}
-        <div className="scanline opacity-20"></div>
+      {/* Background Ambient Imagery */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        {profile.avatarUrl && (
+          <img src={profile.avatarUrl} alt="source" className="glitch-img" />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#020202] via-[#020202]/80"></div>
+      </div>
 
-        {/* Top Broadcast Bar */}
-        <div className="w-full h-10 border-b border-[#222] flex items-center justify-between px-4 creator-font-mono text-[10px] text-[#666] tracking-widest uppercase z-10 bg-[#050505]">
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-2 text-[#FF0055] font-bold">
-              <span className="w-2 h-2 rounded-full bg-[#FF0055] animate-pulse shadow-[0_0_8px_#FF0055]"></span>
-              LIVE
-            </span>
-            <span className="hidden md:inline-block">CH-01</span>
+      {/* The Master Playhead (Vertical Axis) */}
+      <div className="master-playhead">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#FF0044]"></div>
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#FF0044]"></div>
+      </div>
+
+      {/* Top Identity Marquee */}
+      <div className="fixed top-0 left-0 w-full z-40 marquee-container sys-mono text-xs tracking-[0.2em] py-2 text-[#FF0044]">
+        <div className="marquee-text">
+          {Array(10).fill(`// SRC_ID: ${profile.name?.toUpperCase() || 'UNKNOWN'} // STATUS: ON-AIR // `).join(' ')}
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="relative z-10 min-h-screen pt-24 pb-24 flex flex-col justify-center">
+        
+        {/* Core Identity Block (Positioned relative to playhead) */}
+        <div className="w-full flex flex-col right-panel pr-8 mb-20">
+          <div className="sys-mono text-[#FF0044] text-[10px] tracking-[0.3em] uppercase mb-4">
+            [ MASTER_COMPS / RAW_FEED ]
           </div>
-          <div className="flex items-center gap-4">
-            <span className="hidden md:inline-block">1080P / 60FPS</span>
-            <span className="text-[#00FFAA]">{time}</span>
-          </div>
+          
+          <h1 className="text-5xl md:text-8xl font-black uppercase tracking-tighter leading-[0.85] text-white mix-blend-difference">
+            {profile.name}
+          </h1>
+          
+          {profile.headline && (
+            <div className="mt-6 text-xl md:text-3xl font-bold tracking-tight text-white/90 uppercase max-w-3xl">
+              {profile.headline}
+            </div>
+          )}
+
+          {profile.bio && (
+            <div className="mt-8 sys-mono text-xs md:text-sm text-white/50 max-w-xl leading-relaxed border-l border-white/10 pl-6">
+              {'>'} {profile.bio}
+            </div>
+          )}
         </div>
 
-        {/* Content Container */}
-        <div className="p-6 md:p-12 relative z-10 flex flex-col gap-8">
-          
-          {/* Main Visual / Lens */}
-          <div className="w-full relative aspect-video bg-[#111] overflow-hidden group rounded-sm border border-[#1a1a1a]">
-            {/* Corners */}
-            <div className="viewfinder-corner vf-tl m-4"></div>
-            <div className="viewfinder-corner vf-tr m-4"></div>
-            <div className="viewfinder-corner vf-bl m-4"></div>
-            <div className="viewfinder-corner vf-br m-4"></div>
-            
-            {/* Crosshair */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 opacity-20 pointer-events-none flex items-center justify-center">
-              <div className="w-full h-px bg-white absolute"></div>
-              <div className="h-full w-px bg-white absolute"></div>
+        {/* Links as Timeline Channels */}
+        {profile.links && profile.links.length > 0 && (
+          <div className="w-full flex flex-col mt-10">
+            <div className="right-panel mb-4 sys-mono text-[#444] text-[10px] tracking-[0.3em]">
+              [ SEQUENCE / OUTPUT_CHANNELS ]
             </div>
-
-            {profile.avatarUrl ? (
-              <img 
-                src={profile.avatarUrl} 
-                alt={profile.name} 
-                className="w-full h-full object-cover mix-blend-luminosity opacity-60 group-hover:mix-blend-normal group-hover:opacity-100 transition-all duration-700 ease-out transform group-hover:scale-105"
-              />
-            ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center text-[#333] creator-font-mono text-sm">
-                NO SIGNAL
-              </div>
-            )}
             
-            <div className="absolute bottom-4 left-4 creator-font-mono text-[10px] text-white/50 bg-black/50 px-2 py-1 backdrop-blur-sm rounded-sm uppercase">
-              {profile.role || 'CREATOR_FEED'}
-            </div>
-          </div>
-
-          {/* Identity & Typography */}
-          <div className="flex flex-col gap-2">
-            <h1 className="creator-font-main text-5xl md:text-7xl font-black text-white uppercase leading-none tracking-tighter mix-blend-exclusion relative">
-              {profile.name}
-            </h1>
-            <p className="creator-font-main text-xl md:text-2xl text-white/80 font-bold uppercase tracking-tight">
-              {profile.headline || 'I turn ideas into content.'}
-            </p>
-            <p className="creator-font-mono text-sm text-[#888] mt-4 max-w-xl leading-relaxed border-l-2 border-[#333] pl-4">
-              {profile.bio || 'Video-first creator, streamer. Vibrant, energetic, motion-inspired. Large visual real estate.'}
-            </p>
-          </div>
-
-          {/* Timeline / Links */}
-          {profile.links && profile.links.length > 0 && (
-            <div className="mt-4 relative">
-              <div className="playhead-line"></div>
-              <div className="flex flex-col gap-2 pl-12 relative z-10">
-                <div className="creator-font-mono text-[10px] text-[#444] mb-2 tracking-widest uppercase">
-                  Sequence / Output
-                </div>
-                {profile.links.map((link: any, i: number) => (
-                  <a 
-                    key={i} 
-                    href={link.url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="timeline-track relative w-full bg-[#111] border border-[#222] py-4 px-6 rounded-sm flex items-center justify-between group cursor-pointer overflow-hidden"
-                  >
-                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#333] group-hover:bg-[#FF0055] transition-colors"></div>
-                    
-                    <div className="flex items-center gap-4 relative z-10">
-                      <span className="creator-font-mono text-[#555] text-xs">V{i + 1}</span>
-                      <span className="creator-font-main font-bold text-white text-lg tracking-wide uppercase">
+            <div className="flex flex-col">
+              {profile.links.map((link: any, i: number) => (
+                <a 
+                  key={i} 
+                  href={link.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="data-stream flex items-center w-full py-6 group cursor-pointer"
+                >
+                  {/* Track Node at Playhead intersection */}
+                  <div className="track-node">
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
+                      {getIcon(link.label)}
+                    </svg>
+                  </div>
+                  
+                  {/* Content to the right of playhead */}
+                  <div className="right-panel flex-1 flex items-center justify-between pr-8">
+                    <div className="flex items-center gap-6">
+                      <span className="sys-mono text-[#555] text-[10px]">CH_0{i + 1}</span>
+                      <span className="text-xl md:text-3xl font-black uppercase tracking-wide text-white/80 group-hover:text-white transition-colors">
                         {link.label}
                       </span>
                     </div>
                     
-                    <div className="creator-font-mono text-[#333] group-hover:text-[#00FFAA] transition-colors flex items-center gap-2">
-                      <span className="text-xs hidden md:block">RENDER</span>
+                    <div className="sys-mono text-[10px] text-[#444] group-hover:text-[#FF0044] transition-colors flex items-center gap-4 uppercase tracking-widest">
+                      <span className="hidden md:inline-block">RENDER_PATH</span>
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                       </svg>
                     </div>
-                  </a>
-                ))}
-              </div>
+                  </div>
+                </a>
+              ))}
             </div>
-          )}
+          </div>
+        )}
 
+      </div>
+
+      {/* Closed Captions / Footer fixed at bottom */}
+      <div className="fixed bottom-0 left-0 w-full p-4 z-40 bg-gradient-to-t from-[#020202] to-transparent pointer-events-none">
+        <div className="right-panel sys-mono text-[10px] text-white/30 flex justify-between pr-4">
+          <span>SYS.OP: {profile.role || 'CREATOR'}</span>
+          <span>FPS: 60.00</span>
         </div>
       </div>
+
     </div>
   );
 }
