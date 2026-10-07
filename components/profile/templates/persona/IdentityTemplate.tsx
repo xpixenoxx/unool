@@ -2454,25 +2454,6 @@ function HustlerTemplate({ profile }: any) {
             </div>
          </div>
 
-         {/* METRICS ROW */}
-         <div className="flex flex-col md:flex-row gap-[2px]">
-            <div className="md:w-[140px] shrink-0 p-5 flex items-center bg-[#DCD9D1]">
-               <span className="text-[10px] sm:text-xs uppercase tracking-widest font-bold text-[#7A756D]">Momentum</span>
-            </div>
-            <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-[2px] bg-[#292724]">
-               {validMetrics.length > 0 ? validMetrics.map((m: any, i: number) => (
-                  <div key={i} className="p-5 flex flex-col justify-center bg-[#EAE8E3] group hover:bg-[#292724] transition-colors cursor-default">
-                     <span className="hustler-serif text-4xl sm:text-5xl text-[#292724] group-hover:text-[#D64924] transition-colors">{m.value}</span>
-                     <span className="text-[9px] uppercase tracking-widest font-bold text-[#7A756D] mt-1.5 group-hover:text-[#EAE8E3] transition-colors">{m.label || m.title || m.name}</span>
-                  </div>
-               )) : (
-                  <div className="col-span-full p-8 flex items-center justify-center bg-[#EAE8E3]">
-                     <span className="text-[10px] uppercase tracking-widest font-bold text-[#7A756D]">NO DATA LOGGED</span>
-                  </div>
-               )}
-            </div>
-         </div>
-
          {/* NETWORK ROW */}
          <div className="flex flex-col md:flex-row gap-[2px]">
             <div className="md:w-[140px] shrink-0 p-5 flex items-center bg-[#DCD9D1]">
@@ -2498,7 +2479,7 @@ function HustlerTemplate({ profile }: any) {
          {/* PROOF POINTS ROW */}
          <div className="flex flex-col md:flex-row gap-[2px]">
             <div className="md:w-[140px] shrink-0 p-5 bg-[#DCD9D1]">
-               <span className="text-[10px] sm:text-xs uppercase tracking-widest font-bold text-[#7A756D] md:sticky md:top-5">Track Record</span>
+               <span className="text-[10px] sm:text-xs uppercase tracking-widest font-bold text-[#7A756D] md:sticky md:top-5">Proof Points</span>
             </div>
             <div className="flex-1 flex flex-col gap-[2px]">
                {validProofs.length > 0 ? validProofs.map((p: any, i: number) => (
@@ -2524,7 +2505,7 @@ function HustlerTemplate({ profile }: any) {
          {/* ACTIONS ROW */}
          <div className="flex flex-col sm:flex-row gap-[2px]">
             <a href={email ? `mailto:${email}` : '#'} className="flex-1 p-6 sm:p-8 bg-[#D64924] text-[#EAE8E3] flex items-center justify-between group hover:bg-[#B53D1C] transition-colors cursor-pointer">
-               <span className="text-xs sm:text-sm uppercase tracking-[0.2em] font-bold">Initiate Action</span>
+               <span className="text-xs sm:text-sm uppercase tracking-[0.2em] font-bold">Get In Touch</span>
                <span className="text-2xl group-hover:translate-x-3 transition-transform">→</span>
             </a>
             <button onClick={handleSave} className="sm:w-[280px] p-6 sm:p-8 bg-[#292724] text-[#EAE8E3] flex items-center justify-center gap-3 group hover:bg-[#1A1917] transition-colors">
