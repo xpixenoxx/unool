@@ -34,6 +34,17 @@ function AuthCallbackContent() {
 
     if (errorMessage) return;
 
+    // Check for implicit flow success in hash fragment
+    if (hash && hash.includes('access_token=')) {
+      setIsExchanging(true);
+      // The Supabase browser client automatically intercepts this hash and sets the session.
+      // We just need to wait briefly for it to complete the storage process, then redirect.
+      setTimeout(() => {
+        router.push(redirect);
+      }, 500);
+      return;
+    }
+
     const code = searchParams.get('code');
     const token_hash = searchParams.get('token_hash');
     const type = searchParams.get('type') || 'magiclink';
