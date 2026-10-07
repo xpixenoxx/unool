@@ -225,6 +225,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ subdom
       customCss: profile.theme?.customCss || null,
     },
     socialHandles: profile.socialHandles || {},
+    openTo: profile.openTo || [],
     seo: profile.seo || {
       title: profile.name || 'Profile',
       description: profile.headline || profile.bio || '',

@@ -52,6 +52,7 @@ export interface PublicProfile {
     customCss: string | null;
   };
   socialHandles: Record<string, string>;
+  openTo?: string[];
   seo: {
     title: string;
     description: string;

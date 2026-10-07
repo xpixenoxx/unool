@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Globe, PenTool, Loader2, Sparkles, Trash2, Palette, Link as LinkIcon, ExternalLink, Plus, CheckCircle, AlertCircle, Trash, ArrowRight, Shield, Activity, CalendarDays, MousePointerClick, UploadCloud, Image as ImageIcon } from 'lucide-react';
+import { OpenToSelector } from '@/components/profile/OpenToBadges';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { TEMPLATE_REGISTRY } from '@/components/profile/templates/registry';
@@ -76,7 +77,7 @@ interface Profile {
   proofPoints: ProofPoint[];
   theme: ProfileTheme;
   subdomain?: string | null;
-  visibility?: 'public' | 'private';
+  openTo: string[];
 }
 
 interface ExtractedProfile {
@@ -130,7 +131,7 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
 
   const [profile, setProfile] = useState<Profile>({
     name: '', headline: '', bio: '', role: '', company: '', avatarUrl: '',
-    links: [], proofPoints: [], theme: { template: DEFAULT_TEMPLATE }, visibility: 'public',
+    links: [], proofPoints: [], theme: { template: DEFAULT_TEMPLATE }, openTo: [],
   });
 
   // Guard: prevent auto-save from firing before initial data is loaded from the server.
@@ -155,7 +156,6 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
           setClaimedSubdomain(data.profile.subdomain);
           setSubdomain(data.profile.subdomain);
         }
-        if (data.profile.visibility === 'private') loadViewers();
       } else {
         // No profile yet — still mark as loaded so user edits can be saved
         profileLoaded.current = true;
@@ -373,31 +373,6 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
         </div>
         
         <div className="flex items-center gap-3">
-          {/* Privacy Toggle */}
-          <div className="flex items-center p-1 rounded-lg" style={{ backgroundColor: B.cardBorder }}>
-            <button
-              onClick={() => setProfile({...profile, visibility: 'public'})}
-              className="px-3 py-1.5 text-xs font-semibold rounded-md transition-colors"
-              style={{
-                backgroundColor: profile.visibility === 'public' ? B.card : 'transparent',
-                color: profile.visibility === 'public' ? B.text : B.textMuted,
-                boxShadow: profile.visibility === 'public' ? B.cardShadow : 'none'
-              }}
-            >
-              Public
-            </button>
-            <button
-              onClick={() => { setProfile({...profile, visibility: 'private'}); if (viewers.length === 0) loadViewers(); }}
-              className="px-3 py-1.5 text-xs font-semibold rounded-md transition-colors"
-              style={{
-                backgroundColor: profile.visibility === 'private' ? B.card : 'transparent',
-                color: profile.visibility === 'private' ? B.text : B.textMuted,
-                boxShadow: profile.visibility === 'private' ? B.cardShadow : 'none'
-              }}
-            >
-              Private
-            </button>
-          </div>
 
           {liveUrl && (
             <Link
@@ -469,6 +444,23 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
             </button>
           </div>
         </div>
+      </motion.div>
+
+      {/* ═══ OPEN TO — AVAILABILITY INTENTS ═══ */}
+      <motion.div variants={fadeUp} transition={transition} className="rounded-2xl p-5" style={{ backgroundColor: B.card, border: `1px solid ${B.cardBorder}`, boxShadow: B.cardShadow }}>
+        <OpenToSelector
+          selected={profile.openTo || []}
+          onChange={(intents) => setProfile({ ...profile, openTo: intents })}
+          colors={{
+            bg: B.bg,
+            card: B.card,
+            border: B.border,
+            text: B.text,
+            textMuted: B.textMuted,
+            accent: B.accent,
+            accentBg: B.accentBg,
+          }}
+        />
       </motion.div>
 
       {/* ═══ SUBDOMAIN CLAIM ═══ */}

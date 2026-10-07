@@ -44,6 +44,7 @@ export interface Profile {
   extractionPromptVersion: string | null;
   version: number;
   visibility: 'public' | 'private';
+  openTo: string[];
   authorizedViewers?: ProfileViewer[];
   createdAt: Date;
   updatedAt: Date;
@@ -69,6 +70,7 @@ export interface UpdateProfileInput {
   theme?: ProfileTheme;
   subdomain?: string | null;
   visibility?: 'public' | 'private';
+  openTo?: string[];
 }
 
 export interface IProfileRepository {

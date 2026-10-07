@@ -5,6 +5,7 @@ import type { TemplateProps } from '@/components/profile/templates/types';
 import { getTemplateById } from '@/components/profile/templates/registry';
 import { motion } from 'framer-motion';
 import { Menu, BadgeCheck, ArrowRight, Bookmark, Send, Sparkles, Quote, Github, Linkedin, Instagram, ExternalLink, Users, Link as LinkIcon, Eye } from 'lucide-react';
+import { OpenToBadges } from '@/components/profile/OpenToBadges';
 import { ClubTemplate } from './ClubTemplate';
 export { ClubTemplate };
 
@@ -3765,35 +3766,68 @@ function VoiceTemplate({ profile }: any) {
 
 // A dynamic template that adjusts its vibe based on the selected identity template ID.
 export function IdentityTemplate(props: TemplateProps & { templateId: string }) {
-  const { templateId } = props;
+  const { templateId, profile } = props;
+  const openToIntents: string[] = (profile as any).openTo || [];
 
+  // Templates with dark backgrounds need light-adjusted badge styling
+  const darkTemplates = ['lone', 'rebellion', 'the-machine', 'the-builder', 'the-hustler', 'the-visionary', 'the-creator'];
+  const isDark = darkTemplates.includes(templateId);
+
+  let content: React.ReactNode;
   switch (templateId) {
     // Individual
-    case 'lover': return <LoverTemplate {...props} />;
-    case 'lone': return <LoneTemplate {...props} />;
-    case 'energy': return <EnergyTemplate {...props} />;
-    
+    case 'lover': content = <LoverTemplate {...props} />; break;
+    case 'lone': content = <LoneTemplate {...props} />; break;
+    case 'energy': content = <EnergyTemplate {...props} />; break;
     // Startup
-    case 'rebellion': return <RebellionTemplate {...props} />;
-    case 'vision': return <VisionTemplate {...props} />;
-    case 'human': return <HumanTemplate {...props} />;
-    
+    case 'rebellion': content = <RebellionTemplate {...props} />; break;
+    case 'vision': content = <VisionTemplate {...props} />; break;
+    case 'human': content = <HumanTemplate {...props} />; break;
     // Agency
-    case 'the-studio': return <StudioTemplate {...props} />;
-    case 'the-machine': return <MachineTemplate {...props} />;
-    case 'the-club': return <ClubTemplate {...props} />;
-    
+    case 'the-studio': content = <StudioTemplate {...props} />; break;
+    case 'the-machine': content = <MachineTemplate {...props} />; break;
+    case 'the-club': content = <ClubTemplate {...props} />; break;
     // Entrepreneur
-    case 'the-builder': return <BuilderTemplate {...props} />;
-    case 'the-visionary': return <VisionaryTemplate {...props} />;
-    case 'the-hustler': return <HustlerTemplate {...props} />;
-    
+    case 'the-builder': content = <BuilderTemplate {...props} />; break;
+    case 'the-visionary': content = <VisionaryTemplate {...props} />; break;
+    case 'the-hustler': content = <HustlerTemplate {...props} />; break;
     // Influencer
-    case 'the-aesthete': return <AestheteTemplate {...props} />;
-    case 'the-creator': return <CreatorTemplate {...props} />;
-    case 'the-voice': return <VoiceTemplate {...props} />;
-    
-    default:
-      return <LoneTemplate {...props} />; // Fallback
+    case 'the-aesthete': content = <AestheteTemplate {...props} />; break;
+    case 'the-creator': content = <CreatorTemplate {...props} />; break;
+    case 'the-voice': content = <VoiceTemplate {...props} />; break;
+    default: content = <LoneTemplate {...props} />; break;
   }
+
+  // If no intents selected, render template as-is
+  if (!openToIntents || openToIntents.length === 0) {
+    return <>{content}</>;
+  }
+
+  // Render template with floating Open To badges at the bottom
+  return (
+    <div style={{ position: 'relative', minHeight: '100vh' }}>
+      {content}
+      <div
+        style={{
+          position: 'fixed',
+          bottom: 16,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 9999,
+          padding: '8px 14px',
+          borderRadius: 20,
+          backgroundColor: isDark ? 'rgba(15, 15, 15, 0.85)' : 'rgba(255, 255, 255, 0.88)',
+          backdropFilter: 'blur(16px) saturate(1.4)',
+          WebkitBackdropFilter: 'blur(16px) saturate(1.4)',
+          boxShadow: isDark
+            ? '0 4px 24px rgba(0,0,0,0.5), 0 1px 3px rgba(0,0,0,0.3)'
+            : '0 4px 24px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04)',
+          border: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.06)',
+          maxWidth: '90vw',
+        }}
+      >
+        <OpenToBadges intents={openToIntents} compact darkMode={isDark} />
+      </div>
+    </div>
+  );
 }

@@ -25,6 +25,7 @@ export class SupabaseProfileRepository implements IProfileRepository {
       extractionPromptVersion: row.extraction_prompt_version as string | null,
       version: row.version as number,
       visibility: (row.visibility as 'public' | 'private') || 'public',
+      openTo: (row.open_to as string[]) || [],
       createdAt: new Date(row.created_at as string),
       updatedAt: new Date(row.updated_at as string),
     };
@@ -123,6 +124,7 @@ export class SupabaseProfileRepository implements IProfileRepository {
     if (data.theme !== undefined) updateData.theme = data.theme;
     if (data.subdomain !== undefined) updateData.subdomain = data.subdomain;
     if (data.visibility !== undefined) updateData.visibility = data.visibility;
+    if (data.openTo !== undefined) updateData.open_to = data.openTo;
 
     const { data: row, error } = await this.supabase
       .from('profiles')

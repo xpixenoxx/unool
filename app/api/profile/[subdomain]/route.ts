@@ -26,24 +26,9 @@ export async function GET(
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
 
-    // Check visibility / authorized viewers
-    if (profile.visibility === 'private') {
-      const auth = await (await import('@/lib/auth/server')).getCurrentAuth(request);
-      
-      if (!auth) {
-        return NextResponse.json({ error: 'This profile is private. Please sign in to view it.' }, { status: 401 });
-      }
-
-      // Owner always has access
-      if (auth.userId !== profile.userId) {
-        const viewers = await profileRepository.getViewers(profile.id);
-        const isAuthorized = viewers.some(v => v.viewerUserId === auth.userId);
-        
-        if (!isAuthorized) {
-          return NextResponse.json({ error: 'This profile is private. You do not have permission to view it.' }, { status: 403 });
-        }
-      }
-    }
+    // Note: visibility blocking has been replaced by the "Open to..." feature.
+    // Profiles are always publicly accessible — the owner controls their
+    // availability signals, not page visibility.
 
     // Increment view count async (fire-and-forget, fallback to ignoring errors)
     try {
@@ -70,6 +55,7 @@ export async function GET(
       ...profile,
       links: profile.links || [],
       proofs: profile.proofPoints || [],
+      openTo: profile.openTo || [],
       theme: profile.theme || { preset: 'minimal' },
     });
   } catch (error) {
