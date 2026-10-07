@@ -266,9 +266,10 @@ export class ThreadsAdapter implements PlatformAdapter {
     });
   }
 
-  private async waitForContainerReady(accessToken: string, creationId: string, maxAttempts = 10): Promise<void> {
+  private async waitForContainerReady(accessToken: string, creationId: string, maxAttempts = 30): Promise<void> {
     for (let i = 0; i < maxAttempts; i++) {
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // Wait 3 seconds between polls (total timeout up to 90 seconds for videos)
+      await new Promise((resolve) => setTimeout(resolve, 3000));
 
       const response = await fetchWithRetry(
         `${THREADS_API_BASE}/${creationId}?fields=status&access_token=${accessToken}`,

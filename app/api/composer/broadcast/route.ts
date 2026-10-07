@@ -128,19 +128,10 @@ export async function POST(request: NextRequest) {
         postId: post.id,
       });
 
-      // We use Next.js 15 after() to run the publishing in the background
-      // The maxDuration = 300 setting above ensures Vercel doesn't kill this background job
-      // for up to 5 minutes, giving LinkedIn plenty of time to upload chunks.
-      const { after } = await import('next/server');
-
-      after(async () => {
-        try {
-          logger.info('Background publish starting', { traceId, postId: post.id });
-          await publishService.publishToAllPlatforms(post.id, workspaceId);
-        } catch (bgError) {
-          logger.error('Background publish failed', { traceId, postId: post.id, error: bgError });
-        }
-      });
+      // Enqueue a background job in QStash for reliable long-running video uploads
+      // This solves the Vercel maxDuration timeouts
+      const { queueService } = await import('@/lib/services/QueueService');
+      await queueService.enqueuePublishTask(post.id, workspaceId);
 
       return NextResponse.json({
         success: true,

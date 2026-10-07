@@ -20,6 +20,12 @@ const configSchema = z.object({
   // Upstash Redis (for rate limiting, OAuth state, etc.) - use REST API URL from .env.local
   UPSTASH_REDIS_REST_URL: z.string().url().optional(),
   UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
+  
+  QSTASH_URL: z.string().url().optional(),
+  QSTASH_TOKEN: z.string().optional(),
+  QSTASH_CURRENT_SIGNING_KEY: z.string().optional(),
+  QSTASH_NEXT_SIGNING_KEY: z.string().optional(),
+
   MAGIC_LINK_EXPIRY_MINUTES: z.coerce.number().default(15),
 
   // Resend API Key for magic links
@@ -79,6 +85,10 @@ const configSchema = z.object({
   LINKEDIN_WEBHOOK_SECRET: z.string().optional(),
   X_WEBHOOK_SECRET: z.string().optional(),
   META_WEBHOOK_SECRET: z.string().optional(),
+  META_WEBHOOK_VERIFY_TOKEN: z.string().optional(),
+
+  // Groq API (for Instagram comment automation)
+  GROQ_API_KEY: z.string().optional(),
 
   // Security hardening
   ENABLE_HSTS: z.coerce.boolean().default(true),
