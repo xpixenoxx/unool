@@ -2492,9 +2492,9 @@ function BuilderTemplate({ profile }: any) {
                    
                    <div className="flex items-center gap-5 mb-6">
                      {profile?.avatarUrl ? (
-                       <img src={profile.avatarUrl} alt={name} className="w-16 h-16 rounded-sm border border-[#C5A86A] object-cover grayscale mix-blend-screen" />
+                       <img src={profile.avatarUrl} alt={name} className="w-24 h-24 md:w-32 md:h-32 rounded-sm border border-[#C5A86A] object-cover grayscale mix-blend-screen" />
                      ) : (
-                       <div className="w-16 h-16 bg-[#342632] border border-[#C5A86A] flex items-center justify-center text-xs font-bold text-[#C5A86A]">ID</div>
+                       <div className="w-24 h-24 md:w-32 md:h-32 bg-[#342632] border border-[#C5A86A] flex items-center justify-center text-xs font-bold text-[#C5A86A]">ID</div>
                      )}
                      <h2 className="builder-serif text-4xl md:text-5xl">{name || "[ BUILDER ]"}</h2>
                    </div>
@@ -2550,13 +2550,15 @@ function BuilderTemplate({ profile }: any) {
                 <h3 className="text-[10px] uppercase tracking-[0.2em] text-[#87958A] mb-8 font-bold border-l-2 border-[#A85C4A] pl-3">SYSTEM CREDENTIALS</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                    {proofs.filter((p: any) => p.type || p.title || p.label).map((p: any, i: number) => (
-                      <div key={i} className="bg-[#F3EEE6] border border-[#292226]/20 p-6 flex flex-col justify-center hover:border-[#A85C4A] transition-colors group relative overflow-hidden builder-module-shadow">
-                         <div className="flex items-baseline gap-4 mb-2">
-                           <div className="text-[12px] font-bold tracking-[0.2em] uppercase text-[#342632]">{p.type || p.title || p.label}</div>
-                           <div className="builder-serif text-3xl md:text-4xl text-[#A85C4A]">{p.value}</div>
+                      <div key={i} className="bg-[#E8E0D5] border-2 border-[#292226]/40 p-6 flex flex-col justify-center hover:border-[#A85C4A] transition-colors group relative overflow-hidden builder-module-shadow">
+                         <div className="absolute inset-0 builder-blueprint-grid opacity-10 pointer-events-none" />
+                         <div className="absolute left-0 top-0 bottom-0 w-2 bg-[#292226]/10 group-hover:bg-[#A85C4A] transition-colors" />
+                         <div className="flex items-baseline gap-4 mb-2 pl-4">
+                           <div className="text-[12px] font-bold tracking-[0.2em] uppercase text-[#342632] relative z-10">{p.type || p.title || p.label}</div>
+                           <div className="builder-serif text-3xl md:text-4xl text-[#A85C4A] relative z-10">{p.value}</div>
                          </div>
                          {p.url && (
-                           <a href={p.url} target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold uppercase tracking-widest text-[#87958A] hover:text-[#A85C4A] border-b border-transparent hover:border-[#A85C4A] w-max mt-4">
+                           <a href={p.url} target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold uppercase tracking-widest text-[#87958A] hover:text-[#A85C4A] border-b border-[#87958A] hover:border-[#A85C4A] w-max mt-4 pl-4 pb-0.5 relative z-10">
                              VERIFY PROOF ↗
                            </a>
                          )}
@@ -3085,19 +3087,23 @@ function HustlerTemplate({ profile }: any) {
 
             {/* Proofs Sub-grid */}
             <div className="flex flex-col gap-6">
-               {validProofs.length > 0 ? validProofs.map((p: any, i: number) => (
-                  <div key={i} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-6 sm:p-8 border-2 border-[#292724] bg-[#EAE8E3] hover:bg-[#292724] hover:text-[#EAE8E3] transition-colors group">
+               {validProofs.length > 0 ? validProofs.map((p: any, i: number) => {
+                  const bgColors = ['bg-[#FFD166]', 'bg-[#06D6A0]', 'bg-[#118AB2]', 'bg-[#EF476F]'];
+                  const bgColor = bgColors[i % bgColors.length];
+                  return (
+                  <div key={i} className={`flex flex-col sm:flex-row items-start sm:items-center justify-between p-6 sm:p-8 border-4 border-[#292724] ${bgColor} hover:-translate-y-1 hover:-translate-x-1 transition-all group shadow-[8px_8px_0px_#292724] mb-4`}>
                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-8">
-                        <h4 className="text-xl sm:text-2xl font-bold hustler-serif leading-tight group-hover:text-[#D64924]">{p.type || p.title || p.label}</h4>
-                        <span className="text-2xl sm:text-3xl font-bold hustler-serif text-[#D64924] group-hover:text-[#EAE8E3]">{p.value}</span>
+                        <h4 className="text-xl sm:text-2xl font-black hustler-serif leading-tight text-[#292724] uppercase">{p.type || p.title || p.label}</h4>
+                        <span className="text-3xl sm:text-4xl font-black hustler-serif text-[#EAE8E3] drop-shadow-[2px_2px_0px_#292724]">{p.value}</span>
                      </div>
                      {p.url && (
-                        <a href={p.url} target="_blank" rel="noopener noreferrer" className="mt-4 sm:mt-0 text-[10px] uppercase tracking-widest font-mono font-bold border-b-2 border-current hover:text-[#D64924]">
-                           Verify Proof ↗
+                        <a href={p.url} target="_blank" rel="noopener noreferrer" className="mt-6 sm:mt-0 px-6 py-3 border-2 border-[#292724] bg-white text-[#292724] text-xs font-bold uppercase tracking-widest hover:bg-[#292724] hover:text-white transition-colors shadow-[4px_4px_0px_#292724] group-hover:shadow-[2px_2px_0px_#292724]">
+                           VIEW PROOF
                         </a>
                      )}
                   </div>
-               )) : (
+                  );
+               }) : (
                   <div className="p-8 border-2 border-dashed border-[#292724] flex items-center justify-center">
                      <span className="text-xs uppercase tracking-widest font-bold text-[#292724]">NO RECORDS FOUND</span>
                   </div>
@@ -3359,8 +3365,8 @@ function CreatorTemplate({ profile, accentColor }: any) {
   const avatarShape = 'polygon(30% 0%, 100% 0, 100% 70%, 70% 100%, 0 100%, 0 30%)';
 
   return (
-    <div className="min-h-screen w-full bg-[#FAFAFA] text-[#0F172A] p-4 font-sans flex justify-center selection:bg-zinc-200">
-      <div className="max-w-2xl w-full pt-16 flex flex-col items-center space-y-10">
+    <div className="min-h-screen w-full bg-[#EBE4DB] text-[#1E293B] p-6 md:p-12 font-sans flex justify-center selection:bg-purple-200" style={{ background: 'linear-gradient(145deg, #FFF6E5 0%, #F5E6FE 100%)' }}>
+      <div className="max-w-4xl w-full pt-16 pb-24 px-8 md:px-16 flex flex-col items-center space-y-10 bg-white/40 backdrop-blur-xl border border-white/60 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] rounded-[3rem] my-8">
         
         {/* Avatar with unique shape */}
         <div className="relative group">
@@ -3382,12 +3388,12 @@ function CreatorTemplate({ profile, accentColor }: any) {
           <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-zinc-300 pointer-events-none" />
         </div>
         
-        <div className="text-center space-y-2">
-           <h1 className="text-4xl md:text-5xl font-black tracking-tight uppercase" style={{ textShadow: `2px 2px 0 ${accent}20` }}>
+        <div className="text-center space-y-3">
+           <h1 className="text-4xl md:text-6xl font-black tracking-tight uppercase" style={{ textShadow: `2px 2px 0 ${accent}20` }}>
              {profile.name}
            </h1>
-           <p className="text-zinc-500 font-bold text-lg tracking-widest uppercase">{profile.headline}</p>
-           <p className="max-w-md text-sm text-zinc-600 mt-4 leading-relaxed mx-auto font-medium border-l-2 border-zinc-200 pl-4 text-left">{profile.bio}</p>
+           <p className="text-slate-600 font-bold text-xl tracking-widest uppercase">{profile.headline}</p>
+           <p className="max-w-xl text-sm md:text-base text-slate-700 mt-6 leading-relaxed mx-auto font-medium border-l-4 pl-6 text-left" style={{ borderColor: accent }}>{profile.bio}</p>
         </div>
 
         {/* METRICS SECTION WITH CHAMFERED CARDS */}
@@ -3396,15 +3402,15 @@ function CreatorTemplate({ profile, accentColor }: any) {
             {profile.metrics.map((metric: any, i: number) => (
               <div 
                 key={i} 
-                className="bg-white p-6 flex flex-col items-center text-center hover:bg-zinc-50 transition-colors relative group border border-zinc-100 shadow-sm"
+                className="bg-white/60 backdrop-blur-md p-6 flex flex-col items-center text-center hover:bg-white/90 transition-all relative group border border-white/80 shadow-[0_8px_32px_rgba(0,0,0,0.04)]"
                 style={{ clipPath: 'polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px)' }}
               >
                 {/* Accent bar */}
                 <div className="absolute top-0 left-0 w-full h-1 opacity-50 group-hover:opacity-100 transition-opacity" style={{ backgroundColor: accent }} />
-                <span className="text-3xl font-black mb-1 text-zinc-900">{metric.value}</span>
-                <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">{metric.label || metric.title || metric.type || metric.name}</span>
+                <span className="text-3xl font-black mb-1 text-slate-900">{metric.value}</span>
+                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{metric.label || metric.title || metric.type || metric.name}</span>
                 {metric.description && metric.description !== (metric.label || metric.title || metric.type || metric.name) && (
-                  <span className="text-[9px] text-zinc-500 mt-2 uppercase">{metric.description}</span>
+                  <span className="text-[9px] text-slate-400 mt-2 uppercase">{metric.description}</span>
                 )}
               </div>
             ))}
@@ -3414,30 +3420,30 @@ function CreatorTemplate({ profile, accentColor }: any) {
         {/* PROOF POINTS SECTION */}
         {proofs.length > 0 && (
           <div className="w-full mt-12 flex flex-col gap-4">
-             <div className="flex items-center gap-4 mb-2">
-                <span className="text-[10px] tracking-widest uppercase font-bold text-zinc-400">Credentials & Milestones</span>
-                <div className="flex-1 h-px bg-zinc-200" />
+             <div className="flex items-center gap-4 mb-4">
+                <span className="text-[10px] tracking-widest uppercase font-bold text-slate-500">Credentials & Milestones</span>
+                <div className="flex-1 h-px bg-slate-300/50" />
              </div>
              {proofs.filter((p: any) => p.type || p.title || p.label).map((proof: any, i: number) => (
                 <div 
                   key={i} 
-                  className="bg-white hover:bg-zinc-50 p-6 flex flex-col md:flex-row justify-between items-start md:items-center transition-all group relative border border-zinc-200 shadow-sm"
+                  className="bg-white/50 backdrop-blur-sm hover:bg-white/80 p-6 flex flex-col md:flex-row justify-between items-start md:items-center transition-all group relative border border-white/80 shadow-[0_8px_32px_rgba(0,0,0,0.03)]"
                   style={{ clipPath: 'polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px)' }}
                 >
-                  <div className="absolute left-0 top-0 bottom-0 w-1 opacity-0 group-hover:opacity-100 transition-opacity" style={{ backgroundColor: accent }} />
-                  <div className="flex flex-col gap-1 pr-6">
+                  <div className="absolute left-0 top-0 bottom-0 w-1.5 opacity-0 group-hover:opacity-100 transition-opacity" style={{ backgroundColor: accent }} />
+                  <div className="flex flex-col gap-1 pr-6 pl-2">
                      <div className="flex items-baseline gap-3">
-                        <span className="text-xl md:text-2xl font-bold text-zinc-900">{proof.type || proof.title || proof.label}</span>
+                        <span className="text-xl md:text-2xl font-black text-slate-800">{proof.type || proof.title || proof.label}</span>
                         {proof.value && (
                            <span className="text-lg md:text-xl font-bold" style={{ color: accent }}>{proof.value}</span>
                         )}
                      </div>
                      {proof.description && (
-                        <span className="text-sm text-zinc-500 font-medium">{proof.description}</span>
+                        <span className="text-sm text-slate-500 font-medium">{proof.description}</span>
                      )}
                   </div>
                   {proof.url && (
-                     <a href={proof.url} target="_blank" rel="noopener noreferrer" className="mt-4 md:mt-0 text-[10px] uppercase tracking-widest font-bold text-zinc-400 hover:text-zinc-800 transition-colors border-b border-zinc-300 hover:border-zinc-800 pb-1 shrink-0">
+                     <a href={proof.url} target="_blank" rel="noopener noreferrer" className="mt-4 md:mt-0 text-[10px] uppercase tracking-widest font-bold text-slate-500 hover:text-slate-900 transition-colors border-b border-slate-300 hover:border-slate-900 pb-1 shrink-0">
                         View Proof ↗
                      </a>
                   )}
@@ -3454,26 +3460,26 @@ function CreatorTemplate({ profile, accentColor }: any) {
               href={link.url} 
               target="_blank" 
               rel="noopener noreferrer" 
-              className="relative w-full h-20 md:h-24 bg-gradient-to-r from-zinc-100 to-zinc-200 p-[2px] group"
+              className="relative w-full h-20 md:h-24 bg-gradient-to-r from-white/60 to-white/90 backdrop-blur-md p-[2px] group shadow-sm"
               style={{ clipPath: chamferedShape }}
             >
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
               <div 
-                className="w-full h-full bg-white relative z-10 flex items-center px-6"
+                className="w-full h-full bg-white/80 relative z-10 flex items-center px-6"
                 style={{ clipPath: 'polygon(18px 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%, 0 18px)' }}
               >
-                <div className="absolute right-0 top-0 bottom-0 w-48 bg-gradient-to-l from-zinc-50/80 to-transparent pointer-events-none" style={{ background: `linear-gradient(to left, ${accent}15, transparent)` }} />
+                <div className="absolute right-0 top-0 bottom-0 w-48 bg-gradient-to-l from-slate-50/80 to-transparent pointer-events-none" style={{ background: `linear-gradient(to left, ${accent}15, transparent)` }} />
                 
                 {/* SVG Icon Container with geometric shape */}
                 <div 
-                  className="bg-zinc-100 p-3 mr-6 flex items-center justify-center w-12 h-12 group-hover:bg-zinc-200 transition-colors border border-zinc-200"
+                  className="bg-white p-3 mr-6 flex items-center justify-center w-12 h-12 group-hover:bg-slate-50 transition-colors border border-slate-100 shadow-sm"
                   style={{ clipPath: 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)' }}
                 >
-                  <svg className="w-5 h-5 text-zinc-700 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 text-slate-700 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
                      {getAestheteSocialIcon(link.label)}
                   </svg>
                 </div>
-                <span className="text-lg md:text-xl font-bold uppercase tracking-wide group-hover:text-zinc-900 text-zinc-700 transition-colors">{link.label}</span>
+                <span className="text-lg md:text-xl font-bold uppercase tracking-wide group-hover:text-slate-900 text-slate-700 transition-colors">{link.label}</span>
                 
                 {/* Right decorative elements */}
                 <div className="absolute right-6 flex items-center opacity-0 group-hover:opacity-100 transition-opacity translate-x-4 group-hover:translate-x-0 duration-300">
