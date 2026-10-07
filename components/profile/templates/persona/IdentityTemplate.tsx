@@ -2075,6 +2075,11 @@ const getAestheteSocialIcon = (label: string) => {
   if (l.includes('instagram')) return <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z" fill="currentColor"/>;
   if (l.includes('twitter') || l.includes('x.com')) return <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z" fill="currentColor"/>;
   if (l.includes('youtube')) return <path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.5 12 3.5 12 3.5s-7.505 0-9.377.55a3.016 3.016 0 00-2.122 2.136C0 8.07 0 12 0 12s0 3.93.501 5.814a3.016 3.016 0 002.122 2.136c1.871.55 9.377.55 9.377.55s7.505 0 9.377-.55a3.016 3.016 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" fill="currentColor"/>;
+  if (l.includes('hacker rank') || l.includes('hackerrank')) return <path d="M11.953 2c-5.523 0-10 4.477-10 10s4.477 10 10 10 10-4.477 10-10-4.477-10-10-10zm4.863 14.595h-1.787v-4.072h-6.15v4.072H7.092V7.452h1.787v4.072h6.15V7.452h1.787v9.143z" fill="currentColor"/>;
+  if (l.includes('dribbble')) return <path d="M12 24C5.385 24 0 18.615 0 12S5.385 0 12 0s12 5.385 12 12-5.385 12-12 12zm10.12-11.834c-.116-.296-2.585-6.398-7.98-7.653.076.172.148.35.216.533 2.128 5.728 1.405 10.575 1.156 11.932 2.656-1.536 5.568-3.087 6.608-4.812zm-3.616 7.64c.265-1.56 1.144-6.903-1.636-12.724-3.136.216-6.42.985-9.356 2.37.16 2.062 1.055 6.782 4.148 10.66 2.21 2.766 5.253 4.542 5.922 4.908.384-.814.7-1.666.922-2.564v-.004V19.8zm-9.043 2.06c-3.167-3.95-4.145-9.255-4.145-9.255 3.398-1.514 7.034-2.27 10.37-2.316-.065-.183-.133-.362-.206-.538-2.378-5.748-5.3-7.55-5.594-7.72-4.996 1.83-8.156 6.557-8.156 11.97 0 2.94 1.066 5.632 2.82 7.747 1.4-1.593 3.4-3.87 4.912-5.642v.006.012l.006-.008z" fill="currentColor"/>;
+  if (l.includes('behance')) return <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm-1.895 15.696H6.182V8.305h3.923c1.375 0 2.477.195 3.307.585.83.39 1.245 1.045 1.245 1.965 0 .59-.2 1.077-.6 1.46-.4.384-1.004.664-1.81.84.974.12 1.693.425 2.158.915.465.49.697 1.155.697 1.995 0 .91-.453 1.636-1.36 2.175-.907.54-2.122.81-3.645.81zm9.055-.915c-.48.6-1.125 1.05-1.935 1.35-.81.3-1.69.45-2.64.45-1.28 0-2.34-.275-3.18-.825-.84-.55-1.47-1.3-1.89-2.25-.42-.95-.63-2.025-.63-3.225 0-1.21.215-2.29.645-3.24.43-.95 1.06-1.685 1.89-2.205.83-.52 1.805-.78 2.925-.78 1.1 0 2.03.245 2.79.735.76.49 1.33 1.18 1.71 2.07.38.89.57 1.935.57 3.135 0 .15-.01.35-.03.6h-6.75c.03.95.34 1.71.93 2.28.59.57 1.33.855 2.22.855.77 0 1.42-.195 1.95-.585.53-.39.92-.885 1.17-1.485h1.725c-.23.82-.62 1.52-1.17 2.12zm-8.815-4.83h2.385c.61 0 1.09-.12 1.44-.36.35-.24.525-.615.525-1.125 0-.49-.17-.85-.51-1.08-.34-.23-.84-.345-1.5-.345H10.34v2.91zm0 3.735h2.52c.76 0 1.33-.14 1.71-.42.38-.28.57-.7.57-1.26 0-.57-.2-1.01-.6-1.32-.4-.31-1.05-.465-1.95-.465H10.34v3.465zm4.86-5.805h3.9v-1.11h-3.9v1.11zm.33 1.965h4.155c-.06-.71-.3-1.26-.72-1.65-.42-.39-.98-.585-1.68-.585-.66 0-1.205.195-1.635.585-.43.39-.715.94-.855 1.65z" fill="currentColor"/>;
+  if (l.includes('medium')) return <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm-4.32 16.486c-2.316 0-4.194-2.008-4.194-4.486 0-2.477 1.878-4.485 4.194-4.485 2.315 0 4.193 2.008 4.193 4.485 0 2.478-1.878 4.486-4.193 4.486zm7.25-1.157c-.89 0-1.613-1.49-1.613-3.329 0-1.838.723-3.328 1.613-3.328.89 0 1.612 1.49 1.612 3.328 0 1.839-.722 3.329-1.612 3.329zm2.42-1.183c-.313 0-.568-1.205-.568-2.693 0-1.488.255-2.693.568-2.693.314 0 .568 1.205.568 2.693 0 1.488-.254 2.693-.568 2.693z" fill="currentColor"/>;
+  if (l.includes('spotify')) return <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.517 17.31c-.218.356-.684.472-1.04.254-2.85-1.74-6.438-2.134-10.666-1.168-.403.092-.81-.16-.902-.563-.093-.404.16-.81.564-.903 4.622-1.057 8.583-.616 11.79 1.343.355.218.47.684.254 1.037zm1.48-3.308c-.276.45-.86.592-1.31.316-3.265-2.007-8.243-2.613-12.015-1.432-.51.156-1.043-.13-1.198-.638-.155-.51.13-1.044.638-1.2 4.34-1.357 9.84-.678 13.57 1.615.45.276.592.86.315 1.338zm.135-3.447c-3.92-2.327-10.387-2.54-14.15-1.403-.61.184-1.256-.16-1.44-.77-.184-.61.16-1.256.77-1.44 4.316-1.3 11.455-1.05 16.002 1.65.548.326.728 1.036.402 1.584-.326.548-1.036.728-1.584.403z" fill="currentColor"/>;
   return <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" fill="none" stroke="currentColor"/>;
 };
 
@@ -2083,7 +2088,7 @@ function AestheteTemplate({ profile }: any) {
   const lastName = profile.name?.split(' ').slice(1).join(' ') || "";
   
   return (
-    <div className="w-full min-h-screen bg-[#151413] flex items-center justify-center p-0 md:p-8 overflow-hidden font-sans">
+    <div className="w-full min-h-screen bg-[#0C0D0A] flex items-center justify-center p-0 md:p-8 overflow-hidden font-sans">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,700;1,6..96,400&family=Inter:wght@300;400;500&display=swap');
         
@@ -2122,7 +2127,7 @@ function AestheteTemplate({ profile }: any) {
           left: 0;
           width: 0%;
           height: 1px;
-          background-color: #201E1D;
+          background-color: #E6E4DF;
           transition: width 0.6s cubic-bezier(0.19, 1, 0.22, 1);
         }
         .link-item-wrapper:hover .link-item::before {
@@ -2130,16 +2135,16 @@ function AestheteTemplate({ profile }: any) {
         }
       `}</style>
 
-      <div className="w-full max-w-[1600px] md:h-[90vh] bg-[#FDFBFA] md:rounded-[2px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] flex flex-col md:flex-row relative overflow-hidden">
+      <div className="w-full max-w-[1600px] md:h-[90vh] bg-[#161714] md:rounded-[2px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.8)] flex flex-col md:flex-row relative overflow-hidden">
         
         {/* Mobile Header */}
-        <div className="md:hidden flex justify-between items-center p-5 border-b border-[#201E1D]/10 bg-[#FDFBFA] z-20">
-          <span className="font-inter text-[10px] tracking-[0.25em] uppercase text-[#201E1D]">The Aesthete</span>
-          <span className="font-inter text-[9px] tracking-[0.2em] uppercase text-[#201E1D]/50">{profile.role || 'Digital Creator'}</span>
+        <div className="md:hidden flex justify-between items-center p-5 border-b border-[#E6E4DF]/10 bg-[#161714] z-20">
+          <span className="font-inter text-[10px] tracking-[0.25em] uppercase text-[#E6E4DF]">The Aesthete</span>
+          <span className="font-inter text-[9px] tracking-[0.2em] uppercase text-[#E6E4DF]/50">{profile.role || 'Digital Creator'}</span>
         </div>
 
         {/* Left Column: Visual Canvas */}
-        <div className="editorial-column w-full md:w-[50%] h-[50vh] md:h-full relative overflow-hidden bg-[#1C1A18] cursor-crosshair">
+        <div className="editorial-column w-full md:w-[50%] h-[50vh] md:h-full relative overflow-hidden bg-[#10110D] cursor-crosshair">
           {profile.avatarUrl ? (
             <img 
               src={profile.avatarUrl} 
@@ -2147,63 +2152,63 @@ function AestheteTemplate({ profile }: any) {
               className="editorial-image w-full h-full object-cover grayscale-[0.05] contrast-[1.05] object-center"
             />
           ) : (
-            <div className="editorial-image w-full h-full flex items-center justify-center bg-[#1C1A18]">
-              <span className="font-bodoni italic text-3xl text-[#FDFBFA]/20">Canvas</span>
+            <div className="editorial-image w-full h-full flex items-center justify-center bg-[#10110D]">
+              <span className="font-bodoni italic text-3xl text-[#E6E4DF]/20">Canvas</span>
             </div>
           )}
           
-          <div className="absolute inset-0 bg-black/10 pointer-events-none transition-opacity duration-1000" />
+          <div className="absolute inset-0 bg-black/20 pointer-events-none transition-opacity duration-1000" />
           
-          <div className="hidden md:flex absolute top-8 left-8 flex-col text-[#FDFBFA] mix-blend-difference pointer-events-none z-10">
+          <div className="hidden md:flex absolute top-8 left-8 flex-col text-[#E6E4DF] mix-blend-difference pointer-events-none z-10">
             <span className="font-inter text-[10px] tracking-[0.3em] uppercase opacity-80">Portfolio</span>
-            <span className="w-8 h-px bg-[#FDFBFA] mt-2 opacity-50" />
+            <span className="w-8 h-px bg-[#E6E4DF] mt-2 opacity-50" />
           </div>
         </div>
 
         {/* Right Column: Content */}
-        <div className="w-full md:w-[50%] h-auto md:h-full flex flex-col bg-[#FDFBFA] z-10 relative">
+        <div className="w-full md:w-[50%] h-auto md:h-full flex flex-col bg-[#161714] z-10 relative text-[#E6E4DF]">
           
           <div className="flex-1 overflow-y-auto no-scrollbar p-8 md:p-10 lg:p-14 flex flex-col">
             
             {/* Meta Header */}
-            <div className="hidden md:flex items-center justify-between mb-12 border-b border-[#201E1D]/10 pb-4">
+            <div className="hidden md:flex items-center justify-between mb-12 border-b border-[#E6E4DF]/10 pb-4">
               <div className="flex items-center gap-2">
-                 <span className="w-1.5 h-1.5 rounded-full bg-[#C17454] animate-pulse" />
-                 <span className="font-inter text-[9px] tracking-[0.2em] uppercase text-[#201E1D]/60">Available for select work</span>
+                 <span className="w-1.5 h-1.5 rounded-full bg-[#CBAA77] animate-pulse" />
+                 <span className="font-inter text-[9px] tracking-[0.2em] uppercase text-[#E6E4DF]/60">Available for select work</span>
               </div>
-              <span className="font-inter text-[9px] tracking-[0.2em] uppercase text-[#201E1D]/40">
+              <span className="font-inter text-[9px] tracking-[0.2em] uppercase text-[#E6E4DF]/40">
                 {profile.location || 'Global Context'}
               </span>
             </div>
 
             {/* Title Section */}
             <div className="mb-10">
-              <span className="inline-block px-3 py-1 mb-4 rounded-full border border-[#C17454]/30 text-[#C17454] font-inter text-[9px] tracking-[0.2em] uppercase">
+              <span className="inline-block px-3 py-1 mb-4 rounded-full border border-[#CBAA77]/30 text-[#CBAA77] font-inter text-[9px] tracking-[0.2em] uppercase">
                 {profile.role || 'Digital Creator'}
               </span>
-              <h1 className="font-bodoni text-6xl lg:text-8xl text-[#201E1D] leading-[0.85] tracking-tight uppercase">
+              <h1 className="font-bodoni text-6xl lg:text-8xl text-[#E6E4DF] leading-[0.85] tracking-tight uppercase">
                 {firstName} <br />
-                <span className="italic normal-case text-[#C17454] font-medium">{lastName}</span>
+                <span className="italic normal-case text-[#CBAA77] font-medium">{lastName}</span>
               </h1>
             </div>
 
             {/* Headline Block */}
-            <div className="pl-6 border-l border-[#C17454]/40 mb-10">
-              <h2 className="font-bodoni text-2xl md:text-3xl text-[#201E1D] leading-[1.2] mb-3">
+            <div className="pl-6 border-l border-[#CBAA77]/40 mb-10">
+              <h2 className="font-bodoni text-2xl md:text-3xl text-[#E6E4DF] leading-[1.2] mb-3">
                 {profile.headline || 'My world is my canvas.'}
               </h2>
-              <p className="font-inter text-sm md:text-base text-[#201E1D]/70 leading-relaxed font-light">
+              <p className="font-inter text-sm md:text-base text-[#E6E4DF]/60 leading-relaxed font-light">
                 {profile.bio || 'Fashion, beauty, lifestyle. Elegant, curated, premium. Editorial magazine aesthetic, sophisticated typography.'}
               </p>
             </div>
 
             {/* The Philosophy */}
-            <div className="mb-10 p-6 bg-[#F5F2EF] border border-[#201E1D]/5 rounded-sm">
-               <h3 className="font-inter text-[9px] tracking-[0.2em] uppercase text-[#201E1D]/40 mb-3 flex items-center gap-2">
-                 <span className="w-4 h-px bg-[#201E1D]/20"></span>
+            <div className="mb-10 p-6 bg-[#1D1E1A] border border-[#E6E4DF]/5 rounded-sm">
+               <h3 className="font-inter text-[9px] tracking-[0.2em] uppercase text-[#E6E4DF]/40 mb-3 flex items-center gap-2">
+                 <span className="w-4 h-px bg-[#E6E4DF]/20"></span>
                  Signature Philosophy
                </h3>
-               <p className="font-bodoni italic text-[#201E1D]/80 leading-relaxed text-base">
+               <p className="font-bodoni italic text-[#E6E4DF]/80 leading-relaxed text-base">
                  "Curating the space between modern minimalism and timeless elegance. Every detail is an intentional choice towards a beautiful existence."
                </p>
             </div>
@@ -2213,9 +2218,9 @@ function AestheteTemplate({ profile }: any) {
               <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mb-12">
                 {profile.proofPoints.map((point: any, i: number) => (
                   <div key={i} className="flex flex-col">
-                    <span className="font-bodoni text-3xl text-[#201E1D] mb-1">{point.value}</span>
-                    <span className="font-inter text-[9px] tracking-[0.2em] uppercase text-[#C17454]">{point.type}</span>
-                    <div className="w-full h-px bg-[#201E1D]/5 mt-3" />
+                    <span className="font-bodoni text-3xl text-[#E6E4DF] mb-1">{point.value}</span>
+                    <span className="font-inter text-[9px] tracking-[0.2em] uppercase text-[#CBAA77]">{point.type}</span>
+                    <div className="w-full h-px bg-[#E6E4DF]/5 mt-3" />
                   </div>
                 ))}
               </div>
@@ -2224,8 +2229,8 @@ function AestheteTemplate({ profile }: any) {
             {/* Link Directory */}
             <div className="mt-auto pt-8">
               <div className="flex items-center gap-3 mb-6">
-                <span className="font-inter text-[9px] tracking-[0.2em] uppercase text-[#201E1D]/40">Featured Directories</span>
-                <div className="flex-1 h-px bg-[#201E1D]/10" />
+                <span className="font-inter text-[9px] tracking-[0.2em] uppercase text-[#E6E4DF]/40">Featured Directories</span>
+                <div className="flex-1 h-px bg-[#E6E4DF]/10" />
               </div>
 
               <div className="flex flex-col gap-4">
@@ -2238,16 +2243,16 @@ function AestheteTemplate({ profile }: any) {
                     className="link-item-wrapper group flex items-center justify-between cursor-pointer py-1"
                   >
                     <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-full bg-[#201E1D]/5 flex items-center justify-center text-[#201E1D]/40 group-hover:bg-[#C17454] group-hover:text-[#FDFBFA] transition-colors duration-500">
+                      <div className="w-10 h-10 rounded-full bg-[#E6E4DF]/5 flex items-center justify-center text-[#E6E4DF]/40 group-hover:bg-[#CBAA77] group-hover:text-[#161714] transition-colors duration-500">
                         <svg className="w-4 h-4" viewBox="0 0 24 24">
                           {getAestheteSocialIcon(link.label)}
                         </svg>
                       </div>
-                      <span className="link-item font-inter text-base md:text-lg text-[#201E1D] tracking-wide">
+                      <span className="link-item font-inter text-base md:text-lg text-[#E6E4DF] tracking-wide">
                         {link.label}
                       </span>
                     </div>
-                    <div className="text-[#201E1D]/20 group-hover:text-[#C17454] transition-colors duration-500">
+                    <div className="text-[#E6E4DF]/20 group-hover:text-[#CBAA77] transition-colors duration-500">
                       <svg className="w-5 h-5 transform group-hover:translate-x-1 transition-transform duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                       </svg>
@@ -2260,8 +2265,8 @@ function AestheteTemplate({ profile }: any) {
           
           {/* Footer */}
           <div className="p-8 md:p-10 lg:p-14 pt-0 mt-8">
-             <div className="w-full h-px bg-[#201E1D]/10 mb-5" />
-             <div className="flex justify-between items-center text-[#201E1D]/40 font-inter text-[9px] tracking-[0.2em] uppercase">
+             <div className="w-full h-px bg-[#E6E4DF]/10 mb-5" />
+             <div className="flex justify-between items-center text-[#E6E4DF]/40 font-inter text-[9px] tracking-[0.2em] uppercase">
                 <span>© {new Date().getFullYear()}</span>
                 <span>The Aesthete</span>
              </div>
