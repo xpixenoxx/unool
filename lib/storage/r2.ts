@@ -27,7 +27,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 // Client singleton
 // ---------------------------------------------------------------------------
 
-function getR2Client(): S3Client {
+export function getR2Client(): S3Client {
   const accountId = process.env.CF_R2_ACCOUNT_ID;
   const accessKeyId = process.env.CF_R2_ACCESS_KEY_ID;
   const secretAccessKey = process.env.CF_R2_SECRET_ACCESS_KEY;
@@ -54,7 +54,7 @@ function getR2Client(): S3Client {
 
 export type R2Bucket = 'post-media' | 'avatars';
 
-function getBucketName(bucket: R2Bucket): string {
+export function getBucketName(bucket: R2Bucket): string {
   const envMap: Record<R2Bucket, string | undefined> = {
     'post-media': process.env.CF_R2_MEDIA_BUCKET_NAME,
     avatars: process.env.CF_R2_AVATARS_BUCKET_NAME,
