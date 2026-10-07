@@ -160,20 +160,30 @@ export class ThreadsAdapter implements PlatformAdapter {
 
   async publish(accessToken: string, input: PublishInput): Promise<PublishResult> {
     return platformFetch('threads', async () => {
-      // First, create a media container
-      const mediaType = input.mediaUrls && input.mediaUrls.length > 0 ? 'IMAGE' : 'TEXT';
+      let mediaType = 'TEXT';
+      let isVideo = false;
       const mediaUrl = input.mediaUrls?.[0];
+
+      if (mediaUrl) {
+        isVideo = /\.(mp4|mov|webm|avi|mkv)(?:\?.*)?$/i.test(mediaUrl);
+        mediaType = isVideo ? 'VIDEO' : 'IMAGE';
+      }
 
       const containerParams = new URLSearchParams({
         media_type: mediaType,
         access_token: accessToken,
       });
 
-      if (mediaType === 'TEXT') {
+      if (input.content) {
         containerParams.set('text', input.content);
-      } else if (mediaUrl) {
-        containerParams.set('image_url', mediaUrl);
-        containerParams.set('text', input.content);
+      }
+
+      if (mediaUrl) {
+        if (isVideo) {
+          containerParams.set('video_url', mediaUrl);
+        } else {
+          containerParams.set('image_url', mediaUrl);
+        }
       }
 
       // Add reply control if first comment is provided
