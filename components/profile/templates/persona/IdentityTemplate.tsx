@@ -710,266 +710,18 @@ function EnergyTemplate({ profile, accentColor }: any) {
 // --- 02 STARTUP --- //
 
 function RebellionTemplate({ profile, accentColor }: any) {
-  const accent = accentColor || '#D4A853';
+  const accent = accentColor || '#C8102E';
+  const [tilt, setTilt] = useState({ x: 0, y: 0 });
+  const [hovered, setHovered] = useState<number | null>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
 
-  const customStyles = `
-    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap');
-
-    .rebel-theme {
-      --cream: #FDF6EC;
-      --cream-deep: #F5ECDB;
-      --gold: ${accent};
-      --gold-light: #E8CE92;
-      --gold-border: rgba(212, 168, 83, 0.35);
-      --pink: #E85D8A;
-      --purple: #7C5CBF;
-      --text: #3D2E1F;
-      --text-muted: #8A7A6A;
-      --serif: 'Cormorant Garamond', Georgia, serif;
-      --sans: 'DM Sans', -apple-system, sans-serif;
-      font-family: var(--sans);
-      background: linear-gradient(165deg, #FDF6EC 0%, #FBF0E0 30%, #F7EADF 60%, #F5E4D8 100%);
-      color: var(--text);
-      min-height: 100vh;
-      overflow-x: hidden;
-      position: relative;
-    }
-
-    /* Soft radial glow accents */
-    .rebel-theme::before {
-      content: ""; position: absolute; top: -10%; right: -5%; width: 60%; height: 60%;
-      background: radial-gradient(ellipse, rgba(232, 93, 138, 0.08), transparent 70%);
-      pointer-events: none; z-index: 0;
-    }
-    .rebel-theme::after {
-      content: ""; position: absolute; bottom: -10%; left: -10%; width: 50%; height: 50%;
-      background: radial-gradient(ellipse, rgba(124, 92, 191, 0.06), transparent 70%);
-      pointer-events: none; z-index: 0;
-    }
-
-    .rebel-frame {
-      max-width: 1200px; margin: 0 auto;
-      border: 1.5px solid var(--gold-border);
-      border-radius: 24px;
-      background: rgba(253, 246, 236, 0.6);
-      backdrop-filter: blur(20px);
-      position: relative; z-index: 1;
-      overflow: hidden;
-      box-shadow: 0 4px 60px rgba(212, 168, 83, 0.08);
-    }
-
-    .rebel-in { position: relative; z-index: 2; padding: clamp(28px, 5vw, 56px); }
-
-    /* --- Header Bar --- */
-    .rebel-bar {
-      display: flex; justify-content: space-between; align-items: center;
-      margin-bottom: 56px;
-    }
-    .rebel-badge {
-      display: inline-flex; align-items: center; gap: 10px;
-      background: linear-gradient(135deg, var(--gold), #C9953A);
-      color: #fff; padding: 10px 20px; border-radius: 50px;
-      font-family: var(--sans); font-weight: 600; font-size: 0.9rem;
-      letter-spacing: 0.5px; text-decoration: none;
-      box-shadow: 0 2px 12px rgba(212, 168, 83, 0.3);
-      transition: transform 0.2s, box-shadow 0.2s;
-    }
-    .rebel-badge:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(212, 168, 83, 0.4); }
-    .rebel-badge svg { width: 18px; height: 18px; }
-    .rebel-tagline {
-      font-family: var(--serif); font-style: italic; font-size: 1.15rem;
-      color: var(--text-muted); letter-spacing: 0.3px;
-    }
-    .rebel-year {
-      font-family: var(--sans); font-weight: 500; font-size: 0.85rem;
-      color: var(--text-muted); letter-spacing: 1px; text-transform: uppercase;
-    }
-
-    /* --- Hero Section --- */
-    .rebel-hero {
-      display: grid; grid-template-columns: 1fr 380px; gap: 40px; align-items: center;
-      margin-bottom: 20px; position: relative;
-    }
-    .rebel-name {
-      margin: 0; font-family: var(--serif); font-weight: 400;
-      font-size: clamp(5rem, 12vw, 10rem); line-height: 0.9;
-      text-transform: lowercase; letter-spacing: -2px;
-      background: linear-gradient(135deg, var(--pink) 0%, #B44A9E 30%, var(--purple) 60%, #9B7DD4 100%);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    /* Decorative star near the name */
-    .rebel-star {
-      position: absolute; top: 10%; left: 55%;
-      color: var(--gold); font-size: 1.4rem; opacity: 0.7;
-      animation: rebel-twinkle 3s ease-in-out infinite;
-    }
-
-    /* Crown icon */
-    .rebel-crown {
-      position: absolute; top: 48%; left: 52%;
-      z-index: 5;
-    }
-    .rebel-crown svg { width: 40px; height: 40px; fill: var(--gold); opacity: 0.8; }
-
-    /* Role label with dashes */
-    .rebel-role-wrap {
-      display: flex; align-items: center; gap: 12px; margin: 28px 0 20px;
-    }
-    .rebel-role-line { width: 32px; height: 2px; background: var(--pink); border-radius: 2px; }
-    .rebel-role {
-      font-family: var(--serif); font-style: italic; font-weight: 600;
-      font-size: clamp(1.4rem, 2.5vw, 1.9rem); color: var(--pink);
-    }
-
-    .rebel-bio {
-      font-family: var(--sans); font-size: 1.05rem; line-height: 1.7;
-      color: var(--text); max-width: 480px;
-    }
-
-    /* --- Arch / Glass Window with Initial --- */
-    .rebel-arch-container { position: relative; display: flex; justify-content: center; }
-
-    .rebel-arch {
-      width: 260px; height: 340px;
-      border-radius: 130px 130px 20px 20px;
-      background: linear-gradient(180deg, rgba(232, 206, 255, 0.35) 0%, rgba(240, 220, 255, 0.2) 50%, rgba(253, 246, 236, 0.1) 100%);
-      backdrop-filter: blur(16px);
-      border: 1.5px solid rgba(180, 150, 220, 0.3);
-      display: flex; align-items: center; justify-content: center;
-      position: relative; overflow: hidden;
-      box-shadow: 0 8px 40px rgba(124, 92, 191, 0.1), inset 0 1px 0 rgba(255,255,255,0.4);
-    }
-
-    .rebel-arch::before {
-      content: ""; position: absolute; inset: 6px;
-      border-radius: 126px 126px 16px 16px;
-      border: 1px solid rgba(255, 255, 255, 0.25);
-      pointer-events: none;
-    }
-
-    .rebel-arch-initial {
-      font-family: var(--serif); font-size: 8rem; font-weight: 500;
-      background: linear-gradient(180deg, rgba(124, 92, 191, 0.6) 0%, rgba(124, 92, 191, 0.25) 100%);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      background-clip: text;
-      text-transform: uppercase;
-    }
-
-    /* Arch offset shadow frame */
-    .rebel-arch-shadow {
-      position: absolute; top: 12px; right: -12px; width: 260px; height: 340px;
-      border-radius: 130px 130px 20px 20px;
-      border: 1.5px solid var(--gold-border);
-      pointer-events: none; z-index: -1;
-    }
-
-    /* Small decorative arch outline top-right */
-    .rebel-mini-arch {
-      position: absolute; top: -20px; right: -30px; width: 80px; height: 110px;
-      border-radius: 40px 40px 8px 8px;
-      border: 1.5px solid var(--gold-border);
-      pointer-events: none;
-    }
-
-    /* --- Marquee Ribbon --- */
-    .rebel-ribbon {
-      margin: 48px -60px; padding: 18px 0;
-      background: linear-gradient(90deg, rgba(212, 168, 83, 0.12) 0%, rgba(232, 206, 146, 0.18) 50%, rgba(212, 168, 83, 0.12) 100%);
-      overflow: hidden; white-space: nowrap;
-      font-family: var(--serif); font-style: italic; font-weight: 500;
-      font-size: clamp(1rem, 1.8vw, 1.3rem); color: var(--text-muted);
-    }
-    .rebel-track { display: inline-block; animation: rebel-marquee 25s linear infinite; }
-    .rebel-track span { padding: 0 16px; }
-    .rebel-divider { color: var(--gold); padding: 0 12px; font-style: normal; }
-    @keyframes rebel-marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-
-    /* --- Link Cards Grid --- */
-    .rebel-grid {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 20px; margin-top: 40px;
-    }
-    .rebel-card {
-      display: block; padding: 28px 24px;
-      background: rgba(253, 246, 236, 0.5);
-      backdrop-filter: blur(12px);
-      border: 1.5px solid var(--gold-border);
-      border-radius: 16px;
-      position: relative; text-decoration: none; color: var(--text);
-      transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s;
-    }
-    .rebel-card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 8px 32px rgba(212, 168, 83, 0.15);
-      border-color: var(--gold-light);
-    }
-    .rebel-card h3 {
-      margin: 0; font-family: var(--serif); font-size: 1.6rem;
-      font-weight: 600; color: var(--text);
-    }
-    .rebel-card small {
-      display: block; margin-top: 4px; color: var(--text-muted);
-      font-size: 0.85rem; font-weight: 500;
-    }
-    .rebel-card .arr {
-      position: absolute; top: 20px; right: 20px;
-      width: 32px; height: 32px; border-radius: 50%;
-      border: 1.5px solid var(--gold-border);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 0.9rem; color: var(--text-muted);
-      transition: background 0.2s, color 0.2s;
-    }
-    .rebel-card:hover .arr {
-      background: var(--gold); color: #fff; border-color: var(--gold);
-    }
-
-    /* --- Bottom CTA Band --- */
-    .rebel-band {
-      margin-top: 64px; padding: 48px;
-      background: rgba(253, 246, 236, 0.4);
-      border: 1.5px solid var(--gold-border);
-      border-radius: 20px;
-      display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 32px;
-    }
-    .rebel-say h2 {
-      margin: 0 0 20px; font-family: var(--serif); font-style: italic;
-      font-size: clamp(1.8rem, 3vw, 2.6rem); font-weight: 500; color: var(--text);
-    }
-    .rebel-cta {
-      display: inline-flex; align-items: center; gap: 12px;
-      padding: 14px 32px; border-radius: 50px;
-      background: linear-gradient(135deg, var(--gold), #C9953A);
-      color: #fff; text-decoration: none;
-      font-family: var(--sans); font-weight: 600; font-size: 1rem;
-      box-shadow: 0 4px 16px rgba(212, 168, 83, 0.3);
-      transition: transform 0.2s, box-shadow 0.2s;
-    }
-    .rebel-cta:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 24px rgba(212, 168, 83, 0.45);
-    }
-
-    @keyframes rebel-twinkle {
-      0%, 100% { opacity: 0.4; transform: scale(0.8); }
-      50% { opacity: 1; transform: scale(1.1); }
-    }
-
-    @media (max-width: 900px) {
-      .rebel-hero { grid-template-columns: 1fr; }
-      .rebel-arch-container { margin-top: 40px; justify-self: center; }
-      .rebel-band { flex-direction: column; align-items: flex-start; }
-      .rebel-crown, .rebel-star { display: none; }
-    }
-    @media (max-width: 600px) {
-      .rebel-year { display: none; }
-      .rebel-ribbon { margin: 40px -28px; }
-      .rebel-arch { width: 200px; height: 260px; border-radius: 100px 100px 16px 16px; }
-      .rebel-arch::before { border-radius: 96px 96px 12px 12px; }
-      .rebel-arch-shadow { width: 200px; height: 260px; border-radius: 100px 100px 16px 16px; }
-    }
-  `;
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width - 0.5) * 18;
+    const y = ((e.clientY - rect.top) / rect.height - 0.5) * -18;
+    setTilt({ x, y });
+  };
+  const handleMouseLeave = () => setTilt({ x: 0, y: 0 });
 
   const getLinkSubtitle = (label: string) => {
     const l = label?.toLowerCase() || '';
@@ -981,92 +733,760 @@ function RebellionTemplate({ profile, accentColor }: any) {
     if (l.includes('linkedin')) return 'Connect';
     if (l.includes('discord')) return 'Join';
     if (l.includes('twitch')) return 'Stream';
+    if (l.includes('tiktok')) return 'Watch';
     return 'Visit';
   };
 
+  const getLinkIcon = (label: string) => {
+    const l = label?.toLowerCase() || '';
+    if (l.includes('youtube')) return '▶';
+    if (l.includes('github') || l.includes('gitlab')) return '⌥';
+    if (l.includes('instagram')) return '◈';
+    if (l.includes('twitter') || l.includes('x.com')) return '𝕏';
+    if (l.includes('linkedin')) return 'in';
+    if (l.includes('discord')) return '◎';
+    if (l.includes('hackerrank')) return '{}';
+    return '↗';
+  };
+
+  const customStyles = `
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,700;0,900;1,400;1,700&family=Inter:wght@300;400;500;600;700&family=Cinzel:wght@400;600;700;900&display=swap');
+
+    /* ── RESET & ROOT ── */
+    .reb-wrap *, .reb-wrap *::before, .reb-wrap *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    .reb-wrap a { text-decoration: none; }
+
+    .reb-wrap {
+      --crimson:   ${accent};
+      --crimson-l: color-mix(in srgb, ${accent} 70%, #fff);
+      --gold:      #C9993A;
+      --gold-l:    #E8C97A;
+      --gold-pale: rgba(201, 153, 58, 0.18);
+      --ivory:     #FEFAF3;
+      --parchment: #F8F1E4;
+      --parchment2:#F2E8D6;
+      --blush:     #FAF0EE;
+      --text:      #2C1810;
+      --text-2:    #6B4C3B;
+      --text-3:    #9E7B68;
+      --serif:     'Playfair Display', Georgia, serif;
+      --royal:     'Cinzel', 'Times New Roman', serif;
+      --sans:      'Inter', -apple-system, sans-serif;
+      --radius:    20px;
+      --shadow-gold: 0 8px 40px rgba(201, 153, 58, 0.18);
+      --shadow-crim: 0 8px 40px rgba(200, 16, 46, 0.12);
+
+      font-family: var(--sans);
+      background: radial-gradient(ellipse 120% 80% at 50% 0%, #FFF8EE 0%, #FBF3E3 35%, #F6EAD5 65%, #F0E0C5 100%);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* ── AMBIENT BACKGROUND ORBS ── */
+    .reb-orb {
+      position: fixed; border-radius: 50%; pointer-events: none; z-index: 0;
+      filter: blur(60px); opacity: 0.55;
+    }
+    .reb-orb-1 {
+      width: 500px; height: 500px; top: -100px; right: -100px;
+      background: radial-gradient(circle, rgba(200,16,46,0.12), transparent 70%);
+      animation: reb-drift1 18s ease-in-out infinite;
+    }
+    .reb-orb-2 {
+      width: 600px; height: 600px; bottom: -150px; left: -100px;
+      background: radial-gradient(circle, rgba(201,153,58,0.1), transparent 70%);
+      animation: reb-drift2 22s ease-in-out infinite;
+    }
+    .reb-orb-3 {
+      width: 300px; height: 300px; top: 40%; left: 30%;
+      background: radial-gradient(circle, rgba(255, 220, 180, 0.2), transparent 70%);
+      animation: reb-drift1 14s ease-in-out infinite reverse;
+    }
+    @keyframes reb-drift1 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(30px,-40px) scale(1.05)} }
+    @keyframes reb-drift2 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-20px,30px) scale(1.08)} }
+
+    /* ── MAIN FRAME ── */
+    .reb-frame {
+      max-width: 1280px; margin: 0 auto;
+      padding: clamp(20px, 4vw, 48px);
+      position: relative; z-index: 1;
+    }
+
+    /* ── HEADER ── */
+    .reb-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 64px;
+    }
+    .reb-logo {
+      display: inline-flex; align-items: center; gap: 10px;
+      font-family: var(--royal); font-size: 0.85rem; font-weight: 600;
+      letter-spacing: 3px; text-transform: uppercase;
+      color: var(--gold);
+      padding: 10px 22px; border: 1.5px solid rgba(201,153,58,0.4);
+      border-radius: 50px;
+      background: linear-gradient(135deg, rgba(255,248,235,0.9), rgba(242,232,214,0.9));
+      backdrop-filter: blur(12px);
+      box-shadow: 0 2px 16px rgba(201,153,58,0.12), inset 0 1px 0 rgba(255,255,255,0.6);
+      transition: transform 0.25s, box-shadow 0.25s;
+    }
+    .reb-logo:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(201,153,58,0.2); }
+    .reb-crown-icon {
+      font-size: 1rem; line-height: 1;
+      filter: drop-shadow(0 1px 2px rgba(201,153,58,0.5));
+    }
+    .reb-nav-right {
+      display: flex; align-items: center; gap: 20px;
+    }
+    .reb-tagline {
+      font-family: var(--serif); font-style: italic;
+      font-size: 0.95rem; color: var(--text-3); letter-spacing: 0.3px;
+    }
+    .reb-year {
+      font-family: var(--royal); font-size: 0.72rem; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--text-3);
+      padding: 6px 14px; border: 1px solid rgba(110,70,50,0.15);
+      border-radius: 30px;
+    }
+
+    /* ── HERO ── */
+    .reb-hero {
+      display: grid; grid-template-columns: 1fr 420px;
+      gap: 0; align-items: center; min-height: 480px;
+      margin-bottom: 40px;
+    }
+    .reb-hero-left { padding-right: 40px; }
+
+    /* Eyebrow */
+    .reb-eyebrow {
+      display: inline-flex; align-items: center; gap: 10px;
+      font-family: var(--royal); font-size: 0.72rem;
+      letter-spacing: 4px; text-transform: uppercase;
+      color: var(--crimson); margin-bottom: 24px;
+    }
+    .reb-eyebrow::before, .reb-eyebrow::after {
+      content: ""; display: block; width: 28px; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--crimson));
+    }
+    .reb-eyebrow::after { background: linear-gradient(90deg, var(--crimson), transparent); }
+
+    /* Giant Name */
+    .reb-name {
+      font-family: var(--serif); font-weight: 900;
+      font-size: clamp(4.5rem, 11vw, 9.5rem); line-height: 0.88;
+      letter-spacing: -3px; text-transform: lowercase;
+      background: linear-gradient(145deg, var(--crimson) 0%, #A00020 25%, var(--gold) 55%, #E8C97A 75%, var(--crimson) 100%);
+      background-size: 200% 200%;
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: reb-shimmer-name 6s ease-in-out infinite;
+      position: relative;
+    }
+    @keyframes reb-shimmer-name {
+      0%,100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+
+    /* Role */
+    .reb-role-row {
+      display: flex; align-items: center; gap: 16px; margin: 28px 0 24px;
+    }
+    .reb-role-gem {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--crimson), var(--gold));
+      box-shadow: 0 0 10px rgba(200,16,46,0.35);
+      flex-shrink: 0;
+    }
+    .reb-role {
+      font-family: var(--serif); font-style: italic; font-weight: 500;
+      font-size: clamp(1.3rem, 2.5vw, 1.8rem);
+      color: var(--crimson);
+    }
+    .reb-bio {
+      font-size: 1.05rem; line-height: 1.75; color: var(--text-2);
+      max-width: 440px; font-weight: 400;
+    }
+
+    /* ── HERO RIGHT — 3D TILT CARD ── */
+    .reb-card-3d-wrap {
+      perspective: 900px; cursor: pointer; position: relative;
+    }
+    .reb-card-3d {
+      width: 100%; aspect-ratio: 0.72;
+      border-radius: 28px; position: relative; overflow: visible;
+      transform-style: preserve-3d;
+      transition: transform 0.12s ease-out;
+      will-change: transform;
+    }
+
+    /* Card inner face */
+    .reb-card-face {
+      width: 100%; height: 100%; border-radius: 28px; overflow: hidden;
+      background: linear-gradient(160deg, rgba(255,248,235,0.95) 0%, rgba(242,232,214,0.9) 60%, rgba(248,240,228,0.85) 100%);
+      border: 1.5px solid rgba(201,153,58,0.3);
+      box-shadow: 0 20px 80px rgba(200,16,46,0.1), 0 8px 30px rgba(201,153,58,0.12), inset 0 1px 0 rgba(255,255,255,0.7);
+      backdrop-filter: blur(20px);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 0; padding: 40px 32px;
+      position: relative;
+    }
+
+    /* Shimmer sweep on card */
+    .reb-card-face::before {
+      content: ""; position: absolute; inset: 0; border-radius: 28px;
+      background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.4) 50%, transparent 70%);
+      background-size: 200% 100%; background-position: -100% 0;
+      animation: reb-card-shimmer 4s ease-in-out infinite;
+      pointer-events: none;
+    }
+    @keyframes reb-card-shimmer {
+      0% { background-position: -100% 0; }
+      60%, 100% { background-position: 200% 0; }
+    }
+
+    /* Gold border frame accent */
+    .reb-card-face::after {
+      content: ""; position: absolute; inset: 10px; border-radius: 20px;
+      border: 1px solid rgba(201,153,58,0.2);
+      pointer-events: none;
+    }
+
+    /* Avatar ring */
+    .reb-avatar-ring {
+      width: 140px; height: 140px; border-radius: 50%; position: relative;
+      margin-bottom: 24px; flex-shrink: 0;
+    }
+    .reb-avatar-ring::before {
+      content: ""; position: absolute; inset: -5px; border-radius: 50%;
+      background: conic-gradient(from 0deg, var(--crimson), var(--gold), #fff, var(--crimson));
+      animation: reb-ring-spin 8s linear infinite;
+      z-index: -1;
+    }
+    @keyframes reb-ring-spin { to { transform: rotate(360deg); } }
+    .reb-avatar-ring::after {
+      content: ""; position: absolute; inset: -8px; border-radius: 50%;
+      background: conic-gradient(from 180deg, rgba(200,16,46,0.15), rgba(201,153,58,0.15), transparent, rgba(200,16,46,0.15));
+      animation: reb-ring-spin 12s linear infinite reverse;
+      z-index: -2;
+    }
+    .reb-avatar-img {
+      width: 140px; height: 140px; border-radius: 50%; object-fit: cover;
+      border: 3px solid rgba(255,255,255,0.8);
+      box-shadow: 0 8px 24px rgba(200,16,46,0.15);
+    }
+    .reb-avatar-placeholder {
+      width: 140px; height: 140px; border-radius: 50%;
+      background: linear-gradient(145deg, rgba(200,16,46,0.08) 0%, rgba(201,153,58,0.12) 100%);
+      border: 3px solid rgba(255,255,255,0.8);
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--serif); font-size: 3.5rem; font-weight: 700;
+      background: linear-gradient(135deg, var(--crimson), var(--gold));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+
+    .reb-card-name {
+      font-family: var(--royal); font-size: 1.35rem; font-weight: 700;
+      letter-spacing: 2px; text-transform: uppercase; color: var(--text);
+      text-align: center; margin-bottom: 6px;
+    }
+    .reb-card-title {
+      font-family: var(--serif); font-style: italic;
+      font-size: 1rem; color: var(--crimson); text-align: center;
+      margin-bottom: 24px;
+    }
+
+    /* Floating stat pills on the card */
+    .reb-stat-row {
+      display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;
+    }
+    .reb-stat {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 10px 18px; border-radius: 14px;
+      background: rgba(255,248,235,0.8);
+      border: 1px solid rgba(201,153,58,0.25);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 2px 12px rgba(201,153,58,0.08);
+      min-width: 72px;
+      transition: transform 0.2s;
+    }
+    .reb-stat:hover { transform: translateY(-3px); }
+    .reb-stat strong {
+      font-family: var(--royal); font-size: 1.1rem; font-weight: 700;
+      background: linear-gradient(135deg, var(--crimson), var(--gold));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .reb-stat span {
+      font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px;
+      color: var(--text-3); margin-top: 2px;
+    }
+
+    /* ── 3D FLOATING DECORATIVE ELEMENTS ── */
+    /* These are positioned RELATIVE to the hero section, not the viewport */
+    .reb-deco-container {
+      position: absolute; inset: 0; pointer-events: none; overflow: visible; z-index: 0;
+    }
+    /* Floating diamond gem — top right of hero */
+    .reb-gem {
+      position: absolute; width: 56px; height: 56px;
+      top: -20px; right: 440px;
+      transform-style: preserve-3d;
+      animation: reb-float-gem 7s ease-in-out infinite;
+    }
+    .reb-gem svg { width: 100%; height: 100%; filter: drop-shadow(0 6px 18px rgba(200,16,46,0.25)); }
+    @keyframes reb-float-gem { 0%,100%{transform:translateY(0) rotate(0deg)} 50%{transform:translateY(-20px) rotate(10deg)} }
+
+    /* Floating crown — above hero card */
+    .reb-float-crown {
+      position: absolute; top: -36px; right: 168px;
+      font-size: 2.2rem; line-height: 1;
+      animation: reb-float-crown 6s ease-in-out infinite;
+      filter: drop-shadow(0 4px 12px rgba(201,153,58,0.45));
+    }
+    @keyframes reb-float-crown { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-14px) scale(1.05)} }
+
+    /* Floating sparkle star — left mid */
+    .reb-sparkle {
+      position: absolute;
+      animation: reb-twinkle 2.5s ease-in-out infinite;
+      font-style: normal;
+    }
+    .reb-sparkle-1 { top: 15%; left: 46%; font-size: 1.1rem; color: var(--gold); animation-delay: 0s; }
+    .reb-sparkle-2 { bottom: 18%; left: 48%; font-size: 0.75rem; color: var(--crimson); opacity: 0.6; animation-delay: 1.2s; }
+    @keyframes reb-twinkle { 0%,100%{opacity:0.3; transform:scale(0.7) rotate(0deg)} 50%{opacity:1; transform:scale(1.2) rotate(15deg)} }
+
+    /* Floating orb small — top left corner */
+    .reb-float-orb {
+      position: absolute; border-radius: 50%;
+      background: radial-gradient(circle, var(--gold-pale) 0%, transparent 70%);
+      animation: reb-pulse-orb 5s ease-in-out infinite;
+    }
+    .reb-float-orb-a { width: 80px; height: 80px; top: 5%; left: 2%; animation-delay: 0s; }
+    .reb-float-orb-b { width: 48px; height: 48px; bottom: 12%; right: 36%; animation-delay: 2s; }
+    @keyframes reb-pulse-orb { 0%,100%{transform:scale(1);opacity:0.6} 50%{transform:scale(1.25);opacity:1} }
+
+    /* ── MARQUEE RIBBON ── */
+    .reb-ribbon-wrap {
+      margin: 52px 0; overflow: hidden; position: relative;
+    }
+    .reb-ribbon {
+      padding: 20px 0;
+      background: linear-gradient(90deg,
+        rgba(200,16,46,0.04) 0%,
+        rgba(201,153,58,0.1) 25%,
+        rgba(200,16,46,0.07) 50%,
+        rgba(201,153,58,0.1) 75%,
+        rgba(200,16,46,0.04) 100%);
+      border-top: 1px solid rgba(201,153,58,0.2);
+      border-bottom: 1px solid rgba(201,153,58,0.2);
+      white-space: nowrap; overflow: hidden;
+    }
+    .reb-ribbon-track {
+      display: inline-block;
+      animation: reb-marquee 28s linear infinite;
+      font-family: var(--serif); font-style: italic; font-weight: 500;
+      font-size: clamp(1rem, 1.8vw, 1.35rem); color: var(--text-2);
+    }
+    .reb-ribbon-track span { padding: 0 24px; }
+    .reb-ribbon-sep { color: var(--gold); font-style: normal; opacity: 0.7; }
+    @keyframes reb-marquee { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+
+    /* ── LINK CARDS ── */
+    .reb-section-label {
+      display: flex; align-items: center; gap: 16px; margin-bottom: 28px;
+    }
+    .reb-section-label h2 {
+      font-family: var(--royal); font-size: 0.8rem; letter-spacing: 4px;
+      text-transform: uppercase; color: var(--text-3); font-weight: 400;
+    }
+    .reb-section-label::after {
+      content: ""; flex: 1; height: 1px;
+      background: linear-gradient(90deg, rgba(201,153,58,0.3), transparent);
+    }
+
+    .reb-links-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+      gap: 18px;
+    }
+    .reb-link-card {
+      display: block; position: relative; overflow: hidden;
+      padding: 28px 24px 24px;
+      border-radius: 22px;
+      background: linear-gradient(145deg, rgba(255,252,246,0.95) 0%, rgba(248,240,226,0.9) 100%);
+      border: 1.5px solid rgba(201,153,58,0.2);
+      color: var(--text); text-decoration: none;
+      transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s, border-color 0.3s;
+      box-shadow: 0 4px 20px rgba(201,153,58,0.06);
+    }
+    .reb-link-card::before {
+      /* shimmer sweep */
+      content: ""; position: absolute; inset: 0;
+      background: linear-gradient(110deg, transparent 35%, rgba(255,255,255,0.5) 50%, transparent 65%);
+      background-size: 200% 100%; background-position: -100% 0;
+      transition: background-position 0.6s;
+    }
+    .reb-link-card:hover::before { background-position: 150% 0; }
+    .reb-link-card:hover {
+      transform: translateY(-6px) scale(1.02);
+      box-shadow: 0 16px 48px rgba(200,16,46,0.1), 0 6px 20px rgba(201,153,58,0.12);
+      border-color: rgba(201,153,58,0.45);
+    }
+    /* Colored top accent line */
+    .reb-link-card::after {
+      content: ""; position: absolute; top: 0; left: 20px; right: 20px; height: 2px;
+      background: linear-gradient(90deg, var(--crimson), var(--gold));
+      border-radius: 0 0 4px 4px;
+      opacity: 0; transition: opacity 0.3s;
+    }
+    .reb-link-card:hover::after { opacity: 1; }
+
+    .reb-link-icon-wrap {
+      width: 44px; height: 44px; border-radius: 14px; margin-bottom: 16px;
+      background: linear-gradient(135deg, rgba(200,16,46,0.08), rgba(201,153,58,0.1));
+      border: 1px solid rgba(201,153,58,0.2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem; font-weight: 700; color: var(--crimson);
+      font-family: var(--royal);
+      transition: background 0.3s, transform 0.3s;
+    }
+    .reb-link-card:hover .reb-link-icon-wrap {
+      background: linear-gradient(135deg, var(--crimson), var(--gold));
+      color: #fff; transform: scale(1.1) rotate(-4deg);
+    }
+    .reb-link-title {
+      font-family: var(--serif); font-size: 1.45rem; font-weight: 700;
+      color: var(--text); margin-bottom: 4px; line-height: 1.2;
+    }
+    .reb-link-sub {
+      font-size: 0.82rem; color: var(--text-3); font-weight: 500;
+      text-transform: uppercase; letter-spacing: 1px;
+    }
+    .reb-link-arrow {
+      position: absolute; bottom: 22px; right: 22px;
+      width: 30px; height: 30px; border-radius: 50%;
+      border: 1.5px solid rgba(201,153,58,0.25);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.8rem; color: var(--text-3);
+      transition: all 0.3s;
+    }
+    .reb-link-card:hover .reb-link-arrow {
+      background: linear-gradient(135deg, var(--crimson), var(--gold));
+      border-color: transparent; color: #fff;
+      transform: rotate(45deg);
+    }
+
+    /* ── CTA SECTION ── */
+    .reb-cta-section {
+      margin-top: 64px; padding: 60px;
+      border-radius: 32px; position: relative; overflow: hidden;
+      background: linear-gradient(135deg,
+        rgba(200,16,46,0.06) 0%,
+        rgba(248,240,226,0.8) 30%,
+        rgba(201,153,58,0.08) 60%,
+        rgba(248,240,226,0.9) 100%);
+      border: 1.5px solid rgba(201,153,58,0.25);
+      box-shadow: 0 8px 60px rgba(200,16,46,0.06), inset 0 1px 0 rgba(255,255,255,0.7);
+    }
+    /* Decorative corner crests */
+    .reb-cta-crest {
+      position: absolute; font-size: 5rem; line-height: 1; opacity: 0.04;
+      pointer-events: none; font-family: var(--serif); color: var(--crimson);
+    }
+    .reb-cta-crest-tl { top: -10px; left: 20px; }
+    .reb-cta-crest-br { bottom: -10px; right: 20px; transform: rotate(180deg); }
+
+    .reb-cta-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 32px; position: relative; z-index: 1;
+    }
+    .reb-cta-left h2 {
+      font-family: var(--serif); font-weight: 900; font-style: italic;
+      font-size: clamp(2rem, 4vw, 3.2rem); line-height: 1.1;
+      background: linear-gradient(135deg, var(--crimson), var(--gold));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      margin-bottom: 12px;
+    }
+    .reb-cta-left p {
+      color: var(--text-2); font-size: 1rem; max-width: 380px;
+    }
+    .reb-cta-btn {
+      display: inline-flex; align-items: center; gap: 14px;
+      padding: 18px 40px; border-radius: 50px;
+      background: linear-gradient(135deg, var(--crimson) 0%, #A00020 50%, #8A001A 100%);
+      color: #fff; font-family: var(--royal); font-weight: 600;
+      font-size: 0.9rem; letter-spacing: 2px; text-transform: uppercase;
+      box-shadow: 0 8px 32px rgba(200,16,46,0.3), 0 2px 8px rgba(200,16,46,0.2), inset 0 1px 0 rgba(255,255,255,0.15);
+      transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s;
+      position: relative; overflow: hidden;
+    }
+    .reb-cta-btn::before {
+      content: ""; position: absolute; inset: 0;
+      background: linear-gradient(110deg, transparent 40%, rgba(255,255,255,0.15) 50%, transparent 60%);
+      background-size: 200% 100%; background-position: -100% 0;
+      transition: background-position 0.5s;
+    }
+    .reb-cta-btn:hover::before { background-position: 150% 0; }
+    .reb-cta-btn:hover {
+      transform: translateY(-4px) scale(1.03);
+      box-shadow: 0 16px 48px rgba(200,16,46,0.38), 0 4px 16px rgba(200,16,46,0.2);
+    }
+    .reb-cta-btn-icon { font-size: 1.1rem; transition: transform 0.3s; }
+    .reb-cta-btn:hover .reb-cta-btn-icon { transform: translateX(4px); }
+
+    /* Gold secondary button */
+    .reb-cta-btn-sec {
+      display: inline-flex; align-items: center; gap: 12px;
+      padding: 18px 36px; border-radius: 50px;
+      background: transparent; color: var(--gold);
+      font-family: var(--royal); font-weight: 600; font-size: 0.9rem;
+      letter-spacing: 2px; text-transform: uppercase;
+      border: 1.5px solid rgba(201,153,58,0.45);
+      transition: all 0.3s;
+    }
+    .reb-cta-btn-sec:hover {
+      background: rgba(201,153,58,0.08);
+      border-color: var(--gold); transform: translateY(-3px);
+    }
+    .reb-cta-buttons { display: flex; flex-wrap: wrap; gap: 14px; }
+
+    /* ── FOOTER LINE ── */
+    .reb-footer {
+      margin-top: 48px; padding-top: 24px;
+      border-top: 1px solid rgba(201,153,58,0.2);
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 16px;
+    }
+    .reb-footer-brand {
+      font-family: var(--royal); font-size: 0.72rem; letter-spacing: 3px;
+      text-transform: uppercase; color: var(--text-3);
+    }
+    .reb-footer-dots {
+      display: flex; gap: 8px; align-items: center;
+    }
+    .reb-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--crimson), var(--gold));
+      animation: reb-dot-pulse 2.5s ease-in-out infinite;
+    }
+    .reb-dot:nth-child(2) { animation-delay: 0.4s; opacity: 0.6; }
+    .reb-dot:nth-child(3) { animation-delay: 0.8s; opacity: 0.35; }
+    @keyframes reb-dot-pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.5)} }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 1024px) {
+      .reb-hero { grid-template-columns: 1fr; }
+      .reb-hero-left { padding-right: 0; margin-bottom: 48px; }
+      .reb-card-3d-wrap { max-width: 380px; margin: 0 auto; }
+      .reb-gem, .reb-float-crown, .reb-sparkle, .reb-float-orb { display: none; }
+    }
+    @media (max-width: 640px) {
+      .reb-nav-right { gap: 10px; }
+      .reb-year { display: none; }
+      .reb-cta-section { padding: 36px 24px; }
+      .reb-cta-inner { flex-direction: column; align-items: flex-start; }
+      .reb-stat-row { gap: 8px; }
+    }
+  `;
+
   return (
-    <div className="rebel-theme">
+    <div className="reb-wrap">
       <style dangerouslySetInnerHTML={{ __html: customStyles }} />
-      <div className="rebel-frame">
-        <div className="rebel-in">
-          {/* --- Header --- */}
-          <header className="rebel-bar">
-            <a className="rebel-badge" href="#top">
-              <svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="currentColor"><path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z"/></svg>
-              The Rebellion
-            </a>
-            <span className="rebel-tagline">We challenge the industry.</span>
-            <span className="rebel-year">Profile 2026</span>
-          </header>
 
-          <main id="top">
-            {/* --- Hero --- */}
-            <section className="rebel-hero">
-              <div>
-                <h1 className="rebel-name">{profile.name}</h1>
-                <div className="rebel-role-wrap">
-                  <span className="rebel-role-line" />
-                  <span className="rebel-role">{profile.headline}</span>
+      {/* Ambient background orbs */}
+      <div className="reb-orb reb-orb-1" />
+      <div className="reb-orb reb-orb-2" />
+      <div className="reb-orb reb-orb-3" />
+
+      <div className="reb-frame">
+
+        {/* ── HEADER ── */}
+        <header className="reb-header">
+          <a className="reb-logo" href="#top">
+            <span className="reb-crown-icon">♛</span>
+            The Rebellion
+          </a>
+          <div className="reb-nav-right">
+            <span className="reb-tagline">We challenge the industry.</span>
+            <span className="reb-year">Est. 2026</span>
+          </div>
+        </header>
+
+        {/* ── HERO ── */}
+        <section
+          id="top"
+          className="reb-hero"
+          style={{ position: 'relative' }}
+        >
+          {/* Decorative floating elements — absolutely positioned within hero */}
+          <div className="reb-deco-container" aria-hidden="true">
+            {/* Floating diamond gem */}
+            <div className="reb-gem">
+              <svg viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <polygon points="28,4 52,20 52,36 28,52 4,36 4,20" fill="none" stroke="url(#gem-grad)" strokeWidth="1.5"/>
+                <polygon points="28,4 52,20 28,28" fill="rgba(200,16,46,0.08)"/>
+                <polygon points="28,28 52,20 52,36" fill="rgba(201,153,58,0.1)"/>
+                <polygon points="28,28 52,36 28,52" fill="rgba(200,16,46,0.07)"/>
+                <polygon points="28,28 4,36 28,52" fill="rgba(201,153,58,0.08)"/>
+                <polygon points="28,4 4,20 28,28" fill="rgba(201,153,58,0.12)"/>
+                <polygon points="28,28 4,20 4,36" fill="rgba(200,16,46,0.06)"/>
+                <defs>
+                  <linearGradient id="gem-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#C8102E" stopOpacity="0.8"/>
+                    <stop offset="100%" stopColor="#C9993A" stopOpacity="0.8"/>
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
+            {/* Floating crown above arch */}
+            <div className="reb-float-crown">♛</div>
+            {/* Sparkle stars */}
+            <span className="reb-sparkle reb-sparkle-1">✦</span>
+            <span className="reb-sparkle reb-sparkle-2">✦</span>
+            {/* Ambient orbs */}
+            <div className="reb-float-orb reb-float-orb-a" />
+            <div className="reb-float-orb reb-float-orb-b" />
+          </div>
+
+          {/* LEFT — Text content */}
+          <div className="reb-hero-left">
+            <div className="reb-eyebrow">Disruptive · Royal · Rebellion</div>
+            <h1 className="reb-name">{profile.name}</h1>
+            <div className="reb-role-row">
+              <div className="reb-role-gem" />
+              <span className="reb-role">{profile.headline}</span>
+            </div>
+            <p className="reb-bio">{profile.bio}</p>
+          </div>
+
+          {/* RIGHT — 3D Tilt Card */}
+          <div
+            className="reb-card-3d-wrap"
+            onMouseMove={handleMouseMove}
+            onMouseLeave={handleMouseLeave}
+            ref={cardRef}
+          >
+            <div
+              className="reb-card-3d"
+              style={{ transform: `perspective(900px) rotateX(${tilt.y}deg) rotateY(${tilt.x}deg)` }}
+            >
+              <div className="reb-card-face">
+                {/* Avatar */}
+                <div className="reb-avatar-ring">
+                  {profile.avatarUrl ? (
+                    <img className="reb-avatar-img" src={profile.avatarUrl} alt={profile.name} />
+                  ) : (
+                    <div className="reb-avatar-placeholder">{profile.name?.[0] || 'R'}</div>
+                  )}
                 </div>
-                <p className="rebel-bio">{profile.bio}</p>
-              </div>
 
-              <div className="rebel-arch-container">
-                <div className="rebel-mini-arch" />
-                <div className="rebel-arch">
-                  <span className="rebel-arch-initial">{profile.name?.[0] || 'U'}</span>
+                <div className="reb-card-name">{profile.name}</div>
+                <div className="reb-card-title">{profile.headline}</div>
+
+                {/* Stat bubbles */}
+                <div className="reb-stat-row">
+                  <div className="reb-stat">
+                    <strong>120M</strong>
+                    <span>Reach</span>
+                  </div>
+                  <div className="reb-stat">
+                    <strong>2026</strong>
+                    <span>Founded</span>
+                  </div>
+                  <div className="reb-stat">
+                    <strong>✦ 1</strong>
+                    <span>Ranked</span>
+                  </div>
                 </div>
-                <div className="rebel-arch-shadow" />
-              </div>
-
-              {/* Decorative elements */}
-              <span className="rebel-star">✦</span>
-              <div className="rebel-crown">
-                <svg viewBox="0 0 40 32" xmlns="http://www.w3.org/2000/svg"><path d="M4 28h32v3H4zm0-2l4-16 8 8 4-14 4 14 8-8 4 16z"/></svg>
-              </div>
-            </section>
-
-            {/* --- Marquee Ribbon --- */}
-            <div className="rebel-ribbon">
-              <div className="rebel-track">
-                <span>Rebel against the ordinary</span><span className="rebel-divider">✦</span>
-                <span>Elegance is the rebellion</span><span className="rebel-divider">✦</span>
-                <span>We challenge the industry</span><span className="rebel-divider">✦</span>
-                <span>Rebel against the ordinary</span><span className="rebel-divider">✦</span>
-                <span>Elegance is the rebellion</span><span className="rebel-divider">✦</span>
-                <span>We challenge the industry</span><span className="rebel-divider">✦</span>
-                <span>Rebel against the ordinary</span><span className="rebel-divider">✦</span>
-                <span>Elegance is the rebellion</span><span className="rebel-divider">✦</span>
-                <span>We challenge the industry</span><span className="rebel-divider">✦</span>
               </div>
             </div>
+          </div>
+        </section>
 
-            {/* --- Link Cards --- */}
-            <nav className="rebel-grid">
-              {profile.links?.map((link: any, i: number) => (
-                <a key={i} className="rebel-card" href={link.url} target="_blank" rel="noopener noreferrer">
-                  <span className="arr">↗</span>
-                  <h3>{link.label || link.platform}</h3>
-                  <small>{getLinkSubtitle(link.label || link.platform)}</small>
-                </a>
-              ))}
-            </nav>
-
-            {/* --- Bottom CTA --- */}
-            <section className="rebel-band">
-              <div className="rebel-say">
-                <h2>Let's start something extraordinary.</h2>
-                <a className="rebel-cta" href={profile.email ? `mailto:${profile.email}` : '#'}>
-                  Work with {profile.name} <span>→</span>
-                </a>
-              </div>
-            </section>
-          </main>
+        {/* ── MARQUEE RIBBON ── */}
+        <div className="reb-ribbon-wrap">
+          <div className="reb-ribbon">
+            <div className="reb-ribbon-track">
+              <span>Rebel against the ordinary</span><span className="reb-ribbon-sep"> ✦ </span>
+              <span>Elegance is the rebellion</span><span className="reb-ribbon-sep"> ✦ </span>
+              <span>We challenge the industry</span><span className="reb-ribbon-sep"> ✦ </span>
+              <span>Born to disrupt</span><span className="reb-ribbon-sep"> ✦ </span>
+              <span>Royal by nature</span><span className="reb-ribbon-sep"> ✦ </span>
+              <span>Rebel against the ordinary</span><span className="reb-ribbon-sep"> ✦ </span>
+              <span>Elegance is the rebellion</span><span className="reb-ribbon-sep"> ✦ </span>
+              <span>We challenge the industry</span><span className="reb-ribbon-sep"> ✦ </span>
+              <span>Born to disrupt</span><span className="reb-ribbon-sep"> ✦ </span>
+              <span>Royal by nature</span><span className="reb-ribbon-sep"> ✦ </span>
+            </div>
+          </div>
         </div>
+
+        {/* ── LINKS ── */}
+        <div className="reb-section-label">
+          <h2>Connect &amp; Explore</h2>
+        </div>
+
+        <nav className="reb-links-grid">
+          {profile.links?.map((link: any, i: number) => (
+            <a
+              key={i}
+              className="reb-link-card"
+              href={link.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onMouseEnter={() => setHovered(i)}
+              onMouseLeave={() => setHovered(null)}
+            >
+              <div className="reb-link-icon-wrap">
+                {getLinkIcon(link.label || link.platform)}
+              </div>
+              <div className="reb-link-title">{link.label || link.platform}</div>
+              <div className="reb-link-sub">{getLinkSubtitle(link.label || link.platform)}</div>
+              <div className="reb-link-arrow">↗</div>
+            </a>
+          ))}
+        </nav>
+
+        {/* ── CTA SECTION ── */}
+        <section className="reb-cta-section">
+          <span className="reb-cta-crest reb-cta-crest-tl">♛</span>
+          <span className="reb-cta-crest reb-cta-crest-br">♛</span>
+          <div className="reb-cta-inner">
+            <div className="reb-cta-left">
+              <h2>Start Something Extraordinary.</h2>
+              <p>Join the rebellion — challenge convention, redefine the rules, and build something that matters.</p>
+            </div>
+            <div className="reb-cta-buttons">
+              <a
+                className="reb-cta-btn"
+                href={profile.email ? `mailto:${profile.email}` : '#'}
+              >
+                Work with {profile.name?.split(' ')[0] || 'Us'}
+                <span className="reb-cta-btn-icon">→</span>
+              </a>
+              {profile.links?.[0] && (
+                <a className="reb-cta-btn-sec" href={profile.links[0].url} target="_blank" rel="noopener noreferrer">
+                  ♛ &nbsp;Follow
+                </a>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* ── FOOTER ── */}
+        <footer className="reb-footer">
+          <span className="reb-footer-brand">The Rebellion · {profile.name} · 2026</span>
+          <div className="reb-footer-dots">
+            <div className="reb-dot" />
+            <div className="reb-dot" />
+            <div className="reb-dot" />
+          </div>
+        </footer>
+
       </div>
     </div>
   );
 }
+
 
 function VisionTemplate({ profile, accentColor }: any) {
   const accent = accentColor || '#00F0FF';
