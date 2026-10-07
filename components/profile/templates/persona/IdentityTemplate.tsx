@@ -710,29 +710,218 @@ function EnergyTemplate({ profile, accentColor }: any) {
 // --- 02 STARTUP --- //
 
 function RebellionTemplate({ profile, accentColor }: any) {
-  const accent = accentColor || '#FF3366';
+  const accent = accentColor || '#ff2a4d';
+  const acid = '#ccff00';
+
+  const customStyles = `
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Syne:wght@600;800&display=swap');
+
+    .rebel-theme {
+      --bg: #09090b;
+      --fg: #fafafa;
+      --rebel: ${accent};
+      --acid: ${acid};
+      --ink: #18181b;
+      --display: 'Syne', sans-serif;
+      --body: 'Space Grotesk', sans-serif;
+      font-family: var(--body);
+      background-color: var(--bg);
+      background-image: radial-gradient(circle at 15% 50%, rgba(255,42,77,0.1), transparent 30%), 
+                        radial-gradient(circle at 85% 30%, rgba(204,255,0,0.05), transparent 30%);
+      color: var(--fg);
+      min-height: 100vh;
+      overflow-x: hidden;
+      padding: clamp(14px, 4vw, 40px);
+    }
+    
+    .rebel-frame {
+      max-width: 1180px; margin: 0 auto;
+      border: 4px solid var(--fg);
+      background: var(--bg);
+      position: relative;
+      overflow: hidden;
+      box-shadow: 16px 16px 0 var(--rebel);
+    }
+
+    .rebel-frame::before {
+      content: ""; position: absolute; inset: 0;
+      background-image: linear-gradient(rgba(250,250,250,0.1) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(250,250,250,0.1) 1px, transparent 1px);
+      background-size: 40px 40px; opacity: 0.5; pointer-events: none; z-index: 0;
+    }
+
+    .rebel-in { position: relative; z-index: 2; padding: clamp(24px, 5vw, 48px); }
+
+    .rebel-bar {
+      display: flex; justify-content: space-between; align-items: center;
+      border-bottom: 2px solid var(--fg); padding-bottom: 24px; margin-bottom: 48px;
+      text-transform: uppercase; font-family: var(--display); font-weight: 800;
+    }
+    .rebel-badge {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: var(--rebel); color: #fff;
+      padding: 8px 16px; border: 2px solid var(--fg);
+      box-shadow: 4px 4px 0 var(--fg);
+      transform: rotate(-3deg);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .rebel-badge:hover { transform: translate(2px, 2px) rotate(0deg); box-shadow: 2px 2px 0 var(--fg); }
+    .rebel-tag { color: var(--acid); letter-spacing: 1px; text-transform: uppercase; font-family: var(--display); font-weight: 800; }
+
+    .rebel-hero { display: grid; grid-template-columns: 1fr auto; gap: 40px; align-items: center; }
+    .rebel-name {
+      margin: 0; font-family: var(--display); font-size: clamp(4rem, 15vw, 11rem);
+      line-height: 0.85; text-transform: uppercase; color: transparent;
+      -webkit-text-stroke: 2px var(--fg); position: relative;
+    }
+    .rebel-name::after {
+      content: attr(data-text); position: absolute; left: 8px; top: 8px;
+      color: var(--rebel); -webkit-text-stroke: 0; z-index: -1; mix-blend-mode: screen;
+    }
+    .rebel-role {
+      display: inline-block; margin: 24px 0; padding: 6px 16px;
+      background: var(--acid); color: var(--ink);
+      font-family: var(--display); font-weight: 800; font-size: clamp(1.2rem, 3vw, 2rem);
+      text-transform: uppercase; transform: skewX(-12deg);
+    }
+    .rebel-bio {
+      max-width: 45ch; font-size: clamp(1.1rem, 1.6vw, 1.35rem);
+      border-left: 4px solid var(--rebel); padding-left: 16px;
+    }
+
+    .rebel-stage {
+      width: min(100%, 280px); aspect-ratio: 1;
+      border: 4px solid var(--fg);
+      background: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(250,250,250,0.05) 10px, rgba(250,250,250,0.05) 20px);
+      box-shadow: -12px 12px 0 var(--acid);
+      display: grid; place-items: center; position: relative;
+    }
+    .rebel-stage b {
+      font-family: var(--display); font-size: clamp(6rem, 10vw, 9rem);
+      color: var(--fg); line-height: 1; text-transform: uppercase; mix-blend-mode: difference;
+    }
+    .rebel-stage::after {
+      content: ""; position: absolute; inset: -4px;
+      border: 4px solid var(--rebel); transform: translate(20px, -20px); z-index: -1;
+    }
+
+    .rebel-ribbon {
+      margin: 80px -10%; background: var(--fg); color: var(--bg);
+      padding: 16px 0; transform: rotate(3deg); border-block: 4px solid var(--rebel);
+      overflow: hidden; white-space: nowrap;
+      font-family: var(--display); font-weight: 800; font-size: clamp(1.2rem, 2vw, 1.8rem); text-transform: uppercase;
+    }
+    .rebel-track { display: inline-block; animation: rebel-marquee 12s linear infinite; }
+    .rebel-track span { padding: 0 24px; }
+    .rebel-track span::after { content: " ✖ "; color: var(--rebel); padding-left: 24px; }
+    @keyframes rebel-marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+
+    .rebel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; margin-top: 60px; }
+    .rebel-card {
+      display: block; border: 3px solid var(--fg); padding: 32px 24px; background: var(--bg);
+      position: relative; transition: transform 0.2s; text-decoration: none;
+    }
+    .rebel-card::before {
+      content: ""; position: absolute; inset: 0; background: var(--rebel); z-index: -1;
+      transform: translate(8px, 8px); transition: transform 0.2s;
+    }
+    .rebel-card:hover { transform: translate(4px, 4px); }
+    .rebel-card:hover::before { transform: translate(0, 0); }
+    .rebel-card h3 { margin: 0; font-family: var(--display); font-size: 2rem; text-transform: uppercase; color: var(--fg); }
+    .rebel-card small { display: block; margin-top: 8px; color: #a1a1aa; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+    .rebel-card .arr { position: absolute; top: 24px; right: 24px; font-size: 1.8rem; color: var(--acid); font-weight: bold; }
+
+    .rebel-band {
+      margin-top: 80px; padding: 48px; border: 4px solid var(--fg); background: var(--bg);
+      display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 40px;
+      box-shadow: 12px 12px 0 var(--acid);
+    }
+    .rebel-num { margin: 0; font-family: var(--display); font-size: clamp(4rem, 8vw, 6.5rem); line-height: 0.9; }
+    .rebel-num em { color: var(--rebel); font-style: normal; }
+    .rebel-num small { display: block; font-family: var(--body); font-size: 1.2rem; color: #a1a1aa; text-transform: uppercase; font-weight: 600; margin-top: 8px; }
+
+    .rebel-say h2 { margin: 0 0 24px; font-family: var(--display); font-size: clamp(2rem, 4vw, 3rem); text-transform: uppercase; line-height: 1.1; }
+    .rebel-cta {
+      display: inline-flex; align-items: center; gap: 16px; padding: 16px 32px; background: var(--fg); color: var(--bg); text-decoration: none;
+      font-family: var(--display); font-weight: 800; font-size: 1.2rem; text-transform: uppercase; border: 2px solid var(--fg); transition: all 0.3s;
+    }
+    .rebel-cta:hover { background: var(--rebel); color: var(--fg); box-shadow: 8px 8px 0 var(--acid); transform: translate(-4px, -4px); }
+
+    .rebel-fl { position: absolute; pointer-events: none; z-index: 1; }
+    .rebel-shape-1 { width: 120px; height: 120px; border: 6px solid var(--acid); border-radius: 50%; top: 12%; right: 8%; animation: rebel-float 6s ease-in-out infinite; }
+    .rebel-shape-2 { width: 90px; height: 90px; background: var(--rebel); top: 65%; left: -2%; transform: rotate(45deg); mix-blend-mode: difference; animation: rebel-float 8s ease-in-out infinite reverse; }
+    .rebel-shape-3 { font-size: 6rem; color: var(--fg); opacity: 0.1; top: 35%; right: 25%; animation: rebel-spin 15s linear infinite; }
+
+    @keyframes rebel-float { 50% { transform: translateY(-25px); } }
+    @keyframes rebel-spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 900px) {
+      .rebel-hero { grid-template-columns: 1fr; }
+      .rebel-stage { margin-top: 40px; justify-self: center; }
+      .rebel-band { flex-direction: column; align-items: flex-start; }
+    }
+    @media (max-width: 600px) {
+      .rebel-tag { display: none; }
+      .rebel-ribbon { margin: 60px -10%; }
+    }
+  `;
+
   return (
-    <div className="min-h-screen w-full bg-[#EAEAEA] text-black p-8 md:p-16 flex flex-col items-center justify-center font-mono">
-      <div className="max-w-3xl w-full rotate-[-1deg]">
-        <div className="border-[6px] border-black bg-white p-8 md:p-12 shadow-[12px_12px_0_0_rgba(0,0,0,1)] relative">
-          <div className="absolute -top-6 -right-6 w-16 h-16 rounded-full border-4 border-black flex items-center justify-center animate-spin-slow" style={{ backgroundColor: accent }}>
-             <span className="text-3xl">★</span>
-          </div>
-          <h1 className="text-5xl md:text-7xl font-black uppercase tracking-tighter leading-none mb-6">{profile.name}</h1>
-          <div className="inline-block px-4 py-2 text-white font-bold text-xl mb-8 border-2 border-black" style={{ backgroundColor: accent }}>
-            {profile.headline}
-          </div>
-          <p className="text-lg md:text-xl font-semibold leading-snug mb-12 border-l-4 border-black pl-4">
-            {profile.bio}
-          </p>
-          <div className="grid gap-4">
-            {profile.links?.map((link: any, i: number) => (
-              <a key={i} href={link.url} className="block w-full p-4 border-4 border-black bg-[#EAEAEA] hover:bg-black hover:text-white font-bold uppercase transition-colors flex justify-between shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1">
-                <span>{link.label}</span>
-                <span>⟶</span>
-              </a>
-            ))}
-          </div>
+    <div className="rebel-theme">
+      <style dangerouslySetInnerHTML={{ __html: customStyles }} />
+      <div className="rebel-frame">
+        <div className="rebel-fl rebel-shape-1" />
+        <div className="rebel-fl rebel-shape-2" />
+        <div className="rebel-fl rebel-shape-3">✖</div>
+
+        <div className="rebel-in">
+          <header className="rebel-bar">
+            <a className="rebel-badge" href="#top">
+              <svg viewBox="0 0 24 24" aria-hidden="true" width="20" height="20" fill="currentColor"><path d="M12 2L2 22h20L12 2zm0 4.5l6.5 13h-13L12 6.5z"/></svg>
+              The Rebellion
+            </a>
+            <span className="rebel-tag">Rule Breakers</span>
+          </header>
+
+          <main id="top">
+            <section className="rebel-hero">
+              <div>
+                <h1 className="rebel-name" data-text={profile.name}>{profile.name}</h1>
+                <div className="rebel-role">{profile.headline}</div>
+                <p className="rebel-bio">{profile.bio}</p>
+              </div>
+              <div className="rebel-stage">
+                <b>{profile.name?.[0] || 'U'}</b>
+              </div>
+            </section>
+
+            <div className="rebel-ribbon">
+              <div className="rebel-track">
+                <span>We challenge the industry</span><span>High contrast</span><span>Unexpected typography</span>
+                <span>We challenge the industry</span><span>High contrast</span><span>Unexpected typography</span>
+                <span>We challenge the industry</span><span>High contrast</span><span>Unexpected typography</span>
+                <span>We challenge the industry</span><span>High contrast</span><span>Unexpected typography</span>
+              </div>
+            </div>
+
+            <nav className="rebel-grid">
+              {profile.links?.map((link: any, i: number) => (
+                <a key={i} className="rebel-card" href={link.url} target="_blank" rel="noopener noreferrer">
+                  <span className="arr">↗</span>
+                  <h3>{link.label || link.platform}</h3>
+                  <small>Follow</small>
+                </a>
+              ))}
+            </nav>
+
+            <section className="rebel-band">
+              <p className="rebel-num">120<em>M</em><small>followers</small></p>
+              <div className="rebel-say">
+                <h2>Start a revolution.</h2>
+                <a className="rebel-cta" href="#">Work with {profile.name} <span>↗</span></a>
+              </div>
+            </section>
+          </main>
         </div>
       </div>
     </div>
