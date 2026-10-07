@@ -2148,13 +2148,6 @@ function AestheteTemplate({ profile }: any) {
             <span className="font-inter text-[10px] tracking-[0.3em] uppercase opacity-80">Portfolio</span>
             <span className="w-8 h-px bg-[#F3F1ED] mt-2 opacity-50" />
           </div>
-
-          <div className="hidden md:block absolute bottom-8 left-8 mix-blend-difference z-10 pointer-events-none">
-            <h1 className="font-bodoni text-7xl lg:text-9xl text-[#F3F1ED] leading-[0.8] tracking-tighter uppercase">
-              {firstName} <br />
-              <span className="italic normal-case ml-8 text-[#F3F1ED]/90">{lastName}</span>
-            </h1>
-          </div>
         </div>
 
         {/* Right Column: Content */}
@@ -2170,8 +2163,8 @@ function AestheteTemplate({ profile }: any) {
 
           <div className="flex-1 overflow-y-auto no-scrollbar p-8 md:p-10 lg:p-14 flex flex-col">
             
-            <div className="md:hidden mb-8">
-              <h1 className="font-bodoni text-5xl text-[#232322] leading-[0.9] tracking-tight uppercase">
+            <div className="mb-8">
+              <h1 className="font-bodoni text-5xl lg:text-7xl text-[#232322] leading-[0.9] tracking-tight uppercase">
                 {firstName} <br />
                 <span className="italic normal-case text-[#8A8275]">{lastName}</span>
               </h1>
