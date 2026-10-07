@@ -1675,7 +1675,7 @@ function VisionaryTemplate({ profile, onLinkClick }: any) {
   const question = (profile as any)?.question || "What do you build when the future has not been named yet?";
   const positioning = (profile as any)?.positioning || "I work at the intersection of emerging technology, product thinking, and human behavior — turning uncertain possibilities into useful experiences.";
 
-  const metrics = profile?.proofs || profile?.proofPoints || [
+  const metrics = profile?.metrics || profile?.proofs || profile?.proofPoints || [
     { value: "12+", label: "EXPERIMENTS SHIPPED", description: "BUILD / LAST 3 YEARS" },
     { value: "48K", label: "PEOPLE REACHED", description: "REACH / ACROSS PROJECTS" },
     { value: "07", label: "PRODUCTS & PROTOTYPES", description: "SIGNAL / SELECTED WORK" }
@@ -1923,7 +1923,7 @@ function VisionaryTemplate({ profile, onLinkClick }: any) {
                 const theme = colors[idx % 3];
                 
                 return (
-                  <div key={idx} className={`relative p-6 sm:p-8 rounded-tr-3xl rounded-bl-3xl border ${theme.border} ${theme.bg} transition-all duration-300 md:hover:-translate-y-1 hover:shadow-md group overflow-hidden flex flex-col justify-center`}>
+                  <div key={idx} className={`relative p-6 sm:p-8 rounded-tr-3xl rounded-bl-3xl border ${theme.border} ${theme.bg} transition-all duration-300 md:hover:-translate-y-1 hover:shadow-md group overflow-hidden flex flex-col justify-start`}>
                     <span className={`absolute top-6 right-6 text-[8px] font-bold ${theme.accent} z-0`}>0{idx + 1}</span>
                     
                     {idx === 0 && (
@@ -1932,19 +1932,19 @@ function VisionaryTemplate({ profile, onLinkClick }: any) {
                       </div>
                     )}
                     
-                    <div className="relative z-10 flex flex-col">
-                      <span className="visionary-serif text-5xl sm:text-6xl text-[#2C2825] mb-2 group-hover:scale-105 transition-transform origin-left block">
+                    <div className="relative z-10 flex flex-col justify-start mt-4">
+                      <div className="visionary-serif text-5xl sm:text-6xl text-[#2C2825] mb-2 group-hover:scale-105 transition-transform origin-left">
                         {metric.value}
-                      </span>
+                      </div>
                       
-                      <span className="text-[10px] tracking-[0.15em] font-bold uppercase text-[#2C2825] block">
-                        {metric.label}
-                      </span>
+                      <div className="text-[10px] sm:text-[11px] tracking-[0.15em] font-bold uppercase text-[#2C2825] mt-1">
+                        {metric.label || metric.title || metric.name || ''}
+                      </div>
                       
                       {metric.description && (
-                        <span className="text-[8px] tracking-[0.1em] text-[#8B958A] uppercase opacity-80 block mt-1">
+                        <div className="text-[8px] tracking-[0.1em] text-[#8B958A] uppercase opacity-80 mt-1">
                           {metric.description}
-                        </span>
+                        </div>
                       )}
                     </div>
                     
