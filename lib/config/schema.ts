@@ -94,6 +94,22 @@ const configSchema = z.object({
   ENABLE_HSTS: z.coerce.boolean().default(true),
   CSP_REPORT_URI: z.string().url().optional(),
   ALLOWED_ORIGINS: z.string().optional().default(''),
+
+  // -------------------------------------------------------------------
+  // Cloudflare R2 Storage (replaces Supabase Storage)
+  // Get these from Cloudflare Dashboard → R2 → Manage R2 API Tokens
+  // -------------------------------------------------------------------
+  CF_R2_ACCOUNT_ID: z.string().optional(),
+  CF_R2_ACCESS_KEY_ID: z.string().optional(),
+  CF_R2_SECRET_ACCESS_KEY: z.string().optional(),
+  // Default bucket name (used for both post-media and avatars unless overridden)
+  CF_R2_BUCKET_NAME: z.string().optional(),
+  // Per-bucket overrides (optional)
+  CF_R2_MEDIA_BUCKET_NAME: z.string().optional(),
+  CF_R2_AVATARS_BUCKET_NAME: z.string().optional(),
+  // Public CDN base URLs for R2 (each bucket has a unique URL)
+  CF_R2_MEDIA_PUBLIC_URL: z.string().url().optional(),
+  CF_R2_AVATARS_PUBLIC_URL: z.string().url().optional(),
 });
 
 export type Config = z.infer<typeof configSchema>;

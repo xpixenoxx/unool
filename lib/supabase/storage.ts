@@ -1,27 +1,26 @@
-import { getSupabaseBrowserClient } from './browser';
+/**
+ * lib/supabase/storage.ts
+ *
+ * Re-exported as a thin wrapper around R2 so any existing imports of
+ * `uploadMediaFile` from this module continue to work without changes.
+ */
 
-export async function uploadMediaFile(file: File, path: string): Promise<{ url: string; path: string }> {
-  const supabase = getSupabaseBrowserClient();
-  
-  // Upload to Supabase Storage (post-media bucket)
-  const { data, error } = await supabase.storage
-    .from('post-media')
-    .upload(path, file, {
-      cacheControl: '3600',
-      upsert: false,
-    });
+import { uploadToR2, buildR2Key } from '@/lib/storage/r2';
 
-  if (error) {
-    throw new Error(`Failed to upload media: ${error.message}`);
-  }
+export async function uploadMediaFile(
+  file: File,
+  _path: string
+): Promise<{ url: string; path: string }> {
+  const key = buildR2Key('uploads', file.name);
+  const arrayBuffer = await file.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
 
-  // Get public URL
-  const { data: publicUrlData } = supabase.storage
-    .from('post-media')
-    .getPublicUrl(data.path);
+  const { url, key: uploadedKey } = await uploadToR2({
+    bucket: 'post-media',
+    key,
+    body: buffer,
+    contentType: file.type,
+  });
 
-  return {
-    url: publicUrlData.publicUrl,
-    path: data.path,
-  };
+  return { url, path: uploadedKey };
 }

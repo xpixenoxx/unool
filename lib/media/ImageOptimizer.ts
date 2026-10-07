@@ -1,11 +1,9 @@
 import sharp from 'sharp';
-import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import type { Platform } from '@/lib/repositories/interfaces/IPostRepository';
 import type { PostMedia } from '@/lib/repositories/interfaces/IPostRepository';
 import { logger } from '@/lib/logger';
-
-const adminSupabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+import { uploadToR2 } from '@/lib/storage/r2';
 
 interface AspectRatioConstraint {
   targetRatio: number;
@@ -21,7 +19,7 @@ export async function optimizeMediaForPlatform(
   platform: Platform
 ): Promise<PostMedia[]> {
   const constraint = PLATFORM_CONSTRAINTS[platform];
-  
+
   if (!constraint) {
     // Platform does not have strict constraints; return original
     return mediaUrls;
@@ -45,7 +43,7 @@ export async function optimizeMediaForPlatform(
       // 2. Inspect image
       const image = sharp(buffer);
       const metadata = await image.metadata();
-      
+
       if (!metadata.width || !metadata.height) {
         optimizedMedia.push(media);
         continue;
@@ -60,10 +58,10 @@ export async function optimizeMediaForPlatform(
         continue;
       }
 
-      logger.info('Optimizing image for platform', { 
-        platform, 
-        currentRatio, 
-        targetRatio 
+      logger.info('Optimizing image for platform', {
+        platform,
+        currentRatio,
+        targetRatio,
       });
 
       // 3. Calculate new dimensions based on contain (padding)
@@ -84,36 +82,30 @@ export async function optimizeMediaForPlatform(
           width: newWidth,
           height: newHeight,
           fit: 'contain',
-          background: { r: 255, g: 255, b: 255, alpha: 1 } // White padding
+          background: { r: 255, g: 255, b: 255, alpha: 1 }, // White padding
         })
         .jpeg({ quality: 90 })
         .toBuffer();
 
-      // 5. Upload back to Supabase
-      const fileName = `optimized/${platform}_${crypto.randomUUID()}.jpg`;
-      const { error: uploadError } = await adminSupabase.storage
-        .from('post-media')
-        .upload(fileName, optimizedBuffer, {
-          contentType: 'image/jpeg',
-          upsert: true
-        });
-
-      if (uploadError) {
-        throw new Error(`Upload failed: ${uploadError.message}`);
-      }
-
-      const { data: { publicUrl } } = adminSupabase.storage
-        .from('post-media')
-        .getPublicUrl(fileName);
+      // 5. Upload optimized image to Cloudflare R2
+      const key = `optimized/${platform}_${crypto.randomUUID()}.jpg`;
+      const { url: publicUrl } = await uploadToR2({
+        bucket: 'post-media',
+        key,
+        body: optimizedBuffer,
+        contentType: 'image/jpeg',
+      });
 
       optimizedMedia.push({
         ...media,
         url: publicUrl,
       });
-
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
-      logger.error('Failed to optimize image, falling back to original', { error: err, platform });
+      logger.error('Failed to optimize image, falling back to original', {
+        error: err,
+        platform,
+      });
       optimizedMedia.push(media);
     }
   }

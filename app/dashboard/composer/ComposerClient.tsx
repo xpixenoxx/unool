@@ -46,7 +46,7 @@ import { Box, Flex, Text, Display } from '@/components/ui/layout';
 import { MotionBox, spring } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { cn } from '@/lib/utils';
-import { getSupabaseBrowserClient } from '@/lib/supabase/browser';
+// Note: Supabase browser client no longer needed for storage (using Cloudflare R2 via presigned PUT)
 import { useUserContext } from '@/lib/hooks/use-user-context';
 import { PLATFORM_LIMITS } from '@/lib/config/platformLimits';
 
@@ -944,10 +944,10 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
 
     setIsUploading(true);
     try {
-      const supabase = getSupabaseBrowserClient();
       const newMediaItems: { url: string; type: 'image' | 'video' | 'document'; sizeInBytes?: number }[] = [];
       
       for (const file of validFilesToUpload) {
+        // Step 1: Ask server to generate a presigned R2 PUT URL
         const res = await fetch('/api/composer/upload', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -957,12 +957,15 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Upload failed');
         
-        const { error: uploadError } = await supabase.storage
-          .from('post-media')
-          .uploadToSignedUrl(data.path, data.token, file);
+        // Step 2: PUT the file directly to Cloudflare R2 using the presigned URL
+        const uploadRes = await fetch(data.signedUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': file.type },
+          body: file,
+        });
 
-        if (uploadError) {
-          throw new Error(`Upload failed for ${file.name}: ${uploadError.message}`);
+        if (!uploadRes.ok) {
+          throw new Error(`Upload failed for ${file.name}: ${uploadRes.statusText}`);
         }
         
         newMediaItems.push({ url: data.url, type: data.type, sizeInBytes: file.size });
