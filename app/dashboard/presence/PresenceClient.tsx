@@ -632,16 +632,7 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
                       </>
                     )}
                   </div>
-                  <div className="mt-2 text-xs flex justify-between items-center" style={{ color: B.textMuted }}>
-                    <span>Optional. Will fall back to initial if not provided.</span>
-                    <input 
-                      value={profile.avatarUrl || ''} 
-                      onChange={e => setProfile({...profile, avatarUrl: e.target.value})} 
-                      className="px-2 py-1 bg-transparent border-b outline-none w-48 text-right" 
-                      style={{ borderColor: B.border, color: B.text }} 
-                      placeholder="Or paste URL here..." 
-                    />
-                  </div>
+
                 </div>
 
                 <div className="space-y-1.5">
