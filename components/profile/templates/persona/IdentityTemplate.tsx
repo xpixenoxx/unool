@@ -1694,17 +1694,17 @@ function VisionaryTemplate({ profile, onLinkClick }: any) {
   const currentYear = new Date().getFullYear();
 
   const getPlatformIcon = (platform: string) => {
-    const p = (platform || '').toLowerCase();
-    if (p.includes('linkedin')) return <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 8.76a1.67 1.67 0 1 0 0-3.34 1.67 1.67 0 0 0 0 3.34M7.86 18.5V10.13H5.07V18.5h2.79z" /></svg>;
-    if (p.includes('insta')) return <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" /></svg>;
-    if (p.includes('x') || p.includes('twitter')) return <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>;
-    if (p.includes('github')) return <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.379.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.161 22 16.418 22 12c0-5.523-4.477-10-10-10z"/></svg>;
-    if (p.includes('hackerrank')) return <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 1.47l-9.12 5.26v10.53L12 22.53l9.12-5.26V6.73L12 1.47zm5.55 13.9l-2.07 1.2v-3.76l-3.48-2.01v4.02l-2.07 1.2v-6.42l5.55-3.2v3.76l3.48 2.01v-4.02l2.07-1.2v6.42zM12 14.81l-3.48-2.01 3.48-2.01 3.48 2.01L12 14.81z"/></svg>;
-    return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>;
+    const p = (platform || '').toLowerCase().replace(/\s+/g, '');
+    if (p.includes('linkedin')) return <svg viewBox="0 0 24 24" fill="currentColor" className="w-[19px] h-[19px] block"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 8.76a1.67 1.67 0 1 0 0-3.34 1.67 1.67 0 0 0 0 3.34M7.86 18.5V10.13H5.07V18.5h2.79z" /></svg>;
+    if (p.includes('insta')) return <svg viewBox="0 0 24 24" fill="currentColor" className="w-[19px] h-[19px] block"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" /></svg>;
+    if (p.includes('x') || p.includes('twitter')) return <svg viewBox="0 0 24 24" fill="currentColor" className="w-[19px] h-[19px] block"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>;
+    if (p.includes('github')) return <svg viewBox="0 0 24 24" fill="currentColor" className="w-[19px] h-[19px] block"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.379.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.161 22 16.418 22 12c0-5.523-4.477-10-10-10z"/></svg>;
+    if (p.includes('hackerrank')) return <svg viewBox="0 0 24 24" fill="currentColor" className="w-[19px] h-[19px] block"><path d="M12 1.47l-9.12 5.26v10.53L12 22.53l9.12-5.26V6.73L12 1.47zm5.55 13.9l-2.07 1.2v-3.76l-3.48-2.01v4.02l-2.07 1.2v-6.42l5.55-3.2v3.76l3.48 2.01v-4.02l2.07-1.2v6.42zM12 14.81l-3.48-2.01 3.48-2.01 3.48 2.01L12 14.81z"/></svg>;
+    return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[19px] h-[19px] block"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>;
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#F5EFEB] py-8 sm:py-16 px-4 sm:px-8 flex justify-center items-start text-[#2C2825] font-['Manrope',sans-serif] antialiased selection:bg-[#704E59] selection:text-white">
+    <div className="min-h-screen w-full bg-[#F5EFEB] py-8 sm:py-16 px-4 sm:px-8 flex justify-center items-start text-[#2C2825] font-['Manrope',sans-serif] antialiased">
       <style dangerouslySetInnerHTML={{ __html: `
         @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Manrope:wght@300;400;500;600;700&display=swap');
         .visionary-serif { font-family: 'DM Serif Display', serif; }
@@ -1811,7 +1811,7 @@ function VisionaryTemplate({ profile, onLinkClick }: any) {
               </span>
             </div>
             
-            <h1 className="visionary-serif text-[clamp(4rem,10vw,6.5rem)] leading-[0.85] text-[#2C2825] mb-8">
+            <h1 className="relative z-10 visionary-serif text-[clamp(4rem,10vw,6.5rem)] leading-[0.85] text-[#2C2825] mb-8">
               {firstName}
               <br className="hidden md:block" />
               {lastName ? (
@@ -1923,31 +1923,32 @@ function VisionaryTemplate({ profile, onLinkClick }: any) {
                 const theme = colors[idx % 3];
                 
                 return (
-                  <div key={idx} className={`relative p-8 rounded-tr-3xl rounded-bl-3xl border ${theme.border} ${theme.bg} transition-all duration-300 md:hover:-translate-y-1 hover:shadow-md group overflow-hidden`}>
-                    <span className={`absolute top-6 right-6 text-[8px] font-bold ${theme.accent}`}>0{idx + 1}</span>
+                  <div key={idx} className={`relative p-6 sm:p-8 rounded-tr-3xl rounded-bl-3xl border ${theme.border} ${theme.bg} transition-all duration-300 md:hover:-translate-y-1 hover:shadow-md group overflow-hidden flex flex-col justify-center`}>
+                    <span className={`absolute top-6 right-6 text-[8px] font-bold ${theme.accent} z-0`}>0{idx + 1}</span>
                     
                     {idx === 0 && (
-                      <div className="absolute top-10 right-16 w-10 h-6 rounded-full border-[0.5px] border-[#704E59]/40 rotate-12 flex items-center justify-end pr-1 pointer-events-none hidden sm:flex">
+                      <div className="absolute top-8 right-16 w-10 h-6 rounded-full border-[0.5px] border-[#704E59]/40 rotate-12 flex items-center justify-end pr-1 pointer-events-none hidden sm:flex z-0">
                         <div className="w-1.5 h-1.5 rounded-full bg-[#704E59]/60" />
                       </div>
                     )}
                     
-                    <div className="visionary-serif text-5xl sm:text-6xl text-[#2C2825] mb-4 group-hover:scale-105 transition-transform origin-left">
-                      {metric.value}
-                    </div>
-                    
-                    <div className="flex flex-col gap-1">
-                      <div className="text-[10px] tracking-[0.15em] font-bold uppercase text-[#2C2825]">
-                        {metric.label || metric.title}
-                      </div>
+                    <div className="relative z-10 flex flex-col">
+                      <span className="visionary-serif text-5xl sm:text-6xl text-[#2C2825] mb-2 group-hover:scale-105 transition-transform origin-left block">
+                        {metric.value}
+                      </span>
+                      
+                      <span className="text-[10px] tracking-[0.15em] font-bold uppercase text-[#2C2825] block">
+                        {metric.label}
+                      </span>
+                      
                       {metric.description && (
-                        <div className="text-[8px] tracking-[0.1em] text-[#8B958A] uppercase opacity-80">
+                        <span className="text-[8px] tracking-[0.1em] text-[#8B958A] uppercase opacity-80 block mt-1">
                           {metric.description}
-                        </div>
+                        </span>
                       )}
                     </div>
                     
-                    <div className="absolute bottom-6 left-6 w-3 h-3 border-b border-l border-[#2C2825]/20 pointer-events-none" />
+                    <div className="absolute bottom-6 left-6 w-3 h-3 border-b border-l border-[#2C2825]/20 pointer-events-none z-0" />
                   </div>
                 );
               })}
@@ -1989,7 +1990,7 @@ function VisionaryTemplate({ profile, onLinkClick }: any) {
                     target="_blank"
                     rel="noreferrer"
                     aria-label={`Visit ${link.label}`}
-                    className="group relative flex items-center gap-4 sm:gap-6 py-6 border-b border-[#2C2825]/10 hover:bg-black/[0.02] transition-colors -mx-4 px-4 sm:mx-0 sm:px-0"
+                    className="group relative flex items-center gap-4 sm:gap-6 py-6 border-b border-[#2C2825]/10 hover:bg-black/[0.02] focus:outline-none focus-visible:bg-black/[0.02] transition-colors -mx-4 px-4 sm:mx-0 sm:px-0"
                   >
                     <div className="absolute left-0 bottom-0 w-0 h-[1px] bg-current transition-all duration-500 group-hover:w-full opacity-30" />
                     
@@ -1998,19 +1999,15 @@ function VisionaryTemplate({ profile, onLinkClick }: any) {
                       0{idx + 1}
                     </div>
                     
-                    <div className={`w-10 h-10 rounded-full border border-[#2C2825]/10 flex items-center justify-center text-[#2C2825] md:group-hover:scale-110 md:group-hover:-rotate-12 transition-transform duration-300 bg-white shadow-sm shrink-0`}>
-                      <div className="w-4 h-4">
-                        {getPlatformIcon(link.icon || link.platform || link.label || '')}
-                      </div>
+                    <div className="w-[44px] h-[44px] shrink-0 rounded-full border border-[#2C2825]/10 flex items-center justify-center text-[#2C2825] bg-white shadow-sm">
+                      {getPlatformIcon(link.icon || link.platform || link.label || '')}
                     </div>
                     
                     <div className="flex-1 flex flex-col justify-center min-w-0">
                       <span className="text-[11px] font-bold uppercase text-[#2C2825] truncate">{link.label}</span>
                     </div>
                     
-
-                    
-                    <div className="text-[#2C2825] opacity-30 group-hover:opacity-100 md:group-hover:translate-x-1 md:group-hover:-translate-y-1 transition-all shrink-0">
+                    <div className="text-[#2C2825] opacity-30 group-hover:opacity-100 md:group-hover:translate-x-1 transition-transform shrink-0">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="19" x2="19" y2="5"></line><polyline points="12 5 19 5 19 12"></polyline></svg>
                     </div>
                   </a>
