@@ -2456,7 +2456,7 @@ function HustlerTemplate({ profile }: any) {
 
               {/* Actions */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                 <a href={email ? \`mailto:\${email}\` : '#'} className="group flex items-center justify-center gap-2 px-6 py-3 bg-[#292624] text-[#FAF8F4] rounded-[2px_12px_2px_8px] font-semibold text-[10px] uppercase tracking-widest hover:bg-[#B86F5A] transition-colors shadow-sm">
+                 <a href={email ? `mailto:${email}` : '#'} className="group flex items-center justify-center gap-2 px-6 py-3 bg-[#292624] text-[#FAF8F4] rounded-[2px_12px_2px_8px] font-semibold text-[10px] uppercase tracking-widest hover:bg-[#B86F5A] transition-colors shadow-sm">
                     Initiate Action <span className="text-sm leading-none group-hover:translate-x-1 transition-transform">→</span>
                  </a>
                  <button onClick={handleSave} className="group text-[10px] font-semibold uppercase tracking-widest text-[#716B67] hover:text-[#B86F5A] transition-colors flex items-center gap-1.5 px-2">
