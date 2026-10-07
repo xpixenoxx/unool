@@ -1821,9 +1821,6 @@ function Badge({ text, accent }: { text: string; accent: string }) {
 // --- 04 ENTREPRENEUR --- //
 
 function BuilderTemplate({ profile }: any) {
-  const [buildState, setBuildState] = useState(1);
-  const [philosophyState, setPhilosophyState] = useState(0);
-
   const name = profile?.name || "";
   const role = profile?.role || profile?.headline || "BUILDER & ARCHITECT";
   const bio = profile?.bio || "I construct systems and experiences that turn abstract possibilities into tangible utility.";
@@ -1832,45 +1829,17 @@ function BuilderTemplate({ profile }: any) {
 
   const links = profile?.links || [];
   const metrics = profile?.metrics || [];
+  const proofs = profile?.proofs || [];
 
   const headlineQuote = profile?.metadata?.statement || "How do you build?";
 
-  const defaultBuildAreas = [
-    { title: "SYSTEMS", description: "Architectural foundations for scalable, resilient ideas." },
-    { title: "PRODUCTS", description: "Tangible, functional tools with immediate utility." },
-    { title: "EXPERIENCES", description: "Tactile interactions bridging logic and human emotion." },
-    { title: "TEAMS", description: "Assembling modular talent to execute high-density outputs." }
-  ];
-
-  const defaultPhilosophy = [
-    { title: "THINK", description: "Every structure begins with an intentional blueprint. We measure twice to ensure the foundation can bear the weight of future scale." },
-    { title: "MAKE", description: "Theory meets material. The process of translating abstract logic into functional, tactile interfaces that withstand real-world usage." },
-    { title: "ITERATE", description: "No structure is ever truly finished. We observe stress points, reinforce weak load paths, and continuously refine the architecture." }
-  ];
-
-  const defaultExperience = [
-    { year: "CURRENT", role: "SYSTEM ARCHITECT", description: "[ SYSTEM PLACEHOLDER ] Building scalable foundations and modular components." },
-    { year: "PREVIOUS", role: "PRODUCT ENGINEER", description: "[ SYSTEM PLACEHOLDER ] Shipped core features and optimized execution pipelines." }
-  ];
-
-  const defaultProjects = [
-    { title: "CORE PROTOCOL", category: "SYSTEM", desc: "[ SYSTEM PLACEHOLDER ] A robust underlying logic engine powering modular applications.", role: "LEAD ARCHITECT" },
-    { title: "TACTILE UI", category: "INTERFACE", desc: "[ SYSTEM PLACEHOLDER ] A physical-feeling interaction model for digital surfaces.", role: "PROTOTYPER" },
-    { title: "DATA LATTICE", category: "INFRASTRUCTURE", desc: "[ SYSTEM PLACEHOLDER ] High-density data visualization framework.", role: "ENGINEER" }
-  ];
-
-  const buildAreas = profile?.buildAreas?.length > 0 ? profile.buildAreas : defaultBuildAreas;
-  const philosophy = profile?.philosophy?.length > 0 ? profile.philosophy : defaultPhilosophy;
-  const experience = profile?.experience?.length > 0 ? profile.experience : defaultExperience;
-  const projects = profile?.projects?.length > 0 ? profile.projects : defaultProjects;
-
   const customStyles = `
-    @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Outfit:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Rajdhani:wght@400;500;600;700&display=swap');
     
     .builder-theme {
-      background-color: #E8E0D5;
-      color: #292226;
-      font-family: 'Outfit', sans-serif;
+      background-color: #030712;
+      color: #F8FAFC;
+      font-family: 'Rajdhani', sans-serif;
     }
     
     .builder-serif {
@@ -1878,24 +1847,24 @@ function BuilderTemplate({ profile }: any) {
     }
 
     .builder-container {
-      background-color: #F3EEE6;
-      box-shadow: 0 20px 40px rgba(52, 38, 50, 0.08);
+      background-color: #0B1120;
+      box-shadow: 0 0 80px rgba(14, 165, 233, 0.05);
     }
       
     .builder-blueprint-grid {
       background-image: 
-        linear-gradient(rgba(135, 149, 138, 0.15) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(135, 149, 138, 0.15) 1px, transparent 1px);
-      background-size: 24px 24px;
+        linear-gradient(rgba(14, 165, 233, 0.1) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(14, 165, 233, 0.1) 1px, transparent 1px);
+      background-size: 32px 32px;
     }
 
     .builder-module-shadow {
-      box-shadow: 4px 4px 0px rgba(52, 38, 50, 1);
+      box-shadow: -4px 4px 0px rgba(14, 165, 233, 0.5);
       transition: all 0.2s ease;
     }
     .builder-module-shadow:hover {
-      box-shadow: 2px 2px 0px rgba(52, 38, 50, 1);
-      transform: translate(2px, 2px);
+      box-shadow: -2px 2px 0px rgba(14, 165, 233, 0.8);
+      transform: translate(-2px, 2px);
     }
   `;
 
@@ -1904,123 +1873,89 @@ function BuilderTemplate({ profile }: any) {
       <style>{customStyles}</style>
 
       {/* Outer Canvas Container */}
-      <div className="builder-container w-full max-w-[1200px] rounded-[32px] md:rounded-[40px] border border-[#292226]/10 overflow-hidden flex flex-col relative pb-20">
+      <div className="builder-container w-full max-w-[1200px] rounded-none md:rounded-[12px] border border-[#0EA5E9]/20 overflow-hidden flex flex-col relative pb-20">
         
         {/* HEADER */}
-        <header className="px-6 md:px-12 py-8 flex justify-between items-center border-b border-[#292226]/10">
+        <header className="px-6 md:px-12 py-8 flex justify-between items-center border-b border-[#0EA5E9]/20">
           <div className="flex items-center gap-3">
-             <div className="w-5 h-5 bg-[#342632] flex items-center justify-center">
-                <div className="w-1.5 h-1.5 bg-[#C5A86A]" />
+             <div className="w-5 h-5 bg-[#0EA5E9] flex items-center justify-center">
+                <div className="w-1.5 h-1.5 bg-[#030712]" />
              </div>
-             <span className="text-xs uppercase tracking-[0.2em] font-bold text-[#342632]">BUILDER // {name ? name.split(' ')[0] : 'ID'}</span>
+             <span className="text-xs uppercase tracking-[0.3em] font-bold text-[#38BDF8]">SYS // {name ? name.split(' ')[0] : 'ID'}</span>
           </div>
-          <nav className="hidden md:flex gap-8 text-[10px] uppercase tracking-widest font-bold text-[#87958A]">
-            <span className="hover:text-[#342632] transition-colors cursor-pointer">ABOUT</span>
-            <span className="hover:text-[#342632] transition-colors cursor-pointer">BUILD</span>
-            <span className="hover:text-[#342632] transition-colors cursor-pointer">WORK</span>
-            <span className="hover:text-[#342632] transition-colors cursor-pointer">JOURNEY</span>
-          </nav>
-          <a href={email ? `mailto:${email}` : '#contact'} className="text-[10px] uppercase tracking-[0.2em] font-bold bg-[#A85C4A] text-[#F3EEE6] px-5 py-2.5 hover:bg-[#342632] transition-colors">
+          <a href={email ? `mailto:${email}` : '#contact'} className="text-[10px] uppercase tracking-[0.2em] font-bold bg-[#E21D48] text-[#F8FAFC] px-5 py-2.5 hover:bg-[#BE123C] transition-colors">
             CONTACT
           </a>
         </header>
 
         <div className="px-6 md:px-12 pt-16 md:pt-24 max-w-[960px] mx-auto w-full">
           {/* HERO */}
-          <section className="mb-16">
-             <div className="text-[10px] tracking-widest text-[#87958A] uppercase mb-6 flex items-center gap-4 font-bold">
-               <div className="w-12 h-[1px] bg-[#87958A]/50" />
-               ENTREPRENEUR
+          <section className="mb-16 relative">
+             <div className="text-[10px] tracking-widest text-[#0EA5E9] uppercase mb-6 flex items-center gap-4 font-bold">
+               <div className="w-12 h-[1px] bg-[#0EA5E9]/50" />
+               SYSTEM ARCHITECT
              </div>
-             <h1 className="builder-serif text-5xl sm:text-6xl md:text-[5.5rem] text-[#342632] leading-[0.95] tracking-tight mb-12">
+             <h1 className="builder-serif text-5xl sm:text-6xl md:text-[5.5rem] text-[#F8FAFC] leading-[0.95] tracking-tight mb-12">
                 {headlineQuote}
              </h1>
-             <div className="w-full h-px bg-[#292226]/10 mb-16" />
+             <div className="w-full h-px bg-[#0EA5E9]/20 mb-16" />
              
              {/* BUILDER IDENTITY MODULE */}
-             <div 
-               className="w-full bg-[#342632] text-[#F3EEE6] p-8 md:p-12 relative overflow-hidden flex flex-col md:flex-row gap-8 md:gap-16 group cursor-pointer builder-module-shadow border border-[#292226]" 
-               onClick={() => setBuildState(prev => prev === 3 ? 1 : prev + 1)}
-             >
-                {/* Blueprint grid */}
-                <div className="absolute inset-0 builder-blueprint-grid opacity-[0.25]" />
+             <div className="w-full bg-[#0F172A] text-[#F8FAFC] p-8 md:p-12 relative overflow-hidden flex flex-col md:flex-row gap-8 md:gap-16 group builder-module-shadow border border-[#0EA5E9]/30">
+                <div className="absolute inset-0 builder-blueprint-grid opacity-30" />
                 
-                {/* Visual Column (Abstract Symbol) */}
-                <div className="w-full md:w-[35%] relative min-h-[220px] md:min-h-full flex items-center justify-center shrink-0 border-b md:border-b-0 md:border-r border-white/10 pb-8 md:pb-0 md:pr-8">
-                   <div className="relative w-32 h-32 md:w-48 md:h-48 transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]">
-                     {buildState === 1 && (
-                       <div className="absolute inset-0 flex items-center justify-center animate-in fade-in zoom-in duration-500">
-                         <div className="w-24 h-24 border-2 border-[#C5A86A] rotate-45 flex items-center justify-center">
-                           <div className="w-8 h-8 bg-[#A85C4A]" />
-                         </div>
+                {/* Visual Column */}
+                <div className="w-full md:w-[35%] relative min-h-[220px] md:min-h-full flex items-center justify-center shrink-0 border-b md:border-b-0 md:border-r border-[#0EA5E9]/20 pb-8 md:pb-0 md:pr-8">
+                   <div className="relative w-32 h-32 md:w-48 md:h-48 transition-all duration-700">
+                     <div className="absolute inset-0 flex items-center justify-center animate-pulse">
+                       <div className="w-24 h-24 border-2 border-[#0EA5E9] rotate-45 flex items-center justify-center">
+                         <div className="w-8 h-8 bg-[#E21D48]" />
                        </div>
-                     )}
-                     {buildState === 2 && (
-                       <div className="absolute inset-0 flex items-center justify-center animate-in fade-in zoom-in duration-500">
-                         <div className="w-32 h-16 border-2 border-[#C5A86A] flex gap-2 p-2">
-                           <div className="w-1/2 h-full bg-[#A85C4A]" />
-                           <div className="w-1/2 h-full bg-[#A85C4A]/50" />
-                         </div>
-                       </div>
-                     )}
-                     {buildState === 3 && (
-                       <div className="absolute inset-0 flex items-center justify-center animate-in fade-in zoom-in duration-500">
-                         <div className="w-24 h-24 bg-[#A85C4A] flex items-center justify-center translate-x-4 -translate-y-4 shadow-[-16px_16px_0_0_#C5A86A]">
-                            <div className="w-3 h-3 bg-[#342632]" />
-                         </div>
-                       </div>
-                     )}
+                     </div>
                    </div>
-                   
-                   {/* Annotations */}
-                   <div className="absolute top-0 left-0 text-[8px] text-white/40 tracking-widest">+Y.AXIS</div>
-                   <div className="absolute bottom-0 right-0 text-[8px] text-white/40 tracking-widest">+X.AXIS</div>
-                   <div className="absolute top-1/2 -right-1 w-2 h-[1px] bg-[#C5A86A]" />
+                   <div className="absolute top-0 left-0 text-[8px] text-[#0EA5E9]/60 tracking-widest">+Y.AXIS</div>
+                   <div className="absolute bottom-0 right-0 text-[8px] text-[#0EA5E9]/60 tracking-widest">+X.AXIS</div>
                 </div>
 
                 {/* Content Column */}
                 <div className="flex-1 relative z-10 flex flex-col justify-center">
-                   <div className="text-[#C5A86A] text-[9px] uppercase tracking-[0.2em] mb-5 flex items-center gap-3 font-bold">
-                      <div className="w-2 h-2 bg-current rounded-full animate-pulse" />
-                      {buildState === 1 ? 'BUILD MODE / 01' : buildState === 2 ? 'ITERATE / 02' : 'SHIP / 03'}
+                   <div className="text-[#E21D48] text-[9px] uppercase tracking-[0.2em] mb-5 flex items-center gap-3 font-bold">
+                      <div className="w-2 h-2 bg-current rounded-full animate-ping" />
+                      SYSTEM ONLINE
                    </div>
                    
                    <div className="flex items-center gap-5 mb-6">
                      {profile?.avatarUrl ? (
-                       <img src={profile.avatarUrl} alt={name} className="w-14 h-14 rounded-full border border-white/20 object-cover grayscale mix-blend-luminosity" />
+                       <img src={profile.avatarUrl} alt={name} className="w-16 h-16 rounded-sm border border-[#0EA5E9] object-cover grayscale mix-blend-screen" />
                      ) : (
-                       <div className="w-14 h-14 rounded-full bg-[#A85C4A] border border-[#C5A86A] flex items-center justify-center text-xs font-bold text-[#F3EEE6]">ID</div>
+                       <div className="w-16 h-16 bg-[#0F172A] border border-[#0EA5E9] flex items-center justify-center text-xs font-bold text-[#0EA5E9]">ID</div>
                      )}
                      <h2 className="builder-serif text-4xl md:text-5xl">{name || "[ BUILDER ]"}</h2>
                    </div>
                    
-                   <div className="text-[11px] font-bold text-[#C5A86A] mb-3 uppercase tracking-widest">{role}</div>
-                   <p className="text-sm text-[#E8E0D5]/80 max-w-sm mb-8 leading-relaxed font-medium">{bio}</p>
-                   
-                   <div className="mt-auto text-[9px] tracking-widest font-bold uppercase border border-[#A85C4A] px-4 py-2 w-fit text-[#A85C4A] group-hover:bg-[#A85C4A] group-hover:text-[#F3EEE6] transition-colors">
-                      Tap visual to cycle state
-                   </div>
+                   <div className="text-[12px] font-bold text-[#0EA5E9] mb-3 uppercase tracking-widest">{role}</div>
+                   <p className="text-lg text-[#94A3B8] max-w-sm mb-8 leading-relaxed font-medium">{bio}</p>
                 </div>
              </div>
           </section>
 
           {/* INTRODUCTION ROWS */}
-          <section className="mb-24 flex flex-col text-xs font-bold uppercase tracking-widest">
-             <div className="flex flex-col md:flex-row md:items-center py-5 border-b border-[#292226]/10 gap-3 md:gap-12 group">
-                <span className="text-[#87958A] w-32 shrink-0 group-hover:text-[#A85C4A] transition-colors">POSITION</span>
-                <span className="text-[#342632]">{role}</span>
+          <section className="mb-24 flex flex-col text-sm font-bold uppercase tracking-widest">
+             <div className="flex flex-col md:flex-row md:items-center py-5 border-b border-[#0EA5E9]/20 gap-3 md:gap-12 group">
+                <span className="text-[#38BDF8] w-32 shrink-0 group-hover:text-[#E21D48] transition-colors">POSITION</span>
+                <span className="text-[#F8FAFC]">{role}</span>
              </div>
-             <div className="flex flex-col md:flex-row md:items-center py-5 border-b border-[#292226]/10 gap-3 md:gap-12 group">
-                <span className="text-[#87958A] w-32 shrink-0 group-hover:text-[#A85C4A] transition-colors">LOCATION</span>
-                <span className="text-[#342632]">{location}</span>
+             <div className="flex flex-col md:flex-row md:items-center py-5 border-b border-[#0EA5E9]/20 gap-3 md:gap-12 group">
+                <span className="text-[#38BDF8] w-32 shrink-0 group-hover:text-[#E21D48] transition-colors">LOCATION</span>
+                <span className="text-[#F8FAFC]">{location}</span>
              </div>
              {links.length > 0 && (
-               <div className="flex flex-col md:flex-row md:items-center py-5 border-b border-[#292226]/10 gap-3 md:gap-12 group">
-                  <span className="text-[#87958A] w-32 shrink-0 group-hover:text-[#A85C4A] transition-colors">NETWORK</span>
-                  <div className="flex gap-6 flex-wrap">
+               <div className="flex flex-col md:flex-row py-5 border-b border-[#0EA5E9]/20 gap-3 md:gap-12 group">
+                  <span className="text-[#38BDF8] w-32 shrink-0 group-hover:text-[#E21D48] transition-colors pt-1">NETWORK</span>
+                  <div className="flex gap-4 flex-wrap">
                      {links.map((link: any, i: number) => (
-                        <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:text-[#A85C4A] transition-colors text-[#342632]">
-                           <span className="text-[10px] text-[#A85C4A]">↗</span> {link.label}
+                        <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-[#0F172A] border border-[#0EA5E9]/30 px-4 py-2 hover:border-[#E21D48] hover:text-[#E21D48] transition-colors text-[#F8FAFC]">
+                           <span className="text-[10px] text-[#0EA5E9]">↗</span> {link.label}
                         </a>
                      ))}
                   </div>
@@ -2028,116 +1963,34 @@ function BuilderTemplate({ profile }: any) {
              )}
           </section>
 
-          {/* WHAT I BUILD */}
-          {buildAreas.length > 0 && (
-            <section className="mb-24">
-               <h3 className="text-[10px] uppercase tracking-[0.2em] text-[#87958A] mb-8 font-bold">SYSTEMS & ARTIFACTS</h3>
-               <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-[#292226]/10 border border-[#292226]/10 p-px">
-                  {buildAreas.map((area: any, i: number) => (
-                    <div key={i} className="bg-[#F3EEE6] p-8 md:p-10 flex flex-col relative group hover:bg-[#342632] transition-colors duration-300">
-                      <span className="absolute top-8 right-8 text-[9px] tracking-widest text-[#C5A86A] font-bold">0{i+1}</span>
-                      <h4 className="builder-serif text-3xl mb-4 text-[#342632] group-hover:text-[#F3EEE6]">{area.title}</h4>
-                      <p className="text-sm font-medium text-[#292226]/70 group-hover:text-[#F3EEE6]/70 max-w-[85%] leading-relaxed">{area.description}</p>
-                      <div className="mt-12 w-8 h-8 border border-[#292226]/20 group-hover:border-[#C5A86A] flex items-center justify-center group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform">
-                         <span className="text-[12px] text-[#292226] group-hover:text-[#C5A86A]">↗</span>
-                      </div>
-                    </div>
-                  ))}
-               </div>
-            </section>
-          )}
-
-          {/* PHILOSOPHY */}
-          {philosophy.length > 0 && (
-            <section className="mb-24 bg-[#342632] text-[#F3EEE6] p-8 md:p-16 relative overflow-hidden builder-module-shadow">
-               <div className="absolute right-0 bottom-0 text-[200px] leading-none text-white/[0.03] builder-serif select-none pointer-events-none -translate-y-8 translate-x-8">
-                  0{philosophyState + 1}
-               </div>
-               <h3 className="text-[10px] uppercase tracking-[0.2em] text-[#C5A86A] mb-12 font-bold">BUILD PHILOSOPHY</h3>
-               <div className="flex flex-col md:flex-row gap-12 relative z-10">
-                  <div className="w-full md:w-[35%] flex flex-col gap-0 border-l border-white/10">
-                     {philosophy.map((p: any, i: number) => (
-                        <button 
-                          key={i} 
-                          onClick={() => setPhilosophyState(i)}
-                          className={`text-left text-xs tracking-widest font-bold uppercase py-5 px-6 border-b border-white/10 transition-colors ${philosophyState === i ? 'bg-[#A85C4A] text-white border-transparent' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
-                        >
-                          0{i+1} — {p.title}
-                        </button>
-                     ))}
-                  </div>
-                  <div className="w-full md:w-[65%] flex items-center pl-0 md:pl-8">
-                     <p className="builder-serif text-3xl md:text-4xl leading-snug text-[#E8E0D5]">
-                       {philosophy[philosophyState]?.description}
-                     </p>
-                  </div>
-               </div>
-            </section>
-          )}
-
-          {/* EXPERIENCE / JOURNEY */}
-          {experience.length > 0 && (
-            <section className="mb-24">
-               <h3 className="text-[10px] uppercase tracking-[0.2em] text-[#87958A] mb-8 font-bold">STRUCTURAL TIMELINE</h3>
-               <div className="flex flex-col">
-                  {experience.map((exp: any, i: number) => (
-                     <div key={i} className="flex flex-col md:flex-row py-6 border-b border-[#292226]/10 group hover:pl-4 transition-all cursor-default">
-                        <div className="w-full md:w-32 text-[10px] font-bold uppercase tracking-widest text-[#A85C4A] shrink-0 mb-2 md:mb-0 pt-1">
-                           {exp.year}
-                        </div>
-                        <div className="flex flex-col flex-1">
-                           <span className="text-sm font-bold uppercase tracking-widest text-[#342632] mb-1 group-hover:text-[#A85C4A] transition-colors">{exp.role}</span>
-                           <span className="text-sm font-medium text-[#87958A] max-w-lg leading-relaxed">{exp.description}</span>
-                        </div>
-                        <div className="w-8 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity mt-2 md:mt-0">
-                           <span className="text-[#C5A86A]">↗</span>
-                        </div>
-                     </div>
-                  ))}
-               </div>
-            </section>
-          )}
-
-          {/* PROOF / METRICS */}
+          {/* METRICS */}
           {metrics && metrics.length > 0 && (
              <section className="mb-24">
-                <h3 className="text-[10px] uppercase tracking-[0.2em] text-[#87958A] mb-8 font-bold">STRUCTURAL LOAD</h3>
-                <div className="flex flex-col md:flex-row border-y border-[#292226]/20 divide-y md:divide-y-0 md:divide-x divide-[#292226]/20">
+                <h3 className="text-[10px] uppercase tracking-[0.2em] text-[#0EA5E9] mb-8 font-bold border-l-2 border-[#E21D48] pl-3">SYSTEM DIAGNOSTICS</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                    {metrics.map((m: any, i: number) => (
-                      <div key={i} className="flex-1 py-8 md:py-12 md:px-8 flex flex-col justify-center first:pl-0 last:pr-0">
-                         <div className="builder-serif text-6xl md:text-[5rem] text-[#342632] mb-4 tracking-tighter">{m.value}</div>
-                         <div className="text-[10px] font-bold tracking-[0.2em] uppercase text-[#A85C4A] mb-2">{m.label || m.title || m.name}</div>
-                         {m.description && <div className="text-xs font-medium text-[#87958A] max-w-[200px] uppercase tracking-wider">{m.description}</div>}
+                      <div key={i} className="bg-[#0F172A] border border-[#0EA5E9]/20 p-6 flex flex-col justify-center items-center text-center hover:border-[#E21D48] transition-colors group">
+                         <div className="builder-serif text-5xl md:text-6xl text-[#F8FAFC] mb-2 group-hover:text-[#E21D48] transition-colors">{m.value}</div>
+                         <div className="text-[10px] font-bold tracking-[0.2em] uppercase text-[#38BDF8]">{m.label || m.title || m.name}</div>
                       </div>
                    ))}
                 </div>
              </section>
           )}
 
-          {/* SELECTED WORK */}
-          {projects.length > 0 && (
+          {/* PROOF POINTS / LOG */}
+          {proofs && proofs.length > 0 && (
             <section className="mb-24">
-               <h3 className="text-[10px] uppercase tracking-[0.2em] text-[#87958A] mb-8 font-bold">MANUFACTURED OUTPUT</h3>
-               <div className="flex flex-col gap-6">
-                  {projects.map((proj: any, i: number) => (
-                     <div key={i} className={`p-8 md:p-12 relative overflow-hidden group border ${i === 0 ? 'bg-[#E8E0D5] border-[#292226]/10' : i === 1 ? 'bg-[#F3EEE6] border-[#292226]/10 md:w-[85%] md:ml-auto' : 'bg-[#342632] text-[#F3EEE6] border-transparent md:w-[70%]'}`}>
-                        {i === 0 && <div className="absolute inset-0 builder-blueprint-grid opacity-30 pointer-events-none" />}
-                        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8 relative z-10">
-                           <div className="flex flex-col">
-                              <span className={`text-[9px] uppercase tracking-[0.2em] font-bold mb-4 ${i === 2 ? 'text-[#C5A86A]' : 'text-[#87958A]'}`}>
-                                 0{i+1} — {proj.category}
-                              </span>
-                              <h4 className={`builder-serif text-4xl md:text-5xl mb-4 ${i === 2 ? 'text-[#F3EEE6]' : 'text-[#342632]'}`}>{proj.title}</h4>
-                              <p className={`text-sm font-medium max-w-sm leading-relaxed ${i === 2 ? 'text-[#E8E0D5]/70' : 'text-[#292226]/70'}`}>{proj.desc}</p>
-                           </div>
-                           <div className="flex flex-col items-start md:items-end gap-4 shrink-0">
-                              <span className={`text-[10px] uppercase tracking-[0.2em] font-bold ${i === 2 ? 'text-[#C5A86A]' : 'text-[#A85C4A]'}`}>
-                                 [ {proj.role} ]
-                              </span>
-                              <button className={`w-12 h-12 flex items-center justify-center transition-transform group-hover:-translate-y-1 group-hover:translate-x-1 ${i === 2 ? 'bg-[#C5A86A] text-[#342632]' : 'bg-[#342632] text-[#F3EEE6]'}`}>
-                                 ↗
-                              </button>
-                           </div>
+               <h3 className="text-[10px] uppercase tracking-[0.2em] text-[#0EA5E9] mb-8 font-bold border-l-2 border-[#E21D48] pl-3">EXECUTION LOG</h3>
+               <div className="flex flex-col gap-4">
+                  {proofs.map((proof: any, i: number) => (
+                     <div key={i} className="flex flex-col md:flex-row bg-[#0F172A] border border-[#0EA5E9]/20 p-6 md:p-8 hover:border-[#0EA5E9] transition-all group">
+                        <div className="w-full md:w-48 text-[11px] font-bold uppercase tracking-widest text-[#0EA5E9] shrink-0 mb-4 md:mb-0">
+                           {proof.date || proof.metadata || `LOG ENTRY ${i+1}`}
+                        </div>
+                        <div className="flex flex-col flex-1">
+                           <h4 className="builder-serif text-3xl text-[#F8FAFC] mb-3 group-hover:text-[#38BDF8] transition-colors">{proof.title || proof.label}</h4>
+                           <span className="text-sm font-medium text-[#94A3B8] leading-relaxed">{proof.description || proof.desc}</span>
                         </div>
                      </div>
                   ))}
@@ -2146,24 +1999,25 @@ function BuilderTemplate({ profile }: any) {
           )}
 
           {/* CONTACT CTA */}
-          <section className="mt-32 mb-16 bg-[#A85C4A] text-[#F3EEE6] p-8 md:p-16 flex flex-col items-center text-center builder-module-shadow border border-[#292226]">
-             <h2 className="builder-serif text-5xl md:text-7xl mb-6 max-w-2xl leading-[1.05]">Have something worth building?</h2>
-             <p className="text-xs text-[#F3EEE6]/80 mb-10 max-w-md uppercase tracking-widest font-bold">
-               Initiate sequence.
+          <section className="mt-32 mb-16 bg-[#0EA5E9]/10 border border-[#0EA5E9] text-[#F8FAFC] p-8 md:p-16 flex flex-col items-center text-center relative overflow-hidden">
+             <div className="absolute inset-0 builder-blueprint-grid opacity-20 pointer-events-none" />
+             <h2 className="builder-serif text-5xl md:text-6xl mb-6 max-w-2xl leading-[1.05] relative z-10 text-[#0EA5E9]">Ready to initialize?</h2>
+             <p className="text-xs text-[#94A3B8] mb-10 max-w-md uppercase tracking-widest font-bold relative z-10">
+               Begin sequence transfer.
              </p>
-             <a href={email ? `mailto:${email}` : '#contact'} className="bg-[#342632] text-[#C5A86A] px-8 py-4 text-[10px] uppercase tracking-[0.2em] font-bold flex items-center gap-4 hover:bg-[#292226] transition-colors">
-                START A CONVERSATION <span className="text-[#F3EEE6]">↗</span>
+             <a href={email ? `mailto:${email}` : '#contact'} className="bg-[#E21D48] text-[#F8FAFC] px-8 py-4 text-[12px] uppercase tracking-[0.2em] font-bold flex items-center gap-4 hover:bg-[#BE123C] transition-colors relative z-10 shadow-[0_0_20px_rgba(226,29,72,0.4)]">
+                ESTABLISH CONNECTION <span className="text-[#F8FAFC]">↗</span>
              </a>
           </section>
           
         </div>
 
         {/* FOOTER */}
-        <footer className="absolute bottom-0 left-0 w-full px-6 md:px-12 py-6 border-t border-[#292226]/10 bg-[#F3EEE6] flex flex-col md:flex-row justify-between items-center gap-4 text-[9px] uppercase tracking-[0.2em] font-bold text-[#87958A]">
-           <div>© {new Date().getFullYear()} / {name?.toUpperCase() || 'BUILDER'}</div>
-           <div className="text-center">SYSTEMS & STRUCTURES</div>
-           <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="hover:text-[#A85C4A] transition-colors">
-             RETURN TO ORIGIN ↑
+        <footer className="absolute bottom-0 left-0 w-full px-6 md:px-12 py-6 border-t border-[#0EA5E9]/20 bg-[#0B1120] flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] uppercase tracking-[0.2em] font-bold text-[#38BDF8]">
+           <div>© {new Date().getFullYear()} / {name?.toUpperCase() || 'SYSTEM'}</div>
+           <div className="text-center text-[#94A3B8]">END OF FILE</div>
+           <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="hover:text-[#E21D48] transition-colors">
+             BACK TO TOP ↑
            </button>
         </footer>
       </div>
@@ -2604,98 +2458,103 @@ function HustlerTemplate({ profile }: any) {
 
       {/* OUTER PREMIUM CONTAINER */}
       <div className="w-full max-w-[860px] bg-[#292724] border-2 border-[#292724] flex flex-col gap-[2px] hustler-organic overflow-hidden shadow-[16px_16px_0px_0px_rgba(41,39,36,0.15)] relative z-10">
-         
-         {/* TOP STATUS BAR */}
-         <div className="flex justify-between items-center px-5 py-3 bg-[#292724] text-[#EAE8E3]">
-            <span className="text-[10px] uppercase tracking-widest font-bold">{name || "HUSTLER"}</span>
-         </div>
-
-         {/* HEADER: AVATAR & INFO */}
-         <div className="flex flex-col md:flex-row gap-[2px]">
-            {/* Avatar Slot */}
-            <div className="md:w-[320px] shrink-0 p-8 flex flex-col items-center justify-center bg-[#DCD9D1] group">
-               <div className="w-[200px] h-[200px] md:w-[240px] md:h-[240px] hustler-organic border-2 border-[#292724] overflow-hidden bg-[#C4C0B8] shadow-lg">
+         {/* HEADER SECTION */}
+         <div className="flex flex-col md:flex-row border-b-2 border-[#EAE8E3]">
+            {/* Image Column */}
+            <div className="w-full md:w-[40%] border-b-2 md:border-b-0 md:border-r-2 border-[#EAE8E3] p-8 flex items-center justify-center bg-[#D64924] relative overflow-hidden group">
+               <div className="absolute inset-0 bg-[#EAE8E3] opacity-0 group-hover:opacity-10 transition-opacity duration-500"></div>
+               <div className="w-[200px] h-[200px] md:w-[280px] md:h-[280px] border-4 border-[#EAE8E3] bg-[#292724] shadow-[8px_8px_0px_0px_#EAE8E3] transform group-hover:-translate-y-2 group-hover:shadow-[12px_12px_0px_0px_#EAE8E3] transition-all duration-300">
                   {profile?.avatarUrl ? (
-                     <img src={profile.avatarUrl} className="w-full h-full object-cover filter contrast-[1.1] grayscale group-hover:grayscale-0 transition-all duration-700" alt={name} />
+                     <img src={profile.avatarUrl} className="w-full h-full object-cover filter grayscale contrast-125 mix-blend-luminosity" alt={name} />
                   ) : (
-                     <div className="w-full h-full flex items-center justify-center font-serif text-7xl text-[#292724] opacity-30">{name?.[0] || 'H'}</div>
+                     <div className="w-full h-full flex items-center justify-center font-serif text-8xl text-[#EAE8E3]">{name?.[0] || 'H'}</div>
                   )}
                </div>
             </div>
-
-            {/* Info Slot */}
-            <div className="flex-1 flex flex-col gap-[2px]">
-               <div className="p-6 md:p-10 flex-1 flex flex-col justify-center bg-[#EAE8E3]">
-                  <div className="flex items-center gap-3 mb-3">
-                     <span className="w-3 h-3 border-2 border-[#D64924] rounded-full"></span>
-                     <span className="text-[10px] sm:text-xs uppercase tracking-[0.2em] font-bold text-[#7A756D]">{role}</span>
-                  </div>
-                  <h1 className="hustler-serif text-5xl sm:text-6xl md:text-[5rem] leading-[0.9] text-[#292724] tracking-tight uppercase break-words hyphens-auto">{name || 'HUSTLER'}</h1>
+            
+            {/* Identity Column */}
+            <div className="w-full md:w-[60%] flex flex-col">
+               <div className="p-8 md:p-12 flex-1 flex flex-col justify-center border-b-2 border-[#EAE8E3] bg-[#292724]">
+                  <span className="inline-block bg-[#D64924] text-[#EAE8E3] text-[10px] sm:text-xs font-bold uppercase tracking-[0.3em] px-4 py-2 mb-6 self-start shadow-[4px_4px_0px_0px_#EAE8E3]">
+                     {role}
+                  </span>
+                  <h1 className="hustler-serif text-6xl sm:text-7xl md:text-[6rem] leading-[0.85] text-[#EAE8E3] uppercase break-words">
+                     {name || 'HUSTLER'}
+                  </h1>
                </div>
-               {/* Bio Slot */}
-               <div className="p-6 md:p-10 bg-[#EAE8E3] min-h-[140px] flex items-center">
-                  <p className="text-[15px] sm:text-base md:text-lg font-medium leading-relaxed text-[#292724]">{bio}</p>
+               <div className="p-8 md:p-12 bg-[#EAE8E3]">
+                  <p className="text-lg sm:text-xl font-medium leading-relaxed text-[#292724]">
+                     {bio}
+                  </p>
                </div>
             </div>
          </div>
 
-         {/* NETWORK ROW */}
-         <div className="flex flex-col md:flex-row gap-[2px]">
-            <div className="md:w-[140px] shrink-0 p-5 flex items-center bg-[#DCD9D1]">
-               <span className="text-[10px] sm:text-xs uppercase tracking-widest font-bold text-[#7A756D]">Network</span>
-            </div>
-            <div className="flex-1 p-6 md:p-8 bg-[#EAE8E3] flex flex-wrap gap-4 items-center">
+         {/* NETWORK SECTION */}
+         <div className="p-8 md:p-12 border-b-2 border-[#EAE8E3] bg-[#292724]">
+            <h3 className="text-[10px] text-[#D64924] uppercase tracking-widest font-bold mb-8">Network & Nodes</h3>
+            <div className="flex flex-wrap gap-4">
                {validLinks.length > 0 ? validLinks.map((l: any, i: number) => {
                   const icon = getAestheteSocialIcon(l.label || l.title);
                   return (
-                    <a key={i} href={l.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 border-2 border-[#292724] px-6 py-4 hustler-organic-sm group hover:bg-[#D64924] hover:border-[#D64924] transition-all shadow-sm">
-                       <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current text-[#292724] group-hover:text-[#EAE8E3] transition-colors">{icon}</svg>
-                       <span className="text-xs sm:text-sm uppercase tracking-widest font-bold text-[#292724] group-hover:text-[#EAE8E3] transition-colors">{l.label || l.title}</span>
+                    <a key={i} href={l.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 border-2 border-[#EAE8E3] px-6 py-4 bg-[#292724] text-[#EAE8E3] hover:bg-[#EAE8E3] hover:text-[#292724] hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_#D64924] transition-all">
+                       <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current">{icon}</svg>
+                       <span className="text-xs sm:text-sm uppercase tracking-widest font-bold">{l.label || l.title}</span>
                     </a>
                   )
                }) : (
-                  <div className="py-3 flex items-center w-full justify-center md:justify-start">
-                     <span className="text-[10px] uppercase tracking-widest font-bold text-[#7A756D]">NO NODES CONNECTED</span>
-                  </div>
+                  <span className="text-xs uppercase tracking-widest font-bold text-[#7A756D]">NO NODES CONNECTED</span>
                )}
             </div>
          </div>
 
-         {/* PROOF POINTS ROW */}
-         <div className="flex flex-col md:flex-row gap-[2px]">
-            <div className="md:w-[140px] shrink-0 p-5 bg-[#DCD9D1]">
-               <span className="text-[10px] sm:text-xs uppercase tracking-widest font-bold text-[#7A756D] md:sticky md:top-5">Proof Points</span>
-            </div>
-            <div className="flex-1 flex flex-col gap-[2px]">
+         {/* PROOF POINTS & METRICS SECTION */}
+         <div className="p-8 md:p-12 border-b-2 border-[#EAE8E3] bg-[#EAE8E3]">
+            <h3 className="text-[10px] text-[#D64924] uppercase tracking-widest font-bold mb-8">Proof Points & Momentum</h3>
+            
+            {/* Metrics Sub-grid */}
+            {validMetrics.length > 0 && (
+               <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12">
+                  {validMetrics.map((m: any, i: number) => (
+                     <div key={i} className="flex flex-col p-6 bg-[#292724] border-2 border-[#292724] text-[#EAE8E3] shadow-[4px_4px_0px_0px_#D64924]">
+                        <span className="hustler-serif text-5xl sm:text-6xl text-[#EAE8E3]">{m.value}</span>
+                        <span className="text-[10px] uppercase tracking-widest font-bold text-[#D64924] mt-2">{m.label || m.title || m.name}</span>
+                     </div>
+                  ))}
+               </div>
+            )}
+
+            {/* Proofs Sub-grid */}
+            <div className="flex flex-col gap-6">
                {validProofs.length > 0 ? validProofs.map((p: any, i: number) => (
-                  <div key={i} className="flex flex-col p-6 sm:p-8 bg-[#EAE8E3] group hover:bg-[#292724] transition-colors cursor-default">
-                     <div className="flex justify-between items-start gap-4 mb-3">
-                        <h4 className="text-xl sm:text-2xl font-bold text-[#292724] group-hover:text-[#D64924] transition-colors leading-tight">{p.title || p.label}</h4>
+                  <div key={i} className="flex flex-col p-8 border-2 border-[#292724] bg-[#EAE8E3] hover:bg-[#292724] hover:text-[#EAE8E3] transition-colors group cursor-default">
+                     <div className="flex justify-between items-start gap-4 mb-4">
+                        <h4 className="text-2xl sm:text-3xl font-bold font-serif leading-tight group-hover:text-[#D64924]">{p.title || p.label}</h4>
                         {(p.date || p.metadata) && (
-                          <span className="text-[9px] sm:text-[10px] uppercase tracking-widest font-mono font-bold text-[#7A756D] group-hover:text-[#EAE8E3] transition-colors shrink-0 pt-1">{p.date || p.metadata}</span>
+                          <span className="text-[10px] uppercase tracking-widest font-mono font-bold border border-current px-2 py-1 shrink-0">{p.date || p.metadata}</span>
                         )}
                      </div>
                      {(p.description || p.desc) && (
-                        <p className="text-[13px] sm:text-sm font-medium text-[#5C5751] group-hover:text-[#EAE8E3] transition-colors leading-relaxed">{p.description || p.desc}</p>
+                        <p className="text-sm sm:text-base font-medium opacity-80 leading-relaxed">{p.description || p.desc}</p>
                      )}
                   </div>
                )) : (
-                  <div className="p-12 flex items-center justify-center bg-[#EAE8E3]">
-                     <span className="text-[10px] uppercase tracking-widest font-bold text-[#7A756D]">NO RECORDS FOUND</span>
+                  <div className="p-8 border-2 border-dashed border-[#292724] flex items-center justify-center">
+                     <span className="text-xs uppercase tracking-widest font-bold text-[#292724]">NO RECORDS FOUND</span>
                   </div>
                )}
             </div>
          </div>
 
-         {/* ACTIONS ROW */}
-         <div className="flex flex-col sm:flex-row gap-[2px]">
-            <a href={email ? `mailto:${email}` : '#'} className="flex-1 p-6 sm:p-8 bg-[#D64924] text-[#EAE8E3] flex items-center justify-between group hover:bg-[#B53D1C] transition-colors cursor-pointer">
-               <span className="text-xs sm:text-sm uppercase tracking-[0.2em] font-bold">Get In Touch</span>
-               <span className="text-2xl group-hover:translate-x-3 transition-transform">→</span>
+         {/* ACTIONS SECTION */}
+         <div className="flex flex-col sm:flex-row">
+            <a href={email ? `mailto:${email}` : '#'} className="flex-1 p-8 bg-[#D64924] text-[#EAE8E3] flex items-center justify-between hover:bg-[#EAE8E3] hover:text-[#D64924] transition-colors border-b-2 sm:border-b-0 sm:border-r-2 border-[#EAE8E3] cursor-pointer group">
+               <span className="text-sm uppercase tracking-[0.2em] font-bold">Get In Touch</span>
+               <span className="text-3xl group-hover:translate-x-4 transition-transform">→</span>
             </a>
-            <button onClick={handleSave} className="sm:w-[280px] p-6 sm:p-8 bg-[#292724] text-[#EAE8E3] flex items-center justify-center gap-3 group hover:bg-[#1A1917] transition-colors">
-               <span className="text-[10px] sm:text-[11px] uppercase tracking-[0.2em] font-bold text-[#7A756D] group-hover:text-[#EAE8E3] transition-colors">Save Contact</span>
-               <span className="text-sm text-[#D64924] opacity-0 -translate-y-2 group-hover:translate-y-0 group-hover:opacity-100 transition-all">↓</span>
+            <button onClick={handleSave} className="sm:w-[320px] p-8 bg-[#292724] text-[#EAE8E3] flex items-center justify-center gap-3 hover:bg-[#EAE8E3] hover:text-[#292724] transition-colors group">
+               <span className="text-[11px] uppercase tracking-[0.2em] font-bold">Save Contact</span>
+               <span className="text-lg opacity-0 -translate-y-2 group-hover:translate-y-0 group-hover:opacity-100 transition-all">↓</span>
             </button>
          </div>
 

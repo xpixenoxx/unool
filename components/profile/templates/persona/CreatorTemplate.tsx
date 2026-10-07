@@ -57,16 +57,17 @@ export function CreatorTemplate({
 
   return (
     <div
-      className="relative min-h-screen w-full"
+      className="relative min-h-screen w-full bg-[#050505] text-white"
       style={{
         '--profile-accent': accent,
         '--profile-radius': '16px',
         fontFamily: 'var(--font-syne)',
+        colorScheme: 'dark',
       } as React.CSSProperties}
     >
       {/* Creative Gradient Background + Pattern */}
       <div className="absolute inset-0 -z-20" aria-hidden="true">
-        <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-muted/30" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#050505] via-[#0A0A0A] to-[#111111]" />
         <div
           className="absolute top-0 left-1/3 -translate-x-1/2 w-[700px] h-[700px] rounded-full blur-[250px] opacity-40"
           style={{ background: `radial-gradient(ellipse at center, ${accent}35 0%, transparent 60%)` }}
@@ -228,18 +229,18 @@ export function CreatorTemplate({
               <div className="relative w-full">
                 <div
                   className="absolute inset-0 rounded-2xl"
-                  style={{ background: `linear-gradient(135deg, ${accent}10 0%, ${secondaryAccent}08 50%, oklch(0.7 0.25 80)06 100%)` }}
+                  style={{ background: `linear-gradient(135deg, ${accent}20 0%, ${secondaryAccent}15 50%, oklch(0.7 0.25 80)10 100%)` }}
                 />
                 <div
                   className="relative rounded-2xl border p-[1.5px] overflow-hidden"
                   style={{
-                    borderColor: 'var(--border)',
-                    background: 'var(--card)',
-                    boxShadow: `0 0 0 1px ${accent}15, 0 4px 24px -4px ${accent}15`,
+                    borderColor: 'rgba(255,255,255,0.1)',
+                    background: '#111',
+                    boxShadow: `0 0 0 1px ${accent}20, 0 4px 24px -4px ${accent}20`,
                   }}
                 >
-                  <div className="relative p-6 rounded-xl" style={{ background: 'var(--card)' }}>
-                    <Text size="base" color="foreground" style={{ lineHeight: 1.9, fontFamily: 'var(--font-syne)', fontSize: '1.0625rem', fontWeight: 400 }}>
+                  <div className="relative p-6 rounded-xl" style={{ background: '#0A0A0A' }}>
+                    <Text size="base" style={{ lineHeight: 1.9, fontFamily: 'var(--font-syne)', fontSize: '1.0625rem', fontWeight: 400, color: 'rgba(255,255,255,0.9)' }}>
                       {profile.bio}
                     </Text>
                   </div>
@@ -383,45 +384,60 @@ export function CreatorTemplate({
           </motion.div>
         )}
 
-        {/* Proof Points - Creative Badges - ALWAYS VISIBLE */}
-        {visibleProofs.filter((p) => p.type !== 'badge' && p.type !== 'testimonial').length > 0 && (
+        {/* Proof Points Section - ENHANCED & ALWAYS VISIBLE */}
+        {visibleProofs.length > 0 && (
           <motion.div
             initial={reducedMotion ? {} : { opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ ...spring.standard, delay: 0.7 }}
-            className="w-full"
+            className="w-full mt-4"
           >
-            <Stack space={3}>
-              <Overline color="muted" style={{ fontFamily: 'var(--font-syne)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                Creative Cred
-              </Overline>
-              <Flex gap={3} className="flex-wrap" wrap>
-                {visibleProofs
-                  .filter((p) => p.type !== 'badge' && p.type !== 'testimonial')
-                  .slice(0, 6)
-                  .map((proof, index) => (
-                    <motion.div
-                      key={proof.id}
-                      initial={reducedMotion ? {} : { opacity: 0, scale: 0.8, rotate: -5 }}
-                      animate={{ opacity: 1, scale: 1, rotate: 0 }}
-                      transition={{ ...spring.bouncy, delay: 0.7 + index * 0.08 }}
-                    >
-                      <Badge
-                        variant="outline"
-                        className={cn('gap-2 py-2.5 px-3.5', isPreview && 'opacity-80')}
-                        style={{ fontFamily: 'var(--font-syne)', fontSize: '0.875rem', borderColor: `${accent}40`, background: `linear-gradient(135deg, ${accent}05, ${secondaryAccent}03)` }}
-                      >
-                        {proof.icon && <span style={{ fontSize: '1.2rem' }}>{proof.icon}</span>}
-                        {proof.title}
-                        {proof.value && (
-                          <Text size="xs" color="muted" style={{ fontFamily: 'var(--font-mono)' }}>
-                            {proof.value}
-                          </Text>
-                        )}
-                      </Badge>
-                    </motion.div>
-                  ))}
+            <Stack space={4}>
+              <Flex between align="center">
+                <Overline style={{ fontFamily: 'var(--font-syne)', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.6)' }}>
+                  Proof Points & Milestones
+                </Overline>
               </Flex>
+              <div className="grid grid-cols-1 gap-4">
+                {visibleProofs.map((proof, index) => (
+                  <motion.div
+                    key={proof.id}
+                    initial={reducedMotion ? {} : { opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ ...spring.gentle, delay: 0.7 + index * 0.1 }}
+                    className="relative p-5 rounded-2xl border flex flex-col sm:flex-row gap-4 sm:items-center overflow-hidden group"
+                    style={{
+                      borderColor: 'rgba(255,255,255,0.1)',
+                      background: 'rgba(20,20,20,0.6)',
+                      backdropFilter: 'blur(10px)'
+                    }}
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                    
+                    {proof.icon && (
+                      <div className="w-12 h-12 shrink-0 rounded-xl flex items-center justify-center text-2xl" style={{ background: `linear-gradient(135deg, ${accent}20, ${secondaryAccent}20)`, border: `1px solid ${accent}40` }}>
+                        {proof.icon}
+                      </div>
+                    )}
+                    
+                    <div className="flex-1 flex flex-col min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-bold text-lg text-white" style={{ fontFamily: 'var(--font-syne)' }}>{proof.title}</span>
+                        {proof.value && (
+                          <Badge variant="secondary" className="ml-2 font-mono text-xs" style={{ background: `${accent}30`, color: '#fff' }}>
+                            {proof.value}
+                          </Badge>
+                        )}
+                      </div>
+                      {proof.description && (
+                        <p className="text-sm text-white/60 leading-relaxed font-medium">
+                          {proof.description}
+                        </p>
+                      )}
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
             </Stack>
           </motion.div>
         )}
