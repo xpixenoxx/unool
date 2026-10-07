@@ -2418,11 +2418,7 @@ function HustlerTemplate({ profile }: any) {
          
          {/* TOP STATUS BAR */}
          <div className="flex justify-between items-center px-5 py-3 bg-[#292724] text-[#EAE8E3]">
-            <span className="text-[10px] uppercase tracking-widest font-bold">DOSSIER // {name || "HUSTLER"}</span>
-            <div className="flex items-center gap-2">
-               <span className="w-2 h-2 rounded-full bg-[#D64924] animate-pulse"></span>
-               <span className="text-[10px] uppercase tracking-widest font-bold text-[#D64924]">ACTIVE</span>
-            </div>
+            <span className="text-[10px] uppercase tracking-widest font-bold">{name || "HUSTLER"}</span>
          </div>
 
          {/* HEADER: AVATAR & INFO */}
