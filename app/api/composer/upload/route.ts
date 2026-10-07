@@ -2,11 +2,54 @@ import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
 import { planEnforcement } from '@/lib/middleware/plan-enforcement-middleware';
-import { createR2PresignedUploadUrl, buildR2Key } from '@/lib/storage/r2';
+import { createR2PresignedUploadUrl, buildR2Key, getR2Client, getBucketName } from '@/lib/storage/r2';
+import { PutBucketCorsCommand } from '@aws-sdk/client-s3';
+
+let corsConfigured = false;
+
+async function ensureCorsConfigured() {
+  if (corsConfigured) return;
+  
+  try {
+    const client = getR2Client();
+    const corsRules = {
+      CORSRules: [
+        {
+          AllowedHeaders: ['*'],
+          AllowedMethods: ['GET', 'PUT', 'POST', 'DELETE', 'HEAD'],
+          AllowedOrigins: ['*'],
+          ExposeHeaders: ['ETag', 'x-amz-meta-custom-header'],
+          MaxAgeSeconds: 3000,
+        },
+      ],
+    };
+
+    // Apply to both buckets
+    await Promise.all([
+      client.send(new PutBucketCorsCommand({
+        Bucket: getBucketName('post-media'),
+        CORSConfiguration: corsRules,
+      })),
+      client.send(new PutBucketCorsCommand({
+        Bucket: getBucketName('avatars'),
+        CORSConfiguration: corsRules,
+      }))
+    ]);
+    
+    corsConfigured = true;
+    logger.info('Successfully configured R2 CORS policies');
+  } catch (error) {
+    logger.error('Failed to configure R2 CORS policies', { error });
+    // Don't throw, let the upload attempt proceed. If CORS fails, it fails in the browser.
+  }
+}
 
 export async function POST(request: NextRequest) {
   return planEnforcement.createPost(request, async (request) => {
     try {
+      // Ensure CORS is configured for Cloudflare R2 on cold starts
+      await ensureCorsConfigured();
+
       const { filename, contentType } = await request.json();
 
       if (!filename || !contentType) {
