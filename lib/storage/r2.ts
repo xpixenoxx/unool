@@ -7,12 +7,18 @@
  *   - avatars     → profile pictures
  *
  * Required env vars:
- *   CF_R2_ACCOUNT_ID, CF_R2_ACCESS_KEY_ID, CF_R2_SECRET_ACCESS_KEY,
- *   CF_R2_BUCKET_NAME (default bucket), CF_R2_PUBLIC_URL
+ *   CF_R2_ACCOUNT_ID           – Cloudflare Account ID
+ *   CF_R2_ACCESS_KEY_ID        – R2 API token access key
+ *   CF_R2_SECRET_ACCESS_KEY    – R2 API token secret key
+ *   CF_R2_MEDIA_BUCKET_NAME    – name of the post-media bucket
+ *   CF_R2_AVATARS_BUCKET_NAME  – name of the avatars bucket
+ *   CF_R2_MEDIA_PUBLIC_URL     – public base URL for post-media bucket
+ *   CF_R2_AVATARS_PUBLIC_URL   – public base URL for avatars bucket
  *
- * Optional per-bucket overrides:
- *   CF_R2_AVATARS_BUCKET_NAME   (defaults to CF_R2_BUCKET_NAME)
- *   CF_R2_MEDIA_BUCKET_NAME     (defaults to CF_R2_BUCKET_NAME)
+ * ⚠️  CORS: Cloudflare R2 does NOT support the S3 PutBucketCors API.
+ *   CORS must be configured manually in the Cloudflare Dashboard:
+ *     Dashboard → R2 → <bucket> → Settings → CORS Policy
+ *   Visit GET /api/debug/cors to get the exact JSON to paste there.
  */
 
 import {
@@ -24,29 +30,42 @@ import {
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 // ---------------------------------------------------------------------------
-// Client singleton
+// Client singleton — one shared instance per server process
 // ---------------------------------------------------------------------------
 
+let _r2Client: S3Client | null = null;
+
 export function getR2Client(): S3Client {
+  if (_r2Client) return _r2Client;
+
   const accountId = process.env.CF_R2_ACCOUNT_ID;
   const accessKeyId = process.env.CF_R2_ACCESS_KEY_ID;
   const secretAccessKey = process.env.CF_R2_SECRET_ACCESS_KEY;
 
   if (!accountId || !accessKeyId || !secretAccessKey) {
     throw new Error(
-      'Cloudflare R2 is not configured. Please set CF_R2_ACCOUNT_ID, CF_R2_ACCESS_KEY_ID, and CF_R2_SECRET_ACCESS_KEY in your environment.'
+      'Cloudflare R2 is not configured. ' +
+        'Set CF_R2_ACCOUNT_ID, CF_R2_ACCESS_KEY_ID, and CF_R2_SECRET_ACCESS_KEY in your environment.'
     );
   }
 
-  return new S3Client({
+  _r2Client = new S3Client({
     region: 'auto',
     endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
-    forcePathStyle: true,
-    credentials: {
-      accessKeyId,
-      secretAccessKey,
-    },
+    credentials: { accessKeyId, secretAccessKey },
+    // ⚠️  CRITICAL: Do NOT add forcePathStyle: true.
+    //
+    // With forcePathStyle the SDK generates path-style URLs:
+    //   https://<accountId>.r2.cloudflarestorage.com/<bucket>/<key>?X-Amz-Signature=...
+    //
+    // R2 presigned PUT URLs require virtual-hosted-style:
+    //   https://<bucket>.<accountId>.r2.cloudflarestorage.com/<key>?X-Amz-Signature=...
+    //
+    // Path-style presigned URLs silently fail (403 / "Failed to fetch") in R2.
+    // The default (no forcePathStyle) is correct. Do not change this.
   });
+
+  return _r2Client;
 }
 
 // ---------------------------------------------------------------------------
