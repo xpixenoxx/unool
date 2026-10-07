@@ -778,7 +778,7 @@ function RebellionTemplate({ profile, accentColor }: any) {
 
       font-family: var(--sans);
       background: #E8E0D5; /* Neutral background to create the gap */
-      padding: clamp(12px, 3vw, 40px); /* The gap between screen and template */
+      padding: clamp(36px, 9vw, 120px); /* Tripled gap between screen and template */
       color: var(--text);
       min-height: 100vh;
       overflow-x: hidden;
@@ -896,7 +896,7 @@ function RebellionTemplate({ profile, accentColor }: any) {
 
     /* Role */
     .reb-role-row {
-      display: flex; align-items: center; gap: 16px; margin: 28px 0 24px;
+      display: flex; align-items: center; gap: 16px; margin: 4px 0 24px;
     }
     .reb-role-gem {
       width: 10px; height: 10px; border-radius: 50%;
@@ -1287,13 +1287,13 @@ function RebellionTemplate({ profile, accentColor }: any) {
       .reb-gem, .reb-float-crown, .reb-sparkle, .reb-float-orb { display: none; }
     }
     @media (max-width: 640px) {
-      .reb-wrap { padding: 12px; }
+      .reb-wrap { padding: 36px 16px; }
       .reb-frame { padding: 24px 20px; border-radius: 24px; }
       .reb-header { flex-direction: column; gap: 20px; margin-bottom: 40px; }
       .reb-nav-right { gap: 10px; width: 100%; justify-content: center; }
       .reb-year { display: none; }
       .reb-name { font-size: clamp(3.2rem, 12vw, 4.5rem); line-height: 0.95; }
-      .reb-role-row { flex-wrap: wrap; justify-content: center; margin: 20px 0; }
+      .reb-role-row { flex-wrap: wrap; justify-content: center; margin: 8px 0 20px; }
       .reb-role { font-size: 1.2rem; text-align: center; }
       .reb-card-3d { aspect-ratio: auto; min-height: 400px; }
       .reb-card-face { padding: 32px 20px; }
