@@ -2084,11 +2084,12 @@ const getAestheteSocialIcon = (label: string) => {
 };
 
 function AestheteTemplate({ profile }: any) {
+  const [hasScrolled, setHasScrolled] = useState(false);
   const firstName = profile.name?.split(' ')[0] || "Aesthete";
   const lastName = profile.name?.split(' ').slice(1).join(' ') || "";
   
   return (
-    <div className="w-full min-h-screen bg-[#0C0D0A] flex items-center justify-center p-0 md:p-8 overflow-hidden font-sans">
+    <div className="w-full min-h-screen bg-[#EAE7E0] flex items-center justify-center p-0 md:p-8 overflow-hidden font-sans">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,700;1,6..96,400&family=Inter:wght@300;400;500&display=swap');
         
@@ -2127,7 +2128,7 @@ function AestheteTemplate({ profile }: any) {
           left: 0;
           width: 0%;
           height: 1px;
-          background-color: #E6E4DF;
+          background-color: #292826;
           transition: width 0.6s cubic-bezier(0.19, 1, 0.22, 1);
         }
         .link-item-wrapper:hover .link-item::before {
@@ -2135,16 +2136,16 @@ function AestheteTemplate({ profile }: any) {
         }
       `}</style>
 
-      <div className="w-full max-w-[1600px] md:h-[90vh] bg-[#161714] md:rounded-[2px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.8)] flex flex-col md:flex-row relative overflow-hidden">
+      <div className="w-full max-w-[1600px] md:h-[90vh] bg-[#F5F3EF] md:rounded-[2px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.15)] flex flex-col md:flex-row relative overflow-hidden">
         
         {/* Mobile Header */}
-        <div className="md:hidden flex justify-between items-center p-5 border-b border-[#E6E4DF]/10 bg-[#161714] z-20">
-          <span className="font-inter text-[10px] tracking-[0.25em] uppercase text-[#E6E4DF]">The Aesthete</span>
-          <span className="font-inter text-[9px] tracking-[0.2em] uppercase text-[#E6E4DF]/50">{profile.role || 'Digital Creator'}</span>
+        <div className="md:hidden flex justify-between items-center p-5 border-b border-[#292826]/10 bg-[#F5F3EF] z-20">
+          <span className="font-inter text-[10px] tracking-[0.25em] uppercase text-[#292826]">The Aesthete</span>
+          <span className="font-inter text-[9px] tracking-[0.2em] uppercase text-[#292826]/50">{profile.role || 'Digital Creator'}</span>
         </div>
 
         {/* Left Column: Visual Canvas */}
-        <div className="editorial-column w-full md:w-[50%] h-[50vh] md:h-full relative overflow-hidden bg-[#10110D] cursor-crosshair">
+        <div className="editorial-column w-full md:w-[50%] h-[50vh] md:h-full relative overflow-hidden bg-[#E2DED5] cursor-crosshair">
           {profile.avatarUrl ? (
             <img 
               src={profile.avatarUrl} 
@@ -2152,63 +2153,61 @@ function AestheteTemplate({ profile }: any) {
               className="editorial-image w-full h-full object-cover grayscale-[0.05] contrast-[1.05] object-center"
             />
           ) : (
-            <div className="editorial-image w-full h-full flex items-center justify-center bg-[#10110D]">
-              <span className="font-bodoni italic text-3xl text-[#E6E4DF]/20">Canvas</span>
+            <div className="editorial-image w-full h-full flex items-center justify-center bg-[#E2DED5]">
+              <span className="font-bodoni italic text-3xl text-[#292826]/20">Canvas</span>
             </div>
           )}
           
-          <div className="absolute inset-0 bg-black/20 pointer-events-none transition-opacity duration-1000" />
+          <div className="absolute inset-0 bg-black/5 pointer-events-none transition-opacity duration-1000" />
           
-          <div className="hidden md:flex absolute top-8 left-8 flex-col text-[#E6E4DF] mix-blend-difference pointer-events-none z-10">
+          <div className="hidden md:flex absolute top-8 left-8 flex-col text-[#F5F3EF] mix-blend-difference pointer-events-none z-10">
             <span className="font-inter text-[10px] tracking-[0.3em] uppercase opacity-80">Portfolio</span>
-            <span className="w-8 h-px bg-[#E6E4DF] mt-2 opacity-50" />
+            <span className="w-8 h-px bg-[#F5F3EF] mt-2 opacity-50" />
           </div>
         </div>
 
         {/* Right Column: Content */}
-        <div className="w-full md:w-[50%] h-auto md:h-full flex flex-col bg-[#161714] z-10 relative text-[#E6E4DF]">
+        <div className="w-full md:w-[50%] h-auto md:h-full flex flex-col bg-[#F5F3EF] z-10 relative text-[#292826]">
           
-          <div className="flex-1 overflow-y-auto no-scrollbar p-8 md:p-10 lg:p-14 flex flex-col">
+          <div 
+            className="flex-1 overflow-y-auto no-scrollbar p-8 md:p-10 lg:p-14 flex flex-col relative"
+            onScroll={(e) => {
+              if (e.currentTarget.scrollTop > 10) {
+                setHasScrolled(true);
+              } else {
+                setHasScrolled(false);
+              }
+            }}
+          >
             
-            {/* Meta Header */}
-            <div className="hidden md:flex items-center justify-between mb-12 border-b border-[#E6E4DF]/10 pb-4">
-              <div className="flex items-center gap-2">
-                 <span className="w-1.5 h-1.5 rounded-full bg-[#CBAA77] animate-pulse" />
-                 <span className="font-inter text-[9px] tracking-[0.2em] uppercase text-[#E6E4DF]/60">Available for select work</span>
-              </div>
-              <span className="font-inter text-[9px] tracking-[0.2em] uppercase text-[#E6E4DF]/40">
-                {profile.location || 'Global Context'}
-              </span>
-            </div>
-
             {/* Title Section */}
             <div className="mb-10">
-              <span className="inline-block px-3 py-1 mb-4 rounded-full border border-[#CBAA77]/30 text-[#CBAA77] font-inter text-[9px] tracking-[0.2em] uppercase">
+              <span className="inline-block px-3 py-1 mb-4 rounded-full border border-[#A39686]/30 text-[#A39686] font-inter text-[9px] tracking-[0.2em] uppercase">
                 {profile.role || 'Digital Creator'}
               </span>
-              <h1 className="font-bodoni text-6xl lg:text-8xl text-[#E6E4DF] leading-[0.85] tracking-tight uppercase">
+              <h1 className="font-bodoni text-6xl lg:text-8xl text-[#292826] leading-[0.85] tracking-tight uppercase">
                 {firstName} <br />
-                <span className="italic normal-case text-[#CBAA77] font-medium">{lastName}</span>
+                <span className="italic normal-case text-[#A39686] font-medium">{lastName}</span>
               </h1>
             </div>
 
             {/* Headline Block */}
-            <div className="pl-6 border-l border-[#CBAA77]/40 mb-10">
-              <h2 className="font-bodoni text-2xl md:text-3xl text-[#E6E4DF] leading-[1.2] mb-3">
+            <div className="pl-6 border-l border-[#A39686]/40 mb-10">
+              <h2 className="font-bodoni text-2xl md:text-3xl text-[#292826] leading-[1.2] mb-3">
                 {profile.headline || 'My world is my canvas.'}
               </h2>
-              <p className="font-inter text-sm md:text-base text-[#E6E4DF]/60 leading-relaxed font-light">
+              <p className="font-inter text-sm md:text-base text-[#73706A] leading-relaxed font-light">
                 {profile.bio || 'Fashion, beauty, lifestyle. Elegant, curated, premium. Editorial magazine aesthetic, sophisticated typography.'}
               </p>
             </div>
 
             {/* The Philosophy */}
-            <div className="mb-10 p-6 bg-[#1D1E1A] border border-[#E6E4DF]/5 rounded-sm">
-               <h3 className="font-inter text-[9px] tracking-[0.2em] uppercase text-[#E6E4DF]/40 mb-3 flex items-center gap-2">
-                 <span className="w-4 h-px bg-[#E6E4DF]/20"></span>
+            <div className="mb-10 p-6 bg-[#EBE8E3] border border-[#292826]/5 rounded-sm">
+               <h3 className="font-inter text-[9px] tracking-[0.2em] uppercase text-[#292826]/40 mb-3 flex items-center gap-2">
+                 <span className="w-4 h-px bg-[#292826]/20"></span>
                  Signature Philosophy
                </h3>
-               <p className="font-bodoni italic text-[#E6E4DF]/80 leading-relaxed text-base">
+               <p className="font-bodoni italic text-[#292826]/80 leading-relaxed text-base">
                  "Curating the space between modern minimalism and timeless elegance. Every detail is an intentional choice towards a beautiful existence."
                </p>
             </div>
@@ -2218,9 +2217,9 @@ function AestheteTemplate({ profile }: any) {
               <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mb-12">
                 {profile.proofPoints.map((point: any, i: number) => (
                   <div key={i} className="flex flex-col">
-                    <span className="font-bodoni text-3xl text-[#E6E4DF] mb-1">{point.value}</span>
-                    <span className="font-inter text-[9px] tracking-[0.2em] uppercase text-[#CBAA77]">{point.type}</span>
-                    <div className="w-full h-px bg-[#E6E4DF]/5 mt-3" />
+                    <span className="font-bodoni text-3xl text-[#292826] mb-1">{point.value}</span>
+                    <span className="font-inter text-[9px] tracking-[0.2em] uppercase text-[#A39686]">{point.type}</span>
+                    <div className="w-full h-px bg-[#292826]/5 mt-3" />
                   </div>
                 ))}
               </div>
@@ -2229,8 +2228,8 @@ function AestheteTemplate({ profile }: any) {
             {/* Link Directory */}
             <div className="mt-auto pt-8">
               <div className="flex items-center gap-3 mb-6">
-                <span className="font-inter text-[9px] tracking-[0.2em] uppercase text-[#E6E4DF]/40">Featured Directories</span>
-                <div className="flex-1 h-px bg-[#E6E4DF]/10" />
+                <span className="font-inter text-[9px] tracking-[0.2em] uppercase text-[#292826]/40">Featured Directories</span>
+                <div className="flex-1 h-px bg-[#292826]/10" />
               </div>
 
               <div className="flex flex-col gap-4">
@@ -2243,16 +2242,16 @@ function AestheteTemplate({ profile }: any) {
                     className="link-item-wrapper group flex items-center justify-between cursor-pointer py-1"
                   >
                     <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-full bg-[#E6E4DF]/5 flex items-center justify-center text-[#E6E4DF]/40 group-hover:bg-[#CBAA77] group-hover:text-[#161714] transition-colors duration-500">
+                      <div className="w-10 h-10 rounded-full bg-[#292826]/5 flex items-center justify-center text-[#292826]/40 group-hover:bg-[#A39686] group-hover:text-[#F5F3EF] transition-colors duration-500">
                         <svg className="w-4 h-4" viewBox="0 0 24 24">
                           {getAestheteSocialIcon(link.label)}
                         </svg>
                       </div>
-                      <span className="link-item font-inter text-base md:text-lg text-[#E6E4DF] tracking-wide">
+                      <span className="link-item font-inter text-base md:text-lg text-[#292826] tracking-wide">
                         {link.label}
                       </span>
                     </div>
-                    <div className="text-[#E6E4DF]/20 group-hover:text-[#CBAA77] transition-colors duration-500">
+                    <div className="text-[#292826]/20 group-hover:text-[#A39686] transition-colors duration-500">
                       <svg className="w-5 h-5 transform group-hover:translate-x-1 transition-transform duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                       </svg>
@@ -2263,10 +2262,18 @@ function AestheteTemplate({ profile }: any) {
             </div>
           </div>
           
+          {/* Scroll Indicator */}
+          <div className={`hidden md:flex absolute bottom-[15%] right-8 flex-col items-center gap-3 transition-opacity duration-1000 pointer-events-none z-50 ${hasScrolled ? 'opacity-0' : 'opacity-40'}`}>
+             <span className="font-inter text-[8px] tracking-[0.3em] uppercase text-[#292826] rotate-90 mb-6">Scroll</span>
+             <svg className="w-4 h-4 text-[#292826] animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+             </svg>
+          </div>
+          
           {/* Footer */}
           <div className="p-8 md:p-10 lg:p-14 pt-0 mt-8">
-             <div className="w-full h-px bg-[#E6E4DF]/10 mb-5" />
-             <div className="flex justify-between items-center text-[#E6E4DF]/40 font-inter text-[9px] tracking-[0.2em] uppercase">
+             <div className="w-full h-px bg-[#292826]/10 mb-5" />
+             <div className="flex justify-between items-center text-[#292826]/40 font-inter text-[9px] tracking-[0.2em] uppercase">
                 <span>© {new Date().getFullYear()}</span>
                 <span>The Aesthete</span>
              </div>
@@ -2278,36 +2285,175 @@ function AestheteTemplate({ profile }: any) {
   );
 }
 
-function CreatorTemplate({ profile, accentColor }: any) {
-  const accent = accentColor || '#7C3AED';
+function CreatorTemplate({ profile }: any) {
+  const [time, setTime] = useState("00:00:00:00");
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const d = new Date();
+      setTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}:${String(Math.floor(d.getMilliseconds()/10)).padStart(2, '0')}`);
+    }, 50);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
-    <div className="min-h-screen w-full bg-[#0F0F13] text-white p-4 font-sans flex justify-center">
-      <div className="max-w-2xl w-full pt-16 flex flex-col items-center space-y-10">
+    <div className="min-h-screen w-full bg-[#050505] flex items-center justify-center p-4 md:p-8 font-sans overflow-hidden">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
         
-        <div className="relative group">
-          <div className="absolute -inset-1 rounded-full blur opacity-70 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-tilt" style={{ backgroundImage: `linear-gradient(to right, ${accent}, #FF0080)` }} />
-          <img src={profile.avatarUrl} alt={profile.name} className="relative w-32 h-32 rounded-full border-2 border-black object-cover" />
-        </div>
+        .creator-font-main {
+          font-family: 'Outfit', sans-serif;
+        }
+        .creator-font-mono {
+          font-family: 'Space Mono', monospace;
+        }
         
-        <div className="text-center space-y-2">
-           <h1 className="text-4xl font-black tracking-tight">{profile.name}</h1>
-           <p className="text-[#A1A1AA] font-medium">{profile.headline}</p>
-           <p className="max-w-sm text-sm text-[#71717A] mt-4 leading-relaxed">{profile.bio}</p>
+        .scanline {
+          width: 100%;
+          height: 100%;
+          z-index: 50;
+          position: absolute;
+          pointer-events: none;
+          background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
+          background-size: 100% 4px;
+        }
+
+        .viewfinder-corner {
+          position: absolute;
+          width: 24px;
+          height: 24px;
+          border-color: #333;
+          border-style: solid;
+        }
+        .vf-tl { top: 0; left: 0; border-width: 2px 0 0 2px; }
+        .vf-tr { top: 0; right: 0; border-width: 2px 2px 0 0; }
+        .vf-bl { bottom: 0; left: 0; border-width: 0 0 2px 2px; }
+        .vf-br { bottom: 0; right: 0; border-width: 0 2px 2px 0; }
+        
+        .timeline-track {
+          transition: all 0.2s ease;
+        }
+        .timeline-track:hover {
+          transform: translateX(8px);
+          background-color: #1a1a1a;
+          border-left: 4px solid #FF0055;
+        }
+        
+        .playhead-line {
+          position: absolute;
+          left: 16px;
+          top: 0;
+          bottom: 0;
+          width: 2px;
+          background-color: rgba(255, 0, 85, 0.3);
+          z-index: 0;
+        }
+      `}</style>
+
+      <div className="w-full max-w-3xl bg-[#0A0A0A] border border-[#222] relative overflow-hidden flex flex-col shadow-[0_0_50px_rgba(255,0,85,0.05)] rounded-md">
+        
+        {/* Overlay Effects */}
+        <div className="scanline opacity-20"></div>
+
+        {/* Top Broadcast Bar */}
+        <div className="w-full h-10 border-b border-[#222] flex items-center justify-between px-4 creator-font-mono text-[10px] text-[#666] tracking-widest uppercase z-10 bg-[#050505]">
+          <div className="flex items-center gap-3">
+            <span className="flex items-center gap-2 text-[#FF0055] font-bold">
+              <span className="w-2 h-2 rounded-full bg-[#FF0055] animate-pulse shadow-[0_0_8px_#FF0055]"></span>
+              LIVE
+            </span>
+            <span className="hidden md:inline-block">CH-01</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="hidden md:inline-block">1080P / 60FPS</span>
+            <span className="text-[#00FFAA]">{time}</span>
+          </div>
         </div>
 
-        <div className="w-full grid gap-4 mt-8 pb-12">
-          {profile.links?.map((link: any, i: number) => (
-            <a key={i} href={link.url} className="relative w-full h-20 md:h-24 bg-gradient-to-r from-zinc-900 to-zinc-950 rounded-2xl p-[2px] overflow-hidden group">
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
-              <div className="w-full h-full bg-zinc-950 rounded-xl relative z-10 flex items-center px-6 overflow-hidden">
-                <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-black/50 to-transparent pointer-events-none" style={{ background: `linear-gradient(to left, ${accent}20, transparent)` }} />
-                <div className="bg-white/10 p-3 rounded-full mr-4 group-hover:scale-110 transition-transform">
-                  ▶
-                </div>
-                <span className="text-lg md:text-xl font-bold">{link.label}</span>
+        {/* Content Container */}
+        <div className="p-6 md:p-12 relative z-10 flex flex-col gap-8">
+          
+          {/* Main Visual / Lens */}
+          <div className="w-full relative aspect-video bg-[#111] overflow-hidden group rounded-sm border border-[#1a1a1a]">
+            {/* Corners */}
+            <div className="viewfinder-corner vf-tl m-4"></div>
+            <div className="viewfinder-corner vf-tr m-4"></div>
+            <div className="viewfinder-corner vf-bl m-4"></div>
+            <div className="viewfinder-corner vf-br m-4"></div>
+            
+            {/* Crosshair */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 opacity-20 pointer-events-none flex items-center justify-center">
+              <div className="w-full h-px bg-white absolute"></div>
+              <div className="h-full w-px bg-white absolute"></div>
+            </div>
+
+            {profile.avatarUrl ? (
+              <img 
+                src={profile.avatarUrl} 
+                alt={profile.name} 
+                className="w-full h-full object-cover mix-blend-luminosity opacity-60 group-hover:mix-blend-normal group-hover:opacity-100 transition-all duration-700 ease-out transform group-hover:scale-105"
+              />
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center text-[#333] creator-font-mono text-sm">
+                NO SIGNAL
               </div>
-            </a>
-          ))}
+            )}
+            
+            <div className="absolute bottom-4 left-4 creator-font-mono text-[10px] text-white/50 bg-black/50 px-2 py-1 backdrop-blur-sm rounded-sm uppercase">
+              {profile.role || 'CREATOR_FEED'}
+            </div>
+          </div>
+
+          {/* Identity & Typography */}
+          <div className="flex flex-col gap-2">
+            <h1 className="creator-font-main text-5xl md:text-7xl font-black text-white uppercase leading-none tracking-tighter mix-blend-exclusion relative">
+              {profile.name}
+            </h1>
+            <p className="creator-font-main text-xl md:text-2xl text-white/80 font-bold uppercase tracking-tight">
+              {profile.headline || 'I turn ideas into content.'}
+            </p>
+            <p className="creator-font-mono text-sm text-[#888] mt-4 max-w-xl leading-relaxed border-l-2 border-[#333] pl-4">
+              {profile.bio || 'Video-first creator, streamer. Vibrant, energetic, motion-inspired. Large visual real estate.'}
+            </p>
+          </div>
+
+          {/* Timeline / Links */}
+          {profile.links && profile.links.length > 0 && (
+            <div className="mt-4 relative">
+              <div className="playhead-line"></div>
+              <div className="flex flex-col gap-2 pl-12 relative z-10">
+                <div className="creator-font-mono text-[10px] text-[#444] mb-2 tracking-widest uppercase">
+                  Sequence / Output
+                </div>
+                {profile.links.map((link: any, i: number) => (
+                  <a 
+                    key={i} 
+                    href={link.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="timeline-track relative w-full bg-[#111] border border-[#222] py-4 px-6 rounded-sm flex items-center justify-between group cursor-pointer overflow-hidden"
+                  >
+                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#333] group-hover:bg-[#FF0055] transition-colors"></div>
+                    
+                    <div className="flex items-center gap-4 relative z-10">
+                      <span className="creator-font-mono text-[#555] text-xs">V{i + 1}</span>
+                      <span className="creator-font-main font-bold text-white text-lg tracking-wide uppercase">
+                        {link.label}
+                      </span>
+                    </div>
+                    
+                    <div className="creator-font-mono text-[#333] group-hover:text-[#00FFAA] transition-colors flex items-center gap-2">
+                      <span className="text-xs hidden md:block">RENDER</span>
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                      </svg>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
     </div>
