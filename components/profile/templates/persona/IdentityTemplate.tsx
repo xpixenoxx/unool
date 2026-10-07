@@ -778,8 +778,8 @@ function RebellionTemplate({ profile, accentColor }: any) {
       --shadow-crim: 0 8px 40px rgba(200, 16, 46, 0.12);
 
       font-family: var(--sans);
-      background: #E8E0D5; /* Neutral background to create the gap */
-      padding: clamp(36px, 9vw, 120px); /* Tripled gap between screen and template */
+      background: #E8E0D5;
+      padding: clamp(20px, 4vw, 48px);
       color: var(--text);
       min-height: 100vh;
       overflow-x: hidden;
@@ -824,7 +824,7 @@ function RebellionTemplate({ profile, accentColor }: any) {
     /* ── HEADER ── */
     .reb-header {
       display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: 64px;
+      margin-bottom: 40px;
     }
     .reb-logo {
       display: inline-flex; align-items: center; gap: 10px;
@@ -1404,21 +1404,32 @@ function RebellionTemplate({ profile, accentColor }: any) {
                 <div className="reb-card-name">{profile.name}</div>
                 <div className="reb-card-title">{profile.headline}</div>
 
-                {/* Stat bubbles */}
-                <div className="reb-stat-row">
-                  <div className="reb-stat">
-                    <strong>120M</strong>
-                    <span>Reach</span>
+                {/* Stat bubbles — uses user's actual proof points */}
+                {profile.proofs && profile.proofs.length > 0 ? (
+                  <div className="reb-stat-row">
+                    {profile.proofs.slice(0, 3).map((proof: any, i: number) => (
+                      <div key={i} className="reb-stat">
+                        <strong>{proof.value}</strong>
+                        <span>{proof.title || proof.type}</span>
+                      </div>
+                    ))}
                   </div>
-                  <div className="reb-stat">
-                    <strong>2026</strong>
-                    <span>Founded</span>
+                ) : (
+                  <div className="reb-stat-row">
+                    {profile.role && (
+                      <div className="reb-stat">
+                        <strong>{profile.role}</strong>
+                        <span>Role</span>
+                      </div>
+                    )}
+                    {profile.company && (
+                      <div className="reb-stat">
+                        <strong>{profile.company}</strong>
+                        <span>Company</span>
+                      </div>
+                    )}
                   </div>
-                  <div className="reb-stat">
-                    <strong>✦ 1</strong>
-                    <span>Ranked</span>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
           </div>
@@ -1443,56 +1454,87 @@ function RebellionTemplate({ profile, accentColor }: any) {
         </div>
 
         {/* ── LINKS ── */}
-        <div className="reb-section-label">
-          <h2>Connect &amp; Explore</h2>
-        </div>
+        {profile.links && profile.links.length > 0 && (
+          <>
+            <div className="reb-section-label">
+              <h2>Connect &amp; Explore</h2>
+            </div>
 
-        <nav className="reb-links-grid">
-          {profile.links?.map((link: any, i: number) => (
-            <a
-              key={i}
-              className="reb-link-card"
-              href={link.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              onMouseEnter={() => setHovered(i)}
-              onMouseLeave={() => setHovered(null)}
-            >
-              <div className="reb-link-icon-wrap">
-                {getLinkIcon(link.label || link.platform)}
-              </div>
-              <div className="reb-link-title">{link.label || link.platform}</div>
-              <div className="reb-link-sub">{getLinkSubtitle(link.label || link.platform)}</div>
-              <div className="reb-link-arrow">↗</div>
-            </a>
-          ))}
-        </nav>
+            <nav className="reb-links-grid">
+              {profile.links.map((link: any, i: number) => (
+                <a
+                  key={i}
+                  className="reb-link-card"
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onMouseEnter={() => setHovered(i)}
+                  onMouseLeave={() => setHovered(null)}
+                >
+                  <div className="reb-link-icon-wrap">
+                    {getLinkIcon(link.label || link.platform)}
+                  </div>
+                  <div className="reb-link-title">{link.label || link.platform}</div>
+                  <div className="reb-link-sub">{getLinkSubtitle(link.label || link.platform)}</div>
+                  <div className="reb-link-arrow">↗</div>
+                </a>
+              ))}
+            </nav>
+          </>
+        )}
+
+        {/* ── BIO SECTION (when no links, fill space with bio) ── */}
+        {(!profile.links || profile.links.length === 0) && profile.bio && (
+          <>
+            <div className="reb-section-label">
+              <h2>About</h2>
+            </div>
+            <div style={{
+              padding: '32px',
+              borderRadius: '22px',
+              background: 'linear-gradient(145deg, rgba(255,252,246,0.95), rgba(248,240,226,0.9))',
+              border: '1.5px solid rgba(201,153,58,0.2)',
+              fontFamily: 'var(--serif)',
+              fontStyle: 'italic',
+              fontSize: '1.15rem',
+              lineHeight: '1.9',
+              color: 'var(--text-2)',
+              maxWidth: '640px',
+            }}>
+              "{profile.bio}"
+            </div>
+          </>
+        )}
 
         {/* ── CTA SECTION ── */}
-        <section className="reb-cta-section">
-          <span className="reb-cta-crest reb-cta-crest-tl">♛</span>
-          <span className="reb-cta-crest reb-cta-crest-br">♛</span>
-          <div className="reb-cta-inner">
-            <div className="reb-cta-left">
-              <h2>Start Something Extraordinary.</h2>
-              <p>Join the rebellion — challenge convention, redefine the rules, and build something that matters.</p>
-            </div>
-            <div className="reb-cta-buttons">
-              <a
-                className="reb-cta-btn"
-                href={profile.email ? `mailto:${profile.email}` : '#'}
-              >
-                Work with {profile.name?.split(' ')[0] || 'Us'}
-                <span className="reb-cta-btn-icon">→</span>
-              </a>
-              {profile.links?.[0] && (
-                <a className="reb-cta-btn-sec" href={profile.links[0].url} target="_blank" rel="noopener noreferrer">
-                  ♛ &nbsp;Follow
+        {(profile.links?.length > 0 || profile.email) && (
+          <section className="reb-cta-section">
+            <span className="reb-cta-crest reb-cta-crest-tl">♛</span>
+            <span className="reb-cta-crest reb-cta-crest-br">♛</span>
+            <div className="reb-cta-inner">
+              <div className="reb-cta-left">
+                <h2>Start Something Extraordinary.</h2>
+                <p>Join the rebellion — challenge convention, redefine the rules, and build something that matters.</p>
+              </div>
+              <div className="reb-cta-buttons">
+                <a
+                  className="reb-cta-btn"
+                  href={profile.email ? `mailto:${profile.email}` : (profile.links?.[0]?.url || '#')}
+                  target={profile.email ? undefined : '_blank'}
+                  rel={profile.email ? undefined : 'noopener noreferrer'}
+                >
+                  Work with {profile.name?.split(' ')[0] || 'Us'}
+                  <span className="reb-cta-btn-icon">→</span>
                 </a>
-              )}
+                {profile.links?.[0] && profile.email && (
+                  <a className="reb-cta-btn-sec" href={profile.links[0].url} target="_blank" rel="noopener noreferrer">
+                    ♛ &nbsp;Follow
+                  </a>
+                )}
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
         {/* ── FOOTER ── */}
         <footer className="reb-footer">
