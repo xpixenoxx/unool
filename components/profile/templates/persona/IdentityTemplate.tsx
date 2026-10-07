@@ -2083,7 +2083,7 @@ function AestheteTemplate({ profile }: any) {
   const lastName = profile.name?.split(' ').slice(1).join(' ') || "";
   
   return (
-    <div className="w-full min-h-screen bg-[#1A1918] flex items-center justify-center p-0 md:p-8 overflow-hidden font-sans">
+    <div className="w-full min-h-screen bg-[#151413] flex items-center justify-center p-0 md:p-8 overflow-hidden font-sans">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,700;1,6..96,400&family=Inter:wght@300;400;500&display=swap');
         
@@ -2122,7 +2122,7 @@ function AestheteTemplate({ profile }: any) {
           left: 0;
           width: 0%;
           height: 1px;
-          background-color: #1E1D1B;
+          background-color: #201E1D;
           transition: width 0.6s cubic-bezier(0.19, 1, 0.22, 1);
         }
         .link-item-wrapper:hover .link-item::before {
@@ -2130,88 +2130,102 @@ function AestheteTemplate({ profile }: any) {
         }
       `}</style>
 
-      <div className="w-full max-w-[1600px] md:h-[90vh] bg-[#F8F6F0] md:rounded-[2px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] flex flex-col md:flex-row relative overflow-hidden">
+      <div className="w-full max-w-[1600px] md:h-[90vh] bg-[#FDFBFA] md:rounded-[2px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] flex flex-col md:flex-row relative overflow-hidden">
         
         {/* Mobile Header */}
-        <div className="md:hidden flex justify-between items-center p-5 border-b border-[#1E1D1B]/10 bg-[#F8F6F0] z-20">
-          <span className="font-inter text-[10px] tracking-[0.25em] uppercase text-[#1E1D1B]">The Aesthete</span>
-          <span className="font-bodoni italic text-sm text-[#A63A22]">Vol. I</span>
+        <div className="md:hidden flex justify-between items-center p-5 border-b border-[#201E1D]/10 bg-[#FDFBFA] z-20">
+          <span className="font-inter text-[10px] tracking-[0.25em] uppercase text-[#201E1D]">The Aesthete</span>
+          <span className="font-inter text-[9px] tracking-[0.2em] uppercase text-[#201E1D]/50">{profile.role || 'Digital Creator'}</span>
         </div>
 
         {/* Left Column: Visual Canvas */}
-        <div className="editorial-column w-full md:w-[50%] h-[50vh] md:h-full relative overflow-hidden bg-[#2A2826] cursor-crosshair">
+        <div className="editorial-column w-full md:w-[50%] h-[50vh] md:h-full relative overflow-hidden bg-[#1C1A18] cursor-crosshair">
           {profile.avatarUrl ? (
             <img 
               src={profile.avatarUrl} 
               alt={profile.name} 
-              className="editorial-image w-full h-full object-cover grayscale-[0.1] contrast-105 object-center"
+              className="editorial-image w-full h-full object-cover grayscale-[0.05] contrast-[1.05] object-center"
             />
           ) : (
-            <div className="editorial-image w-full h-full flex items-center justify-center bg-[#2A2826]">
-              <span className="font-bodoni italic text-3xl text-[#F8F6F0]/20">Canvas</span>
+            <div className="editorial-image w-full h-full flex items-center justify-center bg-[#1C1A18]">
+              <span className="font-bodoni italic text-3xl text-[#FDFBFA]/20">Canvas</span>
             </div>
           )}
           
           <div className="absolute inset-0 bg-black/10 pointer-events-none transition-opacity duration-1000" />
           
-          <div className="hidden md:flex absolute top-8 left-8 flex-col text-[#F8F6F0] mix-blend-difference pointer-events-none z-10">
+          <div className="hidden md:flex absolute top-8 left-8 flex-col text-[#FDFBFA] mix-blend-difference pointer-events-none z-10">
             <span className="font-inter text-[10px] tracking-[0.3em] uppercase opacity-80">Portfolio</span>
-            <span className="w-8 h-px bg-[#F8F6F0] mt-2 opacity-50" />
+            <span className="w-8 h-px bg-[#FDFBFA] mt-2 opacity-50" />
           </div>
         </div>
 
         {/* Right Column: Content */}
-        <div className="w-full md:w-[50%] h-auto md:h-full flex flex-col bg-[#F8F6F0] z-10 relative">
+        <div className="w-full md:w-[50%] h-auto md:h-full flex flex-col bg-[#FDFBFA] z-10 relative">
           
-          {/* Desktop Header */}
-          <div className="hidden md:flex justify-between items-center p-8 lg:p-12 pb-0">
-            <span className="font-inter text-[10px] tracking-[0.3em] uppercase text-[#1E1D1B]/50">
-              {profile.role || 'Digital Creator'}
-            </span>
-            <span className="font-bodoni italic text-lg text-[#A63A22]">Vol. I</span>
-          </div>
-
-          <div className="flex-1 overflow-y-auto no-scrollbar p-6 md:p-8 lg:p-12 flex flex-col">
+          <div className="flex-1 overflow-y-auto no-scrollbar p-8 md:p-10 lg:p-14 flex flex-col">
             
-            <div className="mb-6">
-              <h1 className="font-bodoni text-5xl lg:text-7xl text-[#1E1D1B] leading-[0.9] tracking-tight uppercase">
+            {/* Meta Header */}
+            <div className="hidden md:flex items-center justify-between mb-12 border-b border-[#201E1D]/10 pb-4">
+              <div className="flex items-center gap-2">
+                 <span className="w-1.5 h-1.5 rounded-full bg-[#C17454] animate-pulse" />
+                 <span className="font-inter text-[9px] tracking-[0.2em] uppercase text-[#201E1D]/60">Available for select work</span>
+              </div>
+              <span className="font-inter text-[9px] tracking-[0.2em] uppercase text-[#201E1D]/40">
+                {profile.location || 'Global Context'}
+              </span>
+            </div>
+
+            {/* Title Section */}
+            <div className="mb-10">
+              <span className="inline-block px-3 py-1 mb-4 rounded-full border border-[#C17454]/30 text-[#C17454] font-inter text-[9px] tracking-[0.2em] uppercase">
+                {profile.role || 'Digital Creator'}
+              </span>
+              <h1 className="font-bodoni text-6xl lg:text-8xl text-[#201E1D] leading-[0.85] tracking-tight uppercase">
                 {firstName} <br />
-                <span className="italic normal-case text-[#A63A22]">{lastName}</span>
+                <span className="italic normal-case text-[#C17454] font-medium">{lastName}</span>
               </h1>
             </div>
 
-            <h2 className="font-bodoni text-2xl md:text-3xl lg:text-4xl text-[#1E1D1B] leading-[1.2] mb-6 relative">
-              <span className="absolute -left-5 -top-3 text-5xl text-[#A63A22]/20 font-serif leading-none">"</span>
-              {profile.headline || 'My world is my canvas.'}
-            </h2>
-            
-            <p className="font-inter text-sm md:text-base text-[#1E1D1B]/70 leading-relaxed font-light mb-8 max-w-md text-justify md:text-left">
-              {profile.bio || 'Fashion, beauty, lifestyle. Elegant, curated, premium. Editorial magazine aesthetic, sophisticated typography.'}
-            </p>
+            {/* Headline Block */}
+            <div className="pl-6 border-l border-[#C17454]/40 mb-10">
+              <h2 className="font-bodoni text-2xl md:text-3xl text-[#201E1D] leading-[1.2] mb-3">
+                {profile.headline || 'My world is my canvas.'}
+              </h2>
+              <p className="font-inter text-sm md:text-base text-[#201E1D]/70 leading-relaxed font-light">
+                {profile.bio || 'Fashion, beauty, lifestyle. Elegant, curated, premium. Editorial magazine aesthetic, sophisticated typography.'}
+              </p>
+            </div>
 
-            {/* NEW SECTION: The Philosophy / Curated Values */}
-            <div className="mb-8 p-5 bg-[#F0EBE1] border border-[#1E1D1B]/5">
-               <h3 className="font-inter text-[9px] tracking-[0.2em] uppercase text-[#1E1D1B]/40 mb-3">Signature Philosophy</h3>
-               <p className="font-bodoni italic text-[#1E1D1B]/80 leading-relaxed text-sm md:text-base">
+            {/* The Philosophy */}
+            <div className="mb-10 p-6 bg-[#F5F2EF] border border-[#201E1D]/5 rounded-sm">
+               <h3 className="font-inter text-[9px] tracking-[0.2em] uppercase text-[#201E1D]/40 mb-3 flex items-center gap-2">
+                 <span className="w-4 h-px bg-[#201E1D]/20"></span>
+                 Signature Philosophy
+               </h3>
+               <p className="font-bodoni italic text-[#201E1D]/80 leading-relaxed text-base">
                  "Curating the space between modern minimalism and timeless elegance. Every detail is an intentional choice towards a beautiful existence."
                </p>
             </div>
 
+            {/* Structured Proof Points */}
             {profile.proofPoints && profile.proofPoints.length > 0 && (
-              <div className="grid grid-cols-2 gap-4 mb-10">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mb-12">
                 {profile.proofPoints.map((point: any, i: number) => (
-                  <div key={i} className="flex flex-col border-l border-[#A63A22]/30 pl-3">
-                    <span className="font-bodoni text-xl md:text-2xl text-[#1E1D1B]">{point.value}</span>
-                    <span className="font-inter text-[9px] tracking-[0.2em] uppercase text-[#A63A22] mt-0.5">{point.type}</span>
+                  <div key={i} className="flex flex-col">
+                    <span className="font-bodoni text-3xl text-[#201E1D] mb-1">{point.value}</span>
+                    <span className="font-inter text-[9px] tracking-[0.2em] uppercase text-[#C17454]">{point.type}</span>
+                    <div className="w-full h-px bg-[#201E1D]/5 mt-3" />
                   </div>
                 ))}
               </div>
             )}
 
-            <div className="mt-auto">
-              <div className="flex items-center gap-3 mb-5">
-                <span className="font-inter text-[9px] tracking-[0.2em] uppercase text-[#1E1D1B]/40">Featured Directories</span>
-                <div className="flex-1 h-px bg-[#1E1D1B]/10" />
+            {/* Link Directory */}
+            <div className="mt-auto pt-8">
+              <div className="flex items-center gap-3 mb-6">
+                <span className="font-inter text-[9px] tracking-[0.2em] uppercase text-[#201E1D]/40">Featured Directories</span>
+                <div className="flex-1 h-px bg-[#201E1D]/10" />
               </div>
 
               <div className="flex flex-col gap-4">
@@ -2224,17 +2238,17 @@ function AestheteTemplate({ profile }: any) {
                     className="link-item-wrapper group flex items-center justify-between cursor-pointer py-1"
                   >
                     <div className="flex items-center gap-4">
-                      <div className="w-8 h-8 rounded-full bg-[#1E1D1B]/5 flex items-center justify-center text-[#1E1D1B]/40 group-hover:bg-[#A63A22] group-hover:text-[#F8F6F0] transition-colors duration-500">
+                      <div className="w-10 h-10 rounded-full bg-[#201E1D]/5 flex items-center justify-center text-[#201E1D]/40 group-hover:bg-[#C17454] group-hover:text-[#FDFBFA] transition-colors duration-500">
                         <svg className="w-4 h-4" viewBox="0 0 24 24">
                           {getAestheteSocialIcon(link.label)}
                         </svg>
                       </div>
-                      <span className="link-item font-inter text-base md:text-lg text-[#1E1D1B] tracking-wide">
+                      <span className="link-item font-inter text-base md:text-lg text-[#201E1D] tracking-wide">
                         {link.label}
                       </span>
                     </div>
-                    <div className="text-[#1E1D1B]/20 group-hover:text-[#A63A22] transition-colors duration-500">
-                      <svg className="w-4 h-4 transform group-hover:translate-x-1 transition-transform duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div className="text-[#201E1D]/20 group-hover:text-[#C17454] transition-colors duration-500">
+                      <svg className="w-5 h-5 transform group-hover:translate-x-1 transition-transform duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                       </svg>
                     </div>
@@ -2244,9 +2258,10 @@ function AestheteTemplate({ profile }: any) {
             </div>
           </div>
           
-          <div className="p-6 md:p-8 lg:p-12 pt-0">
-             <div className="w-full h-px bg-[#1E1D1B]/10 mb-5" />
-             <div className="flex justify-between items-center text-[#1E1D1B]/40 font-inter text-[9px] tracking-[0.2em] uppercase">
+          {/* Footer */}
+          <div className="p-8 md:p-10 lg:p-14 pt-0 mt-8">
+             <div className="w-full h-px bg-[#201E1D]/10 mb-5" />
+             <div className="flex justify-between items-center text-[#201E1D]/40 font-inter text-[9px] tracking-[0.2em] uppercase">
                 <span>© {new Date().getFullYear()}</span>
                 <span>The Aesthete</span>
              </div>
