@@ -1923,7 +1923,7 @@ function VisionaryTemplate({ profile, onLinkClick }: any) {
                 const theme = colors[idx % 3];
                 
                 return (
-                  <div key={idx} className={`relative p-6 sm:p-8 rounded-tr-3xl rounded-bl-3xl border ${theme.border} ${theme.bg} transition-all duration-300 md:hover:-translate-y-1 hover:shadow-md group overflow-hidden flex flex-col justify-start`}>
+                  <div key={idx} className={`metric-card relative p-6 sm:p-8 rounded-tr-3xl rounded-bl-3xl border ${theme.border} ${theme.bg} transition-all duration-300 md:hover:-translate-y-1 hover:shadow-md group overflow-hidden`}>
                     <span className={`absolute top-6 right-6 text-[8px] font-bold ${theme.accent} z-0`}>0{idx + 1}</span>
                     
                     {idx === 0 && (
@@ -1932,17 +1932,17 @@ function VisionaryTemplate({ profile, onLinkClick }: any) {
                       </div>
                     )}
                     
-                    <div className="relative z-10 flex flex-col justify-start mt-4">
-                      <div className="visionary-serif text-5xl sm:text-6xl text-[#2C2825] mb-2 group-hover:scale-105 transition-transform origin-left">
+                    <div className="relative z-10 pt-2 pb-2">
+                      <div className="metric-value visionary-serif text-5xl sm:text-6xl text-[#2C2825] mb-2 md:mb-3 group-hover:scale-105 transition-transform origin-left block">
                         {metric.value}
                       </div>
                       
-                      <div className="text-[10px] sm:text-[11px] tracking-[0.15em] font-bold uppercase text-[#2C2825] mt-1">
-                        {metric.label || metric.title || metric.name || ''}
+                      <div className="metric-label text-[10px] sm:text-[11px] tracking-[0.15em] font-bold uppercase text-[#2C2825] block min-h-[16px]">
+                        {metric.label || metric.title || metric.name || metric.type || metric.text || metric.metricLabel || '\u00A0'}
                       </div>
                       
-                      {metric.description && (
-                        <div className="text-[8px] tracking-[0.1em] text-[#8B958A] uppercase opacity-80 mt-1">
+                      {metric.description && metric.description !== (metric.label || metric.title || metric.name || metric.type || metric.text) && (
+                        <div className="metric-description text-[8px] tracking-[0.1em] text-[#8B958A] uppercase opacity-80 mt-1 block">
                           {metric.description}
                         </div>
                       )}
