@@ -125,6 +125,7 @@ export async function POST(request: NextRequest) {
 
       const cookieStore = await cookies();
       let sessionData: any = null;
+      let cookiesToSet: { name: string; value: string; options: any }[] = [];
       
       const supabaseSSR = createServerClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
         cookies: {
@@ -132,6 +133,7 @@ export async function POST(request: NextRequest) {
           setAll(toSet) { 
             toSet.forEach(({ name, value, options }) => {
               cookieStore.set(name, value, options);
+              cookiesToSet.push({ name, value, options });
             });
           },
         },
@@ -165,9 +167,9 @@ export async function POST(request: NextRequest) {
         },
       }, { status: 200 });
       
-      cookieStore.getAll().forEach(({ name, value }) => {
-        const existing = cookieStore.get(name);
-        if (existing) response.cookies.set(name, value, { httpOnly: true, secure: true, sameSite: 'lax', path: '/' });
+      // Apply cookies to the response with their original options (maxAge, etc.)
+      cookiesToSet.forEach(({ name, value, options }) => {
+        response.cookies.set(name, value, options);
       });
       
       return response;

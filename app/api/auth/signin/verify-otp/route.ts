@@ -89,9 +89,8 @@ export async function POST(request: NextRequest) {
     // 2. Exchange temp password for a real session (setting cookies)
     const cookieStore = await cookies();
     
-    // Pre-create response so we can attach Set-Cookie headers to it
     let sessionData: any = null;
-    const tempResponse = { headers: new Headers() };
+    let cookiesToSet: { name: string; value: string; options: any }[] = [];
     
     const supabaseSSR = createServerClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
       cookies: {
@@ -99,6 +98,7 @@ export async function POST(request: NextRequest) {
         setAll(toSet) { 
           toSet.forEach(({ name, value, options }) => {
             cookieStore.set(name, value, options);
+            cookiesToSet.push({ name, value, options });
           });
         },
       },
@@ -137,10 +137,9 @@ export async function POST(request: NextRequest) {
       },
     }, { status: 200 });
     
-    // Re-apply cookies to this response
-    cookieStore.getAll().forEach(({ name, value }) => {
-      const existing = cookieStore.get(name);
-      if (existing) response.cookies.set(name, value, { httpOnly: true, secure: true, sameSite: 'lax', path: '/' });
+    // Apply cookies to the response with their original options (maxAge, etc.)
+    cookiesToSet.forEach(({ name, value, options }) => {
+      response.cookies.set(name, value, options);
     });
     
     return response;
