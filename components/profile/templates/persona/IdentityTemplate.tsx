@@ -2387,8 +2387,8 @@ function HustlerTemplate({ profile }: any) {
     @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap');
     
     .hustler-theme {
-      background-color: #F4F0EA;
-      color: #2A2726;
+      background-color: #EAEAE8;
+      color: #1C1A1A;
       font-family: 'Inter', sans-serif;
       -webkit-font-smoothing: antialiased;
     }
@@ -2402,180 +2402,177 @@ function HustlerTemplate({ profile }: any) {
     }
 
     .hustler-theme ::selection {
-      background: #B86F5D;
-      color: #F4F0EA;
+      background: #E35D30;
+      color: #FAFAFA;
+    }
+
+    .hustler-poster {
+      background-color: #FAFAFA;
+      border: 2px solid #1C1A1A;
+      box-shadow: 16px 16px 0px rgba(28,26,26,1);
+    }
+
+    .hustler-sidebar-scroll::-webkit-scrollbar {
+      width: 0px;
+      background: transparent;
     }
   `;
 
+  const emptySocialCells = (4 - (socialLinks.length % 4)) % 4;
+  const emptyMetricCells = (2 - (metrics.length % 2)) % 2;
+
   return (
-    <div className="hustler-theme min-h-screen w-full relative overflow-hidden">
+    <div className="hustler-theme min-h-screen w-full relative flex justify-center p-4 sm:p-8 lg:p-12">
       <style>{customStyles}</style>
 
-      <div className="max-w-[1440px] mx-auto px-6 md:px-12 lg:px-20 py-16 md:py-24 grid grid-cols-1 lg:grid-cols-12 gap-y-24 lg:gap-x-24">
+      <div className="hustler-poster w-full max-w-[1280px] flex flex-col lg:flex-row relative">
         
-        {/* LEFT COLUMN: PERSONAL CORE */}
-        <div className="lg:col-span-5 relative z-10">
-           <div className="lg:sticky lg:top-24 flex flex-col min-h-[calc(100vh-12rem)]">
+        {/* LEFT COLUMN: IDENTITY FRAME */}
+        <div className="w-full lg:w-[400px] xl:w-[460px] shrink-0 border-b-2 lg:border-b-0 lg:border-r-2 border-[#1C1A1A] bg-[#F2F2F2] flex flex-col relative z-20">
+           <div className="lg:sticky lg:top-0 flex flex-col h-full lg:h-screen lg:max-h-screen overflow-y-auto hustler-sidebar-scroll">
               
-              {/* Avatar Object */}
-              <div className="relative inline-block mt-4 md:mt-8 mb-20 md:mb-32">
-                <div className="absolute top-4 left-4 w-full h-full border border-[#2A2726]/15 z-0 transition-transform duration-700 ease-out hover:translate-x-1 hover:translate-y-1"></div>
-                <div className="relative z-10 w-[200px] h-[260px] sm:w-[260px] sm:h-[340px] overflow-hidden bg-[#E9E3DD] rounded-tl-[4px] rounded-tr-[48px] rounded-bl-[4px] rounded-br-[4px]">
+              {/* Hero Image Block */}
+              <div className="p-6 sm:p-10 border-b-2 border-[#1C1A1A] bg-[#EAEAE8]">
+                <div className="w-full aspect-[4/5] bg-[#FAFAFA] border-2 border-[#1C1A1A] relative overflow-hidden group">
                   {profile?.avatarUrl ? (
-                    <img src={profile.avatarUrl} className="w-full h-full object-cover transition-transform duration-700 hover:scale-105" alt={name} />
+                    <img src={profile.avatarUrl} className="w-full h-full object-cover filter grayscale contrast-125 group-hover:grayscale-0 transition-all duration-700" alt={name} />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                      <span className="hustler-serif text-[6rem] text-[#716B68] opacity-30">{name ? name[0] : 'H'}</span>
+                      <span className="hustler-serif text-[8rem] text-[#1C1A1A] opacity-20">{name ? name[0] : 'H'}</span>
                     </div>
                   )}
                 </div>
-                
-                {/* Typographic Intrusion */}
-                <div className="absolute -bottom-12 -right-[20%] sm:-right-[40%] md:-right-[60%] lg:-right-[50%] z-20 pointer-events-none select-none">
-                  <h1 className="hustler-serif text-[4.5rem] sm:text-[6rem] md:text-[7rem] leading-[0.85] tracking-tight text-[#2A2726] mix-blend-multiply drop-shadow-sm">
-                    {name ? name.split(' ').map((word: string, i: number) => (
-                       <span key={i} className="block">{word}</span>
-                    )) : 'HUSTLER'}
-                  </h1>
-                </div>
               </div>
 
-              {/* Bio & Actions */}
-              <div className="flex flex-col gap-8 max-w-sm relative z-30">
-                <div className="text-[11px] font-semibold uppercase tracking-widest text-[#716B68] flex items-center gap-4">
-                  <span className="w-8 h-[1px] bg-[#B86F5D]"></span>
-                  {role}
+              {/* Name & Bio Block */}
+              <div className="p-6 sm:p-10 flex flex-col flex-1">
+                <h1 className="hustler-serif text-6xl sm:text-7xl lg:text-[5.5rem] leading-[0.85] tracking-tight text-[#1C1A1A] mb-8 break-words hyphens-auto">
+                  {name || 'HUSTLER'}
+                </h1>
+                
+                <div className="inline-flex items-center gap-3 mb-6">
+                   <span className="w-4 h-4 bg-[#E35D30] shrink-0"></span>
+                   <span className="font-bold text-[10px] uppercase tracking-widest text-[#737373]">{role}</span>
                 </div>
-                <p className="text-xl leading-relaxed text-[#2A2726] font-medium">
-                  {bio}
+                
+                <p className="text-xl font-medium leading-snug text-[#1C1A1A] mb-12">
+                   {bio}
                 </p>
-                
-                <div className="flex flex-wrap items-center gap-8 mt-4">
-                  <a href={email ? `mailto:${email}` : '#'} className="group flex items-center gap-4 border-b-2 border-[#2A2726] pb-2">
-                     <span className="font-semibold text-sm uppercase tracking-widest text-[#2A2726] group-hover:text-[#B86F5D] transition-colors">
-                       Initiate Action
-                     </span>
-                     <span className="text-lg leading-none transition-transform group-hover:translate-x-1 group-hover:-translate-y-1 text-[#2A2726] group-hover:text-[#B86F5D]">↗</span>
-                  </a>
-                  
-                  <button onClick={handleSave} className="group text-xs font-semibold uppercase tracking-widest text-[#716B68] hover:text-[#2A2726] transition-colors flex items-center gap-2">
-                    Save Contact <span className="opacity-0 -translate-y-1 group-hover:translate-y-0 group-hover:opacity-100 transition-all text-[#B86F5D]">↓</span>
-                  </button>
+
+                {/* Actions */}
+                <div className="mt-auto flex flex-col gap-3">
+                   <a href={email ? `mailto:${email}` : '#'} className="w-full py-5 border-2 border-[#1C1A1A] bg-[#1C1A1A] text-[#FAFAFA] flex items-center justify-center gap-3 font-bold text-[10px] uppercase tracking-widest hover:bg-[#E35D30] hover:border-[#E35D30] transition-colors">
+                      INITIATE ACTION <span className="text-base leading-none">↗</span>
+                   </a>
+                   <button onClick={handleSave} className="w-full py-4 border-2 border-[#1C1A1A] bg-transparent text-[#1C1A1A] text-center font-bold text-[10px] uppercase tracking-widest hover:bg-[#EAEAE8] transition-colors">
+                      SAVE CONTACT
+                   </button>
                 </div>
               </div>
 
-              {/* Social Utility Rail */}
+              {/* Social Grid (Strict SVGs) */}
               {socialLinks.length > 0 && (
-                <div className="flex flex-wrap gap-x-8 gap-y-4 items-center border-t border-[#2A2726]/10 pt-6 mt-16 md:mt-auto relative z-30">
-                  {socialLinks.map((link: any, i: number) => (
-                    <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 group">
-                      <span className="text-[#716B68] group-hover:text-[#2A2726] transition-colors">
-                        <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
-                          {getAestheteSocialIcon(link.label)}
-                        </svg>
-                      </span>
-                      <span className="text-[10px] font-semibold uppercase tracking-widest text-[#716B68] group-hover:text-[#2A2726] transition-colors mt-0.5">
-                        {link.label}
-                      </span>
-                    </a>
-                  ))}
+                <div className="mt-auto">
+                  <div className="grid grid-cols-4 gap-[2px] bg-[#1C1A1A] border-t-2 border-b-2 lg:border-b-0 border-[#1C1A1A]">
+                    {socialLinks.map((link: any, i: number) => (
+                       <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="aspect-square bg-[#F2F2F2] flex flex-col items-center justify-center hover:bg-[#E35D30] hover:text-[#FAFAFA] text-[#1C1A1A] transition-colors group relative">
+                          <svg viewBox="0 0 24 24" className="w-6 h-6 fill-current mb-1 group-hover:-translate-y-1 transition-transform">
+                            {getAestheteSocialIcon(link.label)}
+                          </svg>
+                          <span className="text-[8px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-2">{link.label}</span>
+                       </a>
+                    ))}
+                    {Array.from({ length: emptySocialCells }).map((_, i) => (
+                       <div key={`empty-${i}`} className="aspect-square bg-[#EAEAE8]"></div>
+                    ))}
+                  </div>
                 </div>
               )}
 
            </div>
         </div>
 
-        {/* RIGHT COLUMN: PROOF OF MOMENTUM */}
-        <div className="lg:col-span-7 pt-0 lg:pt-16 relative z-10">
+        {/* RIGHT COLUMN: CONTENT GRID */}
+        <div className="flex-1 flex flex-col bg-[#FAFAFA] relative z-10">
            
-           {/* METRICS */}
+           {/* MOMENTUM INDEX */}
            {metrics.length > 0 && (
-             <section className="mb-24 md:mb-32">
-               <div className="flex items-center gap-4 mb-12">
-                 <h2 className="hustler-serif text-3xl md:text-4xl italic text-[#716B68]">Momentum</h2>
-                 <div className="h-[1px] flex-1 bg-[#2A2726]/10"></div>
+             <div className="border-b-2 border-[#1C1A1A] flex flex-col">
+               <div className="px-6 sm:px-10 py-5 border-b-2 border-[#1C1A1A] bg-[#EAEAE8]">
+                  <h2 className="hustler-serif text-4xl italic text-[#1C1A1A] m-0 leading-none">Momentum</h2>
                </div>
-               
-               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-16">
-                 {metrics.map((m: any, i: number) => {
-                   const isDominant = i === 0;
-                   return (
-                     <div key={i} className={`flex flex-col group ${isDominant ? 'sm:col-span-2' : ''}`}>
-                        <div className="flex justify-between items-end border-b border-[#2A2726]/15 pb-2 mb-4">
-                           <span className="text-[10px] font-semibold uppercase tracking-widest text-[#716B68] group-hover:text-[#2A2726] transition-colors">{m.label || m.title || m.name}</span>
-                           <span className="hustler-mono text-[9px] text-[#B86F5D] opacity-0 group-hover:opacity-100 transition-opacity">0{i+1}</span>
-                        </div>
-                        <div className={`hustler-serif text-[#2A2726] ${isDominant ? 'text-[6rem] md:text-[8rem]' : 'text-[4.5rem] md:text-[5.5rem]'} leading-[0.85] tracking-tight group-hover:translate-x-1 transition-transform origin-left`}>
-                           {m.value}
-                        </div>
-                     </div>
-                   );
-                 })}
+               <div className="grid grid-cols-1 sm:grid-cols-2 gap-[2px] bg-[#1C1A1A]">
+                 {metrics.map((m: any, i: number) => (
+                   <div key={i} className="p-8 md:p-12 flex flex-col justify-between min-h-[260px] bg-[#FAFAFA] group hover:bg-[#F2F2F2] transition-colors">
+                      <div className="flex justify-between items-start mb-12">
+                         <span className="text-[10px] font-bold uppercase tracking-widest text-[#737373] group-hover:text-[#1C1A1A] transition-colors">{m.label || m.title || m.name}</span>
+                         <span className="hustler-mono text-[10px] text-[#E35D30]">0{i+1}</span>
+                      </div>
+                      <div className="hustler-serif text-[5.5rem] lg:text-[7rem] leading-[0.8] tracking-tight text-[#1C1A1A] group-hover:translate-x-2 transition-transform">
+                         {m.value}
+                      </div>
+                   </div>
+                 ))}
+                 {Array.from({ length: emptyMetricCells }).map((_, i) => (
+                   <div key={`empty-m-${i}`} className="bg-[#FAFAFA] hidden sm:block"></div>
+                 ))}
                </div>
-             </section>
+             </div>
            )}
 
-           {/* PROOF POINTS */}
+           {/* TRACK RECORD */}
            {proofs.length > 0 && (
-             <section className="mb-24 md:mb-32">
-               <div className="flex items-center gap-4 mb-12">
-                 <h2 className="hustler-serif text-3xl md:text-4xl italic text-[#716B68]">Track Record</h2>
-                 <div className="h-[1px] flex-1 bg-[#2A2726]/10"></div>
+             <div className="border-b-2 border-[#1C1A1A] flex flex-col">
+               <div className="px-6 sm:px-10 py-5 border-b-2 border-[#1C1A1A] bg-[#EAEAE8]">
+                  <h2 className="hustler-serif text-4xl italic text-[#1C1A1A] m-0 leading-none">Track Record</h2>
                </div>
-               
-               <div className="flex flex-col gap-12">
+               <div className="flex flex-col">
                  {proofs.map((proof: any, i: number) => (
-                   <div key={i} className="flex flex-col md:flex-row gap-4 md:gap-8 group">
-                      <div className="w-5 h-5 mt-1.5 shrink-0 border border-[#2A2726]/20 rounded-full flex items-center justify-center group-hover:border-[#B86F5D] transition-colors">
-                         <div className="w-1.5 h-1.5 rounded-full bg-[#B86F5D] opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                   <div key={i} className={`p-8 md:p-12 flex flex-col sm:flex-row gap-6 md:gap-12 group hover:bg-[#F2F2F2] transition-colors ${i !== proofs.length - 1 ? 'border-b-2 border-[#1C1A1A]' : ''}`}>
+                      <div className="hustler-mono text-[10px] text-[#E35D30] font-bold mt-2 shrink-0">
+                         [ 0{i+1} ]
                       </div>
                       <div>
-                         <h3 className="hustler-serif text-3xl md:text-4xl text-[#2A2726] mb-3 group-hover:text-[#B86F5D] transition-colors">{proof.title || proof.label}</h3>
-                         <p className="text-[15px] leading-relaxed text-[#716B68] max-w-lg font-medium">{proof.description || proof.desc || proof.date}</p>
+                         <h3 className="hustler-serif text-3xl sm:text-4xl text-[#1C1A1A] mb-4">{proof.title || proof.label}</h3>
+                         <p className="text-base font-medium leading-relaxed text-[#737373] max-w-2xl group-hover:text-[#1C1A1A] transition-colors">{proof.description || proof.desc || proof.date}</p>
                       </div>
                    </div>
                  ))}
                </div>
-             </section>
+             </div>
            )}
 
-           {/* RESOURCES */}
+           {/* DESTINATIONS */}
            {contentLinks.length > 0 && (
-             <section className="mb-24 md:mb-32">
-               <div className="flex items-center gap-4 mb-12">
-                 <h2 className="hustler-serif text-3xl md:text-4xl italic text-[#716B68]">Destinations</h2>
-                 <div className="h-[1px] flex-1 bg-[#2A2726]/10"></div>
+             <div className="flex flex-col border-b-2 border-[#1C1A1A]">
+               <div className="px-6 sm:px-10 py-5 border-b-2 border-[#1C1A1A] bg-[#EAEAE8]">
+                  <h2 className="hustler-serif text-4xl italic text-[#1C1A1A] m-0 leading-none">Destinations</h2>
                </div>
-               
                <div className="flex flex-col">
                  {contentLinks.map((item: any, i: number) => (
-                   <a key={i} href={item.url} target="_blank" rel="noopener noreferrer" className="group block relative py-6 md:py-10 border-b border-[#2A2726]/10">
-                     <div className="absolute bottom-[-1px] left-0 h-[2px] bg-[#B86F5D] w-0 group-hover:w-full transition-all duration-500 ease-out"></div>
-                     
-                     <div className="flex items-center justify-between">
-                        <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-12 group-hover:translate-x-3 transition-transform duration-300">
-                           <h3 className="hustler-serif text-3xl md:text-4xl text-[#2A2726]">{item.title || item.label}</h3>
-                           <span className="text-[10px] uppercase tracking-widest text-[#716B68] font-semibold mt-1 md:mt-0">{item.category || 'External Link'}</span>
-                        </div>
-                        <div className="w-10 h-10 shrink-0 border border-[#2A2726]/10 rounded-full flex items-center justify-center group-hover:bg-[#B86F5D] group-hover:border-[#B86F5D] group-hover:text-[#F4F0EA] transition-all duration-300 text-[#2A2726]">
-                           <span className="text-lg leading-none mb-0.5 ml-0.5">→</span>
-                        </div>
-                     </div>
+                   <a key={i} href={item.url} target="_blank" rel="noopener noreferrer" className={`p-8 md:p-12 flex flex-col sm:flex-row sm:items-center justify-between gap-6 group hover:bg-[#1C1A1A] transition-colors ${i !== contentLinks.length - 1 ? 'border-b-2 border-[#1C1A1A]' : ''}`}>
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-10">
+                         <h3 className="hustler-serif text-3xl sm:text-4xl text-[#1C1A1A] group-hover:text-[#FAFAFA] transition-colors">{item.title || item.label}</h3>
+                         <span className="text-[10px] uppercase tracking-widest font-bold text-[#737373] group-hover:text-[#E35D30] transition-colors">{item.category || 'External Link'}</span>
+                      </div>
+                      <div className="w-12 h-12 shrink-0 border-2 border-[#1C1A1A] bg-transparent flex items-center justify-center group-hover:border-[#E35D30] group-hover:bg-[#E35D30] text-[#1C1A1A] group-hover:text-[#FAFAFA] transition-all self-start sm:self-auto">
+                         <span className="text-xl leading-none">→</span>
+                      </div>
                    </a>
                  ))}
                </div>
-             </section>
+             </div>
            )}
 
            {/* FOOTER */}
-           <footer className="mt-16 md:mt-32 pt-8 border-t border-[#2A2726]/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+           <footer className="mt-auto px-6 sm:px-10 py-10 bg-[#FAFAFA] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
              <div className="flex items-center gap-4">
-                <div className="hustler-serif text-2xl italic text-[#2A2726]">{name || 'HUSTLER'}</div>
-                <div className="w-1.5 h-1.5 rounded-full bg-[#B86F5D]"></div>
-                <div className="text-[10px] uppercase tracking-widest text-[#716B68] font-semibold">Active Profile</div>
+                <div className="hustler-serif text-2xl italic text-[#1C1A1A]">{name || 'HUSTLER'}</div>
+                <div className="w-1.5 h-1.5 bg-[#E35D30]"></div>
+                <div className="text-[10px] uppercase tracking-widest text-[#737373] font-bold">Active System</div>
              </div>
-             <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="text-[10px] font-bold uppercase tracking-widest text-[#2A2726] hover:text-[#B86F5D] transition-colors flex items-center gap-2 group">
-               Back to Top <span className="group-hover:-translate-y-1 transition-transform">↑</span>
+             <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="text-[10px] font-bold uppercase tracking-widest text-[#1C1A1A] hover:text-[#E35D30] transition-colors flex items-center gap-2 group">
+               RETURN TOP <span className="group-hover:-translate-y-1 transition-transform">↑</span>
              </button>
            </footer>
 
@@ -2584,8 +2581,8 @@ function HustlerTemplate({ profile }: any) {
       
       {/* Toast Notification */}
       {toastVisible && (
-        <div className="fixed bottom-8 right-8 bg-[#FAF8F4] border border-[#2A2726]/10 text-[#2A2726] px-6 py-4 shadow-xl z-50 flex items-center gap-4 text-[10px] font-bold tracking-widest uppercase animate-in fade-in slide-in-from-bottom-4">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#B86F5D] animate-pulse" />
+        <div className="fixed bottom-8 right-8 bg-[#1C1A1A] border-2 border-[#E35D30] text-[#FAFAFA] px-6 py-4 shadow-[8px_8px_0_0_#E35D30] z-50 flex items-center gap-4 text-[10px] font-bold tracking-widest uppercase animate-in fade-in slide-in-from-bottom-4">
+          <span className="w-2 h-2 bg-[#E35D30] animate-pulse" />
           {toastMsg}
         </div>
       )}
