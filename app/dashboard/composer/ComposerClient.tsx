@@ -48,6 +48,7 @@ import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { cn } from '@/lib/utils';
 import { getSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { useUserContext } from '@/lib/hooks/use-user-context';
+import { PLATFORM_LIMITS } from '@/lib/config/platformLimits';
 
 type PlatformType = 'linkedin' | 'x' | 'threads' | 'facebook' | 'whatsapp' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky';
 
@@ -856,7 +857,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [planError, setPlanError] = useState<string | null>(null);
-  const [media, setMedia] = useState<{url: string; type: 'image' | 'video' | 'document'}[]>([]);
+  const [media, setMedia] = useState<{url: string; type: 'image' | 'video' | 'document'; sizeInBytes?: number}[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [connectedPlatforms, setConnectedPlatforms] = useState<PlatformType[]>([]);
@@ -930,7 +931,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         currentPdfs++;
       }
 
-      const sizeLimitMB = isVideo || isPdf ? 50 : 5;
+      const sizeLimitMB = isVideo ? 5000 : isPdf ? 50 : 10; // Allow large video uploads generally
       if (file.size > sizeLimitMB * 1024 * 1024) {
         toast.error(`${file.name}: File must be less than ${sizeLimitMB}MB`);
         continue;
@@ -944,7 +945,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
     setIsUploading(true);
     try {
       const supabase = getSupabaseBrowserClient();
-      const newMediaItems: { url: string; type: 'image' | 'video' | 'document' }[] = [];
+      const newMediaItems: { url: string; type: 'image' | 'video' | 'document'; sizeInBytes?: number }[] = [];
       
       for (const file of validFilesToUpload) {
         const res = await fetch('/api/composer/upload', {
@@ -964,7 +965,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           throw new Error(`Upload failed for ${file.name}: ${uploadError.message}`);
         }
         
-        newMediaItems.push({ url: data.url, type: data.type });
+        newMediaItems.push({ url: data.url, type: data.type, sizeInBytes: file.size });
       }
       
       if (newMediaItems.length > 0) {
@@ -1036,9 +1037,27 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
     loadConnections();
   }, [loadProfile, loadConnections]);
 
+  const getValidPlatformsForMedia = (platforms: PlatformType[]) => {
+    return platforms.filter(platform => {
+      const limit = PLATFORM_LIMITS[platform] || { maxVideoSizeMB: 5000, maxImageSizeMB: 50 };
+      for (const m of media) {
+        if (!m.sizeInBytes) continue;
+        if (m.type === 'video' && m.sizeInBytes > limit.maxVideoSizeMB * 1024 * 1024) return false;
+        if (m.type === 'image' && m.sizeInBytes > limit.maxImageSizeMB * 1024 * 1024) return false;
+      }
+      return true;
+    });
+  };
+
   const generateDrafts = async (useSelectedOnly: boolean = false) => {
     if (!sourceContent.trim() || !profile) {
       toast.error('Please complete your profile first in the Presence tab');
+      return;
+    }
+
+    const platformsToUse = getValidPlatformsForMedia(useSelectedOnly ? selectedPlatforms : connectedPlatforms);
+    if (platformsToUse.length === 0) {
+      toast.error('No platforms selected or all selected platforms reject this media size.');
       return;
     }
 
@@ -1055,7 +1074,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           content: sourceContent, 
           profileId: profile.id, 
           mediaItems: media,
-          selectedPlatforms: useSelectedOnly ? selectedPlatforms : connectedPlatforms
+          selectedPlatforms: platformsToUse
         }),
       });
 
@@ -1179,6 +1198,12 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       return;
     }
 
+    const platformsToUse = getValidPlatformsForMedia(useSelectedOnly ? selectedPlatforms : connectedPlatforms);
+    if (platformsToUse.length === 0) {
+      toast.error('No platforms selected or all selected platforms reject this media size.');
+      return;
+    }
+
     setPlanError(null);
     setBroadcastingType(useSelectedOnly ? 'selected' : 'all');
 
@@ -1191,7 +1216,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           content: quickContent, 
           profileId: profile.id, 
           mediaItems: media,
-          selectedPlatforms: useSelectedOnly ? selectedPlatforms : connectedPlatforms
+          selectedPlatforms: platformsToUse
         }),
       });
 
@@ -1248,17 +1273,39 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           const cfg = PLATFORM_CONFIG[platform];
           const Icon = cfg.icon;
           const isSelected = selectedPlatforms.includes(platform);
+          const limit = PLATFORM_LIMITS[platform] || { maxVideoSizeMB: 5000, maxImageSizeMB: 50 };
+          
+          let warningMsg: string | null = null;
+          for (const m of media) {
+            if (!m.sizeInBytes) continue;
+            if (m.type === 'video' && m.sizeInBytes > limit.maxVideoSizeMB * 1024 * 1024) {
+              warningMsg = `File too large for ${cfg.name} (${limit.maxVideoSizeMB}MB max)`;
+            } else if (m.type === 'image' && m.sizeInBytes > limit.maxImageSizeMB * 1024 * 1024) {
+              warningMsg = `Image too large for ${cfg.name} (${limit.maxImageSizeMB}MB max)`;
+            }
+          }
+
           return (
-            <label key={platform} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 p-1.5 rounded-md transition-colors border border-transparent hover:border-border">
-              <Checkbox 
-                checked={isSelected} 
-                onCheckedChange={() => togglePlatform(platform)} 
-              />
-              <span className={cn('p-1 rounded-md text-white', cfg.color)}>
-                <Icon className="w-3 h-3" />
-              </span>
-              {cfg.name}
-            </label>
+            <div key={platform} className="group relative flex flex-col items-start gap-1">
+              <label className={cn("flex items-center gap-2 text-sm p-1.5 rounded-md transition-colors border",
+                  warningMsg ? "opacity-50 cursor-not-allowed border-transparent" : "cursor-pointer hover:bg-muted/50 border-transparent hover:border-border"
+                )}>
+                <Checkbox 
+                  checked={isSelected && !warningMsg} 
+                  disabled={!!warningMsg}
+                  onCheckedChange={() => !warningMsg && togglePlatform(platform)} 
+                />
+                <span className={cn('p-1 rounded-md text-white', cfg.color, warningMsg ? 'grayscale' : '')}>
+                  <Icon className="w-3 h-3" />
+                </span>
+                {cfg.name}
+              </label>
+              {warningMsg && (
+                <div className="absolute top-full left-0 mt-1 hidden group-hover:block z-10 w-48 text-xs bg-black text-white p-2 rounded shadow-lg">
+                  {warningMsg}
+                </div>
+              )}
+            </div>
           );
         })}
         {connectedPlatforms.length === 0 && (

@@ -214,6 +214,28 @@ export async function GET(request: NextRequest) {
       connectionId: savedConnection.id,
     });
 
+    // For Instagram: subscribe the user's account to our webhook fields
+    // so that comments and messages from their account are sent to our endpoint.
+    if (platform === 'instagram') {
+      try {
+        const { InstagramCommentAutomation } = await import('@/lib/services/InstagramCommentAutomation');
+        const subscribed = await InstagramCommentAutomation.subscribeAccountToWebhook(
+          tokenResponse.accessToken,
+          profile.platformUserId
+        );
+        logger.info('Instagram webhook subscription', {
+          platformUserId: profile.platformUserId,
+          subscribed,
+        });
+      } catch (webhookError) {
+        // Non-fatal: log but don't block the connection flow
+        logger.warn('Failed to subscribe Instagram account to webhook', {
+          error: webhookError instanceof Error ? webhookError : new Error(String(webhookError)),
+          platformUserId: profile.platformUserId,
+        });
+      }
+    }
+
     // Build success redirect URL
     const successUrl = buildRedirectUrl(request, returnUrl, { connected: platform });
     
