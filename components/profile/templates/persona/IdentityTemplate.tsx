@@ -777,7 +777,8 @@ function RebellionTemplate({ profile, accentColor }: any) {
       --shadow-crim: 0 8px 40px rgba(200, 16, 46, 0.12);
 
       font-family: var(--sans);
-      background: radial-gradient(ellipse 120% 80% at 50% 0%, #FFF8EE 0%, #FBF3E3 35%, #F6EAD5 65%, #F0E0C5 100%);
+      background: #E8E0D5; /* Neutral background to create the gap */
+      padding: clamp(12px, 3vw, 40px); /* The gap between screen and template */
       color: var(--text);
       min-height: 100vh;
       overflow-x: hidden;
@@ -786,7 +787,7 @@ function RebellionTemplate({ profile, accentColor }: any) {
 
     /* ── AMBIENT BACKGROUND ORBS ── */
     .reb-orb {
-      position: fixed; border-radius: 50%; pointer-events: none; z-index: 0;
+      position: absolute; border-radius: 50%; pointer-events: none; z-index: 0;
       filter: blur(60px); opacity: 0.55;
     }
     .reb-orb-1 {
@@ -810,8 +811,13 @@ function RebellionTemplate({ profile, accentColor }: any) {
     /* ── MAIN FRAME ── */
     .reb-frame {
       max-width: 1280px; margin: 0 auto;
-      padding: clamp(20px, 4vw, 48px);
+      padding: clamp(24px, 5vw, 48px);
       position: relative; z-index: 1;
+      background: radial-gradient(ellipse 120% 80% at 50% 0%, #FFF8EE 0%, #FBF3E3 35%, #F6EAD5 65%, #F0E0C5 100%);
+      border-radius: 32px;
+      box-shadow: 0 24px 80px rgba(110, 70, 50, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+      border: 1px solid rgba(201,153,58,0.25);
+      overflow: hidden;
     }
 
     /* ── HEADER ── */
@@ -1274,17 +1280,32 @@ function RebellionTemplate({ profile, accentColor }: any) {
 
     /* ── RESPONSIVE ── */
     @media (max-width: 1024px) {
-      .reb-hero { grid-template-columns: 1fr; }
-      .reb-hero-left { padding-right: 0; margin-bottom: 48px; }
-      .reb-card-3d-wrap { max-width: 380px; margin: 0 auto; }
+      .reb-hero { grid-template-columns: 1fr; gap: 40px; text-align: center; }
+      .reb-hero-left { padding-right: 0; margin-bottom: 24px; display: flex; flex-direction: column; align-items: center; }
+      .reb-bio { text-align: center; margin: 0 auto; }
+      .reb-card-3d-wrap { max-width: 380px; margin: 0 auto; width: 100%; }
       .reb-gem, .reb-float-crown, .reb-sparkle, .reb-float-orb { display: none; }
     }
     @media (max-width: 640px) {
-      .reb-nav-right { gap: 10px; }
+      .reb-wrap { padding: 12px; }
+      .reb-frame { padding: 24px 20px; border-radius: 24px; }
+      .reb-header { flex-direction: column; gap: 20px; margin-bottom: 40px; }
+      .reb-nav-right { gap: 10px; width: 100%; justify-content: center; }
       .reb-year { display: none; }
-      .reb-cta-section { padding: 36px 24px; }
-      .reb-cta-inner { flex-direction: column; align-items: flex-start; }
+      .reb-name { font-size: clamp(3.2rem, 12vw, 4.5rem); line-height: 0.95; }
+      .reb-role-row { flex-wrap: wrap; justify-content: center; margin: 20px 0; }
+      .reb-role { font-size: 1.2rem; text-align: center; }
+      .reb-card-3d { aspect-ratio: auto; min-height: 400px; }
+      .reb-card-face { padding: 32px 20px; }
       .reb-stat-row { gap: 8px; }
+      .reb-links-grid { grid-template-columns: 1fr; } /* Stack links fully on mobile */
+      .reb-link-card { padding: 24px 20px 20px; }
+      .reb-cta-section { padding: 40px 24px; text-align: center; }
+      .reb-cta-inner { flex-direction: column; align-items: center; gap: 24px; }
+      .reb-cta-left p { text-align: center; margin: 0 auto; }
+      .reb-cta-buttons { justify-content: center; width: 100%; flex-direction: column; }
+      .reb-cta-btn, .reb-cta-btn-sec { width: 100%; justify-content: center; }
+      .reb-footer { flex-direction: column; text-align: center; gap: 20px; }
     }
   `;
 
@@ -1292,12 +1313,12 @@ function RebellionTemplate({ profile, accentColor }: any) {
     <div className="reb-wrap">
       <style dangerouslySetInnerHTML={{ __html: customStyles }} />
 
-      {/* Ambient background orbs */}
-      <div className="reb-orb reb-orb-1" />
-      <div className="reb-orb reb-orb-2" />
-      <div className="reb-orb reb-orb-3" />
-
       <div className="reb-frame">
+
+        {/* Ambient background orbs (moved inside frame so they are contained) */}
+        <div className="reb-orb reb-orb-1" />
+        <div className="reb-orb reb-orb-2" />
+        <div className="reb-orb reb-orb-3" />
 
         {/* ── HEADER ── */}
         <header className="reb-header">
