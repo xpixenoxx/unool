@@ -2393,7 +2393,7 @@ function HustlerTemplate({ profile }: any) {
     
     .hustler-theme {
       background-color: #F3EFE8;
-      color: #272522;
+      color: #292624;
       font-family: 'Inter', sans-serif;
       -webkit-font-smoothing: antialiased;
     }
@@ -2412,133 +2412,114 @@ function HustlerTemplate({ profile }: any) {
     }
 
     .hustler-border {
-      border-color: rgba(39,37,34,0.16);
-    }
-
-    .hustler-organic-shape {
-      border-radius: 4px 40px 4px 12px;
-    }
-
-    .hustler-organic-shape-alt {
-      border-radius: 20px 4px 20px 4px;
+      border-color: rgba(41,38,35,0.16);
     }
   `;
 
   return (
-    <div className="hustler-theme min-h-screen w-full relative overflow-x-hidden selection:bg-[#B86F5A] selection:text-[#FAF8F4]">
+    <div className="hustler-theme min-h-screen w-full relative overflow-x-hidden selection:bg-[#B86F5A] selection:text-[#FAF8F4] px-4 py-8 sm:p-10 md:p-16">
       <style>{customStyles}</style>
 
-      <div className="max-w-[1360px] mx-auto w-full px-6 md:px-12 lg:px-16 py-12 md:py-20 flex flex-col lg:flex-row gap-16 lg:gap-24 relative">
+      <div className="max-w-[1100px] mx-auto w-full flex flex-col lg:flex-row gap-12 lg:gap-24">
         
         {/* LEFT COLUMN: PERSONAL IDENTITY */}
-        <div className="w-full lg:w-[420px] xl:w-[460px] shrink-0 relative z-20">
-           <div className="lg:sticky lg:top-20 flex flex-col">
+        <div className="w-full lg:w-[340px] xl:w-[380px] shrink-0">
+           <div className="lg:sticky lg:top-16 flex flex-col">
               
-              {/* Avatar */}
-              <div className="relative w-[220px] h-[280px] md:w-[260px] md:h-[320px] mb-10">
-                 <div className="absolute top-4 -right-4 w-full h-full bg-[#E8E1D9] hustler-organic-shape transition-transform duration-700 ease-out hover:translate-x-1 hover:translate-y-1"></div>
-                 <div className="relative z-10 w-full h-full bg-[#FAF8F4] overflow-hidden hustler-organic-shape border hustler-border">
+              {/* Compact Avatar */}
+              <div className="relative w-[140px] h-[180px] md:w-[160px] md:h-[200px] mb-8">
+                 <div className="absolute top-2 -right-2 w-full h-full bg-[#E8E1D9] rounded-[2px_16px_2px_8px] transition-transform duration-700 ease-out"></div>
+                 <div className="relative z-10 w-full h-full bg-[#FAF8F4] overflow-hidden rounded-[2px_16px_2px_8px] border hustler-border">
                     {profile?.avatarUrl ? (
                       <img src={profile.avatarUrl} className="w-full h-full object-cover filter contrast-[1.05] brightness-[0.98] transition-transform duration-700 hover:scale-105" alt={name} />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <span className="hustler-serif text-[6rem] text-[#706A64] opacity-30">{name ? name[0] : 'H'}</span>
+                        <span className="hustler-serif text-[4rem] text-[#716B67] opacity-30">{name ? name[0] : 'H'}</span>
                       </div>
                     )}
                  </div>
               </div>
 
               {/* Typography Identity */}
-              <div className="flex flex-col relative z-30">
-                <h1 className="hustler-serif text-6xl sm:text-7xl lg:text-[5.5rem] leading-[0.85] tracking-tight text-[#272522] mb-6 break-words hyphens-auto">
-                  {name || 'HUSTLER'}
-                </h1>
-                
-                <div className="flex items-center gap-4 mb-6">
-                   <span className="w-8 h-[1px] bg-[#B86F5A] shrink-0"></span>
-                   <span className="font-semibold text-[10px] md:text-xs uppercase tracking-widest text-[#706A64]">{role}</span>
-                </div>
-                
-                <p className="text-lg md:text-xl font-medium leading-relaxed text-[#272522] mb-10 max-w-sm">
-                   {bio}
-                </p>
-
-                {/* Actions */}
-                <div className="flex flex-wrap items-center gap-6">
-                   <a href={email ? `mailto:${email}` : '#'} className="group flex items-center justify-center gap-3 px-8 py-4 bg-[#272522] text-[#FAF8F4] rounded-full font-semibold text-[10px] md:text-xs uppercase tracking-widest hover:bg-[#B86F5A] transition-colors shadow-sm">
-                      Initiate Action <span className="text-base leading-none group-hover:translate-x-1 transition-transform">→</span>
-                   </a>
-                   <button onClick={handleSave} className="group text-[10px] md:text-xs font-semibold uppercase tracking-widest text-[#706A64] hover:text-[#B86F5A] transition-colors flex items-center gap-2">
-                      Save Contact <span className="opacity-0 -translate-y-1 group-hover:translate-y-0 group-hover:opacity-100 transition-all text-[#B86F5A]">↓</span>
-                   </button>
-                </div>
+              <div className="flex items-center gap-3 mb-3">
+                 <span className="w-6 h-[1px] bg-[#B86F5A] shrink-0"></span>
+                 <span className="font-semibold text-[10px] md:text-xs uppercase tracking-widest text-[#716B67]">{role}</span>
               </div>
+              
+              <h1 className="hustler-serif text-5xl sm:text-6xl lg:text-[4.5rem] leading-[0.9] tracking-tight text-[#292624] mb-5 break-words hyphens-auto">
+                {name || 'HUSTLER'}
+              </h1>
+              
+              <p className="text-base md:text-lg font-medium leading-relaxed text-[#292624] mb-8 max-w-sm">
+                 {bio}
+              </p>
 
-              {/* Social Rail */}
-              {socialLinks.length > 0 && (
-                <div className="flex flex-wrap items-center gap-4 mt-12 pt-8 border-t hustler-border relative z-30">
-                  {socialLinks.map((link: any, i: number) => (
-                    <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="w-11 h-11 rounded-full bg-[#FAF8F4] border hustler-border flex items-center justify-center text-[#706A64] hover:text-[#FAF8F4] hover:bg-[#B86F5A] hover:border-[#B86F5A] hover:-translate-y-1 transition-all duration-300 shadow-sm" aria-label={link.label}>
-                      <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
-                        {getAestheteSocialIcon(link.label)}
-                      </svg>
-                    </a>
-                  ))}
-                </div>
-              )}
+              {/* Actions */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                 <a href={email ? \`mailto:\${email}\` : '#'} className="group flex items-center justify-center gap-2 px-6 py-3 bg-[#292624] text-[#FAF8F4] rounded-[2px_12px_2px_8px] font-semibold text-[10px] uppercase tracking-widest hover:bg-[#B86F5A] transition-colors shadow-sm">
+                    Initiate Action <span className="text-sm leading-none group-hover:translate-x-1 transition-transform">→</span>
+                 </a>
+                 <button onClick={handleSave} className="group text-[10px] font-semibold uppercase tracking-widest text-[#716B67] hover:text-[#B86F5A] transition-colors flex items-center gap-1.5 px-2">
+                    Save Contact <span className="opacity-0 -translate-y-1 group-hover:translate-y-0 group-hover:opacity-100 transition-all text-[#B86F5A]">↓</span>
+                 </button>
+              </div>
 
            </div>
         </div>
 
-        {/* RIGHT COLUMN: PROOF OF MOMENTUM */}
-        <div className="flex-1 flex flex-col relative z-10 pt-4 lg:pt-0">
+        {/* RIGHT COLUMN: ACTIVE CONTENT FIELD */}
+        <div className="flex-1 flex flex-col gap-14 lg:gap-20 lg:pt-4">
            
+           {/* SOCIAL LINKS (Prominent & Compact) */}
+           {socialLinks.length > 0 && (
+             <section className="flex flex-col gap-4">
+               <h3 className="text-[10px] uppercase tracking-widest text-[#716B67] font-semibold border-b hustler-border pb-2">Social Signals</h3>
+               <div className="flex flex-wrap items-center gap-3">
+                 {socialLinks.map((link: any, i: number) => (
+                   <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 bg-[#FAF8F4] border hustler-border rounded-[2px_8px_2px_4px] group hover:bg-[#B86F5A] hover:border-[#B86F5A] transition-all shadow-sm">
+                     <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-current text-[#716B67] group-hover:text-[#FAF8F4] transition-colors">
+                       {getAestheteSocialIcon(link.label)}
+                     </svg>
+                     <span className="text-[10px] font-semibold uppercase tracking-widest text-[#292624] group-hover:text-[#FAF8F4] transition-colors mt-0.5">{link.label}</span>
+                   </a>
+                 ))}
+               </div>
+             </section>
+           )}
+
            {/* MOMENTUM INDEX */}
            {validMetrics.length > 0 && (
-             <section className="mb-20 md:mb-32">
-               <div className="flex items-center gap-4 mb-12">
-                 <h2 className="hustler-serif text-3xl md:text-4xl italic text-[#706A64]">Momentum</h2>
-                 <div className="h-[1px] flex-1 bg-[rgba(39,37,34,0.1)]"></div>
-               </div>
-               
-               <div className="grid grid-cols-1 sm:grid-cols-12 gap-8 md:gap-12 items-end">
-                 {validMetrics.map((m: any, i: number) => {
-                   const isDominant = i === 0;
-                   return (
-                     <div key={i} className={`flex flex-col group ${isDominant ? 'sm:col-span-12 border-b hustler-border pb-8' : 'sm:col-span-6 sm:border-l hustler-border sm:pl-6'}`}>
-                        <div className="flex items-center gap-3 mb-4">
-                           {isDominant && <span className="w-1.5 h-1.5 rounded-full bg-[#B86F5A]"></span>}
-                           <span className="text-[10px] md:text-xs font-semibold uppercase tracking-widest text-[#706A64] group-hover:text-[#272522] transition-colors">{m.label || m.title || m.name}</span>
-                        </div>
-                        <div className={`hustler-serif text-[#272522] ${isDominant ? 'text-[5.5rem] md:text-[8rem]' : 'text-5xl md:text-6xl'} leading-[0.85] tracking-tight group-hover:translate-x-2 transition-transform duration-500`}>
-                           {m.value}
-                        </div>
-                     </div>
-                   );
-                 })}
+             <section className="flex flex-col gap-4">
+               <h3 className="text-[10px] uppercase tracking-widest text-[#716B67] font-semibold border-b hustler-border pb-2">Momentum</h3>
+               <div className="flex flex-wrap gap-8 md:gap-14">
+                 {validMetrics.map((m: any, i: number) => (
+                   <div key={i} className="flex flex-col group">
+                      <div className="hustler-serif text-[#292624] text-[3.5rem] md:text-[4.5rem] leading-[0.9] tracking-tight group-hover:text-[#B86F5A] transition-colors">
+                         {m.value}
+                      </div>
+                      <div className="flex items-center gap-2 mt-2">
+                         <span className="w-1 h-1 rounded-full bg-[#B86F5A]"></span>
+                         <span className="text-[10px] font-semibold uppercase tracking-widest text-[#716B67] group-hover:text-[#292624] transition-colors">{m.label || m.title || m.name}</span>
+                      </div>
+                   </div>
+                 ))}
                </div>
              </section>
            )}
 
            {/* TRACK RECORD */}
            {validProofs.length > 0 && (
-             <section className="mb-20 md:mb-32">
-               <div className="flex items-center gap-4 mb-12">
-                 <h2 className="hustler-serif text-3xl md:text-4xl italic text-[#706A64]">Track Record</h2>
-                 <div className="h-[1px] flex-1 bg-[rgba(39,37,34,0.1)]"></div>
-               </div>
-               
-               <div className="flex flex-col gap-10">
+             <section className="flex flex-col gap-4">
+               <h3 className="text-[10px] uppercase tracking-widest text-[#716B67] font-semibold border-b hustler-border pb-2">Track Record</h3>
+               <div className="flex flex-col">
                  {validProofs.map((proof: any, i: number) => (
-                   <div key={i} className="flex flex-col sm:flex-row gap-4 sm:gap-8 group relative">
-                      <div className="hustler-mono text-[10px] text-[#B86F5A] font-bold sm:mt-2 shrink-0 w-8 opacity-60 group-hover:opacity-100 transition-opacity">
+                   <div key={i} className="flex items-baseline gap-4 md:gap-6 py-4 border-b hustler-border group hover:bg-[#E8E1D9] transition-colors -mx-4 px-4 rounded-sm">
+                      <div className="hustler-mono text-[9px] text-[#B86F5A] font-bold w-4 opacity-50 group-hover:opacity-100 transition-opacity shrink-0">
                          0{i+1}
                       </div>
-                      <div className="flex-1 flex flex-col md:flex-row gap-2 md:gap-8 md:items-baseline border-b hustler-border pb-8 md:pb-10 group-hover:border-[#272522] transition-colors">
-                         <h3 className="hustler-serif text-3xl md:text-4xl text-[#272522] group-hover:text-[#B86F5A] transition-colors flex-1">{proof.title || proof.label}</h3>
-                         <div className="flex-1 md:text-right mt-2 md:mt-0">
-                           <p className="text-[14px] md:text-[15px] leading-relaxed text-[#706A64] font-medium group-hover:text-[#272522] transition-colors max-w-sm md:ml-auto">{proof.description || proof.desc || proof.date}</p>
-                         </div>
+                      <div className="flex-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-6">
+                         <h4 className="hustler-serif text-2xl md:text-3xl text-[#292624] group-hover:text-[#B86F5A] transition-colors">{proof.title || proof.label}</h4>
+                         <p className="text-[13px] text-[#716B67] font-medium sm:text-right max-w-sm group-hover:text-[#292624] transition-colors">{proof.description || proof.desc || proof.date}</p>
                       </div>
                    </div>
                  ))}
@@ -2548,23 +2529,17 @@ function HustlerTemplate({ profile }: any) {
 
            {/* DESTINATIONS */}
            {validContentLinks.length > 0 && (
-             <section className="mb-20 md:mb-32">
-               <div className="flex items-center gap-4 mb-12">
-                 <h2 className="hustler-serif text-3xl md:text-4xl italic text-[#706A64]">Destinations</h2>
-                 <div className="h-[1px] flex-1 bg-[rgba(39,37,34,0.1)]"></div>
-               </div>
-               
-               <div className="flex flex-col gap-4">
+             <section className="flex flex-col gap-4">
+               <h3 className="text-[10px] uppercase tracking-widest text-[#716B67] font-semibold border-b hustler-border pb-2">Destinations</h3>
+               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                  {validContentLinks.map((item: any, i: number) => (
-                   <a key={i} href={item.url} target="_blank" rel="noopener noreferrer" className="group block relative p-6 md:p-8 bg-[#FAF8F4] hustler-organic-shape-alt border hustler-border hover:border-[#B86F5A] hover:bg-[#E8E1D9] transition-all duration-300">
-                     <div className="flex items-center justify-between gap-6">
-                        <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-8">
-                           <h3 className="hustler-serif text-3xl md:text-4xl text-[#272522] group-hover:-translate-y-1 transition-transform">{item.title || item.label}</h3>
-                           <span className="text-[10px] uppercase tracking-widest text-[#706A64] font-semibold group-hover:text-[#B86F5A] transition-colors">{item.category || 'External Link'}</span>
-                        </div>
-                        <div className="w-10 h-10 shrink-0 rounded-full border hustler-border flex items-center justify-center text-[#272522] group-hover:bg-[#B86F5A] group-hover:border-[#B86F5A] group-hover:text-[#FAF8F4] transition-colors">
-                           <span className="text-xl leading-none font-light mb-0.5 ml-0.5">→</span>
-                        </div>
+                   <a key={i} href={item.url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-5 bg-[#FAF8F4] border hustler-border rounded-[2px_12px_2px_4px] group hover:border-[#B86F5A] hover:bg-[#E8E1D9] transition-all shadow-sm">
+                     <div className="flex flex-col gap-1">
+                        <h4 className="hustler-serif text-2xl text-[#292624] group-hover:-translate-y-0.5 transition-transform">{item.title || item.label}</h4>
+                        <span className="text-[9px] uppercase tracking-widest text-[#716B67] font-semibold group-hover:text-[#B86F5A] transition-colors">{item.category || 'External Link'}</span>
+                     </div>
+                     <div className="w-8 h-8 shrink-0 rounded-full border hustler-border flex items-center justify-center text-[#292624] group-hover:bg-[#B86F5A] group-hover:border-[#B86F5A] group-hover:text-[#FAF8F4] transition-colors">
+                        <span className="text-sm leading-none font-light mb-0.5 ml-0.5">→</span>
                      </div>
                    </a>
                  ))}
@@ -2573,13 +2548,13 @@ function HustlerTemplate({ profile }: any) {
            )}
 
            {/* FOOTER */}
-           <footer className="mt-auto pt-16 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-             <div className="flex items-center gap-4">
-                <div className="hustler-serif text-2xl italic text-[#272522]">{name || 'HUSTLER'}</div>
+           <footer className="mt-auto pt-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+             <div className="flex items-center gap-3">
+                <div className="hustler-serif text-xl italic text-[#292624]">{name || 'HUSTLER'}</div>
                 <div className="w-1.5 h-1.5 rounded-full bg-[#7D8B78]"></div>
-                <div className="text-[10px] uppercase tracking-widest text-[#706A64] font-semibold">Active Presence</div>
+                <div className="text-[9px] uppercase tracking-widest text-[#716B67] font-semibold">Active Presence</div>
              </div>
-             <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="text-[10px] font-bold uppercase tracking-widest text-[#272522] hover:text-[#B86F5A] transition-colors flex items-center gap-2 group">
+             <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="text-[9px] font-bold uppercase tracking-widest text-[#292624] hover:text-[#B86F5A] transition-colors flex items-center gap-1.5 group">
                Return Top <span className="group-hover:-translate-y-1 transition-transform">↑</span>
              </button>
            </footer>
@@ -2589,7 +2564,7 @@ function HustlerTemplate({ profile }: any) {
       
       {/* Toast Notification */}
       {toastVisible && (
-        <div className="fixed bottom-8 right-8 bg-[#FAF8F4] border hustler-border text-[#272522] px-6 py-4 shadow-xl z-50 flex items-center gap-4 text-[10px] font-bold tracking-widest uppercase rounded-full animate-in fade-in slide-in-from-bottom-4">
+        <div className="fixed bottom-8 right-8 bg-[#FAF8F4] border hustler-border text-[#292624] px-6 py-4 shadow-xl z-50 flex items-center gap-4 text-[10px] font-bold tracking-widest uppercase rounded-full animate-in fade-in slide-in-from-bottom-4">
           <span className="w-2 h-2 rounded-full bg-[#7D8B78] animate-pulse" />
           {toastMsg}
         </div>
