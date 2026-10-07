@@ -2428,12 +2428,12 @@ function HustlerTemplate({ profile }: any) {
          {/* HEADER: AVATAR & INFO */}
          <div className="flex flex-col md:flex-row gap-[2px]">
             {/* Avatar Slot */}
-            <div className="md:w-[280px] shrink-0 p-8 flex flex-col items-center justify-center bg-[#DCD9D1] group">
-               <div className="w-[160px] h-[160px] md:w-[200px] md:h-[200px] hustler-organic border-2 border-[#292724] overflow-hidden bg-[#C4C0B8] shadow-lg">
+            <div className="md:w-[320px] shrink-0 p-8 flex flex-col items-center justify-center bg-[#DCD9D1] group">
+               <div className="w-[200px] h-[200px] md:w-[240px] md:h-[240px] hustler-organic border-2 border-[#292724] overflow-hidden bg-[#C4C0B8] shadow-lg">
                   {profile?.avatarUrl ? (
                      <img src={profile.avatarUrl} className="w-full h-full object-cover filter contrast-[1.1] grayscale group-hover:grayscale-0 transition-all duration-700" alt={name} />
                   ) : (
-                     <div className="w-full h-full flex items-center justify-center font-serif text-6xl text-[#292724] opacity-30">{name?.[0] || 'H'}</div>
+                     <div className="w-full h-full flex items-center justify-center font-serif text-7xl text-[#292724] opacity-30">{name?.[0] || 'H'}</div>
                   )}
                </div>
             </div>
@@ -2449,7 +2449,7 @@ function HustlerTemplate({ profile }: any) {
                </div>
                {/* Bio Slot */}
                <div className="p-6 md:p-10 bg-[#EAE8E3] min-h-[140px] flex items-center">
-                  <p className="text-[15px] sm:text-base font-medium leading-relaxed text-[#292724]">{bio}</p>
+                  <p className="text-[15px] sm:text-base md:text-lg font-medium leading-relaxed text-[#292724]">{bio}</p>
                </div>
             </div>
          </div>
@@ -2478,13 +2478,13 @@ function HustlerTemplate({ profile }: any) {
             <div className="md:w-[140px] shrink-0 p-5 flex items-center bg-[#DCD9D1]">
                <span className="text-[10px] sm:text-xs uppercase tracking-widest font-bold text-[#7A756D]">Network</span>
             </div>
-            <div className="flex-1 p-5 bg-[#EAE8E3] flex flex-wrap gap-3 items-center">
+            <div className="flex-1 p-6 md:p-8 bg-[#EAE8E3] flex flex-wrap gap-4 items-center">
                {validLinks.length > 0 ? validLinks.map((l: any, i: number) => {
                   const icon = getAestheteSocialIcon(l.label || l.title);
                   return (
-                    <a key={i} href={l.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 border-2 border-[#292724] px-4 py-2 hustler-organic-sm group hover:bg-[#D64924] hover:border-[#D64924] transition-all shadow-sm">
-                       <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-current text-[#292724] group-hover:text-[#EAE8E3] transition-colors">{icon}</svg>
-                       <span className="text-[10px] sm:text-[11px] uppercase tracking-widest font-bold text-[#292724] group-hover:text-[#EAE8E3] transition-colors">{l.label || l.title}</span>
+                    <a key={i} href={l.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 border-2 border-[#292724] px-6 py-4 hustler-organic-sm group hover:bg-[#D64924] hover:border-[#D64924] transition-all shadow-sm">
+                       <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current text-[#292724] group-hover:text-[#EAE8E3] transition-colors">{icon}</svg>
+                       <span className="text-xs sm:text-sm uppercase tracking-widest font-bold text-[#292724] group-hover:text-[#EAE8E3] transition-colors">{l.label || l.title}</span>
                     </a>
                   )
                }) : (
