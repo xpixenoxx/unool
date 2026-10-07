@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useRef, useEffect, KeyboardEvent, ClipboardEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useRef, useEffect, KeyboardEvent, ClipboardEvent, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { Home, Search, Bell, Mail, User, Bookmark, Loader2, Heart, MessageCircle, Repeat2, Send, CheckCircle2, ArrowLeft } from 'lucide-react';
@@ -17,13 +17,14 @@ const C = {
   ink: '#1A0A05',
 };
 
-export default function SignInSocialPage() {
+function SignInContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [stage, setStage] = useState<'form' | 'otp'>('form');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(searchParams.get('error') ? decodeURIComponent(searchParams.get('error')!) : '');
   
   // Interactive Feed State
   const feedControls = useAnimation();
@@ -227,7 +228,7 @@ export default function SignInSocialPage() {
   ];
 
   return (
-    <div 
+    <div
       className="min-h-screen w-full flex justify-center font-sans text-white selection:bg-[#C84B31]"
       style={{ background: `linear-gradient(180deg, ${C.oxblood} 0%, ${C.terracotta} 40%, ${C.sand} 80%, ${C.cream} 100%)` }}
     >
@@ -598,5 +599,17 @@ export default function SignInSocialPage() {
 
       </div>
     </div>
+  );
+}
+
+export default function SignInSocialPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#3A0B1A' }}>
+        <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+      </div>
+    }>
+      <SignInContent />
+    </Suspense>
   );
 }
