@@ -1805,8 +1805,7 @@ function VisionaryTemplate({ profile, onLinkClick }: any) {
                <span className="text-[8px] tracking-[0.2em] text-[#8B958A] uppercase mt-2">FIELD / 01</span>
             </div>
 
-            <div className="flex items-center gap-4 mb-6">
-              <div className="w-8 h-[1px] bg-[#2C2825]/30 hidden md:block" />
+            <div className="flex items-center mb-6">
               <span className="text-[9px] tracking-[0.2em] text-[#8B958A] uppercase font-bold">
                 THE VISIONARY
               </span>
@@ -1823,12 +1822,7 @@ function VisionaryTemplate({ profile, onLinkClick }: any) {
               ) : null}
             </h1>
             
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-6 h-[1px] bg-[#2C2825]/30 hidden md:block" />
-              <span className="text-[9px] tracking-[0.2em] text-[#8B958A] uppercase font-bold text-center md:text-left">
-                THE VISIONARY
-              </span>
-            </div>
+
             
             <h2 className="text-[11px] sm:text-[13px] tracking-[0.15em] font-bold uppercase text-[#2C2825] mb-6">
               {headline}
@@ -1838,12 +1832,9 @@ function VisionaryTemplate({ profile, onLinkClick }: any) {
               {bio}
             </p>
             
-            <div className="flex gap-4 mb-10 items-stretch">
-              <div className="w-[1px] bg-[#704E59]/40 hidden md:block" />
-              <div className="flex flex-col justify-center items-center md:items-start">
-                <span className="text-[8px] tracking-[0.2em] text-[#8B958A] uppercase mb-1">CURRENTLY EXPLORING</span>
-                <span className="text-[10px] tracking-[0.1em] font-bold uppercase text-[#2C2825]">{exploring}</span>
-              </div>
+            <div className="mb-10 flex flex-col justify-center items-center md:items-start">
+              <span className="text-[8px] tracking-[0.2em] text-[#8B958A] uppercase mb-1">CURRENTLY EXPLORING</span>
+              <span className="text-[10px] tracking-[0.1em] font-bold uppercase text-[#2C2825]">{exploring}</span>
             </div>
             
             <a 
@@ -1941,14 +1932,19 @@ function VisionaryTemplate({ profile, onLinkClick }: any) {
                       </div>
                     )}
                     
-                    <div className="visionary-serif text-5xl sm:text-6xl text-[#2C2825] mb-8 group-hover:scale-105 transition-transform origin-left">
+                    <div className="visionary-serif text-5xl sm:text-6xl text-[#2C2825] mb-4 group-hover:scale-105 transition-transform origin-left">
                       {metric.value}
                     </div>
                     
-                    <div className="space-y-1">
-                      <div className="text-[9px] tracking-[0.1em] font-bold uppercase text-[#2C2825]">
-                        {metric.label}
+                    <div className="flex flex-col gap-1">
+                      <div className="text-[10px] tracking-[0.15em] font-bold uppercase text-[#2C2825]">
+                        {metric.label || metric.title}
                       </div>
+                      {metric.description && (
+                        <div className="text-[8px] tracking-[0.1em] text-[#8B958A] uppercase opacity-80">
+                          {metric.description}
+                        </div>
+                      )}
                     </div>
                     
                     <div className="absolute bottom-6 left-6 w-3 h-3 border-b border-l border-[#2C2825]/20 pointer-events-none" />
@@ -2004,7 +2000,7 @@ function VisionaryTemplate({ profile, onLinkClick }: any) {
                     
                     <div className={`w-10 h-10 rounded-full border border-[#2C2825]/10 flex items-center justify-center text-[#2C2825] md:group-hover:scale-110 md:group-hover:-rotate-12 transition-transform duration-300 bg-white shadow-sm shrink-0`}>
                       <div className="w-4 h-4">
-                        {getPlatformIcon(link.icon)}
+                        {getPlatformIcon(link.icon || link.platform || link.label || '')}
                       </div>
                     </div>
                     
@@ -2012,7 +2008,7 @@ function VisionaryTemplate({ profile, onLinkClick }: any) {
                       <span className="text-[11px] font-bold uppercase text-[#2C2825] truncate">{link.label}</span>
                     </div>
                     
-                    <div className={`w-1.5 h-1.5 rounded-full ${bgClass} mx-2 md:mr-4 opacity-0 group-hover:opacity-100 transition-opacity shrink-0`} />
+
                     
                     <div className="text-[#2C2825] opacity-30 group-hover:opacity-100 md:group-hover:translate-x-1 md:group-hover:-translate-y-1 transition-all shrink-0">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="19" x2="19" y2="5"></line><polyline points="12 5 19 5 19 12"></polyline></svg>
