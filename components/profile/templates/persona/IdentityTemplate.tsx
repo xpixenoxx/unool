@@ -710,215 +710,355 @@ function EnergyTemplate({ profile, accentColor }: any) {
 // --- 02 STARTUP --- //
 
 function RebellionTemplate({ profile, accentColor }: any) {
-  const accent = accentColor || '#ff2a4d';
-  const acid = '#ccff00';
+  const accent = accentColor || '#D4A853';
 
   const customStyles = `
-    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Syne:wght@600;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap');
 
     .rebel-theme {
-      --bg: #09090b;
-      --fg: #fafafa;
-      --rebel: ${accent};
-      --acid: ${acid};
-      --ink: #18181b;
-      --display: 'Syne', sans-serif;
-      --body: 'Space Grotesk', sans-serif;
-      font-family: var(--body);
-      background-color: var(--bg);
-      background-image: radial-gradient(circle at 15% 50%, rgba(255,42,77,0.1), transparent 30%), 
-                        radial-gradient(circle at 85% 30%, rgba(204,255,0,0.05), transparent 30%);
-      color: var(--fg);
+      --cream: #FDF6EC;
+      --cream-deep: #F5ECDB;
+      --gold: ${accent};
+      --gold-light: #E8CE92;
+      --gold-border: rgba(212, 168, 83, 0.35);
+      --pink: #E85D8A;
+      --purple: #7C5CBF;
+      --text: #3D2E1F;
+      --text-muted: #8A7A6A;
+      --serif: 'Cormorant Garamond', Georgia, serif;
+      --sans: 'DM Sans', -apple-system, sans-serif;
+      font-family: var(--sans);
+      background: linear-gradient(165deg, #FDF6EC 0%, #FBF0E0 30%, #F7EADF 60%, #F5E4D8 100%);
+      color: var(--text);
       min-height: 100vh;
       overflow-x: hidden;
-      padding: clamp(14px, 4vw, 40px);
-    }
-    
-    .rebel-frame {
-      max-width: 1180px; margin: 0 auto;
-      border: 4px solid var(--fg);
-      background: var(--bg);
       position: relative;
+    }
+
+    /* Soft radial glow accents */
+    .rebel-theme::before {
+      content: ""; position: absolute; top: -10%; right: -5%; width: 60%; height: 60%;
+      background: radial-gradient(ellipse, rgba(232, 93, 138, 0.08), transparent 70%);
+      pointer-events: none; z-index: 0;
+    }
+    .rebel-theme::after {
+      content: ""; position: absolute; bottom: -10%; left: -10%; width: 50%; height: 50%;
+      background: radial-gradient(ellipse, rgba(124, 92, 191, 0.06), transparent 70%);
+      pointer-events: none; z-index: 0;
+    }
+
+    .rebel-frame {
+      max-width: 1200px; margin: 0 auto;
+      border: 1.5px solid var(--gold-border);
+      border-radius: 24px;
+      background: rgba(253, 246, 236, 0.6);
+      backdrop-filter: blur(20px);
+      position: relative; z-index: 1;
       overflow: hidden;
-      box-shadow: 16px 16px 0 var(--rebel);
+      box-shadow: 0 4px 60px rgba(212, 168, 83, 0.08);
     }
 
-    .rebel-frame::before {
-      content: ""; position: absolute; inset: 0;
-      background-image: linear-gradient(rgba(250,250,250,0.1) 1px, transparent 1px),
-                        linear-gradient(90deg, rgba(250,250,250,0.1) 1px, transparent 1px);
-      background-size: 40px 40px; opacity: 0.5; pointer-events: none; z-index: 0;
-    }
+    .rebel-in { position: relative; z-index: 2; padding: clamp(28px, 5vw, 56px); }
 
-    .rebel-in { position: relative; z-index: 2; padding: clamp(24px, 5vw, 48px); }
-
+    /* --- Header Bar --- */
     .rebel-bar {
       display: flex; justify-content: space-between; align-items: center;
-      border-bottom: 2px solid var(--fg); padding-bottom: 24px; margin-bottom: 48px;
-      text-transform: uppercase; font-family: var(--display); font-weight: 800;
+      margin-bottom: 56px;
     }
     .rebel-badge {
       display: inline-flex; align-items: center; gap: 10px;
-      background: var(--rebel); color: #fff;
-      padding: 8px 16px; border: 2px solid var(--fg);
-      box-shadow: 4px 4px 0 var(--fg);
-      transform: rotate(-3deg);
+      background: linear-gradient(135deg, var(--gold), #C9953A);
+      color: #fff; padding: 10px 20px; border-radius: 50px;
+      font-family: var(--sans); font-weight: 600; font-size: 0.9rem;
+      letter-spacing: 0.5px; text-decoration: none;
+      box-shadow: 0 2px 12px rgba(212, 168, 83, 0.3);
       transition: transform 0.2s, box-shadow 0.2s;
     }
-    .rebel-badge:hover { transform: translate(2px, 2px) rotate(0deg); box-shadow: 2px 2px 0 var(--fg); }
-    .rebel-tag { color: var(--acid); letter-spacing: 1px; text-transform: uppercase; font-family: var(--display); font-weight: 800; }
+    .rebel-badge:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(212, 168, 83, 0.4); }
+    .rebel-badge svg { width: 18px; height: 18px; }
+    .rebel-tagline {
+      font-family: var(--serif); font-style: italic; font-size: 1.15rem;
+      color: var(--text-muted); letter-spacing: 0.3px;
+    }
+    .rebel-year {
+      font-family: var(--sans); font-weight: 500; font-size: 0.85rem;
+      color: var(--text-muted); letter-spacing: 1px; text-transform: uppercase;
+    }
 
-    .rebel-hero { display: grid; grid-template-columns: 1fr auto; gap: 40px; align-items: center; }
+    /* --- Hero Section --- */
+    .rebel-hero {
+      display: grid; grid-template-columns: 1fr 380px; gap: 40px; align-items: center;
+      margin-bottom: 20px; position: relative;
+    }
     .rebel-name {
-      margin: 0; font-family: var(--display); font-size: clamp(4rem, 15vw, 11rem);
-      line-height: 0.85; text-transform: uppercase; color: transparent;
-      -webkit-text-stroke: 2px var(--fg); position: relative;
+      margin: 0; font-family: var(--serif); font-weight: 400;
+      font-size: clamp(5rem, 12vw, 10rem); line-height: 0.9;
+      text-transform: lowercase; letter-spacing: -2px;
+      background: linear-gradient(135deg, var(--pink) 0%, #B44A9E 30%, var(--purple) 60%, #9B7DD4 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
-    .rebel-name::after {
-      content: attr(data-text); position: absolute; left: 8px; top: 8px;
-      color: var(--rebel); -webkit-text-stroke: 0; z-index: -1; mix-blend-mode: screen;
+
+    /* Decorative star near the name */
+    .rebel-star {
+      position: absolute; top: 10%; left: 55%;
+      color: var(--gold); font-size: 1.4rem; opacity: 0.7;
+      animation: rebel-twinkle 3s ease-in-out infinite;
     }
+
+    /* Crown icon */
+    .rebel-crown {
+      position: absolute; top: 48%; left: 52%;
+      z-index: 5;
+    }
+    .rebel-crown svg { width: 40px; height: 40px; fill: var(--gold); opacity: 0.8; }
+
+    /* Role label with dashes */
+    .rebel-role-wrap {
+      display: flex; align-items: center; gap: 12px; margin: 28px 0 20px;
+    }
+    .rebel-role-line { width: 32px; height: 2px; background: var(--pink); border-radius: 2px; }
     .rebel-role {
-      display: inline-block; margin: 24px 0; padding: 6px 16px;
-      background: var(--acid); color: var(--ink);
-      font-family: var(--display); font-weight: 800; font-size: clamp(1.2rem, 3vw, 2rem);
-      text-transform: uppercase; transform: skewX(-12deg);
+      font-family: var(--serif); font-style: italic; font-weight: 600;
+      font-size: clamp(1.4rem, 2.5vw, 1.9rem); color: var(--pink);
     }
+
     .rebel-bio {
-      max-width: 45ch; font-size: clamp(1.1rem, 1.6vw, 1.35rem);
-      border-left: 4px solid var(--rebel); padding-left: 16px;
+      font-family: var(--sans); font-size: 1.05rem; line-height: 1.7;
+      color: var(--text); max-width: 480px;
     }
 
-    .rebel-stage {
-      width: min(100%, 280px); aspect-ratio: 1;
-      border: 4px solid var(--fg);
-      background: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(250,250,250,0.05) 10px, rgba(250,250,250,0.05) 20px);
-      box-shadow: -12px 12px 0 var(--acid);
-      display: grid; place-items: center; position: relative;
-    }
-    .rebel-stage b {
-      font-family: var(--display); font-size: clamp(6rem, 10vw, 9rem);
-      color: var(--fg); line-height: 1; text-transform: uppercase; mix-blend-mode: difference;
-    }
-    .rebel-stage::after {
-      content: ""; position: absolute; inset: -4px;
-      border: 4px solid var(--rebel); transform: translate(20px, -20px); z-index: -1;
+    /* --- Arch / Glass Window with Initial --- */
+    .rebel-arch-container { position: relative; display: flex; justify-content: center; }
+
+    .rebel-arch {
+      width: 260px; height: 340px;
+      border-radius: 130px 130px 20px 20px;
+      background: linear-gradient(180deg, rgba(232, 206, 255, 0.35) 0%, rgba(240, 220, 255, 0.2) 50%, rgba(253, 246, 236, 0.1) 100%);
+      backdrop-filter: blur(16px);
+      border: 1.5px solid rgba(180, 150, 220, 0.3);
+      display: flex; align-items: center; justify-content: center;
+      position: relative; overflow: hidden;
+      box-shadow: 0 8px 40px rgba(124, 92, 191, 0.1), inset 0 1px 0 rgba(255,255,255,0.4);
     }
 
+    .rebel-arch::before {
+      content: ""; position: absolute; inset: 6px;
+      border-radius: 126px 126px 16px 16px;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      pointer-events: none;
+    }
+
+    .rebel-arch-initial {
+      font-family: var(--serif); font-size: 8rem; font-weight: 500;
+      background: linear-gradient(180deg, rgba(124, 92, 191, 0.6) 0%, rgba(124, 92, 191, 0.25) 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-transform: uppercase;
+    }
+
+    /* Arch offset shadow frame */
+    .rebel-arch-shadow {
+      position: absolute; top: 12px; right: -12px; width: 260px; height: 340px;
+      border-radius: 130px 130px 20px 20px;
+      border: 1.5px solid var(--gold-border);
+      pointer-events: none; z-index: -1;
+    }
+
+    /* Small decorative arch outline top-right */
+    .rebel-mini-arch {
+      position: absolute; top: -20px; right: -30px; width: 80px; height: 110px;
+      border-radius: 40px 40px 8px 8px;
+      border: 1.5px solid var(--gold-border);
+      pointer-events: none;
+    }
+
+    /* --- Marquee Ribbon --- */
     .rebel-ribbon {
-      margin: 80px -10%; background: var(--fg); color: var(--bg);
-      padding: 16px 0; transform: rotate(3deg); border-block: 4px solid var(--rebel);
+      margin: 48px -60px; padding: 18px 0;
+      background: linear-gradient(90deg, rgba(212, 168, 83, 0.12) 0%, rgba(232, 206, 146, 0.18) 50%, rgba(212, 168, 83, 0.12) 100%);
       overflow: hidden; white-space: nowrap;
-      font-family: var(--display); font-weight: 800; font-size: clamp(1.2rem, 2vw, 1.8rem); text-transform: uppercase;
+      font-family: var(--serif); font-style: italic; font-weight: 500;
+      font-size: clamp(1rem, 1.8vw, 1.3rem); color: var(--text-muted);
     }
-    .rebel-track { display: inline-block; animation: rebel-marquee 12s linear infinite; }
-    .rebel-track span { padding: 0 24px; }
-    .rebel-track span::after { content: " ✖ "; color: var(--rebel); padding-left: 24px; }
+    .rebel-track { display: inline-block; animation: rebel-marquee 25s linear infinite; }
+    .rebel-track span { padding: 0 16px; }
+    .rebel-divider { color: var(--gold); padding: 0 12px; font-style: normal; }
     @keyframes rebel-marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
 
-    .rebel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; margin-top: 60px; }
+    /* --- Link Cards Grid --- */
+    .rebel-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 20px; margin-top: 40px;
+    }
     .rebel-card {
-      display: block; border: 3px solid var(--fg); padding: 32px 24px; background: var(--bg);
-      position: relative; transition: transform 0.2s; text-decoration: none;
+      display: block; padding: 28px 24px;
+      background: rgba(253, 246, 236, 0.5);
+      backdrop-filter: blur(12px);
+      border: 1.5px solid var(--gold-border);
+      border-radius: 16px;
+      position: relative; text-decoration: none; color: var(--text);
+      transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s;
     }
-    .rebel-card::before {
-      content: ""; position: absolute; inset: 0; background: var(--rebel); z-index: -1;
-      transform: translate(8px, 8px); transition: transform 0.2s;
+    .rebel-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 32px rgba(212, 168, 83, 0.15);
+      border-color: var(--gold-light);
     }
-    .rebel-card:hover { transform: translate(4px, 4px); }
-    .rebel-card:hover::before { transform: translate(0, 0); }
-    .rebel-card h3 { margin: 0; font-family: var(--display); font-size: 2rem; text-transform: uppercase; color: var(--fg); }
-    .rebel-card small { display: block; margin-top: 8px; color: #a1a1aa; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
-    .rebel-card .arr { position: absolute; top: 24px; right: 24px; font-size: 1.8rem; color: var(--acid); font-weight: bold; }
+    .rebel-card h3 {
+      margin: 0; font-family: var(--serif); font-size: 1.6rem;
+      font-weight: 600; color: var(--text);
+    }
+    .rebel-card small {
+      display: block; margin-top: 4px; color: var(--text-muted);
+      font-size: 0.85rem; font-weight: 500;
+    }
+    .rebel-card .arr {
+      position: absolute; top: 20px; right: 20px;
+      width: 32px; height: 32px; border-radius: 50%;
+      border: 1.5px solid var(--gold-border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.9rem; color: var(--text-muted);
+      transition: background 0.2s, color 0.2s;
+    }
+    .rebel-card:hover .arr {
+      background: var(--gold); color: #fff; border-color: var(--gold);
+    }
 
+    /* --- Bottom CTA Band --- */
     .rebel-band {
-      margin-top: 80px; padding: 48px; border: 4px solid var(--fg); background: var(--bg);
-      display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 40px;
-      box-shadow: 12px 12px 0 var(--acid);
+      margin-top: 64px; padding: 48px;
+      background: rgba(253, 246, 236, 0.4);
+      border: 1.5px solid var(--gold-border);
+      border-radius: 20px;
+      display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 32px;
     }
-    .rebel-num { margin: 0; font-family: var(--display); font-size: clamp(4rem, 8vw, 6.5rem); line-height: 0.9; }
-    .rebel-num em { color: var(--rebel); font-style: normal; }
-    .rebel-num small { display: block; font-family: var(--body); font-size: 1.2rem; color: #a1a1aa; text-transform: uppercase; font-weight: 600; margin-top: 8px; }
-
-    .rebel-say h2 { margin: 0 0 24px; font-family: var(--display); font-size: clamp(2rem, 4vw, 3rem); text-transform: uppercase; line-height: 1.1; }
+    .rebel-say h2 {
+      margin: 0 0 20px; font-family: var(--serif); font-style: italic;
+      font-size: clamp(1.8rem, 3vw, 2.6rem); font-weight: 500; color: var(--text);
+    }
     .rebel-cta {
-      display: inline-flex; align-items: center; gap: 16px; padding: 16px 32px; background: var(--fg); color: var(--bg); text-decoration: none;
-      font-family: var(--display); font-weight: 800; font-size: 1.2rem; text-transform: uppercase; border: 2px solid var(--fg); transition: all 0.3s;
+      display: inline-flex; align-items: center; gap: 12px;
+      padding: 14px 32px; border-radius: 50px;
+      background: linear-gradient(135deg, var(--gold), #C9953A);
+      color: #fff; text-decoration: none;
+      font-family: var(--sans); font-weight: 600; font-size: 1rem;
+      box-shadow: 0 4px 16px rgba(212, 168, 83, 0.3);
+      transition: transform 0.2s, box-shadow 0.2s;
     }
-    .rebel-cta:hover { background: var(--rebel); color: var(--fg); box-shadow: 8px 8px 0 var(--acid); transform: translate(-4px, -4px); }
+    .rebel-cta:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 24px rgba(212, 168, 83, 0.45);
+    }
 
-    .rebel-fl { position: absolute; pointer-events: none; z-index: 1; }
-    .rebel-shape-1 { width: 120px; height: 120px; border: 6px solid var(--acid); border-radius: 50%; top: 12%; right: 8%; animation: rebel-float 6s ease-in-out infinite; }
-    .rebel-shape-2 { width: 90px; height: 90px; background: var(--rebel); top: 65%; left: -2%; transform: rotate(45deg); mix-blend-mode: difference; animation: rebel-float 8s ease-in-out infinite reverse; }
-    .rebel-shape-3 { font-size: 6rem; color: var(--fg); opacity: 0.1; top: 35%; right: 25%; animation: rebel-spin 15s linear infinite; }
-
-    @keyframes rebel-float { 50% { transform: translateY(-25px); } }
-    @keyframes rebel-spin { to { transform: rotate(360deg); } }
+    @keyframes rebel-twinkle {
+      0%, 100% { opacity: 0.4; transform: scale(0.8); }
+      50% { opacity: 1; transform: scale(1.1); }
+    }
 
     @media (max-width: 900px) {
       .rebel-hero { grid-template-columns: 1fr; }
-      .rebel-stage { margin-top: 40px; justify-self: center; }
+      .rebel-arch-container { margin-top: 40px; justify-self: center; }
       .rebel-band { flex-direction: column; align-items: flex-start; }
+      .rebel-crown, .rebel-star { display: none; }
     }
     @media (max-width: 600px) {
-      .rebel-tag { display: none; }
-      .rebel-ribbon { margin: 60px -10%; }
+      .rebel-year { display: none; }
+      .rebel-ribbon { margin: 40px -28px; }
+      .rebel-arch { width: 200px; height: 260px; border-radius: 100px 100px 16px 16px; }
+      .rebel-arch::before { border-radius: 96px 96px 12px 12px; }
+      .rebel-arch-shadow { width: 200px; height: 260px; border-radius: 100px 100px 16px 16px; }
     }
   `;
+
+  const getLinkSubtitle = (label: string) => {
+    const l = label?.toLowerCase() || '';
+    if (l.includes('youtube')) return 'Watch';
+    if (l.includes('hackerrank') || l.includes('leetcode')) return 'Solve';
+    if (l.includes('github') || l.includes('gitlab')) return 'Build';
+    if (l.includes('instagram')) return 'Follow';
+    if (l.includes('twitter') || l.includes('x.com')) return 'Follow';
+    if (l.includes('linkedin')) return 'Connect';
+    if (l.includes('discord')) return 'Join';
+    if (l.includes('twitch')) return 'Stream';
+    return 'Visit';
+  };
 
   return (
     <div className="rebel-theme">
       <style dangerouslySetInnerHTML={{ __html: customStyles }} />
       <div className="rebel-frame">
-        <div className="rebel-fl rebel-shape-1" />
-        <div className="rebel-fl rebel-shape-2" />
-        <div className="rebel-fl rebel-shape-3">✖</div>
-
         <div className="rebel-in">
+          {/* --- Header --- */}
           <header className="rebel-bar">
             <a className="rebel-badge" href="#top">
-              <svg viewBox="0 0 24 24" aria-hidden="true" width="20" height="20" fill="currentColor"><path d="M12 2L2 22h20L12 2zm0 4.5l6.5 13h-13L12 6.5z"/></svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="currentColor"><path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z"/></svg>
               The Rebellion
             </a>
-            <span className="rebel-tag">Rule Breakers</span>
+            <span className="rebel-tagline">We challenge the industry.</span>
+            <span className="rebel-year">Profile 2026</span>
           </header>
 
           <main id="top">
+            {/* --- Hero --- */}
             <section className="rebel-hero">
               <div>
-                <h1 className="rebel-name" data-text={profile.name}>{profile.name}</h1>
-                <div className="rebel-role">{profile.headline}</div>
+                <h1 className="rebel-name">{profile.name}</h1>
+                <div className="rebel-role-wrap">
+                  <span className="rebel-role-line" />
+                  <span className="rebel-role">{profile.headline}</span>
+                </div>
                 <p className="rebel-bio">{profile.bio}</p>
               </div>
-              <div className="rebel-stage">
-                <b>{profile.name?.[0] || 'U'}</b>
+
+              <div className="rebel-arch-container">
+                <div className="rebel-mini-arch" />
+                <div className="rebel-arch">
+                  <span className="rebel-arch-initial">{profile.name?.[0] || 'U'}</span>
+                </div>
+                <div className="rebel-arch-shadow" />
+              </div>
+
+              {/* Decorative elements */}
+              <span className="rebel-star">✦</span>
+              <div className="rebel-crown">
+                <svg viewBox="0 0 40 32" xmlns="http://www.w3.org/2000/svg"><path d="M4 28h32v3H4zm0-2l4-16 8 8 4-14 4 14 8-8 4 16z"/></svg>
               </div>
             </section>
 
+            {/* --- Marquee Ribbon --- */}
             <div className="rebel-ribbon">
               <div className="rebel-track">
-                <span>We challenge the industry</span><span>High contrast</span><span>Unexpected typography</span>
-                <span>We challenge the industry</span><span>High contrast</span><span>Unexpected typography</span>
-                <span>We challenge the industry</span><span>High contrast</span><span>Unexpected typography</span>
-                <span>We challenge the industry</span><span>High contrast</span><span>Unexpected typography</span>
+                <span>Rebel against the ordinary</span><span className="rebel-divider">✦</span>
+                <span>Elegance is the rebellion</span><span className="rebel-divider">✦</span>
+                <span>We challenge the industry</span><span className="rebel-divider">✦</span>
+                <span>Rebel against the ordinary</span><span className="rebel-divider">✦</span>
+                <span>Elegance is the rebellion</span><span className="rebel-divider">✦</span>
+                <span>We challenge the industry</span><span className="rebel-divider">✦</span>
+                <span>Rebel against the ordinary</span><span className="rebel-divider">✦</span>
+                <span>Elegance is the rebellion</span><span className="rebel-divider">✦</span>
+                <span>We challenge the industry</span><span className="rebel-divider">✦</span>
               </div>
             </div>
 
+            {/* --- Link Cards --- */}
             <nav className="rebel-grid">
               {profile.links?.map((link: any, i: number) => (
                 <a key={i} className="rebel-card" href={link.url} target="_blank" rel="noopener noreferrer">
                   <span className="arr">↗</span>
                   <h3>{link.label || link.platform}</h3>
-                  <small>Follow</small>
+                  <small>{getLinkSubtitle(link.label || link.platform)}</small>
                 </a>
               ))}
             </nav>
 
+            {/* --- Bottom CTA --- */}
             <section className="rebel-band">
-              <p className="rebel-num">120<em>M</em><small>followers</small></p>
               <div className="rebel-say">
-                <h2>Start a revolution.</h2>
-                <a className="rebel-cta" href="#">Work with {profile.name} <span>↗</span></a>
+                <h2>Let's start something extraordinary.</h2>
+                <a className="rebel-cta" href={profile.email ? `mailto:${profile.email}` : '#'}>
+                  Work with {profile.name} <span>→</span>
+                </a>
               </div>
             </section>
           </main>
