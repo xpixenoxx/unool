@@ -1964,22 +1964,18 @@ function BuilderTemplate({ profile }: any) {
   const name = profile?.name || "";
   const role = profile?.role || profile?.headline || "BUILDER & ARCHITECT";
   const bio = profile?.bio || "I construct systems and experiences that turn abstract possibilities into tangible utility.";
-  const location = profile?.location || "GLOBAL GRID";
   const email = profile?.email || "";
 
   const links = profile?.links || [];
   const metrics = profile?.metrics || [];
-  const proofs = profile?.proofs || [];
-
-  const headlineQuote = profile?.metadata?.statement || "How do you build?";
 
   const customStyles = `
-    @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Rajdhani:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Outfit:wght@300;400;500;600;700&display=swap');
     
     .builder-theme {
-      background-color: #030712;
-      color: #F8FAFC;
-      font-family: 'Rajdhani', sans-serif;
+      background-color: #E8E0D5;
+      color: #292226;
+      font-family: 'Outfit', sans-serif;
     }
     
     .builder-serif {
@@ -1987,24 +1983,24 @@ function BuilderTemplate({ profile }: any) {
     }
 
     .builder-container {
-      background-color: #0B1120;
-      box-shadow: 0 0 80px rgba(14, 165, 233, 0.05);
+      background-color: #F3EEE6;
+      box-shadow: 0 20px 40px rgba(52, 38, 50, 0.08);
     }
       
     .builder-blueprint-grid {
       background-image: 
-        linear-gradient(rgba(14, 165, 233, 0.1) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(14, 165, 233, 0.1) 1px, transparent 1px);
-      background-size: 32px 32px;
+        linear-gradient(rgba(135, 149, 138, 0.15) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(135, 149, 138, 0.15) 1px, transparent 1px);
+      background-size: 24px 24px;
     }
 
     .builder-module-shadow {
-      box-shadow: -4px 4px 0px rgba(14, 165, 233, 0.5);
+      box-shadow: 4px 4px 0px rgba(52, 38, 50, 1);
       transition: all 0.2s ease;
     }
     .builder-module-shadow:hover {
-      box-shadow: -2px 2px 0px rgba(14, 165, 233, 0.8);
-      transform: translate(-2px, 2px);
+      box-shadow: 2px 2px 0px rgba(52, 38, 50, 1);
+      transform: translate(2px, 2px);
     }
   `;
 
@@ -2013,91 +2009,82 @@ function BuilderTemplate({ profile }: any) {
       <style>{customStyles}</style>
 
       {/* Outer Canvas Container */}
-      <div className="builder-container w-full max-w-[1200px] rounded-none md:rounded-[12px] border border-[#0EA5E9]/20 overflow-hidden flex flex-col relative pb-20">
+      <div className="builder-container w-full max-w-[1200px] rounded-[32px] md:rounded-[40px] border border-[#292226]/10 overflow-hidden flex flex-col relative pb-20">
         
         {/* HEADER */}
-        <header className="px-6 md:px-12 py-8 flex justify-between items-center border-b border-[#0EA5E9]/20">
+        <header className="px-6 md:px-12 py-8 flex justify-between items-center border-b border-[#292226]/10">
           <div className="flex items-center gap-3">
-             <div className="w-5 h-5 bg-[#0EA5E9] flex items-center justify-center">
-                <div className="w-1.5 h-1.5 bg-[#030712]" />
+             <div className="w-5 h-5 bg-[#342632] flex items-center justify-center">
+                <div className="w-1.5 h-1.5 bg-[#C5A86A]" />
              </div>
-             <span className="text-xs uppercase tracking-[0.3em] font-bold text-[#38BDF8]">SYS // {name ? name.split(' ')[0] : 'ID'}</span>
+             <span className="text-xs uppercase tracking-[0.2em] font-bold text-[#342632]">BUILDER // {name ? name.split(' ')[0] : 'ID'}</span>
           </div>
-          <a href={email ? `mailto:${email}` : '#contact'} className="text-[10px] uppercase tracking-[0.2em] font-bold bg-[#E21D48] text-[#F8FAFC] px-5 py-2.5 hover:bg-[#BE123C] transition-colors">
+          <a href={email ? `mailto:${email}` : '#contact'} className="text-[10px] uppercase tracking-[0.2em] font-bold bg-[#A85C4A] text-[#F3EEE6] px-5 py-2.5 hover:bg-[#342632] transition-colors">
             CONTACT
           </a>
         </header>
 
         <div className="px-6 md:px-12 pt-16 md:pt-24 max-w-[960px] mx-auto w-full">
-          {/* HERO */}
+          {/* HERO WITHOUT HEADLINE QUOTE */}
           <section className="mb-16 relative">
-             <div className="text-[10px] tracking-widest text-[#0EA5E9] uppercase mb-6 flex items-center gap-4 font-bold">
-               <div className="w-12 h-[1px] bg-[#0EA5E9]/50" />
-               SYSTEM ARCHITECT
-             </div>
-             <h1 className="builder-serif text-5xl sm:text-6xl md:text-[5.5rem] text-[#F8FAFC] leading-[0.95] tracking-tight mb-12">
-                {headlineQuote}
-             </h1>
-             <div className="w-full h-px bg-[#0EA5E9]/20 mb-16" />
-             
              {/* BUILDER IDENTITY MODULE */}
-             <div className="w-full bg-[#0F172A] text-[#F8FAFC] p-8 md:p-12 relative overflow-hidden flex flex-col md:flex-row gap-8 md:gap-16 group builder-module-shadow border border-[#0EA5E9]/30">
+             <div className="w-full bg-[#342632] text-[#F3EEE6] p-8 md:p-12 relative overflow-hidden flex flex-col md:flex-row gap-8 md:gap-16 group builder-module-shadow border border-[#292226]">
                 <div className="absolute inset-0 builder-blueprint-grid opacity-30" />
                 
                 {/* Visual Column */}
-                <div className="w-full md:w-[35%] relative min-h-[220px] md:min-h-full flex items-center justify-center shrink-0 border-b md:border-b-0 md:border-r border-[#0EA5E9]/20 pb-8 md:pb-0 md:pr-8">
+                <div className="w-full md:w-[35%] relative min-h-[220px] md:min-h-full flex items-center justify-center shrink-0 border-b md:border-b-0 md:border-r border-white/10 pb-8 md:pb-0 md:pr-8">
                    <div className="relative w-32 h-32 md:w-48 md:h-48 transition-all duration-700">
                      <div className="absolute inset-0 flex items-center justify-center animate-pulse">
-                       <div className="w-24 h-24 border-2 border-[#0EA5E9] rotate-45 flex items-center justify-center">
-                         <div className="w-8 h-8 bg-[#E21D48]" />
+                       <div className="w-24 h-24 border-2 border-[#C5A86A] rotate-45 flex items-center justify-center">
+                         <div className="w-8 h-8 bg-[#A85C4A]" />
                        </div>
                      </div>
                    </div>
-                   <div className="absolute top-0 left-0 text-[8px] text-[#0EA5E9]/60 tracking-widest">+Y.AXIS</div>
-                   <div className="absolute bottom-0 right-0 text-[8px] text-[#0EA5E9]/60 tracking-widest">+X.AXIS</div>
+                   <div className="absolute top-0 left-0 text-[8px] text-white/40 tracking-widest">+Y.AXIS</div>
+                   <div className="absolute bottom-0 right-0 text-[8px] text-white/40 tracking-widest">+X.AXIS</div>
                 </div>
 
                 {/* Content Column */}
                 <div className="flex-1 relative z-10 flex flex-col justify-center">
-                   <div className="text-[#E21D48] text-[9px] uppercase tracking-[0.2em] mb-5 flex items-center gap-3 font-bold">
+                   <div className="text-[#C5A86A] text-[9px] uppercase tracking-[0.2em] mb-5 flex items-center gap-3 font-bold">
                       <div className="w-2 h-2 bg-current rounded-full animate-ping" />
                       SYSTEM ONLINE
                    </div>
                    
                    <div className="flex items-center gap-5 mb-6">
                      {profile?.avatarUrl ? (
-                       <img src={profile.avatarUrl} alt={name} className="w-16 h-16 rounded-sm border border-[#0EA5E9] object-cover grayscale mix-blend-screen" />
+                       <img src={profile.avatarUrl} alt={name} className="w-16 h-16 rounded-sm border border-[#C5A86A] object-cover grayscale mix-blend-screen" />
                      ) : (
-                       <div className="w-16 h-16 bg-[#0F172A] border border-[#0EA5E9] flex items-center justify-center text-xs font-bold text-[#0EA5E9]">ID</div>
+                       <div className="w-16 h-16 bg-[#342632] border border-[#C5A86A] flex items-center justify-center text-xs font-bold text-[#C5A86A]">ID</div>
                      )}
                      <h2 className="builder-serif text-4xl md:text-5xl">{name || "[ BUILDER ]"}</h2>
                    </div>
                    
-                   <div className="text-[12px] font-bold text-[#0EA5E9] mb-3 uppercase tracking-widest">{role}</div>
-                   <p className="text-lg text-[#94A3B8] max-w-sm mb-8 leading-relaxed font-medium">{bio}</p>
+                   <div className="text-[12px] font-bold text-[#C5A86A] mb-3 uppercase tracking-widest">{role}</div>
+                   <p className="text-lg text-[#F3EEE6]/80 max-w-sm mb-8 leading-relaxed font-medium">{bio}</p>
                 </div>
              </div>
           </section>
 
           {/* INTRODUCTION ROWS */}
           <section className="mb-24 flex flex-col text-sm font-bold uppercase tracking-widest">
-             <div className="flex flex-col md:flex-row md:items-center py-5 border-b border-[#0EA5E9]/20 gap-3 md:gap-12 group">
-                <span className="text-[#38BDF8] w-32 shrink-0 group-hover:text-[#E21D48] transition-colors">POSITION</span>
-                <span className="text-[#F8FAFC]">{role}</span>
-             </div>
-             <div className="flex flex-col md:flex-row md:items-center py-5 border-b border-[#0EA5E9]/20 gap-3 md:gap-12 group">
-                <span className="text-[#38BDF8] w-32 shrink-0 group-hover:text-[#E21D48] transition-colors">LOCATION</span>
-                <span className="text-[#F8FAFC]">{location}</span>
+             <div className="flex flex-col md:flex-row md:items-center py-5 border-b border-[#292226]/10 gap-3 md:gap-12 group">
+                <span className="text-[#87958A] w-32 shrink-0 group-hover:text-[#A85C4A] transition-colors">POSITION</span>
+                <span className="text-[#342632]">{role}</span>
              </div>
              {links.length > 0 && (
-               <div className="flex flex-col md:flex-row py-5 border-b border-[#0EA5E9]/20 gap-3 md:gap-12 group">
-                  <span className="text-[#38BDF8] w-32 shrink-0 group-hover:text-[#E21D48] transition-colors pt-1">NETWORK</span>
+               <div className="flex flex-col md:flex-row py-5 border-b border-[#292226]/10 gap-3 md:gap-12 group">
+                  <span className="text-[#87958A] w-32 shrink-0 group-hover:text-[#A85C4A] transition-colors pt-1">NETWORK</span>
                   <div className="flex gap-4 flex-wrap">
-                     {links.map((link: any, i: number) => (
-                        <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-[#0F172A] border border-[#0EA5E9]/30 px-4 py-2 hover:border-[#E21D48] hover:text-[#E21D48] transition-colors text-[#F8FAFC]">
-                           <span className="text-[10px] text-[#0EA5E9]">↗</span> {link.label}
-                        </a>
-                     ))}
+                     {links.map((link: any, i: number) => {
+                        const icon = getAestheteSocialIcon(link.label || link.title);
+                        return (
+                          <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-[#342632] border border-[#292226]/30 px-4 py-2 hover:border-[#A85C4A] hover:text-[#A85C4A] transition-colors text-[#F3EEE6]">
+                             <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">{icon}</svg>
+                             <span>{link.label}</span>
+                          </a>
+                        );
+                     })}
                   </div>
                </div>
              )}
@@ -2106,60 +2093,31 @@ function BuilderTemplate({ profile }: any) {
           {/* METRICS */}
           {metrics && metrics.length > 0 && (
              <section className="mb-24">
-                <h3 className="text-[10px] uppercase tracking-[0.2em] text-[#0EA5E9] mb-8 font-bold border-l-2 border-[#E21D48] pl-3">SYSTEM DIAGNOSTICS</h3>
+                <h3 className="text-[10px] uppercase tracking-[0.2em] text-[#87958A] mb-8 font-bold border-l-2 border-[#A85C4A] pl-3">SYSTEM DIAGNOSTICS</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                    {metrics.map((m: any, i: number) => (
-                      <div key={i} className="bg-[#0F172A] border border-[#0EA5E9]/20 p-6 flex flex-col justify-center items-center text-center hover:border-[#E21D48] transition-colors group">
-                         <div className="builder-serif text-5xl md:text-6xl text-[#F8FAFC] mb-2 group-hover:text-[#E21D48] transition-colors">{m.value}</div>
-                         <div className="text-[10px] font-bold tracking-[0.2em] uppercase text-[#38BDF8]">{m.label || m.title || m.name}</div>
+                      <div key={i} className="bg-[#342632] border border-[#292226]/20 p-6 flex flex-col justify-center items-center text-center hover:border-[#A85C4A] transition-colors group">
+                         <div className="builder-serif text-5xl md:text-6xl text-[#F3EEE6] mb-2 group-hover:text-[#A85C4A] transition-colors">{m.value}</div>
+                         <div className="text-[10px] font-bold tracking-[0.2em] uppercase text-[#C5A86A]">{m.label || m.title || m.name}</div>
                       </div>
                    ))}
                 </div>
              </section>
           )}
 
-          {/* PROOF POINTS / LOG */}
-          {proofs && proofs.length > 0 && (
-            <section className="mb-24">
-               <h3 className="text-[10px] uppercase tracking-[0.2em] text-[#0EA5E9] mb-8 font-bold border-l-2 border-[#E21D48] pl-3">EXECUTION LOG</h3>
-               <div className="flex flex-col gap-4">
-                  {proofs.map((proof: any, i: number) => (
-                     <div key={i} className="flex flex-col md:flex-row bg-[#0F172A] border border-[#0EA5E9]/20 p-6 md:p-8 hover:border-[#0EA5E9] transition-all group">
-                        <div className="w-full md:w-48 text-[11px] font-bold uppercase tracking-widest text-[#0EA5E9] shrink-0 mb-4 md:mb-0">
-                           {proof.date || proof.metadata || `LOG ENTRY ${i+1}`}
-                        </div>
-                        <div className="flex flex-col flex-1">
-                           <h4 className="builder-serif text-3xl text-[#F8FAFC] mb-3 group-hover:text-[#38BDF8] transition-colors">{proof.title || proof.label}</h4>
-                           <span className="text-sm font-medium text-[#94A3B8] leading-relaxed">{proof.description || proof.desc}</span>
-                        </div>
-                     </div>
-                  ))}
-               </div>
-            </section>
-          )}
-
           {/* CONTACT CTA */}
-          <section className="mt-32 mb-16 bg-[#0EA5E9]/10 border border-[#0EA5E9] text-[#F8FAFC] p-8 md:p-16 flex flex-col items-center text-center relative overflow-hidden">
+          <section className="mt-32 mb-16 bg-[#A85C4A] text-[#F3EEE6] p-8 md:p-16 flex flex-col items-center text-center relative overflow-hidden border border-[#292226] builder-module-shadow">
              <div className="absolute inset-0 builder-blueprint-grid opacity-20 pointer-events-none" />
-             <h2 className="builder-serif text-5xl md:text-6xl mb-6 max-w-2xl leading-[1.05] relative z-10 text-[#0EA5E9]">Ready to initialize?</h2>
-             <p className="text-xs text-[#94A3B8] mb-10 max-w-md uppercase tracking-widest font-bold relative z-10">
+             <h2 className="builder-serif text-5xl md:text-6xl mb-6 max-w-2xl leading-[1.05] relative z-10 text-[#F3EEE6]">Ready to initialize?</h2>
+             <p className="text-xs text-[#F3EEE6]/80 mb-10 max-w-md uppercase tracking-widest font-bold relative z-10">
                Begin sequence transfer.
              </p>
-             <a href={email ? `mailto:${email}` : '#contact'} className="bg-[#E21D48] text-[#F8FAFC] px-8 py-4 text-[12px] uppercase tracking-[0.2em] font-bold flex items-center gap-4 hover:bg-[#BE123C] transition-colors relative z-10 shadow-[0_0_20px_rgba(226,29,72,0.4)]">
-                ESTABLISH CONNECTION <span className="text-[#F8FAFC]">↗</span>
+             <a href={email ? `mailto:${email}` : '#contact'} className="bg-[#342632] text-[#C5A86A] px-8 py-4 text-[12px] uppercase tracking-[0.2em] font-bold flex items-center gap-4 hover:bg-[#292226] transition-colors relative z-10 shadow-[4px_4px_0px_rgba(41,34,38,1)] border border-[#292226]">
+                ESTABLISH CONNECTION <span className="text-[#F3EEE6]">↗</span>
              </a>
           </section>
           
         </div>
-
-        {/* FOOTER */}
-        <footer className="absolute bottom-0 left-0 w-full px-6 md:px-12 py-6 border-t border-[#0EA5E9]/20 bg-[#0B1120] flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] uppercase tracking-[0.2em] font-bold text-[#38BDF8]">
-           <div>© {new Date().getFullYear()} / {name?.toUpperCase() || 'SYSTEM'}</div>
-           <div className="text-center text-[#94A3B8]">END OF FILE</div>
-           <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="hover:text-[#E21D48] transition-colors">
-             BACK TO TOP ↑
-           </button>
-        </footer>
       </div>
     </div>
   );
@@ -2667,15 +2625,15 @@ function HustlerTemplate({ profile }: any) {
             {/* Proofs Sub-grid */}
             <div className="flex flex-col gap-6">
                {validProofs.length > 0 ? validProofs.map((p: any, i: number) => (
-                  <div key={i} className="flex flex-col p-8 border-2 border-[#292724] bg-[#EAE8E3] hover:bg-[#292724] hover:text-[#EAE8E3] transition-colors group cursor-default">
-                     <div className="flex justify-between items-start gap-4 mb-4">
-                        <h4 className="text-2xl sm:text-3xl font-bold font-serif leading-tight group-hover:text-[#D64924]">{p.title || p.label}</h4>
-                        {(p.date || p.metadata) && (
-                          <span className="text-[10px] uppercase tracking-widest font-mono font-bold border border-current px-2 py-1 shrink-0">{p.date || p.metadata}</span>
-                        )}
+                  <div key={i} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-6 sm:p-8 border-2 border-[#292724] bg-[#EAE8E3] hover:bg-[#292724] hover:text-[#EAE8E3] transition-colors group">
+                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-8">
+                        <h4 className="text-xl sm:text-2xl font-bold hustler-serif leading-tight group-hover:text-[#D64924]">{p.title || p.label}</h4>
+                        <span className="text-2xl sm:text-3xl font-bold hustler-serif text-[#D64924] group-hover:text-[#EAE8E3]">{p.value}</span>
                      </div>
-                     {(p.description || p.desc) && (
-                        <p className="text-sm sm:text-base font-medium opacity-80 leading-relaxed">{p.description || p.desc}</p>
+                     {p.url && (
+                        <a href={p.url} target="_blank" rel="noopener noreferrer" className="mt-4 sm:mt-0 text-[10px] uppercase tracking-widest font-mono font-bold border-b-2 border-current hover:text-[#D64924]">
+                           Verify Proof ↗
+                        </a>
                      )}
                   </div>
                )) : (
@@ -2954,7 +2912,7 @@ function CreatorTemplate({ profile, accentColor }: any) {
           <img 
             src={profile.avatarUrl} 
             alt={profile.name} 
-            className="relative w-40 h-40 md:w-48 md:h-48 object-cover transition-transform duration-700 group-hover:scale-105 bg-[#0F0F13]"
+            className="relative w-48 h-48 md:w-64 md:h-64 object-cover transition-transform duration-700 group-hover:scale-105 bg-[#0F0F13]"
             style={{ clipPath: avatarShape }}
           />
           {/* Decorative Corner Borders */}
@@ -2988,6 +2946,41 @@ function CreatorTemplate({ profile, accentColor }: any) {
                 )}
               </div>
             ))}
+          </div>
+        )}
+
+        {/* PROOF POINTS SECTION */}
+        {profile.proofs && profile.proofs.length > 0 && (
+          <div className="w-full mt-12 flex flex-col gap-4">
+             <div className="flex items-center gap-4 mb-2">
+                <span className="text-[10px] tracking-widest uppercase font-bold text-zinc-400">Credentials & Milestones</span>
+                <div className="flex-1 h-px bg-zinc-800" />
+             </div>
+             {profile.proofs.filter((p: any) => p.title || p.label).map((proof: any, i: number) => (
+                <div 
+                  key={i} 
+                  className="bg-zinc-900/50 hover:bg-zinc-800/80 p-6 flex flex-col md:flex-row justify-between items-start md:items-center transition-all group relative border border-zinc-800/50"
+                  style={{ clipPath: 'polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px)' }}
+                >
+                  <div className="absolute left-0 top-0 bottom-0 w-1 opacity-0 group-hover:opacity-100 transition-opacity" style={{ backgroundColor: accent }} />
+                  <div className="flex flex-col gap-1 pr-6">
+                     <div className="flex items-baseline gap-3">
+                        <span className="text-xl md:text-2xl font-bold text-zinc-100">{proof.title || proof.label}</span>
+                        {proof.value && (
+                           <span className="text-lg md:text-xl font-bold" style={{ color: accent }}>{proof.value}</span>
+                        )}
+                     </div>
+                     {proof.description && (
+                        <span className="text-sm text-zinc-400 font-medium">{proof.description}</span>
+                     )}
+                  </div>
+                  {proof.url && (
+                     <a href={proof.url} target="_blank" rel="noopener noreferrer" className="mt-4 md:mt-0 text-[10px] uppercase tracking-widest font-bold text-zinc-500 hover:text-white transition-colors border-b border-zinc-700 hover:border-white pb-1 shrink-0">
+                        View Proof ↗
+                     </a>
+                  )}
+                </div>
+             ))}
           </div>
         )}
 
