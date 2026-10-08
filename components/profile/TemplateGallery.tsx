@@ -6,10 +6,10 @@ import { cn } from '@/lib/utils';
 import { TemplateMeta } from '@/components/profile/templates/types';
 import { ProfilePreview } from '@/components/profile/ProfilePreview';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { Check, ChevronLeft, ChevronRight, X, Sparkles, Eye, Maximize2 } from 'lucide-react';
+import { Check, X, Sparkles, Maximize2, Eye, LayoutTemplate } from 'lucide-react';
 
 /* ═══════════════════════════════════════════════════════════════
-   CATEGORIES
+   CATEGORIES & PERSONAS
    ═══════════════════════════════════════════════════════════════ */
 
 const CATEGORIES = [
@@ -20,34 +20,30 @@ const CATEGORIES = [
   { id: 'influencer',    label: 'Influencer' },
 ];
 
-/* ═══════════════════════════════════════════════════════════════
-   PERSONA — Short one-liner per template for the spotlight
-   ═══════════════════════════════════════════════════════════════ */
-
-const PERSONA_LABELS: Record<string, string> = {
-  lover:          'Romantic, emotional, expressive',
-  lone:           'Minimal, mysterious, cinematic',
-  energy:         'Bold, ambitious, high-energy',
-  rebellion:      'Disruptive, rebellious, premium',
-  vision:         'Futuristic, visionary, elegant',
-  human:          'Warm, empathetic, people-first',
-  'the-studio':   'Clean, refined, design-led',
-  'the-machine':  'Data-driven, performance-focused',
-  'the-club':     'Cultural, vibrant, community',
-  'the-builder':  'Practical, grounded, builder',
-  'the-visionary':'Cinematic, grand, forward-thinking',
-  'the-hustler':  'Fast-paced, scrappy, energetic',
-  'the-aesthete': 'Luxurious, elegant, tasteful',
-  'the-creator':  'Creative, visual, content-first',
-  'the-voice':    'Authoritative, articulate, clean',
+const PERSONA_INFO: Record<string, { label: string; desc: string }> = {
+  lover:          { label: 'The Lover', desc: 'Romantic, emotional, expressive' },
+  lone:           { label: 'The Lone', desc: 'Minimal, mysterious, cinematic' },
+  energy:         { label: 'The Energy', desc: 'Bold, ambitious, high-energy' },
+  rebellion:      { label: 'The Rebellion', desc: 'Disruptive, rebellious, premium' },
+  vision:         { label: 'The Vision', desc: 'Futuristic, visionary, elegant' },
+  human:          { label: 'The Human', desc: 'Warm, empathetic, people-first' },
+  'the-studio':   { label: 'The Studio', desc: 'Clean, refined, design-led' },
+  'the-machine':  { label: 'The Machine', desc: 'Data-driven, performance-focused' },
+  'the-club':     { label: 'The Club', desc: 'Cultural, vibrant, community' },
+  'the-builder':  { label: 'The Builder', desc: 'Practical, grounded, builder' },
+  'the-visionary':{ label: 'The Visionary', desc: 'Cinematic, grand, forward-thinking' },
+  'the-hustler':  { label: 'The Hustler', desc: 'Fast-paced, scrappy, energetic' },
+  'the-aesthete': { label: 'The Aesthete', desc: 'Luxurious, elegant, tasteful' },
+  'the-creator':  { label: 'The Creator', desc: 'Creative, visual, content-first' },
+  'the-voice':    { label: 'The Voice', desc: 'Authoritative, articulate, clean' },
 };
 
 /* ═══════════════════════════════════════════════════════════════
    LIVE RENDER — Scales the actual template into a frame
    ═══════════════════════════════════════════════════════════════ */
 
-const RENDER_W = 1440;
-const RENDER_H = 900;
+const RENDER_W = 1280;
+const RENDER_H = 800;
 
 function LiveRender({
   templateId,
@@ -61,7 +57,7 @@ function LiveRender({
   className?: string;
 }) {
   const containerRef = React.useRef<HTMLDivElement>(null);
-  const [scale, setScale] = React.useState(0.28);
+  const [scale, setScale] = React.useState(0.5);
 
   React.useEffect(() => {
     const update = () => {
@@ -102,60 +98,7 @@ function LiveRender({
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   THUMBNAIL STRIP — Small clickable thumbnails below spotlight
-   ═══════════════════════════════════════════════════════════════ */
-
-function ThumbnailStrip({
-  templates,
-  activeIndex,
-  onSelect,
-  selectedTemplate,
-  profileData,
-  accentColor,
-}: {
-  templates: TemplateMeta[];
-  activeIndex: number;
-  onSelect: (idx: number) => void;
-  selectedTemplate: string;
-  profileData: any;
-  accentColor?: string;
-}) {
-  return (
-    <div className="flex gap-2.5 justify-center mt-5">
-      {templates.map((t, i) => {
-        const isActive = i === activeIndex;
-        const isChosen = t.id === selectedTemplate;
-        return (
-          <button
-            key={t.id}
-            onClick={() => onSelect(i)}
-            className={cn(
-              "relative rounded-lg overflow-hidden transition-all duration-200 border-2",
-              isActive
-                ? "border-[#C4A265] shadow-md scale-105"
-                : "border-transparent hover:border-[#E8E0D4] opacity-60 hover:opacity-90"
-            )}
-            style={{ width: 72, height: 45 }}
-          >
-            <LiveRender
-              templateId={t.id}
-              profileData={profileData}
-              accentColor={accentColor}
-            />
-            {isChosen && (
-              <div className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full flex items-center justify-center" style={{ backgroundColor: '#C4A265' }}>
-                <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
-              </div>
-            )}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   FULLSCREEN PREVIEW — Immersive full-screen view
+   FULLSCREEN PREVIEW
    ═══════════════════════════════════════════════════════════════ */
 
 function FullscreenPreview({
@@ -199,35 +142,30 @@ function FullscreenPreview({
       >
         {/* Top bar */}
         <div
-          className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-5 py-3"
-          style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.7), transparent)' }}
+          className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-5 py-4"
+          style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.8), transparent)' }}
           onClick={e => e.stopPropagation()}
         >
-          <div className="flex items-center gap-3">
-            <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/10 transition-colors">
-              <ChevronLeft className="w-5 h-5 text-white/60" />
+          <div className="flex items-center gap-4">
+            <button onClick={onClose} className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors backdrop-blur-md">
+              <X className="w-5 h-5 text-white" />
             </button>
             <div>
-              <h2 className="text-sm font-bold text-white">{template.name}</h2>
-              <p className="text-[11px] text-white/35">{PERSONA_LABELS[template.id]}</p>
+              <h2 className="text-lg font-bold text-white">{template.name}</h2>
+              <p className="text-sm text-white/50">{PERSONA_INFO[template.id]?.desc}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={onClose} className="hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs text-white/40 hover:bg-white/5">
-              <X className="w-3.5 h-3.5" /> Close
-            </button>
-            <button
-              onClick={e => { e.stopPropagation(); onSelect(); }}
-              className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-bold text-white hover:brightness-110 transition-all"
-              style={{ background: 'linear-gradient(135deg, #C4A265, #A68B52)', boxShadow: '0 4px 20px rgba(196,162,101,0.4)' }}
-            >
-              <Sparkles className="w-4 h-4" /> Use This Template
-            </button>
-          </div>
+          <button
+            onClick={e => { e.stopPropagation(); onSelect(); }}
+            className="flex items-center gap-2 px-6 py-3 rounded-full text-sm font-bold text-white hover:brightness-110 transition-all"
+            style={{ background: 'linear-gradient(135deg, #C4A265, #A68B52)', boxShadow: '0 4px 20px rgba(196,162,101,0.4)' }}
+          >
+            <Sparkles className="w-4 h-4" /> Use This Template
+          </button>
         </div>
 
         {/* Full template render */}
-        <div className="w-full h-full overflow-y-auto pt-14" onClick={e => e.stopPropagation()}>
+        <div className="w-full h-full overflow-y-auto pt-20" onClick={e => e.stopPropagation()}>
           <ProfilePreview
             templateId={template.id}
             profile={{ ...profileData, theme: { ...profileData.theme, template: template.id } }}
@@ -242,7 +180,7 @@ function FullscreenPreview({
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   TEMPLATE GALLERY — Spotlight Carousel
+   TEMPLATE GALLERY — Split View Layout
    ═══════════════════════════════════════════════════════════════ */
 
 interface TemplateGalleryProps {
@@ -263,49 +201,27 @@ export function TemplateGallery({
   profileData,
   accentColor,
 }: TemplateGalleryProps) {
-  const reducedMotion = useReducedMotion();
-
-  // Fullscreen preview state
-  const [fsTemplate, setFsTemplate] = React.useState<TemplateMeta | null>(null);
   const [fsOpen, setFsOpen] = React.useState(false);
-
-  // Active category
   const [activeCategory, setActiveCategory] = React.useState(() => {
     const cur = templates.find(t => t.id === selectedTemplate);
     return cur?.category || 'individual';
   });
-
-  // Spotlight index within category
+  
   const filteredTemplates = templates.filter(t => t.category === activeCategory);
-  const [spotlightIdx, setSpotlightIdx] = React.useState(() => {
-    const idx = filteredTemplates.findIndex(t => t.id === selectedTemplate);
-    return idx >= 0 ? idx : 0;
+  const [previewTemplateId, setPreviewTemplateId] = React.useState<string>(() => {
+    return filteredTemplates.find(t => t.id === selectedTemplate)?.id || filteredTemplates[0]?.id;
   });
 
-  // When category changes, reset spotlight
+  // Keep preview in sync if category changes
   React.useEffect(() => {
-    const filtered = templates.filter(t => t.category === activeCategory);
-    const idx = filtered.findIndex(t => t.id === selectedTemplate);
-    setSpotlightIdx(idx >= 0 ? idx : 0);
-  }, [activeCategory, selectedTemplate, templates]);
+    const valid = filteredTemplates.find(t => t.id === previewTemplateId);
+    if (!valid && filteredTemplates.length > 0) {
+      setPreviewTemplateId(filteredTemplates[0].id);
+    }
+  }, [activeCategory, filteredTemplates, previewTemplateId]);
 
-  // Direction for slide animation
-  const [direction, setDirection] = React.useState(0);
+  const activeTemplate = templates.find(t => t.id === previewTemplateId) || filteredTemplates[0];
 
-  const spotlightTemplate = filteredTemplates[spotlightIdx] || filteredTemplates[0];
-  const isSpotlightSelected = spotlightTemplate?.id === selectedTemplate;
-
-  const navigate = (dir: number) => {
-    setDirection(dir);
-    setSpotlightIdx(prev => {
-      const next = prev + dir;
-      if (next < 0) return filteredTemplates.length - 1;
-      if (next >= filteredTemplates.length) return 0;
-      return next;
-    });
-  };
-
-  // Profile data for previews
   const previewProfile = React.useMemo(() => ({
     id: 'preview',
     subdomain: profileData?.subdomain || 'preview',
@@ -323,234 +239,149 @@ export function TemplateGallery({
     seo: { title: profileData?.name || 'Profile', description: '', image: null },
   }), [profileData, accentColor]);
 
-  // Keyboard navigation
-  React.useEffect(() => {
-    const fn = (e: KeyboardEvent) => {
-      if (fsOpen) return;
-      if (e.key === 'ArrowLeft') navigate(-1);
-      if (e.key === 'ArrowRight') navigate(1);
-      if (e.key === 'Enter' && spotlightTemplate) onSelect(spotlightTemplate.id);
-    };
-    window.addEventListener('keydown', fn);
-    return () => window.removeEventListener('keydown', fn);
-  }, [fsOpen, spotlightIdx, filteredTemplates, spotlightTemplate]);
+  if (!isOpen || !activeTemplate) return null;
 
-  if (!isOpen || !spotlightTemplate) return null;
-
-  const slideVariants = {
-    enter: (dir: number) => ({
-      x: dir > 0 ? 80 : -80,
-      opacity: 0,
-      scale: 0.96,
-    }),
-    center: {
-      x: 0,
-      opacity: 1,
-      scale: 1,
-    },
-    exit: (dir: number) => ({
-      x: dir > 0 ? -80 : 80,
-      opacity: 0,
-      scale: 0.96,
-    }),
-  };
+  const isSelected = selectedTemplate === activeTemplate.id;
 
   return (
     <>
-      <div className="space-y-4">
-        {/* ── Category Tabs ── */}
-        <div className="flex gap-1 p-1 rounded-2xl overflow-x-auto no-scrollbar" style={{ backgroundColor: '#F0EBE3' }}>
+      <div className="flex flex-col h-full space-y-4">
+        
+        {/* ── Category Pills (Top) ── */}
+        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
           {CATEGORIES.map(cat => {
-            const isActive = activeCategory === cat.id;
             const count = templates.filter(t => t.category === cat.id).length;
             if (count === 0) return null;
+            const isActive = activeCategory === cat.id;
 
             return (
               <button
                 key={cat.id}
                 onClick={() => setActiveCategory(cat.id)}
                 className={cn(
-                  "flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200",
-                  isActive ? "shadow-sm" : "hover:opacity-75"
+                  "px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200",
+                  isActive ? "bg-[#3D2B1F] text-[#FFFDF9] shadow-md" : "bg-[#F0EBE3] text-[#8B7355] hover:bg-[#E8E0D4]"
                 )}
-                style={{
-                  backgroundColor: isActive ? '#3D2B1F' : 'transparent',
-                  color: isActive ? '#FFFDF9' : '#8B7355',
-                }}
               >
                 {cat.label}
-                <span
-                  className="text-[10px] font-bold rounded-full px-1.5 py-0.5"
-                  style={{
-                    backgroundColor: isActive ? 'rgba(255,255,255,0.12)' : '#E8E0D4',
-                    color: isActive ? 'rgba(255,255,255,0.6)' : '#A69279',
-                  }}
-                >
-                  {count}
-                </span>
+                <span className="ml-2 opacity-60 font-normal">{count}</span>
               </button>
             );
           })}
         </div>
 
-        {/* ── Spotlight Carousel ── */}
-        <div className="relative">
-          {/* Main preview frame */}
-          <div className="relative rounded-2xl overflow-hidden" style={{ border: '1px solid #E8E0D4', backgroundColor: '#FAF7F2' }}>
-            {/* Navigation arrows */}
-            {filteredTemplates.length > 1 && (
-              <>
+        {/* ── Split View ── */}
+        <div className="flex flex-col lg:flex-row gap-6 h-[600px] bg-[#FAF7F2] rounded-3xl p-4 border border-[#E8E0D4] shadow-inner">
+          
+          {/* Left Column: Template List */}
+          <div className="w-full lg:w-[280px] flex flex-col gap-2 overflow-y-auto no-scrollbar pr-2 pb-2">
+            <h3 className="text-xs font-bold text-[#8B7355] uppercase tracking-wider mb-2 ml-2">
+              Select a design
+            </h3>
+            {filteredTemplates.map((t) => {
+              const isViewing = t.id === previewTemplateId;
+              const isApplied = t.id === selectedTemplate;
+              const info = PERSONA_INFO[t.id] || { label: t.name, desc: t.description };
+
+              return (
                 <button
-                  onClick={() => navigate(-1)}
-                  className="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95"
-                  style={{
-                    backgroundColor: 'rgba(255,253,249,0.85)',
-                    backdropFilter: 'blur(12px)',
-                    border: '1px solid rgba(0,0,0,0.06)',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-                  }}
+                  key={t.id}
+                  onClick={() => setPreviewTemplateId(t.id)}
+                  className={cn(
+                    "w-full text-left p-3.5 rounded-2xl transition-all duration-200 border",
+                    isViewing 
+                      ? "bg-white border-[#C4A265] shadow-[0_4px_20px_rgba(196,162,101,0.15)] ring-1 ring-[#C4A265]/50" 
+                      : "bg-transparent border-transparent hover:bg-white/60"
+                  )}
                 >
-                  <ChevronLeft className="w-4 h-4" style={{ color: '#3D2B1F' }} />
+                  <div className="flex items-start justify-between mb-1">
+                    <span className="text-sm font-bold text-[#3D2B1F]">{info.label}</span>
+                    {isApplied && (
+                      <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#C4A265]">
+                        <Check className="w-3 h-3 text-white" strokeWidth={3} />
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-[#8B7355] leading-tight pr-4">
+                    {info.desc}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Right Column: Large Live Preview */}
+          <div className="flex-1 relative bg-white rounded-2xl border border-[#E8E0D4] overflow-hidden flex flex-col shadow-sm">
+            
+            {/* Top Bar inside the preview area */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#E8E0D4] bg-[#FFFDF9] z-10">
+              <div className="flex items-center gap-2">
+                <LayoutTemplate className="w-4 h-4 text-[#C4A265]" />
+                <h4 className="text-sm font-bold text-[#3D2B1F]">
+                  {activeTemplate.name}
+                </h4>
+                {isSelected && (
+                  <span className="ml-2 text-[10px] font-bold text-[#C4A265] bg-[#C4A265]/10 px-2 py-0.5 rounded-full uppercase tracking-widest">
+                    Currently Applied
+                  </span>
+                )}
+              </div>
+              
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setFsOpen(true)}
+                  className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#F0EBE3] text-[#8B7355] hover:bg-[#E8E0D4] hover:text-[#3D2B1F] transition-colors"
+                  title="Full Screen Preview"
+                >
+                  <Maximize2 className="w-4 h-4" />
                 </button>
                 <button
-                  onClick={() => navigate(1)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95"
-                  style={{
-                    backgroundColor: 'rgba(255,253,249,0.85)',
-                    backdropFilter: 'blur(12px)',
-                    border: '1px solid rgba(0,0,0,0.06)',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-                  }}
+                  onClick={() => onSelect(activeTemplate.id)}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
+                    isSelected
+                      ? "bg-[#3D2B1F] text-white opacity-50 cursor-not-allowed"
+                      : "bg-[#C4A265] text-white hover:brightness-110 shadow-md shadow-[#C4A265]/20"
+                  )}
+                  disabled={isSelected}
                 >
-                  <ChevronRight className="w-4 h-4" style={{ color: '#3D2B1F' }} />
+                  {isSelected ? 'Applied' : 'Apply Design'}
                 </button>
-              </>
-            )}
+              </div>
+            </div>
 
-            {/* Selected badge */}
-            {isSpotlightSelected && (
-              <motion.div
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ type: 'spring', stiffness: 500, damping: 20 }}
-                className="absolute top-3 left-3 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-white"
-                style={{ backgroundColor: '#C4A265', boxShadow: '0 2px 12px rgba(196,162,101,0.4)' }}
-              >
-                <Check className="w-3.5 h-3.5" strokeWidth={3} />
-                Active Template
-              </motion.div>
-            )}
-
-            {/* Fullscreen button */}
-            <button
-              onClick={() => { setFsTemplate(spotlightTemplate); setFsOpen(true); }}
-              className="absolute top-3 right-3 z-20 w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:scale-110 active:scale-95"
-              style={{
-                backgroundColor: 'rgba(255,253,249,0.8)',
-                backdropFilter: 'blur(8px)',
-                border: '1px solid rgba(0,0,0,0.05)',
-                boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
-              }}
-            >
-              <Maximize2 className="w-3.5 h-3.5" style={{ color: '#3D2B1F' }} />
-            </button>
-
-            {/* The live preview — animated slide transition */}
-            <div className="relative" style={{ minHeight: 300 }}>
-              <AnimatePresence mode="wait" custom={direction}>
+            {/* The actual live render */}
+            <div className="flex-1 relative bg-[#F7F3ED] overflow-hidden">
+              <AnimatePresence mode="wait">
                 <motion.div
-                  key={spotlightTemplate.id}
-                  custom={direction}
-                  variants={reducedMotion ? {} : slideVariants}
-                  initial="enter"
-                  animate="center"
-                  exit="exit"
-                  transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                  key={activeTemplate.id}
+                  initial={{ opacity: 0, filter: 'blur(4px)' }}
+                  animate={{ opacity: 1, filter: 'blur(0px)' }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="absolute inset-0"
                 >
                   <LiveRender
-                    templateId={spotlightTemplate.id}
+                    templateId={activeTemplate.id}
                     profileData={previewProfile}
                     accentColor={accentColor}
-                    className="rounded-2xl"
+                    className="w-full h-full"
                   />
                 </motion.div>
               </AnimatePresence>
             </div>
+            
           </div>
 
-          {/* ── Template info + action bar ── */}
-          <div className="flex items-center justify-between mt-4 px-1">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <h4 className="text-base font-bold" style={{ color: '#3D2B1F' }}>
-                  {spotlightTemplate.name}
-                </h4>
-                <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ backgroundColor: '#F0EBE3', color: '#8B7355' }}>
-                  {spotlightIdx + 1} / {filteredTemplates.length}
-                </span>
-              </div>
-              <p className="text-xs mt-0.5" style={{ color: '#8B7355' }}>
-                {PERSONA_LABELS[spotlightTemplate.id] || spotlightTemplate.description?.split('.')[0]}
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0 ml-4">
-              <button
-                onClick={() => { setFsTemplate(spotlightTemplate); setFsOpen(true); }}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all hover:shadow-sm active:scale-95"
-                style={{ color: '#6B5744', backgroundColor: '#F5EFE2' }}
-              >
-                <Eye className="w-3.5 h-3.5" />
-                Full View
-              </button>
-
-              <button
-                onClick={() => onSelect(spotlightTemplate.id)}
-                className={cn(
-                  "flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200",
-                  isSpotlightSelected
-                    ? "text-white"
-                    : "hover:shadow-md active:scale-95"
-                )}
-                style={{
-                  backgroundColor: isSpotlightSelected ? '#C4A265' : '#3D2B1F',
-                  color: '#fff',
-                  boxShadow: isSpotlightSelected ? '0 2px 12px rgba(196,162,101,0.35)' : undefined,
-                }}
-              >
-                {isSpotlightSelected ? (
-                  <>
-                    <Check className="w-3.5 h-3.5" strokeWidth={2.5} />
-                    Active
-                  </>
-                ) : (
-                  'Use This'
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* ── Thumbnail strip ── */}
-          {filteredTemplates.length > 1 && (
-            <ThumbnailStrip
-              templates={filteredTemplates}
-              activeIndex={spotlightIdx}
-              onSelect={(idx) => { setDirection(idx > spotlightIdx ? 1 : -1); setSpotlightIdx(idx); }}
-              selectedTemplate={selectedTemplate}
-              profileData={previewProfile}
-              accentColor={accentColor}
-            />
-          )}
         </div>
       </div>
 
-      {/* Fullscreen overlay */}
       <FullscreenPreview
-        template={fsTemplate}
+        template={activeTemplate}
         profileData={previewProfile}
         accentColor={accentColor}
-        onClose={() => { setFsOpen(false); setTimeout(() => setFsTemplate(null), 200); }}
-        onSelect={() => { if (fsTemplate) onSelect(fsTemplate.id); setFsOpen(false); }}
+        onClose={() => setFsOpen(false)}
+        onSelect={() => { onSelect(activeTemplate.id); setFsOpen(false); }}
         isOpen={fsOpen}
       />
     </>
