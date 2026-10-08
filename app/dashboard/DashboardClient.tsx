@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -91,6 +91,39 @@ interface DashboardData {
   workspaceId: string;
 }
 
+/* ─── Analytics Insights (real data from API) ──────────────── */
+
+interface AnalyticsInsights {
+  viewsSeries: number[];       // 30 daily buckets
+  clicksSeries: number[];      // 30 daily buckets
+  viewsThisWeek: number;
+  clicksThisWeek: number;
+  viewsChangeWoW: number;      // % vs last week
+  clicksChangeWoW: number;
+  conversionRate: number;      // % of viewers who clicked
+  topLinks: Array<{ url: string; label: string; count: number }>;
+  peakHourLabel: string | null;
+  referrers: Array<{ source: string; count: number; pct: number }>;
+}
+
+function useAnalyticsInsights() {
+  const [insights, setInsights] = useState<AnalyticsInsights | null>(null);
+  const [loadingInsights, setLoadingInsights] = useState(true);
+
+  const fetch_ = useCallback(async () => {
+    try {
+      const res = await fetch('/api/analytics/insights', { credentials: 'include' });
+      if (res.ok) setInsights(await res.json());
+    } catch { /* silent */ } finally {
+      setLoadingInsights(false);
+    }
+  }, []);
+
+  useEffect(() => { fetch_(); }, [fetch_]);
+
+  return { insights, loadingInsights };
+}
+
 /* ─── Motion helpers ───────────────────────────────────────── */
 
 const fadeUp = {
@@ -147,6 +180,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
 
   const searchParams = useSearchParams();
   const [blueskyDialogOpen, setBlueskyDialogOpen] = useState(searchParams.get('connect') === 'bluesky');
+  const { insights, loadingInsights } = useAnalyticsInsights();
 
 
   return (
@@ -267,29 +301,41 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           </div>
         </motion.div>
 
-        {/* Metrics — 3 cards in a column that spans 7 cols */}
+        {/* Metrics — 3 cards spanning 7 cols — ALL real data, no fake numbers */}
         <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-5">
           <MetricBentoCard
             icon={Eye}
             label="Impressions"
-            value={usageStats.profileViews}
-            change={null}
-            sparkData={[2, 5, 3, 8, 6, 9, 7, 11, 8, 14]}
+            sublabel="Profile views this week"
+            value={insights?.viewsThisWeek ?? usageStats.profileViews}
+            changeWoW={insights?.viewsChangeWoW ?? null}
+            sparkData={insights?.viewsSeries ?? null}
+            loading={loadingInsights}
+            insight={insights?.peakHourLabel ? `Peak: ${insights.peakHourLabel}` : null}
           />
           <MetricBentoCard
             icon={FileText}
             label="Content Published"
+            sublabel={`of ${usageStats.postsLimit} this month`}
             value={usageStats.postsThisMonth}
-            suffix={`/ ${usageStats.postsLimit}`}
-            change={null}
-            sparkData={[1, 2, 1, 3, 2, 4, 3, 5, 4, usageStats.postsThisMonth]}
+            changeWoW={null}
+            sparkData={null}
+            loading={false}
+            insight={null}
           />
           <MetricBentoCard
             icon={MousePointerClick}
             label="Link Engagement"
-            value={usageStats.linkClicks}
-            change={null}
-            sparkData={[3, 1, 4, 2, 6, 5, 8, 4, 7, 9]}
+            sublabel={insights?.conversionRate != null
+              ? `${insights.conversionRate}% conversion rate`
+              : 'Link clicks this week'}
+            value={insights?.clicksThisWeek ?? usageStats.linkClicks}
+            changeWoW={insights?.clicksChangeWoW ?? null}
+            sparkData={insights?.clicksSeries ?? null}
+            loading={loadingInsights}
+            insight={insights?.topLinks?.[0]
+              ? `Top: ${insights.topLinks[0].label || insights.topLinks[0].url.slice(0, 24)} (${insights.topLinks[0].count})`
+              : null}
           />
         </div>
       </div>
@@ -492,26 +538,45 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
 function MetricBentoCard({
   icon: Icon,
   label,
+  sublabel,
   value,
-  suffix,
-  change,
+  changeWoW,
   sparkData,
+  loading,
+  insight,
 }: {
   icon: React.ElementType;
   label: string;
+  sublabel?: string;
   value: number;
-  suffix?: string;
-  change: number | null;
-  sparkData: number[];
+  changeWoW: number | null;       // % week-over-week, real data
+  sparkData: number[] | null;     // 30-day series or null while loading
+  loading: boolean;
+  insight: string | null;         // personalized one-liner
 }) {
-  const maxVal = Math.max(...sparkData, 1);
-  const points = sparkData
-    .map((v, i) => {
-      const x = (i / (sparkData.length - 1)) * 100;
-      const y = 100 - (v / maxVal) * 80;
-      return `${x},${y}`;
-    })
-    .join(' ');
+  // Build SVG sparkline from real daily series
+  const sparkPoints = useMemo(() => {
+    const data = sparkData && sparkData.length > 1 ? sparkData : null;
+    if (!data) return null;
+    const maxVal = Math.max(...data, 1);
+    return data
+      .map((v, i) => {
+        const x = (i / (data.length - 1)) * 100;
+        const y = 100 - (v / maxVal) * 80;
+        return `${x},${y}`;
+      })
+      .join(' ');
+  }, [sparkData]);
+
+  const isUp = changeWoW !== null && changeWoW > 0;
+  const isDown = changeWoW !== null && changeWoW < 0;
+  const deltaColor = isUp ? B.success : isDown ? B.danger : B.textMuted;
+  const deltaLabel =
+    changeWoW === null ? null :
+    changeWoW === 0 ? 'same as last week' :
+    `${isUp ? '+' : ''}${changeWoW}% vs last week`;
+
+  const sparklineId = `spark-${label.replace(/\s/g, '')}`;
 
   return (
     <motion.div
@@ -525,6 +590,7 @@ function MetricBentoCard({
       }}
       whileHover={{ y: -2, boxShadow: B.cardShadowHover }}
     >
+      {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <span className="text-xs font-medium" style={{ color: B.textMuted }}>
           {label}
@@ -534,47 +600,65 @@ function MetricBentoCard({
         </div>
       </div>
 
-      <div className="flex items-baseline gap-1.5 mb-3">
-        <span
-          className="text-2xl font-bold tabular-nums"
-          style={{ color: B.text }}
-        >
-          {value.toLocaleString()}
+      {/* Value */}
+      <div className="flex items-baseline gap-2 mb-1">
+        <span className="text-2xl font-bold tabular-nums" style={{ color: B.text }}>
+          {loading ? '—' : value.toLocaleString()}
         </span>
-        {suffix && (
-          <span className="text-sm" style={{ color: B.textLight }}>
-            {suffix}
+        {/* WoW delta — only shown when we have real data */}
+        {!loading && deltaLabel && (
+          <span className="text-[10px] font-semibold leading-none" style={{ color: deltaColor }}>
+            {isUp ? '↑' : isDown ? '↓' : '='} {Math.abs(changeWoW!)}%
           </span>
         )}
       </div>
 
-      {/* Sparkline */}
+      {/* Sublabel */}
+      {sublabel && (
+        <p className="text-[10px] mb-3 leading-none" style={{ color: B.textLight }}>
+          {sublabel}
+        </p>
+      )}
+
+      {/* Sparkline — rendered only when we have real data */}
       <div className="h-10 w-full">
-        <svg
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-          className="w-full h-full"
-        >
-          <defs>
-            <linearGradient id={`spark-${label.replace(/\s/g, '')}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={B.accent} stopOpacity="0.2" />
-              <stop offset="100%" stopColor={B.accent} stopOpacity="0.02" />
-            </linearGradient>
-          </defs>
-          <polyline
-            points={`0,100 ${points} 100,100`}
-            fill={`url(#spark-${label.replace(/\s/g, '')})`}
-          />
-          <polyline
-            points={points}
-            fill="none"
-            stroke={B.accent}
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
+        {loading ? (
+          <div className="h-full w-full rounded animate-pulse" style={{ backgroundColor: B.heatmapEmpty }} />
+        ) : sparkPoints ? (
+          <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
+            <defs>
+              <linearGradient id={sparklineId} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={B.accent} stopOpacity="0.25" />
+                <stop offset="100%" stopColor={B.accent} stopOpacity="0.02" />
+              </linearGradient>
+            </defs>
+            <polyline
+              points={`0,100 ${sparkPoints} 100,100`}
+              fill={`url(#${sparklineId})`}
+            />
+            <polyline
+              points={sparkPoints}
+              fill="none"
+              stroke={B.accent}
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        ) : (
+          // No data yet — flat baseline
+          <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full opacity-30">
+            <line x1="0" y1="50" x2="100" y2="50" stroke={B.accent} strokeWidth="1.5" strokeDasharray="4 3" />
+          </svg>
+        )}
       </div>
+
+      {/* Personalized insight line — only shown when data exists */}
+      {!loading && insight && (
+        <p className="mt-2 text-[9px] font-medium truncate" style={{ color: B.textLight }}>
+          {insight}
+        </p>
+      )}
     </motion.div>
   );
 }
@@ -759,7 +843,7 @@ function RecentBroadcasts({ posts }: { posts: Post[] }) {
                   {style.label}
                 </span>
 
-                {/* Engagement mini-bar (visual indicator) */}
+                {/* Engagement bar — based on real post status */}
                 <div
                   className="hidden sm:block h-1.5 w-16 rounded-full overflow-hidden flex-shrink-0"
                   style={{ backgroundColor: B.heatmapEmpty }}
@@ -767,8 +851,13 @@ function RecentBroadcasts({ posts }: { posts: Post[] }) {
                   <div
                     className="h-full rounded-full"
                     style={{
-                      backgroundColor: B.accent,
-                      width: `${Math.min(100, Math.random() * 80 + 20)}%`,
+                      backgroundColor:
+                        post.status === 'published' ? B.success :
+                        post.status === 'scheduled' ? B.info :
+                        post.status === 'failed' ? B.danger : B.accent,
+                      width: post.status === 'published' ? '100%' :
+                             post.status === 'scheduled' ? '60%' :
+                             post.status === 'failed' ? '20%' : '40%',
                     }}
                   />
                 </div>
