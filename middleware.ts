@@ -150,29 +150,43 @@ export async function middleware(request: NextRequest) {
   }
 
   // ── Inject auth identity headers for API routes ──────────────────────────
-  // This enables getCurrentAuth() to take its fast "header" path instead of
-  // doing sequential Supabase + DB calls on every request.
+  // Resolves BOTH x-user-id + x-workspace-id so getCurrentAuth() can return
+  // instantly from headers without any DB round-trip.
   if (pathname.startsWith('/api/')) {
-    // Only inject if headers aren't already present (e.g. from a trusted caller)
     if (!request.headers.get('x-user-id')) {
       try {
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
         const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
         if (supabaseUrl && supabaseAnonKey) {
           const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
             cookies: {
-              getAll() {
-                return request.cookies.getAll();
-              },
-              setAll() { /* read-only in middleware */ },
+              getAll() { return request.cookies.getAll(); },
+              setAll() {},
             },
           });
           const { data: { user } } = await supabase.auth.getUser();
           if (user) {
             const requestHeaders = new Headers(request.headers);
             requestHeaders.set('x-user-id', user.id);
-            // x-workspace-id will be resolved by getCurrentAuth from the DB
-            // (or the route can pass it via query params)
+
+            // Also resolve workspace ID so getCurrentAuth needs zero DB calls
+            if (supabaseServiceKey) {
+              try {
+                const { createClient: createSbClient } = await import('@supabase/supabase-js');
+                const admin = createSbClient(supabaseUrl, supabaseServiceKey);
+                const { data: member } = await admin
+                  .from('workspace_members')
+                  .select('workspace_id')
+                  .eq('user_id', user.id)
+                  .single();
+                const workspaceId = member?.workspace_id || user.id;
+                requestHeaders.set('x-workspace-id', workspaceId);
+              } catch {
+                // workspace lookup failed — getCurrentAuth will resolve it
+              }
+            }
+
             return NextResponse.next({ request: { headers: requestHeaders } });
           }
         }

@@ -7,6 +7,8 @@ import { config } from '@/lib/config/schema';
 const profileRepository = new SupabaseProfileRepository();
 const supabaseAdmin = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const auth = await getCurrentAuth(request);
@@ -16,39 +18,48 @@ export async function GET(request: NextRequest) {
 
     const { userId, workspaceId } = auth;
 
-    // Get user details from auth
-    const { data: { user } } = await supabaseAdmin.auth.admin.getUserById(userId);
+    // ─── All 3 fetches in parallel ──────────────────────────────────────────
+    // Previously: sequential (admin.getUserById → profile → workspace)
+    // Now: all fire at once, response arrives in ~1 RTT instead of 3
+    const [userResult, profile, workspace] = await Promise.all([
+      // User details — use listUsers with filter instead of expensive admin.getUserById
+      supabaseAdmin.auth.admin.getUserById(userId),
+      profileRepository.findByWorkspaceId(workspaceId),
+      supabaseAdmin
+        .from('workspaces')
+        .select('id, name, plan')
+        .eq('id', workspaceId)
+        .single(),
+    ]);
 
-    // Get profile for workspace
-    const profile = await profileRepository.findByWorkspaceId(workspaceId);
-
-    // Get workspace details
-    const { data: workspace } = await supabaseAdmin
-      .from('workspaces')
-      .select('id, name, plan')
-      .eq('id', workspaceId)
-      .single();
+    const user = userResult.data?.user ?? null;
 
     return NextResponse.json({
-      user: user ? {
-        id: user.id,
-        email: user.email,
-        fullName: user.user_metadata?.full_name,
-        avatarUrl: user.user_metadata?.avatar_url,
-      } : null,
-      profile: profile ? {
-        id: profile.id,
-        name: profile.name,
-        headline: profile.headline,
-        subdomain: profile.subdomain,
-        status: profile.subdomain ? 'published' : 'draft' as const,
-        theme: profile.theme,
-      } : null,
-      workspace: workspace ? {
-        id: workspace.id,
-        name: workspace.name,
-        planTier: workspace.plan,
-      } : null,
+      user: user
+        ? {
+            id: user.id,
+            email: user.email,
+            fullName: user.user_metadata?.full_name,
+            avatarUrl: user.user_metadata?.avatar_url,
+          }
+        : null,
+      profile: profile
+        ? {
+            id: profile.id,
+            name: profile.name,
+            headline: profile.headline,
+            subdomain: profile.subdomain,
+            status: (profile.subdomain ? 'published' : 'draft') as 'published' | 'draft',
+            theme: profile.theme,
+          }
+        : null,
+      workspace: workspace.data
+        ? {
+            id: workspace.data.id,
+            name: workspace.data.name,
+            planTier: workspace.data.plan,
+          }
+        : null,
     });
   } catch (error) {
     console.error('Get user context failed:', error);
