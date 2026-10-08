@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { createServerClient } from '@supabase/ssr';
 
 const publicPaths = [
   '/',
@@ -146,6 +147,39 @@ export async function middleware(request: NextRequest) {
   // Profile paths
   if (isProfilePath(pathname)) {
     return NextResponse.next();
+  }
+
+  // ── Inject auth identity headers for API routes ──────────────────────────
+  // This enables getCurrentAuth() to take its fast "header" path instead of
+  // doing sequential Supabase + DB calls on every request.
+  if (pathname.startsWith('/api/')) {
+    // Only inject if headers aren't already present (e.g. from a trusted caller)
+    if (!request.headers.get('x-user-id')) {
+      try {
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+        const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+        if (supabaseUrl && supabaseAnonKey) {
+          const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+            cookies: {
+              getAll() {
+                return request.cookies.getAll();
+              },
+              setAll() { /* read-only in middleware */ },
+            },
+          });
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            const requestHeaders = new Headers(request.headers);
+            requestHeaders.set('x-user-id', user.id);
+            // x-workspace-id will be resolved by getCurrentAuth from the DB
+            // (or the route can pass it via query params)
+            return NextResponse.next({ request: { headers: requestHeaders } });
+          }
+        }
+      } catch {
+        // Auth injection failed — let routes handle their own auth
+      }
+    }
   }
 
   // For everything else, allow through (let page components handle auth)

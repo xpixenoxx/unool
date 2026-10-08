@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -177,6 +177,7 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
   const [connecting, setConnecting] = useState<Platform | null>(null);
   const [disconnecting, setDisconnecting] = useState<Platform | null>(null);
   const [blueskyDialogOpen, setBlueskyDialogOpen] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     loadConnections();
@@ -192,6 +193,8 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
         if (data.connections) {
           setConnections((prev) => ({ ...prev, ...data.connections }));
         }
+        // Cache the userId returned from the API so we can pass it during connect
+        if (data.userId) setUserId(data.userId);
       }
     } catch {
       // Use defaults
@@ -200,16 +203,20 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
     }
   };
 
-  const handleConnect = (platform: Platform) => {
+  const handleConnect = useCallback((platform: Platform) => {
     const cfg = PLATFORM_CONFIG[platform];
     // Bluesky uses a form dialog, not an OAuth redirect
     if (cfg.customConnect) {
       setBlueskyDialogOpen(true);
       return;
     }
+    // Show spinner immediately — gives instant visual feedback before the redirect
     setConnecting(platform);
-    window.location.href = `/api/auth/platform/connect?platform=${platform}&workspaceId=${workspaceId}`;
-  };
+    const params = new URLSearchParams({ platform, workspaceId });
+    if (userId) params.set('userId', userId);
+    // Use window.location for the OAuth redirect (router.push doesn't handle external URLs)
+    window.location.href = `/api/auth/platform/connect?${params.toString()}`;
+  }, [workspaceId, userId]);
 
   const handleDisconnect = async (platform: Platform) => {
     const cfg = PLATFORM_CONFIG[platform];

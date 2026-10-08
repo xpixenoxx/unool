@@ -87,28 +87,24 @@ export async function GET(request: NextRequest) {
 
     const adminSupabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
 
-    // Strategy 1: Query by workspace_id
-    let { data: rows, error } = await adminSupabase
-      .from('platform_connections')
-      .select('*')
-      .eq('workspace_id', auth.workspaceId);
+    // Strategies 1 & 2: run in parallel — query by workspace_id and by userId-as-workspace_id simultaneously
+    const needsBothQueries = auth.userId !== auth.workspaceId;
+    const [s1Result, s2Result] = await Promise.all([
+      adminSupabase.from('platform_connections').select('*').eq('workspace_id', auth.workspaceId),
+      needsBothQueries
+        ? adminSupabase.from('platform_connections').select('*').eq('workspace_id', auth.userId)
+        : Promise.resolve({ data: null, error: null }),
+    ]);
 
-    debug.push(`s1:wid=${auth.workspaceId.slice(0, 8)}:count=${rows?.length || 0}:err=${error?.message || 'none'}`);
+    let rows = s1Result.data;
+    debug.push(`s1:wid=${auth.workspaceId.slice(0, 8)}:count=${rows?.length || 0}:err=${s1Result.error?.message || 'none'}`);
 
-    // Strategy 2: If no results, try userId as workspace_id
-    if ((!rows || rows.length === 0) && auth.userId !== auth.workspaceId) {
-      const s2 = await adminSupabase
-        .from('platform_connections')
-        .select('*')
-        .eq('workspace_id', auth.userId);
-
-      debug.push(`s2:uid_as_wid=${auth.userId.slice(0, 8)}:count=${s2.data?.length || 0}`);
-      if (s2.data && s2.data.length > 0) {
-        rows = s2.data;
-      }
+    if ((!rows || rows.length === 0) && s2Result.data && s2Result.data.length > 0) {
+      rows = s2Result.data;
+      debug.push(`s2:uid_as_wid=${auth.userId.slice(0, 8)}:count=${rows.length}`);
     }
 
-    // Strategy 3: Check all workspaces the user belongs to
+    // Strategy 3: Check all workspaces the user belongs to (only if still empty)
     if (!rows || rows.length === 0) {
       const { data: memberships } = await adminSupabase
         .from('workspace_members')
@@ -116,47 +112,25 @@ export async function GET(request: NextRequest) {
         .eq('user_id', auth.userId);
 
       if (memberships && memberships.length > 0) {
-        for (const m of memberships) {
-          if (m.workspace_id !== auth.workspaceId && m.workspace_id !== auth.userId) {
-            const s3 = await adminSupabase
-              .from('platform_connections')
-              .select('*')
-              .eq('workspace_id', m.workspace_id);
-            if (s3.data && s3.data.length > 0) {
-              rows = s3.data;
-              debug.push(`s3:found_in_member_ws=${m.workspace_id.slice(0, 8)}`);
-              break;
-            }
-          }
+        // Fetch all member workspaces in parallel
+        const memberResults = await Promise.all(
+          memberships
+            .filter((m) => m.workspace_id !== auth.workspaceId && m.workspace_id !== auth.userId)
+            .map((m) =>
+              adminSupabase
+                .from('platform_connections')
+                .select('*')
+                .eq('workspace_id', m.workspace_id)
+                .then((r) => ({ workspaceId: m.workspace_id, data: r.data }))
+            )
+        );
+
+        const found = memberResults.find((r) => r.data && r.data.length > 0);
+        if (found) {
+          rows = found.data;
+          debug.push(`s3:found_in_member_ws=${found.workspaceId.slice(0, 8)}:count=${rows?.length || 0}`);
         }
       }
-    }
-
-    // Strategy 4 (Absolute fallback): Try to find connections by platform_user_id or user_id loosely if column exists
-    if (!rows || rows.length === 0) {
-       // Query without conditions just to see if table is accessible 
-       const { data: globalCheck, error: globalErr } = await adminSupabase
-         .from('platform_connections')
-         .select('*');
-       
-       debug.push(`s4:absolute_fallback:total_in_db=${globalCheck?.length || 0}:err=${globalErr?.message || 'none'}`);
-
-       // Try to rescue any connection that belongs to this user by scanning literally all rows
-       if (globalCheck && globalCheck.length > 0) {
-         rows = globalCheck.filter((r: any) => 
-            // Match against ANY known ID of this user
-            r.user_id === auth.userId || 
-            r.workspace_id === auth.workspaceId || 
-            r.workspace_id === auth.userId
-         );
-         
-         debug.push(`s4:rescued_rows=${rows.length}`);
-         
-          // Remove the forced rescue hack
-          if (rows.length === 0) {
-             debug.push(`s4:no_rescued_rows`);
-          }
-       }
     }
 
     const result: Record<string, { platform: string; status: string; username?: string; connectedAt?: string; expiresAt?: string }> = {};
@@ -227,7 +201,7 @@ export async function GET(request: NextRequest) {
 
     const totalFound = rows?.length || 0;
     logger.info('Platform connections fetched', { traceId, workspaceId: auth.workspaceId, totalFound, debug });
-    return NextResponse.json({ connections: result, totalFound, debug });
+    return NextResponse.json({ connections: result, totalFound, userId: auth.userId, debug });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     debug.push(`error:${err.message}`);

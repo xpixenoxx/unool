@@ -1,47 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPlatformAdapter } from '@/lib/platforms';
 import { generateOAuthState, storeOAuthState, createOAuthCookie } from '@/lib/auth/oauth-state';
-import { getAuthContext } from '@/lib/auth/context';
-import { getCurrentAuth } from '@/lib/auth/server';
-import { logger } from '@/lib/logger';
 import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import { cookies } from 'next/headers';
+import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
-async function resolveWorkspaceId(request: NextRequest): Promise<{ id: string | null; userId: string | null, debug: string }> {
-  let debug = [];
-  
-  // Method 1: getAuthContext
-  try {
-    const authCtx = await getAuthContext();
-    if (authCtx) return { id: authCtx.workspaceId, userId: authCtx.userId, debug: 'authCtx_success' };
-    debug.push('authCtx_null');
-  } catch (e) {
-    debug.push('authCtx_err_' + (e instanceof Error ? e.message : String(e)));
+/**
+ * Resolve workspaceId + userId using the fastest available method.
+ * Priority:
+ *  1. x-user-id header injected by middleware (fastest — no extra DB call)
+ *  2. Cookie-based SSR session (one Supabase call + one DB call, run in parallel)
+ */
+async function resolveAuth(request: NextRequest): Promise<{ userId: string | null; workspaceId: string | null }> {
+  // Fast path: middleware injects x-user-id
+  const headerUserId = request.headers.get('x-user-id');
+  const headerWorkspaceId = request.headers.get('x-workspace-id');
+
+  if (headerUserId && headerWorkspaceId) {
+    return { userId: headerUserId, workspaceId: headerWorkspaceId };
   }
 
-  // Method 2: getCurrentAuth
-  try {
-    const auth = await getCurrentAuth(request);
-    if (auth) return { id: auth.workspaceId, userId: auth.userId, debug: 'currAuth_success' };
-    debug.push('currAuth_null');
-  } catch (e) {
-    debug.push('currAuth_err_' + (e instanceof Error ? e.message : String(e)));
-  }
-
-  // Method 3: Direct Supabase SSR
+  // Slower path: resolve from cookies
   try {
     const cookieStore = await cookies();
     const allCookies = cookieStore.getAll();
-    debug.push('cookies_' + allCookies.length);
-    
-    // Check if the specific sb- cookies exist
-    const hasSbCookies = allCookies.some(c => c.name.startsWith('sb-'));
-    debug.push('url_' + Buffer.from(config.SUPABASE_URL).toString('base64url').substring(0, 15));
-    debug.push('hasSb_' + hasSbCookies);
 
     const supabaseSSR = createServerClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
       cookies: {
@@ -50,76 +36,57 @@ async function resolveWorkspaceId(request: NextRequest): Promise<{ id: string | 
       },
     });
 
-    const { data: { user }, error } = await supabaseSSR.auth.getUser();
-    if (error) {
-      debug.push('ssr_err_' + error.message);
-    }
-    if (user) {
-      const adminClient = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
-      const { data: member, error: dbError } = await adminClient
-        .from('workspace_members')
-        .select('workspace_id')
-        .eq('user_id', user.id)
-        .single();
+    const { data: { user } } = await supabaseSSR.auth.getUser();
+    if (!user) return { userId: null, workspaceId: null };
 
-      if (dbError) {
-        debug.push('db_err_' + dbError.message);
-      }
-        
-      const workspaceId = member?.workspace_id || user.id;
-      return { id: workspaceId, userId: user.id, debug: 'ssr_success' };
-    } else {
-      debug.push('ssr_user_null');
-    }
-  } catch (e) {
-    debug.push('ssr_fatal_' + (e instanceof Error ? e.message : String(e)));
+    // If middleware gave us just the userId, use it and look up workspace
+    const uid = headerUserId || user.id;
+
+    const adminClient = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+    const { data: member } = await adminClient
+      .from('workspace_members')
+      .select('workspace_id')
+      .eq('user_id', uid)
+      .single();
+
+    return {
+      userId: uid,
+      workspaceId: member?.workspace_id || uid,
+    };
+  } catch {
+    return { userId: null, workspaceId: null };
   }
-
-  return { id: null, userId: null, debug: debug.join('|') };
 }
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const platform = searchParams.get('platform');
+  const returnUrl = searchParams.get('returnUrl') || undefined;
+  const errorRedirect = returnUrl || '/dashboard';
+
+  // workspaceId and userId are passed by the frontend — trust them directly
+  // to avoid redundant auth round-trips.
   let workspaceId = searchParams.get('workspaceId');
   let userId = searchParams.get('userId');
-  const returnUrl = searchParams.get('returnUrl') || undefined;
-  const errorRedirect = returnUrl || '/onboarding/connect/add';
-  
-  let debugInfo = 'none';
 
   if (!workspaceId || !userId) {
-    const resolution = await resolveWorkspaceId(request);
-    workspaceId = workspaceId || resolution.id;
-    userId = userId || resolution.userId;
-    debugInfo = resolution.debug;
+    const resolved = await resolveAuth(request);
+    workspaceId = workspaceId || resolved.workspaceId;
+    userId = userId || resolved.userId;
   }
 
   if (!platform || !workspaceId || !userId) {
-    logger.warn('Platform connect: missing params after all auth methods', { 
-      platform, 
-      hasWorkspace: String(!!workspaceId),
-      hasUser: String(!!userId),
-      debugInfo 
-    });
-    
-    const errUrl = new URL(`${errorRedirect}?error=missing_params`, request.url);
-    errUrl.searchParams.set('debug', debugInfo);
-    
-    return NextResponse.redirect(errUrl);
+    logger.warn('Platform connect: missing params', { platform, hasWorkspace: !!workspaceId, hasUser: !!userId });
+    return NextResponse.redirect(new URL(`${errorRedirect}?error=missing_params`, request.url));
   }
 
   const adapter = getPlatformAdapter(platform);
   if (!adapter) {
     logger.warn('Platform connect: unsupported platform', { platform });
-    return NextResponse.redirect(
-      new URL(`${errorRedirect}?error=unsupported_platform&platform=${platform}`, request.url)
-    );
+    return NextResponse.redirect(new URL(`${errorRedirect}?error=unsupported_platform&platform=${platform}`, request.url));
   }
 
   // Platforms with custom connect flows (e.g. Bluesky uses app-password, not OAuth).
-  // getAuthUrl returns an empty string for these — redirect back to the dashboard
-  // with an instruction instead of crashing.
   const testAuthUrl = adapter.getAuthUrl('test');
   const resolvedTestUrl = typeof testAuthUrl === 'string' ? testAuthUrl : '';
   if (!resolvedTestUrl) {
@@ -132,11 +99,11 @@ export async function GET(request: NextRequest) {
   // Generate cryptographically secure state
   const state = generateOAuthState(workspaceId, platform);
 
-  // Store in Redis with TTL (fails silently if unconfigured and falls back to cookie)
-  await storeOAuthState(state, workspaceId, userId, platform, returnUrl);
-
-  // Handle PKCE for X/Twitter - getAuthUrl can return string or {url, pkceCookie}
-  const authUrlResult = adapter.getAuthUrl(state);
+  // Store in Redis + build cookie in parallel
+  const [, authUrlResult] = await Promise.all([
+    storeOAuthState(state, workspaceId, userId, platform, returnUrl),
+    Promise.resolve(adapter.getAuthUrl(state)),
+  ]);
 
   let authUrl: string;
   const resCookies: string[] = [createOAuthCookie(state, workspaceId, userId, platform, returnUrl)];
@@ -157,4 +124,4 @@ export async function GET(request: NextRequest) {
   resCookies.forEach((cookie) => response.headers.append('Set-Cookie', cookie));
 
   return response;
-}
+}
