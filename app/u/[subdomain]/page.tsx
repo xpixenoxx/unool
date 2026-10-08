@@ -102,6 +102,25 @@ export default function PublicProfilePage({ params }: { params: Promise<{ subdom
     };
   }, [params]);
 
+  // Track "profile_view" for Impressions metric
+  useEffect(() => {
+    if (profile) {
+      fetch('/api/analytics/track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          events: [{
+            eventType: 'profile_view',
+            workspaceId: profile.workspaceId,
+            profileId: profile.id,
+            eventData: { subdomain: profile.subdomain }
+          }]
+        }),
+        keepalive: true
+      }).catch(err => console.error('[Analytics] Failed to track impression:', err));
+    }
+  }, [profile?.id]); // Only trigger when profile is first loaded
+
   // Global Link Click Tracking for "Link Engagement"
   useEffect(() => {
     if (!profile) return;
