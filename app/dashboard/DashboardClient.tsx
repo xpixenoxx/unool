@@ -13,7 +13,6 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import { PlatformConnections } from '@/components/dashboard/PlatformConnections';
 import { BlueskyConnectDialog } from '@/components/dashboard/BlueskyConnectDialog';
-import { OnboardingChecklist } from '@/components/onboarding/OnboardingChecklist';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogTrigger, DialogTitle } from '@/components/ui/dialog';
 
@@ -508,12 +507,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
         </motion.div>
       </div>
 
-      {/* ═══ ROW 4: Onboarding (if incomplete) ═══ */}
-      {data.profile && completionPercent < 100 && (
-        <motion.div variants={fadeUp} transition={transition}>
-          <OnboardingChecklist workspaceId={data.workspaceId} userId={data.userId} />
-        </motion.div>
-      )}
+
 
       {/* ═══ ROW 5: Recent Broadcasts ═══ */}
       <motion.div variants={fadeUp} transition={transition}>
