@@ -3196,7 +3196,7 @@ function MachineTemplate({ profile, accentColor }: any) {
             <div className="mt-auto w-full pt-10">
               <div className="machine-barcode justify-center">
                 {barcodeLines.map((width, i) => (
-                  <div key={i} className="mb-bar" style={{ width: \`\${width}px\` }} />
+                  <div key={i} className="mb-bar" style={{ width: `${width}px` }} />
                 ))}
               </div>
             </div>
@@ -3248,7 +3248,7 @@ function MachineTemplate({ profile, accentColor }: any) {
                 {profile.links?.map((link: any, i: number) => (
                   <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="machine-link-module group">
                     <div className="machine-link-id">
-                      <span>MOD_${i.toString().padStart(3, '0')}</span>
+                      <span>{`MOD_${i.toString().padStart(3, '0')}`}</span>
                       <span>SECURE</span>
                     </div>
                     <div className="machine-link-name">{link.label}</div>
