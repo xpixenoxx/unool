@@ -123,11 +123,33 @@ export class DribbbleAdapter implements PlatformAdapter {
       throw new Error(`Dribbble publish failed: ${res.statusText}`);
     }
 
-    const data = await res.json();
+    let platformPostId = `dribbble-${Date.now()}`;
+    let platformUrl = '';
+    const locationHeader = res.headers.get('location');
+    if (locationHeader) {
+      platformUrl = locationHeader;
+      const parts = locationHeader.split('/');
+      platformPostId = parts[parts.length - 1] || platformPostId;
+    }
+
+    const text = await res.text();
+    if (text) {
+      try {
+        const data = JSON.parse(text);
+        platformPostId = data.id ? String(data.id) : platformPostId;
+        platformUrl = data.html_url || platformUrl;
+      } catch (e) {
+        logger.warn('Dribbble publish response was not JSON', {
+          error: e instanceof Error ? e : new Error(String(e)),
+          text
+        });
+      }
+    }
+
     return {
-      platformPostId: String(data.id),
-      platformUrl: data.html_url,
-      publishedAt: new Date(data.published_at),
+      platformPostId,
+      platformUrl,
+      publishedAt: new Date(),
     };
   }
 
