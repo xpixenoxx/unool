@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Linkedin, Twitter, MessageSquare, CheckCircle, Edit, Send, AlertCircle, Sparkles, CircleCheckBig, X, ExternalLink, Facebook, Youtube, Instagram, Cloud, MessageCircle, Image as ImageIcon, Send as SendIcon, Eye, Twitch } from 'lucide-react';
+import { Loader2, Linkedin, Twitter, MessageSquare, CheckCircle, Edit, Send, AlertCircle, Sparkles, CircleCheckBig, X, ExternalLink, Facebook, Youtube, Instagram, Cloud, MessageCircle, Image as ImageIcon, Send as SendIcon, Eye, Twitch, Hash } from 'lucide-react';
 import { toast } from 'sonner';
 import { Flex, Box, Stack, Text, Display, Divider } from '@/components/ui/layout';
 import { MotionBox, MotionStack, spring, stagger } from '@/components/ui/motion';
@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { PlatformPreview } from './PlatformPreview';
 
-type Platform = 'linkedin' | 'x' | 'threads' | 'manual' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'slack' | 'mastodon' | 'twitch' | 'telegram';
+type Platform = 'linkedin' | 'x' | 'threads' | 'manual' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'slack' | 'mastodon' | 'twitch' | 'telegram' | 'discord';
 type DraftStatus = 'draft' | 'published' | 'failed';
 
 interface PostVariant {
@@ -71,6 +71,7 @@ const PLATFORM_CONFIG: Record<Platform, { icon: React.ElementType; name: string;
   slack: { icon: MessageSquare, name: 'Slack', maxChars: 40000, color: 'bg-[#4A154B]' },
   twitch: { icon: Twitch, name: 'Twitch', maxChars: 500, color: 'bg-[#9146FF]' },
   telegram: { icon: Send, name: 'Telegram', maxChars: 4096, color: 'bg-[#229ED9]' },
+  discord: { icon: Hash, name: 'Discord', maxChars: 2000, color: 'bg-[#5865F2]' },
   manual: { icon: SendIcon, name: 'Manual', maxChars: 10000, color: 'bg-gray-500' },
 };
 

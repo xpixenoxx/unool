@@ -3,7 +3,7 @@ import { generateWithFallback } from './provider';
 import { Result, ok, err } from '@/lib/shared/Result';
 import { logger } from '@/lib/logger';
 
-export const PlatformType = z.enum(['linkedin', 'x', 'threads', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'mastodon', 'slack', 'twitch', 'telegram']);
+export const PlatformType = z.enum(['linkedin', 'x', 'threads', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'mastodon', 'slack', 'twitch', 'telegram', 'discord']);
 export type PlatformType = z.infer<typeof PlatformType>;
 
 export const AdaptedPostSchema = z.object({
@@ -77,6 +77,11 @@ const PLATFORM_SPECS: Record<PlatformType, { maxChars: number; style: string; ha
     maxChars: 4096,
     style: 'Direct, clear, often used for announcements or updates. Line breaks for readability.',
     hashtagStrategy: 'Minimal hashtags, 1-2 if necessary for categorization.'
+  },
+  discord: {
+    maxChars: 2000,
+    style: 'Casual, community-oriented, clear formatting. Use markdown formatting.',
+    hashtagStrategy: 'No hashtags usually.'
   },
 };
 

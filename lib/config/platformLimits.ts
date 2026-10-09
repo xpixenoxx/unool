@@ -1,4 +1,4 @@
-export type SupportedPlatform = 'linkedin' | 'x' | 'twitter' | 'threads' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'mastodon' | 'slack' | 'twitch' | 'telegram' | 'manual';
+export type SupportedPlatform = 'linkedin' | 'x' | 'twitter' | 'threads' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'mastodon' | 'slack' | 'twitch' | 'telegram' | 'discord' | 'manual';
 
 export interface PlatformLimitConfig {
   maxVideoSizeMB: number;
@@ -20,6 +20,7 @@ export const PLATFORM_LIMITS: Record<SupportedPlatform, PlatformLimitConfig> = {
   slack: { maxVideoSizeMB: 1000, maxImageSizeMB: 1000 },
   twitch: { maxVideoSizeMB: 50, maxImageSizeMB: 10 },
   telegram: { maxVideoSizeMB: 50, maxImageSizeMB: 10 },
+  discord: { maxVideoSizeMB: 25, maxImageSizeMB: 25 },
   manual: { maxVideoSizeMB: 5000, maxImageSizeMB: 50 },
 };
 

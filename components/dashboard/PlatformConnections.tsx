@@ -20,7 +20,7 @@ import { SlackConnectDialog } from './SlackConnectDialog';
 import { TwitchConnectDialog } from './TwitchConnectDialog';
 import { TelegramConnectDialog } from './TelegramConnectDialog';
 
-const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram'] as const;
+const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram', 'discord'] as const;
 type Platform = typeof SUPPORTED_PLATFORMS[number];
 
 interface PlatformConnection {
@@ -196,6 +196,16 @@ const PLATFORM_CONFIG: Record<
     audience: 'Subscribers & groups',
     available: true,
     customConnect: true,
+  },
+  discord: {
+    icon: Hash,
+    name: 'Discord',
+    shortName: 'Discord',
+    color: 'bg-[#5865F2]',
+    hoverBorder: 'hover:border-[#5865F2]/30',
+    description: 'Server channels & messages',
+    audience: 'Communities & gamers',
+    available: true,
   },
 };
 

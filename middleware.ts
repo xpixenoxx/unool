@@ -11,9 +11,7 @@ const publicPaths = [
   '/api/health',
   '/u',
   '/privacy',
-  '/privacy-policy',
   '/terms',
-  '/terms-of-service',
   '/forgot-password',
 ];
 
