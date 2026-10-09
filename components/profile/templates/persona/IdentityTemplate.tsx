@@ -4263,7 +4263,7 @@ function VoiceTemplate({ profile }: any) {
     }
 
     .voice-template .paper-card {
-      background-color: #FFFAF3;
+      background-color: #C6D4CB;
       border-radius: 16px;
       transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
       border: 1px solid rgba(169, 156, 145, 0.15);
@@ -4291,18 +4291,28 @@ function VoiceTemplate({ profile }: any) {
 
   const metrics = profile.metrics || [];
   const links = profile.links || [];
+  const proofs = profile.proofs || [];
   const statement = profile.metadata?.statement;
   const statementSub = profile.metadata?.statementSub;
 
   let sectionCounter = 1;
   const getSectionNumber = () => `0${sectionCounter++}`;
 
+  const getSocialIcon = (url: string, label: string) => {
+    const s = ((url || '') + ' ' + (label || '')).toLowerCase();
+    if (s.includes('github')) return <Github className="w-4 h-4" />;
+    if (s.includes('linkedin')) return <Linkedin className="w-4 h-4" />;
+    if (s.includes('instagram')) return <Instagram className="w-4 h-4" />;
+    if (s.includes('twitter') || s.includes('x.com')) return <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.008 4.07H5.078z"/></svg>;
+    return <LinkIcon className="w-4 h-4" />;
+  };
+
   return (
-    <div className="voice-template w-full min-h-screen bg-[#FAF8F5] p-6 md:p-8 lg:p-12 flex justify-center">
+    <div className="voice-template w-full min-h-screen bg-[#EBF0EC] p-6 md:p-8 lg:p-12 flex justify-center">
       <style>{customStyles}</style>
 
       {/* Main Card Wrapper */}
-      <div className="w-full max-w-[1200px] bg-[#F4EEE6] rounded-[32px] md:rounded-[48px] shadow-2xl relative overflow-hidden flex justify-center py-10 md:py-16 px-6 md:px-12 lg:px-16 border border-[#A99C91]/15">
+      <div className="w-full max-w-[1200px] bg-[#D9E4DD] rounded-[32px] md:rounded-[48px] shadow-2xl relative overflow-hidden flex justify-center py-10 md:py-16 px-6 md:px-12 lg:px-16 border border-[#A99C91]/15">
         
         {/* Main Content Container */}
         <div className="w-full max-w-[960px] mx-auto relative z-10">
@@ -4312,10 +4322,6 @@ function VoiceTemplate({ profile }: any) {
             <div className="flex items-center gap-2">
                <div className="w-4 h-4 bg-[#DF5B4C] rounded-sm transform rotate-45"></div>
                <span className="font-bold tracking-widest text-xs uppercase">The Voice</span>
-            </div>
-            <div className="text-[10px] md:text-xs font-bold tracking-widest uppercase text-[#DF5B4C] flex items-center gap-2 md:gap-4">
-               <span className="text-[#766B64]">Editorial</span>
-               <span>↗</span>
             </div>
           </header>
 
@@ -4358,9 +4364,6 @@ function VoiceTemplate({ profile }: any) {
             </div>
             
             <div className="w-full md:w-1/2 flex justify-center md:justify-end relative mt-4 md:mt-0">
-              <div className="hidden md:block absolute top-8 left-8 text-[#DF5B4C] z-10">
-                 <ArrowRight className="w-6 h-6 transform rotate-[135deg]" />
-              </div>
               {profile.avatarUrl ? (
                 <img 
                   src={profile.avatarUrl} 
@@ -4420,6 +4423,33 @@ function VoiceTemplate({ profile }: any) {
             </section>
           )}
 
+          {/* 3.5 Proof Points */}
+          {proofs && proofs.length > 0 && (
+            <section className="mb-16 md:mb-24 relative">
+              <div className="flex items-center justify-between mb-6 md:mb-10 relative">
+                  <span className="text-[#DF5B4C] text-[10px] md:text-xs font-bold tracking-widest md:absolute md:-left-10">{getSectionNumber()}</span>
+                  <span className="text-[#A99C91] text-[10px] md:text-xs font-bold tracking-[0.15em] uppercase ml-auto">Proof Points</span>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-0 md:pl-6">
+                {proofs.map((proof: any, i: number) => (
+                  <div key={i} className="paper-card p-4 md:p-6 flex flex-col gap-2">
+                    <div className="flex items-center gap-3">
+                      {proof.icon && <span className="text-[#DF5B4C] text-lg">{proof.icon}</span>}
+                      <h3 className="font-bold text-[#2B2321] text-sm md:text-base">{proof.title || proof.type}</h3>
+                    </div>
+                    {proof.value && (
+                       <p className="text-[#DF5B4C] font-serif text-xl md:text-2xl mt-2">{proof.value}</p>
+                    )}
+                    {proof.description && (
+                       <p className="text-xs md:text-sm text-[#766B64] mt-1">{proof.description}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
           {/* 4. Links */}
           {links && links.length > 0 && (
             <section className="mb-16 md:mb-24 relative">
@@ -4432,8 +4462,8 @@ function VoiceTemplate({ profile }: any) {
                 {links.map((link: any, i: number) => (
                   <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="paper-card p-3 md:p-5 flex items-center justify-between group">
                     <div className="flex items-center gap-3 md:gap-5">
-                      <div className="w-10 h-10 rounded-full bg-[#F4EEE6] text-[#DF5B4C] flex items-center justify-center group-hover:bg-[#DF5B4C] group-hover:text-white transition-colors shrink-0">
-                          <LinkIcon className="w-4 h-4" />
+                      <div className="w-10 h-10 rounded-full bg-[#D9E4DD] text-[#DF5B4C] flex items-center justify-center group-hover:bg-[#DF5B4C] group-hover:text-white transition-colors shrink-0">
+                          {getSocialIcon(link.url, link.label)}
                       </div>
                       <div>
                         <h3 className="font-bold text-[#2B2321] text-sm md:text-base">{link.label}</h3>
