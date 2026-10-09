@@ -54,9 +54,10 @@ export class SupabasePlatformRepository implements IPlatformRepository {
       .select('*')
       .eq('workspace_id', workspaceId)
       .eq('platform', platform)
-      .single();
-    if (error) { if (error.code === 'PGRST116') return null; throw error; }
-    return this.mapConnectionRow(data);
+      .limit(1);
+    if (error) throw error;
+    if (!data || data.length === 0) return null;
+    return this.mapConnectionRow(data[0]);
   }
 
   async findByWorkspaceId(workspaceId: string): Promise<PlatformConnection[]> {
@@ -86,12 +87,14 @@ export class SupabasePlatformRepository implements IPlatformRepository {
 
   async create(input: CreatePlatformConnectionInput): Promise<PlatformConnection> {
     // Check if connection already exists (by workspace + platform only — user_id may not exist)
-    const { data: existing } = await this.supabase
+    const { data: existingData } = await this.supabase
       .from('platform_connections')
       .select('id')
       .eq('workspace_id', input.workspaceId)
       .eq('platform', input.platform)
-      .single();
+      .limit(1);
+
+    const existing = existingData?.[0];
 
     let data;
     let error;

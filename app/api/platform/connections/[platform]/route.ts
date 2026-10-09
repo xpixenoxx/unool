@@ -23,12 +23,16 @@ export async function DELETE(
       return NextResponse.json({ error: 'Invalid platform' }, { status: 400 });
     }
 
-    const connection = await platformRepository.findByWorkspaceAndPlatform(auth.workspaceId, platform as (typeof SUPPORTED_PLATFORMS)[number]);
-    if (!connection) {
+    const connections = await platformRepository.findByWorkspaceId(auth.workspaceId);
+    const matchingConns = connections.filter(c => c.platform === platform);
+    
+    if (matchingConns.length === 0) {
       return NextResponse.json({ error: 'Connection not found' }, { status: 404 });
     }
 
-    await platformRepository.delete(connection.id);
+    for (const conn of matchingConns) {
+      await platformRepository.delete(conn.id);
+    }
 
     logger.info('Platform disconnected', { traceId, workspaceId: auth.workspaceId, platform });
 
