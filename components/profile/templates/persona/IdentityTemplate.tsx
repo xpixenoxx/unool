@@ -1565,30 +1565,454 @@ function RebellionTemplate({ profile, accentColor }: any) {
 
 function VisionTemplate({ profile, accentColor }: any) {
   const accent = accentColor || '#00F0FF';
+  const [mouse, setMouse] = useState({ x: 0, y: 0 });
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - 0.5;
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
+    setMouse({ x, y });
+  };
+
+  const handleMouseLeave = () => {
+    setMouse({ x: 0, y: 0 });
+  };
+
+  const customStyles = `
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@400;500;600;700&display=swap');
+
+    .vision-wrap {
+      --cyan: ${accent};
+      --bg: #030308;
+      --panel: rgba(10, 10, 20, 0.6);
+      --border: rgba(0, 240, 255, 0.2);
+      font-family: 'Rajdhani', sans-serif;
+      background: var(--bg);
+      color: #E0E7FF;
+      min-height: 100vh;
+      overflow: hidden;
+      position: relative;
+      perspective: 1200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+    }
+
+    /* Moving Grid Background */
+    .vision-grid {
+      position: absolute;
+      width: 200vw; height: 200vh;
+      top: -50%; left: -50%;
+      background-image: 
+        linear-gradient(rgba(0, 240, 255, 0.05) 1px, transparent 1px), 
+        linear-gradient(90deg, rgba(0, 240, 255, 0.05) 1px, transparent 1px);
+      background-size: 60px 60px;
+      transform: rotateX(60deg) translateY(0) translateZ(-200px);
+      animation: vision-grid-move 20s linear infinite;
+      z-index: 0;
+      pointer-events: none;
+    }
+    @keyframes vision-grid-move {
+      0% { transform: rotateX(60deg) translateY(0) translateZ(-200px); }
+      100% { transform: rotateX(60deg) translateY(60px) translateZ(-200px); }
+    }
+
+    /* Ambient Glows */
+    .vision-glow {
+      position: absolute;
+      width: 600px; height: 600px;
+      border-radius: 50%;
+      background: radial-gradient(circle, var(--cyan) 0%, transparent 60%);
+      opacity: 0.08;
+      filter: blur(60px);
+      z-index: 0;
+      pointer-events: none;
+      transition: transform 0.2s ease-out;
+    }
+
+    /* Main 3D Container */
+    .vision-container {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      max-width: 1100px;
+      transform-style: preserve-3d;
+      transition: transform 0.15s ease-out;
+    }
+
+    /* Holographic Card */
+    .vision-card {
+      background: var(--panel);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 60px;
+      box-shadow: 
+        0 30px 60px rgba(0,0,0,0.6),
+        inset 0 0 40px rgba(0, 240, 255, 0.05),
+        0 0 20px rgba(0, 240, 255, 0.1);
+      transform-style: preserve-3d;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .vision-card::before {
+      content: ""; position: absolute; inset: 0;
+      background: linear-gradient(125deg, transparent 30%, rgba(255,255,255,0.05) 45%, rgba(255,255,255,0.1) 50%, transparent 55%);
+      background-size: 200% 200%;
+      animation: vision-shimmer 6s linear infinite;
+      pointer-events: none;
+      z-index: 2;
+    }
+    @keyframes vision-shimmer {
+      0% { background-position: -100% -100%; }
+      100% { background-position: 200% 200%; }
+    }
+
+    /* Tech Accents */
+    .vision-corner {
+      position: absolute;
+      width: 30px; height: 30px;
+      border: 2px solid var(--cyan);
+      opacity: 0.5;
+      z-index: 3;
+    }
+    .vision-corner-tl { top: 20px; left: 20px; border-right: none; border-bottom: none; }
+    .vision-corner-tr { top: 20px; right: 20px; border-left: none; border-bottom: none; }
+    .vision-corner-bl { bottom: 20px; left: 20px; border-right: none; border-top: none; }
+    .vision-corner-br { bottom: 20px; right: 20px; border-left: none; border-top: none; }
+
+    /* Layout inside card */
+    .vision-inner {
+      display: flex;
+      gap: 60px;
+      transform: translateZ(40px); /* Lift content off the card */
+      transform-style: preserve-3d;
+    }
+    @media (max-width: 860px) {
+      .vision-inner { flex-direction: column; text-align: center; gap: 40px; }
+      .vision-card { padding: 40px 24px; }
+      .vision-avatar-wrap { margin: 0 auto; }
+    }
+
+    /* Avatar 3D Ring System */
+    .vision-avatar-wrap {
+      position: relative;
+      width: 180px; height: 180px;
+      flex-shrink: 0;
+      transform-style: preserve-3d;
+      transform: translateZ(60px);
+    }
+    .vision-avatar {
+      width: 100%; height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid var(--cyan);
+      box-shadow: 0 0 30px rgba(0, 240, 255, 0.3);
+      position: relative;
+      z-index: 5;
+    }
+    .vision-ring {
+      position: absolute;
+      inset: -20px;
+      border-radius: 50%;
+      border: 1px dashed var(--cyan);
+      opacity: 0.5;
+      animation: vision-spin-ring 20s linear infinite;
+    }
+    .vision-ring-2 {
+      position: absolute;
+      inset: -40px;
+      border-radius: 50%;
+      border: 1px solid rgba(0, 240, 255, 0.2);
+      border-left-color: var(--cyan);
+      border-right-color: var(--cyan);
+      animation: vision-spin-ring 12s linear infinite reverse;
+    }
+    .vision-ring-3 {
+      position: absolute;
+      inset: -60px;
+      border-radius: 50%;
+      border: 2px dotted rgba(0, 240, 255, 0.3);
+      animation: vision-spin-ring 30s linear infinite;
+      transform: translateZ(-20px);
+    }
+    @keyframes vision-spin-ring {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Text */
+    .vision-content {
+      flex: 1;
+      transform-style: preserve-3d;
+    }
+    .vision-name {
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(2.5rem, 5vw, 4.5rem);
+      font-weight: 900;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #fff;
+      text-shadow: 0 0 20px rgba(0, 240, 255, 0.5);
+      margin-bottom: 10px;
+      transform: translateZ(50px);
+    }
+    .vision-role {
+      font-size: 1.4rem;
+      font-weight: 600;
+      color: var(--cyan);
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      margin-bottom: 24px;
+      display: inline-block;
+      padding: 4px 16px;
+      background: rgba(0, 240, 255, 0.1);
+      border-left: 3px solid var(--cyan);
+      transform: translateZ(40px);
+    }
+    .vision-bio {
+      font-size: 1.1rem;
+      line-height: 1.7;
+      color: #A5B4FC;
+      max-width: 600px;
+      font-weight: 500;
+      transform: translateZ(30px);
+    }
+
+    /* Data Points */
+    .vision-data {
+      display: flex;
+      gap: 20px;
+      margin-top: 40px;
+      transform: translateZ(35px);
+      flex-wrap: wrap;
+    }
+    .vision-data-box {
+      background: rgba(0,0,0,0.4);
+      border: 1px solid rgba(0, 240, 255, 0.15);
+      padding: 16px 24px;
+      border-radius: 12px;
+      min-width: 120px;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s;
+    }
+    .vision-data-box:hover {
+      border-color: var(--cyan);
+      box-shadow: 0 0 20px rgba(0, 240, 255, 0.2);
+      transform: translateY(-5px);
+    }
+    .vision-data-box::before {
+      content: ""; position: absolute; top: 0; left: 0; width: 4px; height: 100%;
+      background: var(--cyan);
+    }
+    .vision-data-val {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    .vision-data-label {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--cyan);
+      opacity: 0.8;
+      margin-top: 4px;
+    }
+
+    /* Links Grid */
+    .vision-links {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 20px;
+      margin-top: 50px;
+      transform: translateZ(45px);
+    }
+    .vision-link {
+      background: linear-gradient(90deg, rgba(10,10,24,0.8), rgba(0,240,255,0.05));
+      border: 1px solid rgba(0, 240, 255, 0.2);
+      border-radius: 8px;
+      padding: 18px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #fff;
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 500;
+      letter-spacing: 1px;
+      text-decoration: none;
+      transition: all 0.3s;
+      position: relative;
+      overflow: hidden;
+    }
+    .vision-link::after {
+      content: ""; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(0, 240, 255, 0.2), transparent);
+      transition: left 0.5s ease;
+    }
+    .vision-link:hover::after {
+      left: 100%;
+    }
+    .vision-link:hover {
+      background: rgba(0, 240, 255, 0.15);
+      border-color: var(--cyan);
+      box-shadow: 0 0 20px rgba(0, 240, 255, 0.3);
+      transform: scale(1.02);
+    }
+    .vision-link-arrow {
+      color: var(--cyan);
+      font-size: 1.2rem;
+      transition: transform 0.3s;
+    }
+    .vision-link:hover .vision-link-arrow {
+      transform: translateX(5px);
+    }
+
+    /* Floating 3D Geometric shapes */
+    .vision-float-shape {
+      position: absolute;
+      transform-style: preserve-3d;
+      pointer-events: none;
+    }
+    .v-shape-1 {
+      top: -40px; right: -40px;
+      width: 100px; height: 100px;
+      border: 2px solid var(--cyan);
+      animation: vision-spin-3d 10s linear infinite;
+    }
+    .v-shape-2 {
+      bottom: -60px; left: -20px;
+      width: 80px; height: 80px;
+      border: 2px dashed rgba(0, 240, 255, 0.5);
+      border-radius: 50%;
+      animation: vision-spin-3d 15s linear infinite reverse;
+    }
+    @keyframes vision-spin-3d {
+      0% { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg); }
+      100% { transform: rotateX(360deg) rotateY(360deg) rotateZ(360deg); }
+    }
+
+    /* Scanning line */
+    .vision-scanline {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 4px;
+      background: var(--cyan);
+      box-shadow: 0 0 20px var(--cyan), 0 0 40px var(--cyan);
+      opacity: 0.4;
+      animation: vision-scan 8s ease-in-out infinite;
+      pointer-events: none;
+      z-index: 50;
+    }
+    @keyframes vision-scan {
+      0%, 100% { top: 0%; opacity: 0; }
+      10% { opacity: 0.5; }
+      50% { top: 100%; opacity: 0.5; }
+      90% { opacity: 0; }
+    }
+  \`;
+
   return (
-    <div className="min-h-screen w-full bg-[#020208] text-[#E0E7FF] p-8 md:p-16 relative overflow-hidden font-sans">
-      <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(0, 240, 255, 0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 240, 255, 0.2) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
-      <div className="relative z-10 max-w-4xl mx-auto border border-blue-900/50 bg-[#060618]/80 backdrop-blur rounded-[2rem] p-10 shadow-[0_0_40px_rgba(0,240,255,0.05)]">
-        <div className="flex flex-col md:flex-row gap-12 items-center text-center md:text-left">
-          <div className="relative">
-            <img src={profile.avatarUrl} alt={profile.name} className="w-32 h-32 rounded-2xl border border-blue-500/30 object-cover" />
-            <div className="absolute -inset-2 rounded-[1.2rem] border border-blue-500/20 shadow-[0_0_15px_rgba(0,240,255,0.3)] animate-pulse" />
-          </div>
-          <div className="flex-1 space-y-2">
-            <h1 className="text-4xl md:text-5xl font-semibold tracking-tight text-white">{profile.name}</h1>
-            <p className="text-xl" style={{ color: accent }}>{profile.headline}</p>
-            <p className="text-blue-200/60 max-w-lg pt-2">{profile.bio}</p>
-          </div>
-        </div>
+    <div 
+      className="vision-wrap" 
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      ref={containerRef}
+    >
+      <style dangerouslySetInnerHTML={{ __html: customStyles }} />
+      
+      <div className="vision-grid" />
+      <div 
+        className="vision-glow" 
+        style={{ transform: \`translate(\${mouse.x * 200}px, \${mouse.y * 200}px)\` }} 
+      />
+
+      <div 
+        className="vision-container"
+        style={{ 
+          transform: \`rotateY(\${mouse.x * 12}deg) rotateX(\${mouse.y * -12}deg)\` 
+        }}
+      >
+        <div className="vision-float-shape v-shape-1" />
+        <div className="vision-float-shape v-shape-2" />
         
-        <div className="mt-16 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {profile.links?.map((link: any, i: number) => (
-            <a key={i} href={link.url} className="group relative overflow-hidden rounded-xl border border-blue-900/40 bg-blue-950/20 p-5 hover:bg-blue-900/40 transition-all flex justify-between items-center">
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-              <span className="font-medium tracking-wide">{link.label}</span>
-              <span className="opacity-40 group-hover:opacity-100 group-hover:text-[#00F0FF]">→</span>
-            </a>
-          ))}
+        <div className="vision-card">
+          <div className="vision-scanline" />
+          <div className="vision-corner vision-corner-tl" />
+          <div className="vision-corner vision-corner-tr" />
+          <div className="vision-corner vision-corner-bl" />
+          <div className="vision-corner vision-corner-br" />
+
+          <div className="vision-inner">
+            {/* 3D Avatar */}
+            <div className="vision-avatar-wrap">
+              <div className="vision-ring" />
+              <div className="vision-ring-2" />
+              <div className="vision-ring-3" />
+              {profile.avatarUrl ? (
+                <img src={profile.avatarUrl} alt={profile.name} className="vision-avatar" />
+              ) : (
+                <div className="vision-avatar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '4rem', color: accent, background: 'rgba(0,240,255,0.1)', fontFamily: 'Orbitron' }}>
+                  {profile.name?.charAt(0) || 'V'}
+                </div>
+              )}
+            </div>
+
+            {/* Content */}
+            <div className="vision-content">
+              <h1 className="vision-name">{profile.name}</h1>
+              <div className="vision-role">{profile.headline}</div>
+              <p className="vision-bio">{profile.bio}</p>
+
+              {/* Dynamic Stats/Proofs */}
+              {profile.proofs && profile.proofs.length > 0 ? (
+                <div className="vision-data">
+                  {profile.proofs.slice(0, 3).map((proof: any, i: number) => (
+                    <div key={i} className="vision-data-box">
+                      <div className="vision-data-val">{proof.value}</div>
+                      <div className="vision-data-label">{proof.title || proof.type}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="vision-data">
+                  {profile.role && (
+                    <div className="vision-data-box">
+                      <div className="vision-data-val">ROLE</div>
+                      <div className="vision-data-label">{profile.role}</div>
+                    </div>
+                  )}
+                  {profile.company && (
+                    <div className="vision-data-box">
+                      <div className="vision-data-val">ORG</div>
+                      <div className="vision-data-label">{profile.company}</div>
+                    </div>
+                  )}
+                  {profile.location && (
+                    <div className="vision-data-box">
+                      <div className="vision-data-val">LOC</div>
+                      <div className="vision-data-label">{profile.location}</div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Links */}
+              {profile.links && profile.links.length > 0 && (
+                <div className="vision-links">
+                  {profile.links.map((link: any, i: number) => (
+                    <a key={i} href={link.url} target="_blank" rel="noreferrer" className="vision-link">
+                      <span>{link.label}</span>
+                      <span className="vision-link-arrow">↗</span>
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>
