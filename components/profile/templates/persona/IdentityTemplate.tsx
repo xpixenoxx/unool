@@ -1572,22 +1572,22 @@ function VisionTemplate({ profile }: any) {
   };
 
   const customStyles = `
-    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@400;500;600;700&display=swap');
 
     .vision-wrap {
-      --accent: #C92DE8;       /* Magenta */
-      --accent-rgb: 201, 45, 232;
-      --blue: #2714D9;         /* Navy Blue */
-      --blue-rgb: 39, 20, 217;
-      --bg: #F8EEFE;           /* Light Lilac */
+      --color1: #FF007A; /* Neon Pink */
+      --color1-rgb: 255, 0, 122;
+      --color2: #7928CA; /* Electric Purple */
+      --color2-rgb: 121, 40, 202;
+      --bg: #FAFAFC;
       
-      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-family: 'Rajdhani', sans-serif;
       background: var(--bg);
       
-      /* Ethereal fluid gradient mesh background */
+      /* Holographic mesh background */
       background-image: 
-        radial-gradient(circle at 10% 20%, rgba(var(--blue-rgb), 0.12) 0%, transparent 60%),
-        radial-gradient(circle at 90% 80%, rgba(var(--accent-rgb), 0.15) 0%, transparent 60%);
+        radial-gradient(circle at 10% 20%, rgba(var(--color1-rgb), 0.12) 0%, transparent 60%),
+        radial-gradient(circle at 90% 80%, rgba(var(--color2-rgb), 0.15) 0%, transparent 60%);
       color: #1a1a2e;
       min-height: 100vh;
       overflow: hidden;
@@ -1622,7 +1622,7 @@ function VisionTemplate({ profile }: any) {
       position: absolute;
       width: 700px; height: 700px;
       border-radius: 50%;
-      background: radial-gradient(circle, rgba(var(--accent-rgb), 0.35) 0%, rgba(var(--blue-rgb), 0.15) 50%, transparent 70%);
+      background: radial-gradient(circle, rgba(var(--color1-rgb), 0.35) 0%, rgba(var(--color2-rgb), 0.15) 50%, transparent 70%);
       opacity: 0.3;
       filter: blur(90px);
       z-index: 0;
@@ -1640,51 +1640,49 @@ function VisionTemplate({ profile }: any) {
       transition: transform 0.2s ease-out;
     }
 
-    /* Premium Soft UI / Claymorphism Card */
+    /* Holographic UI Card */
     .vision-card {
-      background: #FFFFFF;
-      border-radius: 40px;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0.1) 100%);
+      backdrop-filter: blur(24px) saturate(160%);
+      -webkit-backdrop-filter: blur(24px) saturate(160%);
+      border: 1px solid rgba(255, 255, 255, 0.6);
+      border-radius: 28px;
       padding: 60px;
       box-shadow: 
-        0 40px 80px -20px rgba(39, 20, 217, 0.15),
-        0 20px 40px -10px rgba(201, 45, 232, 0.1),
-        0 0 0 8px rgba(255, 255, 255, 0.5),
-        inset 0 6px 20px rgba(255, 255, 255, 1),
-        inset 0 -6px 20px rgba(39, 20, 217, 0.03);
+        0 30px 60px rgba(0, 0, 0, 0.03),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.8),
+        inset 0 0 20px rgba(255, 255, 255, 0.5);
       transform-style: preserve-3d;
       position: relative;
       overflow: hidden;
     }
 
-    /* Internal Aurora Glows */
+    /* Iridescent Foil Shimmer Effect */
     .vision-card::before {
-      content: ""; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
-      background: 
-        radial-gradient(circle at 80% 20%, rgba(201, 45, 232, 0.06) 0%, transparent 40%),
-        radial-gradient(circle at 20% 80%, rgba(39, 20, 217, 0.05) 0%, transparent 40%);
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    /* Subtle Animated Shimmer */
-    .vision-card::after {
       content: ""; position: absolute; inset: 0;
-      background: linear-gradient(105deg, transparent 20%, rgba(255,255,255,0.7) 50%, transparent 80%);
-      background-size: 200% 200%;
-      animation: vision-shimmer 8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+      background: linear-gradient(115deg, 
+        transparent 20%, 
+        rgba(var(--color1-rgb), 0.15) 30%, 
+        rgba(255, 255, 255, 0.6) 40%, 
+        rgba(var(--color2-rgb), 0.15) 50%, 
+        transparent 60%
+      );
+      background-size: 300% 300%;
+      animation: holo-shimmer 7s ease-in-out infinite alternate;
       pointer-events: none;
       z-index: 2;
+      mix-blend-mode: color-dodge;
     }
-    @keyframes vision-shimmer {
-      0% { background-position: -100% -100%; }
-      50%, 100% { background-position: 200% 200%; }
+    @keyframes holo-shimmer {
+      0% { background-position: 100% 100%; }
+      100% { background-position: 0% 0%; }
     }
 
     /* Tech Accents - Softened to small dots */
     .vision-corner {
       position: absolute;
       width: 8px; height: 8px;
-      background: var(--blue);
+      background: var(--color1);
       border-radius: 50%;
       opacity: 0.3;
       z-index: 3;
@@ -1723,8 +1721,8 @@ function VisionTemplate({ profile }: any) {
       object-fit: cover;
       border: 4px solid #fff;
       box-shadow: 
-        0 15px 35px rgba(201, 45, 232, 0.2),
-        inset 0 0 0 2px rgba(39, 20, 217, 0.1);
+        0 15px 35px rgba(var(--color1-rgb), 0.2),
+        inset 0 0 0 2px rgba(var(--color2-rgb), 0.1);
       position: relative;
       z-index: 5;
     }
@@ -1732,7 +1730,7 @@ function VisionTemplate({ profile }: any) {
       position: absolute;
       inset: -15px;
       border-radius: 50%;
-      background: conic-gradient(from 0deg, transparent, rgba(201, 45, 232, 0.25), transparent);
+      background: conic-gradient(from 0deg, transparent, rgba(var(--color1-rgb), 0.25), transparent);
       animation: vision-spin-ring 8s linear infinite;
       z-index: -1;
       filter: blur(4px);
@@ -1741,7 +1739,7 @@ function VisionTemplate({ profile }: any) {
       position: absolute;
       inset: -30px;
       border-radius: 50%;
-      background: conic-gradient(from 180deg, transparent, rgba(39, 20, 217, 0.2), transparent);
+      background: conic-gradient(from 180deg, transparent, rgba(var(--color2-rgb), 0.2), transparent);
       animation: vision-spin-ring 12s linear infinite reverse;
       z-index: -2;
       filter: blur(6px);
@@ -1757,12 +1755,12 @@ function VisionTemplate({ profile }: any) {
       transform-style: preserve-3d;
     }
     .vision-name {
-      font-family: 'Outfit', sans-serif;
+      font-family: 'Orbitron', sans-serif;
       font-size: clamp(2.5rem, 5vw, 4.8rem);
       font-weight: 900;
       letter-spacing: -1px;
       text-transform: uppercase;
-      background: linear-gradient(135deg, var(--blue), var(--accent));
+      background: linear-gradient(135deg, var(--color2), var(--color1));
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       margin-bottom: 12px;
@@ -1770,20 +1768,20 @@ function VisionTemplate({ profile }: any) {
       line-height: 1.1;
     }
     .vision-role {
-      font-family: 'Outfit', sans-serif;
+      font-family: 'Orbitron', sans-serif;
       font-size: 1.2rem;
       font-weight: 700;
-      color: var(--blue);
+      color: var(--color2);
       letter-spacing: 2px;
       text-transform: uppercase;
       margin-bottom: 24px;
       display: inline-block;
       padding: 8px 24px;
-      background: #FFFFFF;
+      background: rgba(255,255,255,0.4);
+      backdrop-filter: blur(4px);
       border-radius: 30px;
-      box-shadow: 
-        0 8px 20px -5px rgba(39, 20, 217, 0.1),
-        inset 0 4px 10px rgba(255, 255, 255, 1);
+      border: 1px solid rgba(255,255,255,0.6);
+      box-shadow: 0 8px 20px -5px rgba(var(--color2-rgb), 0.1);
       transform: translateZ(40px);
     }
     .vision-bio {
@@ -1804,27 +1802,30 @@ function VisionTemplate({ profile }: any) {
       flex-wrap: wrap;
     }
     .vision-data-box {
-      background: #FFFFFF;
-      padding: 20px 32px;
-      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.4);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.8);
+      padding: 16px 24px;
+      border-radius: 12px;
       min-width: 140px;
       position: relative;
       transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
       box-shadow: 
-        0 10px 25px -5px rgba(39, 20, 217, 0.06),
+        0 10px 25px -5px rgba(var(--color2-rgb), 0.05),
         inset 0 4px 10px rgba(255, 255, 255, 1);
     }
     .vision-data-box:hover {
       box-shadow: 
-        0 20px 40px -10px rgba(201, 45, 232, 0.15),
+        0 20px 40px -10px rgba(var(--color1-rgb), 0.15),
         inset 0 4px 10px rgba(255, 255, 255, 1);
       transform: translateY(-8px) scale(1.02);
+      border-color: rgba(var(--color1-rgb), 0.4);
     }
     .vision-data-val {
-      font-family: 'Outfit', sans-serif;
+      font-family: 'Orbitron', sans-serif;
       font-size: 1.8rem;
       font-weight: 800;
-      background: linear-gradient(135deg, var(--blue), var(--accent));
+      background: linear-gradient(135deg, var(--color2), var(--color1));
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
@@ -1832,7 +1833,7 @@ function VisionTemplate({ profile }: any) {
       font-size: 0.75rem;
       text-transform: uppercase;
       letter-spacing: 1.5px;
-      color: var(--accent);
+      color: var(--color1);
       opacity: 0.9;
       margin-top: 6px;
       font-weight: 700;
@@ -1848,14 +1849,16 @@ function VisionTemplate({ profile }: any) {
       transform: translateZ(45px);
     }
     .vision-link {
-      background: #FFFFFF;
-      border-radius: 20px;
-      padding: 20px 28px;
+      background: linear-gradient(90deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.2));
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.8);
+      border-radius: 12px;
+      padding: 18px 24px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      color: var(--blue);
-      font-family: 'Outfit', sans-serif;
+      color: #1a1a2e;
+      font-family: 'Orbitron', sans-serif;
       font-weight: 700;
       letter-spacing: 0.5px;
       text-decoration: none;
@@ -1863,21 +1866,29 @@ function VisionTemplate({ profile }: any) {
       position: relative;
       overflow: hidden;
       box-shadow: 
-        0 8px 20px -4px rgba(39, 20, 217, 0.05),
+        0 8px 20px -4px rgba(var(--color2-rgb), 0.05),
         inset 0 3px 8px rgba(255, 255, 255, 1);
     }
     .vision-link:hover {
-      background: linear-gradient(135deg, #FFFFFF, #F8EEFE);
+      background: linear-gradient(135deg, rgba(255,255,255,0.8), rgba(255,255,255,0.4));
       transform: translateY(-5px);
       box-shadow: 
-        0 15px 30px -8px rgba(201, 45, 232, 0.2),
+        0 15px 30px -8px rgba(var(--color1-rgb), 0.2),
         inset 0 3px 8px rgba(255, 255, 255, 1);
-      color: var(--accent);
+      color: var(--color2);
+      border-color: rgba(var(--color2-rgb), 0.5);
     }
-    .vision-link::after { display: none; } /* Removed old shimmer */
-    
+    .vision-link::after {
+      content: ""; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent);
+      transition: left 0.6s ease;
+      mix-blend-mode: overlay;
+    }
+    .vision-link:hover::after {
+      left: 100%;
+    }
     .vision-link-arrow {
-      color: var(--accent);
+      color: var(--color1);
       font-size: 1.4rem;
       transition: transform 0.3s;
     }
@@ -1885,31 +1896,34 @@ function VisionTemplate({ profile }: any) {
       transform: translateX(5px) scale(1.1);
     }
 
-    /* Floating 3D Geometric shapes - Softened */
+    /* Floating Holographic Geometric shapes */
     .vision-float-shape {
       position: absolute;
       transform-style: preserve-3d;
       pointer-events: none;
       border-radius: 50%;
-      background: linear-gradient(135deg, rgba(201,45,232,0.1), rgba(39,20,217,0.1));
+      background: linear-gradient(135deg, rgba(var(--color1-rgb),0.15), rgba(var(--color2-rgb),0.15));
       box-shadow: 
-        0 10px 30px rgba(201,45,232,0.1),
+        0 10px 30px rgba(var(--color1-rgb),0.1),
         inset 0 5px 15px rgba(255,255,255,1);
-      backdrop-filter: blur(10px);
+      backdrop-filter: blur(10px) saturate(150%);
     }
     .v-shape-1 {
       top: -40px; right: -20px;
       width: 100px; height: 100px;
+      border: 2px solid rgba(var(--color1-rgb), 0.4);
+      border-radius: 20px;
       animation: vision-spin-3d 15s ease-in-out infinite alternate;
     }
     .v-shape-2 {
       bottom: -40px; left: -20px;
       width: 80px; height: 80px;
+      border: 2px dashed rgba(var(--color2-rgb), 0.5);
       animation: vision-spin-3d 20s ease-in-out infinite alternate-reverse;
     }
     @keyframes vision-spin-3d {
-      0% { transform: translateY(0) scale(1); }
-      100% { transform: translateY(-20px) scale(1.05); }
+      0% { transform: translateY(0) scale(1) rotate(0deg); }
+      100% { transform: translateY(-20px) scale(1.05) rotate(30deg); }
     }
 
     /* Scanning line */
