@@ -160,54 +160,129 @@ export class ThreadsAdapter implements PlatformAdapter {
 
   async publish(accessToken: string, input: PublishInput): Promise<PublishResult> {
     return platformFetch('threads', async () => {
-      let mediaType = 'TEXT';
-      let isVideo = false;
-      const mediaUrl = input.mediaUrls?.[0];
+      let creationId: string;
 
-      if (mediaUrl) {
-        isVideo = /\.(mp4|mov|webm|avi|mkv)(?:\?.*)?$/i.test(mediaUrl);
-        mediaType = isVideo ? 'VIDEO' : 'IMAGE';
-      }
+      if (input.mediaUrls && input.mediaUrls.length > 1) {
+        // Carousel logic
+        const childrenIds: string[] = [];
 
-      const containerParams = new URLSearchParams({
-        media_type: mediaType,
-        access_token: accessToken,
-      });
+        for (const url of input.mediaUrls) {
+          const isVideo = /\.(mp4|mov|webm|avi|mkv)(?:\?.*)?$/i.test(url);
+          const childParams = new URLSearchParams({
+            media_type: isVideo ? 'VIDEO' : 'IMAGE',
+            is_carousel_item: 'true',
+            access_token: accessToken,
+          });
+          
+          if (isVideo) {
+            childParams.set('video_url', url);
+          } else {
+            childParams.set('image_url', url);
+          }
 
-      if (input.content) {
-        containerParams.set('text', input.content);
-      }
+          const childResponse = await fetchWithRetry(`${THREADS_API_BASE}/me/threads`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: childParams.toString(),
+          });
 
-      if (mediaUrl) {
-        if (isVideo) {
-          containerParams.set('video_url', mediaUrl);
-        } else {
-          containerParams.set('image_url', mediaUrl);
+          if (!childResponse.ok) {
+            const error = await childResponse.text();
+            logger.error('Threads carousel child creation failed', { errorMessage: error, status: childResponse.status });
+            throw new Error(`Carousel child creation failed: ${error}`);
+          }
+
+          const childData = await childResponse.json();
+          childrenIds.push(childData.id);
         }
+
+        // Wait for all children to be ready
+        for (const id of childrenIds) {
+          await this.waitForContainerReady(accessToken, id);
+        }
+
+        const carouselParams = new URLSearchParams({
+          media_type: 'CAROUSEL',
+          children: childrenIds.join(','),
+          access_token: accessToken,
+        });
+
+        if (input.content) {
+          carouselParams.set('text', input.content);
+        }
+
+        if (input.firstComment) {
+          carouselParams.set('reply_control', 'ALL');
+        }
+
+        const carouselResponse = await fetchWithRetry(`${THREADS_API_BASE}/me/threads`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: carouselParams.toString(),
+        });
+
+        if (!carouselResponse.ok) {
+          const error = await carouselResponse.text();
+          logger.error('Threads carousel container creation failed', { errorMessage: error, status: carouselResponse.status });
+          throw new Error(`Carousel container creation failed: ${error}`);
+        }
+
+        const carouselData = await carouselResponse.json();
+        creationId = carouselData.id;
+
+        // Wait for carousel container
+        await this.waitForContainerReady(accessToken, creationId);
+
+      } else {
+        // Single media or text only logic
+        let mediaType = 'TEXT';
+        let isVideo = false;
+        const mediaUrl = input.mediaUrls?.[0];
+
+        if (mediaUrl) {
+          isVideo = /\.(mp4|mov|webm|avi|mkv)(?:\?.*)?$/i.test(mediaUrl);
+          mediaType = isVideo ? 'VIDEO' : 'IMAGE';
+        }
+
+        const containerParams = new URLSearchParams({
+          media_type: mediaType,
+          access_token: accessToken,
+        });
+
+        if (input.content) {
+          containerParams.set('text', input.content);
+        }
+
+        if (mediaUrl) {
+          if (isVideo) {
+            containerParams.set('video_url', mediaUrl);
+          } else {
+            containerParams.set('image_url', mediaUrl);
+          }
+        }
+
+        if (input.firstComment) {
+          containerParams.set('reply_control', 'ALL');
+        }
+
+        const containerResponse = await fetchWithRetry(`${THREADS_API_BASE}/me/threads`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: containerParams.toString(),
+        });
+
+        if (!containerResponse.ok) {
+          const error = await containerResponse.text();
+          logger.error('Threads container creation failed', { errorMessage: error, status: containerResponse.status });
+          throw new Error(`Container creation failed: ${error}`);
+        }
+
+        const containerData = await containerResponse.json();
+        creationId = containerData.id;
+
+        // Wait for container to be ready (poll)
+        await this.waitForContainerReady(accessToken, creationId);
       }
-
-      // Add reply control if first comment is provided
-      if (input.firstComment) {
-        containerParams.set('reply_control', 'ALL');
-      }
-
-      const containerResponse = await fetchWithRetry(`${THREADS_API_BASE}/me/threads`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: containerParams.toString(),
-      });
-
-      if (!containerResponse.ok) {
-        const error = await containerResponse.text();
-        logger.error('Threads container creation failed', { errorMessage: error, status: containerResponse.status });
-        throw new Error(`Container creation failed: ${error}`);
-      }
-
-      const containerData = await containerResponse.json();
-      const creationId = containerData.id;
-
-      // Wait for container to be ready (poll)
-      await this.waitForContainerReady(accessToken, creationId);
 
       const publishParams = new URLSearchParams({
         creation_id: creationId,
