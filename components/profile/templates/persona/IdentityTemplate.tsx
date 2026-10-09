@@ -4300,15 +4300,16 @@ function VoiceTemplate({ profile }: any) {
     }
 
     .voice-template .paper-card {
-      background-color: #F1F5F2;
+      background: linear-gradient(135deg, #E2EAE5 0%, #D0DDD5 100%);
       border-radius: 24px;
       transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
       box-shadow: 
         10px 10px 30px rgba(168, 184, 157, 0.3), 
-        -10px -10px 30px rgba(255, 255, 255, 1);
+        -10px -10px 30px rgba(255, 255, 255, 0.8),
+        inset 1px 1px 3px rgba(255, 255, 255, 0.6);
       position: relative;
       overflow: hidden;
-      border: none;
+      border: 1px solid rgba(255, 255, 255, 0.4);
     }
     .voice-template .paper-card:hover {
       box-shadow: 
@@ -4359,7 +4360,7 @@ function VoiceTemplate({ profile }: any) {
       <style>{customStyles}</style>
 
       {/* Main Card Wrapper */}
-      <div className="w-full max-w-[1200px] bg-[#D9E4DD] rounded-[32px] md:rounded-[48px] shadow-2xl relative overflow-hidden flex justify-center py-10 md:py-16 px-6 md:px-12 lg:px-16 border border-[#8DA396]/20">
+      <div className="w-full max-w-[1200px] bg-gradient-to-br from-white via-[#F8FAF9] to-[#ECF1EE] rounded-[32px] md:rounded-[48px] shadow-2xl relative overflow-hidden flex justify-center py-10 md:py-16 px-6 md:px-12 lg:px-16 border border-white/60">
         
         {/* Main Content Container */}
         <div className="w-full max-w-[960px] mx-auto relative z-10">
@@ -4509,12 +4510,12 @@ function VoiceTemplate({ profile }: any) {
                 {links.map((link: any, i: number) => (
                   <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="paper-card px-6 py-4 md:px-8 md:py-6 flex items-center justify-between group">
                     <div className="flex items-center gap-4 md:gap-6 z-10 relative">
-                      <div className="w-12 h-12 rounded-full bg-[#E4ECE7] text-[#DF5B4C] flex items-center justify-center group-hover:bg-[#DF5B4C] group-hover:text-white transition-colors shrink-0 shadow-inner">
+                      <div className="w-12 h-12 rounded-full bg-[#C6D4CB] text-[#DF5B4C] flex items-center justify-center group-hover:bg-[#DF5B4C] group-hover:text-white transition-colors shrink-0 shadow-inner">
                           {getSocialIcon(link.url, link.label)}
                       </div>
                       <div>
                         <h3 className="font-bold text-[#1C2B21] text-base md:text-lg group-hover:text-[#DF5B4C] transition-colors">{link.label}</h3>
-                        <p className="text-sm text-[#8DA396] mt-0.5 truncate max-w-[150px] sm:max-w-[300px] md:max-w-[400px]">
+                        <p className="text-sm text-[#5C7464] mt-0.5 truncate max-w-[150px] sm:max-w-[300px] md:max-w-[400px]">
                           {link.url.replace(/^https?:\/\/(www\.)?/, '')}
                         </p>
                       </div>
