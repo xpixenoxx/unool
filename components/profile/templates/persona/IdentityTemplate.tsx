@@ -3510,7 +3510,7 @@ function HustlerTemplate({ profile }: any) {
                <div className="absolute inset-0 bg-[#EAE8E3] opacity-0 group-hover:opacity-10 transition-opacity duration-500"></div>
                <div className="w-[200px] h-[200px] md:w-[280px] md:h-[280px] border-4 border-[#EAE8E3] bg-[#292724] shadow-[8px_8px_0px_0px_#EAE8E3] transform group-hover:-translate-y-2 group-hover:shadow-[12px_12px_0px_0px_#EAE8E3] transition-all duration-300">
                   {profile?.avatarUrl ? (
-                     <img src={profile.avatarUrl} className="w-full h-full object-cover filter grayscale contrast-125 mix-blend-luminosity" alt={name} />
+                     <img src={profile.avatarUrl} className="w-full h-full object-cover" alt={name} />
                   ) : (
                      <div className="w-full h-full flex items-center justify-center font-serif text-8xl text-[#EAE8E3]">{name?.[0] || 'H'}</div>
                   )}
