@@ -4356,7 +4356,7 @@ function VoiceTemplate({ profile }: any) {
   };
 
   return (
-    <div className="voice-template w-full min-h-screen bg-[#EBF0EC] p-6 md:p-8 lg:p-12 flex justify-center">
+    <div className="voice-template w-full min-h-screen bg-white p-6 md:p-8 lg:p-12 flex justify-center">
       <style>{customStyles}</style>
 
       {/* Main Card Wrapper */}
