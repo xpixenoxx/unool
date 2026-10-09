@@ -2756,8 +2756,8 @@ function BuilderTemplate({ profile }: any) {
     @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Outfit:wght@300;400;500;600;700&display=swap');
     
     .builder-theme {
-      background-color: #E8E0D5;
-      color: #292226;
+      background-color: #F0F4F8;
+      color: #0F172A;
       font-family: 'Outfit', sans-serif;
     }
     
@@ -2766,23 +2766,23 @@ function BuilderTemplate({ profile }: any) {
     }
 
     .builder-container {
-      background-color: #F3EEE6;
-      box-shadow: 0 20px 40px rgba(52, 38, 50, 0.08);
+      background-color: #FFFFFF;
+      box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
     }
       
     .builder-blueprint-grid {
       background-image: 
-        linear-gradient(rgba(135, 149, 138, 0.15) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(135, 149, 138, 0.15) 1px, transparent 1px);
+        linear-gradient(rgba(100, 116, 139, 0.15) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(100, 116, 139, 0.15) 1px, transparent 1px);
       background-size: 24px 24px;
     }
 
     .builder-module-shadow {
-      box-shadow: 4px 4px 0px rgba(52, 38, 50, 1);
+      box-shadow: 4px 4px 0px rgba(15, 23, 42, 1);
       transition: all 0.2s ease;
     }
     .builder-module-shadow:hover {
-      box-shadow: 2px 2px 0px rgba(52, 38, 50, 1);
+      box-shadow: 2px 2px 0px rgba(15, 23, 42, 1);
       transform: translate(2px, 2px);
     }
   `;
@@ -2792,15 +2792,15 @@ function BuilderTemplate({ profile }: any) {
       <style>{customStyles}</style>
 
       {/* Outer Canvas Container */}
-      <div className="builder-container w-full max-w-[1200px] rounded-[32px] md:rounded-[40px] border border-[#292226]/10 overflow-hidden flex flex-col relative pb-20">
+      <div className="builder-container w-full max-w-[1200px] rounded-[32px] md:rounded-[40px] border border-[#0F172A]/10 overflow-hidden flex flex-col relative pb-20">
         
         {/* HEADER */}
-        <header className="px-6 md:px-12 py-8 flex justify-between items-center border-b border-[#292226]/10">
+        <header className="px-6 md:px-12 py-8 flex justify-between items-center border-b border-[#0F172A]/10">
           <div className="flex items-center gap-3">
-             <div className="w-5 h-5 bg-[#342632] flex items-center justify-center">
-                <div className="w-1.5 h-1.5 bg-[#C5A86A]" />
+             <div className="w-5 h-5 bg-[#1E293B] flex items-center justify-center">
+                <div className="w-1.5 h-1.5 bg-[#3B82F6]" />
              </div>
-             <span className="text-xs uppercase tracking-[0.2em] font-bold text-[#342632]">BUILDER // {name ? name.split(' ')[0] : 'ID'}</span>
+             <span className="text-xs uppercase tracking-[0.2em] font-bold text-[#1E293B]">BUILDER // {name ? name.split(' ')[0] : 'ID'}</span>
           </div>
         </header>
 
@@ -2808,58 +2808,49 @@ function BuilderTemplate({ profile }: any) {
           {/* HERO WITHOUT HEADLINE QUOTE */}
           <section className="mb-16 relative">
              {/* BUILDER IDENTITY MODULE */}
-             <div className="w-full bg-[#342632] text-[#F3EEE6] p-8 md:p-12 relative overflow-hidden flex flex-col md:flex-row gap-8 md:gap-16 group builder-module-shadow border border-[#292226]">
+             <div className="w-full bg-[#1E293B] text-[#F8FAFC] p-8 md:p-12 relative overflow-hidden flex flex-col md:flex-row gap-8 md:gap-16 group builder-module-shadow border border-[#0F172A]">
                 <div className="absolute inset-0 builder-blueprint-grid opacity-30" />
                 
                 {/* Visual Column */}
                 <div className="w-full md:w-[35%] relative min-h-[220px] md:min-h-full flex items-center justify-center shrink-0 border-b md:border-b-0 md:border-r border-white/10 pb-8 md:pb-0 md:pr-8">
-                   <div className="relative w-32 h-32 md:w-48 md:h-48 transition-all duration-700">
-                     <div className="absolute inset-0 flex items-center justify-center animate-pulse">
-                       <div className="w-24 h-24 border-2 border-[#C5A86A] rotate-45 flex items-center justify-center">
-                         <div className="w-8 h-8 bg-[#A85C4A]" />
-                       </div>
-                     </div>
-                   </div>
-                   <div className="absolute top-0 left-0 text-[8px] text-white/40 tracking-widest">+Y.AXIS</div>
-                   <div className="absolute bottom-0 right-0 text-[8px] text-white/40 tracking-widest">+X.AXIS</div>
+                   {profile?.avatarUrl ? (
+                     <img src={profile.avatarUrl} alt={name} className="w-48 h-48 md:w-56 md:h-56 object-cover rounded-sm border-2 border-[#3B82F6] z-10 relative" />
+                   ) : (
+                     <div className="w-48 h-48 md:w-56 md:h-56 bg-[#0F172A] border-2 border-[#3B82F6] flex items-center justify-center text-xs font-bold text-[#3B82F6] z-10 relative">ID</div>
+                   )}
                 </div>
 
                 {/* Content Column */}
                 <div className="flex-1 relative z-10 flex flex-col justify-center">
-                   <div className="text-[#C5A86A] text-[9px] uppercase tracking-[0.2em] mb-5 flex items-center gap-3 font-bold">
+                   <div className="text-[#3B82F6] text-[9px] uppercase tracking-[0.2em] mb-5 flex items-center gap-3 font-bold">
                       <div className="w-2 h-2 bg-current rounded-full animate-ping" />
                       SYSTEM ONLINE
                    </div>
                    
                    <div className="flex items-center gap-5 mb-6">
-                     {profile?.avatarUrl ? (
-                       <img src={profile.avatarUrl} alt={name} className="w-24 h-24 md:w-32 md:h-32 rounded-sm border border-[#C5A86A] object-cover grayscale mix-blend-screen" />
-                     ) : (
-                       <div className="w-24 h-24 md:w-32 md:h-32 bg-[#342632] border border-[#C5A86A] flex items-center justify-center text-xs font-bold text-[#C5A86A]">ID</div>
-                     )}
                      <h2 className="builder-serif text-4xl md:text-5xl">{name || "[ BUILDER ]"}</h2>
                    </div>
                    
-                   <div className="text-[12px] font-bold text-[#C5A86A] mb-3 uppercase tracking-widest">{role}</div>
-                   <p className="text-lg text-[#F3EEE6]/80 max-w-sm mb-8 leading-relaxed font-medium">{bio}</p>
+                   <div className="text-[12px] font-bold text-[#3B82F6] mb-3 uppercase tracking-widest">{role}</div>
+                   <p className="text-lg text-[#F8FAFC]/80 max-w-sm mb-8 leading-relaxed font-medium">{bio}</p>
                 </div>
              </div>
           </section>
 
           {/* INTRODUCTION ROWS */}
           <section className="mb-24 flex flex-col text-sm font-bold uppercase tracking-widest">
-             <div className="flex flex-col md:flex-row md:items-center py-5 border-b border-[#292226]/10 gap-3 md:gap-12 group">
-                <span className="text-[#87958A] w-32 shrink-0 group-hover:text-[#A85C4A] transition-colors">POSITION</span>
-                <span className="text-[#342632]">{role}</span>
+             <div className="flex flex-col md:flex-row md:items-center py-5 border-b border-[#0F172A]/10 gap-3 md:gap-12 group">
+                <span className="text-[#64748B] w-32 shrink-0 group-hover:text-[#F97316] transition-colors">POSITION</span>
+                <span className="text-[#1E293B]">{role}</span>
              </div>
              {links.length > 0 && (
-               <div className="flex flex-col md:flex-row py-5 border-b border-[#292226]/10 gap-3 md:gap-12 group">
-                  <span className="text-[#87958A] w-32 shrink-0 group-hover:text-[#A85C4A] transition-colors pt-1">NETWORK</span>
+               <div className="flex flex-col md:flex-row py-5 border-b border-[#0F172A]/10 gap-3 md:gap-12 group">
+                  <span className="text-[#64748B] w-32 shrink-0 group-hover:text-[#F97316] transition-colors pt-1">NETWORK</span>
                   <div className="flex gap-4 flex-wrap">
                      {links.map((link: any, i: number) => {
                         const icon = getAestheteSocialIcon(link.label || link.title);
                         return (
-                          <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-[#342632] border border-[#292226]/30 px-4 py-2 hover:border-[#A85C4A] hover:text-[#A85C4A] transition-colors text-[#F3EEE6]">
+                          <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-[#1E293B] border border-[#0F172A]/30 px-4 py-2 hover:border-[#F97316] hover:text-[#F97316] transition-colors text-[#F8FAFC]">
                              <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">{icon}</svg>
                              <span>{link.label}</span>
                           </a>
@@ -2873,12 +2864,12 @@ function BuilderTemplate({ profile }: any) {
           {/* METRICS */}
           {metrics && metrics.length > 0 && (
              <section className="mb-24">
-                <h3 className="text-[10px] uppercase tracking-[0.2em] text-[#87958A] mb-8 font-bold border-l-2 border-[#A85C4A] pl-3">SYSTEM DIAGNOSTICS</h3>
+                <h3 className="text-[10px] uppercase tracking-[0.2em] text-[#64748B] mb-8 font-bold border-l-2 border-[#F97316] pl-3">SYSTEM DIAGNOSTICS</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                    {metrics.map((m: any, i: number) => (
-                      <div key={i} className="bg-[#342632] border border-[#292226]/20 p-6 flex flex-col justify-center items-center text-center hover:border-[#A85C4A] transition-colors group">
-                         <div className="builder-serif text-5xl md:text-6xl text-[#F3EEE6] mb-2 group-hover:text-[#A85C4A] transition-colors">{m.value}</div>
-                         <div className="text-[10px] font-bold tracking-[0.2em] uppercase text-[#C5A86A]">{m.label || m.title || m.name}</div>
+                      <div key={i} className="bg-[#1E293B] border border-[#0F172A]/20 p-6 flex flex-col justify-center items-center text-center hover:border-[#F97316] transition-colors group">
+                         <div className="builder-serif text-5xl md:text-6xl text-[#F8FAFC] mb-2 group-hover:text-[#F97316] transition-colors">{m.value}</div>
+                         <div className="text-[10px] font-bold tracking-[0.2em] uppercase text-[#3B82F6]">{m.label || m.title || m.name}</div>
                       </div>
                    ))}
                 </div>
@@ -2888,18 +2879,18 @@ function BuilderTemplate({ profile }: any) {
           {/* PROOF POINTS */}
           {proofs && proofs.length > 0 && (
              <section className="mb-24">
-                <h3 className="text-[10px] uppercase tracking-[0.2em] text-[#87958A] mb-8 font-bold border-l-2 border-[#A85C4A] pl-3">SYSTEM CREDENTIALS</h3>
+                <h3 className="text-[10px] uppercase tracking-[0.2em] text-[#64748B] mb-8 font-bold border-l-2 border-[#F97316] pl-3">SYSTEM CREDENTIALS</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                    {proofs.filter((p: any) => p.type || p.title || p.label).map((p: any, i: number) => (
-                      <div key={i} className="bg-[#E8E0D5] border-2 border-[#292226]/40 p-6 flex flex-col justify-center hover:border-[#A85C4A] transition-colors group relative overflow-hidden builder-module-shadow">
+                      <div key={i} className="bg-[#F0F4F8] border-2 border-[#0F172A]/40 p-6 flex flex-col justify-center hover:border-[#F97316] transition-colors group relative overflow-hidden builder-module-shadow">
                          <div className="absolute inset-0 builder-blueprint-grid opacity-10 pointer-events-none" />
-                         <div className="absolute left-0 top-0 bottom-0 w-2 bg-[#292226]/10 group-hover:bg-[#A85C4A] transition-colors" />
+                         <div className="absolute left-0 top-0 bottom-0 w-2 bg-[#0F172A]/10 group-hover:bg-[#F97316] transition-colors" />
                          <div className="flex items-baseline gap-4 mb-2 pl-4">
-                           <div className="text-[12px] font-bold tracking-[0.2em] uppercase text-[#342632] relative z-10">{p.type || p.title || p.label}</div>
-                           <div className="builder-serif text-3xl md:text-4xl text-[#A85C4A] relative z-10">{p.value}</div>
+                           <div className="text-[12px] font-bold tracking-[0.2em] uppercase text-[#1E293B] relative z-10">{p.type || p.title || p.label}</div>
+                           <div className="builder-serif text-3xl md:text-4xl text-[#F97316] relative z-10">{p.value}</div>
                          </div>
                          {p.url && (
-                           <a href={p.url} target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold uppercase tracking-widest text-[#87958A] hover:text-[#A85C4A] border-b border-[#87958A] hover:border-[#A85C4A] w-max mt-4 pl-4 pb-0.5 relative z-10">
+                           <a href={p.url} target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold uppercase tracking-widest text-[#64748B] hover:text-[#F97316] border-b border-[#64748B] hover:border-[#F97316] w-max mt-4 pl-4 pb-0.5 relative z-10">
                              VERIFY PROOF ↗
                            </a>
                          )}
@@ -2910,14 +2901,14 @@ function BuilderTemplate({ profile }: any) {
           )}
 
           {/* CONTACT CTA */}
-          <section className="mt-32 mb-16 bg-[#A85C4A] text-[#F3EEE6] p-8 md:p-16 flex flex-col items-center text-center relative overflow-hidden border border-[#292226] builder-module-shadow">
+          <section className="mt-32 mb-16 bg-[#F97316] text-[#FFFFFF] p-8 md:p-16 flex flex-col items-center text-center relative overflow-hidden border border-[#0F172A] builder-module-shadow">
              <div className="absolute inset-0 builder-blueprint-grid opacity-20 pointer-events-none" />
-             <h2 className="builder-serif text-5xl md:text-6xl mb-6 max-w-2xl leading-[1.05] relative z-10 text-[#F3EEE6]">Ready to initialize?</h2>
-             <p className="text-xs text-[#F3EEE6]/80 mb-10 max-w-md uppercase tracking-widest font-bold relative z-10">
+             <h2 className="builder-serif text-5xl md:text-6xl mb-6 max-w-2xl leading-[1.05] relative z-10 text-[#FFFFFF]">Ready to initialize?</h2>
+             <p className="text-xs text-[#FFFFFF]/90 mb-10 max-w-md uppercase tracking-widest font-bold relative z-10">
                Begin sequence transfer.
              </p>
-             <a href={email ? `mailto:${email}` : '#contact'} className="bg-[#342632] text-[#C5A86A] px-8 py-4 text-[12px] uppercase tracking-[0.2em] font-bold flex items-center gap-4 hover:bg-[#292226] transition-colors relative z-10 shadow-[4px_4px_0px_rgba(41,34,38,1)] border border-[#292226]">
-                ESTABLISH CONNECTION <span className="text-[#F3EEE6]">↗</span>
+             <a href={email ? `mailto:${email}` : '#contact'} className="bg-[#1E293B] text-[#3B82F6] px-8 py-4 text-[12px] uppercase tracking-[0.2em] font-bold flex items-center gap-4 hover:bg-[#0F172A] transition-colors relative z-10 shadow-[4px_4px_0px_rgba(15,23,42,1)] border border-[#0F172A]">
+                ESTABLISH CONNECTION <span className="text-[#FFFFFF]">↗</span>
              </a>
           </section>
           
