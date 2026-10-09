@@ -693,6 +693,23 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
                     ))}
                   </div>
                 </div>
+
+                {/* Conversation Link Card */}
+                <div className="rounded-2xl p-6" style={{ backgroundColor: B.card, border: `1px solid ${B.cardBorder}`, boxShadow: B.cardShadow }}>
+                  <div className="mb-5">
+                    <h3 className="text-sm font-semibold" style={{ color: B.text }}>Start a Conversation URL</h3>
+                    <p className="text-xs mt-0.5" style={{ color: B.textMuted }}>Redirect visitors here when they want to start a conversation with you.</p>
+                  </div>
+                  
+                  <input 
+                    value={(profile.theme as any).conversationUrl || ''} 
+                    onChange={e => setProfile({...profile, theme: { ...profile.theme, conversationUrl: e.target.value }})} 
+                    placeholder="https://cal.com/yourname or similar" 
+                    className="w-full px-4 py-2 text-sm rounded-lg focus:outline-none" 
+                    style={{ backgroundColor: B.inputBg, border: `1px solid ${B.border}`, color: B.text }} 
+                  />
+                </div>
+
               </div>
             )}
 

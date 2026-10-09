@@ -2915,6 +2915,28 @@ function MachineTemplate({ profile, accentColor }: any) {
       }
     }
 
+    .m-conversation-btn {
+      display: inline-block;
+      margin-top: 30px;
+      padding: 16px 36px;
+      background: var(--m-text);
+      color: #fff;
+      font-size: 1.1rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-radius: 50px;
+      text-decoration: none;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .m-conversation-btn:hover {
+      transform: translateY(-5px) scale(1.02);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+      background: var(--m-accent);
+      color: #fff;
+    }
+
     .m-avatar-container {
       position: relative;
       margin-bottom: 40px;
@@ -3126,6 +3148,18 @@ function MachineTemplate({ profile, accentColor }: any) {
             <div className="m-bio-panel">
               <div className="m-bio-text">{profile.bio}</div>
             </div>
+          )}
+
+          {/* Conversation Button */}
+          {(profile.theme as any)?.conversationUrl && (
+            <a 
+              href={(profile.theme as any).conversationUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="m-conversation-btn"
+            >
+              Start a Conversation
+            </a>
           )}
 
           {/* Proof Points Section */}
