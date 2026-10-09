@@ -2970,35 +2970,6 @@ function MachineTemplate({ profile, accentColor }: any) {
       font-weight: 500;
     }
 
-    /* Proof Points */
-    .m-proof-points {
-      margin-top: 30px;
-      display: flex;
-      flex-direction: column;
-      gap: 15px;
-      align-items: flex-end;
-    }
-    @media (max-width: 900px) {
-      .m-proof-points { align-items: center; }
-    }
-    .m-proof-item {
-      background: rgba(255,255,255,0.7);
-      backdrop-filter: blur(10px);
-      padding: 12px 20px;
-      border-radius: 15px;
-      border: 1px solid #fff;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.03);
-      font-size: 0.9rem;
-      font-weight: 700;
-      color: var(--m-accent);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .m-proof-item::before {
-      content: "✦";
-      color: #111;
-    }
 
     .m-metrics-grid {
       display: flex;
@@ -3159,13 +3130,14 @@ function MachineTemplate({ profile, accentColor }: any) {
 
           {/* Proof Points Section */}
           {profile.proofPoints && profile.proofPoints.length > 0 && (
-             <div className="m-proof-points">
-               {profile.proofPoints.map((point: any, i: number) => (
-                 <div key={i} className="m-proof-item">
-                   {point.title} {point.subtitle && ` - ${point.subtitle}`}
-                 </div>
-               ))}
-             </div>
+            <div className="m-metrics-grid" style={{ marginTop: '30px' }}>
+              {profile.proofPoints.map((point: any, i: number) => (
+                <div key={i} className="m-metric-item">
+                  <span className="m-metric-val">{point.subtitle || point.title}</span>
+                  <span className="m-metric-lbl">{point.subtitle ? point.title : 'PROOF'}</span>
+                </div>
+              ))}
+            </div>
           )}
 
           {profile.metrics && profile.metrics.length > 0 && (
