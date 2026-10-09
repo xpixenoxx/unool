@@ -857,15 +857,19 @@ function RebellionTemplate({ profile, accentColor }: any) {
       border-radius: 30px;
     }
 
-    /* ── HERO ── */
-    .reb-hero {
-      display: flex; flex-wrap: wrap; justify-content: center;
-      gap: 20px; align-items: center; min-height: 480px;
-      margin-bottom: 40px;
+    /* HERO TEXT TOP */
+    .reb-hero-top {
+      display: flex; flex-direction: column; align-items: center; text-align: center;
+      margin: 0 auto 48px; width: 100%; max-width: 800px;
     }
-    .reb-hero-left { 
-      flex: 0 1 500px; min-width: 300px;
-      padding-right: 0; 
+    .reb-hero-top .reb-role-row { justify-content: center; }
+    .reb-hero-top .reb-bio { text-align: center; margin: 0 auto; }
+
+    /* ── HERO CARD ── */
+    .reb-hero {
+      display: flex; justify-content: center;
+      align-items: center; min-height: auto;
+      margin-bottom: 40px;
     }
 
     /* Eyebrow */
@@ -1036,15 +1040,7 @@ function RebellionTemplate({ profile, accentColor }: any) {
     .reb-deco-container {
       position: absolute; inset: 0; pointer-events: none; overflow: visible; z-index: 0;
     }
-    /* Floating diamond gem — top right of hero */
-    .reb-gem {
-      position: absolute; width: 56px; height: 56px;
-      top: -20px; right: 440px;
-      transform-style: preserve-3d;
-      animation: reb-float-gem 7s ease-in-out infinite;
-    }
-    .reb-gem svg { width: 100%; height: 100%; filter: drop-shadow(0 6px 18px rgba(200,16,46,0.25)); }
-    @keyframes reb-float-gem { 0%,100%{transform:translateY(0) rotate(0deg)} 50%{transform:translateY(-20px) rotate(10deg)} }
+
 
     /* Floating crown — above hero card */
     .reb-float-crown {
@@ -1292,11 +1288,9 @@ function RebellionTemplate({ profile, accentColor }: any) {
 
     /* ── RESPONSIVE ── */
     @media (max-width: 1024px) {
-      .reb-hero { flex-direction: column; gap: 40px; text-align: center; }
-      .reb-hero-left { padding-right: 0; margin-bottom: 24px; display: flex; flex-direction: column; align-items: center; order: 2; }
-      .reb-bio { text-align: center; margin: 0 auto; }
-      .reb-card-3d-wrap { max-width: 380px; margin: 0 auto; width: 100%; order: 1; }
-      .reb-gem, .reb-float-crown, .reb-sparkle, .reb-float-orb { display: none; }
+      .reb-hero-top { margin-bottom: 32px; }
+      .reb-card-3d-wrap { max-width: 380px; margin: 0 auto; width: 100%; }
+      .reb-float-crown, .reb-sparkle, .reb-float-orb { display: none; }
     }
     @media (max-width: 640px) {
       .reb-wrap { padding: 36px 16px; }
@@ -1332,6 +1326,17 @@ function RebellionTemplate({ profile, accentColor }: any) {
         <div className="reb-orb reb-orb-2" />
         <div className="reb-orb reb-orb-3" />
 
+        {/* ── TOP HERO TEXT ── */}
+        <div className="reb-hero-top">
+          <div className="reb-eyebrow">Disruptive · Royal · Rebellion</div>
+          <h1 className="reb-name">{profile.name}</h1>
+          <div className="reb-role-row">
+            <div className="reb-role-gem" />
+            <span className="reb-role">{profile.headline}</span>
+          </div>
+          <p className="reb-bio">{profile.bio}</p>
+        </div>
+
         {/* ── HEADER ── */}
         <header className="reb-header">
           <a className="reb-logo" href="#top">
@@ -1352,24 +1357,6 @@ function RebellionTemplate({ profile, accentColor }: any) {
         >
           {/* Decorative floating elements — absolutely positioned within hero */}
           <div className="reb-deco-container" aria-hidden="true">
-            {/* Floating diamond gem */}
-            <div className="reb-gem">
-              <svg viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <polygon points="28,4 52,20 52,36 28,52 4,36 4,20" fill="none" stroke="url(#gem-grad)" strokeWidth="1.5"/>
-                <polygon points="28,4 52,20 28,28" fill="rgba(200,16,46,0.08)"/>
-                <polygon points="28,28 52,20 52,36" fill="rgba(201,153,58,0.1)"/>
-                <polygon points="28,28 52,36 28,52" fill="rgba(200,16,46,0.07)"/>
-                <polygon points="28,28 4,36 28,52" fill="rgba(201,153,58,0.08)"/>
-                <polygon points="28,4 4,20 28,28" fill="rgba(201,153,58,0.12)"/>
-                <polygon points="28,28 4,20 4,36" fill="rgba(200,16,46,0.06)"/>
-                <defs>
-                  <linearGradient id="gem-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#C8102E" stopOpacity="0.8"/>
-                    <stop offset="100%" stopColor="#C9993A" stopOpacity="0.8"/>
-                  </linearGradient>
-                </defs>
-              </svg>
-            </div>
             {/* Floating crown above arch */}
             <div className="reb-float-crown">♛</div>
             {/* Sparkle stars */}
@@ -1379,17 +1366,6 @@ function RebellionTemplate({ profile, accentColor }: any) {
             <div className="reb-float-orb reb-float-orb-a" />
             <div className="reb-float-orb reb-float-orb-b" />
 
-          </div>
-
-          {/* LEFT — Text content */}
-          <div className="reb-hero-left">
-            <div className="reb-eyebrow">Disruptive · Royal · Rebellion</div>
-            <h1 className="reb-name">{profile.name}</h1>
-            <div className="reb-role-row">
-              <div className="reb-role-gem" />
-              <span className="reb-role">{profile.headline}</span>
-            </div>
-            <p className="reb-bio">{profile.bio}</p>
           </div>
 
           {/* RIGHT — 3D Tilt Card */}
