@@ -3,7 +3,7 @@ import { generateWithFallback } from './provider';
 import { Result, ok, err } from '@/lib/shared/Result';
 import { logger } from '@/lib/logger';
 
-export const PlatformType = z.enum(['linkedin', 'x', 'threads', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky']);
+export const PlatformType = z.enum(['linkedin', 'x', 'threads', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'mastodon', 'slack', 'twitch', 'telegram']);
 export type PlatformType = z.infer<typeof PlatformType>;
 
 export const AdaptedPostSchema = z.object({
@@ -57,6 +57,26 @@ const PLATFORM_SPECS: Record<PlatformType, { maxChars: number; style: string; ha
     maxChars: 2200,
     style: 'Visual-first, aspirational, lifestyle-oriented. Heavy emoji use. 5-15 hashtags in first comment. Great for carousel, Reels, Stories.',
     hashtagStrategy: 'Niche + broad tags (#CreatorEconomy #PersonalBrand #MarketingTips)'
+  },
+  mastodon: {
+    maxChars: 500,
+    style: 'Authentic, community-focused, no algorithmic gaming.',
+    hashtagStrategy: '3-4 highly relevant tags inline or at the end.'
+  },
+  slack: {
+    maxChars: 40000,
+    style: 'Professional, direct, clear formatting with bullets if needed. Action-oriented.',
+    hashtagStrategy: 'No hashtags, use clear headlines.'
+  },
+  twitch: {
+    maxChars: 500,
+    style: 'Short, engaging, hype-building for streams.',
+    hashtagStrategy: 'No hashtags usually, but inline keywords work.'
+  },
+  telegram: {
+    maxChars: 4096,
+    style: 'Direct, clear, often used for announcements or updates. Line breaks for readability.',
+    hashtagStrategy: 'Minimal hashtags, 1-2 if necessary for categorization.'
   },
 };
 
