@@ -19,7 +19,7 @@ import { MastodonConnectDialog } from './MastodonConnectDialog';
 import { SlackConnectDialog } from './SlackConnectDialog';
 import { TwitchConnectDialog } from './TwitchConnectDialog';
 
-const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'whatsapp', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch'] as const;
+const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch'] as const;
 type Platform = typeof SUPPORTED_PLATFORMS[number];
 
 interface PlatformConnection {
@@ -90,16 +90,7 @@ const PLATFORM_CONFIG: Record<
     audience: 'Wide demographic reach',
     available: true,
   },
-  whatsapp: {
-    icon: Phone,
-    name: 'WhatsApp Status',
-    shortName: 'WhatsApp',
-    color: 'bg-[#25D366]',
-    hoverBorder: 'hover:border-[#25D366]/30',
-    description: '24-hour status updates',
-    audience: 'Personal network',
-    available: true,
-  },
+
   instagram: {
     icon: Instagram,
     name: 'Instagram',
