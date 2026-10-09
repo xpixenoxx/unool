@@ -866,7 +866,7 @@ function RebellionTemplate({ profile, accentColor }: any) {
     .reb-hero-left { 
       flex: 0 1 500px; min-width: 300px;
       padding-right: 0; 
-      transform: translateY(-40px); /* Moved upper per user request */
+      transform: translateY(-90px); /* Moved even further up per user request */
     }
 
     /* Eyebrow */
