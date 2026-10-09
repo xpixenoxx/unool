@@ -9,7 +9,7 @@ import {
   Loader2, Linkedin, Twitter, MessageSquare, Facebook, Instagram,
   Phone, CheckCircle, AlertCircle, Unlink2, Link2, Lock, Globe2,
   ArrowRight, Wifi, WifiOff, RefreshCw, Youtube, Cloud, ExternalLink, Image as ImageIcon,
-  MessageCircle, Hash
+  MessageCircle, Hash, Twitch
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -17,8 +17,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { BlueskyConnectDialog } from './BlueskyConnectDialog';
 import { MastodonConnectDialog } from './MastodonConnectDialog';
 import { SlackConnectDialog } from './SlackConnectDialog';
+import { TwitchConnectDialog } from './TwitchConnectDialog';
 
-const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'whatsapp', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack'] as const;
+const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'whatsapp', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch'] as const;
 type Platform = typeof SUPPORTED_PLATFORMS[number];
 
 interface PlatformConnection {
@@ -182,6 +183,17 @@ const PLATFORM_CONFIG: Record<
     available: true,
     customConnect: true, // uses bot token
   },
+  twitch: {
+    icon: Twitch,
+    name: 'Twitch',
+    shortName: 'Twitch',
+    color: 'bg-[#9146FF]',
+    hoverBorder: 'hover:border-[#9146FF]/30',
+    description: 'Chat messages to channel',
+    audience: 'Livestream viewers',
+    available: true,
+    customConnect: true,
+  },
 };
 
 /* ─── Component ────────────────────────────────────────────── */
@@ -214,6 +226,7 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
   const [blueskyDialogOpen, setBlueskyDialogOpen] = useState(false);
   const [mastodonDialogOpen, setMastodonDialogOpen] = useState(false);
   const [slackDialogOpen, setSlackDialogOpen] = useState(false);
+  const [twitchDialogOpen, setTwitchDialogOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -252,6 +265,10 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
     }
     if (platform === 'slack') {
       setSlackDialogOpen(true);
+      return;
+    }
+    if (platform === 'twitch') {
+      setTwitchDialogOpen(true);
       return;
     }
     // Show spinner immediately — gives instant visual feedback before the redirect
@@ -358,6 +375,18 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
           setConnections((prev) => ({
             ...prev,
             slack: { platform: 'slack', status: 'connected', username },
+          }));
+          window.location.reload();
+        }}
+      />
+      <TwitchConnectDialog
+        open={twitchDialogOpen}
+        onClose={() => setTwitchDialogOpen(false)}
+        workspaceId={workspaceId}
+        onSuccess={(username) => {
+          setConnections((prev) => ({
+            ...prev,
+            twitch: { platform: 'twitch', status: 'connected', username },
           }));
           window.location.reload();
         }}
