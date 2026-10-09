@@ -2835,27 +2835,24 @@ function StudioTemplate({ profile }: any) {
 }
 
 function MachineTemplate({ profile, accentColor }: any) {
-  const accent = accentColor || '#FF0055'; 
+  const accent = accentColor || '#00F2FE'; 
   const name = profile?.name || "SYS.ADMIN";
   
   const customStyles = `
-    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&family=Syncopate:wght@700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700;900&family=Syne:wght@600;800&display=swap');
 
     .machine-wrap {
       --m-accent: ${accent};
-      font-family: 'Outfit', sans-serif;
+      font-family: 'Space Grotesk', sans-serif;
       min-height: 100vh;
       width: 100%;
       position: relative;
       overflow-x: hidden;
-      padding: 4vw;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      /* Beautiful vibrant flowing background */
-      background: linear-gradient(-45deg, #FF3D7F, #3FB8AF, #7FC7AF, #FF9E9D);
-      background-size: 400% 400%;
-      animation: gradientBG 15s ease infinite;
+      /* Deep space/neon liquid background - NO YELLOW */
+      background: linear-gradient(-45deg, #090022, #4A00E0, #FE0979, #00F2FE);
+      background-size: 300% 300%;
+      animation: gradientBG 20s ease infinite;
+      color: #fff;
     }
 
     @keyframes gradientBG {
@@ -2864,311 +2861,292 @@ function MachineTemplate({ profile, accentColor }: any) {
       100% { background-position: 0% 50%; }
     }
 
-    /* Abstract 3D Shapes in Background */
-    .machine-shape {
+    /* Giant Watermark Name */
+    .m-giant-name {
       position: absolute;
-      border-radius: 50%;
-      filter: blur(60px);
+      top: 40%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(8rem, 20vw, 25rem);
+      font-weight: 800;
+      color: rgba(255, 255, 255, 0.04);
+      white-space: nowrap;
+      pointer-events: none;
       z-index: 0;
-      opacity: 0.8;
-      animation: floatShape 10s infinite ease-in-out alternate;
-    }
-    .shape-1 {
-      width: 400px; height: 400px; background: #FFEA00; top: -10%; left: -10%;
-    }
-    .shape-2 {
-      width: 500px; height: 500px; background: #8A2BE2; bottom: -20%; right: -10%;
-      animation-delay: -5s;
+      letter-spacing: -0.05em;
     }
 
-    @keyframes floatShape {
-      0% { transform: translate(0, 0) scale(1); }
-      100% { transform: translate(50px, 50px) scale(1.2); }
-    }
-
-    .machine-container {
+    /* Asymmetric Canvas */
+    .m-canvas {
       position: relative;
       z-index: 10;
-      width: 100%;
-      max-width: 1100px;
-      display: flex;
-      flex-direction: column;
-      gap: 30px;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 100px 5%;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 60px;
+      align-items: start;
     }
 
-    /* Glassmorphic 3D Card */
-    .machine-glass-card {
-      background: rgba(255, 255, 255, 0.15);
-      backdrop-filter: blur(25px) saturate(150%);
-      -webkit-backdrop-filter: blur(25px) saturate(150%);
-      border: 1px solid rgba(255, 255, 255, 0.4);
-      border-radius: 40px;
-      padding: 50px;
-      box-shadow: 
-        0 30px 60px rgba(0,0,0,0.1),
-        inset 0 2px 2px rgba(255,255,255,0.5),
-        inset 0 -2px 5px rgba(0,0,0,0.05);
-      display: grid;
-      grid-template-columns: 350px 1fr;
-      gap: 50px;
-    }
     @media (max-width: 900px) {
-      .machine-glass-card { grid-template-columns: 1fr; padding: 30px; }
+      .m-canvas {
+        grid-template-columns: 1fr;
+        padding: 50px 5%;
+        gap: 40px;
+      }
     }
 
-    /* Profile Section */
-    .m-profile-col {
+    /* --- LEFT SIDE: THE OVERLAPPING DECK --- */
+    .m-deck-col {
       display: flex;
       flex-direction: column;
-      align-items: center;
-      text-align: center;
-      position: relative;
-    }
-    
-    .m-avatar-wrapper {
-      position: relative;
-      width: 220px;
-      height: 220px;
-      margin-bottom: 30px;
-    }
-    .m-avatar-ring {
-      position: absolute;
-      inset: -15px;
-      border-radius: 50%;
-      background: conic-gradient(from 0deg, #FFEA00, #FF0055, #00F0FF, #FFEA00);
-      animation: spinRing 4s linear infinite;
-      box-shadow: 0 0 30px rgba(255,0,85,0.4);
-    }
-    .m-avatar-ring::after {
-      content: "";
-      position: absolute;
-      inset: 6px;
-      background: rgba(255,255,255,0.2);
-      backdrop-filter: blur(10px);
-      border-radius: 50%;
-    }
-    @keyframes spinRing {
-      100% { transform: rotate(360deg); }
-    }
-    .m-avatar {
-      position: absolute;
-      inset: 6px;
-      width: calc(100% - 12px);
-      height: calc(100% - 12px);
-      border-radius: 50%;
-      object-fit: cover;
-      z-index: 2;
-      border: 4px solid #fff;
+      margin-top: 50px;
     }
 
-    .m-name {
-      font-family: 'Syncopate', sans-serif;
-      font-size: 2.2rem;
-      font-weight: 700;
-      color: #fff;
-      text-transform: uppercase;
-      letter-spacing: 2px;
-      text-shadow: 2px 4px 10px rgba(0,0,0,0.2);
-      margin-bottom: 10px;
-    }
-    .m-role {
-      display: inline-block;
-      padding: 8px 20px;
-      background: rgba(255,255,255,0.9);
-      color: var(--m-accent);
-      border-radius: 30px;
-      font-weight: 800;
-      font-size: 0.85rem;
-      letter-spacing: 3px;
-      text-transform: uppercase;
-      box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-    }
-
-    /* Content Section */
-    .m-content-col {
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-    }
-    
-    .m-bio-box {
-      background: rgba(255,255,255,0.3);
-      padding: 30px;
-      border-radius: 20px;
-      border: 1px solid rgba(255,255,255,0.5);
-      color: #111;
-      font-size: 1.1rem;
-      line-height: 1.7;
-      font-weight: 600;
-      margin-bottom: 40px;
-      position: relative;
-      overflow: hidden;
-    }
-    .m-bio-box::before {
-      content: "";
-      position: absolute;
-      top: 0; left: 0; width: 6px; height: 100%;
-      background: var(--m-accent);
-    }
-
-    /* Modules (3D Claymorphic Buttons) */
-    .m-section-label {
-      font-family: 'Syncopate', sans-serif;
-      color: #fff;
-      font-size: 1rem;
-      letter-spacing: 2px;
-      margin-bottom: 20px;
-      text-shadow: 1px 2px 4px rgba(0,0,0,0.2);
-    }
-
-    .m-links-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-      gap: 20px;
-    }
-
-    .m-link-3d {
-      background: rgba(255,255,255,0.8);
-      padding: 20px 25px;
-      border-radius: 20px;
-      text-decoration: none;
-      color: #111;
-      font-weight: 800;
+    .m-deck-title {
+      font-family: 'Syne', sans-serif;
       font-size: 1.2rem;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.7);
+      margin-bottom: 40px;
+      padding-left: 20px;
+      border-left: 2px solid var(--m-accent);
+    }
+
+    .m-link-card {
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 24px;
+      padding: 25px 30px;
+      text-decoration: none;
+      color: #fff;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-      box-shadow: 
-        0 10px 20px rgba(0,0,0,0.1),
-        inset 0 -5px 10px rgba(0,0,0,0.1),
-        inset 0 4px 5px rgba(255,255,255,1);
-      border: 1px solid rgba(255,255,255,0.9);
       position: relative;
-      overflow: hidden;
+      /* Staggered overlapping effect */
+      margin-bottom: -15px;
+      box-shadow: 0 15px 35px rgba(0,0,0,0.2), inset 0 2px 5px rgba(255,255,255,0.2);
+      transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      z-index: 1;
     }
     
-    .m-link-3d:hover {
-      transform: translateY(-8px) scale(1.02);
-      background: #fff;
-      box-shadow: 
-        0 20px 30px rgba(0,0,0,0.15),
-        inset 0 -5px 10px rgba(0,0,0,0.05),
-        inset 0 4px 5px rgba(255,255,255,1);
+    .m-link-card:nth-child(odd) {
+      transform: rotate(-3deg) translateX(-10px);
+    }
+    .m-link-card:nth-child(even) {
+      transform: rotate(2deg) translateX(10px);
+    }
+
+    .m-link-card:hover {
+      transform: rotate(0) scale(1.05) translateY(-20px) !important;
+      z-index: 10;
+      background: rgba(255, 255, 255, 0.15);
+      border-color: var(--m-accent);
+      box-shadow: 0 30px 60px rgba(0,0,0,0.4), inset 0 2px 5px rgba(255,255,255,0.4);
+    }
+
+    .m-link-info {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .m-link-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+    .m-link-sub {
+      font-size: 0.8rem;
       color: var(--m-accent);
+      text-transform: uppercase;
+      letter-spacing: 2px;
     }
     
     .m-link-arrow {
-      background: var(--m-accent);
-      color: #fff;
-      width: 35px; height: 35px;
+      width: 45px; height: 45px;
       border-radius: 50%;
+      background: rgba(255,255,255,0.1);
       display: flex;
-      align-items: center;
       justify-content: center;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-      transition: transform 0.3s;
+      align-items: center;
+      border: 1px solid rgba(255,255,255,0.3);
+      transition: all 0.4s;
     }
-    .m-link-3d:hover .m-link-arrow {
-      transform: rotate(-45deg);
+    .m-link-card:hover .m-link-arrow {
+      background: var(--m-accent);
+      color: #000;
+      transform: rotate(45deg);
     }
-    
-    /* Metrics floating bubbles */
-    .m-metrics-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 15px;
-      margin-bottom: 40px;
-    }
-    .m-metric-bubble {
-      background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(255,255,255,0.4));
-      backdrop-filter: blur(10px);
-      padding: 15px 25px;
-      border-radius: 30px;
-      border: 1px solid rgba(255,255,255,0.6);
-      box-shadow: 0 8px 16px rgba(0,0,0,0.05);
+
+    /* --- RIGHT SIDE: FREESTYLE AVATAR & INFO --- */
+    .m-info-col {
       display: flex;
       flex-direction: column;
-      align-items: center;
+      align-items: flex-end;
+      text-align: right;
+    }
+    @media (max-width: 900px) {
+      .m-info-col { align-items: center; text-align: center; }
+    }
+
+    .m-avatar-container {
+      position: relative;
+      margin-bottom: 40px;
+    }
+
+    .m-avatar-img {
+      width: clamp(200px, 25vw, 320px);
+      height: clamp(200px, 25vw, 320px);
+      border-radius: 40px; /* Squircle */
+      object-fit: cover;
+      box-shadow: 
+        30px 30px 60px rgba(0,0,0,0.4),
+        inset 0 0 0 2px rgba(255,255,255,0.5);
+      transform: rotate(5deg);
+      transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .m-avatar-container:hover .m-avatar-img {
+      transform: rotate(0deg) scale(1.02);
+    }
+
+    .m-role-badge {
+      position: absolute;
+      bottom: -20px;
+      left: -30px;
+      background: var(--m-accent);
+      color: #000;
+      font-family: 'Syne', sans-serif;
+      padding: 15px 30px;
+      border-radius: 100px;
+      font-size: 0.9rem;
+      font-weight: 800;
+      letter-spacing: 2px;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+      transform: rotate(-10deg);
+      white-space: nowrap;
+    }
+
+    .m-bio-panel {
+      background: rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(15px);
+      border-radius: 30px;
+      padding: 40px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      max-width: 500px;
+      margin-top: 20px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    }
+
+    .m-bio-text {
+      font-size: 1.1rem;
+      line-height: 1.6;
+      color: rgba(255,255,255,0.9);
+      font-weight: 300;
+    }
+
+    .m-metrics-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: flex-end;
+      margin-top: 40px;
+    }
+    @media (max-width: 900px) {
+      .m-metrics-grid { justify-content: center; }
+    }
+
+    .m-metric-item {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      background: rgba(255,255,255,0.05);
+      padding: 20px 30px;
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.1);
     }
     .m-metric-val {
-      font-family: 'Syncopate', sans-serif;
-      font-size: 1.5rem;
-      font-weight: 700;
+      font-family: 'Syne', sans-serif;
+      font-size: 2rem;
+      font-weight: 800;
       color: var(--m-accent);
+      line-height: 1;
+      margin-bottom: 5px;
     }
     .m-metric-lbl {
-      font-size: 0.7rem;
-      font-weight: 800;
+      font-size: 0.75rem;
       text-transform: uppercase;
-      letter-spacing: 1px;
-      color: #333;
+      letter-spacing: 2px;
+      color: rgba(255,255,255,0.6);
     }
   `;
 
   return (
     <div className="machine-wrap">
       <style>{customStyles}</style>
-      <div className="machine-shape shape-1" />
-      <div className="machine-shape shape-2" />
       
-      <div className="machine-container">
+      {/* Massive Background Typography */}
+      <div className="m-giant-name">{name}</div>
+      
+      <div className="m-canvas">
         
-        <div className="machine-glass-card">
-          {/* PROFILE COLUMN */}
-          <div className="m-profile-col">
-            <div className="m-avatar-wrapper">
-              <div className="m-avatar-ring" />
-              {profile?.avatarUrl ? (
-                <img src={profile.avatarUrl} alt={name} className="m-avatar" />
-              ) : (
-                <div className="m-avatar flex items-center justify-center bg-white text-[var(--m-accent)] text-5xl font-bold">
-                  {name[0]}
+        {/* LEFT: STAGGERED DECK */}
+        <div className="m-deck-col">
+          <div className="m-deck-title">Access Modules</div>
+          <div className="m-deck-wrapper">
+            {profile.links?.map((link: any, i: number) => (
+              <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="m-link-card">
+                <div className="m-link-info">
+                  <span className="m-link-title">{link.label}</span>
+                  <span className="m-link-sub">SYS.MOD // {i.toString().padStart(2, '0')}</span>
                 </div>
-              )}
-            </div>
-            <h1 className="m-name">{name}</h1>
-            <div className="m-role">{profile.headline || profile.role || "ENGINEER"}</div>
+                <div className="m-link-arrow">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                    <polyline points="12 5 19 12 12 19"></polyline>
+                  </svg>
+                </div>
+              </a>
+            ))}
           </div>
+        </div>
 
-          {/* CONTENT COLUMN */}
-          <div className="m-content-col">
-            
-            {profile.bio && (
-              <div className="m-bio-box">
-                {profile.bio}
+        {/* RIGHT: FREESTYLE AVATAR & INFO */}
+        <div className="m-info-col">
+          
+          <div className="m-avatar-container">
+            {profile?.avatarUrl ? (
+              <img src={profile.avatarUrl} alt={name} className="m-avatar-img" />
+            ) : (
+              <div className="m-avatar-img flex items-center justify-center bg-white text-[var(--m-accent)] text-6xl font-bold">
+                {name[0]}
               </div>
             )}
-
-            {profile.metrics && profile.metrics.length > 0 && (
-              <div className="m-metrics-row">
-                {profile.metrics.map((m: any, i: number) => (
-                  <div key={i} className="m-metric-bubble">
-                    <span className="m-metric-val">{m.value}</span>
-                    <span className="m-metric-lbl">{m.label || m.title || m.name}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div>
-              <div className="m-section-label">SYSTEM MODULES</div>
-              <div className="m-links-grid">
-                {profile.links?.map((link: any, i: number) => (
-                  <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="m-link-3d">
-                    <span>{link.label}</span>
-                    <div className="m-link-arrow">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                        <polyline points="12 5 19 12 12 19"></polyline>
-                      </svg>
-                    </div>
-                  </a>
-                ))}
-              </div>
-            </div>
-
+            <div className="m-role-badge">{profile.headline || profile.role || "ENGINEER"}</div>
           </div>
+
+          {profile.bio && (
+            <div className="m-bio-panel">
+              <div className="m-bio-text">{profile.bio}</div>
+            </div>
+          )}
+
+          {profile.metrics && profile.metrics.length > 0 && (
+            <div className="m-metrics-grid">
+              {profile.metrics.map((m: any, i: number) => (
+                <div key={i} className="m-metric-item">
+                  <span className="m-metric-val">{m.value}</span>
+                  <span className="m-metric-lbl">{m.label || m.title || m.name}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
         </div>
 
       </div>
