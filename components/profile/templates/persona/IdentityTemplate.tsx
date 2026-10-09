@@ -734,6 +734,7 @@ function RebellionTemplate({ profile, accentColor }: any) {
     if (l.includes('linkedin')) return 'Connect';
     if (l.includes('discord')) return 'Join';
     if (l.includes('twitch')) return 'Stream';
+    if (l.includes('telegram')) return 'Join';
     if (l.includes('tiktok')) return 'Watch';
     return 'Visit';
   };

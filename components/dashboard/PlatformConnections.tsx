@@ -9,7 +9,7 @@ import {
   Loader2, Linkedin, Twitter, MessageSquare, Facebook, Instagram,
   Phone, CheckCircle, AlertCircle, Unlink2, Link2, Lock, Globe2,
   ArrowRight, Wifi, WifiOff, RefreshCw, Youtube, Cloud, ExternalLink, Image as ImageIcon,
-  MessageCircle, Hash, Twitch
+  MessageCircle, Hash, Twitch, Send
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -18,8 +18,9 @@ import { BlueskyConnectDialog } from './BlueskyConnectDialog';
 import { MastodonConnectDialog } from './MastodonConnectDialog';
 import { SlackConnectDialog } from './SlackConnectDialog';
 import { TwitchConnectDialog } from './TwitchConnectDialog';
+import { TelegramConnectDialog } from './TelegramConnectDialog';
 
-const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch'] as const;
+const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram'] as const;
 type Platform = typeof SUPPORTED_PLATFORMS[number];
 
 interface PlatformConnection {
@@ -185,6 +186,17 @@ const PLATFORM_CONFIG: Record<
     available: true,
     customConnect: true,
   },
+  telegram: {
+    icon: Send,
+    name: 'Telegram',
+    shortName: 'Telegram',
+    color: 'bg-[#229ED9]',
+    hoverBorder: 'hover:border-[#229ED9]/30',
+    description: 'Broadcast to channels',
+    audience: 'Subscribers & groups',
+    available: true,
+    customConnect: true,
+  },
 };
 
 /* ─── Component ────────────────────────────────────────────── */
@@ -218,6 +230,7 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
   const [mastodonDialogOpen, setMastodonDialogOpen] = useState(false);
   const [slackDialogOpen, setSlackDialogOpen] = useState(false);
   const [twitchDialogOpen, setTwitchDialogOpen] = useState(false);
+  const [telegramDialogOpen, setTelegramDialogOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -260,6 +273,10 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
     }
     if (platform === 'twitch') {
       setTwitchDialogOpen(true);
+      return;
+    }
+    if (platform === 'telegram') {
+      setTelegramDialogOpen(true);
       return;
     }
     // Show spinner immediately — gives instant visual feedback before the redirect
@@ -378,6 +395,18 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
           setConnections((prev) => ({
             ...prev,
             twitch: { platform: 'twitch', status: 'connected', username },
+          }));
+          window.location.reload();
+        }}
+      />
+      <TelegramConnectDialog
+        open={telegramDialogOpen}
+        onClose={() => setTelegramDialogOpen(false)}
+        workspaceId={workspaceId}
+        onSuccess={(username) => {
+          setConnections((prev) => ({
+            ...prev,
+            telegram: { platform: 'telegram', status: 'connected', username },
           }));
           window.location.reload();
         }}
