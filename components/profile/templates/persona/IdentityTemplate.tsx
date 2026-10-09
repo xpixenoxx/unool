@@ -3131,12 +3131,16 @@ function MachineTemplate({ profile, accentColor }: any) {
           {/* Proof Points Section */}
           {profile.proofPoints && profile.proofPoints.length > 0 && (
             <div className="m-metrics-grid" style={{ marginTop: '30px' }}>
-              {profile.proofPoints.map((point: any, i: number) => (
-                <div key={i} className="m-metric-item">
-                  <span className="m-metric-val">{point.subtitle || point.title}</span>
-                  <span className="m-metric-lbl">{point.subtitle ? point.title : 'PROOF'}</span>
-                </div>
-              ))}
+              {profile.proofPoints.map((point: any, i: number) => {
+                const val = point.value || point.subtitle || (typeof point === 'string' ? point : point.title);
+                const lbl = point.type || point.label || (point.subtitle ? point.title : 'STATS');
+                return (
+                  <div key={i} className="m-metric-item">
+                    <span className="m-metric-val">{val}</span>
+                    <span className="m-metric-lbl">{lbl}</span>
+                  </div>
+                );
+              })}
             </div>
           )}
 
