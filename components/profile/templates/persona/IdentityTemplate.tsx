@@ -1081,19 +1081,6 @@ function RebellionTemplate({ profile, accentColor }: any) {
     .reb-float-orb-b { width: 48px; height: 48px; bottom: 12%; right: 36%; animation-delay: 2s; }
     @keyframes reb-pulse-orb { 0%,100%{transform:scale(1);opacity:0.6} 50%{transform:scale(1.25);opacity:1} }
 
-    /* New 3D floating cube/hexagon */
-    .reb-float-cube {
-      position: absolute; width: 64px; height: 64px;
-      top: 45%; left: -20px;
-      animation: reb-float-cube-anim 10s linear infinite;
-      filter: drop-shadow(0 8px 24px rgba(200,16,46,0.2));
-    }
-    @keyframes reb-float-cube-anim {
-      0% { transform: translateY(0) rotateX(0deg) rotateY(0deg); }
-      50% { transform: translateY(-40px) rotateX(25deg) rotateY(30deg); }
-      100% { transform: translateY(0) rotateX(0deg) rotateY(0deg); }
-    }
-
     /* New 3D spinning ring */
     .reb-3d-ring {
       position: absolute; bottom: 5%; right: 40%;
@@ -1127,8 +1114,8 @@ function RebellionTemplate({ profile, accentColor }: any) {
     .reb-ribbon-track {
       display: inline-block;
       animation: reb-marquee 28s linear infinite;
-      font-family: var(--serif); font-style: italic; font-weight: 500;
-      font-size: clamp(1rem, 1.8vw, 1.35rem); color: var(--text-2);
+      font-family: var(--royal); font-weight: 700; text-transform: uppercase; letter-spacing: 2px;
+      font-size: clamp(0.9rem, 1.5vw, 1.15rem); color: var(--crimson);
     }
     .reb-ribbon-track span { padding: 0 24px; }
     .reb-ribbon-sep { color: var(--gold); font-style: normal; opacity: 0.7; }
@@ -1411,15 +1398,6 @@ function RebellionTemplate({ profile, accentColor }: any) {
             <div className="reb-float-orb reb-float-orb-b" />
             
             {/* New 3D floating elements */}
-            <div className="reb-float-cube">
-              <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M50 0L93.3 25V75L50 100L6.7 75V25L50 0Z" fill="rgba(255,255,255,0.1)" stroke="url(#gem-grad)" strokeWidth="2"/>
-                <path d="M50 50L93.3 25M50 50L6.7 25M50 50V100" stroke="url(#gem-grad)" strokeWidth="2"/>
-                <path d="M50 0L93.3 25L50 50L6.7 25L50 0Z" fill="rgba(201,153,58,0.4)"/>
-                <path d="M6.7 25L50 50V100L6.7 75V25Z" fill="rgba(200,16,46,0.2)"/>
-                <path d="M93.3 25L50 50V100L93.3 75V25Z" fill="rgba(255,255,255,0.3)"/>
-              </svg>
-            </div>
             <div className="reb-3d-ring" />
           </div>
 
@@ -1493,16 +1471,16 @@ function RebellionTemplate({ profile, accentColor }: any) {
         <div className="reb-ribbon-wrap">
           <div className="reb-ribbon">
             <div className="reb-ribbon-track">
-              <span>Rebel against the ordinary</span><span className="reb-ribbon-sep"> ✦ </span>
-              <span>Elegance is the rebellion</span><span className="reb-ribbon-sep"> ✦ </span>
-              <span>We challenge the industry</span><span className="reb-ribbon-sep"> ✦ </span>
-              <span>Born to disrupt</span><span className="reb-ribbon-sep"> ✦ </span>
-              <span>Royal by nature</span><span className="reb-ribbon-sep"> ✦ </span>
-              <span>Rebel against the ordinary</span><span className="reb-ribbon-sep"> ✦ </span>
-              <span>Elegance is the rebellion</span><span className="reb-ribbon-sep"> ✦ </span>
-              <span>We challenge the industry</span><span className="reb-ribbon-sep"> ✦ </span>
-              <span>Born to disrupt</span><span className="reb-ribbon-sep"> ✦ </span>
-              <span>Royal by nature</span><span className="reb-ribbon-sep"> ✦ </span>
+              <span>Crowned in Defiance</span><span className="reb-ribbon-sep"> ✦ </span>
+              <span>Architects of the New Reign</span><span className="reb-ribbon-sep"> ✦ </span>
+              <span>Forging Empires from Echoes</span><span className="reb-ribbon-sep"> ✦ </span>
+              <span>Sovereignty in Motion</span><span className="reb-ribbon-sep"> ✦ </span>
+              <span>The Throne of Innovation</span><span className="reb-ribbon-sep"> ✦ </span>
+              <span>Crowned in Defiance</span><span className="reb-ribbon-sep"> ✦ </span>
+              <span>Architects of the New Reign</span><span className="reb-ribbon-sep"> ✦ </span>
+              <span>Forging Empires from Echoes</span><span className="reb-ribbon-sep"> ✦ </span>
+              <span>Sovereignty in Motion</span><span className="reb-ribbon-sep"> ✦ </span>
+              <span>The Throne of Innovation</span><span className="reb-ribbon-sep"> ✦ </span>
             </div>
           </div>
         </div>
