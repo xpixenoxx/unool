@@ -47,6 +47,8 @@ function getWebhookSecret(platform: Platform): string | undefined {
     youtube: undefined,
     pinterest: undefined,
     bluesky: undefined,
+    reddit: undefined,
+    mastodon: undefined,
     manual: undefined,
   };
   return secretMap[platform];
@@ -165,6 +167,8 @@ export function extractWebhookSignature(request: Request, platform: Platform): s
     youtube: [],
     pinterest: [],
     bluesky: [],
+    reddit: [],
+    mastodon: [],
     manual: [],
   };
 

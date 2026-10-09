@@ -8,14 +8,16 @@ import { Input } from '@/components/ui/input';
 import {
   Loader2, Linkedin, Twitter, MessageSquare, Facebook, Instagram,
   Phone, CheckCircle, AlertCircle, Unlink2, Link2, Lock, Globe2,
-  ArrowRight, Wifi, WifiOff, RefreshCw, Youtube, Cloud, ExternalLink, Image as ImageIcon
+  ArrowRight, Wifi, WifiOff, RefreshCw, Youtube, Cloud, ExternalLink, Image as ImageIcon,
+  MessageCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { BlueskyConnectDialog } from './BlueskyConnectDialog';
+import { MastodonConnectDialog } from './MastodonConnectDialog';
 
-const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'whatsapp', 'instagram', 'youtube', 'pinterest', 'bluesky'] as const;
+const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'whatsapp', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon'] as const;
 type Platform = typeof SUPPORTED_PLATFORMS[number];
 
 interface PlatformConnection {
@@ -147,6 +149,27 @@ const PLATFORM_CONFIG: Record<
     available: true,
     customConnect: true, // uses handle + app password, not OAuth
   },
+  reddit: {
+    icon: MessageCircle,
+    name: 'Reddit',
+    shortName: 'Reddit',
+    color: 'bg-[#FF4500]',
+    hoverBorder: 'hover:border-[#FF4500]/30',
+    description: 'Communities & discussions',
+    audience: 'Subreddits & members',
+    available: true,
+  },
+  mastodon: {
+    icon: Globe2,
+    name: 'Mastodon',
+    shortName: 'Mastodon',
+    color: 'bg-[#6364FF]',
+    hoverBorder: 'hover:border-[#6364FF]/30',
+    description: 'Federated social posts',
+    audience: 'Fediverse community',
+    available: true,
+    customConnect: true, // uses handle + PAT, not OAuth
+  },
 };
 
 /* ─── Component ────────────────────────────────────────────── */
@@ -177,6 +200,7 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
   const [connecting, setConnecting] = useState<Platform | null>(null);
   const [disconnecting, setDisconnecting] = useState<Platform | null>(null);
   const [blueskyDialogOpen, setBlueskyDialogOpen] = useState(false);
+  const [mastodonDialogOpen, setMastodonDialogOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -205,9 +229,12 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
 
   const handleConnect = useCallback((platform: Platform) => {
     const cfg = PLATFORM_CONFIG[platform];
-    // Bluesky uses a form dialog, not an OAuth redirect
-    if (cfg.customConnect) {
+    if (platform === 'bluesky') {
       setBlueskyDialogOpen(true);
+      return;
+    }
+    if (platform === 'mastodon') {
+      setMastodonDialogOpen(true);
       return;
     }
     // Show spinner immediately — gives instant visual feedback before the redirect
@@ -288,6 +315,19 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
           setConnections((prev) => ({
             ...prev,
             bluesky: { platform: 'bluesky', status: 'connected', username },
+          }));
+          // Reload the dashboard page so the Broadcast Network block updates too
+          window.location.reload();
+        }}
+      />
+      <MastodonConnectDialog
+        open={mastodonDialogOpen}
+        onClose={() => setMastodonDialogOpen(false)}
+        workspaceId={workspaceId}
+        onSuccess={(username) => {
+          setConnections((prev) => ({
+            ...prev,
+            mastodon: { platform: 'mastodon', status: 'connected', username },
           }));
           // Reload the dashboard page so the Broadcast Network block updates too
           window.location.reload();

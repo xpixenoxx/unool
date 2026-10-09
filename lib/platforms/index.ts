@@ -9,6 +9,8 @@ export { pinterestAdapter, PinterestAdapter } from './PinterestAdapter';
 export { youtubeAdapter, YoutubeAdapter } from './YoutubeAdapter';
 export { instagramAdapter, InstagramAdapter } from './InstagramAdapter';
 export { blueskyAdapter, BlueskyAdapter } from './BlueskyAdapter';
+export { redditAdapter, RedditAdapter } from './RedditAdapter';
+export { mastodonAdapter, MastodonAdapter } from './MastodonAdapter';
 
 import { linkedInAdapter } from './LinkedInAdapter';
 import { threadsAdapter } from './ThreadsAdapter';
@@ -20,6 +22,8 @@ import { pinterestAdapter } from './PinterestAdapter';
 import { youtubeAdapter } from './YoutubeAdapter';
 import { instagramAdapter } from './InstagramAdapter';
 import { blueskyAdapter } from './BlueskyAdapter';
+import { redditAdapter } from './RedditAdapter';
+import { mastodonAdapter } from './MastodonAdapter';
 import type { PlatformAdapter } from './adapter';
 
 export const platformAdapters: Record<string, PlatformAdapter> = {
@@ -34,11 +38,13 @@ export const platformAdapters: Record<string, PlatformAdapter> = {
   youtube: youtubeAdapter,
   instagram: instagramAdapter,
   bluesky: blueskyAdapter,
+  reddit: redditAdapter,
+  mastodon: mastodonAdapter,
 };
 
 export function getPlatformAdapter(platform: string): PlatformAdapter | null {
   return platformAdapters[platform.toLowerCase()] ?? null;
 }
 
-export const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'whatsapp', 'instagram', 'youtube', 'pinterest', 'bluesky'] as const;
+export const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'whatsapp', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon'] as const;
 export type SupportedPlatform = typeof SUPPORTED_PLATFORMS[number];
