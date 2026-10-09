@@ -857,19 +857,16 @@ function RebellionTemplate({ profile, accentColor }: any) {
       border-radius: 30px;
     }
 
-    /* HERO TEXT TOP */
-    .reb-hero-top {
-      display: flex; flex-direction: column; align-items: center; text-align: center;
-      margin: 0 auto 48px; width: 100%; max-width: 800px;
-    }
-    .reb-hero-top .reb-role-row { justify-content: center; }
-    .reb-hero-top .reb-bio { text-align: center; margin: 0 auto; }
-
-    /* ── HERO CARD ── */
+    /* ── HERO ── */
     .reb-hero {
-      display: flex; justify-content: center;
-      align-items: center; min-height: auto;
+      display: flex; flex-wrap: wrap; justify-content: center;
+      gap: 20px; align-items: center; min-height: 480px;
       margin-bottom: 40px;
+    }
+    .reb-hero-left { 
+      flex: 0 1 500px; min-width: 300px;
+      padding-right: 0; 
+      transform: translateY(-40px); /* Moved upper per user request */
     }
 
     /* Eyebrow */
@@ -1288,8 +1285,10 @@ function RebellionTemplate({ profile, accentColor }: any) {
 
     /* ── RESPONSIVE ── */
     @media (max-width: 1024px) {
-      .reb-hero-top { margin-bottom: 32px; }
-      .reb-card-3d-wrap { max-width: 380px; margin: 0 auto; width: 100%; }
+      .reb-hero { flex-direction: column; gap: 40px; text-align: center; }
+      .reb-hero-left { padding-right: 0; margin-bottom: 24px; display: flex; flex-direction: column; align-items: center; order: 2; transform: none; }
+      .reb-bio { text-align: center; margin: 0 auto; }
+      .reb-card-3d-wrap { max-width: 380px; margin: 0 auto; width: 100%; order: 1; }
       .reb-float-crown, .reb-sparkle, .reb-float-orb { display: none; }
     }
     @media (max-width: 640px) {
@@ -1326,17 +1325,6 @@ function RebellionTemplate({ profile, accentColor }: any) {
         <div className="reb-orb reb-orb-2" />
         <div className="reb-orb reb-orb-3" />
 
-        {/* ── TOP HERO TEXT ── */}
-        <div className="reb-hero-top">
-          <div className="reb-eyebrow">Disruptive · Royal · Rebellion</div>
-          <h1 className="reb-name">{profile.name}</h1>
-          <div className="reb-role-row">
-            <div className="reb-role-gem" />
-            <span className="reb-role">{profile.headline}</span>
-          </div>
-          <p className="reb-bio">{profile.bio}</p>
-        </div>
-
         {/* ── HEADER ── */}
         <header className="reb-header">
           <a className="reb-logo" href="#top">
@@ -1366,6 +1354,17 @@ function RebellionTemplate({ profile, accentColor }: any) {
             <div className="reb-float-orb reb-float-orb-a" />
             <div className="reb-float-orb reb-float-orb-b" />
 
+          </div>
+
+          {/* LEFT — Text content */}
+          <div className="reb-hero-left">
+            <div className="reb-eyebrow">Disruptive · Royal · Rebellion</div>
+            <h1 className="reb-name">{profile.name}</h1>
+            <div className="reb-role-row">
+              <div className="reb-role-gem" />
+              <span className="reb-role">{profile.headline}</span>
+            </div>
+            <p className="reb-bio">{profile.bio}</p>
           </div>
 
           {/* RIGHT — 3D Tilt Card */}
