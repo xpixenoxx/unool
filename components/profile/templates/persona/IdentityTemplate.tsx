@@ -2835,329 +2835,334 @@ function StudioTemplate({ profile }: any) {
 }
 
 function MachineTemplate({ profile, accentColor }: any) {
-  const accent = accentColor || '#0055FF'; // Default clinical blue
+  const accent = accentColor || '#FF0055'; 
   const name = profile?.name || "SYS.ADMIN";
   
   const customStyles = `
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&family=Syncopate:wght@700&display=swap');
 
     .machine-wrap {
-      --m-bg: #F5F7FA;
-      --m-card: #FFFFFF;
-      --m-border: #E4E7EC;
       --m-accent: ${accent};
-      --m-text: #101828;
-      --m-text-light: #667085;
-      
-      font-family: 'Inter', sans-serif;
-      background-color: var(--m-bg);
-      color: var(--m-text);
+      font-family: 'Outfit', sans-serif;
       min-height: 100vh;
       width: 100%;
+      position: relative;
+      overflow-x: hidden;
       padding: 4vw;
       display: flex;
       justify-content: center;
       align-items: center;
-      background-image: 
-        radial-gradient(circle at 1px 1px, #D0D5DD 1px, transparent 0);
-      background-size: 32px 32px;
+      /* Beautiful vibrant flowing background */
+      background: linear-gradient(-45deg, #FF3D7F, #3FB8AF, #7FC7AF, #FF9E9D);
+      background-size: 400% 400%;
+      animation: gradientBG 15s ease infinite;
+    }
+
+    @keyframes gradientBG {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* Abstract 3D Shapes in Background */
+    .machine-shape {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(60px);
+      z-index: 0;
+      opacity: 0.8;
+      animation: floatShape 10s infinite ease-in-out alternate;
+    }
+    .shape-1 {
+      width: 400px; height: 400px; background: #FFEA00; top: -10%; left: -10%;
+    }
+    .shape-2 {
+      width: 500px; height: 500px; background: #8A2BE2; bottom: -20%; right: -10%;
+      animation-delay: -5s;
+    }
+
+    @keyframes floatShape {
+      0% { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(50px, 50px) scale(1.2); }
     }
 
     .machine-container {
+      position: relative;
+      z-index: 10;
       width: 100%;
-      max-width: 1200px;
-      background: var(--m-card);
-      border: 1px solid var(--m-border);
-      border-radius: 24px;
-      box-shadow: 0 32px 64px -12px rgba(16, 24, 40, 0.08);
+      max-width: 1100px;
       display: flex;
       flex-direction: column;
-      overflow: hidden;
-      position: relative;
+      gap: 30px;
     }
 
-    /* Top Strip */
-    .machine-topbar {
-      height: 48px;
-      border-bottom: 1px solid var(--m-border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 24px;
-      background: #F9FAFB;
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--m-text-light);
-    }
-    .machine-status {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      color: var(--m-text);
-      font-weight: 700;
-    }
-    .machine-status::before {
-      content: "";
-      width: 8px; height: 8px;
-      background: var(--m-accent);
-      border-radius: 50%;
-      animation: pulse 2s infinite;
-    }
-    @keyframes pulse {
-      0% { box-shadow: 0 0 0 0 rgba(var(--m-accent-rgb), 0.4); }
-      70% { box-shadow: 0 0 0 6px rgba(var(--m-accent-rgb), 0); }
-      100% { box-shadow: 0 0 0 0 rgba(var(--m-accent-rgb), 0); }
-    }
-
-    /* Layout */
-    .machine-body {
+    /* Glassmorphic 3D Card */
+    .machine-glass-card {
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(25px) saturate(150%);
+      -webkit-backdrop-filter: blur(25px) saturate(150%);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      border-radius: 40px;
+      padding: 50px;
+      box-shadow: 
+        0 30px 60px rgba(0,0,0,0.1),
+        inset 0 2px 2px rgba(255,255,255,0.5),
+        inset 0 -2px 5px rgba(0,0,0,0.05);
       display: grid;
       grid-template-columns: 350px 1fr;
+      gap: 50px;
     }
     @media (max-width: 900px) {
-      .machine-body { grid-template-columns: 1fr; }
+      .machine-glass-card { grid-template-columns: 1fr; padding: 30px; }
     }
 
-    /* Left Sidebar */
-    .machine-sidebar {
-      border-right: 1px solid var(--m-border);
-      padding: 40px;
+    /* Profile Section */
+    .m-profile-col {
       display: flex;
       flex-direction: column;
-    }
-    @media (max-width: 900px) {
-      .machine-sidebar { border-right: none; border-bottom: 1px solid var(--m-border); }
-    }
-
-    .machine-avatar-box {
-      width: 100%;
-      aspect-ratio: 1;
-      border-radius: 16px;
-      overflow: hidden;
-      margin-bottom: 32px;
-      position: relative;
-      background: #F9FAFB;
-      border: 1px solid var(--m-border);
-    }
-    .machine-avatar {
-      width: 100%; height: 100%; object-fit: cover;
-    }
-    .machine-avatar-overlay {
-      position: absolute; top: 12px; left: 12px;
-      background: rgba(255,255,255,0.9);
-      backdrop-filter: blur(4px);
-      padding: 4px 8px;
-      border-radius: 6px;
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 0.7rem;
-      font-weight: 700;
-      color: var(--m-text);
-      border: 1px solid var(--m-border);
-    }
-
-    .machine-name {
-      font-size: 2rem;
-      font-weight: 800;
-      letter-spacing: -0.02em;
-      margin-bottom: 8px;
-      line-height: 1.1;
-    }
-    .machine-role {
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 0.9rem;
-      font-weight: 600;
-      color: var(--m-accent);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-bottom: 24px;
-    }
-    .machine-bio {
-      font-size: 0.95rem;
-      line-height: 1.6;
-      color: var(--m-text-light);
-    }
-
-    /* Main Content */
-    .machine-content {
-      padding: 40px;
-      background: #FFFFFF;
-    }
-
-    .m-section-title {
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 0.8rem;
-      font-weight: 700;
-      color: var(--m-text-light);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-bottom: 24px;
-      display: flex;
       align-items: center;
-      gap: 12px;
+      text-align: center;
+      position: relative;
     }
-    .m-section-title::after {
-      content: ""; flex: 1; height: 1px; background: var(--m-border);
+    
+    .m-avatar-wrapper {
+      position: relative;
+      width: 220px;
+      height: 220px;
+      margin-bottom: 30px;
+    }
+    .m-avatar-ring {
+      position: absolute;
+      inset: -15px;
+      border-radius: 50%;
+      background: conic-gradient(from 0deg, #FFEA00, #FF0055, #00F0FF, #FFEA00);
+      animation: spinRing 4s linear infinite;
+      box-shadow: 0 0 30px rgba(255,0,85,0.4);
+    }
+    .m-avatar-ring::after {
+      content: "";
+      position: absolute;
+      inset: 6px;
+      background: rgba(255,255,255,0.2);
+      backdrop-filter: blur(10px);
+      border-radius: 50%;
+    }
+    @keyframes spinRing {
+      100% { transform: rotate(360deg); }
+    }
+    .m-avatar {
+      position: absolute;
+      inset: 6px;
+      width: calc(100% - 12px);
+      height: calc(100% - 12px);
+      border-radius: 50%;
+      object-fit: cover;
+      z-index: 2;
+      border: 4px solid #fff;
     }
 
-    /* Telemetry / Metrics */
-    .machine-metrics {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 16px;
-      margin-bottom: 48px;
-    }
-    .m-metric-card {
-      background: #F9FAFB;
-      border: 1px solid var(--m-border);
-      border-radius: 12px;
-      padding: 20px;
-      transition: all 0.2s;
-    }
-    .m-metric-card:hover {
-      border-color: var(--m-accent);
-      background: #FFFFFF;
-      box-shadow: 0 8px 24px -6px rgba(16, 24, 40, 0.05);
-      transform: translateY(-2px);
-    }
-    .m-metric-val {
-      font-size: 2rem;
-      font-weight: 800;
-      letter-spacing: -0.02em;
-      color: var(--m-text);
-      margin-bottom: 4px;
-    }
-    .m-metric-lbl {
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 0.75rem;
-      font-weight: 600;
-      color: var(--m-text-light);
+    .m-name {
+      font-family: 'Syncopate', sans-serif;
+      font-size: 2.2rem;
+      font-weight: 700;
+      color: #fff;
       text-transform: uppercase;
+      letter-spacing: 2px;
+      text-shadow: 2px 4px 10px rgba(0,0,0,0.2);
+      margin-bottom: 10px;
+    }
+    .m-role {
+      display: inline-block;
+      padding: 8px 20px;
+      background: rgba(255,255,255,0.9);
+      color: var(--m-accent);
+      border-radius: 30px;
+      font-weight: 800;
+      font-size: 0.85rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.1);
     }
 
-    /* Links */
-    .machine-links {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 16px;
+    /* Content Section */
+    .m-content-col {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
     }
-    .m-link-card {
+    
+    .m-bio-box {
+      background: rgba(255,255,255,0.3);
+      padding: 30px;
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.5);
+      color: #111;
+      font-size: 1.1rem;
+      line-height: 1.7;
+      font-weight: 600;
+      margin-bottom: 40px;
+      position: relative;
+      overflow: hidden;
+    }
+    .m-bio-box::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; width: 6px; height: 100%;
+      background: var(--m-accent);
+    }
+
+    /* Modules (3D Claymorphic Buttons) */
+    .m-section-label {
+      font-family: 'Syncopate', sans-serif;
+      color: #fff;
+      font-size: 1rem;
+      letter-spacing: 2px;
+      margin-bottom: 20px;
+      text-shadow: 1px 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .m-links-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 20px;
+    }
+
+    .m-link-3d {
+      background: rgba(255,255,255,0.8);
+      padding: 20px 25px;
+      border-radius: 20px;
+      text-decoration: none;
+      color: #111;
+      font-weight: 800;
+      font-size: 1.2rem;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 20px 24px;
-      background: #FFFFFF;
-      border: 1px solid var(--m-border);
-      border-radius: 12px;
-      text-decoration: none;
-      color: var(--m-text);
-      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      box-shadow: 
+        0 10px 20px rgba(0,0,0,0.1),
+        inset 0 -5px 10px rgba(0,0,0,0.1),
+        inset 0 4px 5px rgba(255,255,255,1);
+      border: 1px solid rgba(255,255,255,0.9);
       position: relative;
       overflow: hidden;
     }
-    .m-link-card::before {
-      content: "";
-      position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
-      background: var(--m-accent);
-      transform: scaleY(0);
-      transition: transform 0.2s;
-    }
-    .m-link-card:hover {
-      border-color: var(--m-accent);
-      box-shadow: 0 12px 24px -8px rgba(16, 24, 40, 0.08);
-      transform: translateY(-2px);
-    }
-    .m-link-card:hover::before {
-      transform: scaleY(1);
+    
+    .m-link-3d:hover {
+      transform: translateY(-8px) scale(1.02);
+      background: #fff;
+      box-shadow: 
+        0 20px 30px rgba(0,0,0,0.15),
+        inset 0 -5px 10px rgba(0,0,0,0.05),
+        inset 0 4px 5px rgba(255,255,255,1);
+      color: var(--m-accent);
     }
     
-    .m-link-info { display: flex; flex-direction: column; gap: 4px; }
-    .m-link-title {
-      font-weight: 600;
-      font-size: 1.05rem;
-    }
-    .m-link-meta {
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 0.7rem;
-      font-weight: 600;
-      color: var(--m-text-light);
-      text-transform: uppercase;
-    }
     .m-link-arrow {
-      color: var(--m-text-light);
-      transition: transform 0.2s;
+      background: var(--m-accent);
+      color: #fff;
+      width: 35px; height: 35px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+      transition: transform 0.3s;
     }
-    .m-link-card:hover .m-link-arrow {
+    .m-link-3d:hover .m-link-arrow {
+      transform: rotate(-45deg);
+    }
+    
+    /* Metrics floating bubbles */
+    .m-metrics-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      margin-bottom: 40px;
+    }
+    .m-metric-bubble {
+      background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(255,255,255,0.4));
+      backdrop-filter: blur(10px);
+      padding: 15px 25px;
+      border-radius: 30px;
+      border: 1px solid rgba(255,255,255,0.6);
+      box-shadow: 0 8px 16px rgba(0,0,0,0.05);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .m-metric-val {
+      font-family: 'Syncopate', sans-serif;
+      font-size: 1.5rem;
+      font-weight: 700;
       color: var(--m-accent);
-      transform: translateX(4px);
+    }
+    .m-metric-lbl {
+      font-size: 0.7rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #333;
     }
   `;
 
   return (
     <div className="machine-wrap">
       <style>{customStyles}</style>
+      <div className="machine-shape shape-1" />
+      <div className="machine-shape shape-2" />
       
       <div className="machine-container">
-        <div className="machine-topbar">
-          <div>SYS.VER // 1.0.4</div>
-          <div className="machine-status">SYSTEM OPERATIONAL</div>
-        </div>
-
-        <div className="machine-body">
-          {/* Left Sidebar */}
-          <div className="machine-sidebar">
-            <div className="machine-avatar-box">
+        
+        <div className="machine-glass-card">
+          {/* PROFILE COLUMN */}
+          <div className="m-profile-col">
+            <div className="m-avatar-wrapper">
+              <div className="m-avatar-ring" />
               {profile?.avatarUrl ? (
-                <img src={profile.avatarUrl} alt={name} className="machine-avatar" />
+                <img src={profile.avatarUrl} alt={name} className="m-avatar" />
               ) : (
-                <div className="machine-avatar flex items-center justify-center bg-gray-100 text-gray-400 text-4xl font-bold">
+                <div className="m-avatar flex items-center justify-center bg-white text-[var(--m-accent)] text-5xl font-bold">
                   {name[0]}
                 </div>
               )}
-              <div className="machine-avatar-overlay">OBJ. ID: {Math.random().toString(36).substr(2, 5).toUpperCase()}</div>
             </div>
-
-            <h1 className="machine-name">{name}</h1>
-            <div className="machine-role">{profile.headline || profile.role || "ENGINEER"}</div>
-            
-            {profile.bio && (
-              <div className="machine-bio">{profile.bio}</div>
-            )}
+            <h1 className="m-name">{name}</h1>
+            <div className="m-role">{profile.headline || profile.role || "ENGINEER"}</div>
           </div>
 
-          {/* Right Content */}
-          <div className="machine-content">
+          {/* CONTENT COLUMN */}
+          <div className="m-content-col">
             
-            {/* Metrics */}
-            {profile.metrics && profile.metrics.length > 0 && (
-              <div className="mb-12">
-                <div className="m-section-title">Telemetry Data</div>
-                <div className="machine-metrics">
-                  {profile.metrics.map((m: any, i: number) => (
-                    <div key={i} className="m-metric-card">
-                      <div className="m-metric-val">{m.value}</div>
-                      <div className="m-metric-lbl">{m.label || m.title || m.name}</div>
-                    </div>
-                  ))}
-                </div>
+            {profile.bio && (
+              <div className="m-bio-box">
+                {profile.bio}
               </div>
             )}
 
-            {/* Links */}
+            {profile.metrics && profile.metrics.length > 0 && (
+              <div className="m-metrics-row">
+                {profile.metrics.map((m: any, i: number) => (
+                  <div key={i} className="m-metric-bubble">
+                    <span className="m-metric-val">{m.value}</span>
+                    <span className="m-metric-lbl">{m.label || m.title || m.name}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div>
-              <div className="m-section-title">External Modules</div>
-              <div className="machine-links">
+              <div className="m-section-label">SYSTEM MODULES</div>
+              <div className="m-links-grid">
                 {profile.links?.map((link: any, i: number) => (
-                  <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="m-link-card">
-                    <div className="m-link-info">
-                      <span className="m-link-title">{link.label}</span>
-                      <span className="m-link-meta">{`MOD_${i.toString().padStart(2, '0')} // SECURE`}</span>
+                  <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="m-link-3d">
+                    <span>{link.label}</span>
+                    <div className="m-link-arrow">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                        <polyline points="12 5 19 12 12 19"></polyline>
+                      </svg>
                     </div>
-                    <svg className="m-link-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="5" y1="12" x2="19" y2="12"></line>
-                      <polyline points="12 5 19 12 12 19"></polyline>
-                    </svg>
                   </a>
                 ))}
               </div>
@@ -3165,6 +3170,7 @@ function MachineTemplate({ profile, accentColor }: any) {
 
           </div>
         </div>
+
       </div>
     </div>
   );
