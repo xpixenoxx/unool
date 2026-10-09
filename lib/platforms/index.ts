@@ -24,6 +24,7 @@ import { instagramAdapter } from './InstagramAdapter';
 import { blueskyAdapter } from './BlueskyAdapter';
 import { redditAdapter } from './RedditAdapter';
 import { mastodonAdapter } from './MastodonAdapter';
+import { slackAdapter } from './SlackAdapter';
 import type { PlatformAdapter } from './adapter';
 
 export const platformAdapters: Record<string, PlatformAdapter> = {
@@ -40,6 +41,7 @@ export const platformAdapters: Record<string, PlatformAdapter> = {
   bluesky: blueskyAdapter,
   reddit: redditAdapter,
   mastodon: mastodonAdapter,
+  slack: slackAdapter,
 };
 
 export function getPlatformAdapter(platform: string): PlatformAdapter | null {

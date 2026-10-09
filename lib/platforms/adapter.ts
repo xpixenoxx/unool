@@ -41,7 +41,7 @@ export interface PublishResult {
 }
 
 export interface PlatformAdapter {
-  readonly platform: 'linkedin' | 'x' | 'threads' | 'manual' | 'facebook' | 'whatsapp' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'reddit' | 'mastodon';
+  readonly platform: 'linkedin' | 'x' | 'threads' | 'manual' | 'facebook' | 'whatsapp' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'reddit' | 'mastodon' | 'slack';
   readonly authConfig: PlatformAuthConfig;
 
   getAuthUrl(state: string): string | Promise<{ url: string; pkceCookie?: string }>;

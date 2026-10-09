@@ -1,5 +1,5 @@
 export type PostStatus = 'draft' | 'scheduled' | 'published' | 'failed';
-export type Platform = 'linkedin' | 'x' | 'threads' | 'manual' | 'facebook' | 'whatsapp' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'reddit' | 'mastodon';
+export type Platform = 'linkedin' | 'x' | 'threads' | 'manual' | 'facebook' | 'whatsapp' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'reddit' | 'mastodon' | 'slack';
 
 export interface Post {
   id: string;

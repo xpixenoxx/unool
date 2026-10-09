@@ -9,15 +9,16 @@ import {
   Loader2, Linkedin, Twitter, MessageSquare, Facebook, Instagram,
   Phone, CheckCircle, AlertCircle, Unlink2, Link2, Lock, Globe2,
   ArrowRight, Wifi, WifiOff, RefreshCw, Youtube, Cloud, ExternalLink, Image as ImageIcon,
-  MessageCircle
+  MessageCircle, Hash
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { BlueskyConnectDialog } from './BlueskyConnectDialog';
 import { MastodonConnectDialog } from './MastodonConnectDialog';
+import { SlackConnectDialog } from './SlackConnectDialog';
 
-const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'whatsapp', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon'] as const;
+const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'whatsapp', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack'] as const;
 type Platform = typeof SUPPORTED_PLATFORMS[number];
 
 interface PlatformConnection {
@@ -170,6 +171,17 @@ const PLATFORM_CONFIG: Record<
     available: true,
     customConnect: true, // uses handle + PAT, not OAuth
   },
+  slack: {
+    icon: Hash,
+    name: 'Slack',
+    shortName: 'Slack',
+    color: 'bg-[#4A154B]',
+    hoverBorder: 'hover:border-[#4A154B]/30',
+    description: 'Channels & team updates',
+    audience: 'Internal team & workspace',
+    available: true,
+    customConnect: true, // uses bot token
+  },
 };
 
 /* ─── Component ────────────────────────────────────────────── */
@@ -201,6 +213,7 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
   const [disconnecting, setDisconnecting] = useState<Platform | null>(null);
   const [blueskyDialogOpen, setBlueskyDialogOpen] = useState(false);
   const [mastodonDialogOpen, setMastodonDialogOpen] = useState(false);
+  const [slackDialogOpen, setSlackDialogOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -235,6 +248,10 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
     }
     if (platform === 'mastodon') {
       setMastodonDialogOpen(true);
+      return;
+    }
+    if (platform === 'slack') {
+      setSlackDialogOpen(true);
       return;
     }
     // Show spinner immediately — gives instant visual feedback before the redirect
@@ -330,6 +347,18 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
             mastodon: { platform: 'mastodon', status: 'connected', username },
           }));
           // Reload the dashboard page so the Broadcast Network block updates too
+          window.location.reload();
+        }}
+      />
+      <SlackConnectDialog
+        open={slackDialogOpen}
+        onClose={() => setSlackDialogOpen(false)}
+        workspaceId={workspaceId}
+        onSuccess={(username) => {
+          setConnections((prev) => ({
+            ...prev,
+            slack: { platform: 'slack', status: 'connected', username },
+          }));
           window.location.reload();
         }}
       />

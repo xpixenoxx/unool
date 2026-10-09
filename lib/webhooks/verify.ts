@@ -49,6 +49,7 @@ function getWebhookSecret(platform: Platform): string | undefined {
     bluesky: undefined,
     reddit: undefined,
     mastodon: undefined,
+    slack: undefined,
     manual: undefined,
   };
   return secretMap[platform];
@@ -169,6 +170,7 @@ export function extractWebhookSignature(request: Request, platform: Platform): s
     bluesky: [],
     reddit: [],
     mastodon: [],
+    slack: [],
     manual: [],
   };
 
