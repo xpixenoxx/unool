@@ -50,7 +50,7 @@ import { cn } from '@/lib/utils';
 import { useUserContext } from '@/lib/hooks/use-user-context';
 import { PLATFORM_LIMITS } from '@/lib/config/platformLimits';
 
-type PlatformType = 'linkedin' | 'x' | 'threads' | 'facebook' | 'whatsapp' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky';
+type PlatformType = 'linkedin' | 'x' | 'threads' | 'facebook' | 'whatsapp' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'mastodon';
 
 const PLATFORM_CONFIG: Record<PlatformType, { icon: React.ElementType; name: string; maxChars: number; color: string }> = {
   linkedin: { icon: Linkedin, name: 'LinkedIn', maxChars: 3000, color: 'bg-blue-600' },
@@ -62,6 +62,7 @@ const PLATFORM_CONFIG: Record<PlatformType, { icon: React.ElementType; name: str
   youtube: { icon: Youtube, name: 'YouTube', maxChars: 5000, color: 'bg-red-600' },
   pinterest: { icon: ImageIcon, name: 'Pinterest', maxChars: 500, color: 'bg-red-600' },
   bluesky: { icon: Cloud, name: 'Bluesky', maxChars: 300, color: 'bg-blue-400' },
+  mastodon: { icon: Globe, name: 'Mastodon', maxChars: 500, color: 'bg-purple-600' },
 };
 
 interface PlatformDraft {
@@ -1770,7 +1771,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={generateDrafts}
+                                  onClick={() => generateDrafts()}
                                   disabled={isGenerating || draft?.status === 'generating'}
                                   className="mt-1 text-xs h-7"
                                 >

@@ -83,10 +83,10 @@ export async function POST(request: NextRequest) {
       displayName: profile.displayName,
     });
   } catch (error) {
-    const errObj = error instanceof Error ? error : new Error(String(error));
-    logger.error('Mastodon connect: unexpected error', { error: errObj });
+    const errorDetails = error instanceof Error ? error.message : JSON.stringify(error);
+    logger.error('Mastodon connect: unexpected error', { errorDetails });
     return NextResponse.json(
-      { error: `An unexpected error occurred: ${errObj.message}. Please try again.` },
+      { error: `An unexpected error occurred: ${errorDetails}. Please try again.` },
       { status: 500 }
     );
   }
