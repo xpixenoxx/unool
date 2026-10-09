@@ -4247,20 +4247,20 @@ function VoiceTemplate({ profile }: any) {
     }
 
     .voice-template .paper-card {
-      background-color: #F1F4F2;
+      background-color: #F1F5F2;
       border-radius: 24px;
       transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-      border: 1px solid #FFFFFF;
       box-shadow: 
-        8px 8px 16px rgba(141, 163, 150, 0.15), 
-        -8px -8px 16px rgba(255, 255, 255, 0.8);
+        10px 10px 30px rgba(168, 184, 157, 0.3), 
+        -10px -10px 30px rgba(255, 255, 255, 1);
       position: relative;
       overflow: hidden;
+      border: none;
     }
     .voice-template .paper-card:hover {
       box-shadow: 
-        12px 12px 20px rgba(141, 163, 150, 0.2), 
-        -12px -12px 20px rgba(255, 255, 255, 0.9);
+        12px 12px 36px rgba(168, 184, 157, 0.4), 
+        -12px -12px 36px rgba(255, 255, 255, 1);
       transform: translateY(-2px);
     }
 
@@ -4429,11 +4429,11 @@ function VoiceTemplate({ profile }: any) {
                 {proofs.map((proof: any, i: number) => (
                   <div key={i} className="paper-card p-4 md:p-6 flex flex-col gap-2">
                     <div className="flex items-center gap-3">
-                      {proof.icon && <span className="text-[#D99441] text-lg">{proof.icon}</span>}
-                      <h3 className="font-bold text-[#1C2B21] text-sm md:text-base">{proof.title || proof.type}</h3>
+                      {proof.icon && <span className="text-[#D99441] text-xl">{proof.icon}</span>}
+                      <h3 className="font-bold text-[#1C2B21] text-base md:text-lg">{proof.title || proof.type}</h3>
                     </div>
                     {proof.value && (
-                       <p className="text-[#D99441] font-serif text-xl md:text-2xl mt-2">{proof.value}</p>
+                       <p className="text-[#D99441] font-serif text-3xl md:text-4xl mt-3">{proof.value}</p>
                     )}
                     {proof.description && (
                        <p className="text-xs md:text-sm text-[#5C7464] mt-1">{proof.description}</p>
