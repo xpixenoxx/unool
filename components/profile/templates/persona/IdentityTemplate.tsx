@@ -4328,11 +4328,11 @@ function VoiceTemplate({ profile }: any) {
   };
 
   return (
-    <div className="voice-template w-full min-h-screen bg-white p-6 md:p-8 lg:p-12 flex justify-center">
+    <div className="voice-template w-full min-h-screen bg-[#EBF0EC] p-6 md:p-8 lg:p-12 flex justify-center">
       <style>{customStyles}</style>
 
       {/* Main Card Wrapper */}
-      <div className="w-full max-w-[1200px] bg-gradient-to-br from-white via-[#F8FAF9] to-[#ECF1EE] rounded-[32px] md:rounded-[48px] shadow-2xl relative overflow-hidden flex justify-center py-10 md:py-16 px-6 md:px-12 lg:px-16 border border-white/60">
+      <div className="w-full max-w-[1200px] bg-white rounded-[32px] md:rounded-[48px] shadow-2xl relative overflow-hidden flex justify-center py-10 md:py-16 px-6 md:px-12 lg:px-16 border border-[#8DA396]/20">
         
         {/* Main Content Container */}
         <div className="w-full max-w-[960px] mx-auto relative z-10">
