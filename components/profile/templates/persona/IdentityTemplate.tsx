@@ -1913,7 +1913,7 @@ function VisionTemplate({ profile, accentColor }: any) {
       50% { top: 100%; opacity: 0.5; }
       90% { opacity: 0; }
     }
-  \`;
+  `;
 
   return (
     <div 
@@ -1927,13 +1927,13 @@ function VisionTemplate({ profile, accentColor }: any) {
       <div className="vision-grid" />
       <div 
         className="vision-glow" 
-        style={{ transform: \`translate(\${mouse.x * 200}px, \${mouse.y * 200}px)\` }} 
+        style={{ transform: `translate(${mouse.x * 200}px, ${mouse.y * 200}px)` }} 
       />
 
       <div 
         className="vision-container"
         style={{ 
-          transform: \`rotateY(\${mouse.x * 12}deg) rotateX(\${mouse.y * -12}deg)\` 
+          transform: `rotateY(${mouse.x * 12}deg) rotateX(${mouse.y * -12}deg)` 
         }}
       >
         <div className="vision-float-shape v-shape-1" />
