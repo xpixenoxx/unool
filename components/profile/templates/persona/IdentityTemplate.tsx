@@ -1794,7 +1794,7 @@ function VisionTemplate({ profile }: any) {
         justify-content: center;
       }
     }
-  \`;
+  `;
 
   return (
     <div 
@@ -1813,7 +1813,7 @@ function VisionTemplate({ profile }: any) {
 
       <div 
         className="vis-container"
-        style={{ transform: \`rotateY(\${mouse.x * 6}deg) rotateX(\${mouse.y * -6}deg)\` }}
+        style={{ transform: `rotateY(${mouse.x * 6}deg) rotateX(${mouse.y * -6}deg)` }}
       >
         <div className="vis-card">
           <div className="vis-left">
