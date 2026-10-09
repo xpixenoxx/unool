@@ -4247,18 +4247,21 @@ function VoiceTemplate({ profile }: any) {
     }
 
     .voice-template .paper-card {
-      background-color: rgba(235, 240, 236, 0.5);
-      backdrop-filter: blur(12px);
-      border-radius: 20px;
+      background-color: #F1F4F2;
+      border-radius: 24px;
       transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-      border: 1px solid rgba(255, 255, 255, 0.4);
-      box-shadow: 0 4px 20px rgba(28, 43, 33, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+      border: 1px solid #FFFFFF;
+      box-shadow: 
+        8px 8px 16px rgba(141, 163, 150, 0.15), 
+        -8px -8px 16px rgba(255, 255, 255, 0.8);
+      position: relative;
+      overflow: hidden;
     }
     .voice-template .paper-card:hover {
-      background-color: rgba(235, 240, 236, 0.85);
-      box-shadow: 0 16px 40px rgba(28, 43, 33, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8);
-      border-color: rgba(255, 255, 255, 0.6);
-      transform: translateY(-3px) scale(1.01);
+      box-shadow: 
+        12px 12px 20px rgba(141, 163, 150, 0.2), 
+        -12px -12px 20px rgba(255, 255, 255, 0.9);
+      transform: translateY(-2px);
     }
 
     .voice-template .section-divider {
@@ -4287,11 +4290,15 @@ function VoiceTemplate({ profile }: any) {
 
   const getSocialIcon = (url: string, label: string) => {
     const s = ((url || '') + ' ' + (label || '')).toLowerCase();
-    if (s.includes('github')) return <Github className="w-4 h-4" />;
-    if (s.includes('linkedin')) return <Linkedin className="w-4 h-4" />;
-    if (s.includes('instagram')) return <Instagram className="w-4 h-4" />;
-    if (s.includes('twitter') || s.includes('x.com')) return <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.008 4.07H5.078z"/></svg>;
-    return <LinkIcon className="w-4 h-4" />;
+    if (s.includes('github')) return <Github className="w-5 h-5" />;
+    if (s.includes('linkedin')) return <Linkedin className="w-5 h-5" />;
+    if (s.includes('instagram')) return <Instagram className="w-5 h-5" />;
+    if (s.includes('twitter') || s.includes('x.com')) return <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.008 4.07H5.078z"/></svg>;
+    if (s.includes('hackerrank') || s.includes('hacker rank')) return <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor"><path d="M12 0L22.392 6v12L12 24 1.608 18V6L12 0zm0 2.155L3.473 7.077v9.846L12 21.845l8.527-4.922V7.077L12 2.155zm4.845 6.945v5.8h-2.9v-2.317H10.05v2.317H7.15v-5.8h2.9v2.316h4.005v-2.316h2.89z"/></svg>;
+    if (s.includes('youtube')) return <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>;
+    if (s.includes('figma')) return <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor"><path d="M8 12.5a4 4 0 1 0 8 0 4 4 0 1 0-8 0zM8 4.5a4 4 0 1 0 8 0 4 4 0 1 0-8 0zM8 20.5a4 4 0 1 0 8 0 4 4 0 1 0-8 0z"/></svg>;
+    if (s.includes('dribbble')) return <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor"><path d="M12 24C5.385 24 0 18.615 0 12S5.385 0 12 0s12 5.385 12 12-5.385 12-12 12zm10.12-10.358c-.177-.043-3.647-.852-7.442-.236.815 2.296 1.34 4.568 1.55 5.503 2.502-1.282 4.38-3.674 5.253-6.52-.118-.01-.235-.018-.36-.027v-.004zM12.923 21.94c-1.378-5.383-4.52-9.75-4.838-10.18l-.134.128c-1.127 1.077-3.792 3.32-8.318 4.225.962 3.493 3.654 6.223 7.026 7.218 1.066-1.503 2.05-3.326 2.872-5.412 1.395.918 2.895 1.637 4.417 2.148-.258.82-.558 1.62-.88 2.378-.052-.008-.105-.015-.147-.024zm-2.023-11.758c.28-.42.593-.865.925-1.334C8.944 7.6 6.002 6.84 4.673 6.64c-.958 2.213-1.166 4.7-.63 7.042 3.86-1.072 6.02-2.99 6.857-3.882zM16.924 3.7c-2.484.772-5.83 2.658-8.583 6.07 3.326 4.14 6.136 8.01 7.234 11.23C20.67 18.3 23 13.972 23 9.07c0-2.417-.92-4.63-2.435-6.3-1.002.324-2.583.743-4.14.93z" /></svg>;
+    return <LinkIcon className="w-5 h-5" />;
   };
 
   return (
@@ -4447,19 +4454,19 @@ function VoiceTemplate({ profile }: any) {
               
               <div className="flex flex-col gap-3 pl-0 md:pl-6">
                 {links.map((link: any, i: number) => (
-                  <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="paper-card p-3 md:p-5 flex items-center justify-between group">
-                    <div className="flex items-center gap-3 md:gap-5">
-                      <div className="w-10 h-10 rounded-full bg-[#D9E4DD] text-[#DF5B4C] flex items-center justify-center group-hover:bg-[#DF5B4C] group-hover:text-white transition-colors shrink-0">
+                  <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="paper-card px-6 py-4 md:px-8 md:py-6 flex items-center justify-between group">
+                    <div className="flex items-center gap-4 md:gap-6 z-10 relative">
+                      <div className="w-12 h-12 rounded-full bg-[#E4ECE7] text-[#DF5B4C] flex items-center justify-center group-hover:bg-[#DF5B4C] group-hover:text-white transition-colors shrink-0 shadow-inner">
                           {getSocialIcon(link.url, link.label)}
                       </div>
                       <div>
-                        <h3 className="font-bold text-[#1C2B21] text-sm md:text-base">{link.label}</h3>
-                        <p className="text-xs text-[#5C7464] mt-0.5 truncate max-w-[150px] sm:max-w-[300px] md:max-w-[400px]">
+                        <h3 className="font-bold text-[#1C2B21] text-base md:text-lg group-hover:text-[#DF5B4C] transition-colors">{link.label}</h3>
+                        <p className="text-sm text-[#8DA396] mt-0.5 truncate max-w-[150px] sm:max-w-[300px] md:max-w-[400px]">
                           {link.url.replace(/^https?:\/\/(www\.)?/, '')}
                         </p>
                       </div>
                     </div>
-                    <div className="text-[#DF5B4C] md:text-[#8DA396] group-hover:text-[#DF5B4C] transition-colors pl-4 shrink-0">
+                    <div className="text-[#8DA396] group-hover:text-[#DF5B4C] transition-colors pl-4 shrink-0">
                       <ArrowRight className="w-5 h-5 transform rotate-[-45deg] group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                     </div>
                   </a>
