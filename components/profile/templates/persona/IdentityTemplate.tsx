@@ -3099,14 +3099,14 @@ function VisionaryTemplate({ profile, onLinkClick }: any) {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#F5EFEB] py-8 sm:py-16 px-4 sm:px-8 flex justify-center items-start text-[#2C2825] font-['Manrope',sans-serif] antialiased">
+    <div className="min-h-screen w-full bg-[#ECEEF5] py-8 sm:py-16 px-4 sm:px-8 flex justify-center items-start text-[#2C2825] font-['Manrope',sans-serif] antialiased">
       <style dangerouslySetInnerHTML={{ __html: `
         @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Manrope:wght@300;400;500;600;700&display=swap');
         .visionary-serif { font-family: 'DM Serif Display', serif; }
         .visionary-sans { font-family: 'Manrope', sans-serif; }
         
         .visionary-outer-shell {
-          background-color: #F8F5F0;
+          background-color: #F5F6FA;
           background-image: 
             radial-gradient(circle at 50% 0%, rgba(220, 209, 195, 0.15) 0%, transparent 70%),
             url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
@@ -3253,43 +3253,6 @@ function VisionaryTemplate({ profile, onLinkClick }: any) {
             </div>
 
           </div>
-        </section>
-
-        {/* 3. Philosophy Section */}
-        <section className="relative px-8 sm:px-12 py-16 md:py-20 border-b border-[#2C2825]/10 flex flex-col md:flex-row gap-12">
-          
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] md:w-[60%] h-[150%] md:h-[200%] rounded-[100%] border-[0.5px] border-[#A599B5]/20 -rotate-12 pointer-events-none" />
-          
-          <div className="w-full md:w-32 flex flex-col shrink-0 text-[#704E59] items-center md:items-start">
-            <span className="visionary-serif text-3xl mb-2">02</span>
-            <span className="text-[9px] tracking-[0.2em] font-bold uppercase text-center md:text-left">POINT OF VIEW</span>
-            
-            <div className="mt-6 md:mt-auto pt-4 md:pt-0 pb-4 text-[#8B958A] text-[8px] tracking-[0.1em] uppercase leading-relaxed max-w-[100px] text-center md:text-left hidden md:block">
-              A FIELD NOTE<br/>ON POSSIBILITY
-            </div>
-          </div>
-          
-          <div className="flex-1 max-w-3xl relative z-10 text-center md:text-left flex flex-col items-center md:items-start">
-            <div className="text-[9px] tracking-[0.2em] text-[#8B958A] uppercase font-bold mb-6">
-              THE QUESTION BENEATH THE WORK
-            </div>
-            
-            <h3 className="visionary-serif text-[clamp(2.5rem,6vw,4.5rem)] leading-[1.05] text-[#2C2825] mb-8 relative inline-block">
-              {question}
-              <span className="absolute -right-4 sm:-right-8 md:-right-16 -top-4 md:-top-8 visionary-serif text-5xl sm:text-6xl md:text-8xl text-[#A599B5]/40 rotate-12 select-none">
-                ?
-              </span>
-            </h3>
-            
-            <p className="text-sm sm:text-base leading-[1.8] text-[#2C2825]/80 font-medium max-w-xl">
-              {positioning}
-            </p>
-          </div>
-          
-          <div className="hidden md:flex flex-col items-center justify-center shrink-0 w-8">
-             <span className="text-[8px] tracking-[0.2em] text-[#BA6F61] rotate-90 uppercase whitespace-nowrap">SEQ / 02A</span>
-          </div>
-
         </section>
 
         {/* 4. Proof Section */}
