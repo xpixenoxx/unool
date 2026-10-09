@@ -2835,46 +2835,434 @@ function StudioTemplate({ profile }: any) {
 }
 
 function MachineTemplate({ profile, accentColor }: any) {
-  const accent = accentColor || '#10B981';
+  const accent = accentColor || '#00FFAA'; // Default neon green/cyan
+  const name = profile?.name || "SYS.ADMIN";
+  
+  const customStyles = `
+    @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap');
+
+    .machine-wrap {
+      --machine-bg: #030303;
+      --machine-panel: #0a0a0a;
+      --machine-border: #1a1a1a;
+      --machine-accent: ${accent};
+      --machine-text: #e0e0e0;
+      --machine-dim: #666666;
+      
+      font-family: 'Share Tech Mono', monospace;
+      background-color: var(--machine-bg);
+      color: var(--machine-text);
+      min-height: 100vh;
+      width: 100%;
+      position: relative;
+      overflow-x: hidden;
+      padding: 4vw;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* Radar / Grid Background */
+    .machine-bg-grid {
+      position: absolute;
+      inset: 0;
+      background-image: 
+        linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      z-index: 0;
+      pointer-events: none;
+    }
+    
+    .machine-bg-grid::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 50% 50%, transparent 20%, var(--machine-bg) 100%);
+    }
+
+    .machine-container {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      max-width: 1200px;
+      display: grid;
+      grid-template-columns: 350px 1fr;
+      gap: 2px;
+      background: var(--machine-border);
+      border: 1px solid var(--machine-border);
+      box-shadow: 0 0 50px rgba(0,0,0,0.8), 0 0 0 1px rgba(var(--machine-accent), 0.1);
+    }
+    
+    @media (max-width: 900px) {
+      .machine-container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Core Panels */
+    .machine-panel {
+      background: var(--machine-panel);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .machine-panel-inner {
+      padding: 40px;
+      position: relative;
+      z-index: 2;
+    }
+
+    /* Decorative Tech Accents */
+    .machine-corner {
+      position: absolute;
+      width: 15px; height: 15px;
+      border: 2px solid var(--machine-accent);
+      z-index: 5;
+    }
+    .mc-tl { top: 0; left: 0; border-right: none; border-bottom: none; }
+    .mc-tr { top: 0; right: 0; border-left: none; border-bottom: none; }
+    .mc-bl { bottom: 0; left: 0; border-right: none; border-top: none; }
+    .mc-br { bottom: 0; right: 0; border-left: none; border-top: none; }
+
+    /* Scanline Animation */
+    .machine-scanline {
+      position: absolute;
+      top: 0; left: 0; right: 0; height: 2px;
+      background: var(--machine-accent);
+      opacity: 0.15;
+      box-shadow: 0 0 20px 2px var(--machine-accent);
+      animation: scan 8s linear infinite;
+      z-index: 20;
+      pointer-events: none;
+    }
+    @keyframes scan {
+      0% { top: 0; }
+      100% { top: 100%; }
+    }
+
+    /* Avatar Targeting System */
+    .machine-avatar-wrap {
+      width: 200px;
+      height: 200px;
+      margin: 0 auto 30px auto;
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    .machine-avatar-target {
+      position: absolute;
+      inset: -10px;
+      border: 1px dashed var(--machine-dim);
+      border-radius: 50%;
+      animation: rotate-slow 20s linear infinite;
+    }
+
+    .machine-avatar-ring {
+      position: absolute;
+      inset: -25px;
+      border: 1px solid transparent;
+      border-top-color: var(--machine-accent);
+      border-bottom-color: var(--machine-accent);
+      border-radius: 50%;
+      animation: rotate-slow 15s linear infinite reverse;
+      opacity: 0.5;
+    }
+
+    .machine-avatar {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      filter: grayscale(100%) contrast(120%) brightness(90%);
+      border-radius: 50%;
+      position: relative;
+      z-index: 2;
+    }
+
+    .machine-avatar-overlay {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: radial-gradient(circle, transparent 40%, rgba(var(--machine-accent), 0.2) 100%);
+      mix-blend-mode: overlay;
+      z-index: 3;
+    }
+
+    /* Typography & Headers */
+    .machine-header-mini {
+      font-size: 0.7rem;
+      color: var(--machine-accent);
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      margin-bottom: 5px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .machine-header-mini::before {
+      content: "";
+      width: 10px;
+      height: 2px;
+      background: var(--machine-accent);
+    }
+
+    .machine-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 3rem;
+      font-weight: 700;
+      line-height: 1;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+      color: #fff;
+      text-shadow: 0 0 10px rgba(255,255,255,0.2);
+    }
+
+    .machine-subtitle {
+      color: var(--machine-dim);
+      font-size: 0.9rem;
+      margin-bottom: 25px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .machine-bio {
+      font-size: 0.9rem;
+      line-height: 1.6;
+      color: #999;
+      padding-left: 15px;
+      border-left: 2px solid #222;
+      position: relative;
+    }
+    .machine-bio::after {
+      content: "";
+      position: absolute;
+      left: -2px;
+      top: 0;
+      width: 2px;
+      height: 30%;
+      background: var(--machine-accent);
+      animation: bio-scan 4s ease-in-out infinite alternate;
+    }
+    @keyframes bio-scan {
+      0% { top: 0; height: 10%; }
+      100% { top: 90%; height: 10%; }
+    }
+
+    /* Data Modules */
+    .machine-module-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 20px;
+      margin-top: 40px;
+    }
+
+    .machine-link-module {
+      background: #0d0d0d;
+      border: 1px solid #222;
+      padding: 20px;
+      position: relative;
+      text-decoration: none;
+      color: var(--machine-text);
+      display: flex;
+      flex-direction: column;
+      transition: all 0.2s;
+      overflow: hidden;
+    }
+
+    .machine-link-module:hover {
+      border-color: var(--machine-accent);
+      background: #111;
+      transform: translateY(-2px);
+    }
+
+    .machine-link-module::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      height: 2px;
+      background: var(--machine-accent);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.3s ease;
+    }
+    
+    .machine-link-module:hover::before {
+      transform: scaleX(1);
+    }
+
+    .machine-link-id {
+      font-size: 0.65rem;
+      color: var(--machine-dim);
+      margin-bottom: 15px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .machine-link-name {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 1.4rem;
+      font-weight: 600;
+      color: #fff;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .machine-link-status {
+      margin-top: 15px;
+      font-size: 0.7rem;
+      color: var(--machine-accent);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .machine-link-status::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      background: var(--machine-accent);
+      box-shadow: 0 0 8px var(--machine-accent);
+      border-radius: 50%;
+      animation: blink 2s infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+    @keyframes rotate-slow {
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Technical Barcode */
+    .machine-barcode {
+      display: flex;
+      gap: 2px;
+      height: 30px;
+      margin-top: 40px;
+      opacity: 0.3;
+    }
+    .mb-bar { background: var(--machine-text); height: 100%; }
+
+  `;
+
+  // Generate random barcode lines
+  const barcodeLines = Array.from({ length: 40 }).map(() => 
+    Math.random() > 0.5 ? Math.random() * 4 + 1 : 0
+  );
+
   return (
-    <div className="min-h-screen w-full bg-[#09090B] text-zinc-400 p-6 font-mono text-sm grid place-items-center">
-      <div className="max-w-5xl w-full border border-zinc-800 bg-zinc-950 p-1 md:p-8 rounded-lg shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-zinc-500 to-transparent opacity-20" />
+    <div className="machine-wrap">
+      <style>{customStyles}</style>
+      <div className="machine-bg-grid" />
+      
+      <div className="machine-container">
         
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
-          <div className="md:col-span-1 border border-zinc-800 p-4 rounded flex flex-col items-center text-center">
-            <img src={profile.avatarUrl} alt={profile.name} className="w-24 h-24 mb-4 rounded border border-zinc-800 grayscale" />
-            <h1 className="text-white font-bold text-lg mb-1">{profile.name}</h1>
-            <Badge text="ACTIVE" accent={accent} />
-          </div>
+        {/* LEFT PANEL: IDENTITY SYSTEM */}
+        <div className="machine-panel">
+          <div className="machine-corner mc-tl" />
+          <div className="machine-corner mc-br" />
           
-          <div className="md:col-span-3 grid grid-cols-2 gap-4">
-             <div className="border border-zinc-800 p-4 rounded flex flex-col justify-between">
-               <span className="text-zinc-600 mb-2 block">SYS.OBJECTIVE</span>
-               <span className="text-zinc-200">{profile.headline}</span>
-             </div>
-             <div className="border border-zinc-800 p-4 rounded flex flex-col justify-between">
-               <span className="text-zinc-600 mb-2 block">SYS.DIAGNOSIS</span>
-               <span className="text-zinc-400 text-xs">{profile.bio}</span>
-             </div>
+          <div className="machine-panel-inner h-full flex flex-col items-center text-center border-r border-[#1a1a1a]">
+            
+            <div className="w-full flex justify-between items-center mb-10 text-[0.65rem] text-zinc-500">
+               <span>SYS.ID: {Math.random().toString(36).substr(2, 6).toUpperCase()}</span>
+               <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-[var(--machine-accent)] animate-pulse" /> ONLINE</span>
+            </div>
+
+            <div className="machine-avatar-wrap">
+              <div className="machine-avatar-target" />
+              <div className="machine-avatar-ring" />
+              {profile?.avatarUrl ? (
+                <>
+                  <img src={profile.avatarUrl} alt={name} className="machine-avatar" />
+                  <div className="machine-avatar-overlay" />
+                </>
+              ) : (
+                <div className="machine-avatar flex items-center justify-center border border-zinc-800 bg-zinc-900 text-zinc-600 text-2xl font-bold">
+                  {name[0]}
+                </div>
+              )}
+            </div>
+
+            <div className="text-[0.7rem] tracking-[0.3em] text-zinc-500 mb-2 uppercase">Subject_Name</div>
+            <h1 className="font-['Rajdhani'] text-3xl font-bold text-white mb-2 tracking-wide uppercase">{name}</h1>
+            <div className="px-3 py-1 bg-[var(--machine-accent)]/10 text-[var(--machine-accent)] text-xs border border-[var(--machine-accent)]/30 rounded-sm uppercase tracking-widest mt-2">
+              ACCESS GRANTED
+            </div>
+
+            <div className="mt-auto w-full pt-10">
+              <div className="machine-barcode justify-center">
+                {barcodeLines.map((width, i) => (
+                  <div key={i} className="mb-bar" style={{ width: \`\${width}px\` }} />
+                ))}
+              </div>
+            </div>
+            
           </div>
         </div>
 
-        <div className="border border-zinc-800 rounded mb-4">
-          <div className="bg-zinc-900 border-b border-zinc-800 px-4 py-2 flex justify-between text-xs">
-            <span>[ MODULES ( {profile.links?.length} ) ]</span>
-            <span style={{ color: accent }}>● ROUTING OK</span>
-          </div>
-          <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {profile.links?.map((link: any, i: number) => (
-              <a key={i} href={link.url} className="border border-zinc-800 p-4 hover:border-zinc-500 transition-colors bg-black rounded relative group">
-                <div className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-zinc-700 group-hover:bg-green-500" />
-                <span className="text-zinc-600 text-[10px] mb-2 block">MOD_{i.toString().padStart(3, '0')}</span>
-                <span className="text-zinc-200 block truncate">{link.label}</span>
-              </a>
-            ))}
+        {/* RIGHT PANEL: DATA & MODULES */}
+        <div className="machine-panel">
+          <div className="machine-scanline" />
+          <div className="machine-corner mc-tr" />
+          <div className="machine-corner mc-bl" />
+
+          <div className="machine-panel-inner">
+            
+            {/* Header Data */}
+            <div className="mb-10">
+              <div className="machine-header-mini">Primary Objective</div>
+              <h2 className="machine-title">{profile.headline || 'System Architecture'}</h2>
+              <div className="machine-subtitle">CLASSIFICATION: {profile.role || 'ENGINEER'}</div>
+              
+              {profile.bio && (
+                <div className="machine-bio">
+                  {profile.bio}
+                </div>
+              )}
+            </div>
+
+            {/* Metrics Dashboard */}
+            {profile.metrics && profile.metrics.length > 0 && (
+              <div className="mb-10 border border-[#222] bg-[#0a0a0a] p-6 relative">
+                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[var(--machine-accent)] to-transparent opacity-50" />
+                 <div className="machine-header-mini mb-6">Telemetry Data</div>
+                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {profile.metrics.map((m: any, i: number) => (
+                       <div key={i} className="flex flex-col">
+                          <span className="text-[2rem] font-['Rajdhani'] font-bold text-white leading-none mb-1">{m.value}</span>
+                          <span className="text-[0.65rem] text-[var(--machine-accent)] uppercase tracking-widest">{m.label || m.title || m.name}</span>
+                       </div>
+                    ))}
+                 </div>
+              </div>
+            )}
+
+            {/* Links / Modules */}
+            <div>
+              <div className="machine-header-mini mb-6">External Modules [ {profile.links?.length || 0} ]</div>
+              <div className="machine-module-grid">
+                {profile.links?.map((link: any, i: number) => (
+                  <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="machine-link-module group">
+                    <div className="machine-link-id">
+                      <span>MOD_${i.toString().padStart(3, '0')}</span>
+                      <span>SECURE</span>
+                    </div>
+                    <div className="machine-link-name">{link.label}</div>
+                    <div className="machine-link-status group-hover:text-white transition-colors">
+                      CONNECTION ACTIVE
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </div>
+
           </div>
         </div>
+
       </div>
     </div>
   );
