@@ -3162,7 +3162,7 @@ function MachineTemplate({ profile, accentColor }: any) {
              <div className="m-proof-points">
                {profile.proofPoints.map((point: any, i: number) => (
                  <div key={i} className="m-proof-item">
-                   {point.title} {point.subtitle && \` - \${point.subtitle}\`}
+                   {point.title} {point.subtitle && ` - ${point.subtitle}`}
                  </div>
                ))}
              </div>
