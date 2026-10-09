@@ -2835,426 +2835,329 @@ function StudioTemplate({ profile }: any) {
 }
 
 function MachineTemplate({ profile, accentColor }: any) {
-  const accent = accentColor || '#00FFAA'; // Default neon green/cyan
+  const accent = accentColor || '#0055FF'; // Default clinical blue
   const name = profile?.name || "SYS.ADMIN";
   
   const customStyles = `
-    @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap');
 
     .machine-wrap {
-      --machine-bg: #030303;
-      --machine-panel: #0a0a0a;
-      --machine-border: #1a1a1a;
-      --machine-accent: ${accent};
-      --machine-text: #e0e0e0;
-      --machine-dim: #666666;
+      --m-bg: #F5F7FA;
+      --m-card: #FFFFFF;
+      --m-border: #E4E7EC;
+      --m-accent: ${accent};
+      --m-text: #101828;
+      --m-text-light: #667085;
       
-      font-family: 'Share Tech Mono', monospace;
-      background-color: var(--machine-bg);
-      color: var(--machine-text);
+      font-family: 'Inter', sans-serif;
+      background-color: var(--m-bg);
+      color: var(--m-text);
       min-height: 100vh;
       width: 100%;
-      position: relative;
-      overflow-x: hidden;
       padding: 4vw;
       display: flex;
       justify-content: center;
       align-items: center;
-    }
-
-    /* Radar / Grid Background */
-    .machine-bg-grid {
-      position: absolute;
-      inset: 0;
       background-image: 
-        linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-      background-size: 40px 40px;
-      z-index: 0;
-      pointer-events: none;
-    }
-    
-    .machine-bg-grid::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background: radial-gradient(circle at 50% 50%, transparent 20%, var(--machine-bg) 100%);
+        radial-gradient(circle at 1px 1px, #D0D5DD 1px, transparent 0);
+      background-size: 32px 32px;
     }
 
     .machine-container {
-      position: relative;
-      z-index: 10;
       width: 100%;
       max-width: 1200px;
-      display: grid;
-      grid-template-columns: 350px 1fr;
-      gap: 2px;
-      background: var(--machine-border);
-      border: 1px solid var(--machine-border);
-      box-shadow: 0 0 50px rgba(0,0,0,0.8), 0 0 0 1px rgba(var(--machine-accent), 0.1);
-    }
-    
-    @media (max-width: 900px) {
-      .machine-container {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    /* Core Panels */
-    .machine-panel {
-      background: var(--machine-panel);
-      position: relative;
-      overflow: hidden;
-    }
-
-    .machine-panel-inner {
-      padding: 40px;
-      position: relative;
-      z-index: 2;
-    }
-
-    /* Decorative Tech Accents */
-    .machine-corner {
-      position: absolute;
-      width: 15px; height: 15px;
-      border: 2px solid var(--machine-accent);
-      z-index: 5;
-    }
-    .mc-tl { top: 0; left: 0; border-right: none; border-bottom: none; }
-    .mc-tr { top: 0; right: 0; border-left: none; border-bottom: none; }
-    .mc-bl { bottom: 0; left: 0; border-right: none; border-top: none; }
-    .mc-br { bottom: 0; right: 0; border-left: none; border-top: none; }
-
-    /* Scanline Animation */
-    .machine-scanline {
-      position: absolute;
-      top: 0; left: 0; right: 0; height: 2px;
-      background: var(--machine-accent);
-      opacity: 0.15;
-      box-shadow: 0 0 20px 2px var(--machine-accent);
-      animation: scan 8s linear infinite;
-      z-index: 20;
-      pointer-events: none;
-    }
-    @keyframes scan {
-      0% { top: 0; }
-      100% { top: 100%; }
-    }
-
-    /* Avatar Targeting System */
-    .machine-avatar-wrap {
-      width: 200px;
-      height: 200px;
-      margin: 0 auto 30px auto;
-      position: relative;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-    
-    .machine-avatar-target {
-      position: absolute;
-      inset: -10px;
-      border: 1px dashed var(--machine-dim);
-      border-radius: 50%;
-      animation: rotate-slow 20s linear infinite;
-    }
-
-    .machine-avatar-ring {
-      position: absolute;
-      inset: -25px;
-      border: 1px solid transparent;
-      border-top-color: var(--machine-accent);
-      border-bottom-color: var(--machine-accent);
-      border-radius: 50%;
-      animation: rotate-slow 15s linear infinite reverse;
-      opacity: 0.5;
-    }
-
-    .machine-avatar {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      filter: grayscale(100%) contrast(120%) brightness(90%);
-      border-radius: 50%;
-      position: relative;
-      z-index: 2;
-    }
-
-    .machine-avatar-overlay {
-      position: absolute;
-      inset: 0;
-      border-radius: 50%;
-      background: radial-gradient(circle, transparent 40%, rgba(var(--machine-accent), 0.2) 100%);
-      mix-blend-mode: overlay;
-      z-index: 3;
-    }
-
-    /* Typography & Headers */
-    .machine-header-mini {
-      font-size: 0.7rem;
-      color: var(--machine-accent);
-      text-transform: uppercase;
-      letter-spacing: 0.2em;
-      margin-bottom: 5px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .machine-header-mini::before {
-      content: "";
-      width: 10px;
-      height: 2px;
-      background: var(--machine-accent);
-    }
-
-    .machine-title {
-      font-family: 'Rajdhani', sans-serif;
-      font-size: 3rem;
-      font-weight: 700;
-      line-height: 1;
-      text-transform: uppercase;
-      margin-bottom: 5px;
-      color: #fff;
-      text-shadow: 0 0 10px rgba(255,255,255,0.2);
-    }
-
-    .machine-subtitle {
-      color: var(--machine-dim);
-      font-size: 0.9rem;
-      margin-bottom: 25px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
-
-    .machine-bio {
-      font-size: 0.9rem;
-      line-height: 1.6;
-      color: #999;
-      padding-left: 15px;
-      border-left: 2px solid #222;
-      position: relative;
-    }
-    .machine-bio::after {
-      content: "";
-      position: absolute;
-      left: -2px;
-      top: 0;
-      width: 2px;
-      height: 30%;
-      background: var(--machine-accent);
-      animation: bio-scan 4s ease-in-out infinite alternate;
-    }
-    @keyframes bio-scan {
-      0% { top: 0; height: 10%; }
-      100% { top: 90%; height: 10%; }
-    }
-
-    /* Data Modules */
-    .machine-module-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-      gap: 20px;
-      margin-top: 40px;
-    }
-
-    .machine-link-module {
-      background: #0d0d0d;
-      border: 1px solid #222;
-      padding: 20px;
-      position: relative;
-      text-decoration: none;
-      color: var(--machine-text);
+      background: var(--m-card);
+      border: 1px solid var(--m-border);
+      border-radius: 24px;
+      box-shadow: 0 32px 64px -12px rgba(16, 24, 40, 0.08);
       display: flex;
       flex-direction: column;
-      transition: all 0.2s;
       overflow: hidden;
+      position: relative;
     }
 
-    .machine-link-module:hover {
-      border-color: var(--machine-accent);
-      background: #111;
-      transform: translateY(-2px);
-    }
-
-    .machine-link-module::before {
-      content: "";
-      position: absolute;
-      top: 0; left: 0;
-      width: 100%;
-      height: 2px;
-      background: var(--machine-accent);
-      transform: scaleX(0);
-      transform-origin: left;
-      transition: transform 0.3s ease;
-    }
-    
-    .machine-link-module:hover::before {
-      transform: scaleX(1);
-    }
-
-    .machine-link-id {
-      font-size: 0.65rem;
-      color: var(--machine-dim);
-      margin-bottom: 15px;
-      display: flex;
-      justify-content: space-between;
-    }
-
-    .machine-link-name {
-      font-family: 'Rajdhani', sans-serif;
-      font-size: 1.4rem;
-      font-weight: 600;
-      color: #fff;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
-
-    .machine-link-status {
-      margin-top: 15px;
-      font-size: 0.7rem;
-      color: var(--machine-accent);
+    /* Top Strip */
+    .machine-topbar {
+      height: 48px;
+      border-bottom: 1px solid var(--m-border);
       display: flex;
       align-items: center;
-      gap: 5px;
+      justify-content: space-between;
+      padding: 0 24px;
+      background: #F9FAFB;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--m-text-light);
     }
-    .machine-link-status::before {
-      content: "";
-      width: 6px;
-      height: 6px;
-      background: var(--machine-accent);
-      box-shadow: 0 0 8px var(--machine-accent);
-      border-radius: 50%;
-      animation: blink 2s infinite;
-    }
-
-    @keyframes blink {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.3; }
-    }
-    @keyframes rotate-slow {
-      100% { transform: rotate(360deg); }
-    }
-
-    /* Technical Barcode */
-    .machine-barcode {
+    .machine-status {
       display: flex;
-      gap: 2px;
-      height: 30px;
-      margin-top: 40px;
-      opacity: 0.3;
+      align-items: center;
+      gap: 8px;
+      color: var(--m-text);
+      font-weight: 700;
     }
-    .mb-bar { background: var(--machine-text); height: 100%; }
+    .machine-status::before {
+      content: "";
+      width: 8px; height: 8px;
+      background: var(--m-accent);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(var(--m-accent-rgb), 0.4); }
+      70% { box-shadow: 0 0 0 6px rgba(var(--m-accent-rgb), 0); }
+      100% { box-shadow: 0 0 0 0 rgba(var(--m-accent-rgb), 0); }
+    }
 
+    /* Layout */
+    .machine-body {
+      display: grid;
+      grid-template-columns: 350px 1fr;
+    }
+    @media (max-width: 900px) {
+      .machine-body { grid-template-columns: 1fr; }
+    }
+
+    /* Left Sidebar */
+    .machine-sidebar {
+      border-right: 1px solid var(--m-border);
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+    }
+    @media (max-width: 900px) {
+      .machine-sidebar { border-right: none; border-bottom: 1px solid var(--m-border); }
+    }
+
+    .machine-avatar-box {
+      width: 100%;
+      aspect-ratio: 1;
+      border-radius: 16px;
+      overflow: hidden;
+      margin-bottom: 32px;
+      position: relative;
+      background: #F9FAFB;
+      border: 1px solid var(--m-border);
+    }
+    .machine-avatar {
+      width: 100%; height: 100%; object-fit: cover;
+    }
+    .machine-avatar-overlay {
+      position: absolute; top: 12px; left: 12px;
+      background: rgba(255,255,255,0.9);
+      backdrop-filter: blur(4px);
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--m-text);
+      border: 1px solid var(--m-border);
+    }
+
+    .machine-name {
+      font-size: 2rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+      line-height: 1.1;
+    }
+    .machine-role {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--m-accent);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 24px;
+    }
+    .machine-bio {
+      font-size: 0.95rem;
+      line-height: 1.6;
+      color: var(--m-text-light);
+    }
+
+    /* Main Content */
+    .machine-content {
+      padding: 40px;
+      background: #FFFFFF;
+    }
+
+    .m-section-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--m-text-light);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .m-section-title::after {
+      content: ""; flex: 1; height: 1px; background: var(--m-border);
+    }
+
+    /* Telemetry / Metrics */
+    .machine-metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 16px;
+      margin-bottom: 48px;
+    }
+    .m-metric-card {
+      background: #F9FAFB;
+      border: 1px solid var(--m-border);
+      border-radius: 12px;
+      padding: 20px;
+      transition: all 0.2s;
+    }
+    .m-metric-card:hover {
+      border-color: var(--m-accent);
+      background: #FFFFFF;
+      box-shadow: 0 8px 24px -6px rgba(16, 24, 40, 0.05);
+      transform: translateY(-2px);
+    }
+    .m-metric-val {
+      font-size: 2rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--m-text);
+      margin-bottom: 4px;
+    }
+    .m-metric-lbl {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--m-text-light);
+      text-transform: uppercase;
+    }
+
+    /* Links */
+    .machine-links {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+    .m-link-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 24px;
+      background: #FFFFFF;
+      border: 1px solid var(--m-border);
+      border-radius: 12px;
+      text-decoration: none;
+      color: var(--m-text);
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+      overflow: hidden;
+    }
+    .m-link-card::before {
+      content: "";
+      position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+      background: var(--m-accent);
+      transform: scaleY(0);
+      transition: transform 0.2s;
+    }
+    .m-link-card:hover {
+      border-color: var(--m-accent);
+      box-shadow: 0 12px 24px -8px rgba(16, 24, 40, 0.08);
+      transform: translateY(-2px);
+    }
+    .m-link-card:hover::before {
+      transform: scaleY(1);
+    }
+    
+    .m-link-info { display: flex; flex-direction: column; gap: 4px; }
+    .m-link-title {
+      font-weight: 600;
+      font-size: 1.05rem;
+    }
+    .m-link-meta {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--m-text-light);
+      text-transform: uppercase;
+    }
+    .m-link-arrow {
+      color: var(--m-text-light);
+      transition: transform 0.2s;
+    }
+    .m-link-card:hover .m-link-arrow {
+      color: var(--m-accent);
+      transform: translateX(4px);
+    }
   `;
-
-  // Generate random barcode lines
-  const barcodeLines = Array.from({ length: 40 }).map(() => 
-    Math.random() > 0.5 ? Math.random() * 4 + 1 : 0
-  );
 
   return (
     <div className="machine-wrap">
       <style>{customStyles}</style>
-      <div className="machine-bg-grid" />
       
       <div className="machine-container">
-        
-        {/* LEFT PANEL: IDENTITY SYSTEM */}
-        <div className="machine-panel">
-          <div className="machine-corner mc-tl" />
-          <div className="machine-corner mc-br" />
-          
-          <div className="machine-panel-inner h-full flex flex-col items-center text-center border-r border-[#1a1a1a]">
-            
-            <div className="w-full flex justify-between items-center mb-10 text-[0.65rem] text-zinc-500">
-               <span>SYS.ID: {Math.random().toString(36).substr(2, 6).toUpperCase()}</span>
-               <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-[var(--machine-accent)] animate-pulse" /> ONLINE</span>
-            </div>
+        <div className="machine-topbar">
+          <div>SYS.VER // 1.0.4</div>
+          <div className="machine-status">SYSTEM OPERATIONAL</div>
+        </div>
 
-            <div className="machine-avatar-wrap">
-              <div className="machine-avatar-target" />
-              <div className="machine-avatar-ring" />
+        <div className="machine-body">
+          {/* Left Sidebar */}
+          <div className="machine-sidebar">
+            <div className="machine-avatar-box">
               {profile?.avatarUrl ? (
-                <>
-                  <img src={profile.avatarUrl} alt={name} className="machine-avatar" />
-                  <div className="machine-avatar-overlay" />
-                </>
+                <img src={profile.avatarUrl} alt={name} className="machine-avatar" />
               ) : (
-                <div className="machine-avatar flex items-center justify-center border border-zinc-800 bg-zinc-900 text-zinc-600 text-2xl font-bold">
+                <div className="machine-avatar flex items-center justify-center bg-gray-100 text-gray-400 text-4xl font-bold">
                   {name[0]}
                 </div>
               )}
+              <div className="machine-avatar-overlay">OBJ. ID: {Math.random().toString(36).substr(2, 5).toUpperCase()}</div>
             </div>
 
-            <div className="text-[0.7rem] tracking-[0.3em] text-zinc-500 mb-2 uppercase">Subject_Name</div>
-            <h1 className="font-['Rajdhani'] text-3xl font-bold text-white mb-2 tracking-wide uppercase">{name}</h1>
-            <div className="px-3 py-1 bg-[var(--machine-accent)]/10 text-[var(--machine-accent)] text-xs border border-[var(--machine-accent)]/30 rounded-sm uppercase tracking-widest mt-2">
-              ACCESS GRANTED
-            </div>
-
-            <div className="mt-auto w-full pt-10">
-              <div className="machine-barcode justify-center">
-                {barcodeLines.map((width, i) => (
-                  <div key={i} className="mb-bar" style={{ width: `${width}px` }} />
-                ))}
-              </div>
-            </div>
+            <h1 className="machine-name">{name}</h1>
+            <div className="machine-role">{profile.headline || profile.role || "ENGINEER"}</div>
             
+            {profile.bio && (
+              <div className="machine-bio">{profile.bio}</div>
+            )}
           </div>
-        </div>
 
-        {/* RIGHT PANEL: DATA & MODULES */}
-        <div className="machine-panel">
-          <div className="machine-scanline" />
-          <div className="machine-corner mc-tr" />
-          <div className="machine-corner mc-bl" />
-
-          <div className="machine-panel-inner">
+          {/* Right Content */}
+          <div className="machine-content">
             
-            {/* Header Data */}
-            <div className="mb-10">
-              <div className="machine-header-mini">Primary Objective</div>
-              <h2 className="machine-title">{profile.headline || 'System Architecture'}</h2>
-              <div className="machine-subtitle">CLASSIFICATION: {profile.role || 'ENGINEER'}</div>
-              
-              {profile.bio && (
-                <div className="machine-bio">
-                  {profile.bio}
-                </div>
-              )}
-            </div>
-
-            {/* Metrics Dashboard */}
+            {/* Metrics */}
             {profile.metrics && profile.metrics.length > 0 && (
-              <div className="mb-10 border border-[#222] bg-[#0a0a0a] p-6 relative">
-                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[var(--machine-accent)] to-transparent opacity-50" />
-                 <div className="machine-header-mini mb-6">Telemetry Data</div>
-                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {profile.metrics.map((m: any, i: number) => (
-                       <div key={i} className="flex flex-col">
-                          <span className="text-[2rem] font-['Rajdhani'] font-bold text-white leading-none mb-1">{m.value}</span>
-                          <span className="text-[0.65rem] text-[var(--machine-accent)] uppercase tracking-widest">{m.label || m.title || m.name}</span>
-                       </div>
-                    ))}
-                 </div>
+              <div className="mb-12">
+                <div className="m-section-title">Telemetry Data</div>
+                <div className="machine-metrics">
+                  {profile.metrics.map((m: any, i: number) => (
+                    <div key={i} className="m-metric-card">
+                      <div className="m-metric-val">{m.value}</div>
+                      <div className="m-metric-lbl">{m.label || m.title || m.name}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
-            {/* Links / Modules */}
+            {/* Links */}
             <div>
-              <div className="machine-header-mini mb-6">External Modules [ {profile.links?.length || 0} ]</div>
-              <div className="machine-module-grid">
+              <div className="m-section-title">External Modules</div>
+              <div className="machine-links">
                 {profile.links?.map((link: any, i: number) => (
-                  <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="machine-link-module group">
-                    <div className="machine-link-id">
-                      <span>{`MOD_${i.toString().padStart(3, '0')}`}</span>
-                      <span>SECURE</span>
+                  <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="m-link-card">
+                    <div className="m-link-info">
+                      <span className="m-link-title">{link.label}</span>
+                      <span className="m-link-meta">{`MOD_${i.toString().padStart(2, '0')} // SECURE`}</span>
                     </div>
-                    <div className="machine-link-name">{link.label}</div>
-                    <div className="machine-link-status group-hover:text-white transition-colors">
-                      CONNECTION ACTIVE
-                    </div>
+                    <svg className="m-link-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="5" y1="12" x2="19" y2="12"></line>
+                      <polyline points="12 5 19 12 12 19"></polyline>
+                    </svg>
                   </a>
                 ))}
               </div>
@@ -3262,23 +3165,11 @@ function MachineTemplate({ profile, accentColor }: any) {
 
           </div>
         </div>
-
       </div>
     </div>
   );
 }
 
-function Badge({ text, accent }: { text: string; accent: string }) {
-  return (
-    <div className="px-2 py-0.5 rounded text-[10px] uppercase font-bold flex items-center gap-1.5 border" style={{ borderColor: accent, color: accent, backgroundColor: `${accent}15` }}>
-      <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: accent }} />
-      {text}
-    </div>
-  )
-}
-
-// --- 03 AGENCY: THE CLUB ---
-// Maintained and refined in components/profile/templates/persona/ClubTemplate.tsx
 
 // --- 04 ENTREPRENEUR --- //
 
@@ -4595,7 +4486,7 @@ export function IdentityTemplate(props: TemplateProps & { templateId: string }) 
   const openToIntents: string[] = (profile as any).openTo || [];
 
   // Templates with dark backgrounds need light-adjusted badge styling
-  const darkTemplates = ['lone', 'rebellion', 'the-machine', 'the-builder', 'the-hustler', 'the-visionary', 'the-creator'];
+  const darkTemplates = ['lone', 'rebellion', 'the-builder', 'the-hustler', 'the-visionary', 'the-creator'];
   const isDark = darkTemplates.includes(templateId);
 
   let content: React.ReactNode;
