@@ -1896,6 +1896,27 @@ function VisionTemplate({ profile }: any) {
       transform: translateX(5px) scale(1.1);
     }
 
+    .vision-conversation-btn {
+      display: inline-block;
+      margin-top: 30px;
+      padding: 16px 36px;
+      background: linear-gradient(135deg, var(--color1), var(--color2));
+      color: #fff;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      border-radius: 50px;
+      text-decoration: none;
+      box-shadow: 0 10px 30px rgba(var(--color1-rgb), 0.3);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .vision-conversation-btn:hover {
+      transform: translateY(-5px) scale(1.02);
+      box-shadow: 0 20px 40px rgba(var(--color2-rgb), 0.4);
+    }
+
     /* Floating Holographic Geometric shapes */
     .vision-float-shape {
       position: absolute;
@@ -1981,6 +2002,18 @@ function VisionTemplate({ profile }: any) {
               <h1 className="vision-name">{profile.name}</h1>
               <div className="vision-role">{profile.headline}</div>
               <p className="vision-bio">{profile.bio}</p>
+
+              {/* Conversation Button */}
+              {(profile.theme as any)?.conversationUrl && (
+                <a 
+                  href={(profile.theme as any).conversationUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="vision-conversation-btn"
+                >
+                  Start a Conversation
+                </a>
+              )}
 
               {/* Dynamic Stats/Proofs */}
               {profile.proofs && profile.proofs.length > 0 ? (
