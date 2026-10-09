@@ -4259,25 +4259,28 @@ function VoiceTemplate({ profile }: any) {
     
     .voice-template .btn-secondary {
       background-color: transparent;
-      border: 1px solid #A99C91;
-      color: #2B2321;
+      border: 1px solid #8DA396;
+      color: #1C2B21;
       transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     }
     .voice-template .btn-secondary:hover {
-      background-color: #FFFAF3;
-      border-color: #2B2321;
+      background-color: #C6D4CB;
+      border-color: #1C2B21;
     }
 
     .voice-template .paper-card {
-      background-color: #C6D4CB;
-      border-radius: 16px;
-      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-      border: 1px solid rgba(169, 156, 145, 0.15);
+      background-color: rgba(235, 240, 236, 0.5);
+      backdrop-filter: blur(12px);
+      border-radius: 20px;
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      box-shadow: 0 4px 20px rgba(28, 43, 33, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.6);
     }
     .voice-template .paper-card:hover {
-      box-shadow: 0 12px 40px rgba(43, 35, 33, 0.06);
-      border-color: rgba(169, 156, 145, 0.3);
-      transform: translateY(-2px);
+      background-color: rgba(235, 240, 236, 0.85);
+      box-shadow: 0 16px 40px rgba(28, 43, 33, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+      border-color: rgba(255, 255, 255, 0.6);
+      transform: translateY(-3px) scale(1.01);
     }
 
     .voice-template .section-divider {
@@ -4318,7 +4321,7 @@ function VoiceTemplate({ profile }: any) {
       <style>{customStyles}</style>
 
       {/* Main Card Wrapper */}
-      <div className="w-full max-w-[1200px] bg-[#D9E4DD] rounded-[32px] md:rounded-[48px] shadow-2xl relative overflow-hidden flex justify-center py-10 md:py-16 px-6 md:px-12 lg:px-16 border border-[#A99C91]/15">
+      <div className="w-full max-w-[1200px] bg-[#D9E4DD] rounded-[32px] md:rounded-[48px] shadow-2xl relative overflow-hidden flex justify-center py-10 md:py-16 px-6 md:px-12 lg:px-16 border border-[#8DA396]/20">
         
         {/* Main Content Container */}
         <div className="w-full max-w-[960px] mx-auto relative z-10">
@@ -4334,21 +4337,21 @@ function VoiceTemplate({ profile }: any) {
           {/* 1. Hero */}
           <section className="flex flex-col-reverse md:flex-row gap-10 md:gap-8 items-center md:items-start mb-16 md:mb-24">
             <div className="w-full md:w-1/2 flex flex-col justify-center mt-2 md:mt-10 text-center md:text-left items-center md:items-start">
-              <p className="text-[#A99C91] text-xs font-bold tracking-[0.2em] uppercase mb-4 md:mb-6 flex items-center justify-center md:justify-start gap-4 w-full">
-                <span className="w-8 h-px bg-[#A99C91] hidden md:block"></span>
+              <p className="text-[#8DA396] text-xs font-bold tracking-[0.2em] uppercase mb-4 md:mb-6 flex items-center justify-center md:justify-start gap-4 w-full">
+                <span className="w-8 h-px bg-[#8DA396] hidden md:block"></span>
                 A voice in progress
               </p>
-              <h1 className="font-serif text-5xl sm:text-6xl md:text-7xl lg:text-8xl leading-[0.95] text-[#2B2321] mb-5 tracking-tight">
+              <h1 className="font-serif text-5xl sm:text-6xl md:text-7xl lg:text-8xl leading-[0.95] text-[#1C2B21] mb-5 tracking-tight">
                 {profile.name?.split(' ')[0] || "Name"} <br className="hidden md:block" />
                 <span className="text-[#DF5B4C] italic pr-0 md:pr-4">{profile.name?.split(' ').slice(1).join(' ')}</span>
               </h1>
               {profile.headline && (
-                <p className="text-base md:text-lg text-[#766B64] font-medium mb-5">
+                <p className="text-base md:text-lg text-[#5C7464] font-medium mb-5">
                   {profile.headline}
                 </p>
               )}
               {profile.bio && (
-                <p className="text-sm md:text-base text-[#2B2321] max-w-sm leading-relaxed mb-8">
+                <p className="text-sm md:text-base text-[#1C2B21] max-w-sm leading-relaxed mb-8">
                   {profile.bio}
                 </p>
               )}
@@ -4377,8 +4380,8 @@ function VoiceTemplate({ profile }: any) {
                   className="arch-image w-full max-w-[320px] md:max-w-[380px] h-[380px] md:h-[480px] object-cover shadow-xl relative z-0"
                 />
               ) : (
-                <div className="arch-image w-full max-w-[320px] md:max-w-[380px] h-[380px] md:h-[480px] bg-[#D9D2E6] flex items-center justify-center shadow-xl relative z-0">
-                  <span className="font-serif text-4xl text-[#766B64] opacity-50">Profile</span>
+                <div className="arch-image w-full max-w-[320px] md:max-w-[380px] h-[380px] md:h-[480px] bg-[#C6D4CB] flex items-center justify-center shadow-xl relative z-0">
+                  <span className="font-serif text-4xl text-[#5C7464] opacity-50">Profile</span>
                 </div>
               )}
               <div className="absolute bottom-4 left-4 md:bottom-8 md:left-12 text-white text-xs font-bold tracking-widest uppercase z-10 drop-shadow-md">
@@ -4390,19 +4393,19 @@ function VoiceTemplate({ profile }: any) {
           {/* 2. Point of View */}
           {statement && (
             <section className="mb-16 md:mb-24 relative">
-              <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/4 w-[250px] h-[250px] rounded-full bg-[#A8B89D] opacity-20 blur-3xl -z-10 pointer-events-none"></div>
+              <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/4 w-[250px] h-[250px] rounded-full bg-[#E5C58A] opacity-30 blur-3xl -z-10 pointer-events-none"></div>
               
               <div className="flex flex-col md:flex-row md:items-end gap-6 md:gap-16 relative z-10">
                 <div className="relative">
                   <span className="text-[#DF5B4C] text-[10px] md:text-xs font-bold tracking-widest block md:absolute md:-left-10 md:top-2 mb-3 md:mb-0">{getSectionNumber()}</span>
-                  <h2 className="font-serif text-3xl md:text-5xl lg:text-6xl leading-[1.1] text-[#2B2321] max-w-2xl relative z-10">
-                    <span className="absolute -left-2 md:-left-6 -top-3 md:-top-6 text-5xl md:text-7xl text-[#A8B89D] opacity-40 -z-10 select-none">“</span>
+                  <h2 className="font-serif text-3xl md:text-5xl lg:text-6xl leading-[1.1] text-[#1C2B21] max-w-2xl relative z-10">
+                    <span className="absolute -left-2 md:-left-6 -top-3 md:-top-6 text-5xl md:text-7xl text-[#E5C58A] opacity-60 -z-10 select-none">“</span>
                     {statement}
                   </h2>
                 </div>
                 {statementSub && (
-                  <div className="md:w-1/3 md:pb-2 border-l-2 border-[#A8B89D]/30 pl-4 md:border-none md:pl-0">
-                    <p className="text-[#766B64] leading-relaxed text-sm">
+                  <div className="md:w-1/3 md:pb-2 border-l-2 border-[#8DA396]/40 pl-4 md:border-none md:pl-0">
+                    <p className="text-[#5C7464] leading-relaxed text-sm">
                       {statementSub}
                     </p>
                   </div>
@@ -4416,13 +4419,13 @@ function VoiceTemplate({ profile }: any) {
             <section className="mb-16 md:mb-24">
               <div className="flex items-center justify-between mb-6 md:mb-10 relative">
                 <span className="text-[#DF5B4C] text-[10px] md:text-xs font-bold tracking-widest md:absolute md:-left-10">{getSectionNumber()}</span>
-                <span className="text-[#A99C91] text-[10px] md:text-xs font-bold tracking-[0.15em] uppercase ml-auto">A little proof</span>
+                <span className="text-[#8DA396] text-[10px] md:text-xs font-bold tracking-[0.15em] uppercase ml-auto">A little proof</span>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-6 md:gap-10 pl-0 md:pl-6">
                 {metrics.map((metric: any, i: number) => (
-                  <div key={i} className="flex flex-col border-t border-[rgba(169,156,145,0.3)] pt-4 md:pt-5">
-                    <span className="font-serif text-4xl md:text-5xl lg:text-6xl text-[#2B2321] mb-1">{metric.value}</span>
-                    <span className="text-[10px] font-bold tracking-widest uppercase text-[#766B64]">{metric.label || metric.title || metric.type || metric.name}</span>
+                  <div key={i} className="flex flex-col border-t border-[#8DA396]/30 pt-4 md:pt-5">
+                    <span className="font-serif text-4xl md:text-5xl lg:text-6xl text-[#D99441] mb-1">{metric.value}</span>
+                    <span className="text-[10px] font-bold tracking-widest uppercase text-[#5C7464]">{metric.label || metric.title || metric.type || metric.name}</span>
                   </div>
                 ))}
               </div>
@@ -4434,21 +4437,21 @@ function VoiceTemplate({ profile }: any) {
             <section className="mb-16 md:mb-24 relative">
               <div className="flex items-center justify-between mb-6 md:mb-10 relative">
                   <span className="text-[#DF5B4C] text-[10px] md:text-xs font-bold tracking-widest md:absolute md:-left-10">{getSectionNumber()}</span>
-                  <span className="text-[#A99C91] text-[10px] md:text-xs font-bold tracking-[0.15em] uppercase ml-auto">Proof Points</span>
+                  <span className="text-[#8DA396] text-[10px] md:text-xs font-bold tracking-[0.15em] uppercase ml-auto">Proof Points</span>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-0 md:pl-6">
                 {proofs.map((proof: any, i: number) => (
                   <div key={i} className="paper-card p-4 md:p-6 flex flex-col gap-2">
                     <div className="flex items-center gap-3">
-                      {proof.icon && <span className="text-[#DF5B4C] text-lg">{proof.icon}</span>}
-                      <h3 className="font-bold text-[#2B2321] text-sm md:text-base">{proof.title || proof.type}</h3>
+                      {proof.icon && <span className="text-[#D99441] text-lg">{proof.icon}</span>}
+                      <h3 className="font-bold text-[#1C2B21] text-sm md:text-base">{proof.title || proof.type}</h3>
                     </div>
                     {proof.value && (
-                       <p className="text-[#DF5B4C] font-serif text-xl md:text-2xl mt-2">{proof.value}</p>
+                       <p className="text-[#D99441] font-serif text-xl md:text-2xl mt-2">{proof.value}</p>
                     )}
                     {proof.description && (
-                       <p className="text-xs md:text-sm text-[#766B64] mt-1">{proof.description}</p>
+                       <p className="text-xs md:text-sm text-[#5C7464] mt-1">{proof.description}</p>
                     )}
                   </div>
                 ))}
@@ -4461,7 +4464,7 @@ function VoiceTemplate({ profile }: any) {
             <section className="mb-16 md:mb-24 relative">
               <div className="flex items-center justify-between mb-6 md:mb-10 relative">
                   <span className="text-[#DF5B4C] text-[10px] md:text-xs font-bold tracking-widest md:absolute md:-left-10">{getSectionNumber()}</span>
-                  <span className="text-[#A99C91] text-[10px] md:text-xs font-bold tracking-[0.15em] uppercase ml-auto">Official Links</span>
+                  <span className="text-[#8DA396] text-[10px] md:text-xs font-bold tracking-[0.15em] uppercase ml-auto">Official Links</span>
               </div>
               
               <div className="flex flex-col gap-3 pl-0 md:pl-6">
@@ -4472,13 +4475,13 @@ function VoiceTemplate({ profile }: any) {
                           {getSocialIcon(link.url, link.label)}
                       </div>
                       <div>
-                        <h3 className="font-bold text-[#2B2321] text-sm md:text-base">{link.label}</h3>
-                        <p className="text-xs text-[#766B64] mt-0.5 truncate max-w-[150px] sm:max-w-[300px] md:max-w-[400px]">
+                        <h3 className="font-bold text-[#1C2B21] text-sm md:text-base">{link.label}</h3>
+                        <p className="text-xs text-[#5C7464] mt-0.5 truncate max-w-[150px] sm:max-w-[300px] md:max-w-[400px]">
                           {link.url.replace(/^https?:\/\/(www\.)?/, '')}
                         </p>
                       </div>
                     </div>
-                    <div className="text-[#DF5B4C] md:text-[#A99C91] group-hover:text-[#DF5B4C] transition-colors pl-4 shrink-0">
+                    <div className="text-[#DF5B4C] md:text-[#8DA396] group-hover:text-[#DF5B4C] transition-colors pl-4 shrink-0">
                       <ArrowRight className="w-5 h-5 transform rotate-[-45deg] group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                     </div>
                   </a>
@@ -4488,12 +4491,12 @@ function VoiceTemplate({ profile }: any) {
           )}
 
           {/* Footer */}
-          <section className="relative mt-16 md:mt-24 pt-6 border-t border-[rgba(169,156,145,0.3)]">
-            <footer className="flex flex-col md:flex-row justify-between items-center gap-4 pb-4 text-[9px] font-bold tracking-[0.2em] uppercase text-[#A99C91]">
+          <section className="relative mt-16 md:mt-24 pt-6 border-t border-[#8DA396]/30">
+            <footer className="flex flex-col md:flex-row justify-between items-center gap-4 pb-4 text-[9px] font-bold tracking-[0.2em] uppercase text-[#8DA396]">
               <div className="flex items-center gap-2">
-                <span className="text-[#2B2321]">{profile.name?.toUpperCase() || "PROFILE"}</span>
+                <span className="text-[#1C2B21]">{profile.name?.toUpperCase() || "PROFILE"}</span>
               </div>
-              <div className="text-center text-[#766B64]">
+              <div className="text-center text-[#5C7464]">
                 MATERIAL DRAWING / THE VOICE.
               </div>
               <div>
@@ -4507,7 +4510,7 @@ function VoiceTemplate({ profile }: any) {
       
       {/* Toast */}
       {toastVisible && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#2B2321] text-[#FFFAF3] px-6 py-3 rounded-full text-sm font-medium shadow-2xl z-50 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#1C2B21] text-[#EBF0EC] px-6 py-3 rounded-full text-sm font-medium shadow-2xl z-50 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4">
           <BadgeCheck className="w-5 h-5 text-[#DF5B4C]" />
           {toastMsg}
         </div>
