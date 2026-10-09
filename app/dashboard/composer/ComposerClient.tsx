@@ -51,14 +51,13 @@ import { cn } from '@/lib/utils';
 import { useUserContext } from '@/lib/hooks/use-user-context';
 import { PLATFORM_LIMITS } from '@/lib/config/platformLimits';
 
-type PlatformType = 'linkedin' | 'x' | 'threads' | 'facebook' | 'whatsapp' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'mastodon' | 'slack';
+type PlatformType = 'linkedin' | 'x' | 'threads' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'mastodon' | 'slack';
 
 const PLATFORM_CONFIG: Record<PlatformType, { icon: React.ElementType; name: string; maxChars: number; color: string }> = {
   linkedin: { icon: Linkedin, name: 'LinkedIn', maxChars: 3000, color: 'bg-blue-600' },
   x: { icon: Twitter, name: 'X (Twitter)', maxChars: 280, color: 'bg-gray-800 dark:bg-gray-200' },
   threads: { icon: MessageSquare, name: 'Threads', maxChars: 500, color: 'bg-black dark:bg-white' },
   facebook: { icon: Facebook, name: 'Facebook', maxChars: 63206, color: 'bg-blue-600' },
-  whatsapp: { icon: MessageCircle, name: 'WhatsApp', maxChars: 1024, color: 'bg-green-600' },
   instagram: { icon: Instagram, name: 'Instagram', maxChars: 2200, color: 'bg-pink-600' },
   youtube: { icon: Youtube, name: 'YouTube', maxChars: 5000, color: 'bg-red-600' },
   pinterest: { icon: ImageIcon, name: 'Pinterest', maxChars: 500, color: 'bg-red-600' },

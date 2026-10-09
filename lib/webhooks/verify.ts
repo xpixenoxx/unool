@@ -42,7 +42,6 @@ function getWebhookSecret(platform: Platform): string | undefined {
     x: config.X_WEBHOOK_SECRET,
     threads: config.META_WEBHOOK_SECRET,
     facebook: config.META_WEBHOOK_SECRET,
-    whatsapp: config.META_WEBHOOK_SECRET,
     instagram: config.META_WEBHOOK_SECRET,
     youtube: undefined,
     pinterest: undefined,
@@ -51,6 +50,7 @@ function getWebhookSecret(platform: Platform): string | undefined {
     mastodon: undefined,
     slack: undefined,
     manual: undefined,
+    twitch: undefined,
   };
   return secretMap[platform];
 }
@@ -163,7 +163,6 @@ export function extractWebhookSignature(request: Request, platform: Platform): s
     x: ['x-twitter-webhooks-signature', 'x-twitter-signature'],
     threads: ['x-hub-signature-256', 'x-hub-signature'],
     facebook: ['x-hub-signature-256', 'x-hub-signature'],
-    whatsapp: ['x-hub-signature-256', 'x-hub-signature'],
     instagram: ['x-hub-signature-256', 'x-hub-signature'],
     youtube: [],
     pinterest: [],
@@ -172,6 +171,7 @@ export function extractWebhookSignature(request: Request, platform: Platform): s
     mastodon: [],
     slack: [],
     manual: [],
+    twitch: [],
   };
 
   for (const header of headerMap[platform]) {

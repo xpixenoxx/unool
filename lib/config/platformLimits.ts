@@ -1,4 +1,4 @@
-export type SupportedPlatform = 'linkedin' | 'x' | 'twitter' | 'threads' | 'facebook' | 'whatsapp' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'mastodon' | 'slack' | 'manual';
+export type SupportedPlatform = 'linkedin' | 'x' | 'twitter' | 'threads' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'mastodon' | 'slack' | 'manual';
 
 export interface PlatformLimitConfig {
   maxVideoSizeMB: number;
@@ -12,7 +12,6 @@ export const PLATFORM_LIMITS: Record<SupportedPlatform, PlatformLimitConfig> = {
   twitter: { maxVideoSizeMB: 512, maxImageSizeMB: 5, maxDurationSeconds: 140 },
   threads: { maxVideoSizeMB: 500, maxImageSizeMB: 8, maxDurationSeconds: 300 }, // 5 mins
   facebook: { maxVideoSizeMB: 1000, maxImageSizeMB: 10, maxDurationSeconds: 14400 }, // 4 hours
-  whatsapp: { maxVideoSizeMB: 100, maxImageSizeMB: 5, maxDurationSeconds: 180 }, // 3 mins approx depending on format
   instagram: { maxVideoSizeMB: 1000, maxImageSizeMB: 8, maxDurationSeconds: 900 }, // 15 mins
   youtube: { maxVideoSizeMB: 5000, maxImageSizeMB: 10, maxDurationSeconds: 43200 }, // 12 hours
   pinterest: { maxVideoSizeMB: 2000, maxImageSizeMB: 20, maxDurationSeconds: 900 }, // 15 mins

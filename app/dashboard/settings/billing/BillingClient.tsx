@@ -72,7 +72,7 @@ const PLAN_FEATURES: Record<string, { name: string; description: string; icon: R
       Profiles: '10',
       'AI Adaptations': '2,000',
       'Media uploads': '500',
-      Platforms: '6 (includes WhatsApp)',
+      Platforms: '5 (including upcoming platforms)',
       Analytics: '365 days',
       'Team seats': '5',
       'Content calendar': 'Included',

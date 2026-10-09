@@ -1,0 +1,33 @@
+[
+  {
+    "platform": "slack",
+    "error": {
+      "code": "PUBLISH_FAILED",
+      "message": "Slack publish failed: not_in_channel"
+    },
+    "updated_at": "2026-10-09T11:16:51.53+00:00"
+  },
+  {
+    "platform": "slack",
+    "error": {
+      "code": "PUBLISH_FAILED",
+      "message": "Slack publish failed: missing_scope"
+    },
+    "updated_at": "2026-10-09T10:01:59.661+00:00"
+  },
+  {
+    "platform": "instagram",
+    "error": null,
+    "updated_at": "2026-10-09T07:10:24.517+00:00"
+  },
+  {
+    "platform": "threads",
+    "error": null,
+    "updated_at": "2026-10-09T07:10:20.598+00:00"
+  },
+  {
+    "platform": "linkedin",
+    "error": null,
+    "updated_at": "2026-10-09T07:09:58.756+00:00"
+  }
+]

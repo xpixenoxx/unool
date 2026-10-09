@@ -4,7 +4,6 @@ export { threadsAdapter, ThreadsAdapter } from './ThreadsAdapter';
 export { xAdapter, XAdapter } from './XAdapter';
 export { manualAdapter, ManualAdapter } from './ManualAdapter';
 export { facebookAdapter, FacebookAdapter } from './FacebookAdapter';
-export { whatsAppAdapter, WhatsAppAdapter } from './WhatsAppAdapter';
 export { pinterestAdapter, PinterestAdapter } from './PinterestAdapter';
 export { youtubeAdapter, YoutubeAdapter } from './YoutubeAdapter';
 export { instagramAdapter, InstagramAdapter } from './InstagramAdapter';
@@ -18,7 +17,6 @@ import { threadsAdapter } from './ThreadsAdapter';
 import { xAdapter } from './XAdapter';
 import { manualAdapter } from './ManualAdapter';
 import { facebookAdapter } from './FacebookAdapter';
-import { whatsAppAdapter } from './WhatsAppAdapter';
 import { pinterestAdapter } from './PinterestAdapter';
 import { youtubeAdapter } from './YoutubeAdapter';
 import { instagramAdapter } from './InstagramAdapter';
@@ -36,7 +34,6 @@ export const platformAdapters: Record<string, PlatformAdapter> = {
   threads: threadsAdapter,
   manual: manualAdapter,
   facebook: facebookAdapter,
-  whatsapp: whatsAppAdapter,
   pinterest: pinterestAdapter,
   youtube: youtubeAdapter,
   instagram: instagramAdapter,
@@ -51,5 +48,5 @@ export function getPlatformAdapter(platform: string): PlatformAdapter | null {
   return platformAdapters[platform.toLowerCase()] ?? null;
 }
 
-export const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'whatsapp', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch'] as const;
+export const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch'] as const;
 export type SupportedPlatform = typeof SUPPORTED_PLATFORMS[number];

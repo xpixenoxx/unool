@@ -28,10 +28,6 @@ export interface PublishInput {
   platformUserId?: string;
   /** Pre-fetched username from the stored connection */
   username?: string;
-  // WhatsApp-specific
-  whatsappMessageType?: 'text' | 'image' | 'video' | 'document' | 'status';
-  whatsappRecipientType?: 'contact' | 'status';  // 'status' = broadcast to all contacts
-  whatsappRecipientPhone?: string;  // Required for direct messages
 }
 
 export interface PublishResult {
@@ -41,7 +37,7 @@ export interface PublishResult {
 }
 
 export interface PlatformAdapter {
-  readonly platform: 'linkedin' | 'x' | 'threads' | 'manual' | 'facebook' | 'whatsapp' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'reddit' | 'mastodon' | 'slack' | 'twitch';
+  readonly platform: 'linkedin' | 'x' | 'threads' | 'manual' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'reddit' | 'mastodon' | 'slack' | 'twitch';
   readonly authConfig: PlatformAuthConfig;
 
   getAuthUrl(state: string): string | Promise<{ url: string; pkceCookie?: string }>;

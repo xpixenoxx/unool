@@ -3,7 +3,7 @@ import { generateWithFallback } from './provider';
 import { Result, ok, err } from '@/lib/shared/Result';
 import { logger } from '@/lib/logger';
 
-export const PlatformType = z.enum(['linkedin', 'x', 'threads', 'facebook', 'whatsapp', 'instagram', 'youtube', 'pinterest', 'bluesky']);
+export const PlatformType = z.enum(['linkedin', 'x', 'threads', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky']);
 export type PlatformType = z.infer<typeof PlatformType>;
 
 export const AdaptedPostSchema = z.object({
@@ -52,11 +52,7 @@ const PLATFORM_SPECS: Record<PlatformType, { maxChars: number; style: string; ha
     style: 'Engaging, community-focused, conversational. Can include emojis. 2-5 hashtags. Good for longer-form posts with media.',
     hashtagStrategy: 'Broader audience tags (#SmallBusiness #Community #Entrepreneurship)'
   },
-  whatsapp: {
-    maxChars: 4096,
-    style: 'Personal, direct, concise. Status updates are short and visual. For direct messages: conversational and helpful.',
-    hashtagStrategy: 'Minimal hashtags, focus on clear message'
-  },
+
   instagram: {
     maxChars: 2200,
     style: 'Visual-first, aspirational, lifestyle-oriented. Heavy emoji use. 5-15 hashtags in first comment. Great for carousel, Reels, Stories.',

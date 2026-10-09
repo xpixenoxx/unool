@@ -21,7 +21,6 @@ const PLATFORM_BADGE_COLORS: Record<string, string> = {
   facebook: '#1877F2',
   instagram: '#E4405F',
   youtube: '#FF0000',
-  whatsapp: '#25D366',
   pinterest: '#E60023',
 };
 

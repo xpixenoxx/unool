@@ -2,7 +2,7 @@
 
 import React from 'react';
 
-type Platform = 'linkedin' | 'x' | 'threads' | 'manual' | 'facebook' | 'whatsapp' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky';
+type Platform = 'linkedin' | 'x' | 'threads' | 'manual' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky';
 
 interface PlatformPreviewProps {
   platform: Platform;
@@ -333,35 +333,6 @@ function PinterestPreview({ content, mediaUrls, username, displayName }: Omit<Pl
   );
 }
 
-/* ─── WhatsApp ─── */
-function WhatsAppPreview({ content, mediaUrls, username, displayName }: Omit<PlatformPreviewProps, 'platform'>) {
-  return (
-    <div style={{ background: '#0b141a', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', borderRadius: 12, overflow: 'hidden' }}>
-      {/* Header */}
-      <div style={{ padding: '10px 16px', background: '#1f2c34', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <Avatar size={34} bg="#25d366" />
-        <div>
-          <div style={{ fontWeight: 600, fontSize: 14, color: '#e9edef' }}>Status</div>
-          <div style={{ fontSize: 11, color: '#8696a0' }}>Today, {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-        </div>
-      </div>
-      {/* Chat bubble */}
-      <div style={{ padding: '16px', minHeight: 80 }}>
-        {mediaUrls && mediaUrls.length > 0 && (
-          <div style={{ marginBottom: 8, borderRadius: 8, overflow: 'hidden' }}>
-            <img src={mediaUrls[0].url} alt="" style={{ width: '100%', maxHeight: 180, objectFit: 'cover' }} />
-          </div>
-        )}
-        <div style={{ background: '#005c4b', color: '#e9edef', borderRadius: '0 8px 8px 8px', padding: '8px 12px', fontSize: 14, lineHeight: '19px', maxWidth: '85%', maxHeight: 200, overflowY: 'auto', position: 'relative' }}>
-          <PostContent text={content} />
-          <div style={{ float: 'right', fontSize: 11, color: '#ffffff99', marginTop: 4, marginLeft: 12 }}>
-            {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ✓✓
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 /* ─── Manual (generic) ─── */
 function ManualPreview({ content }: Omit<PlatformPreviewProps, 'platform'>) {
@@ -388,7 +359,6 @@ export function PlatformPreview({ platform, content, mediaUrls, username, displa
     facebook: <FacebookPreview {...props} />,
     youtube: <YouTubePreview {...props} />,
     pinterest: <PinterestPreview {...props} />,
-    whatsapp: <WhatsAppPreview {...props} />,
     manual: <ManualPreview {...props} />,
   };
 
