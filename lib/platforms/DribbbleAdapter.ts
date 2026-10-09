@@ -119,8 +119,18 @@ export class DribbbleAdapter implements PlatformAdapter {
 
     if (!res.ok) {
       const err = await res.text();
+      let errorMsg = res.statusText;
+      try {
+        const parsed = JSON.parse(err);
+        if (parsed.message) errorMsg = parsed.message;
+        if (parsed.errors && parsed.errors.length > 0) {
+          errorMsg += ' - ' + parsed.errors.map((e: any) => `${e.attribute}: ${e.message}`).join(', ');
+        }
+      } catch {
+        if (err) errorMsg = err;
+      }
       logger.error('Dribbble publish failed', { error: new Error(err) });
-      throw new Error(`Dribbble publish failed: ${res.statusText}`);
+      throw new Error(`Dribbble rejected upload: ${errorMsg}`);
     }
 
     let platformPostId = `dribbble-${Date.now()}`;
