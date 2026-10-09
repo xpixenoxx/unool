@@ -91,6 +91,11 @@ const configSchema = z.object({
   DISCORD_CLIENT_SECRET: z.string().optional(),
   DISCORD_REDIRECT_URI: z.string().url().optional(),
 
+  // Dribbble OAuth
+  DRIBBBLE_CLIENT_ID: z.string().optional(),
+  DRIBBBLE_CLIENT_SECRET: z.string().optional(),
+  DRIBBBLE_REDIRECT_URI: z.string().url().optional(),
+
   // Webhook secrets
   LINKEDIN_WEBHOOK_SECRET: z.string().optional(),
   X_WEBHOOK_SECRET: z.string().optional(),

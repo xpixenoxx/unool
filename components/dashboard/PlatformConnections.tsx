@@ -9,7 +9,7 @@ import {
   Loader2, Linkedin, Twitter, MessageSquare, Facebook, Instagram,
   Phone, CheckCircle, AlertCircle, Unlink2, Link2, Lock, Globe2,
   ArrowRight, Wifi, WifiOff, RefreshCw, Youtube, Cloud, ExternalLink, Image as ImageIcon,
-  MessageCircle, Hash, Twitch, Send
+  MessageCircle, Hash, Twitch, Send, Dribbble
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -20,7 +20,7 @@ import { SlackConnectDialog } from './SlackConnectDialog';
 import { TwitchConnectDialog } from './TwitchConnectDialog';
 import { TelegramConnectDialog } from './TelegramConnectDialog';
 
-const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram', 'discord'] as const;
+const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'dribbble'] as const;
 type Platform = typeof SUPPORTED_PLATFORMS[number];
 
 interface PlatformConnection {
@@ -205,6 +205,16 @@ const PLATFORM_CONFIG: Record<
     hoverBorder: 'hover:border-[#5865F2]/30',
     description: 'Server channels & messages',
     audience: 'Communities & gamers',
+    available: true,
+  },
+  dribbble: {
+    icon: Dribbble,
+    name: 'Dribbble',
+    shortName: 'Dribbble',
+    color: 'bg-[#EA4C89]',
+    hoverBorder: 'hover:border-[#EA4C89]/30',
+    description: 'Design portfolios & projects',
+    audience: 'Designers & creatives',
     available: true,
   },
 };
