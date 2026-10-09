@@ -2835,7 +2835,7 @@ function StudioTemplate({ profile }: any) {
 }
 
 function MachineTemplate({ profile, accentColor }: any) {
-  const accent = accentColor || '#00F2FE'; 
+  const accent = accentColor || '#FF3366'; 
   const name = profile?.name || "SYS.ADMIN";
   
   const customStyles = `
@@ -2843,16 +2843,17 @@ function MachineTemplate({ profile, accentColor }: any) {
 
     .machine-wrap {
       --m-accent: ${accent};
+      --m-text: #1a1a1a;
       font-family: 'Space Grotesk', sans-serif;
       min-height: 100vh;
       width: 100%;
       position: relative;
       overflow-x: hidden;
-      /* Deep space/neon liquid background - NO YELLOW */
-      background: linear-gradient(-45deg, #090022, #4A00E0, #FE0979, #00F2FE);
+      /* Very bright, colorful holographic liquid background - NO DARK COLORS */
+      background: linear-gradient(-45deg, #FFE5E5, #E5F3FF, #E8FFE5, #FFE5F9);
       background-size: 300% 300%;
-      animation: gradientBG 20s ease infinite;
-      color: #fff;
+      animation: gradientBG 15s ease infinite;
+      color: var(--m-text);
     }
 
     @keyframes gradientBG {
@@ -2870,7 +2871,7 @@ function MachineTemplate({ profile, accentColor }: any) {
       font-family: 'Syne', sans-serif;
       font-size: clamp(8rem, 20vw, 25rem);
       font-weight: 800;
-      color: rgba(255, 255, 255, 0.04);
+      color: rgba(0, 0, 0, 0.03);
       white-space: nowrap;
       pointer-events: none;
       z-index: 0;
@@ -2898,11 +2899,153 @@ function MachineTemplate({ profile, accentColor }: any) {
       }
     }
 
-    /* --- LEFT SIDE: THE OVERLAPPING DECK --- */
+    /* --- RIGHT SIDE: FREESTYLE AVATAR & INFO (ORDER 2 ON DESKTOP) --- */
+    .m-info-col {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      text-align: right;
+      order: 2; /* Right side on desktop */
+    }
+    @media (max-width: 900px) {
+      .m-info-col { 
+        align-items: center; 
+        text-align: center; 
+        order: 1; /* Top on mobile */
+      }
+    }
+
+    .m-avatar-container {
+      position: relative;
+      margin-bottom: 40px;
+    }
+
+    .m-avatar-img {
+      width: clamp(200px, 25vw, 320px);
+      height: clamp(200px, 25vw, 320px);
+      border-radius: 40px;
+      object-fit: cover;
+      box-shadow: 
+        20px 20px 50px rgba(0,0,0,0.1),
+        inset 0 0 0 4px rgba(255,255,255,0.8);
+      transform: rotate(5deg);
+      transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .m-avatar-container:hover .m-avatar-img {
+      transform: rotate(0deg) scale(1.02);
+    }
+
+    .m-role-badge {
+      position: absolute;
+      bottom: -20px;
+      left: -30px;
+      background: var(--m-accent);
+      color: #fff;
+      font-family: 'Syne', sans-serif;
+      padding: 15px 30px;
+      border-radius: 100px;
+      font-size: 0.9rem;
+      font-weight: 800;
+      letter-spacing: 2px;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+      transform: rotate(-10deg);
+      white-space: nowrap;
+    }
+
+    .m-bio-panel {
+      background: rgba(255, 255, 255, 0.6);
+      backdrop-filter: blur(20px);
+      border-radius: 30px;
+      padding: 40px;
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      max-width: 500px;
+      margin-top: 20px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.05);
+    }
+
+    .m-bio-text {
+      font-size: 1.1rem;
+      line-height: 1.6;
+      color: var(--m-text);
+      font-weight: 500;
+    }
+
+    /* Proof Points */
+    .m-proof-points {
+      margin-top: 30px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      align-items: flex-end;
+    }
+    @media (max-width: 900px) {
+      .m-proof-points { align-items: center; }
+    }
+    .m-proof-item {
+      background: rgba(255,255,255,0.7);
+      backdrop-filter: blur(10px);
+      padding: 12px 20px;
+      border-radius: 15px;
+      border: 1px solid #fff;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--m-accent);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .m-proof-item::before {
+      content: "✦";
+      color: #111;
+    }
+
+    .m-metrics-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      justify-content: flex-end;
+      margin-top: 40px;
+    }
+    @media (max-width: 900px) {
+      .m-metrics-grid { justify-content: center; }
+    }
+
+    .m-metric-item {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      background: rgba(255,255,255,0.5);
+      padding: 20px 30px;
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.8);
+      box-shadow: 0 10px 20px rgba(0,0,0,0.04);
+    }
+    .m-metric-val {
+      font-family: 'Syne', sans-serif;
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--m-text);
+      line-height: 1;
+      margin-bottom: 5px;
+    }
+    .m-metric-lbl {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--m-accent);
+      font-weight: 700;
+    }
+
+    /* --- LEFT SIDE: THE OVERLAPPING DECK (ORDER 1 ON DESKTOP) --- */
     .m-deck-col {
       display: flex;
       flex-direction: column;
       margin-top: 50px;
+      order: 1; /* Left side on desktop */
+    }
+    @media (max-width: 900px) {
+      .m-deck-col { order: 2; margin-top: 20px; } /* Bottom on mobile */
     }
 
     .m-deck-title {
@@ -2910,45 +3053,45 @@ function MachineTemplate({ profile, accentColor }: any) {
       font-size: 1.2rem;
       letter-spacing: 4px;
       text-transform: uppercase;
-      color: rgba(255,255,255,0.7);
+      color: var(--m-text);
       margin-bottom: 40px;
       padding-left: 20px;
-      border-left: 2px solid var(--m-accent);
+      border-left: 3px solid var(--m-accent);
+      font-weight: 800;
     }
 
     .m-link-card {
-      background: rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.7);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      border: 2px solid #fff;
       border-radius: 24px;
       padding: 25px 30px;
       text-decoration: none;
-      color: #fff;
+      color: var(--m-text);
       display: flex;
       align-items: center;
       justify-content: space-between;
       position: relative;
-      /* Staggered overlapping effect */
       margin-bottom: -15px;
-      box-shadow: 0 15px 35px rgba(0,0,0,0.2), inset 0 2px 5px rgba(255,255,255,0.2);
+      box-shadow: 0 15px 35px rgba(0,0,0,0.06), inset 0 4px 10px rgba(255,255,255,0.5);
       transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
       z-index: 1;
     }
     
     .m-link-card:nth-child(odd) {
-      transform: rotate(-3deg) translateX(-10px);
+      transform: rotate(-2deg) translateX(-5px);
     }
     .m-link-card:nth-child(even) {
-      transform: rotate(2deg) translateX(10px);
+      transform: rotate(2deg) translateX(5px);
     }
 
     .m-link-card:hover {
-      transform: rotate(0) scale(1.05) translateY(-20px) !important;
+      transform: rotate(0) scale(1.05) translateY(-15px) !important;
       z-index: 10;
-      background: rgba(255, 255, 255, 0.15);
+      background: rgba(255, 255, 255, 0.95);
       border-color: var(--m-accent);
-      box-shadow: 0 30px 60px rgba(0,0,0,0.4), inset 0 2px 5px rgba(255,255,255,0.4);
+      box-shadow: 0 30px 60px rgba(0,0,0,0.1), inset 0 2px 5px rgba(255,255,255,1);
     }
 
     .m-link-info {
@@ -2966,123 +3109,22 @@ function MachineTemplate({ profile, accentColor }: any) {
       color: var(--m-accent);
       text-transform: uppercase;
       letter-spacing: 2px;
+      font-weight: 700;
     }
     
     .m-link-arrow {
       width: 45px; height: 45px;
       border-radius: 50%;
-      background: rgba(255,255,255,0.1);
+      background: var(--m-text);
       display: flex;
       justify-content: center;
       align-items: center;
-      border: 1px solid rgba(255,255,255,0.3);
       transition: all 0.4s;
+      color: #fff;
     }
     .m-link-card:hover .m-link-arrow {
       background: var(--m-accent);
-      color: #000;
       transform: rotate(45deg);
-    }
-
-    /* --- RIGHT SIDE: FREESTYLE AVATAR & INFO --- */
-    .m-info-col {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      text-align: right;
-    }
-    @media (max-width: 900px) {
-      .m-info-col { align-items: center; text-align: center; }
-    }
-
-    .m-avatar-container {
-      position: relative;
-      margin-bottom: 40px;
-    }
-
-    .m-avatar-img {
-      width: clamp(200px, 25vw, 320px);
-      height: clamp(200px, 25vw, 320px);
-      border-radius: 40px; /* Squircle */
-      object-fit: cover;
-      box-shadow: 
-        30px 30px 60px rgba(0,0,0,0.4),
-        inset 0 0 0 2px rgba(255,255,255,0.5);
-      transform: rotate(5deg);
-      transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    }
-    .m-avatar-container:hover .m-avatar-img {
-      transform: rotate(0deg) scale(1.02);
-    }
-
-    .m-role-badge {
-      position: absolute;
-      bottom: -20px;
-      left: -30px;
-      background: var(--m-accent);
-      color: #000;
-      font-family: 'Syne', sans-serif;
-      padding: 15px 30px;
-      border-radius: 100px;
-      font-size: 0.9rem;
-      font-weight: 800;
-      letter-spacing: 2px;
-      box-shadow: 0 10px 20px rgba(0,0,0,0.3);
-      transform: rotate(-10deg);
-      white-space: nowrap;
-    }
-
-    .m-bio-panel {
-      background: rgba(0, 0, 0, 0.3);
-      backdrop-filter: blur(15px);
-      border-radius: 30px;
-      padding: 40px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      max-width: 500px;
-      margin-top: 20px;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
-    }
-
-    .m-bio-text {
-      font-size: 1.1rem;
-      line-height: 1.6;
-      color: rgba(255,255,255,0.9);
-      font-weight: 300;
-    }
-
-    .m-metrics-grid {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 20px;
-      justify-content: flex-end;
-      margin-top: 40px;
-    }
-    @media (max-width: 900px) {
-      .m-metrics-grid { justify-content: center; }
-    }
-
-    .m-metric-item {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      background: rgba(255,255,255,0.05);
-      padding: 20px 30px;
-      border-radius: 20px;
-      border: 1px solid rgba(255,255,255,0.1);
-    }
-    .m-metric-val {
-      font-family: 'Syne', sans-serif;
-      font-size: 2rem;
-      font-weight: 800;
-      color: var(--m-accent);
-      line-height: 1;
-      margin-bottom: 5px;
-    }
-    .m-metric-lbl {
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 2px;
-      color: rgba(255,255,255,0.6);
     }
   `;
 
@@ -3095,28 +3137,7 @@ function MachineTemplate({ profile, accentColor }: any) {
       
       <div className="m-canvas">
         
-        {/* LEFT: STAGGERED DECK */}
-        <div className="m-deck-col">
-          <div className="m-deck-title">Access Modules</div>
-          <div className="m-deck-wrapper">
-            {profile.links?.map((link: any, i: number) => (
-              <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="m-link-card">
-                <div className="m-link-info">
-                  <span className="m-link-title">{link.label}</span>
-                  <span className="m-link-sub">SYS.MOD // {i.toString().padStart(2, '0')}</span>
-                </div>
-                <div className="m-link-arrow">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                    <polyline points="12 5 19 12 12 19"></polyline>
-                  </svg>
-                </div>
-              </a>
-            ))}
-          </div>
-        </div>
-
-        {/* RIGHT: FREESTYLE AVATAR & INFO */}
+        {/* RIGHT (DOM ORDER 1): FREESTYLE AVATAR & INFO -> Stacks on top in mobile */}
         <div className="m-info-col">
           
           <div className="m-avatar-container">
@@ -3136,6 +3157,17 @@ function MachineTemplate({ profile, accentColor }: any) {
             </div>
           )}
 
+          {/* Proof Points Section */}
+          {profile.proofPoints && profile.proofPoints.length > 0 && (
+             <div className="m-proof-points">
+               {profile.proofPoints.map((point: any, i: number) => (
+                 <div key={i} className="m-proof-item">
+                   {point.title} {point.subtitle && \` - \${point.subtitle}\`}
+                 </div>
+               ))}
+             </div>
+          )}
+
           {profile.metrics && profile.metrics.length > 0 && (
             <div className="m-metrics-grid">
               {profile.metrics.map((m: any, i: number) => (
@@ -3147,6 +3179,27 @@ function MachineTemplate({ profile, accentColor }: any) {
             </div>
           )}
 
+        </div>
+
+        {/* LEFT (DOM ORDER 2): STAGGERED DECK -> Stacks on bottom in mobile */}
+        <div className="m-deck-col">
+          <div className="m-deck-title">Access Modules</div>
+          <div className="m-deck-wrapper">
+            {profile.links?.map((link: any, i: number) => (
+              <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="m-link-card">
+                <div className="m-link-info">
+                  <span className="m-link-title">{link.label}</span>
+                  <span className="m-link-sub">SYS.MOD // {i.toString().padStart(2, '0')}</span>
+                </div>
+                <div className="m-link-arrow">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                    <polyline points="12 5 19 12 12 19"></polyline>
+                  </svg>
+                </div>
+              </a>
+            ))}
+          </div>
         </div>
 
       </div>
