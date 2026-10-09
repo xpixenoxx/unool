@@ -1556,323 +1556,437 @@ function VisionTemplate({ profile }: any) {
   };
 
   const customStyles = `
-    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;0,800;1,400&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@400;500;600;700&display=swap');
 
-    .vis-wrap {
-      font-family: 'Outfit', sans-serif;
-      background-color: #050505;
+    .vision-wrap {
+      --accent: #FF3366;
+      --accent-dim: rgba(255, 51, 102, 0.2);
+      --bg: #F8F9FA;
+      --panel: rgba(255, 255, 255, 0.7);
+      --border: rgba(255, 51, 102, 0.3);
+      font-family: 'Rajdhani', sans-serif;
+      background: var(--bg);
+      color: #1F2937;
       min-height: 100vh;
+      overflow: hidden;
+      position: relative;
+      perspective: 1200px;
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 40px 20px;
-      position: relative;
-      overflow: hidden;
-      color: #F0F0F0;
-      perspective: 2000px;
     }
 
-    /* Animated Mesh Background Orbs */
-    .vis-bg {
+    /* Moving Grid Background */
+    .vision-grid {
       position: absolute;
-      inset: -200px;
+      width: 200vw; height: 200vh;
+      top: -50%; left: -50%;
+      background-image: 
+        linear-gradient(rgba(255, 51, 102, 0.05) 1px, transparent 1px), 
+        linear-gradient(90deg, rgba(255, 51, 102, 0.05) 1px, transparent 1px);
+      background-size: 60px 60px;
+      transform: rotateX(60deg) translateY(0) translateZ(-200px);
+      animation: vision-grid-move 20s linear infinite;
       z-index: 0;
       pointer-events: none;
-      overflow: hidden;
     }
-    .vis-orb {
-      position: absolute;
-      border-radius: 50%;
-      filter: blur(140px);
-      animation: vis-drift 20s infinite alternate ease-in-out;
-      opacity: 0.6;
-    }
-    .vis-orb-1 {
-      top: 10%; left: 10%;
-      width: 50vw; height: 50vw;
-      background: #FF204E;
-      animation-delay: 0s;
-    }
-    .vis-orb-2 {
-      bottom: 10%; right: 10%;
-      width: 40vw; height: 40vw;
-      background: #FF7F3F;
-      animation-delay: -5s;
-    }
-    .vis-orb-3 {
-      top: 40%; left: 50%;
-      width: 30vw; height: 30vw;
-      background: #7B113A;
-      animation-delay: -10s;
-    }
-    @keyframes vis-drift {
-      0% { transform: translate(0, 0) scale(1); }
-      100% { transform: translate(100px, -100px) scale(1.1); }
+    @keyframes vision-grid-move {
+      0% { transform: rotateX(60deg) translateY(0) translateZ(-200px); }
+      100% { transform: rotateX(60deg) translateY(60px) translateZ(-200px); }
     }
 
-    /* Main Container (3D Tilt) */
-    .vis-container {
+    /* Ambient Glows */
+    .vision-glow {
+      position: absolute;
+      width: 600px; height: 600px;
+      border-radius: 50%;
+      background: radial-gradient(circle, var(--accent) 0%, transparent 60%);
+      opacity: 0.12;
+      filter: blur(60px);
+      z-index: 0;
+      pointer-events: none;
+      transition: transform 0.2s ease-out;
+    }
+
+    /* Main 3D Container */
+    .vision-container {
       position: relative;
       z-index: 10;
       width: 100%;
-      max-width: 1200px;
+      max-width: 1100px;
       transform-style: preserve-3d;
-      transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+      transition: transform 0.15s ease-out;
     }
 
-    /* Glass Card */
-    .vis-card {
-      background: rgba(15, 10, 15, 0.4);
-      backdrop-filter: blur(40px);
-      -webkit-backdrop-filter: blur(40px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 32px;
+    /* Holographic Card */
+    .vision-card {
+      background: var(--panel);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      border-radius: 24px;
       padding: 60px;
       box-shadow: 
-        0 40px 80px rgba(0, 0, 0, 0.6),
-        inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+        0 30px 60px rgba(0,0,0,0.05),
+        inset 0 0 40px rgba(255, 51, 102, 0.05),
+        0 0 20px rgba(255, 51, 102, 0.1);
+      transform-style: preserve-3d;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .vision-card::before {
+      content: ""; position: absolute; inset: 0;
+      background: linear-gradient(125deg, transparent 30%, rgba(255,51,102,0.02) 45%, rgba(255,51,102,0.05) 50%, transparent 55%);
+      background-size: 200% 200%;
+      animation: vision-shimmer 6s linear infinite;
+      pointer-events: none;
+      z-index: 2;
+    }
+    @keyframes vision-shimmer {
+      0% { background-position: -100% -100%; }
+      100% { background-position: 200% 200%; }
+    }
+
+    /* Tech Accents */
+    .vision-corner {
+      position: absolute;
+      width: 30px; height: 30px;
+      border: 2px solid var(--accent);
+      opacity: 0.4;
+      z-index: 3;
+    }
+    .vision-corner-tl { top: 20px; left: 20px; border-right: none; border-bottom: none; }
+    .vision-corner-tr { top: 20px; right: 20px; border-left: none; border-bottom: none; }
+    .vision-corner-bl { bottom: 20px; left: 20px; border-right: none; border-top: none; }
+    .vision-corner-br { bottom: 20px; right: 20px; border-left: none; border-top: none; }
+
+    /* Layout inside card */
+    .vision-inner {
       display: flex;
       gap: 60px;
-      align-items: center;
       transform: translateZ(40px);
       transform-style: preserve-3d;
     }
-
-    /* Left Column: Avatar & Links */
-    .vis-left {
-      flex: 0 0 320px;
-      display: flex;
-      flex-direction: column;
-      gap: 32px;
-      transform: translateZ(20px);
+    @media (max-width: 860px) {
+      .vision-inner { flex-direction: column; text-align: center; gap: 40px; }
+      .vision-card { padding: 40px 24px; }
+      .vision-avatar-wrap { margin: 0 auto; }
     }
 
-    .vis-avatar-box {
-      width: 100%;
-      aspect-ratio: 1;
-      border-radius: 24px;
-      overflow: hidden;
+    /* Avatar 3D Ring System */
+    .vision-avatar-wrap {
       position: relative;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
-      border: 1px solid rgba(255,255,255,0.1);
+      width: 180px; height: 180px;
+      flex-shrink: 0;
+      transform-style: preserve-3d;
+      transform: translateZ(60px);
     }
-    .vis-avatar-box::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      border-radius: 24px;
-      box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
-      pointer-events: none;
-    }
-    .vis-avatar {
-      width: 100%;
-      height: 100%;
+    .vision-avatar {
+      width: 100%; height: 100%;
+      border-radius: 50%;
       object-fit: cover;
-      transition: transform 0.7s ease;
+      border: 2px solid var(--accent);
+      box-shadow: 0 0 30px rgba(255, 51, 102, 0.2);
+      position: relative;
+      z-index: 5;
     }
-    .vis-avatar-box:hover .vis-avatar {
-      transform: scale(1.05);
+    .vision-ring {
+      position: absolute;
+      inset: -20px;
+      border-radius: 50%;
+      border: 1px dashed var(--accent);
+      opacity: 0.4;
+      animation: vision-spin-ring 20s linear infinite;
     }
-
-    /* Links Array */
-    .vis-links {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
+    .vision-ring-2 {
+      position: absolute;
+      inset: -40px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 51, 102, 0.2);
+      border-left-color: var(--accent);
+      border-right-color: var(--accent);
+      animation: vision-spin-ring 12s linear infinite reverse;
     }
-    .vis-link {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 16px 24px;
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 12px;
-      color: #E0E0E0;
-      text-decoration: none;
-      font-weight: 500;
-      letter-spacing: 0.5px;
-      transition: all 0.3s ease;
+    .vision-ring-3 {
+      position: absolute;
+      inset: -60px;
+      border-radius: 50%;
+      border: 2px dotted rgba(255, 51, 102, 0.3);
+      animation: vision-spin-ring 30s linear infinite;
+      transform: translateZ(-20px);
     }
-    .vis-link:hover {
-      background: rgba(255, 255, 255, 0.1);
-      border-color: rgba(255, 127, 63, 0.4);
-      transform: translateX(5px);
-      color: #FFF;
-    }
-    .vis-link-arrow {
-      color: #FF7F3F;
-      transition: transform 0.3s;
-    }
-    .vis-link:hover .vis-link-arrow {
-      transform: translateX(4px) translateY(-4px);
+    @keyframes vision-spin-ring {
+      to { transform: rotate(360deg); }
     }
 
-    /* Right Column: Text & Stats */
-    .vis-right {
+    /* Text */
+    .vision-content {
       flex: 1;
-      display: flex;
-      flex-direction: column;
+      transform-style: preserve-3d;
+    }
+    .vision-name {
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(2.5rem, 5vw, 4.5rem);
+      font-weight: 900;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #111827;
+      text-shadow: 0 0 20px rgba(255, 51, 102, 0.2);
+      margin-bottom: 10px;
+      transform: translateZ(50px);
+    }
+    .vision-role {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      margin-bottom: 24px;
+      display: inline-block;
+      padding: 4px 16px;
+      background: rgba(255, 51, 102, 0.08);
+      border-left: 3px solid var(--accent);
+      transform: translateZ(40px);
+    }
+    .vision-bio {
+      font-size: 1.1rem;
+      line-height: 1.7;
+      color: #4B5563;
+      max-width: 600px;
+      font-weight: 600;
       transform: translateZ(30px);
     }
 
-    .vis-role {
-      font-size: 0.9rem;
-      text-transform: uppercase;
-      letter-spacing: 6px;
-      color: #FF7F3F;
-      font-weight: 600;
-      margin-bottom: 16px;
-    }
-
-    .vis-name {
-      font-family: 'Playfair Display', serif;
-      font-size: clamp(3.5rem, 6vw, 6.5rem);
-      font-weight: 600;
-      line-height: 1.1;
-      margin-bottom: 24px;
-      color: #FFF;
-      letter-spacing: -1px;
-    }
-
-    .vis-bio {
-      font-size: 1.1rem;
-      line-height: 1.8;
-      color: #B0B0B0;
-      max-width: 600px;
-      font-weight: 300;
-      margin-bottom: 48px;
-    }
-
-    /* Stats */
-    .vis-stats {
+    /* Data Points */
+    .vision-data {
       display: flex;
+      gap: 20px;
+      margin-top: 40px;
+      transform: translateZ(35px);
       flex-wrap: wrap;
-      gap: 32px;
-      padding-top: 32px;
-      border-top: 1px solid rgba(255, 255, 255, 0.1);
     }
-    .vis-stat-item {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
+    .vision-data-box {
+      background: rgba(255,255,255,0.8);
+      border: 1px solid rgba(255, 51, 102, 0.2);
+      padding: 16px 24px;
+      border-radius: 12px;
+      min-width: 120px;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s;
     }
-    .vis-stat-val {
-      font-family: 'Playfair Display', serif;
-      font-size: 2.5rem;
-      font-weight: 600;
-      color: #FFF;
-      line-height: 1;
+    .vision-data-box:hover {
+      border-color: var(--accent);
+      box-shadow: 0 0 20px rgba(255, 51, 102, 0.15);
+      transform: translateY(-5px);
     }
-    .vis-stat-label {
+    .vision-data-box::before {
+      content: ""; position: absolute; top: 0; left: 0; width: 4px; height: 100%;
+      background: var(--accent);
+    }
+    .vision-data-val {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #111827;
+    }
+    .vision-data-label {
       font-size: 0.8rem;
       text-transform: uppercase;
       letter-spacing: 2px;
-      color: #FF204E;
-      font-weight: 500;
+      color: var(--accent);
+      opacity: 0.9;
+      margin-top: 4px;
+      font-weight: 600;
     }
 
-    @media (max-width: 900px) {
-      .vis-card {
-        flex-direction: column;
-        padding: 40px 24px;
-        gap: 40px;
-      }
-      .vis-left {
-        flex: auto;
-        width: 100%;
-        max-width: 400px;
-        margin: 0 auto;
-      }
-      .vis-right {
-        text-align: center;
-      }
-      .vis-bio {
-        margin: 0 auto 32px;
-      }
-      .vis-stats {
-        justify-content: center;
-      }
+    /* Links Grid */
+    .vision-links {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 20px;
+      margin-top: 50px;
+      transform: translateZ(45px);
+    }
+    .vision-link {
+      background: linear-gradient(90deg, rgba(255,255,255,0.9), rgba(255,51,102,0.05));
+      border: 1px solid rgba(255, 51, 102, 0.2);
+      border-radius: 8px;
+      padding: 18px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #111827;
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-decoration: none;
+      transition: all 0.3s;
+      position: relative;
+      overflow: hidden;
+    }
+    .vision-link::after {
+      content: ""; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 51, 102, 0.15), transparent);
+      transition: left 0.5s ease;
+    }
+    .vision-link:hover::after {
+      left: 100%;
+    }
+    .vision-link:hover {
+      background: rgba(255, 51, 102, 0.1);
+      border-color: var(--accent);
+      box-shadow: 0 0 20px rgba(255, 51, 102, 0.15);
+      transform: scale(1.02);
+    }
+    .vision-link-arrow {
+      color: var(--accent);
+      font-size: 1.2rem;
+      transition: transform 0.3s;
+    }
+    .vision-link:hover .vision-link-arrow {
+      transform: translateX(5px);
+    }
+
+    /* Floating 3D Geometric shapes */
+    .vision-float-shape {
+      position: absolute;
+      transform-style: preserve-3d;
+      pointer-events: none;
+    }
+    .v-shape-1 {
+      top: -40px; right: -40px;
+      width: 100px; height: 100px;
+      border: 2px solid var(--accent);
+      animation: vision-spin-3d 10s linear infinite;
+    }
+    .v-shape-2 {
+      bottom: -60px; left: -20px;
+      width: 80px; height: 80px;
+      border: 2px dashed rgba(255, 51, 102, 0.5);
+      border-radius: 50%;
+      animation: vision-spin-3d 15s linear infinite reverse;
+    }
+    @keyframes vision-spin-3d {
+      0% { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg); }
+      100% { transform: rotateX(360deg) rotateY(360deg) rotateZ(360deg); }
+    }
+
+    /* Scanning line */
+    .vision-scanline {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 4px;
+      background: var(--accent);
+      box-shadow: 0 0 20px var(--accent), 0 0 40px var(--accent);
+      opacity: 0.2;
+      animation: vision-scan 8s ease-in-out infinite;
+      pointer-events: none;
+      z-index: 50;
+    }
+    @keyframes vision-scan {
+      0%, 100% { top: 0%; opacity: 0; }
+      10% { opacity: 0.3; }
+      50% { top: 100%; opacity: 0.3; }
+      90% { opacity: 0; }
     }
   `;
 
   return (
     <div 
-      className="vis-wrap"
+      className="vision-wrap" 
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       ref={containerRef}
     >
       <style dangerouslySetInnerHTML={{ __html: customStyles }} />
       
-      <div className="vis-bg">
-        <div className="vis-orb vis-orb-1" />
-        <div className="vis-orb vis-orb-2" />
-        <div className="vis-orb vis-orb-3" />
-      </div>
+      <div className="vision-grid" />
+      <div 
+        className="vision-glow" 
+        style={{ transform: `translate(${mouse.x * 200}px, ${mouse.y * 200}px)` }} 
+      />
 
       <div 
-        className="vis-container"
-        style={{ transform: `rotateY(${mouse.x * 6}deg) rotateX(${mouse.y * -6}deg)` }}
+        className="vision-container"
+        style={{ 
+          transform: `rotateY(${mouse.x * 12}deg) rotateX(${mouse.y * -12}deg)` 
+        }}
       >
-        <div className="vis-card">
-          <div className="vis-left">
-            <div className="vis-avatar-box">
+        <div className="vision-float-shape v-shape-1" />
+        <div className="vision-float-shape v-shape-2" />
+        
+        <div className="vision-card">
+          <div className="vision-scanline" />
+          <div className="vision-corner vision-corner-tl" />
+          <div className="vision-corner vision-corner-tr" />
+          <div className="vision-corner vision-corner-bl" />
+          <div className="vision-corner vision-corner-br" />
+
+          <div className="vision-inner">
+            {/* 3D Avatar */}
+            <div className="vision-avatar-wrap">
+              <div className="vision-ring" />
+              <div className="vision-ring-2" />
+              <div className="vision-ring-3" />
               {profile.avatarUrl ? (
-                <img src={profile.avatarUrl} alt={profile.name} className="vis-avatar" />
+                <img src={profile.avatarUrl} alt={profile.name} className="vision-avatar" />
               ) : (
-                <div className="vis-avatar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '5rem', background: '#222', fontFamily: 'Playfair Display' }}>
+                <div className="vision-avatar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '4rem', color: '#FF3366', background: 'rgba(255,51,102,0.1)', fontFamily: 'Orbitron' }}>
                   {profile.name?.charAt(0) || 'V'}
                 </div>
               )}
             </div>
-            
-            {profile.links && profile.links.length > 0 && (
-              <div className="vis-links">
-                {profile.links.map((link: any, i: number) => (
-                  <a key={i} href={link.url} target="_blank" rel="noreferrer" className="vis-link">
-                    <span>{link.label}</span>
-                    <span className="vis-link-arrow">↗</span>
-                  </a>
-                ))}
-              </div>
-            )}
-          </div>
 
-          <div className="vis-right">
-            <div className="vis-role">{profile.headline || profile.role || 'Visionary'}</div>
-            <h1 className="vis-name">{profile.name}</h1>
-            <p className="vis-bio">{profile.bio}</p>
+            {/* Content */}
+            <div className="vision-content">
+              <h1 className="vision-name">{profile.name}</h1>
+              <div className="vision-role">{profile.headline}</div>
+              <p className="vision-bio">{profile.bio}</p>
 
-            <div className="vis-stats">
+              {/* Dynamic Stats/Proofs */}
               {profile.proofs && profile.proofs.length > 0 ? (
-                profile.proofs.slice(0, 3).map((proof: any, i: number) => (
-                  <div key={i} className="vis-stat-item">
-                    <div className="vis-stat-val">{proof.value}</div>
-                    <div className="vis-stat-label">{proof.title || proof.type}</div>
-                  </div>
-                ))
+                <div className="vision-data">
+                  {profile.proofs.slice(0, 3).map((proof: any, i: number) => (
+                    <div key={i} className="vision-data-box">
+                      <div className="vision-data-val">{proof.value}</div>
+                      <div className="vision-data-label">{proof.title || proof.type}</div>
+                    </div>
+                  ))}
+                </div>
               ) : (
-                <>
+                <div className="vision-data">
                   {profile.role && (
-                    <div className="vis-stat-item">
-                      <div className="vis-stat-val">ROLE</div>
-                      <div className="vis-stat-label">{profile.role}</div>
+                    <div className="vision-data-box">
+                      <div className="vision-data-val">ROLE</div>
+                      <div className="vision-data-label">{profile.role}</div>
                     </div>
                   )}
                   {profile.company && (
-                    <div className="vis-stat-item">
-                      <div className="vis-stat-val">ORG</div>
-                      <div className="vis-stat-label">{profile.company}</div>
+                    <div className="vision-data-box">
+                      <div className="vision-data-val">ORG</div>
+                      <div className="vision-data-label">{profile.company}</div>
                     </div>
                   )}
                   {profile.location && (
-                    <div className="vis-stat-item">
-                      <div className="vis-stat-val">LOC</div>
-                      <div className="vis-stat-label">{profile.location}</div>
+                    <div className="vision-data-box">
+                      <div className="vision-data-val">LOC</div>
+                      <div className="vision-data-label">{profile.location}</div>
                     </div>
                   )}
-                </>
+                </div>
+              )}
+
+              {/* Links */}
+              {profile.links && profile.links.length > 0 && (
+                <div className="vision-links">
+                  {profile.links.map((link: any, i: number) => (
+                    <a key={i} href={link.url} target="_blank" rel="noreferrer" className="vision-link">
+                      <span>{link.label}</span>
+                      <span className="vision-link-arrow">↗</span>
+                    </a>
+                  ))}
+                </div>
               )}
             </div>
           </div>
