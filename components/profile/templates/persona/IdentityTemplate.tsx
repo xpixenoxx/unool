@@ -3648,12 +3648,6 @@ function VisionaryTemplate({ profile, onLinkClick }: any) {
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#8B958A] ml-2 group-hover:translate-x-1 transition-transform"><polyline points="9 18 15 12 9 6"></polyline></svg>
             </a>
             
-            <div className="mt-16 flex items-center gap-4 w-full justify-center md:justify-start">
-              <span className="text-[9px] tracking-[0.2em] text-[#8B958A] uppercase font-bold">01</span>
-              <div className="h-[1px] flex-1 bg-[#2C2825]/10" />
-              <span className="text-[9px] tracking-[0.2em] text-[#8B958A] uppercase font-bold">MAKE THE NEXT POSSIBILITY LEGIBLE</span>
-            </div>
-
           </div>
         </section>
 
@@ -3668,9 +3662,6 @@ function VisionaryTemplate({ profile, onLinkClick }: any) {
               <h3 className="visionary-serif text-4xl sm:text-5xl text-[#2C2825] text-center md:text-left">
                 Evidence, <span className="text-[#704E59] italic">in orbit.</span>
               </h3>
-              <p className="text-[10px] tracking-[0.05em] text-[#8B958A] max-w-[200px] text-center md:text-left leading-relaxed">
-                Small, legible markers of momentum. Add only what is true, useful, and yours.
-              </p>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
