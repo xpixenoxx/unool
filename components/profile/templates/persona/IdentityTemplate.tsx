@@ -718,8 +718,8 @@ function RebellionTemplate({ profile, accentColor }: any) {
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width - 0.5) * 18;
-    const y = ((e.clientY - rect.top) / rect.height - 0.5) * -18;
+    const x = ((e.clientX - rect.left) / rect.width - 0.5) * 30; // Stronger 3D tilt
+    const y = ((e.clientY - rect.top) / rect.height - 0.5) * -30;
     setTilt({ x, y });
   };
   const handleMouseLeave = () => setTilt({ x: 0, y: 0 });
@@ -859,11 +859,14 @@ function RebellionTemplate({ profile, accentColor }: any) {
 
     /* ── HERO ── */
     .reb-hero {
-      display: grid; grid-template-columns: 1fr 420px;
-      gap: 0; align-items: center; min-height: 480px;
+      display: flex; flex-wrap: wrap; justify-content: center;
+      gap: 60px; align-items: center; min-height: 480px;
       margin-bottom: 40px;
     }
-    .reb-hero-left { padding-right: 40px; }
+    .reb-hero-left { 
+      flex: 1; min-width: 300px; max-width: 600px; 
+      padding-right: 0; 
+    }
 
     /* Eyebrow */
     .reb-eyebrow {
@@ -917,7 +920,7 @@ function RebellionTemplate({ profile, accentColor }: any) {
 
     /* ── HERO RIGHT — 3D TILT CARD ── */
     .reb-card-3d-wrap {
-      perspective: 900px; cursor: pointer; position: relative;
+      perspective: 1200px; cursor: pointer; position: relative;
     }
     .reb-card-3d {
       width: 100%; aspect-ratio: 0.72;
@@ -937,6 +940,7 @@ function RebellionTemplate({ profile, accentColor }: any) {
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       gap: 0; padding: 40px 32px;
       position: relative;
+      transform-style: preserve-3d;
     }
 
     /* Shimmer sweep on card */
@@ -963,6 +967,8 @@ function RebellionTemplate({ profile, accentColor }: any) {
     .reb-avatar-ring {
       width: 140px; height: 140px; border-radius: 50%; position: relative;
       margin-bottom: 24px; flex-shrink: 0;
+      transform: translateZ(60px);
+      box-shadow: 0 20px 40px rgba(200,16,46,0.2);
     }
     .reb-avatar-ring::before {
       content: ""; position: absolute; inset: -5px; border-radius: 50%;
@@ -996,16 +1002,19 @@ function RebellionTemplate({ profile, accentColor }: any) {
       font-family: var(--royal); font-size: 1.35rem; font-weight: 700;
       letter-spacing: 2px; text-transform: uppercase; color: var(--text);
       text-align: center; margin-bottom: 6px;
+      transform: translateZ(40px);
     }
     .reb-card-title {
       font-family: var(--serif); font-style: italic;
       font-size: 1rem; color: var(--crimson); text-align: center;
       margin-bottom: 24px;
+      transform: translateZ(35px);
     }
 
     /* Floating stat pills on the card */
     .reb-stat-row {
       display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;
+      transform: translateZ(50px);
     }
     .reb-stat {
       display: flex; flex-direction: column; align-items: center;
@@ -1072,6 +1081,33 @@ function RebellionTemplate({ profile, accentColor }: any) {
     .reb-float-orb-b { width: 48px; height: 48px; bottom: 12%; right: 36%; animation-delay: 2s; }
     @keyframes reb-pulse-orb { 0%,100%{transform:scale(1);opacity:0.6} 50%{transform:scale(1.25);opacity:1} }
 
+    /* New 3D floating cube/hexagon */
+    .reb-float-cube {
+      position: absolute; width: 64px; height: 64px;
+      top: 45%; left: -20px;
+      animation: reb-float-cube-anim 10s linear infinite;
+      filter: drop-shadow(0 8px 24px rgba(200,16,46,0.2));
+    }
+    @keyframes reb-float-cube-anim {
+      0% { transform: translateY(0) rotateX(0deg) rotateY(0deg); }
+      50% { transform: translateY(-40px) rotateX(25deg) rotateY(30deg); }
+      100% { transform: translateY(0) rotateX(0deg) rotateY(0deg); }
+    }
+
+    /* New 3D spinning ring */
+    .reb-3d-ring {
+      position: absolute; bottom: 5%; right: 40%;
+      width: 70px; height: 70px;
+      border: 6px solid rgba(201,153,58,0.3);
+      border-radius: 50%;
+      box-shadow: 0 10px 30px rgba(200,16,46,0.15), inset 0 4px 15px rgba(201,153,58,0.2);
+      animation: reb-spin-ring-anim 8s linear infinite;
+    }
+    @keyframes reb-spin-ring-anim {
+      0% { transform: rotateX(60deg) rotateY(0deg) rotateZ(0deg); }
+      100% { transform: rotateX(60deg) rotateY(360deg) rotateZ(360deg); }
+    }
+
     /* ── MARQUEE RIBBON ── */
     .reb-ribbon-wrap {
       margin: 52px 0; overflow: hidden; position: relative;
@@ -1114,6 +1150,7 @@ function RebellionTemplate({ profile, accentColor }: any) {
     .reb-links-grid {
       display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
       gap: 18px;
+      perspective: 1200px;
     }
     .reb-link-card {
       display: block; position: relative; overflow: hidden;
@@ -1122,8 +1159,9 @@ function RebellionTemplate({ profile, accentColor }: any) {
       background: linear-gradient(145deg, rgba(255,252,246,0.95) 0%, rgba(248,240,226,0.9) 100%);
       border: 1.5px solid rgba(201,153,58,0.2);
       color: var(--text); text-decoration: none;
-      transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s, border-color 0.3s;
+      transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.4s, border-color 0.4s;
       box-shadow: 0 4px 20px rgba(201,153,58,0.06);
+      transform-style: preserve-3d;
     }
     .reb-link-card::before {
       /* shimmer sweep */
@@ -1134,8 +1172,8 @@ function RebellionTemplate({ profile, accentColor }: any) {
     }
     .reb-link-card:hover::before { background-position: 150% 0; }
     .reb-link-card:hover {
-      transform: translateY(-6px) scale(1.02);
-      box-shadow: 0 16px 48px rgba(200,16,46,0.1), 0 6px 20px rgba(201,153,58,0.12);
+      transform: translateY(-8px) scale(1.03) rotateX(8deg) rotateY(-4deg);
+      box-shadow: 0 24px 48px rgba(200,16,46,0.15), 0 12px 24px rgba(201,153,58,0.2);
       border-color: rgba(201,153,58,0.45);
     }
     /* Colored top accent line */
@@ -1155,18 +1193,21 @@ function RebellionTemplate({ profile, accentColor }: any) {
       font-size: 1.1rem; font-weight: 700; color: var(--crimson);
       font-family: var(--royal);
       transition: background 0.3s, transform 0.3s;
+      transform: translateZ(25px);
     }
     .reb-link-card:hover .reb-link-icon-wrap {
       background: linear-gradient(135deg, var(--crimson), var(--gold));
-      color: #fff; transform: scale(1.1) rotate(-4deg);
+      color: #fff; transform: scale(1.1) rotate(-4deg) translateZ(30px);
     }
     .reb-link-title {
       font-family: var(--serif); font-size: 1.45rem; font-weight: 700;
       color: var(--text); margin-bottom: 4px; line-height: 1.2;
+      transform: translateZ(20px);
     }
     .reb-link-sub {
       font-size: 0.82rem; color: var(--text-3); font-weight: 500;
       text-transform: uppercase; letter-spacing: 1px;
+      transform: translateZ(15px);
     }
     .reb-link-arrow {
       position: absolute; bottom: 22px; right: 22px;
@@ -1175,11 +1216,12 @@ function RebellionTemplate({ profile, accentColor }: any) {
       display: flex; align-items: center; justify-content: center;
       font-size: 0.8rem; color: var(--text-3);
       transition: all 0.3s;
+      transform: translateZ(20px);
     }
     .reb-link-card:hover .reb-link-arrow {
       background: linear-gradient(135deg, var(--crimson), var(--gold));
       border-color: transparent; color: #fff;
-      transform: rotate(45deg);
+      transform: rotate(45deg) translateZ(25px);
     }
 
     /* ── CTA SECTION ── */
@@ -1281,7 +1323,7 @@ function RebellionTemplate({ profile, accentColor }: any) {
 
     /* ── RESPONSIVE ── */
     @media (max-width: 1024px) {
-      .reb-hero { grid-template-columns: 1fr; gap: 40px; text-align: center; }
+      .reb-hero { flex-direction: column; gap: 40px; text-align: center; }
       .reb-hero-left { padding-right: 0; margin-bottom: 24px; display: flex; flex-direction: column; align-items: center; order: 2; }
       .reb-bio { text-align: center; margin: 0 auto; }
       .reb-card-3d-wrap { max-width: 380px; margin: 0 auto; width: 100%; order: 1; }
@@ -1367,6 +1409,18 @@ function RebellionTemplate({ profile, accentColor }: any) {
             {/* Ambient orbs */}
             <div className="reb-float-orb reb-float-orb-a" />
             <div className="reb-float-orb reb-float-orb-b" />
+            
+            {/* New 3D floating elements */}
+            <div className="reb-float-cube">
+              <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M50 0L93.3 25V75L50 100L6.7 75V25L50 0Z" fill="rgba(255,255,255,0.1)" stroke="url(#gem-grad)" strokeWidth="2"/>
+                <path d="M50 50L93.3 25M50 50L6.7 25M50 50V100" stroke="url(#gem-grad)" strokeWidth="2"/>
+                <path d="M50 0L93.3 25L50 50L6.7 25L50 0Z" fill="rgba(201,153,58,0.4)"/>
+                <path d="M6.7 25L50 50V100L6.7 75V25Z" fill="rgba(200,16,46,0.2)"/>
+                <path d="M93.3 25L50 50V100L93.3 75V25Z" fill="rgba(255,255,255,0.3)"/>
+              </svg>
+            </div>
+            <div className="reb-3d-ring" />
           </div>
 
           {/* LEFT — Text content */}
