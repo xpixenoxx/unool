@@ -23,8 +23,9 @@ import { SkoolConnectDialog } from './SkoolConnectDialog';
 import { WhopConnectDialog } from './WhopConnectDialog';
 import { KickConnectDialog } from './KickConnectDialog';
 import { VKConnectDialog } from './VKConnectDialog';
+import { WarpcastConnectDialog } from './WarpcastConnectDialog';
 
-const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'dribbble', 'skool', 'whop', 'kick', 'vk'] as const;
+const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'dribbble', 'skool', 'whop', 'kick', 'vk', 'warpcast'] as const;
 type Platform = typeof SUPPORTED_PLATFORMS[number];
 
 interface PlatformConnection {
@@ -265,6 +266,17 @@ const PLATFORM_CONFIG: Record<
     available: true,
     customConnect: true,
   },
+  warpcast: {
+    icon: Hash,
+    name: 'Warpcast',
+    shortName: 'Warpcast',
+    color: 'bg-[#8A63D2]',
+    hoverBorder: 'hover:border-[#8A63D2]/30',
+    description: 'Decentralized social app',
+    audience: 'Farcaster network',
+    available: true,
+    customConnect: true,
+  },
 };
 
 /* ─── Component ────────────────────────────────────────────── */
@@ -303,6 +315,7 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
   const [whopDialogOpen, setWhopDialogOpen] = useState(false);
   const [kickDialogOpen, setKickDialogOpen] = useState(false);
   const [vkDialogOpen, setVkDialogOpen] = useState(false);
+  const [warpcastDialogOpen, setWarpcastDialogOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -365,6 +378,10 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
     }
     if (platform === 'vk') {
       setVkDialogOpen(true);
+      return;
+    }
+    if (platform === 'warpcast') {
+      setWarpcastDialogOpen(true);
       return;
     }
     // Show spinner immediately — gives instant visual feedback before the redirect
@@ -543,6 +560,18 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
           setConnections((prev) => ({
             ...prev,
             vk: { platform: 'vk', status: 'connected', username },
+          }));
+          window.location.reload();
+        }}
+      />
+      <WarpcastConnectDialog
+        open={warpcastDialogOpen}
+        onClose={() => setWarpcastDialogOpen(false)}
+        workspaceId={workspaceId}
+        onSuccess={(username) => {
+          setConnections((prev) => ({
+            ...prev,
+            warpcast: { platform: 'warpcast', status: 'connected', username },
           }));
           window.location.reload();
         }}

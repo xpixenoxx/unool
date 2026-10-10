@@ -15,7 +15,7 @@ import { MotionBox, MotionStack, spring, stagger } from '@/components/ui/motion'
 import { cn } from '@/lib/utils';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 
-type Platform = 'linkedin' | 'x' | 'threads' | 'manual' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'slack' | 'mastodon' | 'twitch' | 'telegram' | 'discord' | 'dribbble' | 'skool' | 'whop' | 'kick' | 'vk';
+type Platform = 'linkedin' | 'x' | 'threads' | 'manual' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'slack' | 'mastodon' | 'twitch' | 'telegram' | 'discord' | 'dribbble' | 'skool' | 'whop' | 'kick' | 'vk' | 'warpcast';
 type DraftStatus = 'draft' | 'published' | 'failed';
 
 interface PostVariant {
@@ -74,6 +74,7 @@ const PLATFORM_CONFIG: Record<Platform, { icon: React.ElementType; name: string;
   whop: { icon: Store, name: 'Whop', maxChars: 10000, color: 'bg-[#FF5A00]' },
   kick: { icon: Gamepad2, name: 'Kick', maxChars: 10000, color: 'bg-[#53FC18]' },
   vk: { icon: Video, name: 'VK', maxChars: 4096, color: 'bg-[#0077FF]' },
+  warpcast: { icon: Hash, name: 'Warpcast', maxChars: 320, color: 'bg-[#8A63D2]' },
   manual: { icon: SendIcon, name: 'Manual', maxChars: 10000, color: 'bg-gray-500' },
 };
 
