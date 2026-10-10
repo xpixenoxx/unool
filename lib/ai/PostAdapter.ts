@@ -3,7 +3,7 @@ import { generateWithFallback } from './provider';
 import { Result, ok, err } from '@/lib/shared/Result';
 import { logger } from '@/lib/logger';
 
-export const PlatformType = z.enum(['linkedin', 'x', 'threads', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'mastodon', 'slack', 'twitch', 'telegram', 'discord']);
+export const PlatformType = z.enum(['linkedin', 'x', 'threads', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'skool', 'whop', 'kick']);
 export type PlatformType = z.infer<typeof PlatformType>;
 
 export const AdaptedPostSchema = z.object({
@@ -81,6 +81,21 @@ const PLATFORM_SPECS: Record<PlatformType, { maxChars: number; style: string; ha
   discord: {
     maxChars: 2000,
     style: 'Casual, community-oriented, clear formatting. Use markdown formatting.',
+    hashtagStrategy: 'No hashtags usually.'
+  },
+  skool: {
+    maxChars: 10000,
+    style: 'Educational, community-building, conversational. Use paragraphs and lists.',
+    hashtagStrategy: 'No hashtags usually.'
+  },
+  whop: {
+    maxChars: 10000,
+    style: 'Value-driven, engaging, product-focused. Professional yet inviting.',
+    hashtagStrategy: 'No hashtags usually.'
+  },
+  kick: {
+    maxChars: 10000,
+    style: 'Hype-building, high-energy, stream-oriented.',
     hashtagStrategy: 'No hashtags usually.'
   },
 };
