@@ -44,6 +44,7 @@ import {
   GraduationCap,
   Store,
   Gamepad2,
+  Video,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -56,7 +57,7 @@ import { cn } from '@/lib/utils';
 import { useUserContext } from '@/lib/hooks/use-user-context';
 import { PLATFORM_LIMITS } from '@/lib/config/platformLimits';
 
-type PlatformType = 'linkedin' | 'x' | 'threads' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'mastodon' | 'slack' | 'twitch' | 'telegram' | 'discord' | 'dribbble' | 'skool' | 'whop' | 'kick';
+type PlatformType = 'linkedin' | 'x' | 'threads' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'mastodon' | 'slack' | 'twitch' | 'telegram' | 'discord' | 'dribbble' | 'skool' | 'whop' | 'kick' | 'vk';
 
 const PLATFORM_CONFIG: Record<PlatformType, { icon: React.ElementType; name: string; maxChars: number; color: string }> = {
   linkedin: { icon: Linkedin, name: 'LinkedIn', maxChars: 3000, color: 'bg-blue-600' },
@@ -76,6 +77,7 @@ const PLATFORM_CONFIG: Record<PlatformType, { icon: React.ElementType; name: str
   skool: { icon: GraduationCap, name: 'Skool', maxChars: 10000, color: 'bg-[#E2AD44]' },
   whop: { icon: Store, name: 'Whop', maxChars: 10000, color: 'bg-[#FF5A00]' },
   kick: { icon: Gamepad2, name: 'Kick', maxChars: 10000, color: 'bg-[#53FC18]' },
+  vk: { icon: Video, name: 'VK', maxChars: 4096, color: 'bg-[#0077FF]' },
 };
 
 interface PlatformDraft {

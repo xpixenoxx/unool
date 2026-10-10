@@ -2,7 +2,7 @@
 
 import React from 'react';
 
-type Platform = 'linkedin' | 'x' | 'threads' | 'manual' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'slack' | 'mastodon' | 'twitch' | 'telegram' | 'discord' | 'dribbble' | 'skool' | 'whop' | 'kick';
+type Platform = 'linkedin' | 'x' | 'threads' | 'manual' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'slack' | 'mastodon' | 'twitch' | 'telegram' | 'discord' | 'dribbble' | 'skool' | 'whop' | 'kick' | 'vk';
 
 interface PlatformPreviewProps {
   platform: Platform;
@@ -368,6 +368,7 @@ export function PlatformPreview({ platform, content, mediaUrls, username, displa
     skool: <ManualPreview {...props} />,
     whop: <ManualPreview {...props} />,
     kick: <ManualPreview {...props} />,
+    vk: <ManualPreview {...props} />,
     manual: <ManualPreview {...props} />,
   };
 

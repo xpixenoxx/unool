@@ -3,7 +3,7 @@ import { generateWithFallback } from './provider';
 import { Result, ok, err } from '@/lib/shared/Result';
 import { logger } from '@/lib/logger';
 
-export const PlatformType = z.enum(['linkedin', 'x', 'threads', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'skool', 'whop', 'kick']);
+export const PlatformType = z.enum(['linkedin', 'x', 'threads', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'skool', 'whop', 'kick', 'vk']);
 export type PlatformType = z.infer<typeof PlatformType>;
 
 export const AdaptedPostSchema = z.object({
@@ -97,6 +97,11 @@ const PLATFORM_SPECS: Record<PlatformType, { maxChars: number; style: string; ha
     maxChars: 10000,
     style: 'Hype-building, high-energy, stream-oriented.',
     hashtagStrategy: 'No hashtags usually.'
+  },
+  vk: {
+    maxChars: 4096,
+    style: 'Community-oriented, engaging, well-formatted text. Similar to Facebook but tailored for CIS audience.',
+    hashtagStrategy: '1-3 relevant hashtags'
   },
 };
 

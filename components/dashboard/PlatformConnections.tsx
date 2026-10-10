@@ -22,8 +22,9 @@ import { TelegramConnectDialog } from './TelegramConnectDialog';
 import { SkoolConnectDialog } from './SkoolConnectDialog';
 import { WhopConnectDialog } from './WhopConnectDialog';
 import { KickConnectDialog } from './KickConnectDialog';
+import { VKConnectDialog } from './VKConnectDialog';
 
-const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'dribbble', 'skool', 'whop', 'kick'] as const;
+const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'dribbble', 'skool', 'whop', 'kick', 'vk'] as const;
 type Platform = typeof SUPPORTED_PLATFORMS[number];
 
 interface PlatformConnection {
@@ -253,6 +254,17 @@ const PLATFORM_CONFIG: Record<
     available: true,
     customConnect: true,
   },
+  vk: {
+    icon: ExternalLink,
+    name: 'VK (VKontakte)',
+    shortName: 'VK',
+    color: 'bg-[#0077FF]',
+    hoverBorder: 'hover:border-[#0077FF]/30',
+    description: 'Communities & discussions',
+    audience: 'Russian & CIS communities',
+    available: true,
+    customConnect: true,
+  },
 };
 
 /* ─── Component ────────────────────────────────────────────── */
@@ -290,6 +302,7 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
   const [skoolDialogOpen, setSkoolDialogOpen] = useState(false);
   const [whopDialogOpen, setWhopDialogOpen] = useState(false);
   const [kickDialogOpen, setKickDialogOpen] = useState(false);
+  const [vkDialogOpen, setVkDialogOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -348,6 +361,10 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
     }
     if (platform === 'kick') {
       setKickDialogOpen(true);
+      return;
+    }
+    if (platform === 'vk') {
+      setVkDialogOpen(true);
       return;
     }
     // Show spinner immediately — gives instant visual feedback before the redirect
@@ -514,6 +531,18 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
           setConnections((prev) => ({
             ...prev,
             kick: { platform: 'kick', status: 'connected', username },
+          }));
+          window.location.reload();
+        }}
+      />
+      <VKConnectDialog
+        open={vkDialogOpen}
+        onClose={() => setVkDialogOpen(false)}
+        workspaceId={workspaceId}
+        onSuccess={(username) => {
+          setConnections((prev) => ({
+            ...prev,
+            vk: { platform: 'vk', status: 'connected', username },
           }));
           window.location.reload();
         }}

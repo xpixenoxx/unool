@@ -8,14 +8,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Linkedin, Twitter, MessageSquare, CheckCircle, Edit, Send, AlertCircle, Sparkles, CircleCheckBig, X, ExternalLink, Facebook, Youtube, Instagram, Cloud, MessageCircle, Image as ImageIcon, Send as SendIcon, Twitch, Hash, Dribbble, GraduationCap, Store, Gamepad2 } from 'lucide-react';
+import { Loader2, Linkedin, Twitter, MessageSquare, CheckCircle, Edit, Send, AlertCircle, Sparkles, CircleCheckBig, X, ExternalLink, Facebook, Youtube, Instagram, Cloud, MessageCircle, Image as ImageIcon, Send as SendIcon, Twitch, Hash, Dribbble, GraduationCap, Store, Gamepad2, Video } from 'lucide-react';
 import { toast } from 'sonner';
 import { Flex, Box, Stack, Text, Display, Divider } from '@/components/ui/layout';
 import { MotionBox, MotionStack, spring, stagger } from '@/components/ui/motion';
 import { cn } from '@/lib/utils';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 
-type Platform = 'linkedin' | 'x' | 'threads' | 'manual' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'slack' | 'mastodon' | 'twitch' | 'telegram' | 'discord' | 'dribbble' | 'skool' | 'whop' | 'kick';
+type Platform = 'linkedin' | 'x' | 'threads' | 'manual' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'slack' | 'mastodon' | 'twitch' | 'telegram' | 'discord' | 'dribbble' | 'skool' | 'whop' | 'kick' | 'vk';
 type DraftStatus = 'draft' | 'published' | 'failed';
 
 interface PostVariant {
@@ -73,6 +73,7 @@ const PLATFORM_CONFIG: Record<Platform, { icon: React.ElementType; name: string;
   skool: { icon: GraduationCap, name: 'Skool', maxChars: 10000, color: 'bg-[#E2AD44]' },
   whop: { icon: Store, name: 'Whop', maxChars: 10000, color: 'bg-[#FF5A00]' },
   kick: { icon: Gamepad2, name: 'Kick', maxChars: 10000, color: 'bg-[#53FC18]' },
+  vk: { icon: Video, name: 'VK', maxChars: 4096, color: 'bg-[#0077FF]' },
   manual: { icon: SendIcon, name: 'Manual', maxChars: 10000, color: 'bg-gray-500' },
 };
 

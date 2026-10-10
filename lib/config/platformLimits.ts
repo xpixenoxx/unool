@@ -1,4 +1,4 @@
-export type SupportedPlatform = 'linkedin' | 'x' | 'twitter' | 'threads' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'mastodon' | 'slack' | 'twitch' | 'telegram' | 'discord' | 'manual' | 'dribbble' | 'skool' | 'whop' | 'kick';
+export type SupportedPlatform = 'linkedin' | 'x' | 'twitter' | 'threads' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'mastodon' | 'slack' | 'twitch' | 'telegram' | 'discord' | 'manual' | 'dribbble' | 'skool' | 'whop' | 'kick' | 'vk';
 
 export interface PlatformLimitConfig {
   maxVideoSizeMB: number;
@@ -26,6 +26,7 @@ export const PLATFORM_LIMITS: Record<SupportedPlatform, PlatformLimitConfig> = {
   skool: { maxVideoSizeMB: 50, maxImageSizeMB: 10 },
   whop: { maxVideoSizeMB: 50, maxImageSizeMB: 10 },
   kick: { maxVideoSizeMB: 50, maxImageSizeMB: 10 },
+  vk: { maxVideoSizeMB: 50, maxImageSizeMB: 10 },
 };
 
 export function getPlatformLimit(platform: string): PlatformLimitConfig {
