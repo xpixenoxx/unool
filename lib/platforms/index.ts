@@ -14,6 +14,7 @@ export { twitchAdapter, TwitchAdapter } from './TwitchAdapter';
 export { telegramAdapter, TelegramAdapter } from './TelegramAdapter';
 export { discordAdapter, DiscordAdapter } from './DiscordAdapter';
 export { dribbbleAdapter, DribbbleAdapter } from './DribbbleAdapter';
+export { skoolAdapter, SkoolAdapter } from './SkoolAdapter';
 import { linkedInAdapter } from './LinkedInAdapter';
 import { threadsAdapter } from './ThreadsAdapter';
 import { xAdapter } from './XAdapter';
@@ -30,6 +31,7 @@ import { twitchAdapter } from './TwitchAdapter';
 import { telegramAdapter } from './TelegramAdapter';
 import { discordAdapter } from './DiscordAdapter';
 import { dribbbleAdapter } from './DribbbleAdapter';
+import { skoolAdapter } from './SkoolAdapter';
 import type { PlatformAdapter } from './adapter';
 
 export const platformAdapters: Record<string, PlatformAdapter> = {
@@ -50,11 +52,12 @@ export const platformAdapters: Record<string, PlatformAdapter> = {
   telegram: telegramAdapter,
   discord: discordAdapter,
   dribbble: dribbbleAdapter,
+  skool: skoolAdapter,
 };
 
 export function getPlatformAdapter(platform: string): PlatformAdapter | null {
   return platformAdapters[platform.toLowerCase()] ?? null;
 }
 
-export const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'dribbble'] as const;
+export const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'dribbble', 'skool'] as const;
 export type SupportedPlatform = typeof SUPPORTED_PLATFORMS[number];

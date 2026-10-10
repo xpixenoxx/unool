@@ -9,7 +9,7 @@ import {
   Loader2, Linkedin, Twitter, MessageSquare, Facebook, Instagram,
   Phone, CheckCircle, AlertCircle, Unlink2, Link2, Lock, Globe2,
   ArrowRight, Wifi, WifiOff, RefreshCw, Youtube, Cloud, ExternalLink, Image as ImageIcon,
-  MessageCircle, Hash, Twitch, Send, Dribbble
+  MessageCircle, Hash, Twitch, Send, Dribbble, GraduationCap
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -19,8 +19,9 @@ import { MastodonConnectDialog } from './MastodonConnectDialog';
 import { SlackConnectDialog } from './SlackConnectDialog';
 import { TwitchConnectDialog } from './TwitchConnectDialog';
 import { TelegramConnectDialog } from './TelegramConnectDialog';
+import { SkoolConnectDialog } from './SkoolConnectDialog';
 
-const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'dribbble'] as const;
+const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'dribbble', 'skool'] as const;
 type Platform = typeof SUPPORTED_PLATFORMS[number];
 
 interface PlatformConnection {
@@ -217,6 +218,17 @@ const PLATFORM_CONFIG: Record<
     audience: 'Designers & creatives',
     available: true,
   },
+  skool: {
+    icon: GraduationCap,
+    name: 'Skool',
+    shortName: 'Skool',
+    color: 'bg-[#E2AD44]',
+    hoverBorder: 'hover:border-[#E2AD44]/30',
+    description: 'Communities & courses',
+    audience: 'Students & community members',
+    available: true,
+    customConnect: true,
+  },
 };
 
 /* ─── Component ────────────────────────────────────────────── */
@@ -251,6 +263,7 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
   const [slackDialogOpen, setSlackDialogOpen] = useState(false);
   const [twitchDialogOpen, setTwitchDialogOpen] = useState(false);
   const [telegramDialogOpen, setTelegramDialogOpen] = useState(false);
+  const [skoolDialogOpen, setSkoolDialogOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -297,6 +310,10 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
     }
     if (platform === 'telegram') {
       setTelegramDialogOpen(true);
+      return;
+    }
+    if (platform === 'skool') {
+      setSkoolDialogOpen(true);
       return;
     }
     // Show spinner immediately — gives instant visual feedback before the redirect
@@ -427,6 +444,18 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
           setConnections((prev) => ({
             ...prev,
             telegram: { platform: 'telegram', status: 'connected', username },
+          }));
+          window.location.reload();
+        }}
+      />
+      <SkoolConnectDialog
+        open={skoolDialogOpen}
+        onClose={() => setSkoolDialogOpen(false)}
+        workspaceId={workspaceId}
+        onSuccess={(username) => {
+          setConnections((prev) => ({
+            ...prev,
+            skool: { platform: 'skool', status: 'connected', username },
           }));
           window.location.reload();
         }}
