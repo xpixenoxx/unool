@@ -19,6 +19,7 @@ export { whopAdapter, WhopAdapter } from './WhopAdapter';
 export { kickAdapter, KickAdapter } from './KickAdapter';
 export { vkAdapter, VKAdapter } from './VKAdapter';
 export { warpcastAdapter, WarpcastAdapter } from './WarpcastAdapter';
+export { meweAdapter, MeweAdapter } from './MeweAdapter';
 import { linkedInAdapter } from './LinkedInAdapter';
 import { threadsAdapter } from './ThreadsAdapter';
 import { xAdapter } from './XAdapter';
@@ -40,6 +41,7 @@ import { whopAdapter } from './WhopAdapter';
 import { kickAdapter } from './KickAdapter';
 import { vkAdapter } from './VKAdapter';
 import { warpcastAdapter } from './WarpcastAdapter';
+import { meweAdapter } from './MeweAdapter';
 import type { PlatformAdapter } from './adapter';
 
 export const platformAdapters: Record<string, PlatformAdapter> = {
@@ -65,11 +67,12 @@ export const platformAdapters: Record<string, PlatformAdapter> = {
   kick: kickAdapter,
   vk: vkAdapter,
   warpcast: warpcastAdapter,
+  mewe: meweAdapter,
 };
 
 export function getPlatformAdapter(platform: string): PlatformAdapter | null {
   return platformAdapters[platform.toLowerCase()] ?? null;
 }
 
-export const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'dribbble', 'skool', 'whop', 'kick', 'vk', 'warpcast'] as const;
+export const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'dribbble', 'skool', 'whop', 'kick', 'vk', 'warpcast', 'mewe'] as const;
 export type SupportedPlatform = typeof SUPPORTED_PLATFORMS[number];

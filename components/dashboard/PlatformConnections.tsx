@@ -24,8 +24,9 @@ import { WhopConnectDialog } from './WhopConnectDialog';
 import { KickConnectDialog } from './KickConnectDialog';
 import { VKConnectDialog } from './VKConnectDialog';
 import { WarpcastConnectDialog } from './WarpcastConnectDialog';
+import { MeweConnectDialog } from './MeweConnectDialog';
 
-const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'dribbble', 'skool', 'whop', 'kick', 'vk', 'warpcast'] as const;
+const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'dribbble', 'skool', 'whop', 'kick', 'vk', 'warpcast', 'mewe'] as const;
 type Platform = typeof SUPPORTED_PLATFORMS[number];
 
 interface PlatformConnection {
@@ -277,6 +278,17 @@ const PLATFORM_CONFIG: Record<
     available: true,
     customConnect: true,
   },
+  mewe: {
+    icon: MessageSquare,
+    name: 'MeWe',
+    shortName: 'MeWe',
+    color: 'bg-[#2F435E]',
+    hoverBorder: 'hover:border-[#2F435E]/30',
+    description: 'Privacy-first social network',
+    audience: 'Privacy-aware communities',
+    available: true,
+    customConnect: true,
+  },
 };
 
 /* ─── Component ────────────────────────────────────────────── */
@@ -316,6 +328,7 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
   const [kickDialogOpen, setKickDialogOpen] = useState(false);
   const [vkDialogOpen, setVkDialogOpen] = useState(false);
   const [warpcastDialogOpen, setWarpcastDialogOpen] = useState(false);
+  const [meweDialogOpen, setMeweDialogOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -382,6 +395,10 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
     }
     if (platform === 'warpcast') {
       setWarpcastDialogOpen(true);
+      return;
+    }
+    if (platform === 'mewe') {
+      setMeweDialogOpen(true);
       return;
     }
     // Show spinner immediately — gives instant visual feedback before the redirect
@@ -572,6 +589,18 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
           setConnections((prev) => ({
             ...prev,
             warpcast: { platform: 'warpcast', status: 'connected', username },
+          }));
+          window.location.reload();
+        }}
+      />
+      <MeweConnectDialog
+        open={meweDialogOpen}
+        onClose={() => setMeweDialogOpen(false)}
+        workspaceId={workspaceId}
+        onSuccess={(username) => {
+          setConnections((prev) => ({
+            ...prev,
+            mewe: { platform: 'mewe', status: 'connected', username },
           }));
           window.location.reload();
         }}
