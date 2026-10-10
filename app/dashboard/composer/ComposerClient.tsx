@@ -56,6 +56,7 @@ import { cn } from '@/lib/utils';
 // Note: Supabase browser client no longer needed for storage (using Cloudflare R2 via presigned PUT)
 import { useUserContext } from '@/lib/hooks/use-user-context';
 import { PLATFORM_LIMITS } from '@/lib/config/platformLimits';
+import { emitSignalStrip } from '../signal/SignalStrip';
 
 type PlatformType = 'linkedin' | 'x' | 'threads' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'mastodon' | 'slack' | 'twitch' | 'telegram' | 'discord' | 'dribbble' | 'skool' | 'whop' | 'kick' | 'vk' | 'warpcast' | 'mewe';
 
@@ -1206,7 +1207,21 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         }
       }
 
-      window.location.href = `/dashboard/publish?postId=${postId}`;
+      // Fire the SignalStrip
+      emitSignalStrip({
+        postId,
+        content: sourceContent,
+        platforms: Object.entries(results || {}).map(([platform, r]: [string, any]) => ({
+          platform,
+          status: r.success ? 'published' : 'failed',
+          platformUrl: r.platformUrl,
+        })),
+      });
+
+      // Clear drafts
+      setDrafts([]);
+      setSourceContent('');
+      setPostId(null);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Publish failed';
       toast.error(errorMsg);
@@ -1263,7 +1278,6 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
 
       toast.success('Broadcast published successfully!');
 
-      const results = data.results;
       if (results) {
         for (const [platform, result] of Object.entries(results)) {
           if ((result as any).success) {
@@ -1274,8 +1288,16 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         }
       }
 
+      emitSignalStrip({
+        postId: data.postId,
+        content: quickContent,
+        platforms: platformsToUse.map(platform => ({
+          platform,
+          status: 'pending',
+        })),
+      });
+
       setQuickContent('');
-      window.location.href = `/dashboard/publish?postId=${data.postId}`;
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Broadcast failed';
       toast.error(errorMsg);
