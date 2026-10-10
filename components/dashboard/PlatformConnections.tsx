@@ -9,7 +9,7 @@ import {
   Loader2, Linkedin, Twitter, MessageSquare, Facebook, Instagram,
   Phone, CheckCircle, AlertCircle, Unlink2, Link2, Lock, Globe2,
   ArrowRight, Wifi, WifiOff, RefreshCw, Youtube, Cloud, ExternalLink, Image as ImageIcon,
-  MessageCircle, Hash, Twitch, Send, Dribbble, GraduationCap
+  MessageCircle, Hash, Twitch, Send, Dribbble, GraduationCap, Store
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -20,8 +20,9 @@ import { SlackConnectDialog } from './SlackConnectDialog';
 import { TwitchConnectDialog } from './TwitchConnectDialog';
 import { TelegramConnectDialog } from './TelegramConnectDialog';
 import { SkoolConnectDialog } from './SkoolConnectDialog';
+import { WhopConnectDialog } from './WhopConnectDialog';
 
-const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'dribbble', 'skool'] as const;
+const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'dribbble', 'skool', 'whop'] as const;
 type Platform = typeof SUPPORTED_PLATFORMS[number];
 
 interface PlatformConnection {
@@ -229,6 +230,17 @@ const PLATFORM_CONFIG: Record<
     available: true,
     customConnect: true,
   },
+  whop: {
+    icon: Store,
+    name: 'Whop',
+    shortName: 'Whop',
+    color: 'bg-[#FF5A00]',
+    hoverBorder: 'hover:border-[#FF5A00]/30',
+    description: 'Communities & digital products',
+    audience: 'Creators & buyers',
+    available: true,
+    customConnect: true,
+  },
 };
 
 /* ─── Component ────────────────────────────────────────────── */
@@ -264,6 +276,7 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
   const [twitchDialogOpen, setTwitchDialogOpen] = useState(false);
   const [telegramDialogOpen, setTelegramDialogOpen] = useState(false);
   const [skoolDialogOpen, setSkoolDialogOpen] = useState(false);
+  const [whopDialogOpen, setWhopDialogOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -314,6 +327,10 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
     }
     if (platform === 'skool') {
       setSkoolDialogOpen(true);
+      return;
+    }
+    if (platform === 'whop') {
+      setWhopDialogOpen(true);
       return;
     }
     // Show spinner immediately — gives instant visual feedback before the redirect
@@ -456,6 +473,18 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
           setConnections((prev) => ({
             ...prev,
             skool: { platform: 'skool', status: 'connected', username },
+          }));
+          window.location.reload();
+        }}
+      />
+      <WhopConnectDialog
+        open={whopDialogOpen}
+        onClose={() => setWhopDialogOpen(false)}
+        workspaceId={workspaceId}
+        onSuccess={(username) => {
+          setConnections((prev) => ({
+            ...prev,
+            whop: { platform: 'whop', status: 'connected', username },
           }));
           window.location.reload();
         }}
