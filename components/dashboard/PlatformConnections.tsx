@@ -9,7 +9,7 @@ import {
   Loader2, Linkedin, Twitter, MessageSquare, Facebook, Instagram,
   Phone, CheckCircle, AlertCircle, Unlink2, Link2, Lock, Globe2,
   ArrowRight, Wifi, WifiOff, RefreshCw, Youtube, Cloud, ExternalLink, Image as ImageIcon,
-  MessageCircle, Hash, Twitch, Send, Dribbble, GraduationCap, Store
+  MessageCircle, Hash, Twitch, Send, Dribbble, GraduationCap, Store, Gamepad2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -21,8 +21,9 @@ import { TwitchConnectDialog } from './TwitchConnectDialog';
 import { TelegramConnectDialog } from './TelegramConnectDialog';
 import { SkoolConnectDialog } from './SkoolConnectDialog';
 import { WhopConnectDialog } from './WhopConnectDialog';
+import { KickConnectDialog } from './KickConnectDialog';
 
-const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'dribbble', 'skool', 'whop'] as const;
+const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'dribbble', 'skool', 'whop', 'kick'] as const;
 type Platform = typeof SUPPORTED_PLATFORMS[number];
 
 interface PlatformConnection {
@@ -241,6 +242,17 @@ const PLATFORM_CONFIG: Record<
     available: true,
     customConnect: true,
   },
+  kick: {
+    icon: Gamepad2,
+    name: 'Kick',
+    shortName: 'Kick',
+    color: 'bg-[#53FC18]',
+    hoverBorder: 'hover:border-[#53FC18]/30',
+    description: 'Streams & communities',
+    audience: 'Gamers & viewers',
+    available: true,
+    customConnect: true,
+  },
 };
 
 /* ─── Component ────────────────────────────────────────────── */
@@ -277,6 +289,7 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
   const [telegramDialogOpen, setTelegramDialogOpen] = useState(false);
   const [skoolDialogOpen, setSkoolDialogOpen] = useState(false);
   const [whopDialogOpen, setWhopDialogOpen] = useState(false);
+  const [kickDialogOpen, setKickDialogOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -331,6 +344,10 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
     }
     if (platform === 'whop') {
       setWhopDialogOpen(true);
+      return;
+    }
+    if (platform === 'kick') {
+      setKickDialogOpen(true);
       return;
     }
     // Show spinner immediately — gives instant visual feedback before the redirect
@@ -485,6 +502,18 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
           setConnections((prev) => ({
             ...prev,
             whop: { platform: 'whop', status: 'connected', username },
+          }));
+          window.location.reload();
+        }}
+      />
+      <KickConnectDialog
+        open={kickDialogOpen}
+        onClose={() => setKickDialogOpen(false)}
+        workspaceId={workspaceId}
+        onSuccess={(username) => {
+          setConnections((prev) => ({
+            ...prev,
+            kick: { platform: 'kick', status: 'connected', username },
           }));
           window.location.reload();
         }}
