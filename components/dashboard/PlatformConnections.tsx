@@ -9,7 +9,7 @@ import {
   Loader2, Linkedin, Twitter, MessageSquare, Facebook, Instagram,
   Phone, CheckCircle, AlertCircle, Unlink2, Link2, Lock, Globe2,
   ArrowRight, Wifi, WifiOff, RefreshCw, Youtube, Cloud, ExternalLink, Image as ImageIcon,
-  MessageCircle, Hash, Twitch, Send, Dribbble, GraduationCap, Store, Gamepad2
+  MessageCircle, Hash, Twitch, Send, Dribbble, GraduationCap, Store, Gamepad2, Zap
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -25,8 +25,9 @@ import { KickConnectDialog } from './KickConnectDialog';
 import { VKConnectDialog } from './VKConnectDialog';
 import { WarpcastConnectDialog } from './WarpcastConnectDialog';
 import { MeweConnectDialog } from './MeweConnectDialog';
+import { NostrConnectDialog } from './NostrConnectDialog';
 
-const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'dribbble', 'skool', 'whop', 'kick', 'vk', 'warpcast', 'mewe'] as const;
+const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'dribbble', 'skool', 'whop', 'kick', 'vk', 'warpcast', 'mewe', 'nostr'] as const;
 type Platform = typeof SUPPORTED_PLATFORMS[number];
 
 interface PlatformConnection {
@@ -289,6 +290,17 @@ const PLATFORM_CONFIG: Record<
     available: true,
     customConnect: true,
   },
+  nostr: {
+    icon: Zap,
+    name: 'Nostr',
+    shortName: 'Nostr',
+    color: 'bg-[#9B51E0]',
+    hoverBorder: 'hover:border-[#9B51E0]/30',
+    description: 'Decentralized social protocol',
+    audience: 'Open & uncensored network',
+    available: true,
+    customConnect: true,
+  },
 };
 
 /* ─── Component ────────────────────────────────────────────── */
@@ -329,6 +341,7 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
   const [vkDialogOpen, setVkDialogOpen] = useState(false);
   const [warpcastDialogOpen, setWarpcastDialogOpen] = useState(false);
   const [meweDialogOpen, setMeweDialogOpen] = useState(false);
+  const [nostrDialogOpen, setNostrDialogOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -399,6 +412,10 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
     }
     if (platform === 'mewe') {
       setMeweDialogOpen(true);
+      return;
+    }
+    if (platform === 'nostr') {
+      setNostrDialogOpen(true);
       return;
     }
     // Show spinner immediately — gives instant visual feedback before the redirect
@@ -601,6 +618,18 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
           setConnections((prev) => ({
             ...prev,
             mewe: { platform: 'mewe', status: 'connected', username },
+          }));
+          window.location.reload();
+        }}
+      />
+      <NostrConnectDialog
+        open={nostrDialogOpen}
+        onClose={() => setNostrDialogOpen(false)}
+        workspaceId={workspaceId}
+        onSuccess={(username) => {
+          setConnections((prev) => ({
+            ...prev,
+            nostr: { platform: 'nostr', status: 'connected', username },
           }));
           window.location.reload();
         }}
