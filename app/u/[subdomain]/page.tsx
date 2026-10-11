@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { ProfilePreview } from '@/components/profile/ProfilePreview';
 
 interface Profile {
@@ -61,6 +62,8 @@ export default function PublicProfilePage({ params }: { params: Promise<{ subdom
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const shouldScrollToActivity = searchParams.get('activity') === '1';
 
   useEffect(() => {
     let cancelled = false;
@@ -245,6 +248,8 @@ export default function PublicProfilePage({ params }: { params: Promise<{ subdom
     },
     socialHandles: profile.socialHandles || {},
     openTo: profile.openTo || [],
+    recentActivity: (profile as any).recentActivity ?? null,
+    autoScroll: shouldScrollToActivity,
     seo: profile.seo || {
       title: profile.name || 'Profile',
       description: profile.headline || profile.bio || '',

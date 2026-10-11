@@ -3,6 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
 import { analytics, extractTrackingFromRequest } from '@/lib/analytics/track';
+import { SupabasePostRepository } from '@/lib/repositories/supabase/SupabasePostRepository';
+import { SupabasePlatformRepository } from '@/lib/repositories/supabase/SupabasePlatformRepository';
 
 const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
 
@@ -51,16 +53,49 @@ export async function GET(
       ipHash: resolvedIpHash || undefined,
     });
 
+    // ── Fetch latest published broadcast for the "Recent Activity" section ──
+    let recentActivity = null;
+    try {
+      const postRepo = new SupabasePostRepository();
+      const platformRepo = new SupabasePlatformRepository();
+
+      const recentPosts = await postRepo.findByProfileId(profile.id, { status: 'published', limit: 1 });
+      const latestPost = recentPosts[0] ?? null;
+
+      if (latestPost) {
+        const variants = await postRepo.findVariantsByPostId(latestPost.id);
+        const publishedVariants = variants.filter(v => v.status === 'published');
+
+        const platformItems = await Promise.all(
+          publishedVariants.map(async v => {
+            const platformPosts = await platformRepo.findPlatformPostsByVariant(v.id);
+            const liveUrl = platformPosts[0]?.platformUrl ?? null;
+            return liveUrl ? { platform: v.platform, url: liveUrl, adaptedContent: v.adaptedContent } : null;
+          })
+        );
+
+        recentActivity = {
+          id: latestPost.id,
+          content: latestPost.content,
+          publishedAt: latestPost.publishedAt?.toISOString() ?? null,
+          platforms: platformItems.filter(Boolean),
+        };
+      }
+    } catch {
+      // Non-critical — fail silently so the profile always loads
+    }
+
     return NextResponse.json({
       ...profile,
       links: profile.links || [],
       proofs: profile.proofPoints || [],
       openTo: profile.openTo || [],
       theme: profile.theme || { preset: 'minimal' },
+      recentActivity,
     });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     logger.error('Public profile API error', { error: err });
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+}

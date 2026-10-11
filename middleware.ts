@@ -10,6 +10,7 @@ const publicPaths = [
   '/api/auth',
   '/api/health',
   '/u',
+  '/s',
   '/privacy',
   '/terms',
   '/forgot-password',

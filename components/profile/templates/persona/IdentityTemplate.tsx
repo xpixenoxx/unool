@@ -6,6 +6,7 @@ import { getTemplateById } from '@/components/profile/templates/registry';
 import { motion } from 'framer-motion';
 import { Menu, BadgeCheck, ArrowRight, Bookmark, Send, Sparkles, Quote, Github, Linkedin, Instagram, ExternalLink, Users, Link as LinkIcon, Eye } from 'lucide-react';
 import { OpenToBadges } from '@/components/profile/OpenToBadges';
+import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
 import { ClubTemplate } from './ClubTemplate';
 export { ClubTemplate };
 
@@ -4606,8 +4607,11 @@ function VoiceTemplate({ profile }: any) {
 export function IdentityTemplate(props: TemplateProps & { templateId: string }) {
   const { templateId, profile } = props;
   const openToIntents: string[] = (profile as any).openTo || [];
+  const recentActivity = (profile as any).recentActivity ?? null;
+  const autoScroll: boolean = (profile as any).autoScroll ?? false;
+  const accentColor: string | undefined = (profile as any).theme?.accentColor;
 
-  // Templates with dark backgrounds need light-adjusted badge styling
+  // Templates with dark backgrounds need light-adjusted badge / activity styling
   const darkTemplates = ['lone', 'rebellion', 'the-builder', 'the-hustler', 'the-visionary', 'the-creator'];
   const isDark = darkTemplates.includes(templateId);
 
@@ -4636,15 +4640,39 @@ export function IdentityTemplate(props: TemplateProps & { templateId: string }) 
     default: content = <LoneTemplate {...props} />; break;
   }
 
-  // If no intents selected, render template as-is
+  // ── Recent Activity section (shown on every template, at the bottom) ──
+  // We wrap it in a neutral container so spacing looks right regardless of
+  // which template's background/padding the content above uses.
+  const activitySection = recentActivity ? (
+    <div style={{
+      maxWidth: 680,
+      margin: '0 auto',
+      padding: '0 20px 48px',
+    }}>
+      <RecentActivitySection
+        activity={recentActivity}
+        isDark={isDark}
+        accentColor={accentColor}
+        autoScroll={autoScroll}
+      />
+    </div>
+  ) : null;
+
+  // If no intents selected, render template + activity section as-is
   if (!openToIntents || openToIntents.length === 0) {
-    return <>{content}</>;
+    return (
+      <>
+        {content}
+        {activitySection}
+      </>
+    );
   }
 
-  // Render template with floating Open To badges at the bottom
+  // Render template with floating Open To badges + activity section
   return (
     <div style={{ position: 'relative', minHeight: '100vh' }}>
       {content}
+      {activitySection}
       <div
         style={{
           position: 'fixed',

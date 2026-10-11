@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Linkedin, Twitter, MessageSquare, CheckCircle, Edit, Send, AlertCircle, Sparkles, CircleCheckBig, X, ExternalLink, Facebook, Youtube, Instagram, Cloud, MessageCircle, Image as ImageIcon, Send as SendIcon, Eye, Twitch, Hash, Dribbble, GraduationCap, Store, Gamepad2, Video, Zap, FileText } from 'lucide-react';
+import { Loader2, Linkedin, Twitter, MessageSquare, CheckCircle, Edit, Send, AlertCircle, Sparkles, CircleCheckBig, X, ExternalLink, Facebook, Youtube, Instagram, Cloud, MessageCircle, Image as ImageIcon, Send as SendIcon, Eye, Twitch, Hash, Dribbble, GraduationCap, Store, Gamepad2, Video, Zap, FileText, Copy, Share2, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
 import { Flex, Box, Stack, Text, Display, Divider } from '@/components/ui/layout';
 import { MotionBox, MotionStack, spring, stagger } from '@/components/ui/motion';
@@ -101,6 +101,9 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
   const [publishing, setPublishing] = useState(false);
   const [publishResults, setPublishResults] = useState<Record<string, { success: boolean; platformUrl?: string; error?: string }>>({});
   const [previewMode, setPreviewMode] = useState<Record<string, boolean>>({});
+  const [amplifyOpen, setAmplifyOpen] = useState(false);
+  const [profileSubdomain, setProfileSubdomain] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const springConfig: Transition = reducedMotion ? { type: 'tween', duration: 0.01 } : spring.standard;
 
   const loadPost = useCallback(async (isPolling = false) => {
@@ -215,6 +218,20 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
         }
         return d;
       }));
+
+      // Fetch subdomain and open the Amplify modal if at least one platform succeeded
+      const anySuccess = Object.values(results).some(r => r.success);
+      if (anySuccess) {
+        try {
+          const meRes = await fetch('/api/me', { credentials: 'include' });
+          if (meRes.ok) {
+            const meData = await meRes.json();
+            const sub = meData?.profile?.subdomain || meData?.subdomain || null;
+            setProfileSubdomain(sub);
+          }
+        } catch { /* non-critical */ }
+        setAmplifyOpen(true);
+      }
 
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Publish failed';
@@ -501,9 +518,140 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
           <Flex gap={4} wrap><Text>Updated:</Text> <Text>{new Date(post.updatedAt).toLocaleString()}</Text></Flex>
         </Box>
       </motion.details>
+
+      {/* ── Amplify Modal ── */}
+      <AnimatePresence>
+        {amplifyOpen && (() => {
+          const shareUrl = profileSubdomain
+            ? `${typeof window !== 'undefined' ? window.location.origin : 'https://unool.co'}/u/${profileSubdomain}?activity=1`
+            : null;
+
+          const successCount = Object.values(publishResults).filter(r => r.success).length;
+
+          const whatsappMsg = encodeURIComponent(
+            `Hey! Just published my latest story on ${successCount} platform${successCount !== 1 ? 's' : ''}. Pick your favourite to read and support me:\n\n👉 ${shareUrl}\n\nThanks a lot! ❤️`
+          );
+          const telegramUrl = shareUrl
+            ? `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(`Just published a new story on ${successCount} platforms! Check it out 👇`)}`
+            : null;
+
+          const handleCopy = () => {
+            if (!shareUrl) return;
+            navigator.clipboard.writeText(shareUrl).then(() => {
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2200);
+            });
+          };
+
+          const handleNativeShare = () => {
+            if (!shareUrl || !navigator.share) return;
+            navigator.share({ title: 'Check out my latest story', text: `Just published across ${successCount} platforms!`, url: shareUrl }).catch(() => {});
+          };
+
+          return (
+            <motion.div
+              key="amplify-overlay"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+              style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}
+              onClick={() => setAmplifyOpen(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.92, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.94, opacity: 0, y: 10 }}
+                transition={{ type: 'spring', stiffness: 340, damping: 28 }}
+                className="bg-card border rounded-2xl shadow-2xl p-6 w-full max-w-md relative"
+                onClick={e => e.stopPropagation()}
+              >
+                {/* Close */}
+                <button
+                  onClick={() => setAmplifyOpen(false)}
+                  className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+
+                {/* Header */}
+                <div className="flex items-center gap-3 mb-1">
+                  <div className="w-10 h-10 rounded-xl bg-green-500/15 flex items-center justify-center">
+                    <Sparkles className="h-5 w-5 text-green-500" />
+                  </div>
+                  <div>
+                    <h2 className="font-bold text-base">Your story is live on {successCount} platform{successCount !== 1 ? 's' : ''}!</h2>
+                    <p className="text-xs text-muted-foreground">Share your One Link so friends can engage.</p>
+                  </div>
+                </div>
+
+                {/* One Link preview */}
+                {shareUrl && (
+                  <div className="mt-4 mb-4 flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2.5">
+                    <span className="text-xs font-mono text-foreground/80 flex-1 truncate">{shareUrl}</span>
+                    <button
+                      onClick={handleCopy}
+                      className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                      title="Copy link"
+                    >
+                      {copied
+                        ? <CircleCheckBig className="h-4 w-4 text-green-500" />
+                        : <Copy className="h-4 w-4" />}
+                    </button>
+                  </div>
+                )}
+
+                {/* Share actions */}
+                <div className="grid grid-cols-1 gap-2">
+                  {shareUrl && (
+                    <a
+                      href={`https://wa.me/?text=${whatsappMsg}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-white transition-opacity hover:opacity-90"
+                      style={{ background: '#25D366' }}
+                    >
+                      <MessageCircle className="h-4 w-4 shrink-0" />
+                      Share to WhatsApp
+                    </a>
+                  )}
+
+                  {telegramUrl && (
+                    <a
+                      href={telegramUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-white transition-opacity hover:opacity-90"
+                      style={{ background: '#229ED9' }}
+                    >
+                      <Send className="h-4 w-4 shrink-0" />
+                      Share to Telegram
+                    </a>
+                  )}
+
+                  {typeof navigator !== 'undefined' && 'share' in navigator && shareUrl && (
+                    <button
+                      onClick={handleNativeShare}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
+                    >
+                      <Share2 className="h-4 w-4 shrink-0" />
+                      More options (iMessage, Slack…)
+                    </button>
+                  )}
+                </div>
+
+                <p className="mt-4 text-center text-xs text-muted-foreground">
+                  Friends land on your profile and tap whichever platform they prefer.
+                </p>
+              </motion.div>
+            </motion.div>
+          );
+        })()}
+      </AnimatePresence>
     </MotionBox>
   );
 }
+
 
 export default function PublishClientWrapper({ userId, workspaceId }: PublishClientProps) {
   return (
