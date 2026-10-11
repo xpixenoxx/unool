@@ -211,8 +211,17 @@ export async function fetchWithRetry(
         );
       }
 
-      if (response.status === 401 || response.status === 403) {
+      if (response.status === 401) {
         throw new TokenExpiredError('Token expired or invalid', '');
+      }
+
+      if (response.status === 403) {
+        const text = await response.text().catch(() => '');
+        throw new AuthenticationError(
+          `Permission denied (403): ${text || response.statusText}`,
+          '',
+          403
+        );
       }
 
       if (response.status >= 500) {
