@@ -2,10 +2,22 @@ import { config } from '@/lib/config/schema';
 import { Redis } from '@upstash/redis';
 import { logger } from '@/lib/logger';
 
-const redis = new Redis({
-  url: config.UPSTASH_REDIS_REST_URL,
-  token: config.UPSTASH_REDIS_REST_TOKEN,
-});
+let redis: Redis | null = null;
+
+function getRedis(): Redis | null {
+  if (!config.UPSTASH_REDIS_REST_URL || !config.UPSTASH_REDIS_REST_TOKEN) return null;
+  if (!redis) {
+    try {
+      redis = new Redis({
+        url: config.UPSTASH_REDIS_REST_URL,
+        token: config.UPSTASH_REDIS_REST_TOKEN,
+      });
+    } catch {
+      return null;
+    }
+  }
+  return redis;
+}
 
 const STATE_TTL_SECONDS = 600; // 10 minutes
 const STATE_PREFIX = 'oauth:state:';
@@ -55,8 +67,11 @@ export async function storeOAuthState(state: string, workspaceId: string, userId
   };
 
   try {
-    await redis.set(key, JSON.stringify(data), { ex: STATE_TTL_SECONDS });
-    logger.debug('OAuth state stored in Redis', { state: state.slice(0, 8) + '...', workspaceId, platform });
+    const r = getRedis();
+    if (r) {
+      await r.set(key, JSON.stringify(data), { ex: STATE_TTL_SECONDS });
+      logger.debug('OAuth state stored in Redis', { state: state.slice(0, 8) + '...', workspaceId, platform });
+    }
   } catch (error) {
     logger.warn('Redis unavailable. Falling back to signed cookie state propagation only.');
     // We intentionally do not throw here anymore.
@@ -74,12 +89,15 @@ export async function verifyAndConsumeOAuthState(state: string, cookieHeader?: s
   let data: OAuthStateData | null = null;
 
   try {
-    const stored = await redis.get(key);
-    if (stored) {
-      await redis.del(key);
-      data = typeof stored === 'string' 
-        ? JSON.parse(stored) as OAuthStateData 
-        : stored as unknown as OAuthStateData;
+    const r = getRedis();
+    if (r) {
+      const stored = await r.get(key);
+      if (stored) {
+        await r.del(key);
+        data = typeof stored === 'string' 
+          ? JSON.parse(stored) as OAuthStateData 
+          : stored as unknown as OAuthStateData;
+      }
     }
   } catch {
     // Redis unavailable, fallback to cookie

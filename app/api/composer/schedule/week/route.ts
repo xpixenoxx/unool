@@ -1,0 +1,70 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getCurrentAuth } from '@/lib/auth/server';
+import { scheduleService } from '@/lib/services/ScheduleService';
+import { logger } from '@/lib/logger';
+
+/**
+ * GET /api/composer/schedule/week
+ * Returns all scheduled posts for the current 7-day window.
+ * Query params: weekStart (ISO date string, defaults to this Monday)
+ */
+export async function GET(request: NextRequest) {
+  const auth = await getCurrentAuth(request);
+  if (!auth) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const { workspaceId } = auth;
+
+  const { searchParams } = new URL(request.url);
+  const weekStartParam = searchParams.get('weekStart');
+
+  let weekStart: Date;
+  if (weekStartParam) {
+    weekStart = new Date(weekStartParam);
+    if (isNaN(weekStart.getTime())) {
+      return NextResponse.json({ error: 'Invalid weekStart date' }, { status: 400 });
+    }
+  } else {
+    // Default to this Monday (UTC)
+    const now = new Date();
+    const dayOfWeek = now.getUTCDay(); // 0=Sun, 1=Mon...
+    const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    weekStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + daysToMonday));
+  }
+
+  try {
+    const canvas = await scheduleService.getWeekCanvas(workspaceId, weekStart);
+
+    // Shape the response for the frontend
+    const posts = canvas.map(({ post, variants }) => ({
+      postId: post.id,
+      content: post.content,
+      status: post.status,
+      scheduledAt: post.scheduledAt?.toISOString() ?? null,
+      scheduleStrategy: post.scheduleStrategy,
+      arcId: post.arcId,
+      createdAt: post.createdAt.toISOString(),
+      platforms: variants.map(v => ({
+        variantId: v.id,
+        platform: v.platform,
+        content: v.adaptedContent,
+        status: v.status,
+        scheduledAt: v.scheduledAt?.toISOString() ?? null,
+        autoFirstComment: v.autoFirstComment,
+        firstCommentHint: v.firstCommentHint,
+        error: v.error,
+      })),
+    }));
+
+    return NextResponse.json({
+      success: true,
+      weekStart: weekStart.toISOString(),
+      weekEnd: new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      posts,
+    });
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error('Failed to fetch week canvas', { workspaceId, error: err });
+    return NextResponse.json({ error: 'Failed to load schedule' }, { status: 500 });
+  }
+}

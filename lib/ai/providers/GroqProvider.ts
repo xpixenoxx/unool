@@ -5,7 +5,7 @@ import { z } from 'zod';
 
 /**
  * Groq AI provider — uses the OpenAI-compatible API at api.groq.com.
- * Ideal for low-latency comment classification and reply generation.
+ * Supports high-throughput generation using models like llama-3.3-70b-versatile.
  */
 export class GroqProvider implements AIProvider {
   name = 'groq';
@@ -17,28 +17,37 @@ export class GroqProvider implements AIProvider {
     this.apiKey = apiKey;
   }
 
-  async generateText(prompt: string, options?: GenerationOptions): Promise<Result<AIResponse, AIError>> {
-    const model = options?.model || 'llama3-8b-8192';
+  async generateText(
+    prompt: string,
+    options?: GenerationOptions & { responseFormatJson?: boolean }
+  ): Promise<Result<AIResponse, AIError>> {
+    const model = options?.model || 'llama-3.3-70b-versatile';
     const systemPrompt = options?.systemPrompt || '';
-    const maxTokens = options?.maxTokens || 2000;
+    const maxTokens = options?.maxTokens || 4000;
     const temperature = options?.temperature ?? 0.7;
+
+    const requestBody: Record<string, unknown> = {
+      model,
+      messages: [
+        ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
+        { role: 'user', content: prompt },
+      ],
+      max_tokens: maxTokens,
+      temperature,
+    };
+
+    if (options?.responseFormatJson) {
+      requestBody.response_format = { type: 'json_object' };
+    }
 
     try {
       const response = await fetch(`${this.baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
+          Authorization: `Bearer ${this.apiKey}`,
         },
-        body: JSON.stringify({
-          model,
-          messages: [
-            ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
-            { role: 'user', content: prompt }
-          ],
-          max_tokens: maxTokens,
-          temperature,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const data = await response.json();
@@ -86,13 +95,13 @@ export class GroqProvider implements AIProvider {
     const result = await this.generateText(prompt, {
       ...options,
       temperature: 0.1,
-      maxTokens: options?.maxTokens || 2000,
+      maxTokens: options?.maxTokens || 4000,
+      responseFormatJson: true,
     });
 
     if (!result.ok) return err(result.error);
 
     try {
-      // Groq may wrap JSON in markdown code fences — strip them
       let text = result.value.text.trim();
       if (text.startsWith('```json')) {
         text = text.slice(7);

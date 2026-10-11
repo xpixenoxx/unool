@@ -256,7 +256,7 @@ export function SignalClient() {
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Signal</h1>
           <p className="text-sm text-gray-500 mt-0.5">Your posts, live. Where they go, what they build.</p>
         </div>
-        <div className="flex gap-1 p-1 bg-gray-100 rounded-xl">
+        <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-xl">
           <button
             onClick={() => setTab('feed')}
             className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-all ${
@@ -274,6 +274,14 @@ export function SignalClient() {
             <Zap className="w-3.5 h-3.5" />
             Post DNA
           </button>
+          <Link
+            href="/dashboard/schedule"
+            className="px-3.5 py-1.5 text-sm font-medium rounded-lg transition-all flex items-center gap-1.5 text-gray-600 hover:text-gray-900 hover:bg-gray-200/60"
+            title="View or plan upcoming scheduled posts"
+          >
+            <Calendar className="w-3.5 h-3.5 text-amber-600" />
+            Flight Plan
+          </Link>
         </div>
       </div>
 
@@ -594,13 +602,22 @@ function EmptyState() {
         <Zap className="w-6 h-6 text-gray-300" />
       </div>
       <h3 className="font-semibold text-gray-700 mb-1">No posts yet</h3>
-      <p className="text-sm text-gray-400 mb-5">Publish your first post from the Studio and it will appear here instantly.</p>
-      <Link
-        href="/dashboard/composer"
-        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition-colors"
-      >
-        Open Studio
-      </Link>
+      <p className="text-sm text-gray-400 mb-5">Broadcast from Studio or plan your entire week in 15 minutes with Flight Plan.</p>
+      <div className="flex items-center justify-center gap-3">
+        <Link
+          href="/dashboard/composer"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition-colors"
+        >
+          Open Studio
+        </Link>
+        <Link
+          href="/dashboard/schedule"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-50 text-amber-900 border border-amber-200 text-sm font-medium hover:bg-amber-100 transition-colors"
+        >
+          <Calendar className="w-4 h-4 text-amber-700" />
+          Plan My Week
+        </Link>
+      </div>
     </div>
   );
 }

@@ -46,9 +46,12 @@ import {
   Gamepad2,
   Video,
   Mail,
+  Clock,
+  Calendar,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Box, Flex, Text, Display } from '@/components/ui/layout';
 import { MotionBox, spring } from '@/components/ui/motion';
@@ -887,6 +890,15 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const [connectedPlatforms, setConnectedPlatforms] = useState<PlatformType[]>([]);
   const [selectedPlatforms, setSelectedPlatforms] = useState<PlatformType[]>([]);
   const [previewPlatform, setPreviewPlatform] = useState<PlatformType>('linkedin');
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    d.setHours(9, 0, 0, 0);
+    return d.toISOString().slice(0, 16);
+  });
+  const [scheduleStrategy, setScheduleStrategy] = useState<'cascading' | 'simultaneous'>('cascading');
+  const [isSchedulingPost, setIsSchedulingPost] = useState(false);
   const springConfig: Transition = reducedMotion ? { type: 'tween', duration: 0.01 } : spring.snappy;
 
   // Determine the live content for preview based on mode
@@ -1244,6 +1256,60 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
     }
   };
 
+  const handleScheduleSubmit = async () => {
+    const readyDrafts = drafts.filter(d => d.status === 'ready');
+    if (readyDrafts.length === 0) {
+      toast.error('No drafts ready to schedule');
+      return;
+    }
+
+    setIsSchedulingPost(true);
+    try {
+      const scheduledDateObj = new Date(scheduleDate);
+      if (isNaN(scheduledDateObj.getTime()) || scheduledDateObj.getTime() <= Date.now()) {
+        toast.error('Please choose a time in the future');
+        setIsSchedulingPost(false);
+        return;
+      }
+
+      const res = await fetch('/api/composer/schedule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          scheduleMode: 'single',
+          posts: [{
+            scheduledAt: scheduledDateObj.toISOString(),
+            strategy: scheduleStrategy,
+            platforms: readyDrafts.map(d => ({
+              platform: d.platform,
+              content: d.content,
+              hashtags: d.hashtags,
+              firstCommentHint: d.firstCommentHint,
+              mediaUrls: media.map(m => ({ url: m.url, type: m.type })),
+            })),
+          }],
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to schedule post');
+      }
+
+      toast.success(`Post scheduled for ${scheduledDateObj.toLocaleDateString()} at ${scheduledDateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} 🚀`);
+      setScheduleDialogOpen(false);
+      setDrafts([]);
+      setSourceContent('');
+      setPostId(null);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Scheduling failed';
+      toast.error(errorMsg);
+    } finally {
+      setIsSchedulingPost(false);
+    }
+  };
+
   const handleDirectBroadcast = async (useSelectedOnly: boolean = false) => {
     if (!quickContent.trim() || !profile) {
       toast.error('Please complete your profile first');
@@ -1302,8 +1368,9 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
 
       toast.success('Broadcast published successfully!');
 
-      if (data.results) {
-        for (const [platform, result] of Object.entries(data.results)) {
+      const results = (data as any)?.results;
+      if (results) {
+        for (const [platform, result] of Object.entries(results)) {
           if ((result as any).success) {
             toast.success(`${platform}: Published`);
           } else {
@@ -1387,11 +1454,20 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       {/* ───── Left Panel: Composer Form ───── */}
       <div className="flex-1 min-w-0 space-y-6" style={{ maxWidth: 680 }}>
         {/* Header */}
-        <div className="pb-4 border-b border-border">
-          <Display size="xl" weight="bold">Composer</Display>
-          <Text size="sm" color="muted" className="mt-1">
-            Write once. AI adapts. You review. One click publishes everywhere.
-          </Text>
+        <div className="pb-4 border-b border-border flex items-start justify-between flex-wrap gap-3">
+          <div>
+            <Display size="xl" weight="bold">Composer</Display>
+            <Text size="sm" color="muted" className="mt-1">
+              Write once. AI adapts. You review. One click publishes everywhere.
+            </Text>
+          </div>
+          <Link
+            href="/dashboard/schedule"
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100 transition-all shadow-sm"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+            Plan Entire Week (Flight Plan)
+          </Link>
         </div>
 
         {/* Plan error banner */}
@@ -1868,10 +1944,21 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                         </p>
                       </div>
                     </div>
-                    <Button onClick={handlePublish} disabled={isGenerating}>
-                      <ArrowUpRight className="mr-2 h-4 w-4" />
-                      Publish All
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => setScheduleDialogOpen(true)}
+                        disabled={isGenerating || isSchedulingPost}
+                        className="bg-white border-green-300 text-green-900 hover:bg-green-100/50"
+                      >
+                        <Clock className="mr-2 h-4 w-4 text-amber-600" />
+                        Schedule
+                      </Button>
+                      <Button onClick={handlePublish} disabled={isGenerating || isSchedulingPost}>
+                        <ArrowUpRight className="mr-2 h-4 w-4" />
+                        Publish All
+                      </Button>
+                    </div>
                   </div>
                 </MotionBox>
               )}
@@ -1894,6 +1981,93 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           selectedPlatforms={selectedPlatforms}
         />
       </div>
+
+      {/* Schedule Dialog */}
+      <Dialog open={scheduleDialogOpen} onOpenChange={setScheduleDialogOpen}>
+        <DialogContent className="sm:max-w-[440px] bg-[#FFFDF9] border border-[#EDE7DD]">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-[#3D2B1F] flex items-center gap-2">
+              <Clock className="w-5 h-5 text-[#C4A265]" />
+              Schedule Broadcast
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-3">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-[#6B5744] mb-1.5">
+                Target Date & Time (Your Local Time)
+              </label>
+              <input
+                type="datetime-local"
+                value={scheduleDate}
+                onChange={e => setScheduleDate(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl border border-[#EDE7DD] bg-white text-sm outline-none focus:border-[#C4A265]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-[#6B5744] mb-1.5">
+                Publishing Strategy
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setScheduleStrategy('cascading')}
+                  className={`p-3 rounded-xl border text-left transition-all ${
+                    scheduleStrategy === 'cascading'
+                      ? 'border-[#C4A265] bg-[#F5EFE2] shadow-sm'
+                      : 'border-[#EDE7DD] bg-white hover:bg-gray-50'
+                  }`}
+                >
+                  <p className="text-xs font-bold text-[#3D2B1F]">⚡ Cascading</p>
+                  <p className="text-[11px] text-[#6B5744] mt-0.5">Stagger platforms by 5-15m for maximum reach</p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setScheduleStrategy('simultaneous')}
+                  className={`p-3 rounded-xl border text-left transition-all ${
+                    scheduleStrategy === 'simultaneous'
+                      ? 'border-[#C4A265] bg-[#F5EFE2] shadow-sm'
+                      : 'border-[#EDE7DD] bg-white hover:bg-gray-50'
+                  }`}
+                >
+                  <p className="text-xs font-bold text-[#3D2B1F]">Simultaneous</p>
+                  <p className="text-[11px] text-[#6B5744] mt-0.5">Publish all platforms at the exact same minute</p>
+                </button>
+              </div>
+            </div>
+
+            <p className="text-xs text-[#8B7355] bg-[#F5EFE2] p-3 rounded-xl">
+              Queued via Unool Flight Engine with automatic retry & QStash background delivery.
+            </p>
+          </div>
+
+          <DialogFooter className="flex items-center justify-end gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setScheduleDialogOpen(false)} disabled={isSchedulingPost}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleScheduleSubmit}
+              disabled={isSchedulingPost}
+              className="bg-[#C4A265] hover:bg-[#A68B52] text-white font-semibold"
+            >
+              {isSchedulingPost ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                  Scheduling…
+                </>
+              ) : (
+                <>
+                  <Send className="w-3.5 h-3.5 mr-1.5" />
+                  Schedule Post
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

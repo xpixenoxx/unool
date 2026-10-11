@@ -3,16 +3,22 @@ import { Redis } from '@upstash/redis';
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
 
-const redis = new Redis({
-  url: config.UPSTASH_REDIS_REST_URL,
-  token: config.UPSTASH_REDIS_REST_TOKEN,
-});
+let redisInstance: Redis | null = null;
 
-export const ratelimit = new Ratelimit({
-  redis,
-  limiter: Ratelimit.slidingWindow(100, '60 s'),
-  prefix: 'rl:unool',
-});
+function getRedis(): Redis | null {
+  if (!config.UPSTASH_REDIS_REST_URL || !config.UPSTASH_REDIS_REST_TOKEN) return null;
+  if (!redisInstance) {
+    try {
+      redisInstance = new Redis({
+        url: config.UPSTASH_REDIS_REST_URL,
+        token: config.UPSTASH_REDIS_REST_TOKEN,
+      });
+    } catch {
+      return null;
+    }
+  }
+  return redisInstance;
+}
 
 export const rateLimits = {
   aiGeneration: { limit: config.RATE_LIMIT_AI_PER_MIN, window: '1m' },
@@ -41,6 +47,11 @@ export async function checkRateLimit(
 ): Promise<{ success: boolean; remaining: number; reset: number }> {
   const identifier = getIdentifier(request, action);
   const { limit, window } = rateLimits[action];
+
+  const redis = getRedis();
+  if (!redis) {
+    return { success: true, remaining: limit, reset: Date.now() + 60000 };
+  }
 
   const limiter = new Ratelimit({
     redis,

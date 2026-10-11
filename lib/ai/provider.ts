@@ -1,23 +1,29 @@
 import { AIProvider, GenerationOptions } from './types';
 import { AnthropicProvider } from './providers/AnthropicProvider';
 import { OpenAIProvider } from './providers/OpenAIProvider';
+import { GroqProvider } from './providers/GroqProvider';
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
 import { z } from 'zod';
 import { Result, ok } from '@/lib/shared/Result';
 
 let providerInstance: AIProvider | null = null;
-// Initialize providerName from config at module load
-let providerName: 'anthropic' | 'openai' | null = config.ANTHROPIC_API_KEY ? 'anthropic' : (config.OPENAI_API_KEY ? 'openai' : null);
+let providerName: 'anthropic' | 'openai' | 'groq' | null = config.ANTHROPIC_API_KEY
+  ? 'anthropic'
+  : config.OPENAI_API_KEY
+  ? 'openai'
+  : config.GROQ_API_KEY
+  ? 'groq'
+  : null;
 
-function getModelForProvider(provider: 'anthropic' | 'openai'): string {
-  return provider === 'anthropic'
-    ? config.AI_DEFAULT_MODEL
-    : config.AI_OPENAI_MODEL;
+function getModelForProvider(provider: 'anthropic' | 'openai' | 'groq'): string {
+  if (provider === 'anthropic') return config.AI_DEFAULT_MODEL;
+  if (provider === 'openai') return config.AI_OPENAI_MODEL;
+  return 'llama-3.3-70b-versatile';
 }
 
 function createProvider(): AIProvider {
-  // Priority: Anthropic > OpenAI
+  // Priority: Anthropic > OpenAI > Groq
   if (config.ANTHROPIC_API_KEY) {
     providerName = 'anthropic';
     logger.info('Initialized Anthropic AI provider');
@@ -28,7 +34,12 @@ function createProvider(): AIProvider {
     logger.info('Initialized OpenAI AI provider');
     return new OpenAIProvider(config.OPENAI_API_KEY);
   }
-  // Fallback - throws at runtime if no keys configured
+  if (config.GROQ_API_KEY) {
+    providerName = 'groq';
+    logger.info('Initialized Groq AI provider');
+    return new GroqProvider(config.GROQ_API_KEY);
+  }
+  // Fallback - warns at runtime if no keys configured
   logger.warn('No AI provider API keys configured, using Anthropic as default (will fail without key)');
   providerName = 'anthropic';
   return new AnthropicProvider(config.ANTHROPIC_API_KEY || '');
@@ -45,7 +56,7 @@ export function resetAIProvider() {
   providerName = null;
 }
 
-// Try primary provider, fallback to secondary on failure
+// Try primary provider, fallback to secondary/tertiary on failure
 async function tryWithFallback<T>(
   primaryFn: () => Promise<Result<T, Error>>,
   fallbackFn: (fallbackProvider: AIProvider, fallbackModel: string) => Promise<Result<T, Error>>
@@ -55,14 +66,18 @@ async function tryWithFallback<T>(
 
   logger.warn('Primary AI provider failed, trying fallback', {
     primary: providerName,
-    error: primaryResult.error.message
+    error: primaryResult.error.message,
   });
 
-  // Swap to fallback provider
+  // Hierarchy: Anthropic -> OpenAI -> Groq
   if (providerName === 'anthropic' && config.OPENAI_API_KEY) {
     providerInstance = new OpenAIProvider(config.OPENAI_API_KEY);
     providerName = 'openai';
     logger.info('Switched to OpenAI fallback provider');
+  } else if ((providerName === 'anthropic' || providerName === 'openai') && config.GROQ_API_KEY) {
+    providerInstance = new GroqProvider(config.GROQ_API_KEY);
+    providerName = 'groq';
+    logger.info('Switched to Groq fallback provider');
   } else if (providerName === 'openai' && config.ANTHROPIC_API_KEY) {
     providerInstance = new AnthropicProvider(config.ANTHROPIC_API_KEY);
     providerName = 'anthropic';
@@ -94,14 +109,13 @@ export async function generateWithFallback(
   options?: GenerationOptions,
   schema?: z.ZodTypeAny
 ): Promise<Result<z.infer<z.ZodTypeAny> | { text: string; usage: { promptTokens: number; completionTokens: number; totalTokens: number }; model: string; finishReason: string }, Error>> {
-  // Use module-level providerName (initialized from config at module level)
-  const primaryModel = options?.model || getModelForProvider(providerName!);
+  const provider = getAIProvider();
+  const primaryModel = options?.model || (providerName ? getModelForProvider(providerName) : config.AI_DEFAULT_MODEL);
   logger.info('generateWithFallback called', { providerName, primaryModel, hasSchema: !!schema });
 
   type FallbackResult = z.infer<z.ZodTypeAny> | { text: string; usage: { promptTokens: number; completionTokens: number; totalTokens: number }; model: string; finishReason: string };
 
   const primaryCall = async (): Promise<Result<FallbackResult, Error>> => {
-    const provider = getAIProvider();
     logger.info('Primary call', { provider: provider.name, model: primaryModel });
     if (schema) {
       const result = await provider.generateObject(prompt, schema, { ...options, model: primaryModel });

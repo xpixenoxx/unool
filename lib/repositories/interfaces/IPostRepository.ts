@@ -1,5 +1,8 @@
 export type PostStatus = 'draft' | 'scheduled' | 'published' | 'failed';
 export type Platform = 'linkedin' | 'x' | 'threads' | 'manual' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'reddit' | 'mastodon' | 'slack' | 'twitch' | 'telegram' | 'discord' | 'dribbble' | 'skool' | 'whop' | 'kick' | 'vk' | 'warpcast' | 'mewe' | 'nostr' | 'medium' | 'lemmy' | 'listmonk' | 'hashnode' | 'devto';
+export type ScheduleStrategy = 'simultaneous' | 'cascading';
+export type StoryType = 'shipped' | 'learned' | 'milestone' | 'opinion';
+export type ArcStatus = 'active' | 'completed' | 'paused' | 'cancelled';
 
 export interface Post {
   id: string;
@@ -11,6 +14,24 @@ export interface Post {
   publishedAt: Date | null;
   adaptationPromptVersion: string | null;
   version: number;
+  // Scheduling engine fields
+  qstashMessageId: string | null;
+  scheduleStrategy: ScheduleStrategy;
+  arcId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ContentArc {
+  id: string;
+  workspaceId: string;
+  profileId: string;
+  title: string;
+  coreStory: string;
+  storyType: StoryType;
+  startDate: string; // ISO date string YYYY-MM-DD
+  endDate: string;
+  status: ArcStatus;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -27,11 +48,15 @@ export interface PostVariant {
   platformPostId: string | null;
   status: PostVariantStatus;
   error: PostError | null;
+  // Scheduling engine fields
+  scheduledAt: Date | null;
+  qstashMessageId: string | null;
+  autoFirstComment: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
 
-export type PostVariantStatus = 'draft' | 'published' | 'failed';
+export type PostVariantStatus = 'draft' | 'scheduled' | 'published' | 'failed';
 
 export interface PostMedia {
   url: string;
@@ -57,6 +82,24 @@ export interface UpdatePostInput {
   status?: PostStatus;
   scheduledAt?: Date | null;
   adaptationPromptVersion?: string;
+  qstashMessageId?: string | null;
+  scheduleStrategy?: ScheduleStrategy;
+  arcId?: string | null;
+}
+
+export interface CreateContentArcInput {
+  workspaceId: string;
+  profileId: string;
+  title: string;
+  coreStory: string;
+  storyType: StoryType;
+  startDate: string;
+  endDate: string;
+}
+
+export interface UpdateContentArcInput {
+  status?: ArcStatus;
+  title?: string;
 }
 
 export interface PostFilters {
@@ -81,6 +124,14 @@ export interface IPostRepository {
   updateVariant(id: string, data: UpdatePostVariantInput): Promise<PostVariant>;
   getDraft(profileId: string, clientVersion: string): Promise<Post | null>;
   saveDraft(postId: string, content: string, clientVersion: string): Promise<void>;
+  // Scheduling
+  findScheduledByWorkspace(workspaceId: string, from: Date, to: Date): Promise<Post[]>;
+  findVariantsByPostIds(postIds: string[]): Promise<PostVariant[]>;
+  // Content Arcs
+  createContentArc(input: CreateContentArcInput): Promise<ContentArc>;
+  updateContentArc(id: string, data: UpdateContentArcInput): Promise<ContentArc>;
+  findContentArcsByWorkspace(workspaceId: string): Promise<ContentArc[]>;
+  findContentArcById(id: string): Promise<ContentArc | null>;
 }
 
 export interface CreatePostVariantInput {
@@ -90,7 +141,7 @@ export interface CreatePostVariantInput {
   mediaUrls?: PostMedia[];
   characterCount: number;
   hashtagStrategy: string[];
-  firstCommentHint?: string;
+  firstCommentHint?: string | null;
   status?: PostVariantStatus;
   error?: PostError | null;
 }
@@ -104,4 +155,8 @@ export interface UpdatePostVariantInput {
   platformPostId?: string;
   status?: PostVariantStatus;
   error?: PostError | null;
+  // Scheduling
+  scheduledAt?: Date | null;
+  qstashMessageId?: string | null;
+  autoFirstComment?: string | null;
 }

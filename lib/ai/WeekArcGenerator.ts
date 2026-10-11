@@ -1,0 +1,303 @@
+import { z } from 'zod';
+import { generateWithFallback } from '@/lib/ai/provider';
+import { logger } from '@/lib/logger';
+import type { StoryType } from '@/lib/repositories/interfaces/IPostRepository';
+import type { PlatformType } from '@/lib/ai/PostAdapter';
+
+// ─── Zod Schema for one post in the arc ────────────────────────────────────
+
+export const ArcPostDraftSchema = z.object({
+  day: z.number().min(0).max(6),               // 0 = Monday, 6 = Sunday
+  dayLabel: z.string(),                         // e.g. "Monday", "Tuesday"
+  arcBeat: z.string(),                          // e.g. "The Contrarian Hook"
+  arcBeatReason: z.string(),                    // Why this beat works here
+  scheduledHour: z.number().min(7).max(20),     // Local hour (24h format)
+  scheduledMinute: z.number().default(0),
+  platforms: z.array(z.object({
+    platform: z.string(),
+    content: z.string(),
+    characterCount: z.number(),
+    hashtags: z.array(z.string()),
+    firstCommentHint: z.string().nullable().optional(),
+    autoFirstComment: z.string().nullable().optional(), // Link to move to first comment
+    schedulingOffsetMinutes: z.number().default(0),     // For cascading: offset from base time
+  })),
+});
+
+export type ArcPostDraft = z.infer<typeof ArcPostDraftSchema>;
+
+export const WeekArcSchema = z.object({
+  arcTitle: z.string(),
+  storyType: z.enum(['shipped', 'learned', 'milestone', 'opinion']),
+  storyTypeReason: z.string(),
+  weekPosts: z.array(ArcPostDraftSchema),
+});
+
+export type WeekArc = z.infer<typeof WeekArcSchema>;
+
+// ─── Story type detection ───────────────────────────────────────────────────
+
+const STORY_TYPE_CUES: Record<StoryType, string[]> = {
+  shipped: ['launched', 'shipped', 'deployed', 'built', 'released', 'fixed', 'solved', 'integrated', 'completed', 'finished'],
+  learned: ['learned', 'realized', 'discovered', 'understood', 'lesson', 'mistake', 'failed', 'wrong', 'experiment', 'tried'],
+  milestone: ['users', 'revenue', 'funding', 'raised', 'growth', 'hit', 'reached', 'milestone', 'team', 'hired'],
+  opinion: ['think', 'believe', 'opinion', 'take', 'controversial', 'disagree', 'wrong about', 'change my mind', 'hot take'],
+};
+
+export function detectStoryType(story: string): StoryType {
+  const lower = story.toLowerCase();
+  let bestType: StoryType = 'shipped';
+  let bestScore = 0;
+
+  for (const [type, cues] of Object.entries(STORY_TYPE_CUES) as [StoryType, string[]][]) {
+    const score = cues.reduce((acc, cue) => acc + (lower.includes(cue) ? 1 : 0), 0);
+    if (score > bestScore) {
+      bestScore = score;
+      bestType = type;
+    }
+  }
+  return bestType;
+}
+
+// ─── Arc beat templates per story type ─────────────────────────────────────
+
+const ARC_BEATS: Record<StoryType, Array<{ beat: string; day: number; dayLabel: string; scheduledHour: number; platforms: string[] }>> = {
+  shipped: [
+    { beat: 'The Contrarian Hook',       day: 0, dayLabel: 'Monday',    scheduledHour: 9,  platforms: ['linkedin', 'x', 'bluesky'] },
+    { beat: 'The Technical Blueprint',   day: 1, dayLabel: 'Tuesday',   scheduledHour: 9,  platforms: ['linkedin'] },
+    { beat: 'The Visual Proof',          day: 2, dayLabel: 'Wednesday', scheduledHour: 14, platforms: ['threads', 'instagram'] },
+    { beat: 'The Failure & Lesson',      day: 3, dayLabel: 'Thursday',  scheduledHour: 9,  platforms: ['linkedin', 'threads'] },
+    { beat: 'The Community Question',    day: 4, dayLabel: 'Friday',    scheduledHour: 11, platforms: ['threads', 'x'] },
+  ],
+  learned: [
+    { beat: 'The Bold Claim',            day: 0, dayLabel: 'Monday',    scheduledHour: 9,  platforms: ['linkedin', 'x'] },
+    { beat: 'The Deep Teardown',         day: 2, dayLabel: 'Wednesday', scheduledHour: 9,  platforms: ['linkedin'] },
+    { beat: 'The Discussion Opener',     day: 4, dayLabel: 'Friday',    scheduledHour: 11, platforms: ['threads', 'bluesky'] },
+  ],
+  milestone: [
+    { beat: 'The Teaser',                day: 0, dayLabel: 'Monday',    scheduledHour: 9,  platforms: ['x', 'bluesky'] },
+    { beat: 'The Full Story',            day: 1, dayLabel: 'Tuesday',   scheduledHour: 9,  platforms: ['linkedin'] },
+    { beat: 'The Thank You & Ask',       day: 3, dayLabel: 'Thursday',  scheduledHour: 11, platforms: ['threads', 'linkedin'] },
+  ],
+  opinion: [
+    { beat: 'The Contrarian Take',       day: 0, dayLabel: 'Monday',    scheduledHour: 9,  platforms: ['linkedin', 'x'] },
+    { beat: 'The Evidence & Argument',   day: 2, dayLabel: 'Wednesday', scheduledHour: 9,  platforms: ['linkedin'] },
+    { beat: 'The Discussion Invite',     day: 4, dayLabel: 'Friday',    scheduledHour: 11, platforms: ['threads', 'bluesky'] },
+  ],
+};
+
+// ─── Platform character limits & style notes (compact) ─────────────────────
+
+const PLATFORM_NOTES: Record<string, string> = {
+  linkedin: 'Professional storytelling, up to 3000 chars. No outbound links in body (use first comment). 3-5 hashtags at end.',
+  x:        'Punchy hook, 280 chars max. 1-2 hashtags.',
+  bluesky:  'Direct and transparent, 300 chars max. No hashtag spam.',
+  threads:  'Conversational, 500 chars max, invite discussion. 2-4 hashtags.',
+  instagram: 'Caption max 2200 chars. Visual-first framing. Move outbound links to bio or first comment.',
+};
+
+// ─── Fact-Grounded Algorithmic Synthesizer (Fallback when AI Provider is offline) ─────
+
+function synthesizeFactGroundedArc(params: {
+  coreStory: string;
+  followUps: { whatChanged: string; whatWentWrong: string; oneRealNumber: string };
+  connectedPlatforms: PlatformType[];
+  audienceTimezone: string;
+  userFirstName: string;
+}): WeekArc {
+  const { coreStory, followUps, connectedPlatforms } = params;
+  const detectedType = detectStoryType(coreStory);
+  const arcBeats = ARC_BEATS[detectedType];
+
+  const storyClean = coreStory.trim();
+  const num = followUps.oneRealNumber.trim();
+  const changed = followUps.whatChanged.trim();
+  const mistake = followUps.whatWentWrong.trim();
+
+  const weekPosts = arcBeats.map((b) => {
+    // Pick active platforms for this beat matching connected platforms
+    const candidatePlatforms = b.platforms.filter((p) => connectedPlatforms.includes(p as PlatformType));
+    const active = candidatePlatforms.length > 0 ? candidatePlatforms : connectedPlatforms.slice(0, 2);
+
+    const platforms = active.map((platform) => {
+      let content = '';
+      let hashtags: string[] = ['#BuildInPublic', '#Tech'];
+      let autoFirstComment: string | null = null;
+      let schedulingOffsetMinutes = 0;
+
+      if (platform === 'linkedin') {
+        schedulingOffsetMinutes = 45;
+        hashtags = ['#BuildInPublic', '#Startups', '#Engineering'];
+
+        if (b.beat.includes('Hook') || b.beat.includes('Claim') || b.beat.includes('Teaser') || b.beat.includes('Take')) {
+          content = `Most people think progress in tech is linear.\n\nHere is what actually happened this week:\n\n${storyClean}\n\n${num ? `The metric that mattered most: ${num}.\n\n` : ''}Here is the honest breakdown of why we took this approach and what we learned.`;
+        } else if (b.beat.includes('Blueprint') || b.beat.includes('Teardown') || b.beat.includes('Full Story') || b.beat.includes('Evidence')) {
+          content = `Under the hood of what we built:\n\n${storyClean}\n\n${changed ? `What actually changed behind the scenes:\n${changed}\n\n` : ''}Key architectural principle: keep the feedback loop fast and isolate failures so the core product remains resilient.`;
+        } else if (b.beat.includes('Lesson') || b.beat.includes('Proof') || b.beat.includes('Failure')) {
+          content = `The part builders rarely post about: what broke along the way.\n\n${mistake ? `The friction:\n${mistake}\n\n` : 'Every deployment carries unexpected friction.\n\n'}The fix: We diagnosed the bottleneck, refactored the pipeline, and added automated guardrails.\n\nOwn the bug. Ship the fix. Share the lesson.`;
+        } else {
+          content = `Reflecting on the week after ${storyClean.slice(0, 100)}...\n\nQuestion for fellow builders and founders:\nWhen shipping fast, how do you balance edge-case reliability vs speed?\n\nCurious to hear your perspective below 👇`;
+        }
+
+        // Keep links out of body for LinkedIn reach
+        if (content.includes('http://') || content.includes('https://')) {
+          autoFirstComment = 'Links and additional references in the comments below.';
+        }
+      } else if (platform === 'x' || platform === 'bluesky') {
+        schedulingOffsetMinutes = 0;
+        hashtags = ['#BuildInPublic'];
+
+        if (b.beat.includes('Hook') || b.beat.includes('Claim') || b.beat.includes('Teaser')) {
+          content = `${num ? `${num} — ` : ''}${storyClean.slice(0, 200)}\n\nHere's what we did differently:`;
+        } else if (b.beat.includes('Lesson') || b.beat.includes('Failure')) {
+          content = `What went wrong this week: ${mistake ? mistake.slice(0, 180) : storyClean.slice(0, 180)}\n\nThe fix is live.`;
+        } else {
+          content = `${storyClean.slice(0, 200)}\n\nWhat would you have done here?`;
+        }
+      } else {
+        // Threads / Instagram
+        schedulingOffsetMinutes = 120;
+        hashtags = ['#FounderJourney', '#BuildInPublic'];
+
+        if (b.beat.includes('Lesson') || b.beat.includes('Failure')) {
+          content = `Honest founder update: ${mistake ? mistake.slice(0, 280) : storyClean.slice(0, 280)}\n\nLearning in public is humbling but it's the fastest way to get better.`;
+        } else {
+          content = `${storyClean.slice(0, 320)}${num ? `\n\nMetric: ${num}` : ''}\n\nThoughts on this approach?`;
+        }
+      }
+
+      return {
+        platform,
+        content,
+        characterCount: content.length,
+        hashtags,
+        firstCommentHint: null,
+        autoFirstComment,
+        schedulingOffsetMinutes,
+      };
+    });
+
+    return {
+      day: b.day,
+      dayLabel: b.dayLabel,
+      arcBeat: b.beat,
+      arcBeatReason: `Strategic narrative step: establishes authority and keeps engagement high across connected networks.`,
+      scheduledHour: b.scheduledHour,
+      scheduledMinute: 0,
+      platforms,
+    };
+  });
+
+  const titleSnippet = storyClean.split('.')[0]?.slice(0, 45) || 'Weekly Momentum Arc';
+
+  return {
+    arcTitle: `${titleSnippet}`,
+    storyType: detectedType,
+    storyTypeReason: `Categorized as ${detectedType} because the narrative highlights concrete accomplishments, lessons, and metrics.`,
+    weekPosts,
+  };
+}
+
+// ─── Main arc generator ─────────────────────────────────────────────────────
+
+export async function generateWeekArc(params: {
+  coreStory: string;
+  followUps: { whatChanged: string; whatWentWrong: string; oneRealNumber: string };
+  connectedPlatforms: PlatformType[];
+  audienceTimezone: string;      // e.g. "Asia/Kolkata"
+  userFirstName: string;
+}): Promise<WeekArc | null> {
+  const { coreStory, followUps, connectedPlatforms, audienceTimezone, userFirstName } = params;
+  const detectedType = detectStoryType(coreStory);
+  const arcBeats = ARC_BEATS[detectedType];
+
+  // Filter platforms to only those the user has connected
+  const activePlatformNotes = connectedPlatforms
+    .filter(p => PLATFORM_NOTES[p])
+    .map(p => `- ${p}: ${PLATFORM_NOTES[p]}`)
+    .join('\n');
+
+  const fullStory = [
+    `Core story: ${coreStory}`,
+    followUps.whatChanged ? `What changed: ${followUps.whatChanged}` : '',
+    followUps.whatWentWrong ? `What went wrong: ${followUps.whatWentWrong}` : '',
+    followUps.oneRealNumber ? `Real number: ${followUps.oneRealNumber}` : '',
+  ].filter(Boolean).join('\n');
+
+  const beatsDescription = arcBeats.map((b, i) =>
+    `Post ${i + 1}: "${b.beat}" — ${b.dayLabel} at ~${b.scheduledHour}:00, on platforms: ${b.platforms.filter(p => connectedPlatforms.includes(p as PlatformType)).join(', ') || b.platforms.join(', ')}`
+  ).join('\n');
+
+  const prompt = `You are a world-class content strategist for creators and founders. Your job is to transform ONE real story into a week of native platform content.
+
+CREATOR NAME: ${userFirstName}
+AUDIENCE TIMEZONE: ${audienceTimezone}
+
+THE STORY (fact-grounded — use ONLY facts from this input, do NOT invent numbers or claims):
+${fullStory}
+
+STORY TYPE DETECTED: ${detectedType}
+CONNECTED PLATFORMS:
+${activePlatformNotes}
+
+WEEK ARC STRUCTURE:
+${beatsDescription}
+
+RULES (critical):
+1. Every number or claim in a draft MUST come directly from the story input above. If no number was provided for a beat, write around it — do not fabricate.
+2. Each platform draft must sound native to that platform — not copy-pasted.
+3. If a post has an outbound link on LinkedIn, put it in autoFirstComment, not in the main content.
+4. For cascading mode: LinkedIn posts should publish 45 minutes AFTER the X/Bluesky post (schedulingOffsetMinutes: 45). Threads/Instagram should publish 120 minutes after (schedulingOffsetMinutes: 120).
+5. The opening line of every draft must create immediate curiosity or value. No generic openers.
+6. arcBeatReason must explain in ONE clear sentence why this beat works on this day for this story type.
+7. scheduledHour values are in ${audienceTimezone} local time (24h).
+
+Return a JSON object matching this exact structure:
+{
+  "arcTitle": "Brief title for this week arc (max 8 words)",
+  "storyType": "${detectedType}",
+  "storyTypeReason": "One sentence explaining why this story is categorized as ${detectedType}",
+  "weekPosts": [
+    {
+      "day": 0,
+      "dayLabel": "Monday",
+      "arcBeat": "The beat name",
+      "arcBeatReason": "Why this beat works here",
+      "scheduledHour": 9,
+      "scheduledMinute": 0,
+      "platforms": [
+        {
+          "platform": "linkedin",
+          "content": "Full post content here",
+          "characterCount": 450,
+          "hashtags": ["#BuildInPublic"],
+          "firstCommentHint": null,
+          "autoFirstComment": null,
+          "schedulingOffsetMinutes": 45
+        }
+      ]
+    }
+  ]
+}
+
+Write ONLY the JSON. No markdown code blocks. No explanation.`;
+
+  try {
+    const result = await generateWithFallback(prompt, { maxTokens: 6000 }, WeekArcSchema);
+
+    if (result.ok && result.value) {
+      return result.value;
+    }
+
+    logger.warn('AI provider generation was not successful — using fact-grounded synthesis fallback', {
+      error: !result.ok ? result.error.message : 'no value',
+    });
+  } catch (err) {
+    logger.error('generateWithFallback exception caught in generateWeekArc', {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+
+  // Graceful deterministic fallback: synthesize fact-grounded week arc directly from user facts
+  return synthesizeFactGroundedArc(params);
+}

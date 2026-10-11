@@ -479,18 +479,17 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
         </motion.div>
       </div>
 
-      {/* ═══ ROW 3: Quick Actions ═══ */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      {/* ═══ ROW 3: Quick Actions & Flight Engine ═══ */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         <motion.div variants={fadeUp} transition={transition}>
           <QuickActionBento
-            icon={Globe}
-            title="Your Public Profile"
-            subtitle="One link for everything"
-            description="Professional landing page with links, credentials, and social proof — all in one place."
-            href={isProfileLive ? `/u/${profile?.subdomain}` : '/dashboard/presence'}
-            buttonLabel={isProfileLive ? 'View Live Profile' : 'Set Up Profile'}
-            external={!!isProfileLive}
-            badge={isProfileLive ? 'Live' : undefined}
+            icon={CalendarDays}
+            title="Weekly Flight Plan"
+            subtitle="Story in · Week of content out"
+            description="Type one honest paragraph about your week. Unool drafts, cascades, and schedules your multi-network week."
+            href="/dashboard/schedule"
+            buttonLabel="Plan This Week"
+            badge="Featured"
           />
         </motion.div>
         <motion.div variants={fadeUp} transition={transition}>
@@ -502,6 +501,18 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             href="/dashboard/composer"
             buttonLabel="Open Studio"
             badge={usageStats.postsThisMonth > 0 ? `${usageStats.postsThisMonth} this month` : undefined}
+          />
+        </motion.div>
+        <motion.div variants={fadeUp} transition={transition}>
+          <QuickActionBento
+            icon={Globe}
+            title="Your Public Profile"
+            subtitle="One link for everything"
+            description="Professional landing page with links, credentials, and social proof — all in one place."
+            href={isProfileLive ? `/u/${profile?.subdomain}` : '/dashboard/presence'}
+            buttonLabel={isProfileLive ? 'View Live Profile' : 'Set Up Profile'}
+            external={!!isProfileLive}
+            badge={isProfileLive ? 'Live' : undefined}
           />
         </motion.div>
       </div>
@@ -797,13 +808,12 @@ function RecentBroadcasts({ posts }: { posts: Post[] }) {
         <div className="space-y-2">
           {displayPosts.map((post, index) => {
             const style = STATUS_STYLE[post.status];
+            const targetHref = post.status === 'scheduled' ? '/dashboard/schedule' : '/dashboard/signal';
             return (
-              <motion.div
+              <Link
                 key={post.id}
-                initial={{ opacity: 0, x: -6 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.03, duration: 0.2 }}
-                className="flex items-center gap-3 p-3 rounded-xl transition-colors cursor-default"
+                href={targetHref}
+                className="group flex items-center gap-3 p-3 rounded-xl transition-all hover:bg-black/[0.03] cursor-pointer"
                 style={{
                   backgroundColor: B.cardAlt,
                   border: `1px solid ${B.borderLight}`,
@@ -854,7 +864,7 @@ function RecentBroadcasts({ posts }: { posts: Post[] }) {
                     }}
                   />
                 </div>
-              </motion.div>
+              </Link>
             );
           })}
 
