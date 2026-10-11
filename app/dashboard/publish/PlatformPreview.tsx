@@ -2,7 +2,7 @@
 
 import React from 'react';
 
-export type Platform = 'linkedin' | 'x' | 'threads' | 'manual' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'slack' | 'mastodon' | 'twitch' | 'telegram' | 'discord' | 'dribbble' | 'skool' | 'whop' | 'kick' | 'vk' | 'warpcast' | 'mewe' | 'nostr' | 'medium' | 'lemmy' | 'listmonk' | 'hashnode';
+export type Platform = 'linkedin' | 'x' | 'threads' | 'manual' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'slack' | 'mastodon' | 'twitch' | 'telegram' | 'discord' | 'dribbble' | 'skool' | 'whop' | 'kick' | 'vk' | 'warpcast' | 'mewe' | 'nostr' | 'medium' | 'lemmy' | 'listmonk' | 'hashnode' | 'devto';
 
 export interface PlatformPreviewProps {
   platform: Platform;
@@ -460,6 +460,91 @@ function HashnodePreview({ content, mediaUrls, username, displayName }: Omit<Pla
   );
 }
 
+/* ─── DEV.to ─── */
+function DevtoPreview({ content, mediaUrls, username, displayName }: Omit<PlatformPreviewProps, 'platform'>) {
+  const lines = content.trim().split('\n');
+  const title = lines[0]?.replace(/^#+\s*/, '').trim() || 'DEV Community Article';
+  const body = lines.slice(1).join('\n').trim() || content;
+  const hashMatches = content.match(/#([a-zA-Z0-9_-]+)/g);
+  const tags = hashMatches && hashMatches.length > 0
+    ? hashMatches.slice(0, 4).map(t => t.replace(/^#/, ''))
+    : ['webdev', 'programming', 'beginners'];
+
+  return (
+    <div style={{ background: '#ffffff', color: '#171717', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
+      {/* Top dev.to branding header */}
+      <div style={{ background: '#ffffff', padding: '10px 16px', borderBottom: '1px solid #f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ width: 26, height: 20, borderRadius: 3, background: '#090909', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 10, fontWeight: 900, letterSpacing: -0.5 }}>
+            DEV
+          </div>
+          <span style={{ fontSize: 12, fontWeight: 600, color: '#171717' }}>
+            DEV Community
+          </span>
+        </div>
+        <span style={{ fontSize: 11, fontWeight: 600, color: '#3b49df', background: '#eef0f6', padding: '2px 8px', borderRadius: 4 }}>
+          dev.to
+        </span>
+      </div>
+
+      {/* Cover image if available */}
+      {mediaUrls && mediaUrls.length > 0 && (
+        <div style={{ width: '100%', maxHeight: 200, overflow: 'hidden', background: '#f9fafb' }}>
+          <img
+            src={mediaUrls[0].url}
+            alt={mediaUrls[0].alt || 'Article Cover'}
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+        </div>
+      )}
+
+      {/* Content area */}
+      <div style={{ padding: '20px 22px' }}>
+        {/* Author info */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+          <Avatar size={34} bg="#090909" />
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#242424' }}>
+              {displayName || username || 'DEV Author'}
+            </span>
+            <span style={{ fontSize: 11, color: '#717171' }}>
+              {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · 3 min read
+            </span>
+          </div>
+        </div>
+
+        {/* Title */}
+        <h1 style={{ fontSize: 22, fontWeight: 800, lineHeight: '30px', color: '#090909', margin: '0 0 10px 0' }}>
+          {title}
+        </h1>
+
+        {/* Tag pills */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
+          {tags.map((tag, idx) => (
+            <span
+              key={idx}
+              style={{
+                fontSize: 12,
+                color: '#525252',
+                padding: '2px 6px',
+                borderRadius: 4,
+                cursor: 'pointer',
+              }}
+            >
+              <span style={{ opacity: 0.5 }}>#</span>{tag}
+            </span>
+          ))}
+        </div>
+
+        {/* Markdown body preview */}
+        <div style={{ fontSize: 14, lineHeight: '24px', color: '#242424', maxHeight: 220, overflowY: 'auto', paddingTop: 6, borderTop: '1px solid #f3f4f6' }}>
+          <PostContent text={body} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Manual (generic) ─── */
 function ManualPreview({ content }: Omit<PlatformPreviewProps, 'platform'>) {
   return (
@@ -502,6 +587,7 @@ export function PlatformPreview({ platform, content, mediaUrls, username, displa
     lemmy: <ManualPreview {...props} />,
     listmonk: <ListmonkPreview {...props} />,
     hashnode: <HashnodePreview {...props} />,
+    devto: <DevtoPreview {...props} />,
     manual: <ManualPreview {...props} />,
   };
 

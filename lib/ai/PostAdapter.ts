@@ -3,7 +3,7 @@ import { generateWithFallback } from './provider';
 import { Result, ok, err } from '@/lib/shared/Result';
 import { logger } from '@/lib/logger';
 
-export const PlatformType = z.enum(['linkedin', 'x', 'threads', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'skool', 'whop', 'kick', 'vk', 'warpcast', 'mewe', 'nostr', 'medium', 'lemmy', 'listmonk', 'hashnode']);
+export const PlatformType = z.enum(['linkedin', 'x', 'threads', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'skool', 'whop', 'kick', 'vk', 'warpcast', 'mewe', 'nostr', 'medium', 'lemmy', 'listmonk', 'hashnode', 'devto']);
 export type PlatformType = z.infer<typeof PlatformType>;
 
 export const AdaptedPostSchema = z.object({
@@ -137,6 +137,11 @@ export const PLATFORM_SPECS: Record<PlatformType, { maxChars: number; style: str
     maxChars: 100000,
     style: 'Developer-focused, technical, in-depth Markdown formatting (headings, code blocks, bullet points, callouts). Clean educational and engineering style.',
     hashtagStrategy: '1-5 relevant technical tags (#webdev #javascript #programming #ai #devops)',
+  },
+  devto: {
+    maxChars: 100000,
+    style: 'Developer-focused, practical, hands-on technical Markdown format (H1/H2 headings, clean code snippets with language syntax, actionable takeaways). Welcoming, community-first engineering voice for DEV Community.',
+    hashtagStrategy: '1-4 dev tags (#webdev #javascript #programming #beginners #devops)',
   },
 };
 

@@ -9,7 +9,7 @@ import {
   Loader2, Linkedin, Twitter, MessageSquare, Facebook, Instagram,
   Phone, CheckCircle, AlertCircle, Unlink2, Link2, Lock, Globe2,
   ArrowRight, Wifi, WifiOff, RefreshCw, Youtube, Cloud, ExternalLink, Image as ImageIcon,
-  MessageCircle, Hash, Twitch, Send, Dribbble, GraduationCap, Store, Gamepad2, Zap, FileText, Mail, BookOpen
+  MessageCircle, Hash, Twitch, Send, Dribbble, GraduationCap, Store, Gamepad2, Zap, FileText, Mail, BookOpen, Code2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -30,8 +30,9 @@ import { MediumConnectDialog } from './MediumConnectDialog';
 import { LemmyConnectDialog } from './LemmyConnectDialog';
 import { ListmonkConnectDialog } from './ListmonkConnectDialog';
 import { HashnodeConnectDialog } from './HashnodeConnectDialog';
+import { DevtoConnectDialog } from './DevtoConnectDialog';
 
-const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'dribbble', 'skool', 'whop', 'kick', 'vk', 'warpcast', 'mewe', 'nostr', 'medium', 'lemmy', 'listmonk', 'hashnode'] as const;
+const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'dribbble', 'skool', 'whop', 'kick', 'vk', 'warpcast', 'mewe', 'nostr', 'medium', 'lemmy', 'listmonk', 'hashnode', 'devto'] as const;
 type Platform = typeof SUPPORTED_PLATFORMS[number];
 
 interface PlatformConnection {
@@ -349,6 +350,17 @@ const PLATFORM_CONFIG: Record<
     available: true,
     customConnect: true,
   },
+  devto: {
+    icon: Code2,
+    name: 'DEV Community',
+    shortName: 'DEV.to',
+    color: 'bg-neutral-900 dark:bg-neutral-100',
+    hoverBorder: 'hover:border-neutral-700/30',
+    description: 'Developer community articles & tutorials',
+    audience: 'Software engineers & tech creators',
+    available: true,
+    customConnect: true,
+  },
 };
 
 /* ─── Component ────────────────────────────────────────────── */
@@ -394,6 +406,7 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
   const [lemmyDialogOpen, setLemmyDialogOpen] = useState(false);
   const [listmonkDialogOpen, setListmonkDialogOpen] = useState(false);
   const [hashnodeDialogOpen, setHashnodeDialogOpen] = useState(false);
+  const [devtoDialogOpen, setDevtoDialogOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -484,6 +497,10 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
     }
     if (platform === 'hashnode') {
       setHashnodeDialogOpen(true);
+      return;
+    }
+    if (platform === 'devto') {
+      setDevtoDialogOpen(true);
       return;
     }
     // Show spinner immediately — gives instant visual feedback before the redirect
@@ -746,6 +763,18 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
           setConnections((prev) => ({
             ...prev,
             hashnode: { platform: 'hashnode', status: 'connected', username },
+          }));
+          window.location.reload();
+        }}
+      />
+      <DevtoConnectDialog
+        open={devtoDialogOpen}
+        onClose={() => setDevtoDialogOpen(false)}
+        workspaceId={workspaceId}
+        onSuccess={(username) => {
+          setConnections((prev) => ({
+            ...prev,
+            devto: { platform: 'devto', status: 'connected', username },
           }));
           window.location.reload();
         }}

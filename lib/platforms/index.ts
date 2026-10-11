@@ -25,6 +25,7 @@ export { mediumAdapter, MediumAdapter } from './MediumAdapter';
 export { lemmyAdapter, LemmyAdapter } from './LemmyAdapter';
 export { listmonkAdapter, ListmonkAdapter } from './ListmonkAdapter';
 export { hashnodeAdapter, HashnodeAdapter } from './HashnodeAdapter';
+export { devtoAdapter, DevtoAdapter } from './DevtoAdapter';
 import { linkedInAdapter } from './LinkedInAdapter';
 import { threadsAdapter } from './ThreadsAdapter';
 import { xAdapter } from './XAdapter';
@@ -52,6 +53,7 @@ import { mediumAdapter } from './MediumAdapter';
 import { lemmyAdapter } from './LemmyAdapter';
 import { listmonkAdapter } from './ListmonkAdapter';
 import { hashnodeAdapter } from './HashnodeAdapter';
+import { devtoAdapter } from './DevtoAdapter';
 import type { PlatformAdapter } from './adapter';
 
 export const platformAdapters: Record<string, PlatformAdapter> = {
@@ -83,11 +85,13 @@ export const platformAdapters: Record<string, PlatformAdapter> = {
   lemmy: lemmyAdapter,
   listmonk: listmonkAdapter,
   hashnode: hashnodeAdapter,
+  devto: devtoAdapter,
+  'dev.to': devtoAdapter,
 };
 
 export function getPlatformAdapter(platform: string): PlatformAdapter | null {
   return platformAdapters[platform.toLowerCase()] ?? null;
 }
 
-export const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'dribbble', 'skool', 'whop', 'kick', 'vk', 'warpcast', 'mewe', 'nostr', 'medium', 'lemmy', 'listmonk', 'hashnode'] as const;
+export const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'dribbble', 'skool', 'whop', 'kick', 'vk', 'warpcast', 'mewe', 'nostr', 'medium', 'lemmy', 'listmonk', 'hashnode', 'devto'] as const;
 export type SupportedPlatform = typeof SUPPORTED_PLATFORMS[number];
