@@ -50,33 +50,38 @@ export interface RecentActivitySectionProps {
   autoScroll?: boolean;
 }
 
-// ─── Platform Config ─────────────────────────────────────────────────────────
+// ─── Platform Config with Authentic Brand Colors ──────────────────────────────
 
 export const PLATFORM_CONFIG: Record<
   string,
   { icon: React.ElementType; name: string; cta: string; color: string; bg: string }
 > = {
-  linkedin:  { icon: Linkedin,      name: 'LinkedIn',    cta: 'Engage & Connect', color: '#FFFFFF', bg: '#0077B5' },
-  x:         { icon: Twitter,       name: 'X',           cta: 'Like & Repost',    color: '#FFFFFF', bg: '#000000' },
-  threads:   { icon: MessageSquare, name: 'Threads',     cta: 'Join the Thread',  color: '#FFFFFF', bg: '#101010' },
-  facebook:  { icon: Facebook,      name: 'Facebook',    cta: 'React & Share',    color: '#FFFFFF', bg: '#1877F2' },
-  instagram: { icon: Instagram,     name: 'Instagram',   cta: 'View & Like',      color: '#FFFFFF', bg: '#E1306C' },
-  youtube:   { icon: Youtube,       name: 'YouTube',     cta: 'Watch & Sub',      color: '#FFFFFF', bg: '#FF0000' },
-  bluesky:   { icon: Cloud,         name: 'Bluesky',     cta: 'Like & Repost',    color: '#FFFFFF', bg: '#0085FF' },
-  mastodon:  { icon: Cloud,         name: 'Mastodon',    cta: 'Boost & Reply',    color: '#FFFFFF', bg: '#6364FF' },
-  telegram:  { icon: Send,          name: 'Telegram',    cta: 'Join & Discuss',   color: '#FFFFFF', bg: '#229ED9' },
-  discord:   { icon: Hash,          name: 'Discord',     cta: 'Join & Chat',      color: '#FFFFFF', bg: '#5865F2' },
-  pinterest: { icon: ImageIcon,     name: 'Pinterest',   cta: 'Pin & Save',       color: '#FFFFFF', bg: '#E60023' },
-  twitch:    { icon: Twitch,        name: 'Twitch',      cta: 'Watch & Follow',   color: '#FFFFFF', bg: '#9146FF' },
-  dribbble:  { icon: Dribbble,      name: 'Dribbble',    cta: 'Like & Save',      color: '#FFFFFF', bg: '#EA4C89' },
-  skool:     { icon: GraduationCap, name: 'Skool',       cta: 'Read & Engage',    color: '#FFFFFF', bg: '#E2AD44' },
-  whop:      { icon: Store,         name: 'Whop',        cta: 'View & React',     color: '#FFFFFF', bg: '#FF5A00' },
-  kick:      { icon: Gamepad2,      name: 'Kick',        cta: 'Watch & Follow',   color: '#1A1A1A', bg: '#53FC18' },
-  vk:        { icon: Video,         name: 'VK',          cta: 'View & Like',      color: '#FFFFFF', bg: '#0077FF' },
-  warpcast:  { icon: Hash,          name: 'Warpcast',    cta: 'Cast & Engage',    color: '#FFFFFF', bg: '#8A63D2' },
-  mewe:      { icon: MessageSquare, name: 'MeWe',        cta: 'React & Share',    color: '#FFFFFF', bg: '#2F435E' },
-  nostr:     { icon: Zap,           name: 'Nostr',       cta: 'Zap & Reply',      color: '#FFFFFF', bg: '#9B51E0' },
-  medium:    { icon: FileText,      name: 'Medium',      cta: 'Read & Clap',      color: '#FFFFFF', bg: '#000000' },
+  linkedin:  { icon: Linkedin,      name: 'LinkedIn',    cta: 'View Post',     color: '#FFFFFF', bg: '#0A66C2' },
+  x:         { icon: Twitter,       name: 'X',           cta: 'View Post',     color: '#FFFFFF', bg: '#000000' },
+  twitter:   { icon: Twitter,       name: 'X',           cta: 'View Post',     color: '#FFFFFF', bg: '#000000' },
+  threads:   { icon: MessageSquare, name: 'Threads',     cta: 'View Thread',   color: '#FFFFFF', bg: '#101010' },
+  facebook:  { icon: Facebook,      name: 'Facebook',    cta: 'View Post',     color: '#FFFFFF', bg: '#1877F2' },
+  instagram: { icon: Instagram,     name: 'Instagram',   cta: 'View Post',     color: '#FFFFFF', bg: '#E1306C' },
+  youtube:   { icon: Youtube,       name: 'YouTube',     cta: 'Watch Video',   color: '#FFFFFF', bg: '#FF0000' },
+  bluesky:   { icon: Cloud,         name: 'Bluesky',     cta: 'View Post',     color: '#FFFFFF', bg: '#0085FF' },
+  mastodon:  { icon: Cloud,         name: 'Mastodon',    cta: 'View Post',     color: '#FFFFFF', bg: '#6364FF' },
+  telegram:  { icon: Send,          name: 'Telegram',    cta: 'View Channel',  color: '#FFFFFF', bg: '#229ED9' },
+  discord:   { icon: Hash,          name: 'Discord',     cta: 'Join Server',   color: '#FFFFFF', bg: '#5865F2' },
+  pinterest: { icon: ImageIcon,     name: 'Pinterest',   cta: 'View Pin',      color: '#FFFFFF', bg: '#E60023' },
+  twitch:    { icon: Twitch,        name: 'Twitch',      cta: 'Watch Stream',  color: '#FFFFFF', bg: '#9146FF' },
+  dribbble:  { icon: Dribbble,      name: 'Dribbble',    cta: 'View Shot',     color: '#FFFFFF', bg: '#EA4C89' },
+  skool:     { icon: GraduationCap, name: 'Skool',       cta: 'View Post',     color: '#FFFFFF', bg: '#E2AD44' },
+  whop:      { icon: Store,         name: 'Whop',        cta: 'View Post',     color: '#FFFFFF', bg: '#FF5A00' },
+  kick:      { icon: Gamepad2,      name: 'Kick',        cta: 'Watch Stream',  color: '#0A0A0A', bg: '#53FC18' },
+  vk:        { icon: Video,         name: 'VK',          cta: 'View Post',     color: '#FFFFFF', bg: '#0077FF' },
+  warpcast:  { icon: Hash,          name: 'Warpcast',    cta: 'View Cast',     color: '#FFFFFF', bg: '#8A63D2' },
+  mewe:      { icon: MessageSquare, name: 'MeWe',        cta: 'View Post',     color: '#FFFFFF', bg: '#2F435E' },
+  nostr:     { icon: Zap,           name: 'Nostr',       cta: 'View Note',     color: '#FFFFFF', bg: '#9B51E0' },
+  medium:    { icon: FileText,      name: 'Medium',      cta: 'Read Story',    color: '#FFFFFF', bg: '#12100E' },
+  tiktok:    { icon: Video,         name: 'TikTok',      cta: 'Watch Video',   color: '#FFFFFF', bg: '#000000' },
+  hashnode:  { icon: FileText,      name: 'Hashnode',    cta: 'Read Article',  color: '#FFFFFF', bg: '#2962FF' },
+  listmonk:  { icon: Send,          name: 'Listmonk',    cta: 'Read Update',   color: '#FFFFFF', bg: '#059669' },
+  lemmy:     { icon: Cloud,         name: 'Lemmy',       cta: 'View on Lemmy', color: '#FFFFFF', bg: '#00BC8C' },
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -92,7 +97,7 @@ export function timeAgo(iso: string | null): string {
   return `${Math.floor(h / 24)}d ago`;
 }
 
-export function excerpt(text: string, max = 240): string {
+export function excerpt(text: string, max = 150): string {
   const clean = (text || '').replace(/\s+/g, ' ').trim();
   return clean.length <= max ? clean : clean.slice(0, max).trimEnd() + '…';
 }
@@ -135,7 +140,7 @@ export function RecentActivitySection({
   const pulseStyle = (
     <style>{`
       @keyframes ra-pulse {
-        0%   { box-shadow: 0 0 0 0 ${accent}66; }
+        0%   { box-shadow: 0 0 0 0 ${accent}77; }
         60%  { box-shadow: 0 0 0 16px transparent; }
         100% { box-shadow: 0 0 0 0 transparent; }
       }
@@ -145,134 +150,132 @@ export function RecentActivitySection({
     `}</style>
   );
 
-  // ── 01. LOVER VARIANT (Claymorphic) ──
+  // ── 01. LOVER VARIANT (Warm Claymorphism) ──
   if (variant === 'lover') {
     return (
-      <div id="recent-activity" ref={sectionRef} className="space-y-2 mb-5">
+      <div id="recent-activity" ref={sectionRef} className="space-y-2 mb-6">
         {pulseStyle}
         <div className="flex items-center justify-between px-1">
-          <span className="text-xs font-bold text-[#2A1710] uppercase tracking-wider font-mono-tag">
-            Recent Activity
-          </span>
-          <span className="text-[10px] text-[#CF5628] font-mono-tag font-semibold flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#CF5628] animate-pulse" /> Live Feeds
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-[#CF5628] animate-pulse" />
+            <span className="text-[11px] font-bold text-[#2A1710] uppercase tracking-wider font-mono-tag">
+              New Post Shared With You
+            </span>
+          </div>
+          <span className="text-[10px] text-[#CF5628] font-mono-tag font-semibold">
+            {timeAgo(activity.publishedAt)}
           </span>
         </div>
-        <div className="space-y-2">
-          {published.map(({ platform, url, adaptedContent }) => {
-            const cfg = PLATFORM_CONFIG[platform.toLowerCase()] ?? { icon: ExternalLink, name: platform, cta: 'View Post', color: '#FFFFFF', bg: '#2A1710' };
-            const Icon = cfg.icon;
-            return (
-              <a
-                key={platform}
-                href={url}
-                target="_blank"
-                rel="noreferrer"
-                className="clay-card p-3 flex items-start gap-3 no-underline block active:scale-95 transition"
-              >
-                <div className="w-8 h-8 rounded-xl bg-[#FCECE9] flex items-center justify-center text-[#CF5628] shrink-0 mt-0.5">
-                  <Icon size={16} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-[#2A1710]">{cfg.name}</span>
-                    <span className="text-[10px] text-stone-400 font-mono-tag">{timeAgo(activity.publishedAt)}</span>
-                  </div>
-                  <p className="text-xs text-stone-600 leading-snug mt-0.5 line-clamp-2">
-                    {adaptedContent || excerpt(activity.content, 110)}
-                  </p>
-                </div>
-                <span className="text-stone-400 text-xs mt-1">↗</span>
-              </a>
-            );
-          })}
+        <div className="clay-card p-4 space-y-3">
+          <p className="text-xs text-[#2A1710]/85 font-medium leading-relaxed line-clamp-2">
+            "{excerpt(activity.content, 140)}"
+          </p>
+          <div className="flex flex-wrap gap-2 pt-1 border-t border-[#CF5628]/10">
+            {published.map(({ platform, url }) => {
+              const cfg = PLATFORM_CONFIG[platform.toLowerCase()] ?? { icon: ExternalLink, name: platform, cta: 'View', color: '#FFFFFF', bg: '#CF5628' };
+              const Icon = cfg.icon;
+              return (
+                <a
+                  key={platform}
+                  href={url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm hover:scale-105 active:scale-95 transition-all text-white no-underline"
+                  style={{ background: cfg.bg, color: cfg.color }}
+                  title={`Open on ${cfg.name}`}
+                >
+                  <Icon size={13} />
+                  <span>{cfg.name}</span>
+                  <span className="opacity-80 text-[10px]">↗</span>
+                </a>
+              );
+            })}
+          </div>
+          <div className="text-[10px] text-stone-500 font-mono-tag flex items-center justify-between pt-0.5">
+            <span>Tap your preferred platform to view &amp; engage</span>
+            <span>Live on {published.length} feed{published.length !== 1 ? 's' : ''}</span>
+          </div>
         </div>
       </div>
     );
   }
 
-  // ── 02. LONE VARIANT (Dark Skewed Glass Timeline) ──
+  // ── 02. LONE VARIANT (Dark Skewed Glassmorphism) ──
   if (variant === 'lone') {
     return (
-      <section id="recent-activity" ref={sectionRef} className="flex flex-col gap-4 mt-2 mb-6">
+      <section id="recent-activity" ref={sectionRef} className="flex flex-col gap-2.5 my-6">
         {pulseStyle}
-        <div className="flex justify-between items-center text-[10px] uppercase tracking-[0.2em] text-[#9296A0] px-2 mb-2 font-medium">
-          <span>Recent Activity</span>
-          <div className="flex items-center gap-1.5 capitalize tracking-normal text-[#123DFF] text-[11px]">
-            Live Feeds
+        <div className="flex justify-between items-center text-[10px] uppercase tracking-[0.2em] text-[#9296A0] px-2 font-medium">
+          <div className="flex items-center gap-1.5 text-[#123DFF]">
             <div className="w-2 h-2 rounded-full bg-[#123DFF] animate-pulse" />
+            <span className="font-bold">New Post Shared With You</span>
           </div>
+          <span className="text-[10px] text-[#9296A0]">{timeAgo(activity.publishedAt)}</span>
         </div>
-        <div className="relative pl-3">
-          <div className="absolute left-4 top-4 bottom-4 w-[1px] bg-white/10" />
-          <div className="flex flex-col gap-4">
-            {published.map(({ platform, url, adaptedContent }) => {
-              const cfg = PLATFORM_CONFIG[platform.toLowerCase()] ?? { icon: ExternalLink, name: platform, cta: 'View Post', color: '#FFFFFF', bg: '#123DFF' };
+        <div
+          className="w-full rounded-2xl overflow-hidden p-4 relative shadow-[0_4px_20px_rgba(0,0,0,0.35)]"
+          style={{
+            background: 'linear-gradient(135deg, rgba(17, 19, 24, 0.85), rgba(12, 14, 18, 0.95))',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+          }}
+        >
+          <p className="text-xs text-[#F4EFE7]/90 leading-relaxed font-normal mb-3 line-clamp-2">
+            "{excerpt(activity.content, 140)}"
+          </p>
+          <div className="flex flex-wrap gap-2 pt-2 border-t border-white/10">
+            {published.map(({ platform, url }) => {
+              const cfg = PLATFORM_CONFIG[platform.toLowerCase()] ?? { icon: ExternalLink, name: platform, cta: 'View', color: '#FFFFFF', bg: '#123DFF' };
               const Icon = cfg.icon;
               return (
-                <div key={platform} className="relative flex items-center pl-8">
-                  <div className="absolute left-[-2px] w-[9px] h-[9px] rounded-full bg-[#F4EFE7] border-2 border-[#08090C] shadow-[0_0_8px_rgba(255,255,255,0.3)] z-10" />
-                  <a
-                    href={url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="w-full rounded-[18px] overflow-hidden relative shadow-[0_4px_15px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] transition-transform hover:scale-[1.01] no-underline block"
-                    style={{
-                      transform: 'skewX(-20deg)',
-                      background: 'linear-gradient(rgba(17, 19, 24, 0.75), rgba(17, 19, 24, 0.9))',
-                      backdropFilter: 'blur(8px)',
-                      WebkitBackdropFilter: 'blur(8px)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                    }}
-                  >
-                    <div className="p-3 pr-4 flex items-center gap-3 relative z-10" style={{ transform: 'skewX(20deg)' }}>
-                      <div className="w-[36px] h-[36px] rounded-[12px] flex items-center justify-center shrink-0 shadow-sm bg-[#123DFF] text-white">
-                        <Icon size={16} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex justify-between items-center mb-0.5">
-                          <span className="font-medium text-[13px] text-[#F4EFE7]">{cfg.name}</span>
-                          <span className="text-[9px] text-[#9296A0]">{timeAgo(activity.publishedAt)}</span>
-                        </div>
-                        <p className="text-[10px] leading-snug line-clamp-2 text-[#9296A0]">
-                          {adaptedContent || excerpt(activity.content, 110)}
-                        </p>
-                      </div>
-                      <div className="h-[28px] w-[28px] rounded-full flex items-center justify-center shrink-0 ml-1 bg-white/5 text-white opacity-60 hover:opacity-100 transition-opacity">
-                        <ArrowRight size={12} />
-                      </div>
-                    </div>
-                  </a>
-                </div>
+                <a
+                  key={platform}
+                  href={url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-md hover:scale-105 active:scale-95 transition-all text-white no-underline"
+                  style={{ background: cfg.bg, color: cfg.color }}
+                  title={`Open on ${cfg.name}`}
+                >
+                  <Icon size={13} />
+                  <span>{cfg.name}</span>
+                  <span className="opacity-80 text-[10px]">↗</span>
+                </a>
               );
             })}
+          </div>
+          <div className="mt-2 text-[10px] text-[#9296A0] flex items-center justify-between">
+            <span>Tap any platform above to view &amp; support</span>
+            <span>Live on {published.length} platform{published.length !== 1 ? 's' : ''}</span>
           </div>
         </div>
       </section>
     );
   }
 
-  // ── 03. REBELLION VARIANT (Disruptive / Gothic Crimson / Crests) ──
+  // ── 03. REBELLION VARIANT (Dark Gothic Crest / Crimson Frosted Glass) ──
   if (variant === 'rebellion') {
     return (
-      <section id="recent-activity" ref={sectionRef} className="my-10">
+      <section id="recent-activity" ref={sectionRef} className="my-6">
         {pulseStyle}
-        <div className="flex items-center justify-between mb-4 border-b border-[#C8102E]/30 pb-2">
+        <div className="flex items-center justify-between mb-2 border-b border-[#C8102E]/30 pb-1.5">
           <div className="flex items-center gap-2">
             <span className="text-xs text-[#C8102E]">♛</span>
-            <span className="text-xs font-bold tracking-[0.25em] uppercase text-[#C8102E]">
-              Recent Transmission
+            <span className="text-[11px] font-bold tracking-[0.2em] uppercase text-[#C8102E]">
+              New Transmission // Shared With You
             </span>
           </div>
           <span className="text-[10px] font-mono uppercase text-[#C8102E] flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#C8102E] animate-pulse" /> Live
+            <span className="w-1.5 h-1.5 rounded-full bg-[#C8102E] animate-pulse" />
+            {timeAgo(activity.publishedAt)}
           </span>
         </div>
-        <div className="p-6 rounded-xl border border-[#C8102E]/30 bg-[#161413]/90 backdrop-blur-md shadow-lg mb-4">
-          <p className="text-sm font-serif italic text-[#EAE8E3]/90 leading-relaxed mb-5 line-clamp-3">
-            "{excerpt(activity.content, 220)}"
+        <div className="p-4 rounded-xl border border-[#C8102E]/30 bg-[#161413]/90 backdrop-blur-md shadow-lg space-y-3">
+          <p className="text-xs font-serif italic text-[#EAE8E3]/90 leading-relaxed line-clamp-2">
+            "{excerpt(activity.content, 140)}"
           </p>
-          <div className="flex flex-wrap gap-2.5 pt-3 border-t border-[#C8102E]/20">
+          <div className="flex flex-wrap gap-2 pt-2 border-t border-[#C8102E]/20">
             {published.map(({ platform, url }) => {
               const cfg = PLATFORM_CONFIG[platform.toLowerCase()] ?? { icon: ExternalLink, name: platform, cta: 'Engage', color: '#FFFFFF', bg: '#C8102E' };
               const Icon = cfg.icon;
@@ -282,61 +285,66 @@ export function RecentActivitySection({
                   href={url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold uppercase tracking-wider text-white transition-transform hover:scale-105 active:scale-95 shadow-sm"
-                  style={{ background: cfg.bg }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider text-white transition-transform hover:scale-105 active:scale-95 shadow-sm no-underline"
+                  style={{ background: cfg.bg, color: cfg.color }}
+                  title={`Engage on ${cfg.name}`}
                 >
                   <Icon size={13} />
                   <span>{cfg.name}</span>
-                  <span className="opacity-70 text-[10px]">↗</span>
+                  <span className="opacity-80 text-[10px]">↗</span>
                 </a>
               );
             })}
+          </div>
+          <div className="text-[10px] text-[#EAE8E3]/50 flex items-center justify-between">
+            <span>Direct access to full post — pick your venue</span>
+            <span>Live on {published.length} platform{published.length !== 1 ? 's' : ''}</span>
           </div>
         </div>
       </section>
     );
   }
 
-  // ── 04. BUILDER VARIANT (Technical Blueprint / Modules) ──
+  // ── 04. BUILDER VARIANT (Technical Blueprint / Modular Card) ──
   if (variant === 'builder') {
     return (
-      <section id="recent-activity" ref={sectionRef} className="mb-20">
+      <section id="recent-activity" ref={sectionRef} className="my-6">
         {pulseStyle}
-        <h3 className="text-[10px] uppercase tracking-[0.2em] text-[#87958A] mb-6 font-bold border-l-2 border-[#C5A86A] pl-3 flex items-center justify-between">
-          <span>SYSTEM LOG // RECENT BROADCAST</span>
-          <span className="text-[#A85C4A] font-mono text-[9px] flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#A85C4A] animate-pulse" /> ONLINE
-          </span>
-        </h3>
-        <div className="w-full bg-[#342632] text-[#F3EEE6] p-6 md:p-8 relative overflow-hidden builder-module-shadow border border-[#292226]">
-          <div className="absolute inset-0 builder-blueprint-grid opacity-20 pointer-events-none" />
-          <div className="relative z-10">
-            <div className="text-[9px] uppercase tracking-[0.2em] text-[#C5A86A] font-bold mb-3 flex items-center justify-between">
-              <span>TRANSMISSION SNAPSHOT</span>
-              <span>{timeAgo(activity.publishedAt)}</span>
-            </div>
-            <p className="text-base text-[#F3EEE6]/90 leading-relaxed mb-6 font-medium line-clamp-3">
-              {excerpt(activity.content, 220)}
-            </p>
-            <div className="flex flex-wrap gap-3">
-              {published.map(({ platform, url }) => {
-                const cfg = PLATFORM_CONFIG[platform.toLowerCase()] ?? { icon: ExternalLink, name: platform, cta: 'Access', color: '#FFFFFF', bg: '#C5A86A' };
-                const Icon = cfg.icon;
-                return (
-                  <a
-                    key={platform}
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 bg-[#292226] border border-[#C5A86A]/40 px-4 py-2 text-xs font-bold uppercase tracking-wider text-[#F3EEE6] hover:border-[#C5A86A] hover:text-[#C5A86A] transition-all"
-                  >
-                    <Icon size={14} className="text-[#C5A86A]" />
-                    <span>{cfg.name}</span>
-                    <span className="text-[10px] text-[#C5A86A]">↗</span>
-                  </a>
-                );
-              })}
-            </div>
+        <div className="text-[10px] uppercase tracking-[0.2em] text-[#87958A] mb-2 font-bold border-l-2 border-[#C5A86A] pl-2.5 flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-[#C5A86A]">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#C5A86A] animate-pulse" />
+            <span>SYS.TRANSMISSION // SHARED WITH YOU</span>
+          </div>
+          <span className="text-[#87958A] font-mono text-[9px]">{timeAgo(activity.publishedAt)}</span>
+        </div>
+        <div className="w-full bg-[#2B232A] text-[#F3EEE6] p-4 relative overflow-hidden border border-[#C5A86A]/30 space-y-3">
+          <p className="text-xs text-[#F3EEE6]/90 leading-relaxed font-medium line-clamp-2">
+            "{excerpt(activity.content, 140)}"
+          </p>
+          <div className="flex flex-wrap gap-2 pt-2 border-t border-[#C5A86A]/20">
+            {published.map(({ platform, url }) => {
+              const cfg = PLATFORM_CONFIG[platform.toLowerCase()] ?? { icon: ExternalLink, name: platform, cta: 'Access', color: '#FFFFFF', bg: '#C5A86A' };
+              const Icon = cfg.icon;
+              return (
+                <a
+                  key={platform}
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-white shadow-sm hover:scale-105 active:scale-95 transition-all no-underline"
+                  style={{ background: cfg.bg, color: cfg.color }}
+                  title={`Access on ${cfg.name}`}
+                >
+                  <Icon size={13} />
+                  <span>{cfg.name}</span>
+                  <span className="opacity-80 text-[10px]">↗</span>
+                </a>
+              );
+            })}
+          </div>
+          <div className="text-[10px] text-[#F3EEE6]/50 font-mono flex items-center justify-between">
+            <span>Direct endpoint access — select to inspect &amp; engage</span>
+            <span>Live on {published.length} feed{published.length !== 1 ? 's' : ''}</span>
           </div>
         </div>
       </section>
@@ -346,20 +354,20 @@ export function RecentActivitySection({
   // ── 05. VISIONARY VARIANT (Orbital / Cosmic Editorial) ──
   if (variant === 'visionary') {
     return (
-      <section id="recent-activity" ref={sectionRef} className="relative px-8 sm:px-12 py-12 border-b border-[#2C2825]/10">
+      <section id="recent-activity" ref={sectionRef} className="my-6">
         {pulseStyle}
-        <div className="text-[9px] tracking-[0.2em] text-[#8B958A] uppercase font-bold mb-4 text-center md:text-left flex items-center gap-2 justify-center md:justify-start">
-          <span>ORBITAL SIGNAL // RECENT BROADCAST</span>
-          <span className="w-1.5 h-1.5 rounded-full bg-[#704E59] animate-pulse" />
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-1.5 text-[10px] tracking-[0.2em] text-[#704E59] uppercase font-bold">
+            <span className="w-2 h-2 rounded-full bg-[#704E59] animate-pulse" />
+            <span>New Dispatch // Shared With You</span>
+          </div>
+          <span className="text-[10px] text-[#8B958A] font-mono">{timeAgo(activity.publishedAt)}</span>
         </div>
-        <h3 className="visionary-serif text-3xl sm:text-4xl text-[#2C2825] mb-6 text-center md:text-left">
-          Recent <span className="text-[#704E59] italic">dispatches.</span>
-        </h3>
-        <div className="metric-card relative p-6 sm:p-8 rounded-tr-3xl rounded-bl-3xl border border-[#704E59]/20 bg-[#FDFBF7] shadow-sm mb-4">
-          <p className="text-sm sm:text-base leading-[1.8] text-[#2C2825]/85 max-w-2xl font-medium mb-6 line-clamp-3">
-            {excerpt(activity.content, 220)}
+        <div className="metric-card p-4 sm:p-5 rounded-2xl border border-[#704E59]/20 bg-[#FDFBF7] shadow-sm space-y-3">
+          <p className="text-xs sm:text-sm text-[#2C2825]/85 leading-relaxed font-serif italic line-clamp-2">
+            "{excerpt(activity.content, 140)}"
           </p>
-          <div className="flex flex-wrap gap-2.5">
+          <div className="flex flex-wrap gap-2 pt-2 border-t border-[#704E59]/15">
             {published.map(({ platform, url }) => {
               const cfg = PLATFORM_CONFIG[platform.toLowerCase()] ?? { icon: ExternalLink, name: platform, cta: 'Visit', color: '#FFFFFF', bg: '#704E59' };
               const Icon = cfg.icon;
@@ -369,84 +377,94 @@ export function RecentActivitySection({
                   href={url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#2C2825]/20 bg-white hover:bg-[#FDF8F6] text-xs font-bold text-[#2C2825] transition-all hover:-translate-y-0.5 hover:shadow-sm"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold text-white shadow-sm hover:scale-105 active:scale-95 transition-all no-underline"
+                  style={{ background: cfg.bg, color: cfg.color }}
+                  title={`Open on ${cfg.name}`}
                 >
-                  <div className="w-5 h-5 rounded-full bg-[#704E59] text-white flex items-center justify-center">
-                    <Icon size={11} />
-                  </div>
+                  <Icon size={12} />
                   <span>{cfg.name}</span>
-                  <span className="text-[#8B958A] text-[10px]">↗</span>
+                  <span className="opacity-80 text-[10px]">↗</span>
                 </a>
               );
             })}
+          </div>
+          <div className="text-[10px] text-[#2C2825]/55 flex items-center justify-between">
+            <span>Tap your preferred venue to view &amp; interact</span>
+            <span>Live on {published.length} network{published.length !== 1 ? 's' : ''}</span>
           </div>
         </div>
       </section>
     );
   }
 
-  // ── 06. HUSTLER VARIANT (Industrial Brutalist / Blaze Orange) ──
+  // ── 06. HUSTLER VARIANT (Neo-Brutalist / Blaze Orange) ──
   if (variant === 'hustler') {
     return (
-      <div id="recent-activity" ref={sectionRef} className="p-8 border-b-2 border-[#292724] bg-white">
+      <div id="recent-activity" ref={sectionRef} className="my-6 p-4 sm:p-5 border-2 border-[#292724] bg-white shadow-[4px_4px_0px_#292724] space-y-3">
         {pulseStyle}
-        <div className="flex items-center justify-between mb-6">
-          <span className="text-[10px] text-[#D64924] uppercase tracking-widest font-bold">
-            LIVE FEED // RECENT DISPATCH
-          </span>
-          <span className="text-[9px] font-mono uppercase tracking-widest text-[#7A756D] flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-[#D64924] animate-pulse" /> SYNCED
-          </span>
-        </div>
-        <div className="p-6 border-2 border-[#292724] bg-[#EAE8E3]/30 shadow-[4px_4px_0px_#292724] mb-4">
-          <p className="text-xs uppercase tracking-wider font-bold text-[#292724] leading-relaxed mb-6 line-clamp-3">
-            {excerpt(activity.content, 200)}
-          </p>
-          <div className="flex flex-wrap gap-3">
-            {published.map(({ platform, url }) => {
-              const cfg = PLATFORM_CONFIG[platform.toLowerCase()] ?? { icon: ExternalLink, name: platform, cta: 'Open', color: '#FFFFFF', bg: '#D64924' };
-              const Icon = cfg.icon;
-              return (
-                <a
-                  key={platform}
-                  href={url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-5 py-2.5 border-2 border-[#292724] bg-white text-[#292724] text-xs font-bold uppercase tracking-widest hover:bg-[#D64924] hover:text-white transition-colors shadow-[3px_3px_0px_#292724] flex items-center gap-2"
-                >
-                  <Icon size={13} />
-                  <span>{cfg.name}</span>
-                  <span>→</span>
-                </a>
-              );
-            })}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#D64924] animate-pulse" />
+            <span className="text-[11px] text-[#D64924] uppercase tracking-wider font-extrabold">
+              NEW POST // SHARED WITH YOU
+            </span>
           </div>
+          <span className="text-[10px] font-mono uppercase text-[#7A756D]">{timeAgo(activity.publishedAt)}</span>
+        </div>
+        <p className="text-xs uppercase tracking-wide font-bold text-[#292724] leading-relaxed line-clamp-2">
+          "{excerpt(activity.content, 130)}"
+        </p>
+        <div className="flex flex-wrap gap-2 pt-2 border-t-2 border-[#292724]/20">
+          {published.map(({ platform, url }) => {
+            const cfg = PLATFORM_CONFIG[platform.toLowerCase()] ?? { icon: ExternalLink, name: platform, cta: 'Open', color: '#FFFFFF', bg: '#D64924' };
+            const Icon = cfg.icon;
+            return (
+              <a
+                key={platform}
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3.5 py-1.5 border-2 border-[#292724] text-xs font-extrabold uppercase tracking-wider hover:scale-105 active:scale-95 transition-transform shadow-[2px_2px_0px_#292724] inline-flex items-center gap-1.5 no-underline"
+                style={{ background: cfg.bg, color: cfg.color }}
+                title={`Open on ${cfg.name}`}
+              >
+                <Icon size={12} />
+                <span>{cfg.name}</span>
+                <span>→</span>
+              </a>
+            );
+          })}
+        </div>
+        <div className="text-[10px] font-bold uppercase tracking-wider text-[#7A756D] flex items-center justify-between">
+          <span>Tap to view &amp; engage instantly</span>
+          <span>Synced on {published.length} platform{published.length !== 1 ? 's' : ''}</span>
         </div>
       </div>
     );
   }
 
-  // ── 07. CREATOR VARIANT (Chamfered Geometric / Tech High-contrast) ──
+  // ── 07. CREATOR VARIANT (Chamfered Geometric / Tech Contrast) ──
   if (variant === 'creator') {
     return (
-      <section id="recent-activity" ref={sectionRef} className="mb-12">
+      <section id="recent-activity" ref={sectionRef} className="my-6">
         {pulseStyle}
-        <div className="flex items-center justify-between mb-4">
-          <span className="text-[10px] tracking-widest uppercase font-bold text-slate-500">
-            Latest Activity // Synchronized
-          </span>
-          <span className="text-[9px] font-mono uppercase text-slate-400 flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live
-          </span>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-1.5 text-slate-700">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[10px] tracking-widest uppercase font-bold">
+              Latest Post // Shared With You
+            </span>
+          </div>
+          <span className="text-[10px] font-mono uppercase text-slate-400">{timeAgo(activity.publishedAt)}</span>
         </div>
         <div
-          className="relative w-full bg-gradient-to-r from-white/70 to-white/95 backdrop-blur-md p-6 shadow-sm border border-slate-200"
-          style={{ clipPath: 'polygon(16px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%, 0 16px)' }}
+          className="relative w-full bg-white/85 backdrop-blur-md p-4 sm:p-5 shadow-sm border border-slate-200 space-y-3"
+          style={{ clipPath: 'polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px)' }}
         >
-          <p className="text-sm text-slate-700 leading-relaxed font-medium mb-6 line-clamp-3">
-            {excerpt(activity.content, 220)}
+          <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-medium line-clamp-2">
+            "{excerpt(activity.content, 140)}"
           </p>
-          <div className="flex flex-wrap gap-2.5">
+          <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-200/80">
             {published.map(({ platform, url }) => {
               const cfg = PLATFORM_CONFIG[platform.toLowerCase()] ?? { icon: ExternalLink, name: platform, cta: 'View', color: '#FFFFFF', bg: '#0F172A' };
               const Icon = cfg.icon;
@@ -456,40 +474,47 @@ export function RecentActivitySection({
                   href={url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 text-white text-xs font-bold uppercase tracking-wider hover:bg-slate-800 transition-all shadow-sm"
-                  style={{ clipPath: 'polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px)' }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold uppercase tracking-wider hover:scale-105 active:scale-95 transition-all shadow-sm no-underline text-white"
+                  style={{
+                    background: cfg.bg,
+                    color: cfg.color,
+                    clipPath: 'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)',
+                  }}
+                  title={`View on ${cfg.name}`}
                 >
                   <Icon size={12} />
                   <span>{cfg.name}</span>
-                  <span className="text-[10px] opacity-70">↗</span>
+                  <span className="text-[10px] opacity-80">↗</span>
                 </a>
               );
             })}
+          </div>
+          <div className="text-[10px] text-slate-500 flex items-center justify-between">
+            <span>Tap your preferred network to view full post</span>
+            <span>Live on {published.length} feed{published.length !== 1 ? 's' : ''}</span>
           </div>
         </div>
       </section>
     );
   }
 
-  // ── 08. STUDIO VARIANT (Swiss Editorial Minimalist) ──
+  // ── 08. STUDIO VARIANT (Swiss Minimalist Editorial) ──
   if (variant === 'studio') {
     return (
-      <section id="recent-activity" ref={sectionRef} className="max-w-6xl mx-auto px-6 mb-20">
+      <section id="recent-activity" ref={sectionRef} className="my-6">
         {pulseStyle}
-        <div className="flex justify-between items-start mb-6">
-          <div className="flex items-center gap-4 text-[#2C2E2A]/70">
-            <div className="w-6 h-[1px] bg-[#2C2E2A]/70" />
-            <span className="text-[10px] tracking-widest uppercase font-bold">Recent Activity</span>
+        <div className="flex justify-between items-center mb-2">
+          <div className="flex items-center gap-2 text-[#2C2E2A]">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#8CA290] animate-pulse" />
+            <span className="text-[10px] tracking-widest uppercase font-bold">New Post Shared With You</span>
           </div>
-          <span className="text-[10px] tracking-widest uppercase text-[#8CA290] font-medium flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#8CA290] animate-pulse" /> Live
-          </span>
+          <span className="text-[10px] tracking-widest uppercase text-[#8CA290] font-mono">{timeAgo(activity.publishedAt)}</span>
         </div>
-        <div className="border border-[#2C2E2A]/15 p-8 bg-white/60 backdrop-blur-sm rounded-sm">
-          <p className="font-serif text-lg md:text-xl text-[#2C2E2A] leading-relaxed mb-6 italic line-clamp-3">
-            "{excerpt(activity.content, 220)}"
+        <div className="border border-[#2C2E2A]/15 p-4 sm:p-5 bg-white/70 backdrop-blur-sm rounded-sm space-y-3">
+          <p className="font-serif text-sm text-[#2C2E2A] leading-relaxed italic line-clamp-2">
+            "{excerpt(activity.content, 140)}"
           </p>
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-2 pt-2 border-t border-[#2C2E2A]/10">
             {published.map(({ platform, url }) => {
               const cfg = PLATFORM_CONFIG[platform.toLowerCase()] ?? { icon: ExternalLink, name: platform, cta: 'View', color: '#FFFFFF', bg: '#2C2E2A' };
               const Icon = cfg.icon;
@@ -499,33 +524,42 @@ export function RecentActivitySection({
                   href={url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#2C2E2A] text-[#F5F4F0] text-xs font-bold uppercase tracking-widest hover:bg-[#8CA290] transition-colors rounded-sm"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold uppercase tracking-widest hover:scale-105 active:scale-95 transition-all rounded-sm no-underline text-white"
+                  style={{ background: cfg.bg, color: cfg.color }}
+                  title={`Read on ${cfg.name}`}
                 >
-                  <Icon size={13} />
+                  <Icon size={12} />
                   <span>{cfg.name}</span>
-                  <span className="text-[10px]">↗</span>
+                  <span className="text-[10px] opacity-80">↗</span>
                 </a>
               );
             })}
+          </div>
+          <div className="text-[10px] text-[#2C2E2A]/60 flex items-center justify-between">
+            <span>Direct reading links — select your preferred outlet</span>
+            <span>Live on {published.length} network{published.length !== 1 ? 's' : ''}</span>
           </div>
         </div>
       </section>
     );
   }
 
-  // ── 09. MACHINE VARIANT (Access Modules / Cyber Terminal) ──
+  // ── 09. MACHINE VARIANT (Cyber HUD Terminal) ──
   if (variant === 'machine') {
     return (
-      <div id="recent-activity" ref={sectionRef} className="m-metric-item" style={{ marginTop: '24px', padding: '20px' }}>
+      <div id="recent-activity" ref={sectionRef} className="my-6 p-4 rounded-xl border border-[#00FF66]/30 bg-[#0C0F0D]/90 backdrop-blur-md space-y-3">
         {pulseStyle}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-          <span className="m-metric-lbl" style={{ color: accent || '#00FF66' }}>SYS.FEED // RECENT BROADCAST</span>
-          <span style={{ fontSize: '10px', opacity: 0.6 }}>{timeAgo(activity.publishedAt)}</span>
+        <div className="flex justify-between items-center text-[10px] font-mono">
+          <div className="flex items-center gap-1.5 text-[#00FF66]">
+            <span className="w-2 h-2 rounded-full bg-[#00FF66] animate-pulse" />
+            <span className="font-bold tracking-widest">SYS.FEED // SHARED TRANSMISSION</span>
+          </div>
+          <span className="opacity-60">{timeAgo(activity.publishedAt)}</span>
         </div>
-        <p style={{ fontSize: '12px', lineHeight: 1.6, opacity: 0.85, marginBottom: '16px' }}>
-          {excerpt(activity.content, 180)}
+        <p className="text-xs font-mono text-white/90 leading-relaxed line-clamp-2">
+          "{excerpt(activity.content, 140)}"
         </p>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+        <div className="flex flex-wrap gap-2 pt-2 border-t border-[#00FF66]/20">
           {published.map(({ platform, url }) => {
             const cfg = PLATFORM_CONFIG[platform.toLowerCase()] ?? { icon: ExternalLink, name: platform, cta: 'Connect', color: '#FFFFFF', bg: '#222' };
             const Icon = cfg.icon;
@@ -535,38 +569,46 @@ export function RecentActivitySection({
                 href={url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="m-link-card"
-                style={{ padding: '8px 14px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-bold shadow-md hover:scale-105 active:scale-95 transition-all text-white no-underline"
+                style={{ background: cfg.bg, color: cfg.color }}
+                title={`Connect via ${cfg.name}`}
               >
                 <Icon size={12} />
                 <span>{cfg.name}</span>
-                <span>↗</span>
+                <span className="opacity-80 text-[10px]">↗</span>
               </a>
             );
           })}
+        </div>
+        <div className="text-[10px] font-mono text-white/50 flex items-center justify-between">
+          <span>Multi-uplink active — tap node to view full payload</span>
+          <span>{published.length} active node{published.length !== 1 ? 's' : ''}</span>
         </div>
       </div>
     );
   }
 
-  // ── 10. CLUB VARIANT (Luxury Editorial / Plum Porcelain) ──
+  // ── 10. CLUB VARIANT (Luxury Dark Plum Porcelain) ──
   if (variant === 'club') {
     return (
-      <section id="recent-activity" ref={sectionRef} className="mb-16">
+      <section id="recent-activity" ref={sectionRef} className="my-6">
         {pulseStyle}
-        <div className="flex items-center justify-between mb-4 border-b border-[#2C2825]/10 pb-2">
-          <span className="text-[10px] tracking-[0.25em] uppercase font-bold text-[#704E59]">
-            03.5 // RECENT BROADCAST
-          </span>
-          <span className="text-[10px] tracking-widest uppercase text-stone-400 font-mono flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#704E59] animate-pulse" /> LIVE
+        <div className="flex items-center justify-between mb-2 border-b border-[#2C2825]/10 pb-1.5">
+          <div className="flex items-center gap-1.5 text-[#704E59]">
+            <span className="w-2 h-2 rounded-full bg-[#704E59] animate-pulse" />
+            <span className="text-[10px] tracking-[0.25em] uppercase font-bold">
+              Shared Dispatch // Just Published
+            </span>
+          </div>
+          <span className="text-[10px] tracking-widest uppercase text-stone-400 font-mono">
+            {timeAgo(activity.publishedAt)}
           </span>
         </div>
-        <div className="p-8 border border-[#2C2825]/15 bg-white/70 backdrop-blur-md rounded-2xl shadow-sm">
-          <p className="font-serif text-lg md:text-xl text-[#2C2825] leading-relaxed mb-6 italic line-clamp-3">
-            "{excerpt(activity.content, 220)}"
+        <div className="p-4 sm:p-5 border border-[#2C2825]/15 bg-white/75 backdrop-blur-md rounded-2xl shadow-sm space-y-3">
+          <p className="font-serif text-sm text-[#2C2825] leading-relaxed italic line-clamp-2">
+            "{excerpt(activity.content, 140)}"
           </p>
-          <div className="flex flex-wrap gap-2.5">
+          <div className="flex flex-wrap gap-2 pt-2 border-t border-[#2C2825]/10">
             {published.map(({ platform, url }) => {
               const cfg = PLATFORM_CONFIG[platform.toLowerCase()] ?? { icon: ExternalLink, name: platform, cta: 'Read', color: '#FFFFFF', bg: '#2C2825' };
               const Icon = cfg.icon;
@@ -576,35 +618,44 @@ export function RecentActivitySection({
                   href={url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#2C2825] text-white text-xs font-medium tracking-wide hover:bg-[#704E59] transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wide hover:scale-105 active:scale-95 transition-all text-white no-underline shadow-sm"
+                  style={{ background: cfg.bg, color: cfg.color }}
+                  title={`Open on ${cfg.name}`}
                 >
                   <Icon size={12} />
                   <span>{cfg.name}</span>
-                  <span className="text-[10px] opacity-70">↗</span>
+                  <span className="text-[10px] opacity-80">↗</span>
                 </a>
               );
             })}
+          </div>
+          <div className="text-[10px] text-[#2C2825]/60 flex items-center justify-between">
+            <span>Direct reading links — tap your preferred circle</span>
+            <span>Live on {published.length} network{published.length !== 1 ? 's' : ''}</span>
           </div>
         </div>
       </section>
     );
   }
 
-  // ── 11. ENERGY VARIANT (High Contrast Impact) ──
+  // ── 11. ENERGY VARIANT (High Contrast Kinetic Slant) ──
   if (variant === 'energy') {
     return (
-      <div id="recent-activity" ref={sectionRef} className="mt-8 p-6 bg-[#111] border-l-4" style={{ borderColor: accentColor || '#CCFF00' }}>
+      <div id="recent-activity" ref={sectionRef} className="my-6 p-4 sm:p-5 bg-[#111] border-l-4 border-[#CCFF00] space-y-3">
         {pulseStyle}
-        <div className="flex items-center justify-between mb-4 uppercase">
-          <span className="text-sm font-bold tracking-widest" style={{ color: accentColor || '#CCFF00' }}>
-            LATEST TRANSMISSION
-          </span>
-          <span className="text-xs font-mono opacity-60">{timeAgo(activity.publishedAt)}</span>
+        <div className="flex items-center justify-between uppercase">
+          <div className="flex items-center gap-2 text-[#CCFF00]">
+            <span className="w-2 h-2 rounded-full bg-[#CCFF00] animate-pulse" />
+            <span className="text-xs font-extrabold tracking-widest">
+              LATEST DROP // SHARED WITH YOU
+            </span>
+          </div>
+          <span className="text-xs font-mono opacity-60 text-white">{timeAgo(activity.publishedAt)}</span>
         </div>
-        <p className="text-sm font-bold tracking-wide opacity-90 leading-relaxed mb-4">
-          {excerpt(activity.content, 180)}
+        <p className="text-xs font-bold tracking-wide text-white/90 leading-relaxed line-clamp-2">
+          "{excerpt(activity.content, 140)}"
         </p>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 pt-2 border-t border-white/10">
           {published.map(({ platform, url }) => {
             const cfg = PLATFORM_CONFIG[platform.toLowerCase()] ?? { icon: ExternalLink, name: platform, cta: 'Open', color: '#FFFFFF', bg: '#222' };
             const Icon = cfg.icon;
@@ -614,36 +665,44 @@ export function RecentActivitySection({
                 href={url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-white text-black font-bold uppercase text-xs hover:bg-[#CCFF00] transition-colors"
-                style={{ transform: 'skewX(-10deg)' }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 font-bold uppercase text-xs hover:scale-105 active:scale-95 transition-transform no-underline text-white"
+                style={{ background: cfg.bg, color: cfg.color, transform: 'skewX(-6deg)' }}
+                title={`Open on ${cfg.name}`}
               >
-                <span style={{ transform: 'skewX(10deg)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                  <Icon size={13} />
+                <span style={{ transform: 'skewX(6deg)', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                  <Icon size={12} />
                   {cfg.name} ↗
                 </span>
               </a>
             );
           })}
         </div>
+        <div className="text-[10px] font-mono text-white/50 flex items-center justify-between">
+          <span>Tap your venue to view full drop</span>
+          <span>Live on {published.length} feed{published.length !== 1 ? 's' : ''}</span>
+        </div>
       </div>
     );
   }
 
-  // ── 12. VISION VARIANT (Holographic Cyber) ──
+  // ── 12. VISION VARIANT (Holographic Cyan Glass) ──
   if (variant === 'vision') {
     return (
-      <div id="recent-activity" ref={sectionRef} className="my-6 p-6 rounded-xl border border-cyan-500/30 bg-black/40 backdrop-blur-md">
+      <div id="recent-activity" ref={sectionRef} className="my-6 p-4 sm:p-5 rounded-xl border border-cyan-500/30 bg-black/50 backdrop-blur-md space-y-3">
         {pulseStyle}
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-[10px] font-mono uppercase tracking-widest text-cyan-400">
-            SYSTEM.FEED // BROADCAST
-          </span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-cyan-400">
+            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+            <span className="text-[10px] font-mono uppercase tracking-widest font-bold">
+              SYS.FEED // SHARED BROADCAST
+            </span>
+          </div>
           <span className="text-[10px] font-mono text-cyan-500/70">{timeAgo(activity.publishedAt)}</span>
         </div>
-        <p className="text-xs text-white/90 leading-relaxed mb-4 line-clamp-3">
-          {excerpt(activity.content, 200)}
+        <p className="text-xs text-white/90 leading-relaxed line-clamp-2">
+          "{excerpt(activity.content, 140)}"
         </p>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 pt-2 border-t border-cyan-500/20">
           {published.map(({ platform, url }) => {
             const cfg = PLATFORM_CONFIG[platform.toLowerCase()] ?? { icon: ExternalLink, name: platform, cta: 'View', color: '#FFFFFF', bg: '#06b6d4' };
             const Icon = cfg.icon;
@@ -653,37 +712,46 @@ export function RecentActivitySection({
                 href={url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-cyan-500/40 bg-cyan-950/40 text-cyan-300 text-xs font-mono hover:bg-cyan-900/60 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-bold hover:scale-105 active:scale-95 transition-all text-white no-underline shadow-sm"
+                style={{ background: cfg.bg, color: cfg.color }}
+                title={`View on ${cfg.name}`}
               >
                 <Icon size={12} />
                 <span>{cfg.name}</span>
-                <span>↗</span>
+                <span className="opacity-80 text-[10px]">↗</span>
               </a>
             );
           })}
+        </div>
+        <div className="text-[10px] font-mono text-cyan-400/60 flex items-center justify-between">
+          <span>Multi-stream uplink — tap node to view full post</span>
+          <span>{published.length} platform{published.length !== 1 ? 's' : ''} connected</span>
         </div>
       </div>
     );
   }
 
-  // ── 13. HUMAN VARIANT (Warm Organic Curves) ──
+  // ── 13. HUMAN VARIANT (Warm Organic Sand / Editorial) ──
   if (variant === 'human') {
     return (
-      <div id="recent-activity" ref={sectionRef} className="max-w-[1300px] mx-auto px-6 md:px-12 mb-12 relative z-10">
+      <div id="recent-activity" ref={sectionRef} className="my-6 relative z-10">
         {pulseStyle}
-        <div className="p-8 rounded-3xl bg-[#EFE4CC]/90 border border-[#1B1D1B]/15 shadow-md">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-[10px] font-sans font-bold uppercase tracking-[0.25em] text-[#123040]">
-              Community Dispatch // Recent Activity
-            </span>
-            <span className="text-[10px] text-[#BE5B42] font-bold uppercase tracking-wider flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-[#BE5B42] animate-pulse" /> Live
+        <div className="p-4 sm:p-5 rounded-2xl bg-[#EFE4CC]/90 border border-[#1B1D1B]/15 shadow-sm space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-[#123040]">
+              <span className="w-2 h-2 rounded-full bg-[#BE5B42] animate-pulse" />
+              <span className="text-[10px] font-sans font-bold uppercase tracking-[0.2em]">
+                Community Dispatch // Shared With You
+              </span>
+            </div>
+            <span className="text-[10px] text-[#BE5B42] font-mono font-bold">
+              {timeAgo(activity.publishedAt)}
             </span>
           </div>
-          <p className="text-base text-[#1B1D1B]/90 font-serif leading-relaxed mb-6 line-clamp-3">
-            {excerpt(activity.content, 220)}
+          <p className="text-xs sm:text-sm text-[#1B1D1B]/90 font-serif leading-relaxed line-clamp-2">
+            "{excerpt(activity.content, 140)}"
           </p>
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-2 pt-2 border-t border-[#1B1D1B]/10">
             {published.map(({ platform, url }) => {
               const cfg = PLATFORM_CONFIG[platform.toLowerCase()] ?? { icon: ExternalLink, name: platform, cta: 'Connect', color: '#FFFFFF', bg: '#123040' };
               const Icon = cfg.icon;
@@ -693,37 +761,43 @@ export function RecentActivitySection({
                   href={url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#123040] text-[#F4EDDC] text-xs font-bold font-sans hover:bg-[#BE5B42] transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold font-sans hover:scale-105 active:scale-95 transition-all text-white no-underline shadow-sm"
+                  style={{ background: cfg.bg, color: cfg.color }}
+                  title={`Connect on ${cfg.name}`}
                 >
-                  <Icon size={13} />
+                  <Icon size={12} />
                   <span>{cfg.name}</span>
-                  <span className="text-[10px]">↗</span>
+                  <span className="text-[10px] opacity-80">↗</span>
                 </a>
               );
             })}
+          </div>
+          <div className="text-[10px] text-[#1B1D1B]/60 flex items-center justify-between">
+            <span>Tap your preferred platform to join the conversation</span>
+            <span>Live on {published.length} network{published.length !== 1 ? 's' : ''}</span>
           </div>
         </div>
       </div>
     );
   }
 
-  // ── 14. AESTHETE VARIANT (Quiet Luxury / Warm Stone) ──
+  // ── 14. AESTHETE VARIANT (Quiet Luxury Travertine) ──
   if (variant === 'aesthete') {
     return (
-      <div id="recent-activity" ref={sectionRef} className="p-8 md:p-10 lg:p-14 pt-0 mb-6">
+      <div id="recent-activity" ref={sectionRef} className="my-6">
         {pulseStyle}
-        <div className="w-full h-px bg-[#292826]/10 mb-8" />
-        <div className="flex justify-between items-center text-[#292826]/50 font-inter text-[9px] tracking-[0.2em] uppercase mb-4">
-          <span>Recent Activity</span>
-          <span className="flex items-center gap-1.5 text-[#A39686]">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#A39686] animate-pulse" /> Live
-          </span>
+        <div className="flex justify-between items-center text-[#292826]/70 font-inter text-[9px] tracking-[0.2em] uppercase mb-2">
+          <div className="flex items-center gap-1.5 text-[#292826]">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#A39686] animate-pulse" />
+            <span className="font-bold">New Post Shared With You</span>
+          </div>
+          <span className="text-[#A39686] font-mono">{timeAgo(activity.publishedAt)}</span>
         </div>
-        <div className="p-6 rounded-2xl bg-white/70 border border-[#292826]/10">
-          <p className="font-serif italic text-base text-[#292826]/85 leading-relaxed mb-5 line-clamp-3">
-            "{excerpt(activity.content, 220)}"
+        <div className="p-4 sm:p-5 rounded-2xl bg-white/75 border border-[#292826]/10 space-y-3 shadow-sm">
+          <p className="font-serif italic text-xs sm:text-sm text-[#292826]/85 leading-relaxed line-clamp-2">
+            "{excerpt(activity.content, 140)}"
           </p>
-          <div className="flex flex-wrap gap-2.5">
+          <div className="flex flex-wrap gap-2 pt-2 border-t border-[#292826]/10">
             {published.map(({ platform, url }) => {
               const cfg = PLATFORM_CONFIG[platform.toLowerCase()] ?? { icon: ExternalLink, name: platform, cta: 'View', color: '#FFFFFF', bg: '#292826' };
               const Icon = cfg.icon;
@@ -733,14 +807,20 @@ export function RecentActivitySection({
                   href={url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#292826]/15 bg-white text-[#292826] text-xs font-inter hover:bg-[#A39686] hover:text-white transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-inter font-semibold hover:scale-105 active:scale-95 transition-all text-white no-underline shadow-sm"
+                  style={{ background: cfg.bg, color: cfg.color }}
+                  title={`View on ${cfg.name}`}
                 >
                   <Icon size={12} />
                   <span>{cfg.name}</span>
-                  <span className="text-[10px] opacity-60">↗</span>
+                  <span className="text-[10px] opacity-80">↗</span>
                 </a>
               );
             })}
+          </div>
+          <div className="text-[10px] text-[#292826]/50 flex items-center justify-between">
+            <span>Direct access to full story — tap any venue</span>
+            <span>Live on {published.length} platform{published.length !== 1 ? 's' : ''}</span>
           </div>
         </div>
       </div>
@@ -750,21 +830,22 @@ export function RecentActivitySection({
   // ── 15. VOICE VARIANT (Botanical Coral & Moss) ──
   if (variant === 'voice') {
     return (
-      <section id="recent-activity" ref={sectionRef} className="mb-12">
+      <section id="recent-activity" ref={sectionRef} className="my-6">
         {pulseStyle}
-        <div className="flex items-center justify-between mb-4 border-b border-[#8DA396]/30 pb-2">
-          <span className="text-[#8DA396] text-[10px] md:text-xs font-bold tracking-[0.15em] uppercase">
-            Recent Activity // Broadcast
-          </span>
-          <span className="text-[10px] font-bold tracking-widest uppercase text-[#DF5B4C] flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-[#DF5B4C] animate-pulse" /> Live
-          </span>
+        <div className="flex items-center justify-between mb-2 border-b border-[#8DA396]/30 pb-1.5">
+          <div className="flex items-center gap-1.5 text-[#1C2B21]">
+            <span className="w-2 h-2 rounded-full bg-[#DF5B4C] animate-pulse" />
+            <span className="text-[10px] font-bold tracking-[0.15em] uppercase">
+              Fresh Post // Shared With You
+            </span>
+          </div>
+          <span className="text-[10px] font-mono uppercase text-[#DF5B4C]">{timeAgo(activity.publishedAt)}</span>
         </div>
-        <div className="p-6 md:p-8 rounded-3xl bg-white/80 border border-[#8DA396]/30 shadow-sm">
-          <p className="text-base text-[#1C2B21] font-medium leading-relaxed mb-6 line-clamp-3">
-            {excerpt(activity.content, 220)}
+        <div className="p-4 sm:p-5 rounded-2xl bg-white/80 border border-[#8DA396]/30 shadow-sm space-y-3">
+          <p className="text-xs sm:text-sm text-[#1C2B21] font-medium leading-relaxed line-clamp-2">
+            "{excerpt(activity.content, 140)}"
           </p>
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-2 pt-2 border-t border-[#8DA396]/20">
             {published.map(({ platform, url }) => {
               const cfg = PLATFORM_CONFIG[platform.toLowerCase()] ?? { icon: ExternalLink, name: platform, cta: 'View', color: '#FFFFFF', bg: '#1C2B21' };
               const Icon = cfg.icon;
@@ -774,67 +855,78 @@ export function RecentActivitySection({
                   href={url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#1C2B21] text-[#EBF0EC] text-xs font-semibold hover:bg-[#DF5B4C] transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold hover:scale-105 active:scale-95 transition-all text-white no-underline shadow-sm"
+                  style={{ background: cfg.bg, color: cfg.color }}
+                  title={`Open on ${cfg.name}`}
                 >
-                  <Icon size={13} />
+                  <Icon size={12} />
                   <span>{cfg.name}</span>
-                  <span className="text-[10px]">↗</span>
+                  <span className="text-[10px] opacity-80">↗</span>
                 </a>
               );
             })}
+          </div>
+          <div className="text-[10px] text-[#1C2B21]/60 flex items-center justify-between">
+            <span>Tap your preferred platform to read &amp; engage</span>
+            <span>Live on {published.length} channel{published.length !== 1 ? 's' : ''}</span>
           </div>
         </div>
       </section>
     );
   }
 
-  // ── DEFAULT VARIANT ──
-  const sectionBg = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)';
-  const borderCol = isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)';
-  const labelCol  = isDark ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.38)';
-  const textCol   = isDark ? 'rgba(255,255,255,0.88)' : 'rgba(0,0,0,0.82)';
+  // ── DEFAULT VARIANT (Universal Adaptive Glassmorphism) ──
+  const sectionBg = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.85)';
+  const borderCol = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)';
+  const labelCol  = isDark ? 'rgba(255,255,255,0.60)' : 'rgba(0,0,0,0.55)';
+  const textCol   = isDark ? 'rgba(255,255,255,0.92)' : 'rgba(0,0,0,0.85)';
 
   return (
     <div
       id="recent-activity"
       ref={sectionRef}
+      className="my-6 shadow-sm space-y-3"
       style={{
         background: sectionBg,
         border: `1px solid ${borderCol}`,
         borderRadius: 20,
-        padding: '28px 24px',
+        padding: '18px 20px',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
         scrollMarginTop: 80,
       }}
     >
       {pulseStyle}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{
-            width: 8, height: 8, borderRadius: '50%',
-            background: '#22C55E',
-            boxShadow: '0 0 0 3px rgba(34,197,94,0.25)',
-            display: 'inline-block', flexShrink: 0,
-          }} />
-          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: labelCol }}>
-            Recent Broadcast
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <span
+            style={{
+              width: 8, height: 8, borderRadius: '50%',
+              background: '#22C55E',
+              boxShadow: '0 0 0 3px rgba(34,197,94,0.25)',
+              display: 'inline-block', flexShrink: 0,
+            }}
+          />
+          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: labelCol }}>
+            New Post Shared With You
           </span>
         </div>
         {activity.publishedAt && (
-          <span style={{ fontSize: 11, color: labelCol }}>{timeAgo(activity.publishedAt)}</span>
+          <span style={{ fontSize: 11, color: labelCol }} className="font-mono">{timeAgo(activity.publishedAt)}</span>
         )}
       </div>
 
       <p style={{
-        fontSize: 14, lineHeight: 1.65, color: textCol, marginBottom: 20,
+        fontSize: 13, lineHeight: 1.6, color: textCol,
         display: '-webkit-box',
-        WebkitLineClamp: 4,
+        WebkitLineClamp: 2,
         WebkitBoxOrient: 'vertical',
         overflow: 'hidden',
       }}>
-        {excerpt(activity.content)}
+        "{excerpt(activity.content, 140)}"
       </p>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, paddingTop: 6, borderTop: `1px solid ${borderCol}` }}>
         {published.map(({ platform, url }) => {
           const cfg = PLATFORM_CONFIG[platform.toLowerCase()] ?? {
             icon: ExternalLink, name: platform, cta: 'View Post', color: '#FFFFFF', bg: '#555555',
@@ -847,35 +939,29 @@ export function RecentActivitySection({
               target="_blank"
               rel="noopener noreferrer"
               title={`${cfg.cta} on ${cfg.name}`}
+              className="hover:scale-105 active:scale-95 transition-transform"
               style={{
-                display: 'inline-flex', alignItems: 'center', gap: 7,
-                padding: '9px 15px', borderRadius: 999,
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                padding: '6px 12px', borderRadius: 999,
                 background: cfg.bg, color: cfg.color,
                 fontSize: 12, fontWeight: 600,
                 textDecoration: 'none',
-                transition: 'opacity 0.15s, transform 0.15s',
                 whiteSpace: 'nowrap',
-              }}
-              onMouseEnter={e => {
-                (e.currentTarget as HTMLElement).style.opacity = '0.82';
-                (e.currentTarget as HTMLElement).style.transform = 'scale(1.04)';
-              }}
-              onMouseLeave={e => {
-                (e.currentTarget as HTMLElement).style.opacity = '1';
-                (e.currentTarget as HTMLElement).style.transform = 'scale(1)';
+                boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
               }}
             >
-              <Icon size={13} />
-              {cfg.cta}
+              <Icon size={12} />
+              <span>{cfg.name}</span>
+              <span style={{ opacity: 0.8, fontSize: 10 }}>↗</span>
             </a>
           );
         })}
       </div>
 
-      <p style={{ marginTop: 14, fontSize: 11, color: labelCol }}>
-        Published simultaneously on {published.length} platform{published.length !== 1 ? 's' : ''} via Unool
-      </p>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10, color: labelCol, paddingTop: 2 }}>
+        <span>Tap any platform above to view &amp; engage with the full post</span>
+        <span>Live on {published.length} platform{published.length !== 1 ? 's' : ''}</span>
+      </div>
     </div>
   );
 }
-

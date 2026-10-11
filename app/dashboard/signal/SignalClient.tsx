@@ -289,17 +289,19 @@ export function SignalClient() {
           >
             {posts.length === 0 ? (
               <EmptyState />
-            ) : (
-              posts.map((post, i) => (
+            ) : (() => {
+              const mostRecentPublishedPostId = posts.find(p => p.variants.some(v => v.status === 'published'))?.id;
+              return posts.map((post, i) => (
                 <PostCard
                   key={post.id}
                   post={post}
                   delay={i * 0.05}
                   onRefresh={loadData}
                   profileSubdomain={profileSubdomain}
+                  isMostRecentPublished={post.id === mostRecentPublishedPostId}
                 />
-              ))
-            )}
+              ));
+            })()}
           </motion.div>
         )}
 
@@ -326,11 +328,13 @@ function PostCard({
   delay,
   onRefresh,
   profileSubdomain,
+  isMostRecentPublished = false,
 }: {
   post: SignalPost;
   delay: number;
   onRefresh: () => void;
   profileSubdomain?: string | null;
+  isMostRecentPublished?: boolean;
 }) {
   const age = getPostAge(post.createdAt);
   const goldenRemaining = getGoldenHourRemaining(post.createdAt);
@@ -468,7 +472,7 @@ function PostCard({
             {HOOK_LABELS[post.hookType] || post.hookType}
           </span>
         )}
-        {publishedVariants.length > 0 && (
+        {isMostRecentPublished && publishedVariants.length > 0 && (
           <a
             href={`https://wa.me/?text=${encodeURIComponent(
               `Hey! Check out my latest story across platforms. Pick your favourite to view & support:\n\n👉 ${
