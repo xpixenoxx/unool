@@ -12,7 +12,9 @@ import { platformFetch, fetchWithRetry, TokenExpiredError } from '@/lib/utils/re
 
 const PINTEREST_AUTH_URL = 'https://www.pinterest.com/oauth/';
 const PINTEREST_TOKEN_URL = 'https://api.pinterest.com/v5/oauth/token';
-const PINTEREST_API_BASE = 'https://api.pinterest.com/v5';
+const PINTEREST_API_BASE = config.PINTEREST_USE_SANDBOX
+  ? 'https://api-sandbox.pinterest.com/v5'
+  : 'https://api.pinterest.com/v5';
 
 export class PinterestAdapter implements PlatformAdapter {
   readonly platform = 'pinterest' as const;
@@ -229,7 +231,11 @@ export class PinterestAdapter implements PlatformAdapter {
         let parsedMessage = error;
         try {
           const parsed = JSON.parse(error);
-          parsedMessage = parsed.message || parsed.error || error;
+          if (parsed.code === 29 || parsed.message?.includes('Trial access')) {
+            parsedMessage = 'Your Pinterest app is on Trial Access and cannot create Pins in production. Please apply for "Standard Access" in your Pinterest Developer Dashboard (or set PINTEREST_USE_SANDBOX=true for testing).';
+          } else {
+            parsedMessage = parsed.message || parsed.error || error;
+          }
         } catch {}
 
         throw new Error(`Pinterest publish failed (${response.status}): ${parsedMessage}`);

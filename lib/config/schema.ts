@@ -75,6 +75,7 @@ const configSchema = z.object({
   PINTEREST_CLIENT_ID: z.string().optional(),
   PINTEREST_CLIENT_SECRET: z.string().optional(),
   PINTEREST_REDIRECT_URI: z.string().url().optional(),
+  PINTEREST_USE_SANDBOX: z.coerce.boolean().default(false),
 
   // YouTube OAuth
   YOUTUBE_CLIENT_ID: z.string().optional(),
