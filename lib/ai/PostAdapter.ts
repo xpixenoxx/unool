@@ -3,7 +3,7 @@ import { generateWithFallback } from './provider';
 import { Result, ok, err } from '@/lib/shared/Result';
 import { logger } from '@/lib/logger';
 
-export const PlatformType = z.enum(['linkedin', 'x', 'threads', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'skool', 'whop', 'kick', 'vk', 'warpcast', 'mewe', 'nostr', 'medium']);
+export const PlatformType = z.enum(['linkedin', 'x', 'threads', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'skool', 'whop', 'kick', 'vk', 'warpcast', 'mewe', 'nostr', 'medium', 'lemmy']);
 export type PlatformType = z.infer<typeof PlatformType>;
 
 export const AdaptedPostSchema = z.object({
@@ -122,6 +122,11 @@ const PLATFORM_SPECS: Record<PlatformType, { maxChars: number; style: string; ha
     maxChars: 100000,
     style: 'Long-form, well-structured, formatted text. Suitable for articles and essays.',
     hashtagStrategy: '3-5 relevant tags at the end',
+  },
+  lemmy: {
+    maxChars: 10000,
+    style: 'Engaging, community-focused, thoughtful. Markdown supported with headings and links.',
+    hashtagStrategy: 'No hashtags or minimal inline tags; community-driven discussion',
   },
 };
 

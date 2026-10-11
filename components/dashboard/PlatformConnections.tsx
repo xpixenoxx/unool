@@ -27,8 +27,9 @@ import { WarpcastConnectDialog } from './WarpcastConnectDialog';
 import { MeweConnectDialog } from './MeweConnectDialog';
 import { NostrConnectDialog } from './NostrConnectDialog';
 import { MediumConnectDialog } from './MediumConnectDialog';
+import { LemmyConnectDialog } from './LemmyConnectDialog';
 
-const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'dribbble', 'skool', 'whop', 'kick', 'vk', 'warpcast', 'mewe', 'nostr', 'medium'] as const;
+const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'dribbble', 'skool', 'whop', 'kick', 'vk', 'warpcast', 'mewe', 'nostr', 'medium', 'lemmy'] as const;
 type Platform = typeof SUPPORTED_PLATFORMS[number];
 
 interface PlatformConnection {
@@ -313,6 +314,17 @@ const PLATFORM_CONFIG: Record<
     available: true,
     customConnect: true,
   },
+  lemmy: {
+    icon: Globe2,
+    name: 'Lemmy',
+    shortName: 'Lemmy',
+    color: 'bg-[#00BC8C]',
+    hoverBorder: 'hover:border-[#00BC8C]/30',
+    description: 'Federated link aggregator & forum',
+    audience: 'Fediverse & Lemmy communities',
+    available: true,
+    customConnect: true,
+  },
 };
 
 /* ─── Component ────────────────────────────────────────────── */
@@ -355,6 +367,7 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
   const [meweDialogOpen, setMeweDialogOpen] = useState(false);
   const [nostrDialogOpen, setNostrDialogOpen] = useState(false);
   const [mediumDialogOpen, setMediumDialogOpen] = useState(false);
+  const [lemmyDialogOpen, setLemmyDialogOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -433,6 +446,10 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
     }
     if (platform === 'medium') {
       setMediumDialogOpen(true);
+      return;
+    }
+    if (platform === 'lemmy') {
+      setLemmyDialogOpen(true);
       return;
     }
     // Show spinner immediately — gives instant visual feedback before the redirect
@@ -659,6 +676,18 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
           setConnections((prev) => ({
             ...prev,
             medium: { platform: 'medium', status: 'connected', username },
+          }));
+          window.location.reload();
+        }}
+      />
+      <LemmyConnectDialog
+        open={lemmyDialogOpen}
+        onClose={() => setLemmyDialogOpen(false)}
+        workspaceId={workspaceId}
+        onSuccess={(username) => {
+          setConnections((prev) => ({
+            ...prev,
+            lemmy: { platform: 'lemmy', status: 'connected', username },
           }));
           window.location.reload();
         }}
