@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Globe, PenTool, Loader2, Sparkles, Trash2, Palette, Link as LinkIcon, ExternalLink, Plus, CheckCircle, AlertCircle, Trash, ArrowRight, Shield, Activity, CalendarDays, MousePointerClick, UploadCloud, Image as ImageIcon } from 'lucide-react';
+import { Globe, PenTool, Loader2, Sparkles, Trash2, Palette, Link as LinkIcon, ExternalLink, Plus, CheckCircle, AlertCircle, Trash, ArrowRight, Shield, Activity, CalendarDays, MousePointerClick, UploadCloud, Image as ImageIcon, X } from 'lucide-react';
 import { OpenToSelector } from '@/components/profile/OpenToBadges';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -137,6 +137,22 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
   // Guard: prevent auto-save from firing before initial data is loaded from the server.
   // Without this, the empty initial state can be saved over real data if loadProfile() is slow.
   const profileLoaded = useRef(false);
+
+  const [appliedTemplateAlert, setAppliedTemplateAlert] = useState<{
+    id: string;
+    name: string;
+    icon?: string;
+    tagline?: string;
+    description?: string;
+    persona?: string;
+  } | null>(null);
+  const alertTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (alertTimerRef.current) clearTimeout(alertTimerRef.current);
+    };
+  }, []);
 
   const [viewers, setViewers] = useState<ProfileViewer[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -725,8 +741,23 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
                   templates={TEMPLATE_REGISTRY}
                   selectedTemplate={profile.theme.template}
                   onSelect={(templateId) => {
+                    const tMeta = TEMPLATE_REGISTRY.find(t => t.id === templateId);
                     setProfile(prev => ({ ...prev, theme: { template: templateId } }));
-                    toast.success(`Theme updated to ${TEMPLATE_REGISTRY.find(t=>t.id===templateId)?.name}`);
+
+                    if (tMeta) {
+                      if (alertTimerRef.current) clearTimeout(alertTimerRef.current);
+                      setAppliedTemplateAlert({
+                        id: tMeta.id,
+                        name: tMeta.name,
+                        icon: tMeta.icon,
+                        tagline: tMeta.tagline,
+                        description: tMeta.description,
+                        persona: tMeta.persona,
+                      });
+                      alertTimerRef.current = setTimeout(() => {
+                        setAppliedTemplateAlert(null);
+                      }, 5000);
+                    }
                   }}
                   isOpen={true}
                   profileData={{
@@ -744,6 +775,102 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
           </motion.div>
         </AnimatePresence>
       </motion.div>
+
+      {/* ═══ NON-OVERLAPPING PERSONA THEME APPLIED ALERT ═══ */}
+      {/* Positioned at bottom-center so it never blocks or overlaps the top-right "View Live" button */}
+      <AnimatePresence>
+        {appliedTemplateAlert && (
+          <motion.div
+            initial={{ opacity: 0, y: 32, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 24, scale: 0.96 }}
+            transition={{ type: 'spring', stiffness: 450, damping: 32 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[calc(100vw-2rem)] max-w-lg pointer-events-auto"
+            role="status"
+            aria-live="polite"
+          >
+            <div
+              className="relative overflow-hidden rounded-2xl p-4 sm:p-4.5 shadow-2xl border"
+              style={{
+                background: 'linear-gradient(135deg, rgba(28, 25, 23, 0.96), rgba(18, 16, 15, 0.98))',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                borderColor: 'rgba(255, 255, 255, 0.14)',
+                boxShadow: '0 20px 50px -10px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.08)',
+              }}
+            >
+              {/* Subtle decorative glow */}
+              <div 
+                className="absolute -top-12 -left-12 w-28 h-28 rounded-full blur-2xl opacity-35 pointer-events-none"
+                style={{ background: '#C4A265' }}
+              />
+
+              <div className="relative z-10 flex items-start gap-3.5">
+                {/* Persona Icon Badge */}
+                <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/10 flex items-center justify-center text-xl shrink-0 shadow-inner">
+                  {appliedTemplateAlert.icon || '✨'}
+                </div>
+
+                {/* Text & Context */}
+                <div className="flex-1 min-w-0 pr-1">
+                  <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                    <span className="font-serif text-sm font-bold text-white tracking-tight">
+                      {appliedTemplateAlert.name}
+                    </span>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold uppercase tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      Live on Profile
+                    </span>
+                  </div>
+
+                  {appliedTemplateAlert.tagline && (
+                    <p className="text-xs text-[#E7E5E4] font-medium leading-snug italic">
+                      "{appliedTemplateAlert.tagline}"
+                    </p>
+                  )}
+
+                  <p className="text-[11px] text-stone-400 mt-1 line-clamp-1 leading-normal">
+                    {appliedTemplateAlert.description || 'Changes auto-saved to your public link.'}
+                  </p>
+                </div>
+
+                {/* Actions: View Live shortcut & Close */}
+                <div className="flex items-center gap-1.5 shrink-0 self-center">
+                  {liveUrl && (
+                    <Link
+                      href={liveUrl}
+                      target="_blank"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-white/10 hover:bg-white/20 active:scale-95 transition-all border border-white/15 shadow-sm whitespace-nowrap no-underline"
+                      title="Open your public profile in a new tab"
+                    >
+                      <span>View Live</span>
+                      <ExternalLink className="w-3 h-3 text-stone-300" />
+                    </Link>
+                  )}
+                  <button
+                    onClick={() => {
+                      if (alertTimerRef.current) clearTimeout(alertTimerRef.current);
+                      setAppliedTemplateAlert(null);
+                    }}
+                    className="w-7 h-7 rounded-xl flex items-center justify-center text-stone-400 hover:text-white hover:bg-white/10 transition-colors"
+                    title="Dismiss notification"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Subtle timer progress bar */}
+              <motion.div
+                initial={{ width: '100%' }}
+                animate={{ width: '0%' }}
+                transition={{ duration: 5, ease: 'linear' }}
+                className="absolute bottom-0 left-0 h-[2px] bg-gradient-to-r from-emerald-400 via-amber-300 to-emerald-400 opacity-60"
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </motion.div>
   );

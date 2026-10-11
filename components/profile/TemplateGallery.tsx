@@ -338,14 +338,21 @@ export function TemplateGallery({
                 <button
                   onClick={() => onSelect(activeTemplate.id)}
                   className={cn(
-                    "flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
+                    "flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
                     isSelected
-                      ? "bg-[#3D2B1F] text-white opacity-50 cursor-not-allowed"
+                      ? "bg-[#3D2B1F] text-white opacity-60 cursor-not-allowed shadow-none"
                       : "bg-[#C4A265] text-white hover:brightness-110 shadow-md shadow-[#C4A265]/20"
                   )}
                   disabled={isSelected}
                 >
-                  {isSelected ? 'Applied' : 'Apply Design'}
+                  {isSelected ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Applied</span>
+                    </>
+                  ) : (
+                    'Apply Design'
+                  )}
                 </button>
               </div>
             </div>
