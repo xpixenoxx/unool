@@ -2,7 +2,7 @@
 
 import React from 'react';
 
-export type Platform = 'linkedin' | 'x' | 'threads' | 'manual' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'slack' | 'mastodon' | 'twitch' | 'telegram' | 'discord' | 'dribbble' | 'skool' | 'whop' | 'kick' | 'vk' | 'warpcast' | 'mewe' | 'nostr' | 'medium' | 'lemmy' | 'listmonk';
+export type Platform = 'linkedin' | 'x' | 'threads' | 'manual' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'slack' | 'mastodon' | 'twitch' | 'telegram' | 'discord' | 'dribbble' | 'skool' | 'whop' | 'kick' | 'vk' | 'warpcast' | 'mewe' | 'nostr' | 'medium' | 'lemmy' | 'listmonk' | 'hashnode';
 
 export interface PlatformPreviewProps {
   platform: Platform;
@@ -374,6 +374,92 @@ function ListmonkPreview({ content, mediaUrls, username, displayName }: Omit<Pla
   );
 }
 
+/* ─── Hashnode ─── */
+function HashnodePreview({ content, mediaUrls, username, displayName }: Omit<PlatformPreviewProps, 'platform'>) {
+  const lines = content.trim().split('\n');
+  const title = lines[0]?.replace(/^#+\s*/, '').trim() || 'Untitled Article';
+  const body = lines.slice(1).join('\n').trim() || content;
+  const hashMatches = content.match(/#([a-zA-Z0-9_-]+)/g);
+  const tags = hashMatches && hashMatches.length > 0
+    ? hashMatches.slice(0, 4).map(t => t.replace(/^#/, ''))
+    : ['webdev', 'tech'];
+
+  return (
+    <div style={{ background: '#ffffff', color: '#0f172a', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', borderRadius: 12, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+      {/* Header bar */}
+      <div style={{ background: '#f8fafc', padding: '10px 16px', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ width: 18, height: 18, borderRadius: 4, background: '#2962FF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 10, fontWeight: 800 }}>
+            H
+          </div>
+          <span style={{ fontSize: 12, fontWeight: 600, color: '#334155' }}>
+            {displayName || username ? `${displayName || username}'s Blog` : 'Hashnode Publication'}
+          </span>
+        </div>
+        <span style={{ fontSize: 11, fontWeight: 500, color: '#2962FF', background: '#eff6ff', padding: '2px 8px', borderRadius: 12 }}>
+          hashnode.dev
+        </span>
+      </div>
+
+      {/* Cover image if available */}
+      {mediaUrls && mediaUrls.length > 0 && (
+        <div style={{ width: '100%', maxHeight: 200, overflow: 'hidden', background: '#f1f5f9' }}>
+          <img
+            src={mediaUrls[0].url}
+            alt={mediaUrls[0].alt || 'Article Cover'}
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+        </div>
+      )}
+
+      {/* Content wrapper */}
+      <div style={{ padding: '20px 22px' }}>
+        {/* Title */}
+        <h1 style={{ fontSize: 20, fontWeight: 800, lineHeight: '28px', color: '#0f172a', margin: '0 0 12px 0' }}>
+          {title}
+        </h1>
+
+        {/* Author metadata */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '14px 0 16px', paddingBottom: 14, borderBottom: '1px solid #f1f5f9' }}>
+          <Avatar size={34} bg="#2962FF" />
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>
+              {displayName || username || 'Author'}
+            </span>
+            <span style={{ fontSize: 11, color: '#64748b' }}>
+              {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · 4 min read
+            </span>
+          </div>
+        </div>
+
+        {/* Body content */}
+        <div style={{ fontSize: 14, lineHeight: '24px', color: '#334155', maxHeight: 240, overflowY: 'auto' }}>
+          <PostContent text={body} />
+        </div>
+
+        {/* Tags */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 16, paddingTop: 12, borderTop: '1px solid #f1f5f9' }}>
+          {tags.map((tag, idx) => (
+            <span
+              key={idx}
+              style={{
+                fontSize: 11,
+                fontWeight: 500,
+                color: '#475569',
+                background: '#f1f5f9',
+                padding: '3px 8px',
+                borderRadius: 6,
+              }}
+            >
+              #{tag}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Manual (generic) ─── */
 function ManualPreview({ content }: Omit<PlatformPreviewProps, 'platform'>) {
   return (
@@ -415,6 +501,7 @@ export function PlatformPreview({ platform, content, mediaUrls, username, displa
     medium: <ManualPreview {...props} />,
     lemmy: <ManualPreview {...props} />,
     listmonk: <ListmonkPreview {...props} />,
+    hashnode: <HashnodePreview {...props} />,
     manual: <ManualPreview {...props} />,
   };
 

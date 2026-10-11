@@ -1,4 +1,4 @@
-export type SupportedPlatform = 'linkedin' | 'x' | 'twitter' | 'threads' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'mastodon' | 'slack' | 'twitch' | 'telegram' | 'discord' | 'manual' | 'dribbble' | 'skool' | 'whop' | 'kick' | 'vk' | 'warpcast' | 'mewe' | 'nostr' | 'medium' | 'lemmy' | 'listmonk';
+export type SupportedPlatform = 'linkedin' | 'x' | 'twitter' | 'threads' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'mastodon' | 'slack' | 'twitch' | 'telegram' | 'discord' | 'manual' | 'dribbble' | 'skool' | 'whop' | 'kick' | 'vk' | 'warpcast' | 'mewe' | 'nostr' | 'medium' | 'lemmy' | 'listmonk' | 'hashnode';
 
 export interface PlatformLimitConfig {
   maxVideoSizeMB: number;
@@ -33,6 +33,7 @@ export const PLATFORM_LIMITS: Record<SupportedPlatform, PlatformLimitConfig> = {
   medium: { maxVideoSizeMB: 50, maxImageSizeMB: 10 },
   lemmy: { maxVideoSizeMB: 50, maxImageSizeMB: 10 },
   listmonk: { maxVideoSizeMB: 50, maxImageSizeMB: 10 },
+  hashnode: { maxVideoSizeMB: 50, maxImageSizeMB: 10 },
 };
 
 export function getPlatformLimit(platform: string): PlatformLimitConfig {

@@ -3,7 +3,7 @@ import { generateWithFallback } from './provider';
 import { Result, ok, err } from '@/lib/shared/Result';
 import { logger } from '@/lib/logger';
 
-export const PlatformType = z.enum(['linkedin', 'x', 'threads', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'skool', 'whop', 'kick', 'vk', 'warpcast', 'mewe', 'nostr', 'medium', 'lemmy', 'listmonk']);
+export const PlatformType = z.enum(['linkedin', 'x', 'threads', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'skool', 'whop', 'kick', 'vk', 'warpcast', 'mewe', 'nostr', 'medium', 'lemmy', 'listmonk', 'hashnode']);
 export type PlatformType = z.infer<typeof PlatformType>;
 
 export const AdaptedPostSchema = z.object({
@@ -16,7 +16,7 @@ export const AdaptedPostSchema = z.object({
 
 export type AdaptedPost = z.infer<typeof AdaptedPostSchema>;
 
-const PLATFORM_SPECS: Record<PlatformType, { maxChars: number; style: string; hashtagStrategy: string }> = {
+export const PLATFORM_SPECS: Record<PlatformType, { maxChars: number; style: string; hashtagStrategy: string }> = {
   linkedin: {
     maxChars: 3000,
     style: 'Professional, storytelling, value-driven. Use line breaks. Include 3-5 relevant hashtags at the end.',
@@ -132,6 +132,11 @@ const PLATFORM_SPECS: Record<PlatformType, { maxChars: number; style: string; ha
     maxChars: 100000,
     style: 'Newsletter format, engaging, informative, structured with clear subject and Markdown formatting (headings, bullet points, links).',
     hashtagStrategy: 'No hashtags in subject, optional topic tags at the end',
+  },
+  hashnode: {
+    maxChars: 100000,
+    style: 'Developer-focused, technical, in-depth Markdown formatting (headings, code blocks, bullet points, callouts). Clean educational and engineering style.',
+    hashtagStrategy: '1-5 relevant technical tags (#webdev #javascript #programming #ai #devops)',
   },
 };
 

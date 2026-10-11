@@ -9,7 +9,7 @@ import {
   Loader2, Linkedin, Twitter, MessageSquare, Facebook, Instagram,
   Phone, CheckCircle, AlertCircle, Unlink2, Link2, Lock, Globe2,
   ArrowRight, Wifi, WifiOff, RefreshCw, Youtube, Cloud, ExternalLink, Image as ImageIcon,
-  MessageCircle, Hash, Twitch, Send, Dribbble, GraduationCap, Store, Gamepad2, Zap, FileText, Mail
+  MessageCircle, Hash, Twitch, Send, Dribbble, GraduationCap, Store, Gamepad2, Zap, FileText, Mail, BookOpen
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -29,8 +29,9 @@ import { NostrConnectDialog } from './NostrConnectDialog';
 import { MediumConnectDialog } from './MediumConnectDialog';
 import { LemmyConnectDialog } from './LemmyConnectDialog';
 import { ListmonkConnectDialog } from './ListmonkConnectDialog';
+import { HashnodeConnectDialog } from './HashnodeConnectDialog';
 
-const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'dribbble', 'skool', 'whop', 'kick', 'vk', 'warpcast', 'mewe', 'nostr', 'medium', 'lemmy', 'listmonk'] as const;
+const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'dribbble', 'skool', 'whop', 'kick', 'vk', 'warpcast', 'mewe', 'nostr', 'medium', 'lemmy', 'listmonk', 'hashnode'] as const;
 type Platform = typeof SUPPORTED_PLATFORMS[number];
 
 interface PlatformConnection {
@@ -337,6 +338,17 @@ const PLATFORM_CONFIG: Record<
     available: true,
     customConnect: true,
   },
+  hashnode: {
+    icon: BookOpen,
+    name: 'Hashnode',
+    shortName: 'Hashnode',
+    color: 'bg-[#2962FF]',
+    hoverBorder: 'hover:border-[#2962FF]/30',
+    description: 'Developer blogs & technical articles',
+    audience: 'Software engineers & developers',
+    available: true,
+    customConnect: true,
+  },
 };
 
 /* ─── Component ────────────────────────────────────────────── */
@@ -381,6 +393,7 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
   const [mediumDialogOpen, setMediumDialogOpen] = useState(false);
   const [lemmyDialogOpen, setLemmyDialogOpen] = useState(false);
   const [listmonkDialogOpen, setListmonkDialogOpen] = useState(false);
+  const [hashnodeDialogOpen, setHashnodeDialogOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -467,6 +480,10 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
     }
     if (platform === 'listmonk') {
       setListmonkDialogOpen(true);
+      return;
+    }
+    if (platform === 'hashnode') {
+      setHashnodeDialogOpen(true);
       return;
     }
     // Show spinner immediately — gives instant visual feedback before the redirect
@@ -717,6 +734,18 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
           setConnections((prev) => ({
             ...prev,
             listmonk: { platform: 'listmonk', status: 'connected', username },
+          }));
+          window.location.reload();
+        }}
+      />
+      <HashnodeConnectDialog
+        open={hashnodeDialogOpen}
+        onClose={() => setHashnodeDialogOpen(false)}
+        workspaceId={workspaceId}
+        onSuccess={(username) => {
+          setConnections((prev) => ({
+            ...prev,
+            hashnode: { platform: 'hashnode', status: 'connected', username },
           }));
           window.location.reload();
         }}
