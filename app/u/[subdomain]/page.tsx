@@ -63,7 +63,18 @@ export default function PublicProfilePage({ params }: { params: Promise<{ subdom
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const searchParams = useSearchParams();
-  const shouldScrollToActivity = searchParams.get('activity') === '1';
+  const [hasActivityHash, setHasActivityHash] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const h = window.location.hash;
+      if (h === '#recent-activity' || h === '#activity') {
+        setHasActivityHash(true);
+      }
+    }
+  }, []);
+
+  const shouldScrollToActivity = searchParams.get('activity') === '1' || hasActivityHash;
 
   useEffect(() => {
     let cancelled = false;

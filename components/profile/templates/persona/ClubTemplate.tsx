@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import type { TemplateProps, PublicProfile, ProfileLink, ProfileProof } from '@/components/profile/templates/types';
+import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
 
 export interface ClubMetric {
   index?: string;
@@ -1048,6 +1049,17 @@ export function ClubTemplate({
             </div>
           </section>
         )}
+
+        {/* ==================================================
+            RECENT BROADCAST / ACTIVITY SECTION
+        ================================================== */}
+        <div className="px-5 md:px-[40px] pt-4">
+          <RecentActivitySection
+            activity={(profile as any)?.recentActivity}
+            variant="club"
+            autoScroll={(profile as any)?.autoScroll}
+          />
+        </div>
 
         {/* ==================================================
             04 / INVITATION SECTION (INTERACTIVE CTA)

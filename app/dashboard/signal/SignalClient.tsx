@@ -169,6 +169,32 @@ export function SignalClient() {
   const [resonance, setResonance] = useState<ResonanceData | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'feed' | 'dna'>('feed');
+  const [profileSubdomain, setProfileSubdomain] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchSub() {
+      try {
+        const res = await fetch('/api/profile', { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.profile?.subdomain) {
+            setProfileSubdomain(data.profile.subdomain);
+            return;
+          }
+        }
+      } catch {}
+      try {
+        const ctxRes = await fetch('/api/user/context', { credentials: 'include' });
+        if (ctxRes.ok) {
+          const ctxData = await ctxRes.json();
+          if (ctxData?.profile?.subdomain) {
+            setProfileSubdomain(ctxData.profile.subdomain);
+          }
+        }
+      } catch {}
+    }
+    fetchSub();
+  }, []);
 
   const loadData = useCallback(async () => {
     try {
@@ -265,7 +291,13 @@ export function SignalClient() {
               <EmptyState />
             ) : (
               posts.map((post, i) => (
-                <PostCard key={post.id} post={post} delay={i * 0.05} onRefresh={loadData} />
+                <PostCard
+                  key={post.id}
+                  post={post}
+                  delay={i * 0.05}
+                  onRefresh={loadData}
+                  profileSubdomain={profileSubdomain}
+                />
               ))
             )}
           </motion.div>
@@ -289,7 +321,17 @@ export function SignalClient() {
 
 // ── Post Card ────────────────────────────────────────────────────────────────
 
-function PostCard({ post, delay, onRefresh }: { post: SignalPost; delay: number; onRefresh: () => void }) {
+function PostCard({
+  post,
+  delay,
+  onRefresh,
+  profileSubdomain,
+}: {
+  post: SignalPost;
+  delay: number;
+  onRefresh: () => void;
+  profileSubdomain?: string | null;
+}) {
   const age = getPostAge(post.createdAt);
   const goldenRemaining = getGoldenHourRemaining(post.createdAt);
   const publishedVariants = post.variants.filter(v => v.status === 'published');
@@ -401,9 +443,9 @@ function PostCard({ post, delay, onRefresh }: { post: SignalPost; delay: number;
       )}
 
       {/* Summary footer */}
-      <div className="px-5 py-3 bg-gray-50/60 border-t border-gray-100 flex items-center gap-4 text-xs text-gray-500">
+      <div className="px-5 py-3 bg-gray-50/60 border-t border-gray-100 flex items-center gap-3 text-xs text-gray-500 flex-wrap">
         {publishedVariants.length > 0 && (
-          <span className="flex items-center gap-1 text-green-600">
+          <span className="flex items-center gap-1 text-green-600 font-medium">
             <CheckCircle className="w-3.5 h-3.5" />
             {publishedVariants.length} live
           </span>
@@ -421,10 +463,27 @@ function PostCard({ post, delay, onRefresh }: { post: SignalPost; delay: number;
           </span>
         )}
         {post.hookType && (
-          <span className="ml-auto capitalize flex items-center gap-1">
+          <span className="capitalize flex items-center gap-1 text-gray-400">
             <Sparkles className="w-3 h-3" />
             {HOOK_LABELS[post.hookType] || post.hookType}
           </span>
+        )}
+        {publishedVariants.length > 0 && (
+          <a
+            href={`https://wa.me/?text=${encodeURIComponent(
+              `Hey! Check out my latest story across platforms. Pick your favourite to view & support:\n\n👉 ${
+                typeof window !== 'undefined' ? window.location.origin : 'https://unool.co'
+              }/u/${profileSubdomain || 'preview'}?activity=1\n\nThanks! ❤️`
+            )}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold text-white shadow-sm hover:opacity-90 transition-opacity ml-auto cursor-pointer"
+            style={{ background: '#25D366' }}
+            title="Share One Link to WhatsApp (auto-scrolls to recent activity)"
+          >
+            <PlatformLogos.whatsapp.logo size={14} />
+            <span>Share on WhatsApp</span>
+          </a>
         )}
       </div>
     </motion.div>

@@ -59,7 +59,10 @@ export async function GET(
       const postRepo = new SupabasePostRepository();
       const platformRepo = new SupabasePlatformRepository();
 
-      const recentPosts = await postRepo.findByProfileId(profile.id, { status: 'published', limit: 1 });
+      let recentPosts = await postRepo.findByProfileId(profile.id, { status: 'published', limit: 1 });
+      if (recentPosts.length === 0 && profile.workspaceId) {
+        recentPosts = await postRepo.findByWorkspaceId(profile.workspaceId, { status: 'published', limit: 1 });
+      }
       const latestPost = recentPosts[0] ?? null;
 
       if (latestPost) {
@@ -69,8 +72,8 @@ export async function GET(
         const platformItems = await Promise.all(
           publishedVariants.map(async v => {
             const platformPosts = await platformRepo.findPlatformPostsByVariant(v.id);
-            const liveUrl = platformPosts[0]?.platformUrl ?? null;
-            return liveUrl ? { platform: v.platform, url: liveUrl, adaptedContent: v.adaptedContent } : null;
+            const liveUrl = platformPosts[0]?.platformUrl ?? (v as any).platformUrl ?? `https://${v.platform}.com`;
+            return { platform: v.platform, url: liveUrl, adaptedContent: v.adaptedContent };
           })
         );
 

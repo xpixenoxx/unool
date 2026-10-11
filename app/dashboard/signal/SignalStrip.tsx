@@ -87,6 +87,32 @@ export function SignalStrip() {
   const [visible, setVisible] = useState(false);
   const [post, setPost] = useState<SignalStripPost | null>(null);
   const [dismissed, setDismissed] = useState(false);
+  const [subdomain, setSubdomain] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchSub() {
+      try {
+        const res = await fetch('/api/profile', { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.profile?.subdomain) {
+            setSubdomain(data.profile.subdomain);
+            return;
+          }
+        }
+      } catch {}
+      try {
+        const ctxRes = await fetch('/api/user/context', { credentials: 'include' });
+        if (ctxRes.ok) {
+          const ctxData = await ctxRes.json();
+          if (ctxData?.profile?.subdomain) {
+            setSubdomain(ctxData.profile.subdomain);
+          }
+        }
+      } catch {}
+    }
+    fetchSub();
+  }, []);
 
   const handleEvent = useCallback((e: Event) => {
     const data = (e as CustomEvent<SignalStripPost>).detail;
@@ -145,6 +171,13 @@ export function SignalStrip() {
   const allDone = post.platforms.every(p => p.status !== 'pending');
   const anyFailed = post.platforms.some(p => p.status === 'failed');
   const allPublished = post.platforms.every(p => p.status === 'published');
+  const hasAnyLive = post.platforms.some(p => p.status === 'published' || !!p.platformUrl);
+
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://unool.co';
+  const oneLink = subdomain ? `${origin}/u/${subdomain}?activity=1` : `${origin}?activity=1`;
+  const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(
+    `Hey! Just published my latest story across platforms. Pick your favourite to view & support:\n\n👉 ${oneLink}\n\nThanks! ❤️`
+  )}`;
 
   return (
     <AnimatePresence>
@@ -223,6 +256,21 @@ export function SignalStrip() {
                 );
               })}
             </div>
+
+            {/* WhatsApp Share Button */}
+            {hasAnyLive && (
+              <a
+                href={whatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Share One Link to WhatsApp (auto-scrolls to recent activity)"
+                className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white shadow-sm hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                style={{ background: '#25D366' }}
+              >
+                <PlatformLogos.whatsapp className="w-3.5 h-3.5" />
+                <span>WhatsApp</span>
+              </a>
+            )}
 
             {/* Signal link */}
             <Link
