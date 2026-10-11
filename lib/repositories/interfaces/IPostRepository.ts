@@ -91,6 +91,8 @@ export interface CreatePostVariantInput {
   characterCount: number;
   hashtagStrategy: string[];
   firstCommentHint?: string;
+  status?: PostVariantStatus;
+  error?: PostError | null;
 }
 
 export interface UpdatePostVariantInput {

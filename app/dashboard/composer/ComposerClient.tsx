@@ -1067,6 +1067,9 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const getValidPlatformsForMedia = (platforms: PlatformType[]) => {
     return platforms.filter(platform => {
       const limit = PLATFORM_LIMITS[platform] || { maxVideoSizeMB: 5000, maxImageSizeMB: 50 };
+      if (limit.requiresMedia && media.length === 0) {
+        return false;
+      }
       for (const m of media) {
         if (!m.sizeInBytes) continue;
         if (m.type === 'video' && m.sizeInBytes > limit.maxVideoSizeMB * 1024 * 1024) return false;
@@ -1082,9 +1085,17 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       return;
     }
 
-    const platformsToUse = getValidPlatformsForMedia(useSelectedOnly ? selectedPlatforms : connectedPlatforms);
+    const targetPlatforms = useSelectedOnly ? selectedPlatforms : connectedPlatforms;
+    const skippedPlatforms = targetPlatforms.filter(p => PLATFORM_LIMITS[p]?.requiresMedia && media.length === 0);
+    if (skippedPlatforms.length > 0) {
+      toast.info(
+        `${skippedPlatforms.map(p => PLATFORM_CONFIG[p]?.name || p).join(', ')} require(s) an image/video to publish. Attach media to include them.`
+      );
+    }
+
+    const platformsToUse = getValidPlatformsForMedia(targetPlatforms);
     if (platformsToUse.length === 0) {
-      toast.error('No platforms selected or all selected platforms reject this media size.');
+      toast.error('No platforms selected or all selected platforms reject this media.');
       return;
     }
 
@@ -1239,9 +1250,17 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       return;
     }
 
-    const platformsToUse = getValidPlatformsForMedia(useSelectedOnly ? selectedPlatforms : connectedPlatforms);
+    const targetPlatforms = useSelectedOnly ? selectedPlatforms : connectedPlatforms;
+    const skippedPlatforms = targetPlatforms.filter(p => PLATFORM_LIMITS[p]?.requiresMedia && media.length === 0);
+    if (skippedPlatforms.length > 0) {
+      toast.info(
+        `${skippedPlatforms.map(p => PLATFORM_CONFIG[p]?.name || p).join(', ')} require(s) an image/video to publish. Attach media to include them.`
+      );
+    }
+
+    const platformsToUse = getValidPlatformsForMedia(targetPlatforms);
     if (platformsToUse.length === 0) {
-      toast.error('No platforms selected or all selected platforms reject this media size.');
+      toast.error('No platforms selected or all selected platforms reject this media.');
       return;
     }
 

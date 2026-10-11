@@ -134,38 +134,79 @@ export class PinterestAdapter implements PlatformAdapter {
         throw new Error('Pinterest requires at least one media URL (image or video) to create a Pin.');
       }
 
-      // We need a board to pin to. Since Unool doesn't have board selection natively, grab the first available board.
+      // We need a board to pin to. Fetch user boards first.
       const boardsRes = await fetchWithRetry(`${PINTEREST_API_BASE}/boards`, {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
 
       if (!boardsRes.ok) {
-         if (boardsRes.status === 401 || boardsRes.status === 403) {
-            throw new TokenExpiredError('Token expired or invalid', 'pinterest');
-         }
-         throw new Error('Failed to fetch Pinterest boards');
+        const errorText = await boardsRes.text();
+        logger.error('Pinterest boards fetch failed', { errorMessage: errorText, status: boardsRes.status });
+
+        if (boardsRes.status === 401) {
+          throw new TokenExpiredError('Pinterest access token expired or invalid', 'pinterest');
+        }
+
+        let parsedMessage = errorText;
+        try {
+          const parsed = JSON.parse(errorText);
+          parsedMessage = parsed.message || parsed.error || errorText;
+        } catch {}
+
+        throw new Error(`Failed to fetch Pinterest boards (${boardsRes.status}): ${parsedMessage}`);
       }
       
       const boardsData = await boardsRes.json();
-      if (!boardsData.items || boardsData.items.length === 0) {
-         throw new Error('No Pinterest boards found for the user. Please create a board first.');
+      let boardId = boardsData.items?.[0]?.id;
+
+      // If user has no existing boards, attempt to auto-create a default board named "Unool"
+      if (!boardId) {
+        logger.info('No Pinterest boards found, attempting to auto-create default board "Unool"');
+        try {
+          const createBoardRes = await fetchWithRetry(`${PINTEREST_API_BASE}/boards`, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              name: 'Unool',
+              description: 'Pins published via Unool',
+              privacy: 'PUBLIC',
+            }),
+          });
+
+          if (createBoardRes.ok) {
+            const createdBoard = await createBoardRes.json();
+            boardId = createdBoard.id;
+            logger.info('Created default Pinterest board', { boardId });
+          } else {
+            const createErr = await createBoardRes.text();
+            logger.warn('Failed to auto-create Pinterest board', { error: createErr, status: createBoardRes.status });
+          }
+        } catch (err) {
+          logger.warn('Error during Pinterest board creation attempt', { error: err });
+        }
+
+        if (!boardId) {
+          throw new Error('No Pinterest boards found for your account. Please create at least one board on Pinterest first.');
+        }
       }
 
-      const boardId = boardsData.items[0].id;
-
-      let mediaSource: any = {
-        source_type: 'image_url',
-        url: input.mediaUrls[0]
+      const mediaSource = {
+        source_type: 'image_url' as const,
+        url: input.mediaUrls[0],
       };
 
-      // Since Pinterest supports video URLs if you have the right access, you could adapt for videos.
-      // We assume it's going to be valid media format. 
+      // Pinterest title is max 100 characters; description is max 800 characters
+      const title = (input.content.split('\n')[0] || 'Pin').slice(0, 100).trim();
+      const description = input.content.slice(0, 800).trim();
 
       const postBody = {
         board_id: boardId,
-        title: input.content.slice(0, 100), // simple truncation for title, or omit title.
-        description: input.content,
-        media_source: mediaSource
+        title,
+        description,
+        media_source: mediaSource,
       };
 
       const response = await fetchWithRetry(`${PINTEREST_API_BASE}/pins`, {
@@ -181,10 +222,17 @@ export class PinterestAdapter implements PlatformAdapter {
         const error = await response.text();
         logger.error('Pinterest publish failed', { errorMessage: error, status: response.status });
 
-        if (response.status === 401 || response.status === 403) {
-          throw new TokenExpiredError('Token expired or invalid', 'pinterest');
+        if (response.status === 401) {
+          throw new TokenExpiredError('Pinterest access token expired or invalid', 'pinterest');
         }
-        throw new Error(`Pinterest publish failed: ${error}`);
+
+        let parsedMessage = error;
+        try {
+          const parsed = JSON.parse(error);
+          parsedMessage = parsed.message || parsed.error || error;
+        } catch {}
+
+        throw new Error(`Pinterest publish failed (${response.status}): ${parsedMessage}`);
       }
 
       const postData = await response.json();

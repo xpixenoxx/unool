@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ExternalLink, RefreshCw, AlertCircle, CheckCircle, Clock, Zap, TrendingUp, BarChart2, Calendar, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { formatDistanceToNow, format } from 'date-fns';
+import { toast } from 'sonner';
 
 // ── Real platform SVG logos ──────────────────────────────────────────────────
 
@@ -365,9 +366,10 @@ function PostCard({ post, delay, onRefresh }: { post: SignalPost; delay: number;
                     animate={isPending ? { opacity: [1, 0.5, 1] } : {}}
                     transition={{ repeat: Infinity, duration: 1.4 }}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border ${
-                      isFailed ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'
+                      isFailed ? 'bg-red-50 border-red-200 cursor-pointer hover:bg-red-100 transition-colors' : 'bg-gray-50 border-gray-200'
                     }`}
-                    title={isFailed ? (variant.error?.message || 'Failed') : `Publishing to ${cfg?.name}...`}
+                    onClick={isFailed ? () => toast.error(`${cfg?.name || variant.platform} Failed`, { description: variant.error?.message || 'Failed to publish. Check platform requirements or reconnect account.' }) : undefined}
+                    title={isFailed ? `${variant.error?.message || 'Failed'} (Click to view)` : `Publishing to ${cfg?.name}...`}
                   >
                     {Logo && <Logo size={16} />}
                     <span className={`text-xs font-medium ${isFailed ? 'text-red-600' : 'text-gray-500'}`}>
@@ -380,6 +382,21 @@ function PostCard({ post, delay, onRefresh }: { post: SignalPost; delay: number;
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Inline failed variants banner */}
+      {failedVariants.length > 0 && (
+        <div className="px-5 py-2.5 bg-red-50/70 border-t border-red-100 flex flex-col gap-1.5 text-xs text-red-700">
+          {failedVariants.map(fv => (
+            <div key={fv.id} className="flex items-start gap-1.5">
+              <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-semibold">{PlatformLogos[fv.platform]?.name || fv.platform}:</span>{' '}
+                <span>{fv.error?.message || 'Publishing failed. Please reconnect account or verify permissions.'}</span>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

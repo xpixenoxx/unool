@@ -45,6 +45,15 @@ export class PublishService {
       return err(new Error(`Post variant not found: ${input.postVariantId}`));
     }
 
+    // If variant is already marked as failed (e.g., failed media validation), do not attempt to publish
+    if (variant.status === 'failed') {
+      logger.info('Variant is already marked as failed, skipping publish', { variantId: variant.id, platform: variant.platform });
+      return ok({
+        success: false,
+        error: variant.error?.message || 'Variant marked as failed prior to publishing',
+      });
+    }
+
     // Decrypt access token
     let accessToken: string;
     try {
@@ -69,8 +78,8 @@ export class PublishService {
       content: variant.adaptedContent,
       mediaUrls,
       firstComment: variant.firstCommentHint || undefined,
-      platformUserId: connection.platformUserId,
-      username: connection.username,
+      platformUserId: connection.platformUserId || undefined,
+      username: connection.username || undefined,
     };
 
     logger.info('PublishService: prepared publish input', {

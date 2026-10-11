@@ -4,6 +4,7 @@ export interface PlatformLimitConfig {
   maxVideoSizeMB: number;
   maxImageSizeMB: number;
   maxDurationSeconds?: number;
+  requiresMedia?: boolean;
 }
 
 export const PLATFORM_LIMITS: Record<SupportedPlatform, PlatformLimitConfig> = {
@@ -12,9 +13,9 @@ export const PLATFORM_LIMITS: Record<SupportedPlatform, PlatformLimitConfig> = {
   twitter: { maxVideoSizeMB: 512, maxImageSizeMB: 5, maxDurationSeconds: 140 },
   threads: { maxVideoSizeMB: 500, maxImageSizeMB: 8, maxDurationSeconds: 300 }, // 5 mins
   facebook: { maxVideoSizeMB: 1000, maxImageSizeMB: 10, maxDurationSeconds: 14400 }, // 4 hours
-  instagram: { maxVideoSizeMB: 1000, maxImageSizeMB: 8, maxDurationSeconds: 900 }, // 15 mins
-  youtube: { maxVideoSizeMB: 5000, maxImageSizeMB: 10, maxDurationSeconds: 43200 }, // 12 hours
-  pinterest: { maxVideoSizeMB: 2000, maxImageSizeMB: 20, maxDurationSeconds: 900 }, // 15 mins
+  instagram: { maxVideoSizeMB: 1000, maxImageSizeMB: 8, maxDurationSeconds: 900, requiresMedia: true }, // 15 mins
+  youtube: { maxVideoSizeMB: 5000, maxImageSizeMB: 10, maxDurationSeconds: 43200, requiresMedia: true }, // 12 hours
+  pinterest: { maxVideoSizeMB: 2000, maxImageSizeMB: 20, maxDurationSeconds: 900, requiresMedia: true }, // 15 mins
   bluesky: { maxVideoSizeMB: 50, maxImageSizeMB: 1, maxDurationSeconds: 60 },
   mastodon: { maxVideoSizeMB: 40, maxImageSizeMB: 8 },
   slack: { maxVideoSizeMB: 1000, maxImageSizeMB: 1000 },

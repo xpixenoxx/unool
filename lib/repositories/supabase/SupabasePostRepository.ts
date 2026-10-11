@@ -149,7 +149,8 @@ export class SupabasePostRepository implements IPostRepository {
         character_count: input.characterCount,
         hashtag_strategy: input.hashtagStrategy,
         first_comment_hint: input.firstCommentHint,
-        status: 'draft',
+        status: input.status || 'draft',
+        error: input.error || null,
       })
       .select()
       .single();

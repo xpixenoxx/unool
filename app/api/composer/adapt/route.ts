@@ -132,6 +132,7 @@ export async function POST(request: NextRequest) {
         }).filter((m: any) => Boolean(m.url));
 
         const hasVideo = normalizedMedia.some((m: any) => m.type === 'video');
+        const hasImage = normalizedMedia.some((m: any) => m.type === 'image');
 
         if (platform === 'threads' && hasVideo) {
           status = 'failed';
@@ -139,6 +140,9 @@ export async function POST(request: NextRequest) {
         } else if (platform === 'pinterest' && hasVideo) {
           status = 'failed';
           errorObj = { code: 'UNSUPPORTED_MEDIA', message: 'Pinterest does not support video uploads.' };
+        } else if (platform === 'pinterest' && !hasImage) {
+          status = 'failed';
+          errorObj = { code: 'MEDIA_REQUIRED', message: 'Pinterest requires at least one image to create a Pin.' };
         }
 
         const finalMedia = await optimizeMediaForPlatform(normalizedMedia, platform);

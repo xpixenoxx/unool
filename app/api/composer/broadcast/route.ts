@@ -105,6 +105,9 @@ export async function POST(request: NextRequest) {
         } else if (platform === 'pinterest' && hasVideo) {
           status = 'failed';
           errorObj = { code: 'UNSUPPORTED_MEDIA', message: 'Pinterest does not support video uploads.' };
+        } else if (platform === 'pinterest' && !hasImage) {
+          status = 'failed';
+          errorObj = { code: 'MEDIA_REQUIRED', message: 'Pinterest requires at least one image to create a Pin.' };
         }
         // You can add more platform media validations here as needed.
         
