@@ -9,7 +9,7 @@ import {
   Loader2, Linkedin, Twitter, MessageSquare, Facebook, Instagram,
   Phone, CheckCircle, AlertCircle, Unlink2, Link2, Lock, Globe2,
   ArrowRight, Wifi, WifiOff, RefreshCw, Youtube, Cloud, ExternalLink, Image as ImageIcon,
-  MessageCircle, Hash, Twitch, Send, Dribbble, GraduationCap, Store, Gamepad2, Zap, FileText
+  MessageCircle, Hash, Twitch, Send, Dribbble, GraduationCap, Store, Gamepad2, Zap, FileText, Mail
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -28,8 +28,9 @@ import { MeweConnectDialog } from './MeweConnectDialog';
 import { NostrConnectDialog } from './NostrConnectDialog';
 import { MediumConnectDialog } from './MediumConnectDialog';
 import { LemmyConnectDialog } from './LemmyConnectDialog';
+import { ListmonkConnectDialog } from './ListmonkConnectDialog';
 
-const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'dribbble', 'skool', 'whop', 'kick', 'vk', 'warpcast', 'mewe', 'nostr', 'medium', 'lemmy'] as const;
+const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'dribbble', 'skool', 'whop', 'kick', 'vk', 'warpcast', 'mewe', 'nostr', 'medium', 'lemmy', 'listmonk'] as const;
 type Platform = typeof SUPPORTED_PLATFORMS[number];
 
 interface PlatformConnection {
@@ -325,6 +326,17 @@ const PLATFORM_CONFIG: Record<
     available: true,
     customConnect: true,
   },
+  listmonk: {
+    icon: Mail,
+    name: 'Listmonk',
+    shortName: 'Listmonk',
+    color: 'bg-[#0045ff]',
+    hoverBorder: 'hover:border-[#0045ff]/30',
+    description: 'Self-hosted newsletter & mailing lists',
+    audience: 'Newsletter subscribers',
+    available: true,
+    customConnect: true,
+  },
 };
 
 /* ─── Component ────────────────────────────────────────────── */
@@ -368,6 +380,7 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
   const [nostrDialogOpen, setNostrDialogOpen] = useState(false);
   const [mediumDialogOpen, setMediumDialogOpen] = useState(false);
   const [lemmyDialogOpen, setLemmyDialogOpen] = useState(false);
+  const [listmonkDialogOpen, setListmonkDialogOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -450,6 +463,10 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
     }
     if (platform === 'lemmy') {
       setLemmyDialogOpen(true);
+      return;
+    }
+    if (platform === 'listmonk') {
+      setListmonkDialogOpen(true);
       return;
     }
     // Show spinner immediately — gives instant visual feedback before the redirect
@@ -688,6 +705,18 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
           setConnections((prev) => ({
             ...prev,
             lemmy: { platform: 'lemmy', status: 'connected', username },
+          }));
+          window.location.reload();
+        }}
+      />
+      <ListmonkConnectDialog
+        open={listmonkDialogOpen}
+        onClose={() => setListmonkDialogOpen(false)}
+        workspaceId={workspaceId}
+        onSuccess={(username) => {
+          setConnections((prev) => ({
+            ...prev,
+            listmonk: { platform: 'listmonk', status: 'connected', username },
           }));
           window.location.reload();
         }}

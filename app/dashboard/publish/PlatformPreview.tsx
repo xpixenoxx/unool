@@ -2,9 +2,9 @@
 
 import React from 'react';
 
-type Platform = 'linkedin' | 'x' | 'threads' | 'manual' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'slack' | 'mastodon' | 'twitch' | 'telegram' | 'discord' | 'dribbble' | 'skool' | 'whop' | 'kick' | 'vk' | 'warpcast' | 'mewe' | 'nostr' | 'medium' | 'lemmy';
+export type Platform = 'linkedin' | 'x' | 'threads' | 'manual' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'slack' | 'mastodon' | 'twitch' | 'telegram' | 'discord' | 'dribbble' | 'skool' | 'whop' | 'kick' | 'vk' | 'warpcast' | 'mewe' | 'nostr' | 'medium' | 'lemmy' | 'listmonk';
 
-interface PlatformPreviewProps {
+export interface PlatformPreviewProps {
   platform: Platform;
   content: string;
   mediaUrls?: { url: string; type: 'image' | 'video'; alt?: string }[];
@@ -334,6 +334,46 @@ function PinterestPreview({ content, mediaUrls, username, displayName }: Omit<Pl
 }
 
 
+/* ─── Listmonk (Newsletter Campaign) ─── */
+function ListmonkPreview({ content, mediaUrls, username, displayName }: Omit<PlatformPreviewProps, 'platform'>) {
+  const lines = content.split('\n');
+  const subject = lines[0]?.replace(/^#+\s*/, '') || 'Newsletter Campaign';
+  const body = lines.slice(1).join('\n').trim() || content;
+
+  return (
+    <div style={{ background: '#ffffff', color: '#1a1a1a', border: '1px solid #e2e8f0', borderRadius: 12, overflow: 'hidden', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+      <div style={{ background: '#f8fafc', padding: '12px 16px', borderBottom: '1px solid #e2e8f0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: '#0045ff', background: '#eff6ff', padding: '2px 8px', borderRadius: 6 }}>
+            Listmonk Campaign
+          </span>
+          <span style={{ fontSize: 11, color: '#64748b' }}>To: [Subscriber List]</span>
+        </div>
+        <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 4 }}>
+          {subject}
+        </div>
+        <div style={{ fontSize: 12, color: '#64748b', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span>From:</span>
+          <span style={{ fontWeight: 600, color: '#334155' }}>{displayName || username || 'Listmonk'}</span>
+        </div>
+      </div>
+      <div style={{ padding: '16px 20px', fontSize: 14, lineHeight: '24px', color: '#334155', maxHeight: 280, overflowY: 'auto' }}>
+        <PostContent text={body} />
+        {mediaUrls && mediaUrls.length > 0 && (
+          <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {mediaUrls.map((m, i) => (
+              <img key={i} src={m.url} alt={m.alt || 'Campaign media'} style={{ maxWidth: '100%', borderRadius: 8, border: '1px solid #e2e8f0' }} />
+            ))}
+          </div>
+        )}
+      </div>
+      <div style={{ background: '#f8fafc', padding: '8px 16px', borderTop: '1px solid #f1f5f9', fontSize: 11, color: '#94a3b8', textAlign: 'center' }}>
+        Unsubscribe · Powered by Listmonk
+      </div>
+    </div>
+  );
+}
+
 /* ─── Manual (generic) ─── */
 function ManualPreview({ content }: Omit<PlatformPreviewProps, 'platform'>) {
   return (
@@ -374,6 +414,7 @@ export function PlatformPreview({ platform, content, mediaUrls, username, displa
     nostr: <ManualPreview {...props} />,
     medium: <ManualPreview {...props} />,
     lemmy: <ManualPreview {...props} />,
+    listmonk: <ListmonkPreview {...props} />,
     manual: <ManualPreview {...props} />,
   };
 
