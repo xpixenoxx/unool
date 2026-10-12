@@ -55,8 +55,14 @@
 
   /* Selection */
   ::selection {
-    background-color: color-mix(in oklch, var(--primary) 20%, transparent);
-    color: var(--primary-foreground);
+    background-color: oklch(0.60 0.20 195 / 0.35);
+    color: inherit;
+  }
+
+  textarea::selection,
+  input::selection {
+    background-color: #2563eb;
+    color: #ffffff;
   }
 
   /* Scrollbar styling */

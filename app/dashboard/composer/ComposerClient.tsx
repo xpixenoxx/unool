@@ -622,12 +622,16 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   };
 
   const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
+    if (e.dataTransfer.types && Array.from(e.dataTransfer.types).includes('Files')) {
+      e.preventDefault();
+      setIsDragging(true);
+    }
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
+    if (e.currentTarget && e.relatedTarget && e.currentTarget.contains(e.relatedTarget as Node)) {
+      return;
+    }
     setIsDragging(false);
   };
 
@@ -1182,7 +1186,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   placeholder="What do you want to share? Drag and drop an image here, or type your exact text."
                   value={quickContent}
                   onChange={e => setQuickContent(e.target.value)}
-                  className={cn("min-h-[140px] resize-none", isDragging && "bg-transparent border-dashed border-primary")}
+                  className={cn("min-h-[140px] resize-none select-text", isDragging && "bg-transparent border-dashed border-primary")}
                   rows={6}
                 />
                 <div className="flex items-center justify-between flex-wrap gap-3">
@@ -1293,7 +1297,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                     placeholder="e.g. 'Just launched v2 of our product...' (Drag and drop media here to attach it!)"
                     value={sourceContent}
                     onChange={e => setSourceContent(e.target.value)}
-                    className={cn("min-h-[140px] resize-none", isDragging && "bg-transparent border-dashed border-primary")}
+                    className={cn("min-h-[140px] resize-none select-text", isDragging && "bg-transparent border-dashed border-primary")}
                     rows={6}
                   />
 
@@ -1515,11 +1519,12 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                                   value={draft?.content ?? ''}
                                   onChange={e => updateDraft(platform, e.target.value)}
                                   className={cn(
-                                    'min-h-[160px] resize-none font-mono text-sm',
-                                    isOverLimit && 'border-destructive focus-visible:ring-destructive'
+                                    'min-h-[160px] resize-none font-mono text-sm select-text',
+                                    isOverLimit && 'border-destructive focus-visible:ring-destructive',
+                                    draft?.status !== 'ready' && 'opacity-60 cursor-not-allowed'
                                   )}
                                   rows={7}
-                                  disabled={draft?.status !== 'ready'}
+                                  readOnly={draft?.status !== 'ready'}
                                   placeholder={
                                     draft?.status === 'generating' ? 'Generating your draft…' :
                                     draft?.status === 'idle' ? 'Click "Generate Platform Drafts" to start' :
