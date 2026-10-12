@@ -107,6 +107,8 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
   const [amplifyOpen, setAmplifyOpen] = useState(false);
   const [profileSubdomain, setProfileSubdomain] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [dirtyDrafts, setDirtyDrafts] = useState<Record<string, boolean>>({});
+  const [savingDraft, setSavingDraft] = useState<Record<string, boolean>>({});
   const springConfig: Transition = reducedMotion ? { type: 'tween', duration: 0.01 } : spring.standard;
 
   const fetchSubdomain = useCallback(async () => {
@@ -209,6 +211,58 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
 
   const updateDraft = (platform: Platform, content: string) => {
     setDrafts(d => d.map(d => d.platform === platform ? { ...d, content, characterCount: content.length } : d));
+    setDirtyDrafts(prev => ({ ...prev, [platform]: true }));
+  };
+
+  // Save a draft variant to the database
+  const saveDraft = async (platform: Platform) => {
+    const draft = drafts.find(d => d.platform === platform);
+    if (!draft || !draft.variantId) return;
+
+    setSavingDraft(prev => ({ ...prev, [platform]: true }));
+    try {
+      const res = await fetch(`/api/publish/variants/${draft.variantId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ content: draft.content, hashtags: draft.hashtags }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Save failed');
+      }
+
+      setDirtyDrafts(prev => ({ ...prev, [platform]: false }));
+      toast.success(`${PLATFORM_CONFIG[platform]?.name || platform} draft saved`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Save failed');
+    } finally {
+      setSavingDraft(prev => ({ ...prev, [platform]: false }));
+    }
+  };
+
+  // Delete a draft variant
+  const deleteDraft = async (platform: Platform) => {
+    const draft = drafts.find(d => d.platform === platform);
+    if (!draft || !draft.variantId) return;
+
+    try {
+      const res = await fetch(`/api/publish/variants/${draft.variantId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Delete failed');
+      }
+
+      setDrafts(d => d.filter(d => d.platform !== platform));
+      toast.success(`${PLATFORM_CONFIG[platform]?.name || platform} draft removed`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Delete failed');
+    }
   };
 
   const handlePublish = async () => {
@@ -612,6 +666,39 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
                             placeholder={isFailed ? 'Publish failed' : 'Edit your draft'}
                           />
                         )}
+
+                        {/* Save & Delete controls for drafts */}
+                        {!isPublished && !isFailed && (
+                          <Flex gap={2} className="mt-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => saveDraft(draft.platform)}
+                              disabled={savingDraft[draft.platform] || !dirtyDrafts[draft.platform]}
+                              className="gap-1"
+                            >
+                              {savingDraft[draft.platform] ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <CircleCheckBig className="h-3 w-3" />
+                              )}
+                              {dirtyDrafts[draft.platform] ? 'Save Changes' : 'Saved'}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                if (window.confirm(`Remove ${config.name} draft?`)) {
+                                  deleteDraft(draft.platform);
+                                }
+                              }}
+                              className="gap-1 text-destructive hover:text-destructive"
+                            >
+                              <X className="h-3 w-3" />
+                              Remove
+                            </Button>
+                          </Flex>
+                        )}
                       </>
                     )}
 
@@ -679,11 +766,14 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
                     {!isPublished && !isFailed && (
                       <>
                         <Divider className="my-4" />
-                        <Flex wrap gap={2}>
-                          <Button variant="ghost" size="sm" disabled>
-                            <CheckCircle className="mr-1 h-3 w-3" />
+                        <Flex wrap gap={2} center>
+                          <CheckCircle className="h-3.5 w-3.5 text-green-600" />
+                          <Text size="sm" className="text-green-700 font-medium">
                             Ready to publish
-                          </Button>
+                            {dirtyDrafts[draft.platform] && (
+                              <span className="text-amber-600 ml-1">(unsaved changes)</span>
+                            )}
+                          </Text>
                         </Flex>
                       </>
                     )}

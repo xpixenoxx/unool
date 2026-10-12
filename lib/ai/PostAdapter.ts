@@ -16,149 +16,289 @@ export const AdaptedPostSchema = z.object({
 
 export type AdaptedPost = z.infer<typeof AdaptedPostSchema>;
 
-export const PLATFORM_SPECS: Record<PlatformType, { maxChars: number; style: string; hashtagStrategy: string }> = {
+/** Schema for multi-post sequence generation (Flight Plan) */
+export const PostSequenceSchema = z.object({
+  posts: z.array(z.object({
+    dayIndex: z.number(),
+    angle: z.string().describe('The narrative angle for this post (e.g. "personal story", "data insight", "question", "actionable tip", "call to action")'),
+    content: z.string().min(1),
+    characterCount: z.number(),
+    hashtags: z.array(z.string()).max(10),
+    mediaSuggestions: z.array(z.string()).max(3),
+    firstCommentHint: z.string().nullable().optional(),
+    hookSummary: z.string().describe('One-line summary of the hook/opening used'),
+  })),
+});
+
+export type PostSequence = z.infer<typeof PostSequenceSchema>;
+
+export const PLATFORM_SPECS: Record<PlatformType, { maxChars: number; style: string; hashtagStrategy: string; tone: string; audience: string; seoFocus: string }> = {
   linkedin: {
     maxChars: 3000,
-    style: 'Professional, storytelling, value-driven. Use line breaks. Include 3-5 relevant hashtags at the end.',
-    hashtagStrategy: 'Industry-specific, professional tags (#SaaS #Leadership #DataEngineering)'
-  },
-  bluesky: {
-    maxChars: 300,
-    style: 'Casual, direct, web-culture aware, no-nonsense',
-    hashtagStrategy: '1-2 inline hashtags if relevant, otherwise none',
-  },
-  youtube: {
-    maxChars: 5000,
-    style: 'Engaging, descriptive, SEO-optimized. Encourage likes and subscriptions.',
-    hashtagStrategy: '3-5 broad and niche hashtags',
-  },
-  pinterest: {
-    maxChars: 500,
-    style: 'Inspiring, positive, actionable.',
-    hashtagStrategy: '2-3 searchable keywords/tags',
+    style: 'Professional storytelling with clear line breaks. Open with a bold hook (provocative statement, surprising stat, or personal admission). Use short paragraphs (1-2 sentences each). Build a narrative arc: hook → context → insight → takeaway. End with a soft CTA or reflective question.',
+    hashtagStrategy: 'Place 3-5 niche-specific, discoverable hashtags at the very end. Avoid generic tags like #business or #success. Use tags that LinkedIn professionals actually search for (e.g. #ProductLedGrowth #RevenueOps #StartupFinance).',
+    tone: 'Thoughtful, authoritative but approachable. First-person. Avoid corporate jargon. Write like a respected peer sharing hard-won insight.',
+    audience: 'Professionals, decision-makers, industry peers. They scroll fast — the first line determines everything.',
+    seoFocus: 'Use industry terminology that professionals search for. Include specific outcomes, metrics, or frameworks by name.',
   },
   x: {
     maxChars: 280,
-    style: 'Concise, punchy, conversational. Thread format if needed. 1-3 hashtags max.',
-    hashtagStrategy: 'Trending, concise tags (#SaaS #AI #Startup)'
+    style: 'Ultra-concise, punchy, and opinionated. Every word must earn its place. Use strong verbs. No filler. The entire post is the hook.',
+    hashtagStrategy: '0-2 hashtags only, inline if used. Prioritize trending or niche-community tags. Naked URLs get deprioritized — use text-only engagement.',
+    tone: 'Sharp, direct, conversational. Can be provocative or contrarian. Think "tweet that makes someone stop scrolling".',
+    audience: 'Fast-scrolling, opinionated, engagement-driven users. They reward hot takes, thread starters, and quotable lines.',
+    seoFocus: 'Use naturally searchable phrases. X search rewards conversational keyword usage, not keyword stuffing.',
   },
   threads: {
     maxChars: 500,
-    style: 'Conversational, personal, behind-the-scenes. More casual than LinkedIn. 2-5 hashtags.',
-    hashtagStrategy: 'Community-focused tags (#BuildInPublic #IndieHackers #FounderJourney)'
+    style: 'Conversational and personal. Behind-the-scenes, real-talk tone. Slightly longer than X but still concise. Can include 1-2 line breaks for emphasis.',
+    hashtagStrategy: '2-4 community-focused hashtags at the end. Tags like #BuildInPublic #IndieHackers #FounderLife work well on Threads.',
+    tone: 'Casual, authentic, and relatable. Like texting a smart friend about what you learned today.',
+    audience: 'Instagram-adjacent audience exploring text content. They favor authenticity over polish.',
+    seoFocus: 'Focus on lifestyle and builder community language. Threads discovery is hashtag-driven.',
   },
   facebook: {
     maxChars: 5000,
-    style: 'Engaging, community-focused, conversational. Can include emojis. 2-5 hashtags. Good for longer-form posts with media.',
-    hashtagStrategy: 'Broader audience tags (#SmallBusiness #Community #Entrepreneurship)'
+    style: 'Engaging, community-oriented. Can be longer-form with a personal story arc. Use emojis sparingly for warmth. Encourage sharing and tagging. Ask questions to drive comments.',
+    hashtagStrategy: '2-4 broad audience hashtags. Facebook users rarely search hashtags but they help with categorization.',
+    tone: 'Warm, inclusive, community-focused. Write as if sharing with friends and family who also happen to be interested in your topic.',
+    audience: 'Broad, diverse, community-driven. Posts that feel shareable and relatable perform best.',
+    seoFocus: 'Use natural language that people use in everyday conversations. Focus on shareability and emotional resonance.',
   },
-
   instagram: {
     maxChars: 2200,
-    style: 'Visual-first, aspirational, lifestyle-oriented. Heavy emoji use. 5-15 hashtags in first comment. Great for carousel, Reels, Stories.',
-    hashtagStrategy: 'Niche + broad tags (#CreatorEconomy #PersonalBrand #MarketingTips)'
+    style: 'Visual-first caption. The image/video carries the post — the caption adds depth. Open with a hook that makes people tap "more". Use line breaks, emojis, and lists for scannability. End with a CTA (save this, share this, comment below).',
+    hashtagStrategy: '8-15 hashtags in the first comment or at the end. Mix broad (#Entrepreneurship) with niche (#SaaSFounder) and community (#BuildInPublic) tags.',
+    tone: 'Aspirational but authentic. Lifestyle-meets-value. Personal stories with professional lessons.',
+    audience: 'Visual learners, lifestyle-focused, younger demographic. They save educational content and share relatable content.',
+    seoFocus: 'Instagram SEO is hashtag + alt-text + keyword-rich captions. Use searchable terms naturally in the caption.',
+  },
+  youtube: {
+    maxChars: 5000,
+    style: 'SEO-optimized description. Start with a hook summary (2-3 sentences). Include timestamps if relevant. Add links and resources. End with subscribe CTA.',
+    hashtagStrategy: '3-5 broad and niche hashtags above the fold.',
+    tone: 'Engaging, enthusiastic, educational. Write as if introducing the video to someone who found it via search.',
+    audience: 'Intentional viewers who searched for this topic. They want clear value and structured information.',
+    seoFocus: 'YouTube is a search engine. Front-load keywords. Use exact phrases people search for.',
+  },
+  pinterest: {
+    maxChars: 500,
+    style: 'Inspiring, positive, actionable. Pin descriptions should be search-optimized mini-guides.',
+    hashtagStrategy: '2-3 searchable keywords/tags that people search on Pinterest.',
+    tone: 'Helpful, inspiring, positive. Write like a recommendation to a friend.',
+    audience: 'Planners, visual searchers, DIY enthusiasts. They search with intent to act.',
+    seoFocus: 'Pinterest is a visual search engine. Use exact search phrases. Describe what the pin teaches or shows.',
+  },
+  bluesky: {
+    maxChars: 300,
+    style: 'Casual, direct, web-culture aware. Think early Twitter vibes — authentic, no-BS, community-driven.',
+    hashtagStrategy: '0-2 inline hashtags if relevant, otherwise none. Bluesky culture is anti-spam.',
+    tone: 'Genuine, witty, unpretentious. The audience values substance over performance.',
+    audience: 'Tech-savvy, early adopters, ex-Twitter users who value authentic discourse.',
+    seoFocus: 'Bluesky feeds are algorithm-light. Focus on engagement-worthy content over discoverability.',
   },
   mastodon: {
     maxChars: 500,
-    style: 'Authentic, community-focused, no algorithmic gaming.',
-    hashtagStrategy: '3-4 highly relevant tags inline or at the end.'
+    style: 'Authentic, community-focused, no algorithmic gaming. Add content warnings where appropriate. Markdown-friendly.',
+    hashtagStrategy: '3-4 highly relevant tags inline or at the end. Mastodon hashtags ARE the discovery system.',
+    tone: 'Thoughtful, community-minded, anti-corporate. Write for the fediverse ethos.',
+    audience: 'Privacy-conscious, community-driven, anti-big-tech. They value substance and respect for norms.',
+    seoFocus: 'Hashtags are the ONLY discovery mechanism on Mastodon. Choose highly specific, searchable tags.',
   },
   slack: {
     maxChars: 40000,
-    style: 'Professional, direct, clear formatting with bullets if needed. Action-oriented.',
-    hashtagStrategy: 'No hashtags, use clear headlines.'
+    style: 'Professional, direct, clear formatting. Use bullets, bold headers, and concise paragraphs. Action-oriented.',
+    hashtagStrategy: 'No hashtags. Use clear headlines and structured formatting.',
+    tone: 'Professional but collegial. Like an internal memo that people actually want to read.',
+    audience: 'Coworkers, community members. They are busy and want scannable content.',
+    seoFocus: 'Not applicable — focus on clarity and action items.',
   },
   twitch: {
     maxChars: 500,
-    style: 'Short, engaging, hype-building for streams.',
-    hashtagStrategy: 'No hashtags usually, but inline keywords work.'
+    style: 'Short, engaging, hype-building. Use emotes/emojis. Create urgency for streams.',
+    hashtagStrategy: 'No hashtags usually. Inline keywords work better.',
+    tone: 'High-energy, casual, gamer/creator culture. Excitement and community-first.',
+    audience: 'Live stream viewers, gaming community. They want to feel FOMO.',
+    seoFocus: 'Use stream-relevant keywords. Mention games, topics, or events by name.',
   },
   telegram: {
     maxChars: 4096,
-    style: 'Direct, clear, often used for announcements or updates. Line breaks for readability.',
-    hashtagStrategy: 'Minimal hashtags, 1-2 if necessary for categorization.'
+    style: 'Direct, clear, announcement-style. Use line breaks for readability. Can include formatting (bold, italic).',
+    hashtagStrategy: 'Minimal — 1-2 categorization tags if necessary.',
+    tone: 'Informative, direct, no-nonsense. Like a trusted news source.',
+    audience: 'Subscribers who opted in for updates. They expect value in every message.',
+    seoFocus: 'Not search-driven. Focus on clarity and engagement within the channel.',
   },
   discord: {
     maxChars: 2000,
-    style: 'Casual, community-oriented, clear formatting. Use markdown formatting.',
-    hashtagStrategy: 'No hashtags usually.'
+    style: 'Casual, community-oriented. Use markdown formatting (bold, headers, code blocks). Can be conversational.',
+    hashtagStrategy: 'No hashtags. Use channel-appropriate formatting.',
+    tone: 'Casual, friendly, community-member tone. Like chatting in a group.',
+    audience: 'Community members in a specific server. They want relevant, engaging content.',
+    seoFocus: 'Not applicable. Focus on community engagement.',
   },
   skool: {
     maxChars: 10000,
-    style: 'Educational, community-building, conversational. Use paragraphs and lists.',
-    hashtagStrategy: 'No hashtags usually.'
+    style: 'Educational, community-building. Use paragraphs, lists, and actionable steps. Drive discussion.',
+    hashtagStrategy: 'No hashtags. Use clear structure and questions to drive engagement.',
+    tone: 'Teacher/mentor tone. Warm, educational, encouraging participation.',
+    audience: 'Community learners who joined for education and networking.',
+    seoFocus: 'Internal search — use topic keywords that community members would search for.',
   },
   whop: {
     maxChars: 10000,
-    style: 'Value-driven, engaging, product-focused. Professional yet inviting.',
-    hashtagStrategy: 'No hashtags usually.'
+    style: 'Value-driven, engaging, product-focused. Professional yet inviting. Highlight what members get.',
+    hashtagStrategy: 'No hashtags usually.',
+    tone: 'Professional, value-focused. Like a premium product announcement.',
+    audience: 'Paying members or prospects. They want clear value propositions.',
+    seoFocus: 'Focus on benefits and outcomes.',
   },
   kick: {
     maxChars: 10000,
-    style: 'Hype-building, high-energy, stream-oriented.',
-    hashtagStrategy: 'No hashtags usually.'
+    style: 'Hype-building, high-energy, stream-oriented. Create excitement.',
+    hashtagStrategy: 'No hashtags usually.',
+    tone: 'High-energy, creator-focused, entertainment-driven.',
+    audience: 'Live stream viewers, gaming community.',
+    seoFocus: 'Use stream-relevant keywords and event names.',
   },
   vk: {
     maxChars: 4096,
-    style: 'Community-oriented, engaging, well-formatted text. Similar to Facebook but tailored for CIS audience.',
-    hashtagStrategy: '1-3 relevant hashtags'
+    style: 'Community-oriented, engaging, well-formatted. Use emojis moderately. Similar to Facebook but for CIS audience.',
+    hashtagStrategy: '1-3 relevant hashtags in Russian or English depending on audience.',
+    tone: 'Friendly, community-driven. Adapt language for CIS audience sensibility.',
+    audience: 'Russian-speaking community. Values authentic, relatable content.',
+    seoFocus: 'Use keywords relevant to the CIS market.',
   },
   warpcast: {
     maxChars: 320,
-    style: 'Web3 native, casual, thoughtful, engaging. Similar to Twitter/X but tailored for the Farcaster community.',
-    hashtagStrategy: '1-2 relevant hashtags if any'
+    style: 'Web3 native, casual, thoughtful. Like X but for the Farcaster crypto/tech community.',
+    hashtagStrategy: '0-2 relevant tags if any. Warpcast is conversation-driven, not hashtag-driven.',
+    tone: 'Tech-forward, crypto-literate, intellectual curiosity. Avoid shilling.',
+    audience: 'Web3 builders, crypto enthusiasts, tech thinkers.',
+    seoFocus: 'Use web3/crypto terminology naturally. Channel-based discovery matters more.',
   },
   mewe: {
     maxChars: 4000,
-    style: 'Privacy-focused, conversational, and direct. Ideal for community interactions and sharing with close-knit audiences.',
-    hashtagStrategy: '1-3 relevant hashtags',
+    style: 'Privacy-focused, conversational, and direct. Ideal for close-knit community sharing.',
+    hashtagStrategy: '1-3 relevant hashtags.',
+    tone: 'Personal, private-community friendly. Anti-surveillance, pro-authentic.',
+    audience: 'Privacy-conscious users, close communities.',
+    seoFocus: 'Focus on community engagement rather than public discovery.',
   },
   nostr: {
     maxChars: 65535,
-    style: 'Decentralized, open, free speech oriented. Markdown supported.',
-    hashtagStrategy: '1-3 relevant tags or raw text',
+    style: 'Decentralized, open, free speech oriented. Markdown supported. Can be long-form.',
+    hashtagStrategy: '1-3 relevant tags or raw text.',
+    tone: 'Free-thinking, decentralization-minded. Can be philosophical or technical.',
+    audience: 'Decentralization advocates, crypto/privacy community.',
+    seoFocus: 'Relay-based discovery. Use relevant tags for categorization.',
   },
   medium: {
     maxChars: 100000,
-    style: 'Long-form, well-structured, formatted text. Suitable for articles and essays.',
-    hashtagStrategy: '3-5 relevant tags at the end',
+    style: 'Long-form article. Well-structured with headings, subheadings, pull quotes. Opening paragraph must hook. Use data, anecdotes, and clear takeaways.',
+    hashtagStrategy: '3-5 topic tags at the end (these are Medium "tags" that drive distribution).',
+    tone: 'Authoritative, well-researched, journalistic. Write like a published author.',
+    audience: 'Readers who chose to read long-form. They expect depth, originality, and clear structure.',
+    seoFocus: 'Medium ranks on Google. Use SEO-optimized headlines and front-load keywords in the first paragraph.',
   },
   lemmy: {
     maxChars: 10000,
-    style: 'Engaging, community-focused, thoughtful. Markdown supported with headings and links.',
-    hashtagStrategy: 'No hashtags or minimal inline tags; community-driven discussion',
+    style: 'Engaging, community-focused, thoughtful. Markdown supported with headings and links. Reddit-like culture.',
+    hashtagStrategy: 'No hashtags or minimal inline tags. Community-driven discussion.',
+    tone: 'Thoughtful, discussion-oriented. Like a well-written Reddit post.',
+    audience: 'Fediverse community members. Value substance and good-faith discussion.',
+    seoFocus: 'Community-based discovery. Use descriptive titles and relevant keywords.',
   },
   listmonk: {
     maxChars: 100000,
-    style: 'Newsletter format, engaging, informative, structured with clear subject and Markdown formatting (headings, bullet points, links).',
-    hashtagStrategy: 'No hashtags in subject, optional topic tags at the end',
+    style: 'Newsletter format: compelling subject line, clear structure with headings, bullet points, links. Personal and valuable.',
+    hashtagStrategy: 'No hashtags in body. Optional topic tags at the end.',
+    tone: 'Personal, direct-to-reader. Like a letter from a trusted expert.',
+    audience: 'Email subscribers who opted in. They expect consistent value and respect for their inbox.',
+    seoFocus: 'Subject line is everything. Front-load the value proposition.',
   },
   hashnode: {
     maxChars: 100000,
-    style: 'Developer-focused, technical, in-depth Markdown formatting (headings, code blocks, bullet points, callouts). Clean educational and engineering style.',
-    hashtagStrategy: '1-5 relevant technical tags (#webdev #javascript #programming #ai #devops)',
+    style: 'Developer-focused technical article. Markdown with code blocks, headings, callouts. Clean educational style.',
+    hashtagStrategy: '1-5 relevant technical tags (#webdev #javascript #programming #ai #devops).',
+    tone: 'Technical, educational, developer-to-developer. Clear, well-structured, with working code examples.',
+    audience: 'Developers and engineers. They want actionable technical content.',
+    seoFocus: 'Hashnode articles rank on Google. Use SEO-friendly titles and front-load technical keywords.',
   },
   devto: {
     maxChars: 100000,
     style: 'Developer-focused, practical, hands-on technical Markdown format (H1/H2 headings, clean code snippets with language syntax, actionable takeaways). Welcoming, community-first engineering voice for DEV Community.',
     hashtagStrategy: '1-4 dev tags (#webdev #javascript #programming #beginners #devops)',
+    tone: 'Community-first, welcoming, practical developer voice. Clear, encouraging, with real-world code.',
+    audience: 'Software developers from junior to senior looking for practical tutorials, engineering architecture, and career insights.',
+    seoFocus: 'Google and DEV tag feeds. Strong descriptive title with relevant engineering keywords.',
   },
 };
 
-const POST_ADAPTER_PROMPT = `
-You are an expert social media content adapter. Your job is to take a source piece of content and adapt it for a specific platform.
+/* ─── Enhanced Prompt: Single Post Adaptation ─── */
 
-Given:
-- Source content (what the user wrote)
-- Target platform specifications
+const POST_ADAPTER_PROMPT = `You are a world-class social media strategist and content writer. Your job is NOT to copy-paste or lightly reword — your job is to genuinely TRANSFORM content for maximum impact on a specific platform.
 
-Adapt the content following the platform's style guidelines. Preserve the core message but optimize for the platform's audience, character limits, and engagement patterns.
+## Your Core Principles:
+1. **Preserve intent, transform execution.** The user's core message must survive, but HOW it's delivered must feel native to the platform.
+2. **Every post needs a hook.** The first line/sentence must be scroll-stopping. Use a provocative question, a surprising stat, a bold claim, or a personal confession — whatever fits the platform.
+3. **Structure for the platform.** Short-form platforms need punchy, complete thoughts. Long-form platforms need clear narrative arcs with sections.
+4. **Social SEO over generic keywords.** Use the specific terminology that the platform's audience actually searches for and engages with. No generic hashtags.
+5. **Complete thoughts only.** Every post must convey a full, meaningful idea. Never end mid-thought or with "..."
+6. **Sound native.** A LinkedIn post should NEVER read like a tweet. A tweet should NEVER read like a newsletter. Each must feel like it was written by someone who lives on that platform.
 
-Return ONLY valid JSON matching the schema.
-`;
+## What makes GREAT adaptation:
+- Restructuring paragraphs into the platform's preferred format
+- Creating a platform-appropriate opening hook
+- Using platform-native language and conventions
+- Choosing hashtags that real people actually follow and search for
+- Suggesting engagement-driving first comments
+- Respecting character limits while maximizing value
+
+## What makes BAD adaptation (NEVER do this):
+- Copy-pasting the source with minor word changes
+- Adding generic hashtags like #motivation #success #business
+- Truncating content mid-sentence to fit limits
+- Using the same structure/format across all platforms
+- Writing in a generic "social media" voice
+
+Return ONLY valid JSON matching the schema.`;
+
+/* ─── Enhanced Prompt: Multi-Post Sequence (Flight Plan) ─── */
+
+const SEQUENCE_PROMPT = `You are a world-class content strategist creating a multi-day publishing plan from a single piece of source content.
+
+## Your Mission:
+Transform one piece of content into a SEQUENCE of posts where:
+1. Each post stands alone as a complete, valuable piece of content
+2. Each post uses a DIFFERENT narrative angle (story, data, question, tip, challenge, etc.)
+3. The sequence builds momentum — each post naturally follows from the previous
+4. Early posts spark curiosity, middle posts deliver insight, later posts drive action
+5. No two posts should feel repetitive or redundant
+
+## Sequence Structure Rules:
+- **Post 1**: The hook post — introduce the topic with a bold claim, question, or story that creates curiosity
+- **Posts 2-N-1**: The value posts — each explores a different facet, angle, or supporting insight. Vary between personal stories, data points, actionable tips, and counterintuitive observations
+- **Final Post**: The closer — synthesize the journey, deliver the key takeaway, include a soft call-to-action
+
+## Per-Post Requirements:
+- Each post MUST be a complete thought (never "continued from yesterday...")
+- Each post should work even if someone sees ONLY that one post
+- Vary the opening hooks — don't start every post the same way
+- Content must fit within the platform's character limit
+- Hashtags should be specific to the day's angle, not repeated across all days
+
+## What to AVOID:
+- Splitting sentences across posts
+- Repeating the same hashtags on every post
+- Generic "Day 1 of X" framing unless it genuinely adds value
+- Posts that are just summaries of the source without new insight
+- Content that only makes sense if you read the whole sequence
+
+Return ONLY valid JSON matching the schema.`;
 
 export class PostAdapter {
-  private static readonly PROMPT_VERSION = 'post-adapter-v1';
+  private static readonly PROMPT_VERSION = 'post-adapter-v2';
 
   static async adaptForPlatform(
     sourceContent: string,
@@ -173,28 +313,33 @@ export class PostAdapter {
 
       const prompt = `${POST_ADAPTER_PROMPT}
 
-**Platform: ${platform.toUpperCase()}**
-Max characters: ${spec.maxChars}
-Style: ${spec.style}
-Hashtag strategy: ${spec.hashtagStrategy}
+**Target Platform: ${platform.toUpperCase()}**
+- Max characters: ${spec.maxChars}
+- Writing style: ${spec.style}
+- Tone: ${spec.tone}
+- Target audience: ${spec.audience}
+- Hashtag strategy: ${spec.hashtagStrategy}
+- SEO focus: ${spec.seoFocus}
 
-**Source Content:**
+**Source Content (from the author):**
 ${sourceContent}
 
-${context ? `**Author Context:** ${context.profileName} - ${context.profileHeadline}` : ''}
+${context?.profileName ? `**Author Context:** ${context.profileName}${context.profileHeadline ? ` — ${context.profileHeadline}` : ''}` : ''}
 
-**Requirements:**
-1. Adapt the content for ${platform} keeping the core message
-2. Stay within ${spec.maxChars} characters
-3. Include appropriate hashtags (${spec.hashtagStrategy})
-4. Suggest media/types if relevant
-5. For LinkedIn/X, suggest a first comment hint (key insight, link, or question)`;
+**Your task:**
+1. TRANSFORM (not copy) this content for ${platform}
+2. Create a platform-native opening hook that stops the scroll
+3. Restructure the content to match ${platform}'s preferred format and reading patterns
+4. Stay within ${spec.maxChars} characters
+5. Choose ${spec.hashtagStrategy.includes('No hashtags') ? 'zero hashtags' : 'specific, discoverable hashtags'} that real ${platform} users follow
+6. ${platform === 'linkedin' || platform === 'x' ? 'Suggest a first comment that drives engagement (a follow-up question, additional resource, or contrarian angle)' : 'If appropriate, suggest a first comment hint'}
+7. The result must sound like it was written by a native ${platform} user, NOT like a reworded version of the source`;
 
       const result = await generateWithFallback(
         prompt,
         {
-          temperature: 0.7,
-          maxTokens: 2000,
+          temperature: 0.75,
+          maxTokens: 2500,
         },
         AdaptedPostSchema
       );
@@ -241,5 +386,110 @@ ${context ? `**Author Context:** ${context.profileName} - ${context.profileHeadl
     );
 
     return Object.fromEntries(results.map((r, i) => [platforms[i], r])) as Record<PlatformType, Result<AdaptedPost, Error>>;
+  }
+
+  /**
+   * Generate a multi-post sequence for a Flight Plan.
+   * Takes source content and produces N posts for a specific platform,
+   * each with a different angle and complete thought.
+   */
+  static async generateSequence(
+    sourceContent: string,
+    platform: PlatformType,
+    numberOfPosts: number,
+    context?: { profileName?: string; profileHeadline?: string }
+  ): Promise<Result<PostSequence, Error>> {
+    const startTime = Date.now();
+    const spec = PLATFORM_SPECS[platform];
+
+    try {
+      logger.info('Generating post sequence', { platform, numberOfPosts, sourceLength: sourceContent.length });
+
+      const prompt = `${SEQUENCE_PROMPT}
+
+**Target Platform: ${platform.toUpperCase()}**
+- Max characters per post: ${spec.maxChars}
+- Writing style: ${spec.style}
+- Tone: ${spec.tone}
+- Target audience: ${spec.audience}
+- Hashtag strategy: ${spec.hashtagStrategy}
+- SEO focus: ${spec.seoFocus}
+
+**Source Content (the full idea to break into ${numberOfPosts} posts):**
+${sourceContent}
+
+${context?.profileName ? `**Author Context:** ${context.profileName}${context.profileHeadline ? ` — ${context.profileHeadline}` : ''}` : ''}
+
+**Generate exactly ${numberOfPosts} posts (dayIndex 0 through ${numberOfPosts - 1}).**
+
+Each post must:
+1. Be a complete, standalone piece of content that conveys a full idea
+2. Use a DIFFERENT narrative angle from the other posts
+3. Naturally continue the theme without requiring readers to see previous posts
+4. Fit within ${spec.maxChars} characters
+5. Have its own unique, relevant hashtags (not the same set repeated)
+6. Include a platform-native opening hook
+7. Sound like it was written by a native ${platform} user`;
+
+      const result = await generateWithFallback(
+        prompt,
+        {
+          temperature: 0.8,
+          maxTokens: numberOfPosts * 1500,
+        },
+        PostSequenceSchema
+      );
+
+      const latencyMs = Date.now() - startTime;
+
+      if (!result.ok) {
+        logger.error('Sequence generation failed', { error: result.error, platform });
+        return err(new Error(result.error.message));
+      }
+
+      const sequence = result.value;
+
+      // Validate each post
+      for (const post of sequence.posts) {
+        if (post.characterCount > spec.maxChars * 1.1) {
+          logger.warn('Sequence post exceeds platform limit', {
+            platform,
+            dayIndex: post.dayIndex,
+            count: post.characterCount,
+            limit: spec.maxChars,
+          });
+        }
+      }
+
+      logger.info('Sequence generation completed', {
+        platform,
+        latencyMs,
+        postCount: sequence.posts.length,
+        totalChars: sequence.posts.reduce((sum, p) => sum + p.characterCount, 0),
+      });
+
+      return ok(sequence);
+    } catch (error: unknown) {
+      const errObj = error instanceof Error ? error : new Error(String(error));
+      logger.error('Sequence generation exception', { error: errObj, platform });
+      return err(errObj);
+    }
+  }
+
+  /**
+   * Generate a multi-platform Flight Plan.
+   * For each platform, generates a sequence of posts.
+   */
+  static async generateFlightPlan(
+    sourceContent: string,
+    platforms: PlatformType[],
+    numberOfPosts: number,
+    context?: { profileName?: string; profileHeadline?: string }
+  ): Promise<Record<PlatformType, Result<PostSequence, Error>>> {
+    const results = await Promise.all(
+      platforms.map(platform => this.generateSequence(sourceContent, platform, numberOfPosts, context))
+    );
+
+    return Object.fromEntries(results.map((r, i) => [platforms[i], r])) as Record<PlatformType, Result<PostSequence, Error>>;
   }
 }
