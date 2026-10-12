@@ -253,13 +253,23 @@ export class ScheduleService {
     const scheduledPosts: ScheduleResult[] = [];
 
     for (const arcPost of input.posts) {
-      const baseScheduledAt = computeScheduledAt(
+      let baseScheduledAt = computeScheduledAt(
         input.weekStartDate,
         arcPost.day,
         arcPost.scheduledHour,
         arcPost.scheduledMinute,
         input.userTimezone
       );
+
+      // Guard: Never schedule a post in the past
+      if (baseScheduledAt.getTime() <= Date.now()) {
+        logger.warn('Arc post scheduled time is in the past, bumping forward', {
+          original: baseScheduledAt.toISOString(),
+          arcBeat: arcPost.arcBeat,
+        });
+        // Bump to at least 10 minutes in the future
+        baseScheduledAt = new Date(Date.now() + 10 * 60 * 1000);
+      }
 
       const result = await this.schedulePost({
         workspaceId: input.workspaceId,

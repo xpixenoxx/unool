@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
             hashtags: pf.hashtags ?? [],
             firstCommentHint: pf.firstCommentHint,
             autoFirstComment: pf.autoFirstComment,
-            mediaUrls: pf.mediaUrls,
+            mediaUrls: pf.mediaUrls ?? (p.imageUrls ? p.imageUrls.map((u: string) => ({ url: u, type: 'image' })) : (p.imageUrl ? [{ url: p.imageUrl, type: 'image' }] : [])),
             schedulingOffsetMinutes: pf.schedulingOffsetMinutes ?? 0,
           })),
           arcBeat: p.arcBeat ?? '',

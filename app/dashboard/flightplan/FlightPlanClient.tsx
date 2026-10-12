@@ -80,6 +80,7 @@ interface ArcPost {
   scheduledMinute: number;
   platforms: ArcPlatformDraft[];
   imageUrl?: string | null;
+  imageUrls?: string[];
   deleted?: boolean;
 }
 
@@ -440,12 +441,14 @@ function StoryIntake({
 /* ─── Step 2: Review Screen ─── */
 function ReviewScreen({
   arc,
+  weekStartDate,
   onApprove,
   onBack,
   isScheduling,
   isPreviewOnly,
 }: {
   arc: WeekArc;
+  weekStartDate?: string;
   onApprove: (arc: WeekArc) => void;
   onBack: () => void;
   isScheduling: boolean;
@@ -456,7 +459,39 @@ function ReviewScreen({
   const [editingContent, setEditingContent] = useState<{ postIdx: number; platformIdx: number } | null>(null);
   const [activePlatformTab, setActivePlatformTab] = useState<Record<number, number>>({});
   const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
-  const [usedImageUrls, setUsedImageUrls] = useState<Set<string>>(new Set());
+  const [isUploadingImage, setIsUploadingImage] = useState<Record<number, boolean>>({});
+
+  // Auto-adjust past times on initial mount if target week is current week
+  useEffect(() => {
+    const now = new Date();
+    const monday = weekStartDate ? new Date(weekStartDate) : startOfWeek(now, { weekStartsOn: 1 });
+    let adjustedCount = 0;
+
+    setEditedArc(prev => {
+      let hasChanges = false;
+      const updatedPosts = prev.weekPosts.map(p => {
+        if (p.deleted) return p;
+        const targetDay = addDays(monday, p.day);
+        const postDateTime = new Date(targetDay);
+        postDateTime.setHours(p.scheduledHour, p.scheduledMinute, 0, 0);
+
+        if (isToday(targetDay) && postDateTime.getTime() <= now.getTime()) {
+          hasChanges = true;
+          adjustedCount++;
+          const safeHour = Math.min(23, now.getHours() + 1);
+          return { ...p, scheduledHour: safeHour };
+        }
+        return p;
+      });
+
+      if (!hasChanges) return prev;
+      return { ...prev, weekPosts: updatedPosts };
+    });
+
+    if (adjustedCount > 0) {
+      toast.info(`Adjusted ${adjustedCount} post time${adjustedCount > 1 ? 's' : ''} to upcoming future hours for today.`);
+    }
+  }, [weekStartDate]);
 
   const updateContent = (postIdx: number, platformIdx: number, newContent: string) => {
     setEditedArc(prev => {
@@ -493,68 +528,151 @@ function ReviewScreen({
   };
 
   const moveTime = (postIdx: number, delta: number) => {
+    const now = new Date();
+    const monday = weekStartDate ? new Date(weekStartDate) : startOfWeek(now, { weekStartsOn: 1 });
+    const targetDay = addDays(monday, editedArc.weekPosts[postIdx].day);
+    const isTodayPost = isToday(targetDay);
+
     setEditedArc(prev => {
       const updated = { ...prev };
       updated.weekPosts = [...prev.weekPosts];
       const post = { ...prev.weekPosts[postIdx] };
-      post.scheduledHour = Math.min(20, Math.max(6, post.scheduledHour + delta));
+
+      // 24-hour cycle: 0 to 23
+      const newHour = (post.scheduledHour + delta + 24) % 24;
+
+      if (isTodayPost && newHour <= now.getHours() && delta < 0) {
+        toast.warning(`Cannot schedule before current time (${now.getHours()}:00) for today.`);
+        return prev;
+      }
+
+      post.scheduledHour = newHour;
       updated.weekPosts[postIdx] = post;
       return updated;
     });
   };
 
-  /* ─── Image upload per day ─── */
-  const handleDayImageUpload = async (postIdx: number, file: File) => {
-    if (!file.type.startsWith('image/')) {
-      toast.error('Only images are supported');
+  const setPostHour = (postIdx: number, hour: number) => {
+    const now = new Date();
+    const monday = weekStartDate ? new Date(weekStartDate) : startOfWeek(now, { weekStartsOn: 1 });
+    const targetDay = addDays(monday, editedArc.weekPosts[postIdx].day);
+
+    if (isToday(targetDay) && hour <= now.getHours()) {
+      toast.warning(`Cannot schedule before current time (${now.getHours()}:00) for today.`);
       return;
     }
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error('Image must be less than 10MB');
-      return;
+
+    setEditedArc(prev => {
+      const updated = { ...prev };
+      updated.weekPosts = [...prev.weekPosts];
+      const post = { ...prev.weekPosts[postIdx], scheduledHour: Math.min(23, Math.max(0, hour)) };
+      updated.weekPosts[postIdx] = post;
+      return updated;
+    });
+  };
+
+  /* ─── Image upload per day (multiple images supported) ─── */
+  const handleDayImageUpload = async (postIdx: number, files: FileList | File[]) => {
+    const fileArray = Array.from(files);
+    if (fileArray.length === 0) return;
+
+    for (const file of fileArray) {
+      if (!file.type.startsWith('image/')) {
+        toast.error(`${file.name}: Only images are supported`);
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error(`${file.name}: Image must be less than 10MB`);
+        return;
+      }
     }
+
+    setIsUploadingImage(prev => ({ ...prev, [postIdx]: true }));
+    const uploadingToast = toast.loading(`Uploading ${fileArray.length} image${fileArray.length > 1 ? 's' : ''}…`);
 
     try {
-      const res = await fetch('/api/composer/upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename: file.name, contentType: file.type }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      const uploadedUrls: string[] = [];
+      for (const file of fileArray) {
+        const res = await fetch('/api/composer/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: file.name, contentType: file.type }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Upload failed');
 
-      const uploadRes = await fetch(data.signedUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': file.type },
-        body: file,
-      });
-      if (!uploadRes.ok) throw new Error('Upload failed');
+        const uploadRes = await fetch(data.signedUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': file.type },
+          body: file,
+        });
+        if (!uploadRes.ok) throw new Error('Upload to storage failed');
 
-      if (usedImageUrls.has(data.url)) {
-        toast.warning('This image is already used on another day. Consider using a different image for variety.');
+        uploadedUrls.push(data.url);
       }
 
-      setEditedArc(prev => ({
-        ...prev,
-        weekPosts: prev.weekPosts.map((p, i) =>
-          i === postIdx ? { ...p, imageUrl: data.url } : p
-        ),
-      }));
+      setEditedArc(prev => {
+        const updated = { ...prev };
+        updated.weekPosts = [...prev.weekPosts];
+        const post = { ...prev.weekPosts[postIdx] };
+        const existing = post.imageUrls || (post.imageUrl ? [post.imageUrl] : []);
+        const combined = [...existing, ...uploadedUrls];
+        post.imageUrls = combined;
+        post.imageUrl = combined[0] || null;
+        updated.weekPosts[postIdx] = post;
+        return updated;
+      });
 
-      setUsedImageUrls(prev => new Set(prev).add(data.url));
-      toast.success('Image uploaded');
+      toast.success(`${uploadedUrls.length} image${uploadedUrls.length > 1 ? 's' : ''} added`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setIsUploadingImage(prev => ({ ...prev, [postIdx]: false }));
+      toast.dismiss(uploadingToast);
     }
   };
 
-  const removeImage = (postIdx: number) => {
-    setEditedArc(prev => ({
-      ...prev,
-      weekPosts: prev.weekPosts.map((p, i) =>
-        i === postIdx ? { ...p, imageUrl: null } : p
-      ),
-    }));
+  const removeImage = (postIdx: number, imgIdx: number) => {
+    setEditedArc(prev => {
+      const updated = { ...prev };
+      updated.weekPosts = [...prev.weekPosts];
+      const post = { ...prev.weekPosts[postIdx] };
+      const existing = post.imageUrls || (post.imageUrl ? [post.imageUrl] : []);
+      const filtered = existing.filter((_, idx) => idx !== imgIdx);
+      post.imageUrls = filtered;
+      post.imageUrl = filtered[0] || null;
+      updated.weekPosts[postIdx] = post;
+      return updated;
+    });
+  };
+
+  const handleApproveWithValidation = () => {
+    const now = new Date();
+    const monday = weekStartDate ? new Date(weekStartDate) : startOfWeek(now, { weekStartsOn: 1 });
+
+    let hasPastPost = false;
+    const validatedPosts = editedArc.weekPosts.map(p => {
+      if (p.deleted) return p;
+      const targetDay = addDays(monday, p.day);
+      const postDateTime = new Date(targetDay);
+      postDateTime.setHours(p.scheduledHour, p.scheduledMinute, 0, 0);
+
+      if (isToday(targetDay) && postDateTime.getTime() <= now.getTime()) {
+        hasPastPost = true;
+        return { ...p, scheduledHour: Math.min(23, now.getHours() + 1) };
+      }
+      return p;
+    });
+
+    if (hasPastPost) {
+      toast.info("Adjusted scheduled times for today forward to upcoming future hours.");
+      const updatedArc = { ...editedArc, weekPosts: validatedPosts };
+      setEditedArc(updatedArc);
+      onApprove(updatedArc);
+      return;
+    }
+
+    onApprove(editedArc);
   };
 
   const activePosts = editedArc.weekPosts.filter(p => !p.deleted);
@@ -589,7 +707,7 @@ function ReviewScreen({
           </p>
         </div>
         <button
-          onClick={() => onApprove(editedArc)}
+          onClick={handleApproveWithValidation}
           disabled={isScheduling || activePosts.length === 0}
           className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all"
           style={{
@@ -660,11 +778,20 @@ function ReviewScreen({
               );
             }
 
+            const now = new Date();
+            const monday = weekStartDate ? new Date(weekStartDate) : startOfWeek(now, { weekStartsOn: 1 });
+            const targetDay = addDays(monday, post.day);
+            const isTodayPost = isToday(targetDay);
+            const postDateTime = new Date(targetDay);
+            postDateTime.setHours(post.scheduledHour, post.scheduledMinute, 0, 0);
+            const isPastTime = isTodayPost && postDateTime.getTime() <= now.getTime();
+
             const isExpanded = expandedPost === postIdx;
             const currentPlatformIdx = activePlatformTab[postIdx] ?? 0;
             const currentPlatformDraft = post.platforms[currentPlatformIdx];
             const config = PLATFORM_CONFIG[currentPlatformDraft?.platform as PlatformType];
             const isOverLimit = currentPlatformDraft && config && currentPlatformDraft.characterCount > config.maxChars;
+            const postImages = post.imageUrls || (post.imageUrl ? [post.imageUrl] : []);
 
             return (
               <motion.div
@@ -699,7 +826,15 @@ function ReviewScreen({
 
                   {/* Arc beat */}
                   <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-sm truncate" style={{ color: B.text }}>{post.arcBeat}</div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-sm truncate" style={{ color: B.text }}>{post.arcBeat}</span>
+                      {isPastTime && (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" />
+                          Time passed
+                        </span>
+                      )}
+                    </div>
                     <div className="text-xs mt-0.5 truncate" style={{ color: B.textMuted }}>{post.arcBeatReason}</div>
                     <div className="flex flex-wrap gap-1.5 mt-2">
                       {post.platforms.map(p => (
@@ -708,23 +843,41 @@ function ReviewScreen({
                     </div>
                   </div>
 
-                  {/* Image thumbnail */}
-                  {post.imageUrl && (
-                    <img src={post.imageUrl} alt="" className="w-8 h-8 rounded-lg object-cover border flex-shrink-0" style={{ borderColor: B.border }} />
+                  {/* Image thumbnails preview in row */}
+                  {postImages.length > 0 && (
+                    <div className="relative flex-shrink-0">
+                      <img src={postImages[0]} alt="" className="w-9 h-9 rounded-lg object-cover border" style={{ borderColor: B.border }} />
+                      {postImages.length > 1 && (
+                        <span className="absolute -bottom-1 -right-1 text-[9px] font-bold px-1 rounded-full bg-black/75 text-white">
+                          +{postImages.length - 1}
+                        </span>
+                      )}
+                    </div>
                   )}
 
                   {/* Actions */}
                   <div className="flex items-center gap-1 flex-shrink-0">
-                    <button onClick={e => { e.stopPropagation(); moveTime(postIdx, -1); }}
+                    <button
+                      onClick={e => { e.stopPropagation(); moveTime(postIdx, -1); }}
                       className="p-1.5 rounded-lg hover:opacity-70 transition-opacity text-xs font-mono"
-                      style={{ color: B.textMuted }}>-1h</button>
-                    <button onClick={e => { e.stopPropagation(); moveTime(postIdx, 1); }}
+                      style={{ color: B.textMuted }}
+                      title="Move 1 hour earlier"
+                    >
+                      -1h
+                    </button>
+                    <button
+                      onClick={e => { e.stopPropagation(); moveTime(postIdx, 1); }}
                       className="p-1.5 rounded-lg hover:opacity-70 transition-opacity text-xs font-mono"
-                      style={{ color: B.textMuted }}>+1h</button>
+                      style={{ color: B.textMuted }}
+                      title="Move 1 hour later"
+                    >
+                      +1h
+                    </button>
                     <button
                       onClick={e => { e.stopPropagation(); removePost(postIdx); }}
                       className="p-1.5 rounded-lg transition-opacity hover:opacity-70"
                       style={{ color: B.danger }}
+                      title="Remove day"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -748,46 +901,101 @@ function ReviewScreen({
                     >
                       <div className="px-5 pb-5 space-y-4 border-t" style={{ borderColor: B.border }}>
 
-                        {/* Image upload section */}
-                        <div className="flex flex-wrap gap-4 pt-4">
-                          <div>
-                            <label className="text-xs font-semibold mb-1 block" style={{ color: B.textMuted }}>
-                              Post Image
+                        {/* 24-Hour Time Selector & Past Alert */}
+                        <div className="flex items-center justify-between flex-wrap gap-2 pt-3">
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-4 h-4" style={{ color: B.accent }} />
+                            <span className="text-xs font-semibold" style={{ color: B.text }}>Schedule Hour (24h):</span>
+                            <select
+                              value={post.scheduledHour}
+                              onChange={e => setPostHour(postIdx, parseInt(e.target.value, 10))}
+                              className="text-xs font-mono font-medium px-2 py-1 rounded-lg border bg-transparent"
+                              style={{ borderColor: B.border, color: B.text }}
+                            >
+                              {Array.from({ length: 24 }, (_, h) => {
+                                const isPastH = isTodayPost && h <= now.getHours();
+                                return (
+                                  <option key={h} value={h} disabled={isPastH}>
+                                    {h.toString().padStart(2, '0')}:00 {isPastH ? '(passed)' : ''}
+                                  </option>
+                                );
+                              })}
+                            </select>
+                          </div>
+
+                          {isPastTime && (
+                            <button
+                              onClick={() => setPostHour(postIdx, Math.min(23, now.getHours() + 1))}
+                              className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200 transition-colors"
+                            >
+                              Set to next upcoming hour ({Math.min(23, now.getHours() + 1)}:00)
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Multiple Image upload section */}
+                        <div className="space-y-2 pt-1">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-semibold flex items-center gap-1.5" style={{ color: B.textMuted }}>
+                              <ImageIcon className="w-3.5 h-3.5" />
+                              Post Images ({postImages.length})
                             </label>
-                            <div className="flex items-center gap-2">
-                              {post.imageUrl ? (
-                                <div className="relative">
-                                  <img src={post.imageUrl} alt="" className="w-16 h-16 rounded-xl object-cover border" style={{ borderColor: B.border }} />
-                                  <button
-                                    onClick={() => removeImage(postIdx)}
-                                    className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center"
-                                    style={{ background: B.danger, color: '#fff' }}
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </button>
-                                </div>
-                              ) : (
+                            <span className="text-[11px]" style={{ color: B.textMuted }}>
+                              Upload multiple images (up to 10)
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2.5 flex-wrap">
+                            {postImages.map((imgUrl, imgIdx) => (
+                              <div key={imgIdx} className="relative group/img">
+                                <img
+                                  src={imgUrl}
+                                  alt=""
+                                  className="w-16 h-16 rounded-xl object-cover border shadow-xs"
+                                  style={{ borderColor: B.border }}
+                                />
                                 <button
-                                  onClick={() => fileInputRefs.current[postIdx]?.click()}
-                                  className="w-16 h-16 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-0.5 transition-colors hover:border-solid"
-                                  style={{ borderColor: B.border, color: B.textMuted }}
+                                  onClick={() => removeImage(postIdx, imgIdx)}
+                                  className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center shadow-md transition-transform hover:scale-110"
+                                  style={{ background: B.danger, color: '#fff' }}
+                                  title="Remove image"
                                 >
-                                  <ImagePlus className="w-5 h-5" />
-                                  <span className="text-[9px]">Upload</span>
+                                  <X className="w-3 h-3" />
                                 </button>
-                              )}
-                              <input
-                                ref={el => { fileInputRefs.current[postIdx] = el; }}
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={e => {
-                                  const f = e.target.files?.[0];
-                                  if (f) handleDayImageUpload(postIdx, f);
-                                  e.target.value = '';
-                                }}
-                              />
-                            </div>
+                              </div>
+                            ))}
+
+                            {postImages.length < 10 && (
+                              <button
+                                type="button"
+                                onClick={() => fileInputRefs.current[postIdx]?.click()}
+                                disabled={isUploadingImage[postIdx]}
+                                className="w-16 h-16 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-0.5 transition-all hover:border-solid hover:opacity-80 disabled:opacity-50"
+                                style={{ borderColor: B.border, color: B.textMuted, backgroundColor: B.bg }}
+                              >
+                                {isUploadingImage[postIdx] ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <>
+                                    <ImagePlus className="w-4 h-4" />
+                                    <span className="text-[9px] font-medium">Add Image</span>
+                                  </>
+                                )}
+                              </button>
+                            )}
+
+                            <input
+                              ref={el => { fileInputRefs.current[postIdx] = el; }}
+                              type="file"
+                              multiple
+                              accept="image/*"
+                              className="hidden"
+                              onChange={e => {
+                                const files = e.target.files;
+                                if (files && files.length > 0) handleDayImageUpload(postIdx, files);
+                                e.target.value = '';
+                              }}
+                            />
                           </div>
                         </div>
 
@@ -925,8 +1133,8 @@ function ReviewScreen({
             </p>
           </div>
           <button
-            onClick={() => onApprove(editedArc)}
-            disabled={isScheduling}
+            onClick={handleApproveWithValidation}
+            disabled={isScheduling || activePosts.length === 0}
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all"
             style={{ backgroundColor: B.success, color: '#fff', boxShadow: `0 4px 16px ${B.success}40` }}
           >
@@ -956,24 +1164,30 @@ function ScheduledPostModal({
   const [activeVariantIndex, setActiveVariantIndex] = useState(0);
   const [editedContent, setEditedContent] = useState<Record<string, string>>({});
   const [editedHashtags, setEditedHashtags] = useState<Record<string, string[]>>({});
+  const [editedMediaUrls, setEditedMediaUrls] = useState<Record<string, Array<{ url: string; type?: string }>>>({});
   const [newTag, setNewTag] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isRescheduling, setIsRescheduling] = useState(false);
   const [rescheduleTime, setRescheduleTime] = useState('');
   const [isCancelling, setIsCancelling] = useState(false);
   const [showRescheduleInput, setShowRescheduleInput] = useState(false);
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+  const modalFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (post) {
       setActiveVariantIndex(0);
       const contentMap: Record<string, string> = {};
       const hashtagsMap: Record<string, string[]> = {};
+      const mediaMap: Record<string, Array<{ url: string; type?: string }>> = {};
       post.platforms.forEach(p => {
         contentMap[p.variantId] = p.content;
         hashtagsMap[p.variantId] = p.hashtags ?? [];
+        mediaMap[p.variantId] = p.mediaUrls ? [...p.mediaUrls] : [];
       });
       setEditedContent(contentMap);
       setEditedHashtags(hashtagsMap);
+      setEditedMediaUrls(mediaMap);
       if (post.scheduledAt) {
         const d = new Date(post.scheduledAt);
         const pad = (n: number) => String(n).padStart(2, '0');
@@ -989,10 +1203,22 @@ function ScheduledPostModal({
   const currentVariant = post.platforms[activeVariantIndex] || post.platforms[0];
   if (!currentVariant) return null;
 
+  const isPublished = post.status === 'published';
   const currentContent = editedContent[currentVariant.variantId] ?? currentVariant.content;
   const currentTags = editedHashtags[currentVariant.variantId] ?? currentVariant.hashtags ?? [];
-  const hasChanges = currentContent !== currentVariant.content ||
-    JSON.stringify(currentTags) !== JSON.stringify(currentVariant.hashtags ?? []);
+  const currentMedia = editedMediaUrls[currentVariant.variantId] ?? currentVariant.mediaUrls ?? [];
+
+  const variantsWithChanges = post.platforms.filter(p => {
+    const c = editedContent[p.variantId] ?? p.content;
+    const t = editedHashtags[p.variantId] ?? p.hashtags ?? [];
+    const m = editedMediaUrls[p.variantId] ?? p.mediaUrls ?? [];
+    return (
+      c !== p.content ||
+      JSON.stringify(t) !== JSON.stringify(p.hashtags ?? []) ||
+      JSON.stringify(m) !== JSON.stringify(p.mediaUrls ?? [])
+    );
+  });
+  const hasChanges = variantsWithChanges.length > 0;
 
   const platformMeta = PLATFORM_META[currentVariant.platform] || {
     name: currentVariant.platform,
@@ -1001,28 +1227,121 @@ function ScheduledPostModal({
     icon: '•',
   };
 
-  const handleSaveVariant = async () => {
-    setIsSaving(true);
-    try {
-      const res = await fetch(`/api/publish/variants/${currentVariant.variantId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content: currentContent,
-          hashtags: currentTags,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.error || 'Failed to update variant');
+  const handleUploadModalMedia = async (files: FileList | File[]) => {
+    const fileArray = Array.from(files);
+    if (fileArray.length === 0) return;
+
+    for (const file of fileArray) {
+      if (!file.type.startsWith('image/')) {
+        toast.error(`${file.name}: Only images are supported`);
         return;
       }
-      toast.success(`${platformMeta.name} variant updated`);
-      currentVariant.content = currentContent;
-      currentVariant.hashtags = currentTags;
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error(`${file.name}: Image must be less than 10MB`);
+        return;
+      }
+    }
+
+    setIsUploadingMedia(true);
+    const uploadingToast = toast.loading(`Uploading ${fileArray.length} image${fileArray.length > 1 ? 's' : ''}…`);
+
+    try {
+      const uploadedMedia: Array<{ url: string; type: string }> = [];
+      for (const file of fileArray) {
+        const res = await fetch('/api/composer/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: file.name, contentType: file.type }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Upload failed');
+
+        const uploadRes = await fetch(data.signedUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': file.type },
+          body: file,
+        });
+        if (!uploadRes.ok) throw new Error('Upload to storage failed');
+
+        uploadedMedia.push({ url: data.url, type: 'image' });
+      }
+
+      setEditedMediaUrls(prev => {
+        const existing = prev[currentVariant.variantId] ?? currentVariant.mediaUrls ?? [];
+        return {
+          ...prev,
+          [currentVariant.variantId]: [...existing, ...uploadedMedia],
+        };
+      });
+
+      toast.success(`${uploadedMedia.length} image${uploadedMedia.length > 1 ? 's' : ''} added`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setIsUploadingMedia(false);
+      toast.dismiss(uploadingToast);
+    }
+  };
+
+  const handleRemoveModalMedia = (index: number) => {
+    setEditedMediaUrls(prev => {
+      const existing = prev[currentVariant.variantId] ?? currentVariant.mediaUrls ?? [];
+      return {
+        ...prev,
+        [currentVariant.variantId]: existing.filter((_, idx) => idx !== index),
+      };
+    });
+  };
+
+  const handleApplyMediaToAllVariants = () => {
+    setEditedMediaUrls(prev => {
+      const nextMap = { ...prev };
+      post.platforms.forEach(p => {
+        nextMap[p.variantId] = [...currentMedia];
+      });
+      return nextMap;
+    });
+    toast.success('Attached images copied to all platform drafts for this post');
+  };
+
+  const handleSaveVariant = async () => {
+    if (variantsWithChanges.length === 0) {
+      toast.info('No changes to save');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      for (const v of variantsWithChanges) {
+        const c = editedContent[v.variantId] ?? v.content;
+        const t = editedHashtags[v.variantId] ?? v.hashtags ?? [];
+        const m = editedMediaUrls[v.variantId] ?? v.mediaUrls ?? [];
+        const res = await fetch(`/api/publish/variants/${v.variantId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            content: c,
+            hashtags: t,
+            mediaUrls: m,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || `Failed to update ${v.platform}`);
+        }
+        v.content = c;
+        v.hashtags = t;
+        v.mediaUrls = m;
+      }
+
+      toast.success(
+        variantsWithChanges.length > 1
+          ? `Updated ${variantsWithChanges.length} platform drafts`
+          : `${platformMeta.name} draft updated`
+      );
       onUpdated();
-    } catch {
-      toast.error('Failed to update variant');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update');
     } finally {
       setIsSaving(false);
     }
@@ -1035,7 +1354,7 @@ function ScheduledPostModal({
     }
     const targetDate = new Date(rescheduleTime);
     if (isNaN(targetDate.getTime()) || targetDate.getTime() <= Date.now()) {
-      toast.error('Please choose a valid future date and time');
+      toast.error('Cannot schedule in the past. Please choose a future date and time');
       return;
     }
 
@@ -1178,6 +1497,7 @@ function ScheduledPostModal({
                 <input
                   type="datetime-local"
                   value={rescheduleTime}
+                  min={format(new Date(), "yyyy-MM-dd'T'HH:mm")}
                   onChange={e => setRescheduleTime(e.target.value)}
                   className="text-xs px-3 py-2 rounded-xl border flex-1"
                   style={{ backgroundColor: B.card, borderColor: B.border, color: B.text }}
@@ -1297,25 +1617,114 @@ function ScheduledPostModal({
             </div>
           </div>
 
-          {/* Media preview */}
-          {currentVariant.mediaUrls && currentVariant.mediaUrls.length > 0 && (
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold block" style={{ color: B.text }}>
-                Attached Media
+          {/* Attached Media Section (Upload & Manage images for scheduled posts) */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold flex items-center gap-1.5" style={{ color: B.text }}>
+                <ImageIcon className="w-3.5 h-3.5" style={{ color: B.accent }} />
+                Attached Images ({currentMedia.length})
               </label>
-              <div className="flex gap-2">
-                {currentVariant.mediaUrls.map((m, i) => (
-                  <div
-                    key={i}
-                    className="w-20 h-20 rounded-xl overflow-hidden border relative"
-                    style={{ borderColor: B.border }}
+              <div className="flex items-center gap-2">
+                {post.platforms.length > 1 && currentMedia.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleApplyMediaToAllVariants}
+                    className="text-[11px] font-semibold px-2 py-0.5 rounded-md hover:opacity-80 transition-opacity"
+                    style={{ backgroundColor: B.accentBg, color: B.accentDark }}
+                    title="Copy these images to all other platform variants of this post"
                   >
-                    <img src={m.url} alt="Attached media" className="w-full h-full object-cover" />
-                  </div>
-                ))}
+                    Apply to all platforms
+                  </button>
+                )}
+                <input
+                  ref={modalFileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  className="hidden"
+                  onChange={e => {
+                    if (e.target.files && e.target.files.length > 0) {
+                      handleUploadModalMedia(e.target.files);
+                      e.target.value = '';
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => modalFileInputRef.current?.click()}
+                  disabled={isUploadingMedia || isPublished}
+                  className="text-xs font-semibold px-2.5 py-1 rounded-lg flex items-center gap-1 transition-opacity hover:opacity-80 disabled:opacity-50"
+                  style={{ backgroundColor: B.accent, color: '#fff' }}
+                >
+                  {isUploadingMedia ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <ImagePlus className="w-3 h-3" />
+                  )}
+                  Add Images
+                </button>
               </div>
             </div>
-          )}
+
+            {currentMedia.length > 0 ? (
+              <div className="flex flex-wrap gap-2.5 p-2 rounded-xl border" style={{ backgroundColor: B.bg, borderColor: B.border }}>
+                {currentMedia.map((m, i) => (
+                  <div
+                    key={i}
+                    className="w-20 h-20 rounded-xl overflow-hidden border relative group shadow-xs"
+                    style={{ borderColor: B.border }}
+                  >
+                    <img src={m.url} alt={`Attached ${i + 1}`} className="w-full h-full object-cover" />
+                    {!isPublished && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveModalMedia(i)}
+                        className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center shadow-md bg-red-600 text-white transition-transform hover:scale-110"
+                        title="Remove image"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {currentMedia.length < 10 && !isPublished && (
+                  <button
+                    type="button"
+                    onClick={() => modalFileInputRef.current?.click()}
+                    disabled={isUploadingMedia}
+                    className="w-20 h-20 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-1 transition-all hover:opacity-80 disabled:opacity-50"
+                    style={{ borderColor: B.border, color: B.textMuted, backgroundColor: B.card }}
+                  >
+                    {isUploadingMedia ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <>
+                        <ImagePlus className="w-4 h-4" />
+                        <span className="text-[10px]">Add</span>
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div
+                onClick={() => !isPublished && modalFileInputRef.current?.click()}
+                className={cn(
+                  "p-4 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-1 text-center transition-colors",
+                  !isPublished && "cursor-pointer hover:opacity-80"
+                )}
+                style={{ backgroundColor: B.bg, borderColor: B.border }}
+              >
+                <ImagePlus className="w-5 h-5" style={{ color: B.textMuted }} />
+                <span className="text-xs font-medium" style={{ color: B.text }}>
+                  No images attached yet
+                </span>
+                <span className="text-[11px]" style={{ color: B.textMuted }}>
+                  Click to upload images (PNG, JPG, WebP) for this scheduled draft
+                </span>
+              </div>
+            )}
+          </div>
 
           {/* Auto First Comment */}
           {currentVariant.autoFirstComment && (
@@ -1352,7 +1761,9 @@ function ScheduledPostModal({
               style={{ backgroundColor: B.accent }}
             >
               {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-              {hasChanges ? 'Save Changes' : 'Saved'}
+              {hasChanges
+                ? (variantsWithChanges.length > 1 ? `Save Changes (${variantsWithChanges.length})` : 'Save Changes')
+                : 'Saved'}
             </button>
           </div>
         </div>
@@ -1734,22 +2145,28 @@ function FlightPlanInner({ userId, workspaceId }: { userId: string; workspaceId:
           weekStartDate: storyData?.weekStartDate,
           userTimezone: tz,
           scheduleMode: 'arc',
-          posts: activePosts.map(p => ({
-            day: p.day,
-            scheduledHour: p.scheduledHour,
-            scheduledMinute: p.scheduledMinute,
-            strategy: 'cascading',
-            arcBeat: p.arcBeat,
-            imageUrl: p.imageUrl || null,
-            platforms: p.platforms.map(pf => ({
-              platform: pf.platform,
-              content: pf.content,
-              hashtags: pf.hashtags,
-              firstCommentHint: pf.firstCommentHint,
-              autoFirstComment: pf.autoFirstComment,
-              schedulingOffsetMinutes: pf.schedulingOffsetMinutes ?? 0,
-            })),
-          })),
+          posts: activePosts.map(p => {
+            const allImages = p.imageUrls || (p.imageUrl ? [p.imageUrl] : []);
+            const mediaObjects = allImages.map(u => ({ url: u, type: 'image' }));
+            return {
+              day: p.day,
+              scheduledHour: p.scheduledHour,
+              scheduledMinute: p.scheduledMinute,
+              strategy: 'cascading',
+              arcBeat: p.arcBeat,
+              imageUrl: allImages[0] || null,
+              imageUrls: allImages,
+              platforms: p.platforms.map(pf => ({
+                platform: pf.platform,
+                content: pf.content,
+                hashtags: pf.hashtags,
+                firstCommentHint: pf.firstCommentHint,
+                autoFirstComment: pf.autoFirstComment,
+                schedulingOffsetMinutes: pf.schedulingOffsetMinutes ?? 0,
+                mediaUrls: mediaObjects,
+              })),
+            };
+          }),
         }),
       });
 
@@ -1823,6 +2240,7 @@ function FlightPlanInner({ userId, workspaceId }: { userId: string; workspaceId:
           <ReviewScreen
             key="review"
             arc={arc}
+            weekStartDate={storyData?.weekStartDate}
             isPreviewOnly={isPreviewOnly}
             onApprove={handleApprove}
             onBack={() => setView('story')}
