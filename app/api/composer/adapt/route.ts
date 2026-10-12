@@ -95,19 +95,26 @@ export async function POST(request: NextRequest) {
       const variants: Record<PlatformType, AdaptedPost> = {} as Record<PlatformType, AdaptedPost>;
       let totalTokensIn = 0;
       let totalTokensOut = 0;
+      const failedPlatforms: string[] = [];
 
       for (const platform of activePlatforms) {
         const result = results[platform];
         if (!result.ok) {
           logger.error('Adaptation failed for platform', { platform, error: result.error });
-          return NextResponse.json(
-            { error: `Failed to adapt for ${platform}: ${result.error}` },
-            { status: 500 }
-          );
+          failedPlatforms.push(platform);
+          continue;
         }
         variants[platform] = result.value;
         totalTokensIn += content.length + JSON.stringify(profileContext).length;
         totalTokensOut += result.value.content.length;
+      }
+
+      // Only fail if ALL platforms failed
+      if (Object.keys(variants).length === 0) {
+        return NextResponse.json(
+          { error: `Failed to adapt for all platforms: ${failedPlatforms.join(', ')}` },
+          { status: 500 }
+        );
       }
 
       // Create post with variants in database

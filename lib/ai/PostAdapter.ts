@@ -381,11 +381,16 @@ ${context?.profileName ? `**Author Context:** ${context.profileName}${context.pr
     platforms: PlatformType[],
     context?: { profileName?: string; profileHeadline?: string }
   ): Promise<Record<PlatformType, Result<AdaptedPost, Error>>> {
-    const results = await Promise.all(
-      platforms.map(platform => this.adaptForPlatform(sourceContent, platform, context))
-    );
+    // Run adaptations sequentially to avoid:
+    // 1. Groq rate-limit errors when firing many concurrent requests
+    // 2. Race conditions in the shared provider fallback state (providerInstance/providerName)
+    const entries: Array<[PlatformType, Result<AdaptedPost, Error>]> = [];
+    for (const platform of platforms) {
+      const result = await this.adaptForPlatform(sourceContent, platform, context);
+      entries.push([platform, result]);
+    }
 
-    return Object.fromEntries(results.map((r, i) => [platforms[i], r])) as Record<PlatformType, Result<AdaptedPost, Error>>;
+    return Object.fromEntries(entries) as Record<PlatformType, Result<AdaptedPost, Error>>;
   }
 
   /**

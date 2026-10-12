@@ -88,12 +88,13 @@ async function tryWithFallback<T>(
     if (tried.has(candidate.name)) continue;
     tried.add(candidate.name);
 
-    providerInstance = candidate.create();
-    providerName = candidate.name;
+    // Create ephemeral provider for this fallback attempt — do NOT mutate the shared
+    // providerInstance / providerName so concurrent calls are not corrupted.
+    const ephemeralProvider = candidate.create();
     const fallbackModel = getModelForProvider(candidate.name);
-    logger.info(`Switched to ${candidate.name} fallback provider`, { model: fallbackModel });
+    logger.info(`Trying ${candidate.name} fallback provider (ephemeral)`, { model: fallbackModel });
 
-    const fallbackResult = await fallbackFn(providerInstance, fallbackModel);
+    const fallbackResult = await fallbackFn(ephemeralProvider, fallbackModel);
     if (fallbackResult.ok) {
       return fallbackResult;
     }
