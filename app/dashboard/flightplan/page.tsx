@@ -1,12 +1,29 @@
 import { getAuthContext } from '@/lib/auth/context';
 import { redirect } from 'next/navigation';
+import { Suspense } from 'react';
 import FlightPlanClient from './FlightPlanClient';
+import { Loader2 } from 'lucide-react';
+
+export const metadata = {
+  title: 'Flight Plan — Unool',
+  description: 'Plan your week of content in 15 minutes. One story, every platform, perfectly timed.',
+};
 
 export default async function FlightPlanPage() {
   const auth = await getAuthContext();
   if (!auth) {
-    redirect('/');
+    redirect('/signin');
   }
 
-  return <FlightPlanClient userId={auth.userId} workspaceId={auth.workspaceId} />;
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Loader2 className="h-8 w-8 animate-spin" style={{ color: '#C4A265' }} />
+        </div>
+      }
+    >
+      <FlightPlanClient userId={auth.userId} workspaceId={auth.workspaceId} />
+    </Suspense>
+  );
 }

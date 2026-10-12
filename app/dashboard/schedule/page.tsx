@@ -1,27 +1,5 @@
-import { getAuthContext } from '@/lib/auth/context';
 import { redirect } from 'next/navigation';
-import { Suspense } from 'react';
-import ScheduleClient from './ScheduleClient';
-import { Loader2 } from 'lucide-react';
 
-export const metadata = {
-  title: 'Flight Plan — Unool',
-  description: 'Plan your week of content in 15 minutes. One story, every platform, perfectly timed.',
-};
-
-export default async function SchedulePage() {
-  const auth = await getAuthContext();
-  if (!auth) redirect('/signin');
-
-  return (
-    <Suspense
-      fallback={
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <Loader2 className="h-8 w-8 animate-spin" style={{ color: '#C4A265' }} />
-        </div>
-      }
-    >
-      <ScheduleClient userId={auth.userId} workspaceId={auth.workspaceId} />
-    </Suspense>
-  );
+export default function SchedulePage() {
+  redirect('/dashboard/flightplan');
 }
