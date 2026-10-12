@@ -1,8 +1,9 @@
 'use client';
 
 import React from 'react';
+import { PlatformMobilePreview, type SupportedPlatformType } from '@/components/dashboard/previews/PlatformMobilePreview';
 
-export type Platform = 'linkedin' | 'x' | 'threads' | 'manual' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'slack' | 'mastodon' | 'twitch' | 'telegram' | 'discord' | 'dribbble' | 'skool' | 'whop' | 'kick' | 'vk' | 'warpcast' | 'mewe' | 'nostr' | 'medium' | 'lemmy' | 'listmonk' | 'hashnode' | 'devto';
+export type Platform = 'linkedin' | 'x' | 'threads' | 'manual' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'slack' | 'mastodon' | 'twitch' | 'telegram' | 'discord' | 'dribbble' | 'skool' | 'whop' | 'kick' | 'vk' | 'warpcast' | 'mewe' | 'nostr' | 'medium' | 'lemmy' | 'listmonk' | 'hashnode' | 'devto' | 'reddit';
 
 export interface PlatformPreviewProps {
   platform: Platform;
@@ -560,6 +561,15 @@ function ManualPreview({ content }: Omit<PlatformPreviewProps, 'platform'>) {
 /* ─── Main export ─── */
 export function PlatformPreview({ platform, content, mediaUrls, username, displayName }: PlatformPreviewProps) {
   const props = { content, mediaUrls, username, displayName };
+  const mobileProps = {
+    content,
+    isEmpty: !content.trim(),
+    media: (mediaUrls || []).map(m => ({ url: m.url, type: m.type as 'image' | 'video' | 'document', alt: m.alt })),
+    profileName: displayName || username || 'User',
+    profileHeadline: 'Creator',
+    initials: (displayName || username || 'U').slice(0, 2).toUpperCase(),
+    avatarUrl: undefined,
+  };
 
   const previewMap: Record<Platform, React.ReactNode> = {
     x: <XPreview {...props} />,
@@ -570,21 +580,22 @@ export function PlatformPreview({ platform, content, mediaUrls, username, displa
     facebook: <FacebookPreview {...props} />,
     youtube: <YouTubePreview {...props} />,
     pinterest: <PinterestPreview {...props} />,
-    mastodon: <ManualPreview {...props} />,
-    slack: <ManualPreview {...props} />,
-    twitch: <ManualPreview {...props} />,
-    telegram: <ManualPreview {...props} />,
-    discord: <ManualPreview {...props} />,
-    dribbble: <ManualPreview {...props} />,
-    skool: <ManualPreview {...props} />,
-    whop: <ManualPreview {...props} />,
-    kick: <ManualPreview {...props} />,
-    vk: <ManualPreview {...props} />,
-    warpcast: <ManualPreview {...props} />,
-    mewe: <ManualPreview {...props} />,
-    nostr: <ManualPreview {...props} />,
-    medium: <ManualPreview {...props} />,
-    lemmy: <ManualPreview {...props} />,
+    mastodon: <PlatformMobilePreview platform="mastodon" {...mobileProps} />,
+    slack: <PlatformMobilePreview platform="slack" {...mobileProps} />,
+    twitch: <PlatformMobilePreview platform="twitch" {...mobileProps} />,
+    telegram: <PlatformMobilePreview platform="telegram" {...mobileProps} />,
+    discord: <PlatformMobilePreview platform="discord" {...mobileProps} />,
+    dribbble: <PlatformMobilePreview platform="dribbble" {...mobileProps} />,
+    skool: <PlatformMobilePreview platform="skool" {...mobileProps} />,
+    whop: <PlatformMobilePreview platform="whop" {...mobileProps} />,
+    kick: <PlatformMobilePreview platform="kick" {...mobileProps} />,
+    vk: <PlatformMobilePreview platform="vk" {...mobileProps} />,
+    warpcast: <PlatformMobilePreview platform="warpcast" {...mobileProps} />,
+    mewe: <PlatformMobilePreview platform="mewe" {...mobileProps} />,
+    nostr: <PlatformMobilePreview platform="nostr" {...mobileProps} />,
+    medium: <PlatformMobilePreview platform="medium" {...mobileProps} />,
+    lemmy: <PlatformMobilePreview platform="lemmy" {...mobileProps} />,
+    reddit: <PlatformMobilePreview platform="reddit" {...mobileProps} />,
     listmonk: <ListmonkPreview {...props} />,
     hashnode: <HashnodePreview {...props} />,
     devto: <DevtoPreview {...props} />,

@@ -59,10 +59,16 @@ import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { cn } from '@/lib/utils';
 // Note: Supabase browser client no longer needed for storage (using Cloudflare R2 via presigned PUT)
 import { useUserContext } from '@/lib/hooks/use-user-context';
-import { PLATFORM_LIMITS } from '@/lib/config/platformLimits';
+import { PLATFORM_LIMITS, getPlatformLimit } from '@/lib/config/platformLimits';
 import { emitSignalStrip } from '../signal/SignalStrip';
+import {
+  PlatformMobilePreview,
+  isPlatformDark,
+  getPlatformBgColor,
+  type SupportedPlatformType,
+} from '@/components/dashboard/previews/PlatformMobilePreview';
 
-type PlatformType = 'linkedin' | 'x' | 'threads' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'mastodon' | 'slack' | 'twitch' | 'telegram' | 'discord' | 'dribbble' | 'skool' | 'whop' | 'kick' | 'vk' | 'warpcast' | 'mewe' | 'nostr' | 'medium' | 'lemmy' | 'listmonk';
+type PlatformType = SupportedPlatformType;
 
 const PLATFORM_CONFIG: Record<PlatformType, { icon: React.ElementType; name: string; maxChars: number; color: string }> = {
   linkedin: { icon: Linkedin, name: 'LinkedIn', maxChars: 3000, color: 'bg-blue-600' },
@@ -89,6 +95,9 @@ const PLATFORM_CONFIG: Record<PlatformType, { icon: React.ElementType; name: str
   medium: { icon: FileText, name: 'Medium', maxChars: 100000, color: 'bg-black' },
   lemmy: { icon: Globe, name: 'Lemmy', maxChars: 10000, color: 'bg-[#00BC8C]' },
   listmonk: { icon: Mail, name: 'Listmonk', maxChars: 100000, color: 'bg-[#0045ff]' },
+  reddit: { icon: Globe, name: 'Reddit', maxChars: 40000, color: 'bg-[#FF4500]' },
+  hashnode: { icon: FileText, name: 'Hashnode', maxChars: 100000, color: 'bg-[#2962FF]' },
+  devto: { icon: FileText, name: 'DEV.to', maxChars: 100000, color: 'bg-[#090909]' },
 };
 
 interface PlatformDraft {
@@ -185,9 +194,30 @@ function IPhonePreview({
   connectedPlatforms: PlatformType[];
   selectedPlatforms: PlatformType[];
 }) {
-  const previewablePlatforms: PlatformType[] = ['linkedin', 'x', 'instagram', 'facebook', 'threads'];
-  const activePreviews = previewablePlatforms.filter(p => selectedPlatforms.length > 0 ? selectedPlatforms.includes(p) : connectedPlatforms.includes(p));
-  const platformsToShow = activePreviews.length > 0 ? activePreviews : previewablePlatforms.slice(0, 3);
+  const allPlatforms: PlatformType[] = [
+    'linkedin', 'x', 'threads', 'instagram', 'facebook', 'youtube', 'pinterest',
+    'bluesky', 'mastodon', 'dribbble', 'telegram', 'discord', 'slack', 'reddit',
+    'twitch', 'kick', 'medium', 'devto', 'hashnode', 'listmonk', 'warpcast',
+    'nostr', 'skool', 'whop', 'vk', 'mewe', 'lemmy'
+  ];
+
+  const [viewAll, setViewAll] = useState(false);
+
+  const activePreviews = useMemo(() => {
+    if (viewAll) return allPlatforms;
+    if (selectedPlatforms.length > 0) return selectedPlatforms;
+    if (connectedPlatforms.length > 0) return connectedPlatforms;
+    return allPlatforms;
+  }, [viewAll, selectedPlatforms, connectedPlatforms, allPlatforms]);
+
+  const platformsToShow = activePreviews.length > 0 ? activePreviews : allPlatforms;
+
+  // Auto-switch preview platform if current one is not in platformsToShow
+  useEffect(() => {
+    if (platformsToShow.length > 0 && !platformsToShow.includes(previewPlatform)) {
+      setPreviewPlatform(platformsToShow[0]);
+    }
+  }, [platformsToShow, previewPlatform, setPreviewPlatform]);
 
   const now = useMemo(() => {
     const d = new Date();
@@ -197,36 +227,56 @@ function IPhonePreview({
   const displayContent = content || 'Start typing to see your post come alive...';
   const isEmpty = !content.trim();
   const initials = profileName ? profileName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : 'U';
+  const isDark = isPlatformDark(previewPlatform);
+  const bgColor = getPlatformBgColor(previewPlatform);
 
   return (
-    <div className="flex flex-col items-center gap-5">
-      {/* Platform switcher pills */}
-      <div className="flex gap-1 p-1 rounded-2xl shadow-sm border border-[#E8E0D4] bg-[#FFFDF9]/60 backdrop-blur-sm">
-        {platformsToShow.map(p => {
-          const cfg = PLATFORM_CONFIG[p];
-          const Icon = cfg.icon;
-          const isActive = previewPlatform === p;
-          return (
-            <button
-              key={p}
-              onClick={() => setPreviewPlatform(p)}
-              className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-200',
-                isActive
-                  ? 'bg-white shadow-sm text-[#3D2B1F] border border-[#E8E0D4]'
-                  : 'text-[#8B7355] hover:text-[#3D2B1F] border border-transparent'
-              )}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              <span className="hidden xl:inline">{cfg.name}</span>
-            </button>
-          );
-        })}
+    <div className="flex flex-col items-center gap-4">
+      {/* Platform switcher pills with horizontal scrolling & View All toggle */}
+      <div className="flex flex-col items-center gap-1.5 w-full max-w-[320px]">
+        <div className="flex items-center justify-between w-full px-1 text-[11px] text-[#8B7355] font-medium">
+          <span>
+            {viewAll
+              ? `All Platforms (${allPlatforms.length})`
+              : selectedPlatforms.length > 0
+              ? `Selected (${selectedPlatforms.length})`
+              : `Active Platforms (${platformsToShow.length})`}
+          </span>
+          <button
+            type="button"
+            onClick={() => setViewAll(!viewAll)}
+            className="hover:text-[#3D2B1F] underline text-[11px] cursor-pointer transition-colors"
+          >
+            {viewAll ? 'Show Selected' : 'Browse All (27)'}
+          </button>
+        </div>
+        <div className="flex gap-1 p-1 rounded-2xl shadow-sm border border-[#E8E0D4] bg-[#FFFDF9]/80 backdrop-blur-sm w-full overflow-x-auto no-scrollbar scroll-smooth">
+          {platformsToShow.map(p => {
+            const cfg = PLATFORM_CONFIG[p];
+            const Icon = cfg?.icon || Globe;
+            const isActive = previewPlatform === p;
+            return (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setPreviewPlatform(p)}
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-200 flex-shrink-0 whitespace-nowrap',
+                  isActive
+                    ? 'bg-white shadow-sm text-[#3D2B1F] border border-[#E8E0D4]'
+                    : 'text-[#8B7355] hover:text-[#3D2B1F] border border-transparent hover:bg-white/40'
+                )}
+              >
+                <Icon className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>{cfg?.name || p}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Realistic iPhone Mockup */}
       <div className="relative" style={{ width: 320, height: 650 }}>
-        
         {/* Hardware Buttons */}
         <div className="absolute -left-1 top-24 w-1.5 h-7 bg-[#B8B8B8] rounded-l-md shadow-inner" style={{ boxShadow: 'inset -1px 0 2px rgba(0,0,0,0.5)' }} />
         <div className="absolute -left-1 top-36 w-1.5 h-12 bg-[#B8B8B8] rounded-l-md shadow-inner" style={{ boxShadow: 'inset -1px 0 2px rgba(0,0,0,0.5)' }} />
@@ -251,16 +301,16 @@ function IPhonePreview({
           >
             {/* Screen area */}
             <div
-              className="relative w-full h-full rounded-[44px] overflow-hidden"
+              className="relative w-full h-full rounded-[44px] overflow-hidden transition-colors duration-200"
               style={{
-                background: previewPlatform === 'x' ? '#000' : '#FFFFFF',
+                background: bgColor,
               }}
             >
               {/* Status Bar */}
               <div
                 className="flex items-center justify-between px-7 pt-4 pb-1"
                 style={{
-                  color: previewPlatform === 'x' ? '#fff' : '#000',
+                  color: isDark ? '#fff' : '#000',
                   fontSize: 13,
                   fontWeight: 600,
                   fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif',
@@ -315,57 +365,16 @@ function IPhonePreview({
                     exit={{ opacity: 0, y: -5 }}
                     transition={{ duration: 0.15 }}
                   >
-                    {previewPlatform === 'linkedin' && (
-                      <LinkedInPreview
-                        content={displayContent}
-                        isEmpty={isEmpty}
-                        media={media}
-                        profileName={profileName}
-                        profileHeadline={profileHeadline}
-                        initials={initials}
-                        avatarUrl={avatarUrl}
-                      />
-                    )}
-                    {previewPlatform === 'x' && (
-                      <XPreview
-                        content={displayContent}
-                        isEmpty={isEmpty}
-                        media={media}
-                        profileName={profileName}
-                        initials={initials}
-                        avatarUrl={avatarUrl}
-                      />
-                    )}
-                    {previewPlatform === 'instagram' && (
-                      <InstagramPreview
-                        content={displayContent}
-                        isEmpty={isEmpty}
-                        media={media}
-                        profileName={profileName}
-                        initials={initials}
-                        avatarUrl={avatarUrl}
-                      />
-                    )}
-                    {previewPlatform === 'facebook' && (
-                      <FacebookPreview
-                        content={displayContent}
-                        isEmpty={isEmpty}
-                        media={media}
-                        profileName={profileName}
-                        initials={initials}
-                        avatarUrl={avatarUrl}
-                      />
-                    )}
-                    {previewPlatform === 'threads' && (
-                      <ThreadsPreview
-                        content={displayContent}
-                        isEmpty={isEmpty}
-                        media={media}
-                        profileName={profileName}
-                        initials={initials}
-                        avatarUrl={avatarUrl}
-                      />
-                    )}
+                    <PlatformMobilePreview
+                      platform={previewPlatform}
+                      content={displayContent}
+                      isEmpty={isEmpty}
+                      media={media}
+                      profileName={profileName}
+                      profileHeadline={profileHeadline}
+                      initials={initials}
+                      avatarUrl={avatarUrl}
+                    />
                   </motion.div>
                 </AnimatePresence>
               </div>
@@ -389,476 +398,6 @@ function IPhonePreview({
           <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
         </span>
         Live preview · Updates as you type
-      </div>
-    </div>
-  );
-}
-
-/* ─── Platform Preview Sub-Components ──────────────────────── */
-
-interface PreviewProps {
-  content: string;
-  isEmpty: boolean;
-  media: { url: string; type: 'image' | 'video' | 'document' }[];
-  profileName: string;
-  profileHeadline?: string;
-  initials: string;
-  avatarUrl?: string;
-}
-
-function AvatarCircle({ initials, avatarUrl, size = 40, className = '' }: { initials: string; avatarUrl?: string; size?: number; className?: string }) {
-  if (avatarUrl) {
-    return <img src={avatarUrl} alt="" className={cn('rounded-full object-cover', className)} style={{ width: size, height: size }} />;
-  }
-  return (
-    <div
-      className={cn('rounded-full flex items-center justify-center font-semibold text-white', className)}
-      style={{ width: size, height: size, background: 'linear-gradient(135deg, #C4A265, #8B7355)', fontSize: size * 0.35 }}
-    >
-      {initials}
-    </div>
-  );
-}
-
-function MediaPreviewArea({ media }: { media: PreviewProps['media'] }) {
-  const images = media.filter(m => m.type === 'image');
-  const videos = media.filter(m => m.type === 'video');
-
-  if (images.length === 0 && videos.length === 0) return null;
-
-  return (
-    <div className="mt-2.5">
-      {videos.length > 0 && (
-        <video src={videos[0].url} className="w-full rounded-sm object-cover bg-black" style={{ maxHeight: 220 }} muted playsInline />
-      )}
-      {images.length === 1 && (
-        <img src={images[0].url} alt="" className="w-full rounded-sm object-cover" style={{ maxHeight: 260 }} />
-      )}
-      {images.length > 1 && (
-        <div className="grid grid-cols-2 gap-0.5">
-          {images.slice(0, 4).map((img, i) => (
-            <div key={i} className="relative aspect-square">
-              <img src={img.url} alt="" className="w-full h-full object-cover" />
-              {i === 3 && images.length > 4 && (
-                <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white font-semibold text-xl">
-                  +{images.length - 4}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ExpandableText({ content, maxLength, isEmpty, color, highlightColor }: { content: string, maxLength: number, isEmpty: boolean, color: string, highlightColor: string }) {
-  const [expanded, setExpanded] = useState(false);
-  const shouldTruncate = content.length > maxLength && !expanded;
-  const displayContent = shouldTruncate ? content.slice(0, maxLength) + '...' : content;
-
-  return (
-    <p
-      className="cursor-pointer"
-      onClick={() => setExpanded(!expanded)}
-      style={{
-        fontSize: 14,
-        color: isEmpty ? '#999' : color,
-        lineHeight: 1.5,
-        fontStyle: isEmpty ? 'italic' : 'normal',
-        whiteSpace: 'pre-wrap',
-        wordBreak: 'break-word',
-      }}
-    >
-      {displayContent}
-      {shouldTruncate && <span style={{ color: highlightColor, fontWeight: 500 }}> see more</span>}
-    </p>
-  );
-}
-
-function LinkedInPreview({ content, isEmpty, media, profileName, profileHeadline, initials, avatarUrl }: PreviewProps) {
-  return (
-    <div style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
-      {/* LinkedIn Header Bar */}
-      <div className="flex items-center justify-between px-4 py-2.5" style={{ borderBottom: '1px solid #EBEBEB' }}>
-        <div className="w-6 h-6"><BrandIcons.LinkedIn /></div>
-        <div className="flex-1 px-4 relative">
-          <div className="w-full h-8 bg-[#EEF3F8] rounded-md flex items-center px-3 gap-2">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="#666"><path d="M21.53 20.47l-3.66-3.66C19.195 15.24 20 13.214 20 11c0-4.97-4.03-9-9-9s-9 4.03-9 9 4.03 9 9 9c2.215 0 4.24-.804 5.808-2.13l3.66 3.66c.147.146.34.22.53.22s.385-.073.53-.22c.295-.293.295-.767.002-1.06zM3.5 11c0-4.135 3.365-7.5 7.5-7.5s7.5 3.365 7.5 7.5-3.365 7.5-7.5 7.5-7.5-3.365-7.5-7.5z"></path></svg>
-            <span style={{ fontSize: 13, color: '#666' }}>Search</span>
-          </div>
-        </div>
-        <MessageCircle className="w-6 h-6" style={{ color: '#666' }} />
-      </div>
-
-      {/* Post Card */}
-      <div className="bg-white my-2" style={{ borderTop: '8px solid #EBEBEB', borderBottom: '8px solid #EBEBEB' }}>
-        {/* Author */}
-        <div className="flex items-start gap-2.5 px-4 pt-3 pb-2">
-          <AvatarCircle initials={initials} avatarUrl={avatarUrl} size={48} />
-          <div className="flex-1 min-w-0">
-            <p style={{ fontSize: 14, fontWeight: 600, color: '#000', lineHeight: 1.3 }}>{profileName || 'Your Name'}</p>
-            <p style={{ fontSize: 12, color: '#666666', lineHeight: 1.3 }} className="truncate">
-              {profileHeadline || 'Your headline'}
-            </p>
-            <p style={{ fontSize: 12, color: '#666666', lineHeight: 1.4, display: 'flex', alignItems: 'center', gap: '4px' }}>
-              Just now · <Globe className="w-3 h-3" />
-            </p>
-          </div>
-          <MoreHorizontal className="w-5 h-5 flex-shrink-0 mt-1" style={{ color: '#666' }} />
-        </div>
-
-        {/* Content */}
-        <div className="px-4 pb-2">
-          <ExpandableText content={content} maxLength={180} isEmpty={isEmpty} color="#000" highlightColor="#666666" />
-        </div>
-
-        <MediaPreviewArea media={media} />
-
-        {/* Engagement bar */}
-        <div className="px-4 py-2 flex items-center justify-between">
-          <div className="flex items-center gap-1">
-            <div className="w-4 h-4 rounded-full bg-[#0A66C2] flex items-center justify-center">
-              <ThumbsUp className="w-2.5 h-2.5 text-white" />
-            </div>
-            <span style={{ fontSize: 12, color: '#666666' }}>24</span>
-          </div>
-          <span style={{ fontSize: 12, color: '#666666' }}>3 comments · 1 repost</span>
-        </div>
-
-        {/* Actions */}
-        <div className="flex items-center justify-between px-2 py-1" style={{ borderTop: '1px solid #EBEBEB' }}>
-          {[
-            { icon: ThumbsUp, label: 'Like' },
-            { icon: CommentIcon, label: 'Comment' },
-            { icon: Repeat2, label: 'Repost' },
-            { icon: Send, label: 'Send' },
-          ].map(({ icon: Icon, label }) => (
-            <button key={label} className="flex-1 flex flex-col items-center justify-center py-2 rounded-md hover:bg-[#F3F2EF]" style={{ color: '#666666' }}>
-              <Icon className="w-[18px] h-[18px]" strokeWidth={2.5} />
-              <span style={{ fontSize: 12, fontWeight: 600, marginTop: 2 }}>{label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function XPreview({ content, isEmpty, media, profileName, initials, avatarUrl }: PreviewProps) {
-  const charCount = content.length;
-  const isOverLimit = charCount > 280;
-  return (
-    <div style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', background: '#000', color: '#E7E9EA', minHeight: 600 }}>
-      {/* X Header */}
-      <div className="flex items-center justify-between px-4 py-3 sticky top-0 bg-black/80 backdrop-blur-md z-10">
-        <AvatarCircle initials={initials} avatarUrl={avatarUrl} size={30} />
-        <div className="w-6 h-6"><BrandIcons.X /></div>
-        <div className="w-8" /> {/* Placeholder for balance */}
-      </div>
-
-      <div className="flex" style={{ borderBottom: '1px solid #2F3336' }}>
-        <div className="flex-1 text-center py-3 font-bold relative">
-          For you
-          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-1 bg-[#1D9BF0] rounded-full" />
-        </div>
-        <div className="flex-1 text-center py-3 font-medium text-[#71767B]">
-          Following
-        </div>
-      </div>
-
-      {/* Post */}
-      <div className="px-4 py-3" style={{ borderBottom: '1px solid #2F3336' }}>
-        <div className="flex gap-3">
-          <AvatarCircle initials={initials} avatarUrl={avatarUrl} size={40} className="flex-shrink-0" />
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1 overflow-hidden">
-              <span style={{ fontSize: 15, fontWeight: 700, color: '#E7E9EA' }} className="truncate">{profileName || 'Your Name'}</span>
-              <svg className="w-[18px] h-[18px] flex-shrink-0" viewBox="0 0 24 24" fill="#1D9BF0">
-                <path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z" />
-              </svg>
-              <span style={{ fontSize: 15, color: '#71767B' }} className="truncate">
-                @{profileName || 'username'}
-              </span>
-              <span style={{ fontSize: 15, color: '#71767B' }}>· 1m</span>
-              <MoreHorizontal className="w-4 h-4 ml-auto text-[#71767B]" />
-            </div>
-
-            <p
-              className="mt-1"
-              style={{
-                fontSize: 15,
-                color: isEmpty ? '#71767B' : '#E7E9EA',
-                lineHeight: 1.35,
-                fontStyle: isEmpty ? 'italic' : 'normal',
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
-              }}
-            >
-              {content.length > 280 ? content.slice(0, 280) : content || 'Start typing to see your post come alive...'}
-            </p>
-
-            {isOverLimit && (
-              <p style={{ fontSize: 13, color: '#F4212E', marginTop: 6, fontWeight: 500 }}>
-                {charCount}/280 · {charCount - 280} over limit
-              </p>
-            )}
-
-            {media.filter(m => m.type === 'image').length > 0 && (
-              <div className="mt-3 rounded-2xl overflow-hidden" style={{ border: '1px solid #2F3336' }}>
-                {media.filter(m => m.type === 'image').length === 1 ? (
-                  <img src={media.filter(m => m.type === 'image')[0].url} alt="" className="w-full object-cover" style={{ maxHeight: 280 }} />
-                ) : (
-                  <div className="grid grid-cols-2 gap-0.5">
-                    {media.filter(m => m.type === 'image').slice(0, 4).map((img, i) => (
-                      <div key={i} className="aspect-square relative">
-                         <img src={img.url} alt="" className="w-full h-full object-cover" />
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Actions */}
-            <div className="flex items-center justify-between mt-3 text-[#71767B]">
-              {[
-                { icon: CommentIcon, count: '2' },
-                { icon: Repeat2, count: '5' },
-                { icon: Heart, count: '18' },
-                { icon: Bookmark, count: '' },
-                { icon: Share, count: '' },
-              ].map(({ icon: Icon, count }, i) => (
-                <button key={i} className="flex items-center gap-1.5 hover:text-[#1D9BF0] transition-colors group">
-                  <div className="p-2 rounded-full group-hover:bg-[#1D9BF0]/10 -m-2">
-                    <Icon className="w-[18px] h-[18px]" strokeWidth={2} />
-                  </div>
-                  {count && <span style={{ fontSize: 13 }}>{count}</span>}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-const IgHeart = () => <svg aria-label="Like" fill="currentColor" height="24" role="img" viewBox="0 0 24 24" width="24"><path d="M16.792 3.904A4.989 4.989 0 0 1 21.5 9.122c0 3.072-2.652 4.959-5.197 7.222-2.512 2.243-3.865 3.469-4.303 3.752-.477-.309-2.143-1.823-4.303-3.752C5.141 14.072 2.5 12.167 2.5 9.122a4.989 4.989 0 0 1 4.708-5.218 4.21 4.21 0 0 1 3.675 1.941c.84 1.174 1.8 1.174 2.634 0a4.212 4.212 0 0 1 3.275-1.941Z" stroke="currentColor" strokeWidth="2" fill="none" /></svg>;
-const IgComment = () => <svg aria-label="Comment" fill="currentColor" height="24" role="img" viewBox="0 0 24 24" width="24"><path d="M20.656 17.008a9.993 9.993 0 1 0-3.59 3.615L22 22Z" fill="none" stroke="currentColor" strokeLinejoin="round" strokeWidth="2"/></svg>;
-const IgShare = () => <svg aria-label="Share Post" fill="currentColor" height="24" role="img" viewBox="0 0 24 24" width="24"><line fill="none" stroke="currentColor" strokeLinejoin="round" strokeWidth="2" x1="22" x2="9.218" y1="3" y2="10.083"/><polygon fill="none" points="11.698 20.334 22 3.001 2 3.001 9.218 10.084 11.698 20.334" stroke="currentColor" strokeLinejoin="round" strokeWidth="2"/></svg>;
-const IgBookmark = () => <svg aria-label="Save" fill="currentColor" height="24" role="img" viewBox="0 0 24 24" width="24"><polygon fill="none" points="20 21 12 13.44 4 21 4 3 20 3 20 21" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"/></svg>;
-
-function InstagramPreview({ content, isEmpty, media, profileName, initials, avatarUrl }: PreviewProps) {
-  const hasImage = media.some(m => m.type === 'image');
-  return (
-    <div style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', minHeight: 600 }}>
-      {/* Instagram Header */}
-      <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid #EFEFEF' }}>
-        <div className="flex items-center h-[30px]"><BrandIcons.InstagramText /></div>
-        <div className="flex items-center gap-5">
-          <IgHeart />
-          <IgShare />
-        </div>
-      </div>
-
-      {/* Post */}
-      <div>
-        {/* Author header */}
-        <div className="flex items-center gap-3 px-3 py-2.5">
-          <div className="rounded-full p-[2px]" style={{ background: 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)' }}>
-            <div className="rounded-full p-[2px] bg-white">
-              <AvatarCircle initials={initials} avatarUrl={avatarUrl} size={30} />
-            </div>
-          </div>
-          <span style={{ fontSize: 14, fontWeight: 600, color: '#000' }}>{profileName || 'username'}</span>
-          <MoreHorizontal className="w-5 h-5 ml-auto" style={{ color: '#000' }} />
-        </div>
-
-        {/* Image area */}
-        {hasImage ? (
-          <img src={media.find(m => m.type === 'image')!.url} alt="" className="w-full object-cover aspect-square" />
-        ) : (
-          <div className="w-full flex items-center justify-center aspect-square" style={{ background: 'linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%)' }}>
-            <div className="text-center text-gray-400">
-              <ImageIcon className="w-12 h-12 mx-auto mb-2 opacity-50" />
-              <p style={{ fontSize: 14, fontWeight: 500 }}>Add media for Instagram</p>
-            </div>
-          </div>
-        )}
-
-        {/* Actions */}
-        <div className="flex items-center justify-between px-3 py-3">
-          <div className="flex items-center gap-4">
-            <IgHeart />
-            <IgComment />
-            <IgShare />
-          </div>
-          <IgBookmark />
-        </div>
-
-        {/* Likes & Caption */}
-        <div className="px-3 pb-4">
-          <p style={{ fontSize: 14, fontWeight: 600, color: '#000' }}>142 likes</p>
-          <div className="mt-1 flex items-start gap-1">
-            <span style={{ fontSize: 14, fontWeight: 600, color: '#000', whiteSpace: 'nowrap' }}>
-              {profileName || 'username'}
-            </span>
-            <div style={{ flex: 1, paddingLeft: '4px' }}>
-              <ExpandableText content={content} maxLength={90} isEmpty={isEmpty} color="#000" highlightColor="#999" />
-            </div>
-          </div>
-          <p className="mt-1.5" style={{ fontSize: 14, color: '#737373' }}>View all 8 comments</p>
-          <p className="mt-1" style={{ fontSize: 10, color: '#737373', textTransform: 'uppercase' }}>12 minutes ago</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function FacebookPreview({ content, isEmpty, media, profileName, initials, avatarUrl }: PreviewProps) {
-  return (
-    <div style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', background: '#C9CCD1', minHeight: 600 }}>
-      {/* Facebook Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-white" style={{ borderBottom: '1px solid #E4E6E9' }}>
-        <div className="w-7 h-7"><BrandIcons.Facebook /></div>
-        <div className="flex items-center gap-2">
-          <div className="w-[36px] h-[36px] rounded-full bg-[#E4E6E9] flex items-center justify-center">
-             <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M10 16.5l6-4.5-6-4.5v9zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
-          </div>
-          <div className="w-[36px] h-[36px] rounded-full bg-[#E4E6E9] flex items-center justify-center">
-            <svg viewBox="0 0 28 28" width="20" height="20" fill="currentColor"><path d="M14 2.042c-6.76 0-12 4.952-12 11.64S6.824 24 12.69 24c1.47 0 2.87-.275 4.12-.767.146-.057.306-.066.457-.027l2.844.757c.307.082.593-.19.526-.5l-.65-2.923a1.137 1.137 0 01.196-.922C21.6 18.093 22.5 16.035 22.5 13.682c0-6.688-4.74-11.64-11.5-11.64z"/></svg>
-          </div>
-        </div>
-      </div>
-
-      {/* Post Card */}
-      <div className="mt-2 bg-white pb-2 shadow-sm">
-        {/* Author */}
-        <div className="flex items-start gap-2.5 p-3 pb-2">
-          <AvatarCircle initials={initials} avatarUrl={avatarUrl} size={40} />
-          <div className="flex-1">
-            <p style={{ fontSize: 15, fontWeight: 600, color: '#050505', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              {profileName || 'Your Name'}
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="#0866FF"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
-            </p>
-            <div className="flex items-center gap-1 mt-0.5">
-              <p style={{ fontSize: 13, color: '#65676B' }}>Just now · </p>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="#65676B"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
-            </div>
-          </div>
-          <MoreHorizontal className="w-5 h-5 text-[#65676B]" />
-        </div>
-
-        {/* Content */}
-        <div className="px-4 pb-3 pt-1">
-          <ExpandableText content={content} maxLength={150} isEmpty={isEmpty} color="#050505" highlightColor="#050505" />
-        </div>
-
-        {/* Only full width media for FB */}
-        {media.filter(m => m.type === 'image' || m.type === 'video').length > 0 && (
-          <div className="w-full">
-            {media[0].type === 'video' ? (
-              <video src={media[0].url} className="w-full object-cover max-h-[300px]" muted playsInline />
-            ) : (
-              <img src={media[0].url} alt="" className="w-full object-cover max-h-[300px]" />
-            )}
-          </div>
-        )}
-
-        {/* Reactions bar */}
-        <div className="flex items-center justify-between px-4 py-2.5">
-          <div className="flex items-center gap-1.5">
-            <div className="flex -space-x-1">
-              <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/13/Facebook_like_thumb.png/1024px-Facebook_like_thumb.png" alt="Like" className="w-5 h-5 rounded-full ring-2 ring-white z-20 object-cover" />
-              <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c8/Love_Heart_symbol.svg/1024px-Love_Heart_symbol.svg.png" alt="Love" className="w-5 h-5 rounded-full ring-2 ring-white z-10 object-cover bg-[#ED4C5C]" />
-            </div>
-            <span style={{ fontSize: 13, color: '#65676B' }}>32</span>
-          </div>
-          <span style={{ fontSize: 13, color: '#65676B' }}>5 comments · 2 shares</span>
-        </div>
-
-        {/* Actions */}
-        <div className="flex items-center justify-between mx-3 py-1" style={{ borderTop: '1px solid #CED0D4' }}>
-          {[
-            { icon: ThumbsUp, label: 'Like' },
-            { icon: CommentIcon, label: 'Comment' },
-            { icon: Share, label: 'Share' },
-          ].map(({ icon: Icon, label }) => (
-            <button key={label} className="flex-1 flex items-center justify-center gap-2 py-1.5 rounded-md hover:bg-[#F0F2F5]" style={{ color: '#65676B' }}>
-              <Icon className="w-[18px] h-[18px]" strokeWidth={2} />
-              <span style={{ fontSize: 14, fontWeight: 600 }}>{label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ThreadsPreview({ content, isEmpty, media, profileName, initials, avatarUrl }: PreviewProps) {
-  return (
-    <div style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', background: '#101010', color: '#F3F5F7', minHeight: 600 }}>
-      {/* Threads Header */}
-      <div className="flex items-center justify-center px-4 py-3" style={{ borderBottom: '1px solid #333638' }}>
-        <div className="w-8 h-8"><BrandIcons.Threads /></div>
-      </div>
-
-      {/* Post */}
-      <div className="px-4 py-3" style={{ borderBottom: '1px solid #333638' }}>
-        <div className="flex gap-3">
-          <div className="flex flex-col items-center">
-            <AvatarCircle initials={initials} avatarUrl={avatarUrl} size={36} />
-            <div className="w-[2px] flex-1 bg-[#333638] rounded-full my-2 min-h-[40px]" />
-          </div>
-          <div className="flex-1 min-w-0 pb-1">
-            <div className="flex items-center gap-1">
-              <span style={{ fontSize: 15, fontWeight: 600, color: '#F3F5F7' }}>{(profileName || 'username').toLowerCase().replace(/\s+/g, '')}</span>
-              <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="#0095F6">
-                <path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484z" />
-                <path d="M9.64 15.72l-3.16-3.16 1.41-1.41 1.75 1.75 4.67-4.67 1.41 1.41-6.08 6.08z" fill="white" />
-              </svg>
-              <div className="flex-1" />
-              <span style={{ fontSize: 14, color: '#777777' }}>1m</span>
-              <MoreHorizontal className="w-5 h-5 ml-2 text-[#777777]" />
-            </div>
-
-            <p
-              className="mt-1"
-              style={{
-                fontSize: 15,
-                color: isEmpty ? '#777777' : '#F3F5F7',
-                lineHeight: 1.4,
-                fontStyle: isEmpty ? 'italic' : 'normal',
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
-              }}
-            >
-              {content.length > 300 ? content.slice(0, 300) + '...' : content || 'Start a thread...'}
-            </p>
-
-            {media.filter(m => m.type === 'image').length > 0 && (
-              <div className="mt-3 rounded-2xl overflow-hidden" style={{ border: '1px solid #333638' }}>
-                <img src={media.filter(m => m.type === 'image')[0].url} alt="" className="w-full object-cover" style={{ maxHeight: 220 }} />
-              </div>
-            )}
-
-            {/* Actions */}
-            <div className="flex items-center gap-4 mt-3 mb-1">
-              {[Heart, CommentIcon, Repeat2, Send].map((Icon, i) => (
-                <button key={i}>
-                  <Icon className="w-5 h-5" style={{ color: '#F3F5F7' }} strokeWidth={2} />
-                </button>
-              ))}
-            </div>
-            
-            <div className="flex items-center gap-1.5 mt-2">
-              <span style={{ fontSize: 14, color: '#777777' }}>12 replies</span>
-              <span style={{ fontSize: 14, color: '#777777' }}>·</span>
-              <span style={{ fontSize: 14, color: '#777777' }}>48 likes</span>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -1078,7 +617,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
 
   const getValidPlatformsForMedia = (platforms: PlatformType[]) => {
     return platforms.filter(platform => {
-      const limit = PLATFORM_LIMITS[platform] || { maxVideoSizeMB: 5000, maxImageSizeMB: 50 };
+      const limit = getPlatformLimit(platform);
       if (limit.requiresMedia && media.length === 0) {
         return false;
       }
@@ -1098,7 +637,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
     }
 
     const targetPlatforms = useSelectedOnly ? selectedPlatforms : connectedPlatforms;
-    const skippedPlatforms = targetPlatforms.filter(p => PLATFORM_LIMITS[p]?.requiresMedia && media.length === 0);
+    const skippedPlatforms = targetPlatforms.filter(p => getPlatformLimit(p)?.requiresMedia && media.length === 0);
     if (skippedPlatforms.length > 0) {
       toast.info(
         `${skippedPlatforms.map(p => PLATFORM_CONFIG[p]?.name || p).join(', ')} require(s) an image/video to publish. Attach media to include them.`
@@ -1317,7 +856,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
     }
 
     const targetPlatforms = useSelectedOnly ? selectedPlatforms : connectedPlatforms;
-    const skippedPlatforms = targetPlatforms.filter(p => PLATFORM_LIMITS[p]?.requiresMedia && media.length === 0);
+    const skippedPlatforms = targetPlatforms.filter(p => getPlatformLimit(p)?.requiresMedia && media.length === 0);
     if (skippedPlatforms.length > 0) {
       toast.info(
         `${skippedPlatforms.map(p => PLATFORM_CONFIG[p]?.name || p).join(', ')} require(s) an image/video to publish. Attach media to include them.`
@@ -1407,7 +946,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           const cfg = PLATFORM_CONFIG[platform];
           const Icon = cfg.icon;
           const isSelected = selectedPlatforms.includes(platform);
-          const limit = PLATFORM_LIMITS[platform] || { maxVideoSizeMB: 5000, maxImageSizeMB: 50 };
+          const limit = getPlatformLimit(platform);
           
           let warningMsg: string | null = null;
           for (const m of media) {
