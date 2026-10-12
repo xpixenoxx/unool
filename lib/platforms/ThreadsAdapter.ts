@@ -212,7 +212,7 @@ export class ThreadsAdapter implements PlatformAdapter {
         }
 
         if (input.firstComment) {
-          carouselParams.set('reply_control', 'ALL');
+          carouselParams.set('reply_control', 'EVERYONE');
         }
 
         const carouselResponse = await fetchWithRetry(`${THREADS_API_BASE}/me/threads`, {
@@ -262,7 +262,7 @@ export class ThreadsAdapter implements PlatformAdapter {
         }
 
         if (input.firstComment) {
-          containerParams.set('reply_control', 'ALL');
+          containerParams.set('reply_control', 'EVERYONE');
         }
 
         const containerResponse = await fetchWithRetry(`${THREADS_API_BASE}/me/threads`, {
