@@ -35,9 +35,9 @@ export async function PATCH(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Only allow editing drafts
-    if (variant.status !== 'draft') {
-      return NextResponse.json({ error: 'Can only edit draft variants' }, { status: 400 });
+    // Only allow editing drafts and scheduled variants
+    if (variant.status !== 'draft' && variant.status !== 'scheduled') {
+      return NextResponse.json({ error: 'Can only edit draft or scheduled variants' }, { status: 400 });
     }
 
     const updateData: Record<string, any> = {};
@@ -47,6 +47,9 @@ export async function PATCH(
     }
     if (hashtags !== undefined) {
       updateData.hashtagStrategy = hashtags;
+    }
+    if (body.mediaUrls !== undefined) {
+      updateData.mediaUrls = body.mediaUrls;
     }
 
     const updated = await postRepository.updateVariant(variantId, updateData);

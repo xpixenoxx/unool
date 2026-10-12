@@ -75,33 +75,61 @@ function computeScheduledAt(
   minute: number,
   timezone: string
 ): Date {
-  // We compute in the user's local timezone by constructing an ISO-like string
-  // and using Intl to figure out UTC offset at that local time.
-  const localDate = new Date(weekStart);
-  localDate.setDate(localDate.getDate() + dayOffset);
-
-  // Build a date-time string in the user's timezone to get the correct UTC equivalent
-  const localStr = `${localDate.getFullYear()}-${String(localDate.getMonth() + 1).padStart(2, '0')}-${String(localDate.getDate()).padStart(2, '0')}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`;
-
-  // Use Intl.DateTimeFormat to resolve the UTC offset for this timezone
   try {
-    const parts = new Intl.DateTimeFormat('en-US', {
-      timeZone: timezone,
-      year: 'numeric', month: '2-digit', day: '2-digit',
-      hour: '2-digit', minute: '2-digit', second: '2-digit',
-      hour12: false,
-    }).formatToParts(new Date(localStr));
+    // Extract base year, month, day in UTC from the ISO representation of weekStart
+    const isoDate = weekStart.toISOString().slice(0, 10);
+    const [startY, startM, startD] = isoDate.split('-').map(Number);
 
-    const p = Object.fromEntries(parts.map(p => [p.type, p.value]));
-    const utcStr = `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:${p.second}Z`;
-    const utcDate = new Date(utcStr);
+    // Calculate the target day for this offset (dayOffset: 0 = Mon, 1 = Tue, ..., 6 = Sun)
+    const targetDayUtcMs = Date.UTC(startY, startM - 1, startD + dayOffset, 0, 0, 0);
+    const targetDayDate = new Date(targetDayUtcMs);
+    const targetYear = targetDayDate.getUTCFullYear();
+    const targetMonth = targetDayDate.getUTCMonth() + 1;
+    const targetDay = targetDayDate.getUTCDate();
 
-    // Offset = local minus UTC → gives us the UTC time for that local wall-clock
-    const offset = new Date(localStr).getTime() - utcDate.getTime();
-    return new Date(new Date(localStr).getTime() - offset);
+    // Target timestamp as UTC milliseconds
+    const targetLocalMs = Date.UTC(targetYear, targetMonth - 1, targetDay, hour, minute, 0);
+
+    const getLocalMs = (date: Date): number => {
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hourCycle: 'h23',
+      }).formatToParts(date);
+      const p = Object.fromEntries(parts.map(part => [part.type, part.value]));
+      let h = parseInt(p.hour, 10);
+      if (h === 24) h = 0;
+      return Date.UTC(
+        parseInt(p.year, 10),
+        parseInt(p.month, 10) - 1,
+        parseInt(p.day, 10),
+        h,
+        parseInt(p.minute, 10),
+        parseInt(p.second, 10)
+      );
+    };
+
+    // First approximation: treat targetLocalMs as UTC and measure offset
+    const initialGuess = new Date(targetLocalMs);
+    const localMsAtGuess = getLocalMs(initialGuess);
+    const offset = localMsAtGuess - targetLocalMs;
+    const correctedMs = targetLocalMs - offset;
+
+    // Refinement step to guarantee exact match across daylight saving boundaries
+    const refinedLocalMs = getLocalMs(new Date(correctedMs));
+    const refinedOffset = refinedLocalMs - targetLocalMs;
+    return new Date(correctedMs - refinedOffset);
   } catch {
-    // Fallback: treat as UTC if timezone resolution fails
-    return new Date(localStr + 'Z');
+    // Fallback: simple UTC calculation
+    const d = new Date(weekStart);
+    d.setUTCDate(d.getUTCDate() + dayOffset);
+    d.setUTCHours(hour, minute, 0, 0);
+    return d;
   }
 }
 

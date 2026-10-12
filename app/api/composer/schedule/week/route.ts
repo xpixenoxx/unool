@@ -53,6 +53,8 @@ export async function GET(request: NextRequest) {
         autoFirstComment: v.autoFirstComment,
         firstCommentHint: v.firstCommentHint,
         error: v.error,
+        mediaUrls: v.mediaUrls ?? [],
+        hashtags: v.hashtagStrategy ?? [],
       })),
     }));
 

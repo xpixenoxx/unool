@@ -11,7 +11,7 @@ import {
   Youtube, Cloud, Image as ImageIcon, Hash, Twitch, Dribbble,
   GraduationCap, Store, Gamepad2, Video, Zap, FileText, Globe, Mail,
   BookOpen, Code2, RotateCcw, ArrowRight, Info,
-  PauseCircle, PlayCircle, Radio,
+  PauseCircle, PlayCircle, Radio, Clock, Edit3, Check,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -104,6 +104,9 @@ interface CanvasPost {
     status: string;
     scheduledAt: string | null;
     autoFirstComment: string | null;
+    firstCommentHint?: string | null;
+    mediaUrls?: Array<{ url: string; type?: string }>;
+    hashtags?: string[];
     error: any;
   }>;
 }
@@ -936,19 +939,444 @@ function ReviewScreen({
   );
 }
 
+/* ─── Scheduled Post Details & Edit Modal ─── */
+function ScheduledPostModal({
+  post,
+  isOpen,
+  onClose,
+  onUpdated,
+  onCancelled,
+}: {
+  post: CanvasPost | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onUpdated: () => void;
+  onCancelled: () => void;
+}) {
+  const [activeVariantIndex, setActiveVariantIndex] = useState(0);
+  const [editedContent, setEditedContent] = useState<Record<string, string>>({});
+  const [editedHashtags, setEditedHashtags] = useState<Record<string, string[]>>({});
+  const [newTag, setNewTag] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [isRescheduling, setIsRescheduling] = useState(false);
+  const [rescheduleTime, setRescheduleTime] = useState('');
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [showRescheduleInput, setShowRescheduleInput] = useState(false);
+
+  useEffect(() => {
+    if (post) {
+      setActiveVariantIndex(0);
+      const contentMap: Record<string, string> = {};
+      const hashtagsMap: Record<string, string[]> = {};
+      post.platforms.forEach(p => {
+        contentMap[p.variantId] = p.content;
+        hashtagsMap[p.variantId] = p.hashtags ?? [];
+      });
+      setEditedContent(contentMap);
+      setEditedHashtags(hashtagsMap);
+      if (post.scheduledAt) {
+        const d = new Date(post.scheduledAt);
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const localFormatted = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        setRescheduleTime(localFormatted);
+      }
+      setShowRescheduleInput(false);
+    }
+  }, [post]);
+
+  if (!isOpen || !post) return null;
+
+  const currentVariant = post.platforms[activeVariantIndex] || post.platforms[0];
+  if (!currentVariant) return null;
+
+  const currentContent = editedContent[currentVariant.variantId] ?? currentVariant.content;
+  const currentTags = editedHashtags[currentVariant.variantId] ?? currentVariant.hashtags ?? [];
+  const hasChanges = currentContent !== currentVariant.content ||
+    JSON.stringify(currentTags) !== JSON.stringify(currentVariant.hashtags ?? []);
+
+  const platformMeta = PLATFORM_META[currentVariant.platform] || {
+    name: currentVariant.platform,
+    color: '#666',
+    bg: '#F0F0F0',
+    icon: '•',
+  };
+
+  const handleSaveVariant = async () => {
+    setIsSaving(true);
+    try {
+      const res = await fetch(`/api/publish/variants/${currentVariant.variantId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: currentContent,
+          hashtags: currentTags,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || 'Failed to update variant');
+        return;
+      }
+      toast.success(`${platformMeta.name} variant updated`);
+      currentVariant.content = currentContent;
+      currentVariant.hashtags = currentTags;
+      onUpdated();
+    } catch {
+      toast.error('Failed to update variant');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleReschedule = async () => {
+    if (!rescheduleTime) {
+      toast.error('Please pick a date and time');
+      return;
+    }
+    const targetDate = new Date(rescheduleTime);
+    if (isNaN(targetDate.getTime()) || targetDate.getTime() <= Date.now()) {
+      toast.error('Please choose a valid future date and time');
+      return;
+    }
+
+    setIsRescheduling(true);
+    try {
+      const res = await fetch(`/api/composer/schedule/${post.postId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newScheduledAt: targetDate.toISOString() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || 'Failed to reschedule post');
+        return;
+      }
+      toast.success(`Post rescheduled to ${format(targetDate, 'MMM d, h:mm a')}`);
+      post.scheduledAt = targetDate.toISOString();
+      setShowRescheduleInput(false);
+      onUpdated();
+    } catch {
+      toast.error('Failed to reschedule post');
+    } finally {
+      setIsRescheduling(false);
+    }
+  };
+
+  const handleCancelPost = async () => {
+    if (!confirm('Cancel this scheduled post and remove all its queued platform variants?')) return;
+    setIsCancelling(true);
+    try {
+      const res = await fetch(`/api/composer/schedule/${post.postId}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        toast.success('Post cancelled and removed from queue');
+        onCancelled();
+        onClose();
+      } else {
+        const data = await res.json();
+        toast.error(data.error || 'Failed to cancel post');
+      }
+    } catch {
+      toast.error('Failed to cancel post');
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
+  const addTag = () => {
+    const clean = newTag.trim().replace(/^#/, '');
+    if (!clean) return;
+    if (currentTags.includes(clean)) {
+      toast.info('Tag already added');
+      return;
+    }
+    setEditedHashtags(prev => ({
+      ...prev,
+      [currentVariant.variantId]: [...currentTags, clean],
+    }));
+    setNewTag('');
+  };
+
+  const removeTag = (tagToRemove: string) => {
+    setEditedHashtags(prev => ({
+      ...prev,
+      [currentVariant.variantId]: currentTags.filter(t => t !== tagToRemove),
+    }));
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-150">
+      <div
+        className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl overflow-hidden shadow-2xl border"
+        style={{ backgroundColor: B.card, borderColor: B.border }}
+      >
+        {/* Modal Header */}
+        <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: B.border }}>
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: B.accentBg }}>
+              <Calendar className="w-5 h-5" style={{ color: B.accentDark }} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-base" style={{ color: B.text }}>
+                  Scheduled Post
+                </h3>
+                <span
+                  className="text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider"
+                  style={{
+                    backgroundColor: post.status === 'scheduled' ? B.infoBg : B.successBg,
+                    color: post.status === 'scheduled' ? B.info : B.success,
+                  }}
+                >
+                  {post.status}
+                </span>
+              </div>
+              <p className="text-xs flex items-center gap-1.5 mt-0.5" style={{ color: B.textMuted }}>
+                <Clock className="w-3.5 h-3.5" />
+                {post.scheduledAt
+                  ? format(new Date(post.scheduledAt), 'EEEE, MMM d, yyyy • h:mm a')
+                  : 'Not scheduled'}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-xl hover:bg-neutral-100 transition-colors"
+            style={{ color: B.textMuted }}
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Modal Body */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          {/* Reschedule Control Card */}
+          <div
+            className="p-3.5 rounded-xl border space-y-3"
+            style={{ backgroundColor: B.bg, borderColor: B.border }}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs font-semibold" style={{ color: B.text }}>
+                <Clock className="w-4 h-4" style={{ color: B.accent }} />
+                <span>Scheduled Time:</span>
+                <span className="font-mono font-normal">
+                  {post.scheduledAt ? format(new Date(post.scheduledAt), 'MMM d, yyyy @ h:mm a') : '--'}
+                </span>
+              </div>
+              <button
+                onClick={() => setShowRescheduleInput(prev => !prev)}
+                className="text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors hover:opacity-80"
+                style={{ backgroundColor: B.card, border: `1px solid ${B.border}`, color: B.accentDark }}
+              >
+                {showRescheduleInput ? 'Cancel' : 'Change Time'}
+              </button>
+            </div>
+
+            {showRescheduleInput && (
+              <div className="flex items-center gap-2 pt-2 border-t" style={{ borderColor: `${B.border}80` }}>
+                <input
+                  type="datetime-local"
+                  value={rescheduleTime}
+                  onChange={e => setRescheduleTime(e.target.value)}
+                  className="text-xs px-3 py-2 rounded-xl border flex-1"
+                  style={{ backgroundColor: B.card, borderColor: B.border, color: B.text }}
+                />
+                <button
+                  onClick={handleReschedule}
+                  disabled={isRescheduling}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white transition-opacity disabled:opacity-50"
+                  style={{ backgroundColor: B.accent }}
+                >
+                  {isRescheduling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                  Reschedule
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Platform Variant Tabs */}
+          <div>
+            <label className="text-xs font-semibold block mb-2" style={{ color: B.textMuted }}>
+              PLATFORM VARIANTS ({post.platforms.length})
+            </label>
+            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+              {post.platforms.map((v, idx) => {
+                const meta = PLATFORM_META[v.platform] || { name: v.platform, color: '#666', bg: '#F0F0F0', icon: '•' };
+                const isSelected = idx === activeVariantIndex;
+                const hasPendingEdit = editedContent[v.variantId] && editedContent[v.variantId] !== v.content;
+                return (
+                  <button
+                    key={v.variantId}
+                    onClick={() => setActiveVariantIndex(idx)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all"
+                    style={{
+                      backgroundColor: isSelected ? meta.bg : B.bg,
+                      color: isSelected ? meta.color : B.textMuted,
+                      border: `1.5px solid ${isSelected ? meta.color : B.border}`,
+                      boxShadow: isSelected ? `0 2px 8px ${meta.color}25` : 'none',
+                    }}
+                  >
+                    <span>{meta.icon}</span>
+                    <span>{meta.name}</span>
+                    {hasPendingEdit && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Content Editor */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold" style={{ color: B.text }}>
+                {platformMeta.name} Content
+              </label>
+              <span className="text-[11px] font-mono" style={{ color: B.textMuted }}>
+                {currentContent.length} chars
+              </span>
+            </div>
+            <textarea
+              rows={6}
+              value={currentContent}
+              onChange={e => setEditedContent(prev => ({
+                ...prev,
+                [currentVariant.variantId]: e.target.value,
+              }))}
+              className="w-full text-sm p-3 rounded-xl border focus:outline-none transition-all leading-relaxed"
+              style={{
+                backgroundColor: B.card,
+                borderColor: B.border,
+                color: B.text,
+              }}
+              placeholder={`Write content for ${platformMeta.name}...`}
+            />
+          </div>
+
+          {/* Hashtags Section */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold block" style={{ color: B.text }}>
+              Hashtags
+            </label>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {currentTags.map(tag => (
+                <span
+                  key={tag}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium"
+                  style={{ backgroundColor: B.bg, color: B.accentDark, border: `1px solid ${B.border}` }}
+                >
+                  #{tag}
+                  <button
+                    onClick={() => removeTag(tag)}
+                    className="hover:text-red-500 ml-0.5"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+              <div className="inline-flex items-center gap-1">
+                <input
+                  type="text"
+                  placeholder="add tag..."
+                  value={newTag}
+                  onChange={e => setNewTag(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag(); } }}
+                  className="text-xs px-2.5 py-1 rounded-lg border focus:outline-none w-24"
+                  style={{ backgroundColor: B.card, borderColor: B.border, color: B.text }}
+                />
+                <button
+                  onClick={addTag}
+                  className="p-1 rounded-lg text-xs font-semibold hover:opacity-80"
+                  style={{ backgroundColor: B.accentBg, color: B.accentDark }}
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Media preview */}
+          {currentVariant.mediaUrls && currentVariant.mediaUrls.length > 0 && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold block" style={{ color: B.text }}>
+                Attached Media
+              </label>
+              <div className="flex gap-2">
+                {currentVariant.mediaUrls.map((m, i) => (
+                  <div
+                    key={i}
+                    className="w-20 h-20 rounded-xl overflow-hidden border relative"
+                    style={{ borderColor: B.border }}
+                  >
+                    <img src={m.url} alt="Attached media" className="w-full h-full object-cover" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Auto First Comment */}
+          {currentVariant.autoFirstComment && (
+            <div className="p-3 rounded-xl border space-y-1 text-xs" style={{ backgroundColor: B.bg, borderColor: B.border }}>
+              <span className="font-semibold" style={{ color: B.accentDark }}>Auto First Comment:</span>
+              <p style={{ color: B.textSecondary }}>{currentVariant.autoFirstComment}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Modal Footer */}
+        <div className="p-4 border-t flex items-center justify-between gap-3 bg-neutral-50/50" style={{ borderColor: B.border }}>
+          <button
+            onClick={handleCancelPost}
+            disabled={isCancelling}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+          >
+            {isCancelling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+            Cancel Post
+          </button>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 rounded-xl text-xs font-medium border hover:bg-neutral-100 transition-colors"
+              style={{ borderColor: B.border, color: B.textMuted }}
+            >
+              Close
+            </button>
+            <button
+              onClick={handleSaveVariant}
+              disabled={isSaving || !hasChanges}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white transition-opacity disabled:opacity-50 shadow-sm"
+              style={{ backgroundColor: B.accent }}
+            >
+              {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+              {hasChanges ? 'Save Changes' : 'Saved'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Step 3: Week Canvas ─── */
 function WeekCanvas({
   workspaceId,
   onNewArc,
+  onPostCountChange,
 }: {
   workspaceId: string;
   onNewArc: () => void;
+  onPostCountChange?: (count: number) => void;
 }) {
   const [posts, setPosts] = useState<CanvasPost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [weekOffset, setWeekOffset] = useState(0);
   const [isHolding, setIsHolding] = useState(false);
   const [holdActive, setHoldActive] = useState(false);
+  const [selectedPost, setSelectedPost] = useState<CanvasPost | null>(null);
 
   const weekStart = useMemo(() => {
     const monday = startOfWeek(new Date(), { weekStartsOn: 1 });
@@ -966,14 +1394,16 @@ function WeekCanvas({
       const res = await fetch(`/api/composer/schedule/week?weekStart=${weekStart.toISOString()}`);
       if (res.ok) {
         const data = await res.json();
-        setPosts(data.posts ?? []);
+        const loadedPosts: CanvasPost[] = data.posts ?? [];
+        setPosts(loadedPosts);
+        onPostCountChange?.(loadedPosts.length);
       }
     } catch {
       toast.error('Failed to load schedule');
     } finally {
       setIsLoading(false);
     }
-  }, [weekStart]);
+  }, [weekStart, onPostCountChange]);
 
   useEffect(() => { loadCanvas(); }, [loadCanvas]);
 
@@ -1065,18 +1495,6 @@ function WeekCanvas({
               holdActive ? <PlayCircle className="w-4 h-4" /> : <PauseCircle className="w-4 h-4" />}
             {holdActive ? 'Release Queue' : 'Hold My Queue'}
           </button>
-          <button
-            onClick={onNewArc}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all"
-            style={{
-              backgroundColor: B.accent,
-              color: '#fff',
-              boxShadow: `0 4px 16px ${B.accent}40`,
-            }}
-          >
-            <Sparkles className="w-4 h-4" />
-            Plan New Week
-          </button>
         </div>
       </div>
 
@@ -1156,15 +1574,18 @@ function WeekCanvas({
                     <motion.div
                       key={post.postId}
                       layout
-                      className="rounded-xl p-2.5 group relative"
+                      onClick={() => setSelectedPost(post)}
+                      className="rounded-xl p-2.5 group relative transition-all hover:scale-[1.02]"
                       style={{
                         backgroundColor: B.card,
                         border: `1px solid ${B.border}`,
                         cursor: 'pointer',
+                        boxShadow: B.cardShadow,
                       }}
                     >
                       <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-xs font-mono font-medium" style={{ color: B.textMuted }}>
+                        <span className="text-xs font-mono font-medium flex items-center gap-1" style={{ color: B.textMuted }}>
+                          <Clock className="w-3 h-3" />
                           {post.scheduledAt ? format(new Date(post.scheduledAt), 'HH:mm') : '--:--'}
                         </span>
                         <div
@@ -1177,39 +1598,33 @@ function WeekCanvas({
                         {post.content}
                       </p>
 
-                      <div className="flex flex-wrap gap-1 mt-1.5">
-                        {post.platforms.slice(0, 3).map(v => {
-                          const meta = PLATFORM_META[v.platform];
-                          return meta ? (
-                            <span
-                              key={v.variantId}
-                              className="text-[9px] px-1.5 py-0.5 rounded-full font-medium"
-                              style={{ backgroundColor: meta.bg, color: meta.color }}
-                            >
-                              {meta.name.slice(0, 2)}
+                      <div className="flex items-center justify-between mt-2 pt-1.5" style={{ borderTop: `1px solid ${B.border}50` }}>
+                        <div className="flex flex-wrap gap-1">
+                          {post.platforms.slice(0, 3).map(v => {
+                            const meta = PLATFORM_META[v.platform];
+                            return meta ? (
+                              <span
+                                key={v.variantId}
+                                className="text-[9px] px-1.5 py-0.5 rounded-full font-medium"
+                                style={{ backgroundColor: meta.bg, color: meta.color }}
+                              >
+                                {meta.name.slice(0, 2)}
+                              </span>
+                            ) : null;
+                          })}
+                          {post.platforms.length > 3 && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-full"
+                              style={{ backgroundColor: B.border, color: B.textMuted }}>
+                              +{post.platforms.length - 3}
                             </span>
-                          ) : null;
-                        })}
-                        {post.platforms.length > 3 && (
-                          <span className="text-[9px] px-1.5 py-0.5 rounded-full"
-                            style={{ backgroundColor: B.border, color: B.textMuted }}>
-                            +{post.platforms.length - 3}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Hover actions */}
-                      {post.status === 'scheduled' && (
-                        <div className="absolute top-1 right-1 hidden group-hover:flex items-center gap-1">
-                          <button
-                            onClick={() => handleCancel(post.postId)}
-                            className="p-1 rounded-lg opacity-70 hover:opacity-100"
-                            style={{ backgroundColor: B.dangerBg, color: B.danger }}
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
+                          )}
                         </div>
-                      )}
+
+                        <span className="text-[10px] font-medium flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: B.accentDark }}>
+                          <Edit3 className="w-2.5 h-2.5" />
+                          Edit
+                        </span>
+                      </div>
                     </motion.div>
                   ))}
                 </div>
@@ -1218,6 +1633,15 @@ function WeekCanvas({
           })}
         </div>
       )}
+
+      {/* Scheduled Post Detail & Edit Modal */}
+      <ScheduledPostModal
+        post={selectedPost}
+        isOpen={!!selectedPost}
+        onClose={() => setSelectedPost(null)}
+        onUpdated={loadCanvas}
+        onCancelled={loadCanvas}
+      />
     </div>
   );
 }
@@ -1230,6 +1654,7 @@ function FlightPlanInner({ userId, workspaceId }: { userId: string; workspaceId:
   const [isScheduling, setIsScheduling] = useState(false);
   const [isPreviewOnly, setIsPreviewOnly] = useState(false);
   const [storyData, setStoryData] = useState<any>(null);
+  const [postCount, setPostCount] = useState<number>(0);
   const [connectedPlatforms, setConnectedPlatforms] = useState<PlatformType[]>([]);
 
   // Load connected platforms
@@ -1357,7 +1782,7 @@ function FlightPlanInner({ userId, workspaceId }: { userId: string; workspaceId:
             Plan your week of content in 15 minutes. One story, every platform, perfectly timed.
           </p>
         </div>
-        {view === 'canvas' && (
+        {view === 'canvas' && postCount > 0 && (
           <button
             onClick={() => setView('story')}
             className="flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm transition-all"
@@ -1409,6 +1834,7 @@ function FlightPlanInner({ userId, workspaceId }: { userId: string; workspaceId:
             key="canvas"
             workspaceId={workspaceId}
             onNewArc={() => setView('story')}
+            onPostCountChange={setPostCount}
           />
         )}
       </AnimatePresence>
