@@ -105,7 +105,7 @@ const configSchema = z.object({
 
   // Groq API (for AI generation and automation)
   GROQ_API_KEY: z.string().optional(),
-  AI_GROQ_MODEL: z.string().default('openai/gpt-oss-120b'),
+  AI_GROQ_MODEL: z.string().default('qwen/qwen3.8-27b'),
 
   // Security hardening
   ENABLE_HSTS: z.coerce.boolean().default(true),

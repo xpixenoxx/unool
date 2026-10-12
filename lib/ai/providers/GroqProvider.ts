@@ -14,7 +14,7 @@ export class GroqProvider implements AIProvider {
   private defaultModel: string;
   private baseUrl = 'https://api.groq.com/openai/v1';
 
-  constructor(apiKey: string, defaultModel: string = 'openai/gpt-oss-120b') {
+  constructor(apiKey: string, defaultModel: string = 'qwen/qwen3.8-27b') {
     this.apiKey = apiKey;
     this.defaultModel = defaultModel;
   }
@@ -23,7 +23,7 @@ export class GroqProvider implements AIProvider {
     prompt: string,
     options?: GenerationOptions & { responseFormatJson?: boolean }
   ): Promise<Result<AIResponse, AIError>> {
-    const model = options?.model || this.defaultModel || 'openai/gpt-oss-120b';
+    const model = options?.model || this.defaultModel || 'qwen/qwen3.8-27b';
     const systemPrompt = options?.systemPrompt || '';
     const maxTokens = options?.maxTokens || 4000;
     const temperature = options?.temperature ?? 0.7;
@@ -94,9 +94,17 @@ export class GroqProvider implements AIProvider {
     schema: T,
     options?: GenerationOptions
   ): Promise<Result<z.infer<T>, AIError>> {
-    const result = await this.generateText(prompt, {
+    const systemPrompt = options?.systemPrompt || 'You are an AI that outputs valid JSON only. Follow the required JSON schema keys strictly.';
+
+    // Guide the model on expected schema if not explicitly defined in prompt
+    const enhancedPrompt = prompt.includes('"content"')
+      ? prompt
+      : `${prompt}\n\nYou MUST respond with valid JSON matching this schema: {"content": string, "characterCount": number, "hashtags": string[], "mediaSuggestions": string[], "firstCommentHint": string | null}`;
+
+    const result = await this.generateText(enhancedPrompt, {
       ...options,
-      temperature: 0.1,
+      systemPrompt,
+      temperature: options?.temperature ?? 0.7,
       maxTokens: options?.maxTokens || 4000,
       responseFormatJson: true,
     });
@@ -115,7 +123,19 @@ export class GroqProvider implements AIProvider {
       }
       text = text.trim();
 
-      const parsed = JSON.parse(text);
+      const parsed: any = JSON.parse(text);
+
+      // Resilient normalization for common LLM field variations
+      if (parsed && typeof parsed === 'object') {
+        if (parsed.post && !parsed.content) parsed.content = parsed.post;
+        if (parsed.text && !parsed.content) parsed.content = parsed.text;
+        if (typeof parsed.characterCount !== 'number' && typeof parsed.content === 'string') {
+          parsed.characterCount = parsed.content.length;
+        }
+        if (!Array.isArray(parsed.hashtags)) parsed.hashtags = [];
+        if (!Array.isArray(parsed.mediaSuggestions)) parsed.mediaSuggestions = [];
+      }
+
       const validated = schema.parse(parsed);
       return ok(validated);
     } catch (parseError: unknown) {

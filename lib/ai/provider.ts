@@ -17,10 +17,10 @@ let providerName: 'anthropic' | 'openai' | 'groq' | null = config.GROQ_API_KEY
   : null;
 
 function getModelForProvider(provider: 'anthropic' | 'openai' | 'groq'): string {
-  if (provider === 'groq') return config.AI_GROQ_MODEL || 'openai/gpt-oss-120b';
+  if (provider === 'groq') return config.AI_GROQ_MODEL || 'qwen/qwen3.8-27b';
   if (provider === 'anthropic') return config.AI_DEFAULT_MODEL;
   if (provider === 'openai') return config.AI_OPENAI_MODEL;
-  return config.AI_GROQ_MODEL || 'openai/gpt-oss-120b';
+  return config.AI_GROQ_MODEL || 'qwen/qwen3.8-27b';
 }
 
 function createProvider(): AIProvider {
@@ -28,7 +28,7 @@ function createProvider(): AIProvider {
   if (config.GROQ_API_KEY) {
     providerName = 'groq';
     logger.info('Initialized Groq AI provider');
-    return new GroqProvider(config.GROQ_API_KEY, config.AI_GROQ_MODEL || 'openai/gpt-oss-120b');
+    return new GroqProvider(config.GROQ_API_KEY, config.AI_GROQ_MODEL || 'qwen/qwen3.8-27b');
   }
   if (config.ANTHROPIC_API_KEY) {
     providerName = 'anthropic';
@@ -74,7 +74,7 @@ async function tryWithFallback<T>(
   const candidates: Array<{ name: 'groq' | 'anthropic' | 'openai'; create: () => AIProvider }> = [];
 
   if (config.GROQ_API_KEY) {
-    candidates.push({ name: 'groq', create: () => new GroqProvider(config.GROQ_API_KEY!, config.AI_GROQ_MODEL || 'openai/gpt-oss-120b') });
+    candidates.push({ name: 'groq', create: () => new GroqProvider(config.GROQ_API_KEY!, config.AI_GROQ_MODEL || 'qwen/qwen3.8-27b') });
   }
   if (config.ANTHROPIC_API_KEY) {
     candidates.push({ name: 'anthropic', create: () => new AnthropicProvider(config.ANTHROPIC_API_KEY!) });
