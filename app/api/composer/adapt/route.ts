@@ -125,8 +125,9 @@ export async function POST(request: NextRequest) {
         adaptationPromptVersion: PostAdapter['PROMPT_VERSION'],
       });
 
-      // Create variants
-      for (const platform of activePlatforms) {
+      // Create variants — only for platforms that were successfully adapted
+      const successfulPlatforms = Object.keys(variants) as PlatformType[];
+      for (const platform of successfulPlatforms) {
         const adapted = variants[platform];
 
         let status: 'draft' | 'failed' | 'published' = 'draft';
