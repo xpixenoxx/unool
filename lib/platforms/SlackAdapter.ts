@@ -85,11 +85,33 @@ export class SlackAdapter implements PlatformAdapter {
 
     // File uploads to Slack are complex, so we'll just post the text first
     // Slack requires text separated or blocks. We'll use simple text.
-    let text = input.content;
-    
-    // Append media URLs to text so Slack unfurls them if we have media
+    const payload: Record<string, unknown> = {
+      channel: channel,
+      text: input.content || 'New post',
+    };
+
     if (input.mediaUrls && input.mediaUrls.length > 0) {
-      text += '\n\n' + input.mediaUrls.join('\n');
+      const blocks: Record<string, unknown>[] = [];
+      
+      if (input.content && input.content.trim()) {
+        blocks.push({
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: input.content.slice(0, 3000),
+          },
+        });
+      }
+
+      input.mediaUrls.forEach((mediaUrl, idx) => {
+        blocks.push({
+          type: 'image',
+          image_url: mediaUrl,
+          alt_text: `Image ${idx + 1}`,
+        });
+      });
+
+      payload.blocks = blocks;
     }
 
     const postRes = await fetch('https://slack.com/api/chat.postMessage', {
@@ -98,10 +120,7 @@ export class SlackAdapter implements PlatformAdapter {
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        channel: channel,
-        text: text,
-      }),
+      body: JSON.stringify(payload),
     });
 
     const postData = await postRes.json();
