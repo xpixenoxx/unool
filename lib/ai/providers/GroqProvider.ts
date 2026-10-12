@@ -5,23 +5,25 @@ import { z } from 'zod';
 
 /**
  * Groq AI provider — uses the OpenAI-compatible API at api.groq.com.
- * Supports high-throughput generation using models like llama-3.3-70b-versatile.
+ * Supports high-throughput generation using models like openai/gpt-oss-120b.
  */
 export class GroqProvider implements AIProvider {
   name = 'groq';
 
   private apiKey: string;
+  private defaultModel: string;
   private baseUrl = 'https://api.groq.com/openai/v1';
 
-  constructor(apiKey: string) {
+  constructor(apiKey: string, defaultModel: string = 'openai/gpt-oss-120b') {
     this.apiKey = apiKey;
+    this.defaultModel = defaultModel;
   }
 
   async generateText(
     prompt: string,
     options?: GenerationOptions & { responseFormatJson?: boolean }
   ): Promise<Result<AIResponse, AIError>> {
-    const model = options?.model || 'llama-3.3-70b-versatile';
+    const model = options?.model || this.defaultModel || 'openai/gpt-oss-120b';
     const systemPrompt = options?.systemPrompt || '';
     const maxTokens = options?.maxTokens || 4000;
     const temperature = options?.temperature ?? 0.7;

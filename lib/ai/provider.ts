@@ -17,10 +17,10 @@ let providerName: 'anthropic' | 'openai' | 'groq' | null = config.GROQ_API_KEY
   : null;
 
 function getModelForProvider(provider: 'anthropic' | 'openai' | 'groq'): string {
-  if (provider === 'groq') return 'llama-3.3-70b-versatile';
+  if (provider === 'groq') return config.AI_GROQ_MODEL || 'openai/gpt-oss-120b';
   if (provider === 'anthropic') return config.AI_DEFAULT_MODEL;
   if (provider === 'openai') return config.AI_OPENAI_MODEL;
-  return 'llama-3.3-70b-versatile';
+  return config.AI_GROQ_MODEL || 'openai/gpt-oss-120b';
 }
 
 function createProvider(): AIProvider {
@@ -28,7 +28,7 @@ function createProvider(): AIProvider {
   if (config.GROQ_API_KEY) {
     providerName = 'groq';
     logger.info('Initialized Groq AI provider');
-    return new GroqProvider(config.GROQ_API_KEY);
+    return new GroqProvider(config.GROQ_API_KEY, config.AI_GROQ_MODEL || 'openai/gpt-oss-120b');
   }
   if (config.ANTHROPIC_API_KEY) {
     providerName = 'anthropic';
@@ -70,27 +70,38 @@ async function tryWithFallback<T>(
     error: primaryResult.error.message,
   });
 
-  // Hierarchy: Groq -> Anthropic -> OpenAI
-  if (providerName === 'groq' && config.ANTHROPIC_API_KEY) {
-    providerInstance = new AnthropicProvider(config.ANTHROPIC_API_KEY);
-    providerName = 'anthropic';
-    logger.info('Switched to Anthropic fallback provider');
-  } else if ((providerName === 'groq' || providerName === 'anthropic') && config.OPENAI_API_KEY) {
-    providerInstance = new OpenAIProvider(config.OPENAI_API_KEY);
-    providerName = 'openai';
-    logger.info('Switched to OpenAI fallback provider');
-  } else if (providerName === 'openai' && config.GROQ_API_KEY) {
-    providerInstance = new GroqProvider(config.GROQ_API_KEY);
-    providerName = 'groq';
-    logger.info('Switched to Groq fallback provider');
-  } else {
-    return primaryResult; // No fallback available
+  const tried = new Set<string>([providerName || 'unknown']);
+  const candidates: Array<{ name: 'groq' | 'anthropic' | 'openai'; create: () => AIProvider }> = [];
+
+  if (config.GROQ_API_KEY) {
+    candidates.push({ name: 'groq', create: () => new GroqProvider(config.GROQ_API_KEY!, config.AI_GROQ_MODEL || 'openai/gpt-oss-120b') });
+  }
+  if (config.ANTHROPIC_API_KEY) {
+    candidates.push({ name: 'anthropic', create: () => new AnthropicProvider(config.ANTHROPIC_API_KEY!) });
+  }
+  if (config.OPENAI_API_KEY) {
+    candidates.push({ name: 'openai', create: () => new OpenAIProvider(config.OPENAI_API_KEY!) });
   }
 
-  // Now call fallback with the NEW provider and model
-  const fallbackProvider = getAIProvider();
-  const fallbackModel = getModelForProvider(providerName!);
-  return fallbackFn(fallbackProvider, fallbackModel);
+  let lastError = primaryResult.error;
+  for (const candidate of candidates) {
+    if (tried.has(candidate.name)) continue;
+    tried.add(candidate.name);
+
+    providerInstance = candidate.create();
+    providerName = candidate.name;
+    const fallbackModel = getModelForProvider(candidate.name);
+    logger.info(`Switched to ${candidate.name} fallback provider`, { model: fallbackModel });
+
+    const fallbackResult = await fallbackFn(providerInstance, fallbackModel);
+    if (fallbackResult.ok) {
+      return fallbackResult;
+    }
+    logger.warn(`${candidate.name} fallback provider failed`, { error: fallbackResult.error.message });
+    lastError = fallbackResult.error;
+  }
+
+  return { ok: false, error: lastError };
 }
 
 export async function generateWithFallback<T extends z.ZodTypeAny>(

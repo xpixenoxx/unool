@@ -103,8 +103,9 @@ const configSchema = z.object({
   META_WEBHOOK_SECRET: z.string().optional(),
   META_WEBHOOK_VERIFY_TOKEN: z.string().optional(),
 
-  // Groq API (for Instagram comment automation)
+  // Groq API (for AI generation and automation)
   GROQ_API_KEY: z.string().optional(),
+  AI_GROQ_MODEL: z.string().default('openai/gpt-oss-120b'),
 
   // Security hardening
   ENABLE_HSTS: z.coerce.boolean().default(true),
