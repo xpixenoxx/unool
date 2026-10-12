@@ -131,10 +131,49 @@ export async function POST(request: NextRequest) {
         postId: post.id,
       });
 
-      // Enqueue a background job in QStash for reliable long-running video uploads
-      // This solves the Vercel maxDuration timeouts
-      const { queueService } = await import('@/lib/services/QueueService');
-      await queueService.enqueuePublishTask(post.id, workspaceId);
+      // Enqueue a background job in QStash if configured, otherwise use direct background publish
+      let enqueued = false;
+      const { config } = await import('@/lib/config/schema');
+      if (config.QSTASH_TOKEN) {
+        try {
+          const { queueService } = await import('@/lib/services/QueueService');
+          const messageId = await queueService.enqueuePublishTask(post.id, workspaceId);
+          if (messageId) {
+            enqueued = true;
+          }
+        } catch (queueErr) {
+          logger.warn('Failed to enqueue broadcast task to QStash, using fallback', { postId: post.id, error: queueErr });
+        }
+      }
+
+      // If QStash was not configured or failed to enqueue, use Next.js background execution
+      if (!enqueued) {
+        logger.info('Publishing broadcast via background execution (QStash not active)', { postId: post.id, workspaceId });
+        try {
+          const { after } = await import('next/server');
+          if (typeof after === 'function') {
+            after(async () => {
+              try {
+                logger.info('Background broadcast publish running via after()', { traceId, postId: post.id });
+                await publishService.publishToAllPlatforms(post.id, workspaceId);
+              } catch (bgError) {
+                const bgErr = bgError instanceof Error ? bgError : new Error(String(bgError));
+                logger.error('Broadcast background publish failed', { traceId, postId: post.id, error: bgErr });
+              }
+            });
+          } else {
+            publishService.publishToAllPlatforms(post.id, workspaceId).catch(err => {
+              const e = err instanceof Error ? err : new Error(String(err));
+              logger.error('Direct broadcast publish failed', { postId: post.id, error: e });
+            });
+          }
+        } catch {
+          publishService.publishToAllPlatforms(post.id, workspaceId).catch(err => {
+            const e = err instanceof Error ? err : new Error(String(err));
+            logger.error('Direct broadcast publish failed', { postId: post.id, error: e });
+          });
+        }
+      }
 
       return NextResponse.json({
         success: true,

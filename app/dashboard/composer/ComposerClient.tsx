@@ -793,7 +793,15 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ postId, workspaceId: profile?.id }),
+        body: JSON.stringify({
+          postId,
+          workspaceId,
+          drafts: readyDrafts.map(d => ({
+            platform: d.platform,
+            content: d.content,
+            hashtags: d.hashtags,
+          })),
+        }),
       });
 
       let data;
@@ -829,14 +837,13 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         }
       }
 
-      // Fire the SignalStrip
+      // Fire the SignalStrip with pending state so it monitors live publishing progress
       emitSignalStrip({
         postId,
         content: sourceContent,
-        platforms: Object.entries(results || {}).map(([platform, r]: [string, any]) => ({
-          platform,
-          status: r.success ? 'published' : 'failed',
-          platformUrl: r.platformUrl,
+        platforms: readyDrafts.map(d => ({
+          platform: d.platform,
+          status: 'pending',
         })),
       });
 

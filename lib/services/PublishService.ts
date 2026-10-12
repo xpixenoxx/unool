@@ -30,13 +30,22 @@ export class PublishService {
   async publishPost(input: PublishJobInput): Promise<Result<PublishJobResult, Error>> {
     const adapter = getPlatformAdapter(input.platform);
     if (!adapter) {
+      await postRepository.updateVariant(input.postVariantId, {
+        status: 'failed',
+        error: { code: 'UNSUPPORTED_PLATFORM', message: `Unsupported platform: ${input.platform}` },
+      });
       return err(new Error(`Unsupported platform: ${input.platform}`));
     }
 
     // Get platform connection for workspace
     const connection = await platformRepository.findByWorkspaceAndPlatform(input.workspaceId, input.platform);
     if (!connection || connection.status !== 'connected') {
-      return err(new Error(`No active connection for ${input.platform}`));
+      const errorMsg = `No active connection for ${input.platform}. Please connect this platform in settings.`;
+      await postRepository.updateVariant(input.postVariantId, {
+        status: 'failed',
+        error: { code: 'NO_CONNECTION', message: errorMsg },
+      });
+      return err(new Error(errorMsg));
     }
 
     // Get post variant with adapted content
@@ -61,6 +70,10 @@ export class PublishService {
     } catch (error) {
       const decryptionError = error instanceof Error ? error : new Error(String(error));
       logger.error('Token decryption failed', { error: decryptionError, connectionId: connection.id });
+      await postRepository.updateVariant(input.postVariantId, {
+        status: 'failed',
+        error: { code: 'DECRYPTION_FAILED', message: 'Failed to decrypt access token. Please reconnect account.' },
+      });
       return err(new Error('Failed to decrypt access token'));
     }
 
@@ -165,6 +178,10 @@ export class PublishService {
     postId: string,
     workspaceId: string
   ): Promise<Record<Platform, PublishJobResult>> {
+    // Lookup post to ensure guaranteed workspaceId
+    const post = await postRepository.findById(postId);
+    const resolvedWorkspaceId = post?.workspaceId || workspaceId;
+
     // Get all variants for this post
     const variants = await postRepository.findVariantsByPostId(postId);
     const results: Record<string, PublishJobResult> = {};
@@ -172,6 +189,7 @@ export class PublishService {
     // Publish each variant to its platform in parallel
     logger.info('PublishService: publishing to all platforms', {
       postId,
+      workspaceId: resolvedWorkspaceId,
       variantCount: variants.length,
       platforms: variants.map(v => v.platform),
     });
@@ -185,7 +203,7 @@ export class PublishService {
       const result = await this.publishPost({
         postVariantId: variant.id,
         platform: variant.platform,
-        workspaceId,
+        workspaceId: resolvedWorkspaceId,
       });
       const jobResult = result.ok ? result.value : { success: false, error: result.error?.message };
       logger.info(`PublishService: finished publish for ${variant.platform}`, {
