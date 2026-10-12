@@ -438,7 +438,58 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   });
   const [scheduleStrategy, setScheduleStrategy] = useState<'cascading' | 'simultaneous'>('cascading');
   const [isSchedulingPost, setIsSchedulingPost] = useState(false);
+  // ── Hook Scorer + Humanizer state ───────────────────────────────────────────
+  const [hookScore, setHookScore] = useState<{ score: number; grade: string; suggestion: string | null; slopWords: string[] } | null>(null);
+  const [isHumanizing, setIsHumanizing] = useState(false);
   const springConfig: Transition = reducedMotion ? { type: 'tween', duration: 0.01 } : spring.snappy;
+
+  // ── Debounced hook scorer ────────────────────────────────────────────────────
+  // Runs 600ms after the user stops typing, no AI call — pure deterministic.
+  useEffect(() => {
+    if (!sourceContent.trim()) { setHookScore(null); return; }
+    const timer = setTimeout(async () => {
+      try {
+        const firstLine = sourceContent.split('\n')[0]?.trim() ?? '';
+        if (!firstLine) return;
+        const res = await fetch('/api/composer/hook-score', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hooks: [firstLine], platform: previewPlatform }),
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const top = data.ranked?.[0];
+        if (top) {
+          setHookScore({
+            score: top.breakdown.totalScore,
+            grade: top.breakdown.grade,
+            suggestion: top.suggestions?.[0] ?? null,
+            slopWords: top.breakdown.slopWords ?? [],
+          });
+        }
+      } catch { /* silent — non-critical */ }
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [sourceContent, previewPlatform]);
+
+  // ── One-click humanizer ──────────────────────────────────────────────────────
+  const handleHumanize = useCallback(async () => {
+    if (!sourceContent.trim()) return;
+    setIsHumanizing(true);
+    try {
+      const res = await fetch('/api/composer/humanize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: sourceContent, platform: previewPlatform }),
+      });
+      const data = await res.json();
+      if (data.humanized) {
+        setSourceContent(data.humanized);
+        toast.success(`De-slopped: ${data.changeCount} fix${data.changeCount !== 1 ? 'es' : ''} · Panel score ${data.panelScore}/100`);
+      }
+    } catch { toast.error('Humanize failed'); }
+    finally { setIsHumanizing(false); }
+  }, [sourceContent, previewPlatform]);
 
   // Determine the live content for preview based on mode
   const liveContent = mode === 'ai'
@@ -1245,6 +1296,58 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                     className={cn("min-h-[140px] resize-none", isDragging && "bg-transparent border-dashed border-primary")}
                     rows={6}
                   />
+
+                  {/* ── Hook Score Panel ─────────────────────────────────── */}
+                  {hookScore && (
+                    <div className={cn(
+                      'flex items-start gap-3 px-3 py-2.5 rounded-lg text-xs border transition-all',
+                      hookScore.grade === 'STRONG' && 'border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30',
+                      hookScore.grade === 'OK'     && 'border-yellow-200 bg-yellow-50 dark:border-yellow-900 dark:bg-yellow-950/30',
+                      hookScore.grade === 'WEAK'   && 'border-orange-200 bg-orange-50 dark:border-orange-900 dark:bg-orange-950/30',
+                      hookScore.grade === 'FAIL'   && 'border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/30',
+                    )}>
+                      <div className="flex-shrink-0 mt-0.5">
+                        <span className={cn(
+                          'inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold',
+                          hookScore.grade === 'STRONG' && 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300',
+                          hookScore.grade === 'OK'     && 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300',
+                          hookScore.grade === 'WEAK'   && 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300',
+                          hookScore.grade === 'FAIL'   && 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300',
+                        )}>
+                          {hookScore.score}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={cn(
+                            'font-semibold uppercase tracking-wide text-[11px]',
+                            hookScore.grade === 'STRONG' && 'text-green-700 dark:text-green-400',
+                            hookScore.grade === 'OK'     && 'text-yellow-700 dark:text-yellow-400',
+                            hookScore.grade === 'WEAK'   && 'text-orange-700 dark:text-orange-400',
+                            hookScore.grade === 'FAIL'   && 'text-red-700 dark:text-red-400',
+                          )}>Hook · {hookScore.grade}</span>
+                          {hookScore.slopWords.length > 0 && (
+                            <span className="text-[10px] text-muted-foreground">
+                              Slop: {hookScore.slopWords.slice(0,2).join(', ')}
+                            </span>
+                          )}
+                        </div>
+                        {hookScore.suggestion && (
+                          <p className="text-muted-foreground mt-0.5 leading-snug">{hookScore.suggestion}</p>
+                        )}
+                      </div>
+                      <button
+                        onClick={handleHumanize}
+                        disabled={isHumanizing}
+                        title="Remove AI fingerprints (em dashes, slop words, invisible chars)"
+                        className="flex-shrink-0 flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-background border border-border hover:bg-muted transition-colors disabled:opacity-50"
+                      >
+                        {isHumanizing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                        De-Slop
+                      </button>
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between flex-wrap gap-3">
                     <span className="text-sm text-muted-foreground tabular-nums">
                       {sourceContent.length} characters

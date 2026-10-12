@@ -8,22 +8,28 @@ import { z } from 'zod';
 import { Result, ok } from '@/lib/shared/Result';
 
 let providerInstance: AIProvider | null = null;
-let providerName: 'anthropic' | 'openai' | 'groq' | null = config.ANTHROPIC_API_KEY
+let providerName: 'anthropic' | 'openai' | 'groq' | null = config.GROQ_API_KEY
+  ? 'groq'
+  : config.ANTHROPIC_API_KEY
   ? 'anthropic'
   : config.OPENAI_API_KEY
   ? 'openai'
-  : config.GROQ_API_KEY
-  ? 'groq'
   : null;
 
 function getModelForProvider(provider: 'anthropic' | 'openai' | 'groq'): string {
+  if (provider === 'groq') return 'llama-3.3-70b-versatile';
   if (provider === 'anthropic') return config.AI_DEFAULT_MODEL;
   if (provider === 'openai') return config.AI_OPENAI_MODEL;
   return 'llama-3.3-70b-versatile';
 }
 
 function createProvider(): AIProvider {
-  // Priority: Anthropic > OpenAI > Groq
+  // Priority: Groq > Anthropic > OpenAI
+  if (config.GROQ_API_KEY) {
+    providerName = 'groq';
+    logger.info('Initialized Groq AI provider');
+    return new GroqProvider(config.GROQ_API_KEY);
+  }
   if (config.ANTHROPIC_API_KEY) {
     providerName = 'anthropic';
     logger.info('Initialized Anthropic AI provider');
@@ -33,11 +39,6 @@ function createProvider(): AIProvider {
     providerName = 'openai';
     logger.info('Initialized OpenAI AI provider');
     return new OpenAIProvider(config.OPENAI_API_KEY);
-  }
-  if (config.GROQ_API_KEY) {
-    providerName = 'groq';
-    logger.info('Initialized Groq AI provider');
-    return new GroqProvider(config.GROQ_API_KEY);
   }
   // Fallback - warns at runtime if no keys configured
   logger.warn('No AI provider API keys configured, using Anthropic as default (will fail without key)');
@@ -69,19 +70,19 @@ async function tryWithFallback<T>(
     error: primaryResult.error.message,
   });
 
-  // Hierarchy: Anthropic -> OpenAI -> Groq
-  if (providerName === 'anthropic' && config.OPENAI_API_KEY) {
-    providerInstance = new OpenAIProvider(config.OPENAI_API_KEY);
-    providerName = 'openai';
-    logger.info('Switched to OpenAI fallback provider');
-  } else if ((providerName === 'anthropic' || providerName === 'openai') && config.GROQ_API_KEY) {
-    providerInstance = new GroqProvider(config.GROQ_API_KEY);
-    providerName = 'groq';
-    logger.info('Switched to Groq fallback provider');
-  } else if (providerName === 'openai' && config.ANTHROPIC_API_KEY) {
+  // Hierarchy: Groq -> Anthropic -> OpenAI
+  if (providerName === 'groq' && config.ANTHROPIC_API_KEY) {
     providerInstance = new AnthropicProvider(config.ANTHROPIC_API_KEY);
     providerName = 'anthropic';
     logger.info('Switched to Anthropic fallback provider');
+  } else if ((providerName === 'groq' || providerName === 'anthropic') && config.OPENAI_API_KEY) {
+    providerInstance = new OpenAIProvider(config.OPENAI_API_KEY);
+    providerName = 'openai';
+    logger.info('Switched to OpenAI fallback provider');
+  } else if (providerName === 'openai' && config.GROQ_API_KEY) {
+    providerInstance = new GroqProvider(config.GROQ_API_KEY);
+    providerName = 'groq';
+    logger.info('Switched to Groq fallback provider');
   } else {
     return primaryResult; // No fallback available
   }
