@@ -440,7 +440,8 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const [isSchedulingPost, setIsSchedulingPost] = useState(false);
   // â”€â”€ Hook Scorer + Humanizer state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [hookScore, setHookScore] = useState<{ score: number; grade: string; suggestion: string | null; slopWords: string[] } | null>(null);
-  const [isHumanizing, setIsHumanizing] = useState(false);
+  const [humanizingPlatform, setHumanizingPlatform] = useState<PlatformType | null>(null);
+  const [isHumanizingAll, setIsHumanizingAll] = useState(false);
   const springConfig: Transition = reducedMotion ? { type: 'tween', duration: 0.01 } : spring.snappy;
 
   // â”€â”€ Debounced hook scorer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -473,23 +474,66 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   }, [sourceContent, previewPlatform]);
 
   // â”€â”€ One-click humanizer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  const handleHumanize = useCallback(async () => {
-    if (!sourceContent.trim()) return;
-    setIsHumanizing(true);
+  const handleHumanizeDraft = useCallback(async (platform: PlatformType) => {
+    const targetDraft = drafts.find(d => d.platform === platform);
+    if (!targetDraft || !targetDraft.content.trim()) return;
+
+    setHumanizingPlatform(platform);
     try {
       const res = await fetch('/api/composer/humanize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: sourceContent, platform: previewPlatform }),
+        body: JSON.stringify({ content: targetDraft.content, platform }),
       });
       const data = await res.json();
       if (data.humanized) {
-        setSourceContent(data.humanized);
-        toast.success(`De-slopped: ${data.changeCount} fix${data.changeCount !== 1 ? 'es' : ''} Â· Panel score ${data.panelScore}/100`);
+        updateDraft(platform, data.humanized);
+        const platformName = PLATFORM_CONFIG[platform]?.name || platform;
+        if (data.changeCount > 0) {
+          toast.success(`De-slopped ${platformName}: ${data.changeCount} AI fix${data.changeCount !== 1 ? 'es' : ''} applied · Score ${data.panelScore}/100`);
+        } else {
+          toast.info(`${platformName} draft is already clean · Score ${data.panelScore}/100`);
+        }
       }
-    } catch { toast.error('Humanize failed'); }
-    finally { setIsHumanizing(false); }
-  }, [sourceContent, previewPlatform]);
+    } catch {
+      toast.error('Failed to de-slop draft');
+    } finally {
+      setHumanizingPlatform(null);
+    }
+  }, [drafts]);
+
+  const handleHumanizeAllDrafts = useCallback(async () => {
+    const readyDrafts = drafts.filter(d => d.status === 'ready' && d.content.trim());
+    if (readyDrafts.length === 0) return;
+
+    setIsHumanizingAll(true);
+    let totalChanges = 0;
+    try {
+      await Promise.all(
+        readyDrafts.map(async (d) => {
+          try {
+            const res = await fetch('/api/composer/humanize', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ content: d.content, platform: d.platform }),
+            });
+            const data = await res.json();
+            if (data.humanized) {
+              updateDraft(d.platform, data.humanized);
+              totalChanges += data.changeCount || 0;
+            }
+          } catch {
+            // ignore individual failure
+          }
+        })
+      );
+      toast.success(`De-slopped all drafts: ${totalChanges} AI fix${totalChanges !== 1 ? 'es' : ''} applied`);
+    } catch {
+      toast.error('Failed to de-slop all drafts');
+    } finally {
+      setIsHumanizingAll(false);
+    }
+  }, [drafts]);
 
   // Determine the live content for preview based on mode
   const liveContent = mode === 'ai'
@@ -1545,15 +1589,6 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                           <p className="text-muted-foreground mt-0.5 leading-snug">{hookScore.suggestion}</p>
                         )}
                       </div>
-                      <button
-                        onClick={handleHumanize}
-                        disabled={isHumanizing}
-                        title="Remove AI fingerprints (em dashes, slop words, invisible chars)"
-                        className="flex-shrink-0 flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-background border border-border hover:bg-muted transition-colors disabled:opacity-50"
-                      >
-                        {isHumanizing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-                        De-Slop
-                      </button>
                     </div>
                   )}
 
@@ -1703,7 +1738,25 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                                       </p>
                                     </div>
                                   </div>
-                                  <div>
+                                  <div className="flex items-center gap-2">
+                                    {draft?.status === 'ready' && (
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleHumanizeDraft(platform)}
+                                        disabled={humanizingPlatform === platform || !draft?.content?.trim()}
+                                        title={`Humanize and remove AI slop for ${cfg.name}`}
+                                        className="h-7 text-xs flex items-center gap-1.5 px-2.5 bg-background hover:bg-muted border-border font-medium cursor-pointer"
+                                      >
+                                        {humanizingPlatform === platform ? (
+                                          <Loader2 className="w-3 h-3 animate-spin text-primary" />
+                                        ) : (
+                                          <Sparkles className="w-3 h-3 text-amber-500" />
+                                        )}
+                                        De-Slop
+                                      </Button>
+                                    )}
                                     {draft?.status === 'generating' && <Badge variant="secondary">Generatingâ€¦</Badge>}
                                     {draft?.status === 'ready' && (
                                       <Badge className="bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 border-green-200">
@@ -1770,16 +1823,36 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                                   </div>
                                 )}
 
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => generateDrafts()}
-                                  disabled={isGenerating || draft?.status === 'generating'}
-                                  className="mt-1 text-xs h-7"
-                                >
-                                  <RefreshCw className="mr-1 h-3 w-3" />
-                                  Regenerate all drafts
-                                </Button>
+                                <div className="flex items-center justify-between flex-wrap gap-2 pt-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => generateDrafts()}
+                                    disabled={isGenerating || draft?.status === 'generating'}
+                                    className="text-xs h-7"
+                                  >
+                                    <RefreshCw className="mr-1 h-3 w-3" />
+                                    Regenerate all drafts
+                                  </Button>
+
+                                  {readyCount > 1 && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleHumanizeAllDrafts()}
+                                      disabled={isHumanizingAll || drafts.every(d => d.status !== 'ready')}
+                                      className="text-xs h-7 flex items-center gap-1.5 cursor-pointer"
+                                      title="Humanize and remove AI slop across all ready platform drafts"
+                                    >
+                                      {isHumanizingAll ? (
+                                        <Loader2 className="w-3 h-3 animate-spin text-primary" />
+                                      ) : (
+                                        <Sparkles className="w-3 h-3 text-amber-500" />
+                                      )}
+                                      De-Slop all drafts
+                                    </Button>
+                                  )}
+                                </div>
                               </motion.div>
                             </TabsContent>
                           );
