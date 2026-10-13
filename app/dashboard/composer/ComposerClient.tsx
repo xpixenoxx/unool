@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback, Suspense, useMemo } from 'react';
 import Link from 'next/link';
@@ -137,9 +137,9 @@ interface ComposerClientProps {
   workspaceId: string;
 }
 
-/* ─────────────────────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    Brand Icons (Real SVGs)
-   ───────────────────────────────────────────────────────────── */
+   â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 const BrandIcons = {
   LinkedIn: () => (
@@ -169,9 +169,9 @@ const BrandIcons = {
   ),
 };
 
-/* ─────────────────────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    iPhone Live Preview Component
-   ───────────────────────────────────────────────────────────── */
+   â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 function IPhonePreview({
   content,
@@ -397,15 +397,15 @@ function IPhonePreview({
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
           <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
         </span>
-        Live preview · Updates as you type
+        Live preview Â· Updates as you type
       </div>
     </div>
   );
 }
 
-/* ─────────────────────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    Main Composer Client
-   ───────────────────────────────────────────────────────────── */
+   â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const reducedMotion = useReducedMotion();
@@ -438,13 +438,13 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   });
   const [scheduleStrategy, setScheduleStrategy] = useState<'cascading' | 'simultaneous'>('cascading');
   const [isSchedulingPost, setIsSchedulingPost] = useState(false);
-  // ── Hook Scorer + Humanizer state ───────────────────────────────────────────
+  // â”€â”€ Hook Scorer + Humanizer state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [hookScore, setHookScore] = useState<{ score: number; grade: string; suggestion: string | null; slopWords: string[] } | null>(null);
   const [isHumanizing, setIsHumanizing] = useState(false);
   const springConfig: Transition = reducedMotion ? { type: 'tween', duration: 0.01 } : spring.snappy;
 
-  // ── Debounced hook scorer ────────────────────────────────────────────────────
-  // Runs 600ms after the user stops typing, no AI call — pure deterministic.
+  // â”€â”€ Debounced hook scorer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Runs 600ms after the user stops typing, no AI call â€” pure deterministic.
   useEffect(() => {
     if (!sourceContent.trim()) { setHookScore(null); return; }
     const timer = setTimeout(async () => {
@@ -467,12 +467,12 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
             slopWords: top.breakdown.slopWords ?? [],
           });
         }
-      } catch { /* silent — non-critical */ }
+      } catch { /* silent â€” non-critical */ }
     }, 600);
     return () => clearTimeout(timer);
   }, [sourceContent, previewPlatform]);
 
-  // ── One-click humanizer ──────────────────────────────────────────────────────
+  // â”€â”€ One-click humanizer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const handleHumanize = useCallback(async () => {
     if (!sourceContent.trim()) return;
     setIsHumanizing(true);
@@ -485,7 +485,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       const data = await res.json();
       if (data.humanized) {
         setSourceContent(data.humanized);
-        toast.success(`De-slopped: ${data.changeCount} fix${data.changeCount !== 1 ? 'es' : ''} · Panel score ${data.panelScore}/100`);
+        toast.success(`De-slopped: ${data.changeCount} fix${data.changeCount !== 1 ? 'es' : ''} Â· Panel score ${data.panelScore}/100`);
       }
     } catch { toast.error('Humanize failed'); }
     finally { setIsHumanizing(false); }
@@ -661,7 +661,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         });
       }
     } catch {
-      // Ignore — profile might not exist yet
+      // Ignore â€” profile might not exist yet
     } finally {
       setProfileLoading(false);
     }
@@ -981,7 +981,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         throw new Error(data.error || 'Failed to schedule post');
       }
 
-      toast.success(`Post scheduled for ${scheduledDateObj.toLocaleDateString()} at ${scheduledDateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} 🚀`);
+      toast.success(`Post scheduled for ${scheduledDateObj.toLocaleDateString()} at ${scheduledDateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ðŸš€`);
       setScheduleDialogOpen(false);
       setDrafts([]);
       setSourceContent('');
@@ -1135,7 +1135,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
 
   return (
     <div className="flex gap-8 items-start max-w-[1400px] mx-auto px-4 py-8">
-      {/* ───── Left Panel: Composer Form ───── */}
+      {/* â”€â”€â”€â”€â”€ Left Panel: Composer Form â”€â”€â”€â”€â”€ */}
       <div className="flex-1 min-w-0 space-y-6" style={{ maxWidth: 680 }}>
         {/* Header */}
         <div className="pb-4 border-b border-border flex items-start justify-between flex-wrap gap-3">
@@ -1177,46 +1177,160 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           )}
         </AnimatePresence>
 
-        {/* Profile context bar */}
+        {/* Profile context bar - Premium Identity Card */}
         <AnimatePresence mode="wait">
           {profileLoading && (
             <MotionBox key="loading" variant="fade">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                <span>Loading profile...</span>
+              <div className="flex items-center gap-3 px-4 py-3.5 rounded-xl border border-[#EDE7DD] bg-white/80 backdrop-blur-sm">
+                <Loader2 className="h-4 w-4 animate-spin text-[#C4A265]" />
+                <span className="text-sm text-[#8B7355] font-medium">Loading your profile&hellip;</span>
+                <div className="flex-1 h-4 bg-gradient-to-r from-[#EDE7DD] via-[#F5EFE2] to-[#EDE7DD] rounded-full animate-pulse ml-4" />
               </div>
             </MotionBox>
           )}
           {profile && !profileLoading && (
             <MotionBox key="profile" variant="slide-up">
-              <div className="flex items-center justify-between flex-wrap gap-3 px-4 py-3 rounded-lg border border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/40">
-                <div className="flex items-center gap-2 min-w-0">
-                  <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0" />
-                  <p className="text-sm text-green-800 dark:text-green-200 truncate">
-                    Using profile: <strong>{profile.name}</strong>
-                    {profile.headline && (
-                      <span className="text-green-700 dark:text-green-300 ml-1">— {profile.headline}</span>
-                    )}
-                  </p>
+              <div className="relative group overflow-hidden rounded-2xl border border-[#EDE7DD] bg-white shadow-sm transition-all duration-300 hover:shadow-md hover:border-[#D4B87A]/50"
+                style={{
+                  background: 'linear-gradient(135deg, #FFFDF9 0%, #FEFBF5 50%, #FFFDF9 100%)',
+                  boxShadow: '0 2px 8px rgba(61,43,31,0.04), 0 0 0 1px rgba(196,162,101,0.06) inset',
+                }}
+              >
+                {/* Subtle top accent bar */}
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#C4A265] via-[#D4B87A] to-[#C4A265] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                
+                <div className="flex items-center justify-between flex-wrap gap-4 px-5 py-4">
+                  <div className="flex items-center gap-4 min-w-0 flex-1">
+                    {/* Avatar with status ring */}
+                    <div className="relative flex-shrink-0">
+                      <div className="relative w-11 h-11 rounded-xl overflow-hidden border border-[#EDE7DD] shadow-sm"
+                        style={{ boxShadow: '0 2px 8px rgba(61,43,31,0.08)' }}>
+                        {user?.avatarUrl ? (
+                          <img 
+                            src={user.avatarUrl} 
+                            alt={profile.name} 
+                            className="w-full h-full object-cover" 
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center font-bold text-sm"
+                            style={{ 
+                              background: 'linear-gradient(135deg, #C4A265 0%, #D4B87A 100%)',
+                              color: '#3D2B1F'
+                            }}
+                          >
+                            {profile.name?.charAt(0).toUpperCase() || 'U'}
+                          </div>
+                        )}
+                      </div>
+                      {/* Active indicator */}
+                      <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-white bg-green-500 shadow-sm"
+                        style={{ boxShadow: '0 0 0 2px rgba(34,197,94,0.2)' }}
+                      />
+                    </div>
+                    
+                    {/* Profile info */}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-base font-semibold text-[#3D2B1F] truncate pr-2">
+                          {profile.name}
+                        </p>
+                        {profile.company && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider"
+                            style={{ 
+                              background: 'linear-gradient(135deg, #F5EFE2 0%, #EDE7DD 100%)',
+                              color: '#C4A265',
+                              border: '1px solid #E8E0D4'
+                            }}
+                          >
+                            {profile.company}
+                          </span>
+                        )}
+                      </div>
+                      {(profile.headline || profile.role) && (
+                        <p className="mt-1 text-sm truncate leading-relaxed" style={{ color: '#6B5744' }}>
+                          {profile.headline || profile.role}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Edit action with hover reveal */}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      asChild 
+                      className="group relative px-3 py-1.5 text-[#8B7355] hover:text-[#3D2B1F] hover:bg-[#F5EFE2] transition-all duration-200 rounded-lg border border-transparent hover:border-[#E8E0D4]"
+                    >
+                      <Link href="/dashboard/presence">
+                        <span className="flex items-center gap-1.5 font-medium text-sm">
+                          <svg className="w-4 h-4 transition-transform group-hover:translate-x-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                          </svg>
+                          Edit
+                        </span>
+                      </Link>
+                    </Button>
+                    
+                    {/* Quick stats hint */}
+                    <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg"
+                      style={{ background: 'rgba(196,162,101,0.08)', border: '1px solid rgba(196,162,101,0.15)' }}
+                    >
+                      <span className="text-[11px] font-semibold text-[#C4A265]">Ready</span>
+                      <span className="text-[11px] text-[#8B7355]">to compose</span>
+                    </div>
+                  </div>
                 </div>
-                <Button variant="ghost" size="sm" asChild className="flex-shrink-0 text-green-700 dark:text-green-300">
-                  <Link href="/dashboard/presence">Edit Profile</Link>
-                </Button>
+                
+                {/* Subtle bottom detail */}
+                <div className="absolute bottom-0 left-1/4 right-1/4 h-px opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                  style={{ background: 'linear-gradient(90deg, transparent, #D4B87A, transparent)' }} />
               </div>
             </MotionBox>
           )}
           {!profile && !profileLoading && (
             <MotionBox key="no-profile" variant="slide-up">
-              <div className="flex items-center justify-between flex-wrap gap-3 px-4 py-3 rounded-lg border border-yellow-200 bg-yellow-50 dark:border-yellow-900 dark:bg-yellow-950/40">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 flex-shrink-0" />
-                  <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                    No profile found. Set up your profile to continue.
-                  </p>
+              <div className="relative group overflow-hidden rounded-2xl border border-[#FDE68A]/60 bg-gradient-to-r from-[#FFFCF0] to-[#FFFDF9] shadow-sm transition-all duration-300 hover:shadow-md hover:border-[#FCD34D]/80"
+                style={{ boxShadow: '0 2px 8px rgba(251,191,36,0.08)' }}
+              >
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#FCD34D] via-[#FDE68A] to-[#FCD34D]" />
+                
+                <div className="flex items-center justify-between flex-wrap gap-4 px-5 py-4">
+                  <div className="flex items-center gap-4">
+                    <div className="relative w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ background: 'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)' }}
+                    >
+                      <AlertTriangle className="w-5 h-5 text-[#B45309]" />
+                      <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-white border-2 border-[#FDE68A] flex items-center justify-center">
+                        <span className="text-[10px] font-bold text-[#B45309]">+</span>
+                      </span>
+                    </div>
+                    
+                    <div>
+                      <p className="text-base font-semibold text-[#78350F]">Profile not set up</p>
+                      <p className="mt-0.5 text-sm text-[#A16207]">Create your profile to unlock AI-powered composition</p>
+                    </div>
+                  </div>
+                  
+                  <Button 
+                    size="sm" 
+                    asChild 
+                    className="group relative px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200"
+                    style={{ 
+                      background: 'linear-gradient(135deg, #C4A265 0%, #D4B87A 100%)',
+                      color: '#3D2B1F',
+                      boxShadow: '0 2px 8px rgba(196,162,101,0.3)'
+                    }}
+                  >
+                    <Link href="/dashboard/presence">
+                      <span className="flex items-center gap-1.5">
+                        Set Up Profile
+                        <ArrowUpRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+                      </span>
+                    </Link>
+                  </Button>
                 </div>
-                <Button size="sm" asChild>
-                  <Link href="/dashboard/presence">Set Up Profile</Link>
-                </Button>
               </div>
             </MotionBox>
           )}
@@ -1262,7 +1376,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   Quick Broadcast
                 </CardTitle>
                 <Text size="sm" color="muted">
-                  Publish identical content to all connected platforms instantly — no AI adaptation.
+                  Publish identical content to all connected platforms instantly â€” no AI adaptation.
                 </Text>
               </CardHeader>
               <CardContent 
@@ -1285,7 +1399,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                     quickContent.length > 280 ? 'text-destructive font-medium' : 'text-muted-foreground'
                   )}>
                     {quickContent.length} characters
-                    {quickContent.length > 280 && ' · exceeds X/Twitter limit (280)'}
+                    {quickContent.length > 280 && ' Â· exceeds X/Twitter limit (280)'}
                   </span>
                   <div className="flex gap-2">
                     <Button
@@ -1391,7 +1505,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                     rows={6}
                   />
 
-                  {/* ── Hook Score Panel ─────────────────────────────────── */}
+                  {/* â”€â”€ Hook Score Panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
                   {hookScore && (
                     <div className={cn(
                       'flex items-start gap-3 px-3 py-2.5 rounded-lg text-xs border transition-all',
@@ -1419,7 +1533,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                             hookScore.grade === 'OK'     && 'text-yellow-700 dark:text-yellow-400',
                             hookScore.grade === 'WEAK'   && 'text-orange-700 dark:text-orange-400',
                             hookScore.grade === 'FAIL'   && 'text-red-700 dark:text-red-400',
-                          )}>Hook · {hookScore.grade}</span>
+                          )}>Hook Â· {hookScore.grade}</span>
                           {hookScore.slopWords.length > 0 && (
                             <span className="text-[10px] text-muted-foreground">
                               Slop: {hookScore.slopWords.slice(0,2).join(', ')}
@@ -1519,7 +1633,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
               </Card>
             </MotionBox>
 
-            {/* Step 2 — Platform Drafts */}
+            {/* Step 2 â€” Platform Drafts */}
             <AnimatePresence mode="wait">
               {drafts.some(d => d.status !== 'idle') && (
                 <MotionBox key="drafts" variant="slide-up" delay={0.1}>
@@ -1584,12 +1698,12 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                                         isOverLimit ? 'text-destructive font-medium' : 'text-muted-foreground'
                                       )}>
                                         {draft?.characterCount ?? 0} / {cfg.maxChars} chars
-                                        {draft && draft.hashtags.length > 0 && ` · ${draft.hashtags.length} hashtags`}
+                                        {draft && draft.hashtags.length > 0 && ` Â· ${draft.hashtags.length} hashtags`}
                                       </p>
                                     </div>
                                   </div>
                                   <div>
-                                    {draft?.status === 'generating' && <Badge variant="secondary">Generating…</Badge>}
+                                    {draft?.status === 'generating' && <Badge variant="secondary">Generatingâ€¦</Badge>}
                                     {draft?.status === 'ready' && (
                                       <Badge className="bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 border-green-200">
                                         Ready
@@ -1627,7 +1741,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                                   rows={7}
                                   readOnly={draft?.status !== 'ready'}
                                   placeholder={
-                                    draft?.status === 'generating' ? 'Generating your draft…' :
+                                    draft?.status === 'generating' ? 'Generating your draftâ€¦' :
                                     draft?.status === 'idle' ? 'Click "Generate Platform Drafts" to start' :
                                     'Your adapted content will appear here'
                                   }
@@ -1636,7 +1750,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                                 {isOverLimit && (
                                   <p className="text-xs text-destructive flex items-center gap-1">
                                     <X className="h-3 w-3" />
-                                    {draft!.characterCount - cfg.maxChars} characters over the {cfg.name} limit — please trim
+                                    {draft!.characterCount - cfg.maxChars} characters over the {cfg.name} limit â€” please trim
                                   </p>
                                 )}
 
@@ -1676,7 +1790,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
               )}
             </AnimatePresence>
 
-            {/* Step 3 — Publish bar */}
+            {/* Step 3 â€” Publish bar */}
             <AnimatePresence mode="wait">
               {readyCount > 0 && (
                 <MotionBox key="publish" variant="slide-up" delay={0.1}>
@@ -1715,7 +1829,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         )}
       </div>
 
-      {/* ───── Right Panel: iPhone Live Preview ───── */}
+      {/* â”€â”€â”€â”€â”€ Right Panel: iPhone Live Preview â”€â”€â”€â”€â”€ */}
       <div className="hidden lg:block sticky top-8 flex-shrink-0" style={{ width: 340 }}>
         <IPhonePreview
           content={liveContent}
@@ -1767,7 +1881,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                       : 'border-[#EDE7DD] bg-white hover:bg-gray-50'
                   }`}
                 >
-                  <p className="text-xs font-bold text-[#3D2B1F]">⚡ Cascading</p>
+                  <p className="text-xs font-bold text-[#3D2B1F]">âš¡ Cascading</p>
                   <p className="text-[11px] text-[#6B5744] mt-0.5">Stagger platforms by 5-15m for maximum reach</p>
                 </button>
 
@@ -1804,7 +1918,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
               {isSchedulingPost ? (
                 <>
                   <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
-                  Scheduling…
+                  Schedulingâ€¦
                 </>
               ) : (
                 <>
@@ -1839,3 +1953,7 @@ export default function ComposerClientWrapper({ userId, workspaceId }: ComposerC
     </Suspense>
   );
 }
+
+
+
+
