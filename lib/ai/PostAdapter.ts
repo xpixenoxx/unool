@@ -407,10 +407,16 @@ ${context?.profileName ? `**Author Context:** ${context.profileName}${context.pr
     // Run adaptations sequentially to avoid:
     // 1. Groq rate-limit errors when firing many concurrent requests
     // 2. Race conditions in the shared provider fallback state (providerInstance/providerName)
+    // A 300ms gap between calls further reduces rate-limit pressure.
     const entries: Array<[PlatformType, Result<AdaptedPost, Error>]> = [];
-    for (const platform of platforms) {
+    for (let i = 0; i < platforms.length; i++) {
+      const platform = platforms[i];
       const result = await this.adaptForPlatform(sourceContent, platform, context);
       entries.push([platform, result]);
+      // Small inter-request delay (skip after the last platform)
+      if (i < platforms.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
     }
 
     return Object.fromEntries(entries) as Record<PlatformType, Result<AdaptedPost, Error>>;

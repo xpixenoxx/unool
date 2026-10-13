@@ -42,51 +42,90 @@ export class GroqProvider implements AIProvider {
       requestBody.response_format = { type: 'json_object' };
     }
 
-    try {
-      const response = await fetch(`${this.baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify(requestBody),
-      });
+    // Retry up to 3 times for rate-limit (429) responses with exponential backoff
+    const MAX_RETRIES = 3;
+    let lastError: AIError | null = null;
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        return err({
-          code: 'API_ERROR',
-          message: data.error?.message || 'Groq API error',
-          provider: this.name,
-          retryable: response.status >= 500,
-          name: 'GroqError',
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const response = await fetch(`${this.baseUrl}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${this.apiKey}`,
+          },
+          body: JSON.stringify(requestBody),
         });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          const isRateLimit = response.status === 429;
+          const isServerError = response.status >= 500;
+
+          if (isRateLimit && attempt < MAX_RETRIES) {
+            // Respect Retry-After header if present, otherwise use exponential backoff
+            const retryAfterHeader = response.headers.get('retry-after');
+            const retryAfterMs = retryAfterHeader
+              ? parseFloat(retryAfterHeader) * 1000
+              : Math.min(1000 * Math.pow(2, attempt), 30000); // 1s, 2s, 4s … max 30s
+            logger.warn('Groq rate limit hit, retrying', {
+              attempt: attempt + 1,
+              retryAfterMs,
+              model,
+            });
+            await new Promise(resolve => setTimeout(resolve, retryAfterMs));
+            continue;
+          }
+
+          lastError = {
+            code: 'API_ERROR',
+            message: data.error?.message || `Groq API error (${response.status})`,
+            provider: this.name,
+            retryable: isRateLimit || isServerError,
+            name: 'GroqError',
+          };
+          return err(lastError);
+        }
+
+        const usage = {
+          promptTokens: data.usage?.prompt_tokens || 0,
+          completionTokens: data.usage?.completion_tokens || 0,
+          totalTokens: data.usage?.total_tokens || 0,
+        };
+
+        return ok({
+          text: data.choices[0]?.message?.content || '',
+          usage,
+          model,
+          finishReason: data.choices[0]?.finish_reason || 'stop',
+        });
+      } catch (error: unknown) {
+        const errorObj = error instanceof Error ? error : new Error(String(error));
+        logger.error('Groq provider error', { error: errorObj, attempt, prompt: prompt.slice(0, 100) });
+        lastError = {
+          code: 'NETWORK_ERROR',
+          message: error instanceof Error ? error.message : 'Unknown error',
+          provider: this.name,
+          retryable: true,
+          name: 'GroqError',
+        };
+        // Network errors: retry with backoff
+        if (attempt < MAX_RETRIES) {
+          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt)));
+          continue;
+        }
+        return err(lastError);
       }
-
-      const usage = {
-        promptTokens: data.usage?.prompt_tokens || 0,
-        completionTokens: data.usage?.completion_tokens || 0,
-        totalTokens: data.usage?.total_tokens || 0,
-      };
-
-      return ok({
-        text: data.choices[0]?.message?.content || '',
-        usage,
-        model,
-        finishReason: data.choices[0]?.finish_reason || 'stop',
-      });
-    } catch (error: unknown) {
-      const errorObj = error instanceof Error ? error : new Error(String(error));
-      logger.error('Groq provider error', { error: errorObj, prompt: prompt.slice(0, 100) });
-      return err({
-        code: 'NETWORK_ERROR',
-        message: error instanceof Error ? error.message : 'Unknown error',
-        provider: this.name,
-        retryable: true,
-        name: 'GroqError',
-      });
     }
+
+    return err(lastError ?? {
+      code: 'UNKNOWN_ERROR',
+      message: 'Groq provider: all retries exhausted',
+      provider: this.name,
+      retryable: false,
+      name: 'GroqError',
+    });
   }
 
   async generateObject<T extends z.ZodTypeAny>(
