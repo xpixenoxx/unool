@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Linkedin, Twitter, MessageSquare, CheckCircle, Edit, Send, AlertCircle, Sparkles, CircleCheckBig, X, ExternalLink, Facebook, Youtube, Instagram, Cloud, MessageCircle, Image as ImageIcon, Send as SendIcon, Eye, Twitch, Hash, Dribbble, GraduationCap, Store, Gamepad2, Video, Zap, FileText, Copy, Share2, Smartphone, Globe, Mail, BookOpen, Code2, ArrowLeft } from 'lucide-react';
+import { Loader2, Linkedin, Twitter, MessageSquare, CheckCircle, Edit, Send, AlertCircle, Sparkles, CircleCheckBig, X, ExternalLink, Facebook, Youtube, Instagram, Cloud, MessageCircle, Image as ImageIcon, Send as SendIcon, Eye, Twitch, Hash, Dribbble, GraduationCap, Store, Gamepad2, Video, Zap, FileText, Copy, Share2, Smartphone, Globe, Mail, BookOpen, Code2, ArrowLeft, Radio, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { Flex, Box, Stack, Text, Display, Divider } from '@/components/ui/layout';
 import { MotionBox, MotionStack, spring, stagger } from '@/components/ui/motion';
@@ -555,7 +555,7 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
                   <span>Amplify & Share</span>
                 </button>
                 <a
-                  href={shareUrl}
+                  href={shareUrl || '#'}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-[#EDE7DD] bg-white hover:bg-[#F5EFE2] text-xs font-semibold text-[#3D2B1F] transition-colors"
@@ -856,7 +856,7 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
         onClose={() => setAmplifyOpen(false)}
         shareUrl={shareUrl}
         subdomain={effectiveSubdomain}
-        publishedChannels={publishedDrafts.map(d => ({
+        publishedChannels={(publishedDrafts || []).map(d => ({
           platform: d.platform,
           platformUrl: d.platformUrl,
         }))}

@@ -77,7 +77,7 @@ export function BroadcastCelebrationModal({
   };
 
   // Filter valid platform names for brand logos
-  const validChannels = publishedChannels.filter(c => c.platform);
+  const validChannels = (publishedChannels || []).filter(c => c && c.platform);
 
   return (
     <AnimatePresence>
