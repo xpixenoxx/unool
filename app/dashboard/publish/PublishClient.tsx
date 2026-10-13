@@ -16,6 +16,8 @@ import { cn } from '@/lib/utils';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { PlatformPreview, type Platform } from './PlatformPreview';
 import { HashtagEditor } from '@/components/dashboard/HashtagEditor';
+import { BroadcastCelebrationModal } from '@/components/dashboard/BroadcastCelebrationModal';
+import { PlatformBrandLogo, type SupportedPlatformType } from '@/components/dashboard/previews/PlatformMobilePreview';
 
 type DraftStatus = 'draft' | 'published' | 'failed';
 
@@ -420,14 +422,6 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
   const publishedDrafts = drafts.filter(d => d.status === 'published');
   const successCount = publishedDrafts.length || Object.values(publishResults).filter(r => r.success).length;
 
-  const whatsappMsg = encodeURIComponent(
-    `Hey! Just published my latest story across ${successCount > 0 ? successCount : ''} platform${successCount !== 1 ? 's' : ''}. Pick your favourite to view & support:\n\n👉 ${shareUrl}\n\nThanks a lot! ❤️`
-  );
-
-  const telegramUrl = shareUrl
-    ? `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(`Just published a new story on ${successCount} platforms! Check it out 👇`)}`
-    : null;
-
   const handleCopy = () => {
     if (!shareUrl) return;
     navigator.clipboard.writeText(shareUrl).then(() => {
@@ -460,25 +454,26 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
         <Flex gap={2} wrap center>
           {publishedDrafts.length > 0 && shareUrl && (
             <>
-              <a
-                href={`https://wa.me/?text=${whatsappMsg}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm text-white shadow-sm hover:opacity-90 transition-all cursor-pointer"
-                style={{ background: '#25D366' }}
-                title="Share One Link to WhatsApp (autoscrolls to recent activity)"
+              <button
+                type="button"
+                onClick={() => setAmplifyOpen(true)}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95 cursor-pointer shadow-md"
+                style={{
+                  background: 'linear-gradient(135deg, #C4A265 0%, #A68B52 100%)',
+                  color: '#1A130B',
+                }}
               >
-                <MessageCircle className="h-4 w-4" />
-                Share on WhatsApp
-              </a>
+                <Radio className="h-4 w-4 stroke-[2.2]" />
+                <span>Broadcast & Amplify</span>
+              </button>
               <Button
                 variant="outline"
                 size="lg"
-                onClick={() => setAmplifyOpen(true)}
+                onClick={handleCopy}
                 className="gap-2"
               >
-                <Share2 className="h-4 w-4" />
-                Share One Link
+                {copied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
+                {copied ? 'Copied' : 'Copy One-Link'}
               </Button>
             </>
           )}
@@ -502,86 +497,98 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
         </Flex>
       </Flex>
 
-      {/* Prominent Post-Publish WhatsApp Share Banner */}
+      {/* ── Luxury Post-Publish Broadcast Milestone Card ── */}
       {publishedDrafts.length > 0 && (
         <MotionBox variant="slide-up" delay={0.03}>
-          <Card className="border-2 border-green-500/40 bg-gradient-to-br from-green-500/10 via-emerald-500/5 to-background shadow-md overflow-hidden">
-            <CardContent className="p-5 sm:p-6 space-y-4">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="flex items-start gap-3.5">
-                  <div className="w-12 h-12 rounded-2xl bg-[#25D366]/20 flex items-center justify-center shrink-0 shadow-inner">
-                    <MessageCircle className="h-6 w-6 text-[#25D366]" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-                      Share to WhatsApp with Friends & Family
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-700 dark:text-green-300 font-medium">
-                        Live on {publishedDrafts.length} platform{publishedDrafts.length !== 1 ? 's' : ''}
-                      </span>
-                    </h2>
-                    <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-                      When recipients tap your link, it opens your profile and <strong>automatically scrolls directly to your recent activity</strong> so they can view and engage, while still letting them interact with your entire profile!
-                    </p>
-                  </div>
-                </div>
+          <div
+            className="rounded-3xl p-5 sm:p-6 shadow-md border overflow-hidden relative"
+            style={{
+              background: 'linear-gradient(145deg, #FFFDF9 0%, #FAF7F2 100%)',
+              borderColor: '#EDE7DD',
+              boxShadow: '0 4px 20px rgba(61, 43, 31, 0.06)',
+            }}
+          >
+            {/* Ambient subtle glow */}
+            <div
+              className="absolute -top-12 -right-12 w-48 h-48 rounded-full pointer-events-none opacity-20 blur-2xl"
+              style={{ background: '#C4A265' }}
+            />
 
-                <div className="flex items-center gap-2.5 w-full sm:w-auto shrink-0">
-                  {shareUrl && (
-                    <a
-                      href={`https://wa.me/?text=${whatsappMsg}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-white shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
-                      style={{ background: '#25D366' }}
-                    >
-                      <MessageCircle className="h-5 w-5" />
-                      Share to WhatsApp
-                    </a>
-                  )}
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    onClick={() => setAmplifyOpen(true)}
-                    className="gap-2"
-                  >
-                    <Share2 className="h-4 w-4" />
-                    More
-                  </Button>
+            <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-4">
+                <div
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm"
+                  style={{
+                    background: 'linear-gradient(135deg, #F5EFE2 0%, #EDE4D3 100%)',
+                    border: '1px solid rgba(196, 162, 101, 0.3)',
+                  }}
+                >
+                  <Radio className="h-6 w-6 text-[#A68B52]" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <h2 className="text-base sm:text-lg font-serif font-bold text-[#3D2B1F]">
+                      Story Broadcast Live Across Channels
+                    </h2>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-mono font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Live on {publishedDrafts.length} platform{publishedDrafts.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  <p className="text-xs sm:text-sm text-[#6B5744] max-w-2xl leading-relaxed">
+                    Recipients tapping your One-Link auto-scroll directly to this story for instant engagement, with interactive access to your full portfolio and social channels.
+                  </p>
                 </div>
               </div>
 
-              {/* One Link Bar */}
-              {shareUrl && (
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-2 border-t border-green-500/20">
-                  <div className="flex items-center gap-2 rounded-xl border bg-background/90 px-3.5 py-2.5 text-xs flex-1 min-w-0">
-                    <span className="text-muted-foreground font-semibold shrink-0">One Link:</span>
-                    <span className="font-mono text-foreground font-medium truncate flex-1">{shareUrl}</span>
-                    <button
-                      onClick={handleCopy}
-                      className="shrink-0 p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                      title="Copy One Link"
-                    >
-                      {copied ? (
-                        <CircleCheckBig className="h-4 w-4 text-green-500" />
-                      ) : (
-                        <Copy className="h-4 w-4" />
-                      )}
-                    </button>
-                  </div>
-                  <a
-                    href={shareUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl border bg-background/80 hover:bg-accent text-xs font-semibold text-foreground transition-colors shrink-0"
-                    title="Test recipient auto-scroll experience"
+              <div className="flex items-center gap-2.5 w-full sm:w-auto shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setAmplifyOpen(true)}
+                  className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 cursor-pointer"
+                  style={{
+                    background: 'linear-gradient(135deg, #C4A265 0%, #A68B52 100%)',
+                    color: '#1A130B',
+                  }}
+                >
+                  <Share2 className="h-4 w-4" />
+                  <span>Amplify & Share</span>
+                </button>
+                <a
+                  href={shareUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-[#EDE7DD] bg-white hover:bg-[#F5EFE2] text-xs font-semibold text-[#3D2B1F] transition-colors"
+                  title="Test recipient auto-scroll experience"
+                >
+                  <ExternalLink className="h-3.5 w-3.5 text-[#8B7355]" />
+                  <span>Preview</span>
+                </a>
+              </div>
+            </div>
+
+            {/* One Link Bar */}
+            {shareUrl && (
+              <div className="relative z-10 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-3 mt-3 border-t border-[#EDE7DD]">
+                <div className="flex items-center gap-2 rounded-xl border border-[#E8E0D4] bg-white/80 px-3.5 py-2 text-xs flex-1 min-w-0 shadow-inner">
+                  <span className="text-[#8B7355] font-mono text-[11px] uppercase tracking-wider font-semibold shrink-0">One-Link:</span>
+                  <span className="font-mono text-[#3D2B1F] font-medium truncate flex-1">{shareUrl}</span>
+                  <button
+                    type="button"
+                    onClick={handleCopy}
+                    className="shrink-0 p-1 rounded-md hover:bg-[#F5EFE2] text-[#8B7355] hover:text-[#3D2B1F] transition-colors cursor-pointer"
+                    title="Copy One Link"
                   >
-                    <ExternalLink className="h-3.5 w-3.5" />
-                    Preview Live Profile
-                  </a>
+                    {copied ? (
+                      <Check className="h-4 w-4 text-emerald-600 stroke-[2.5]" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </button>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </div>
+            )}
+          </div>
         </MotionBox>
       )}
 
@@ -843,107 +850,19 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
         </Box>
       </motion.details>
 
-      {/* ── Amplify Modal ── */}
-      <AnimatePresence>
-        {amplifyOpen && (
-          <motion.div
-            key="amplify-overlay"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}
-            onClick={() => setAmplifyOpen(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.92, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.94, opacity: 0, y: 10 }}
-              transition={{ type: 'spring', stiffness: 340, damping: 28 }}
-              className="bg-card border rounded-2xl shadow-2xl p-6 w-full max-w-md relative"
-              onClick={e => e.stopPropagation()}
-            >
-              {/* Close */}
-              <button
-                onClick={() => setAmplifyOpen(false)}
-                className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-              >
-                <X className="h-4 w-4" />
-              </button>
-
-              {/* Header */}
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-xl bg-green-500/15 flex items-center justify-center shrink-0">
-                  <Sparkles className="h-5 w-5 text-green-500" />
-                </div>
-                <div>
-                  <h2 className="font-bold text-base">Your story is live on {successCount} platform{successCount !== 1 ? 's' : ''}!</h2>
-                  <p className="text-xs text-muted-foreground">Share your One Link with friends and family.</p>
-                </div>
-              </div>
-
-              {/* One Link preview */}
-              {shareUrl && (
-                <div className="mt-4 mb-4 flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2.5">
-                  <span className="text-xs font-mono text-foreground/80 flex-1 truncate">{shareUrl}</span>
-                  <button
-                    onClick={handleCopy}
-                    className="shrink-0 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                    title="Copy link"
-                  >
-                    {copied
-                      ? <CircleCheckBig className="h-4 w-4 text-green-500" />
-                      : <Copy className="h-4 w-4" />}
-                  </button>
-                </div>
-              )}
-
-              {/* Share actions */}
-              <div className="grid grid-cols-1 gap-2.5">
-                {shareUrl && (
-                  <a
-                    href={`https://wa.me/?text=${whatsappMsg}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-white shadow-md hover:opacity-95 transition-all cursor-pointer"
-                    style={{ background: '#25D366' }}
-                  >
-                    <MessageCircle className="h-5 w-5 shrink-0" />
-                    Share to WhatsApp
-                  </a>
-                )}
-
-                {telegramUrl && (
-                  <a
-                    href={telegramUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-white transition-opacity hover:opacity-90 cursor-pointer"
-                    style={{ background: '#229ED9' }}
-                  >
-                    <Send className="h-4 w-4 shrink-0" />
-                    Share to Telegram
-                  </a>
-                )}
-
-                {typeof navigator !== 'undefined' && 'share' in navigator && shareUrl && (
-                  <button
-                    onClick={handleNativeShare}
-                    className="flex items-center justify-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors cursor-pointer"
-                  >
-                    <Share2 className="h-4 w-4 shrink-0" />
-                    More options (iMessage, Slack…)
-                  </button>
-                )}
-              </div>
-
-              <p className="mt-4 text-center text-xs text-muted-foreground">
-                Recipients land on your profile and auto-scroll directly to your recent activity, with full interactive access to your template.
-              </p>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* ── World-Class Broadcast Celebration Modal ── */}
+      <BroadcastCelebrationModal
+        isOpen={amplifyOpen}
+        onClose={() => setAmplifyOpen(false)}
+        shareUrl={shareUrl}
+        subdomain={effectiveSubdomain}
+        publishedChannels={publishedDrafts.map(d => ({
+          platform: d.platform,
+          platformUrl: d.platformUrl,
+        }))}
+        successCount={successCount}
+        onNavigateDashboard={() => router.push('/dashboard')}
+      />
     </MotionBox>
   );
 }
