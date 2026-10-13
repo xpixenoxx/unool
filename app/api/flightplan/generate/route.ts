@@ -170,8 +170,15 @@ export async function POST(request: NextRequest) {
             platform,
             adaptedContent: dayPost.content,
             mediaUrls: finalMedia,
+          const cleanedHashtags = (dayPost.hashtags || []).map((t: string) => t.replace(/^#+/, '').trim()).filter(Boolean);
+
+          await postRepository.createVariant({
+            postId: post.id,
+            platform,
+            adaptedContent: dayPost.content,
+            mediaUrls: finalMedia,
             characterCount: dayPost.characterCount,
-            hashtagStrategy: dayPost.hashtags,
+            hashtagStrategy: cleanedHashtags,
             firstCommentHint: dayPost.firstCommentHint || undefined,
             status: 'draft',
           });
@@ -179,7 +186,7 @@ export async function POST(request: NextRequest) {
           dayVariants[platform] = {
             content: dayPost.content,
             characterCount: dayPost.characterCount,
-            hashtags: dayPost.hashtags,
+            hashtags: cleanedHashtags,
             hookSummary: dayPost.hookSummary,
             angle: dayPost.angle,
             firstCommentHint: dayPost.firstCommentHint,

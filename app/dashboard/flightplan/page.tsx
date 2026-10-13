@@ -6,7 +6,7 @@ import { Loader2 } from 'lucide-react';
 
 export const metadata = {
   title: 'Flight Plan — Unool',
-  description: 'Plan your week of content in 15 minutes. One story, every platform, perfectly timed.',
+  description: 'Plan and schedule your weekly content across all connected platforms.',
 };
 
 export default async function FlightPlanPage() {

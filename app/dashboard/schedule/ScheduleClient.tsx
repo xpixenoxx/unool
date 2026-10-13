@@ -333,7 +333,6 @@ function StoryIntake({
           </>
         ) : (
           <>
-            <Sparkles className="w-5 h-5" />
             Plan My Week
             <ArrowRight className="w-5 h-5" />
           </>
@@ -685,7 +684,6 @@ function WeekCanvas({
   useEffect(() => { loadCanvas(); }, [loadCanvas]);
 
   const handleCancel = async (postId: string) => {
-    if (!confirm('Cancel this scheduled post?')) return;
     const res = await fetch(`/api/composer/schedule/${postId}`, { method: 'DELETE' });
     if (res.ok) {
       toast.success('Post cancelled');
@@ -738,8 +736,9 @@ function WeekCanvas({
       {/* Toolbar */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <button onClick={() => setWeekOffset(w => w - 1)}
-            className="p-2 rounded-xl transition-all hover:opacity-70"
+          <button onClick={() => setWeekOffset(w => Math.max(0, w - 1))}
+            disabled={weekOffset <= 0}
+            className="p-2 rounded-xl transition-all hover:opacity-70 disabled:opacity-30 disabled:cursor-not-allowed"
             style={{ backgroundColor: B.card, border: `1px solid ${B.border}`, color: B.textMuted }}>
             <ChevronLeft className="w-4 h-4" />
           </button>
@@ -751,8 +750,9 @@ function WeekCanvas({
               {posts.length} posts scheduled
             </p>
           </div>
-          <button onClick={() => setWeekOffset(w => w + 1)}
-            className="p-2 rounded-xl transition-all hover:opacity-70"
+          <button onClick={() => setWeekOffset(w => Math.min(1, w + 1))}
+            disabled={weekOffset >= 1}
+            className="p-2 rounded-xl transition-all hover:opacity-70 disabled:opacity-30 disabled:cursor-not-allowed"
             style={{ backgroundColor: B.card, border: `1px solid ${B.border}`, color: B.textMuted }}>
             <ChevronRight className="w-4 h-4" />
           </button>
@@ -820,7 +820,7 @@ function WeekCanvas({
           <div>
             <p className="font-semibold text-lg" style={{ color: B.text }}>Nothing scheduled yet</p>
             <p className="text-sm mt-1" style={{ color: B.textMuted }}>
-              Plan your week in 15 minutes — one story, every platform.
+              Schedule your story across all connected platforms.
             </p>
           </div>
           <button
@@ -828,7 +828,6 @@ function WeekCanvas({
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm"
             style={{ backgroundColor: B.accent, color: '#fff', boxShadow: `0 4px 16px ${B.accent}40` }}
           >
-            <Sparkles className="w-4 h-4" />
             Plan My Week
           </button>
         </div>
@@ -1040,7 +1039,7 @@ export default function ScheduleClient({
             <h1 className="text-2xl font-bold" style={{ color: B.text }}>Flight Plan</h1>
           </div>
           <p className="text-sm" style={{ color: B.textMuted }}>
-            Plan your week of content in 15 minutes. One story, every platform, perfectly timed.
+            Plan and schedule your weekly content across all connected platforms.
           </p>
         </div>
         {view === 'canvas' && (
@@ -1049,7 +1048,6 @@ export default function ScheduleClient({
             className="flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm transition-all"
             style={{ backgroundColor: B.accent, color: '#fff', boxShadow: `0 4px 16px ${B.accent}40` }}
           >
-            <Sparkles className="w-4 h-4" />
             Plan New Week
           </button>
         )}

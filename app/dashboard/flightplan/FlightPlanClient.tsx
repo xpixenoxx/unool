@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { format, addDays, startOfWeek, isToday, startOfDay } from 'date-fns';
+import { format, addDays, startOfWeek, isToday, startOfDay, endOfWeek, addWeeks } from 'date-fns';
 
 /* ─── Types ─── */
 
@@ -433,7 +433,6 @@ function StoryIntake({
           </>
         ) : (
           <>
-            <Sparkles className="w-5 h-5" />
             Generate Flight Plan
             <ArrowRight className="w-5 h-5" />
           </>
@@ -469,6 +468,7 @@ function ReviewScreen({
   const [activePlatformTab, setActivePlatformTab] = useState<Record<number, number>>({});
   const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const [isUploadingImage, setIsUploadingImage] = useState<Record<number, boolean>>({});
+  const [isDraggingPost, setIsDraggingPost] = useState<Record<number, boolean>>({});
 
   // Auto-adjust past times on initial mount if target week is current week
   useEffect(() => {
@@ -935,15 +935,6 @@ function ReviewScreen({
                           >
                             <span style={{ fontSize: 11 }}>{meta.icon}</span>
                             <span>{meta.name}</span>
-                            <span
-                              className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] font-bold ml-0.5"
-                              style={{
-                                backgroundColor: isEnabled ? `${meta.color}22` : B.border,
-                                color: isEnabled ? meta.color : B.textMuted,
-                              }}
-                            >
-                              {isEnabled ? '✓' : '+'}
-                            </span>
                           </button>
                         );
                       })}
@@ -1052,22 +1043,35 @@ function ReviewScreen({
                             </span>
                           </div>
 
-                          <div className="flex items-center gap-2.5 flex-wrap">
+                          <div
+                            onDragOver={e => { e.preventDefault(); setIsDraggingPost(prev => ({ ...prev, [postIdx]: true })); }}
+                            onDragLeave={e => { e.preventDefault(); setIsDraggingPost(prev => ({ ...prev, [postIdx]: false })); }}
+                            onDrop={e => {
+                              e.preventDefault();
+                              setIsDraggingPost(prev => ({ ...prev, [postIdx]: false }));
+                              if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                                handleDayImageUpload(postIdx, e.dataTransfer.files);
+                              }
+                            }}
+                            className={cn(
+                              "flex items-center gap-2.5 flex-wrap p-2 rounded-xl transition-all border border-dashed",
+                              isDraggingPost[postIdx] ? "border-amber-500 bg-amber-500/10" : "border-transparent"
+                            )}
+                          >
                             {postImages.map((imgUrl, imgIdx) => (
-                              <div key={imgIdx} className="relative group/img">
+                              <div key={imgIdx} className="relative group/img w-16 h-16 rounded-xl overflow-hidden border shadow-xs" style={{ borderColor: B.border }}>
                                 <img
                                   src={imgUrl}
                                   alt=""
-                                  className="w-16 h-16 rounded-xl object-cover border shadow-xs"
-                                  style={{ borderColor: B.border }}
+                                  className="w-full h-full object-cover"
                                 />
                                 <button
+                                  type="button"
                                   onClick={() => removeImage(postIdx, imgIdx)}
-                                  className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center shadow-md transition-transform hover:scale-110"
-                                  style={{ background: B.danger, color: '#fff' }}
+                                  className="absolute inset-0 bg-black/60 opacity-0 group-hover/img:opacity-100 flex items-center justify-center transition-opacity text-white"
                                   title="Remove image"
                                 >
-                                  <X className="w-3 h-3" />
+                                  <Trash2 className="w-4 h-4" />
                                 </button>
                               </div>
                             ))}
@@ -1130,9 +1134,6 @@ function ReviewScreen({
                               >
                                 <Icn className="w-3.5 h-3.5" />
                                 <span className={cn('hidden sm:inline', !isPlatformEnabled && 'line-through')}>{pcfg.name}</span>
-                                <span className={cn('text-[10px] ml-0.5 font-bold', isPlatformEnabled ? 'text-emerald-600' : 'text-gray-400')}>
-                                  {isPlatformEnabled ? '✓' : '✕'}
-                                </span>
                               </button>
                             );
                           })}
@@ -1166,15 +1167,9 @@ function ReviewScreen({
                               )}
                             >
                               {currentPlatformDraft.enabled !== false ? (
-                                <>
-                                  <Check className="w-3.5 h-3.5 text-emerald-700" />
-                                  <span>Enabled</span>
-                                </>
+                                <span>Included</span>
                               ) : (
-                                <>
-                                  <X className="w-3.5 h-3.5 text-gray-500" />
-                                  <span>Disabled (Skipped)</span>
-                                </>
+                                <span>Excluded</span>
                               )}
                             </button>
                           </div>
@@ -1215,7 +1210,7 @@ function ReviewScreen({
                                     className="px-2 py-0.5 rounded-md text-xs font-medium"
                                     style={{ background: B.accentBg, color: B.accentDark }}
                                   >
-                                    {tag}
+                                    #{tag.replace(/^#+/, '')}
                                   </span>
                                 ))}
                               </div>
@@ -1326,10 +1321,18 @@ function ScheduledPostModal({
   const [isCancelling, setIsCancelling] = useState(false);
   const [showRescheduleInput, setShowRescheduleInput] = useState(false);
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [isModalDragging, setIsModalDragging] = useState(false);
   const modalFileInputRef = useRef<HTMLInputElement>(null);
+
+  const maxDateTime = useMemo(() => {
+    const nextSunday = endOfWeek(addWeeks(new Date(), 1), { weekStartsOn: 1 });
+    return format(nextSunday, "yyyy-MM-dd'T'23:59");
+  }, []);
 
   useEffect(() => {
     if (post) {
+      setConfirmCancel(false);
       setActiveVariantIndex(0);
       const contentMap: Record<string, string> = {};
       const hashtagsMap: Record<string, string[]> = {};
@@ -1511,6 +1514,11 @@ function ScheduledPostModal({
       toast.error('Cannot schedule in the past. Please choose a future date and time');
       return;
     }
+    const endOfNextWeek = endOfWeek(addWeeks(new Date(), 1), { weekStartsOn: 1 });
+    if (targetDate.getTime() > endOfNextWeek.getTime()) {
+      toast.error('Scheduling is limited to the current week and next week.');
+      return;
+    }
 
     setIsRescheduling(true);
     try {
@@ -1536,7 +1544,10 @@ function ScheduledPostModal({
   };
 
   const handleCancelPost = async () => {
-    if (!confirm('Cancel this scheduled post and remove all its queued platform variants?')) return;
+    if (!confirmCancel) {
+      setConfirmCancel(true);
+      return;
+    }
     setIsCancelling(true);
     try {
       const res = await fetch(`/api/composer/schedule/${post.postId}`, {
@@ -1652,6 +1663,7 @@ function ScheduledPostModal({
                   type="datetime-local"
                   value={rescheduleTime}
                   min={format(new Date(), "yyyy-MM-dd'T'HH:mm")}
+                  max={maxDateTime}
                   onChange={e => setRescheduleTime(e.target.value)}
                   className="text-xs px-3 py-2 rounded-xl border flex-1"
                   style={{ backgroundColor: B.card, borderColor: B.border, color: B.text }}
@@ -1741,7 +1753,7 @@ function ScheduledPostModal({
                   className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium"
                   style={{ backgroundColor: B.bg, color: B.accentDark, border: `1px solid ${B.border}` }}
                 >
-                  #{tag}
+                  #{tag.replace(/^#+/, '')}
                   <button
                     onClick={() => removeTag(tag)}
                     className="hover:text-red-500 ml-0.5"
@@ -1821,7 +1833,22 @@ function ScheduledPostModal({
             </div>
 
             {currentMedia.length > 0 ? (
-              <div className="flex flex-wrap gap-2.5 p-2 rounded-xl border" style={{ backgroundColor: B.bg, borderColor: B.border }}>
+              <div
+                onDragOver={e => { e.preventDefault(); setIsModalDragging(true); }}
+                onDragLeave={e => { e.preventDefault(); setIsModalDragging(false); }}
+                onDrop={e => {
+                  e.preventDefault();
+                  setIsModalDragging(false);
+                  if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                    handleUploadModalMedia(e.dataTransfer.files);
+                  }
+                }}
+                className={cn(
+                  "flex flex-wrap gap-2.5 p-2 rounded-xl border transition-colors",
+                  isModalDragging ? "border-amber-500 bg-amber-500/10" : ""
+                )}
+                style={{ backgroundColor: B.bg, borderColor: isModalDragging ? undefined : B.border }}
+              >
                 {currentMedia.map((m, i) => (
                   <div
                     key={i}
@@ -1833,10 +1860,10 @@ function ScheduledPostModal({
                       <button
                         type="button"
                         onClick={() => handleRemoveModalMedia(i)}
-                        className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center shadow-md bg-red-600 text-white transition-transform hover:scale-110"
+                        className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white"
                         title="Remove image"
                       >
-                        <X className="w-3 h-3" />
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     )}
                   </div>
@@ -1863,18 +1890,28 @@ function ScheduledPostModal({
             ) : (
               <div
                 onClick={() => !isPublished && modalFileInputRef.current?.click()}
+                onDragOver={e => { e.preventDefault(); setIsModalDragging(true); }}
+                onDragLeave={e => { e.preventDefault(); setIsModalDragging(false); }}
+                onDrop={e => {
+                  e.preventDefault();
+                  setIsModalDragging(false);
+                  if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                    handleUploadModalMedia(e.dataTransfer.files);
+                  }
+                }}
                 className={cn(
                   "p-4 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-1 text-center transition-colors",
+                  isModalDragging ? "border-amber-500 bg-amber-500/10" : "",
                   !isPublished && "cursor-pointer hover:opacity-80"
                 )}
-                style={{ backgroundColor: B.bg, borderColor: B.border }}
+                style={{ backgroundColor: B.bg, borderColor: isModalDragging ? undefined : B.border }}
               >
                 <ImagePlus className="w-5 h-5" style={{ color: B.textMuted }} />
                 <span className="text-xs font-medium" style={{ color: B.text }}>
                   No images attached yet
                 </span>
                 <span className="text-[11px]" style={{ color: B.textMuted }}>
-                  Click to upload images (PNG, JPG, WebP) for this scheduled draft
+                  Drop images here or click to browse (PNG, JPG, WebP)
                 </span>
               </div>
             )}
@@ -1891,14 +1928,33 @@ function ScheduledPostModal({
 
         {/* Modal Footer */}
         <div className="p-4 border-t flex items-center justify-between gap-3 bg-neutral-50/50" style={{ borderColor: B.border }}>
-          <button
-            onClick={handleCancelPost}
-            disabled={isCancelling}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
-          >
-            {isCancelling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-            Cancel Post
-          </button>
+          {confirmCancel ? (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleCancelPost}
+                disabled={isCancelling}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
+                {isCancelling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                Confirm Cancel
+              </button>
+              <button
+                onClick={() => setConfirmCancel(false)}
+                className="px-2.5 py-1.5 rounded-xl text-xs font-medium text-neutral-500 hover:bg-neutral-100 transition-colors"
+              >
+                Keep Post
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmCancel(true)}
+              disabled={isCancelling}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Cancel Post
+            </button>
+          )}
 
           <div className="flex items-center gap-2">
             <button
@@ -1973,7 +2029,6 @@ function WeekCanvas({
   useEffect(() => { loadCanvas(); }, [loadCanvas]);
 
   const handleCancel = async (postId: string) => {
-    if (!confirm('Cancel this scheduled post?')) return;
     const res = await fetch(`/api/composer/schedule/${postId}`, { method: 'DELETE' });
     if (res.ok) {
       toast.success('Post cancelled');
@@ -2025,8 +2080,9 @@ function WeekCanvas({
       {/* Toolbar */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <button onClick={() => setWeekOffset(w => w - 1)}
-            className="p-2 rounded-xl transition-all hover:opacity-70"
+          <button onClick={() => setWeekOffset(w => Math.max(0, w - 1))}
+            disabled={weekOffset <= 0}
+            className="p-2 rounded-xl transition-all hover:opacity-70 disabled:opacity-30 disabled:cursor-not-allowed"
             style={{ backgroundColor: B.card, border: `1px solid ${B.border}`, color: B.textMuted }}>
             <ChevronLeft className="w-4 h-4" />
           </button>
@@ -2038,8 +2094,9 @@ function WeekCanvas({
               {posts.length} posts scheduled
             </p>
           </div>
-          <button onClick={() => setWeekOffset(w => w + 1)}
-            className="p-2 rounded-xl transition-all hover:opacity-70"
+          <button onClick={() => setWeekOffset(w => Math.min(1, w + 1))}
+            disabled={weekOffset >= 1}
+            className="p-2 rounded-xl transition-all hover:opacity-70 disabled:opacity-30 disabled:cursor-not-allowed"
             style={{ backgroundColor: B.card, border: `1px solid ${B.border}`, color: B.textMuted }}>
             <ChevronRight className="w-4 h-4" />
           </button>
@@ -2095,7 +2152,7 @@ function WeekCanvas({
           <div>
             <p className="font-semibold text-lg" style={{ color: B.text }}>Nothing scheduled yet</p>
             <p className="text-sm mt-1" style={{ color: B.textMuted }}>
-              Plan your week in 15 minutes — one story, every platform.
+              Schedule your story across all connected platforms.
             </p>
           </div>
           <button
@@ -2103,7 +2160,6 @@ function WeekCanvas({
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm"
             style={{ backgroundColor: B.accent, color: '#fff', boxShadow: `0 4px 16px ${B.accent}40` }}
           >
-            <Sparkles className="w-4 h-4" />
             Plan My Week
           </button>
         </div>
@@ -2354,12 +2410,9 @@ function FlightPlanInner({ userId, workspaceId }: { userId: string; workspaceId:
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Radio className="w-5 h-5" style={{ color: B.accent }} />
-            <h1 className="text-2xl font-bold" style={{ color: B.text }}>Flight Plan</h1>
-          </div>
+          <h1 className="text-2xl font-bold mb-1" style={{ color: B.text }}>Flight Plan</h1>
           <p className="text-sm" style={{ color: B.textMuted }}>
-            Plan your week of content in 15 minutes. One story, every platform, perfectly timed.
+            Plan and schedule your weekly content across all connected platforms.
           </p>
         </div>
         {view === 'canvas' && postCount > 0 && (
@@ -2368,7 +2421,6 @@ function FlightPlanInner({ userId, workspaceId }: { userId: string; workspaceId:
             className="flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm transition-all"
             style={{ backgroundColor: B.accent, color: '#fff', boxShadow: `0 4px 16px ${B.accent}40` }}
           >
-            <Sparkles className="w-4 h-4" />
             Plan New Week
           </button>
         )}
