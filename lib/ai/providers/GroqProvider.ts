@@ -171,8 +171,16 @@ export class GroqProvider implements AIProvider {
         if (typeof parsed.characterCount !== 'number' && typeof parsed.content === 'string') {
           parsed.characterCount = parsed.content.length;
         }
-        if (!Array.isArray(parsed.hashtags)) parsed.hashtags = [];
-        if (!Array.isArray(parsed.mediaSuggestions)) parsed.mediaSuggestions = [];
+        if (!Array.isArray(parsed.hashtags)) {
+          parsed.hashtags = [];
+        } else {
+          parsed.hashtags = parsed.hashtags.map((h: any) => String(h).trim()).filter(Boolean);
+        }
+        if (!Array.isArray(parsed.mediaSuggestions)) {
+          parsed.mediaSuggestions = [];
+        } else {
+          parsed.mediaSuggestions = parsed.mediaSuggestions.map((m: any) => String(m).trim()).filter(Boolean);
+        }
       }
 
       const validated = schema.parse(parsed);

@@ -14,6 +14,8 @@ const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_
 const postRepository = new SupabasePostRepository();
 const profileRepository = new SupabaseProfileRepository();
 
+export const maxDuration = 300; // 5 minutes max execution duration
+
 export async function POST(request: NextRequest) {
   return planEnforcement.useAI(request, async (request) => {
     const traceId = crypto.randomUUID();
@@ -28,7 +30,7 @@ export async function POST(request: NextRequest) {
       const { userId, workspaceId } = auth;
 
       const body = await request.json();
-      const { content, profileId, mediaItems, selectedPlatforms } = body;
+      const { content, profileId, mediaItems, selectedPlatforms, postId: existingPostId } = body;
 
       if (!content || typeof content !== 'string' || !content.trim()) {
         return NextResponse.json({ error: 'Content is required' }, { status: 400 });
@@ -128,13 +130,17 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Create post with variants in database
-      const post = await postRepository.create({
-        profileId: resolvedProfileId || '',
-        workspaceId,
-        content: content.trim(),
-        adaptationPromptVersion: PostAdapter['PROMPT_VERSION'],
-      });
+      // Create post with variants in database (reuse existing postId if provided on retries)
+      let activePostId = existingPostId;
+      if (!activePostId) {
+        const post = await postRepository.create({
+          profileId: resolvedProfileId || '',
+          workspaceId,
+          content: content.trim(),
+          adaptationPromptVersion: PostAdapter['PROMPT_VERSION'],
+        });
+        activePostId = post.id;
+      }
 
       // Create variants — only for platforms that were successfully adapted
       const successfulPlatforms = Object.keys(variants) as PlatformType[];
@@ -167,7 +173,7 @@ export async function POST(request: NextRequest) {
         const finalMedia = await optimizeMediaForPlatform(normalizedMedia, platform);
 
         await postRepository.createVariant({
-          postId: post.id,
+          postId: activePostId,
           platform,
           adaptedContent: adapted.content,
           mediaUrls: finalMedia,
@@ -191,7 +197,7 @@ export async function POST(request: NextRequest) {
 
       logger.info('Composer adaptation completed', {
         traceId,
-        postId: post.id,
+        postId: activePostId,
         platforms: Object.keys(variants),
       });
 
@@ -207,7 +213,7 @@ export async function POST(request: NextRequest) {
       }
 
       return NextResponse.json({
-        postId: post.id,
+        postId: activePostId,
         variants: responseVariants,
       });
     } catch (error) {

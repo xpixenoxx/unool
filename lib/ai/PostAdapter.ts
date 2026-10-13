@@ -8,9 +8,9 @@ export type PlatformType = z.infer<typeof PlatformType>;
 
 export const AdaptedPostSchema = z.object({
   content: z.string().min(1),
-  characterCount: z.number(),
-  hashtags: z.array(z.string()).max(10),
-  mediaSuggestions: z.array(z.string()).max(5),
+  characterCount: z.number().optional().default(0),
+  hashtags: z.array(z.string()).default([]),
+  mediaSuggestions: z.array(z.string()).default([]),
   firstCommentHint: z.string().nullable().optional(),
 });
 
@@ -362,7 +362,7 @@ ${context?.profileName ? `**Author Context:** ${context.profileName}${context.pr
         prompt,
         {
           temperature: 0.75,
-          maxTokens: 2500,
+          maxTokens: 1200,
         },
         AdaptedPostSchema
       );
@@ -404,22 +404,110 @@ ${context?.profileName ? `**Author Context:** ${context.profileName}${context.pr
     platforms: PlatformType[],
     context?: { profileName?: string; profileHeadline?: string }
   ): Promise<Record<PlatformType, Result<AdaptedPost, Error>>> {
-    // Run adaptations sequentially to avoid:
-    // 1. Groq rate-limit errors when firing many concurrent requests
-    // 2. Race conditions in the shared provider fallback state (providerInstance/providerName)
-    // A 300ms gap between calls further reduces rate-limit pressure.
-    const entries: Array<[PlatformType, Result<AdaptedPost, Error>]> = [];
-    for (let i = 0; i < platforms.length; i++) {
-      const platform = platforms[i];
-      const result = await this.adaptForPlatform(sourceContent, platform, context);
-      entries.push([platform, result]);
-      // Small inter-request delay (skip after the last platform)
-      if (i < platforms.length - 1) {
+    const results: Record<PlatformType, Result<AdaptedPost, Error>> = {} as any;
+    if (platforms.length === 0) return results;
+
+    // Filter to known platforms with specs
+    const validPlatforms = platforms.filter(p => p in PLATFORM_SPECS);
+    for (const p of platforms) {
+      if (!(p in PLATFORM_SPECS)) {
+        results[p] = err(new Error(`Platform '${p}' is not supported for AI adaptation`));
+      }
+    }
+
+    // Adapt in batches of up to 4 platforms per AI prompt for speed and low token consumption
+    const BATCH_SIZE = 4;
+    for (let i = 0; i < validPlatforms.length; i += BATCH_SIZE) {
+      const batch = validPlatforms.slice(i, i + BATCH_SIZE);
+
+      // If batch has only 1 platform, use adaptForPlatform directly
+      if (batch.length === 1) {
+        const platform = batch[0];
+        results[platform] = await this.adaptForPlatform(sourceContent, platform, context);
+        continue;
+      }
+
+      // Multi-platform prompt for the batch
+      try {
+        const specsText = batch.map(p => {
+          const s = PLATFORM_SPECS[p];
+          return `### Platform: ${p.toUpperCase()}\n- Max characters: ${s.maxChars}\n- Style: ${s.style}\n- Tone: ${s.tone}\n- Hashtags: ${s.hashtagStrategy}\n- SEO: ${s.seoFocus}`;
+        }).join('\n\n');
+
+        const batchPrompt = `${POST_ADAPTER_PROMPT}
+
+Transform the source content for EACH of the following platforms: ${batch.join(', ')}.
+
+${specsText}
+
+**Source Content:**
+${sourceContent}
+
+${context?.profileName ? `**Author Context:** ${context.profileName}${context.profileHeadline ? ` — ${context.profileHeadline}` : ''}` : ''}
+
+You MUST return a JSON object with this exact shape:
+{
+  "variants": {
+${batch.map(p => `    "${p}": { "content": "...", "characterCount": 100, "hashtags": ["#Tag"], "mediaSuggestions": [], "firstCommentHint": null }`).join(',\n')}
+  }
+}`;
+
+        const batchResult = await generateWithFallback(
+          batchPrompt,
+          {
+            temperature: 0.75,
+            maxTokens: Math.min(3500, 700 * batch.length + 500),
+          }
+        );
+
+        let parsedVariants: Record<string, any> = {};
+        if (batchResult.ok && typeof batchResult.value === 'object' && 'text' in batchResult.value) {
+          try {
+            let text = batchResult.value.text.trim();
+            if (text.startsWith('```json')) text = text.slice(7);
+            if (text.startsWith('```')) text = text.slice(3);
+            if (text.endsWith('```')) text = text.slice(0, -3);
+            text = text.trim();
+            const rawJson = JSON.parse(text);
+            parsedVariants = rawJson.variants || rawJson;
+          } catch (pe) {
+            logger.warn('Failed to parse batch JSON response', { error: pe });
+          }
+        }
+
+        // Validate each platform in the batch
+        for (const platform of batch) {
+          const rawPlatformData = parsedVariants[platform];
+          if (rawPlatformData && typeof rawPlatformData.content === 'string' && rawPlatformData.content.trim()) {
+            const parsed = {
+              content: rawPlatformData.content.trim(),
+              characterCount: typeof rawPlatformData.characterCount === 'number' ? rawPlatformData.characterCount : rawPlatformData.content.trim().length,
+              hashtags: Array.isArray(rawPlatformData.hashtags) ? rawPlatformData.hashtags.map(String) : [],
+              mediaSuggestions: Array.isArray(rawPlatformData.mediaSuggestions) ? rawPlatformData.mediaSuggestions.map(String) : [],
+              firstCommentHint: rawPlatformData.firstCommentHint || null,
+            };
+            results[platform] = ok(parsed as AdaptedPost);
+            logger.info('Batch adaptation succeeded for platform', { platform, charCount: parsed.characterCount });
+          } else {
+            // Platform was missing or failed in batch — fallback to single platform adaptation
+            logger.info('Platform missing from batch, running individual fallback', { platform });
+            results[platform] = await this.adaptForPlatform(sourceContent, platform, context);
+          }
+        }
+      } catch (batchErr) {
+        logger.warn('Batch adaptation failed, falling back to individual calls', { error: batchErr });
+        for (const platform of batch) {
+          results[platform] = await this.adaptForPlatform(sourceContent, platform, context);
+        }
+      }
+
+      // Small pause between batches if more remain
+      if (i + BATCH_SIZE < validPlatforms.length) {
         await new Promise(resolve => setTimeout(resolve, 300));
       }
     }
 
-    return Object.fromEntries(entries) as Record<PlatformType, Result<AdaptedPost, Error>>;
+    return results;
   }
 
   /**

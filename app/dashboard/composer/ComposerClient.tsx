@@ -717,7 +717,16 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
 
     setPlanError(null);
     setGeneratingType(useSelectedOnly ? 'selected' : 'all');
-    setDrafts(d => d.map(d => ({ ...d, status: 'generating' })));
+    // Pre-populate drafts for all requested platforms in 'generating' state
+    setDrafts(platformsToUse.map(platform => ({
+      platform,
+      content: '',
+      characterCount: 0,
+      hashtags: [],
+      status: 'generating' as const,
+    })));
+    setActiveTab(platformsToUse[0]);
+    setPreviewPlatform(platformsToUse[0]);
 
     try {
       const res = await fetch('/api/composer/adapt', {
@@ -800,6 +809,50 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       setDrafts(d => d.map(d => ({ ...d, status: 'error', error: errorMsg })));
     } finally {
       setGeneratingType(null);
+    }
+  };
+
+  const retrySingleDraft = async (platform: PlatformType) => {
+    if (!sourceContent.trim() || !profile) return;
+    setDrafts(prev => prev.map(d => d.platform === platform ? { ...d, status: 'generating' as const, error: undefined } : d));
+    try {
+      const res = await fetch('/api/composer/adapt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          content: sourceContent,
+          profileId: profile.id,
+          mediaItems: media,
+          selectedPlatforms: [platform],
+          postId,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.variants?.[platform]) {
+        throw new Error(data.error || 'Retry failed');
+      }
+      if (data.postId && !postId) {
+        setPostId(data.postId);
+      }
+      const v = data.variants[platform];
+      setDrafts(prev => prev.map(d => d.platform === platform ? {
+        platform,
+        content: v.content ?? '',
+        characterCount: v.characterCount ?? 0,
+        hashtags: v.hashtags ?? [],
+        firstCommentHint: v.firstCommentHint,
+        status: 'ready' as const,
+      } : d));
+      toast.success(`Generated draft for ${PLATFORM_CONFIG[platform]?.name || platform}!`);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Retry failed';
+      setDrafts(prev => prev.map(d => d.platform === platform ? {
+        ...d,
+        status: 'error' as const,
+        error: errorMsg,
+      } : d));
+      toast.error(`Retry failed for ${PLATFORM_CONFIG[platform]?.name || platform}: ${errorMsg}`);
     }
   };
 
@@ -1478,7 +1531,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                           <CardTitle className="text-base">Review & Edit Drafts</CardTitle>
                         </div>
                         {readyCount > 0 && (
-                          <Badge variant="secondary" className="text-xs">{readyCount} of 3 ready</Badge>
+                          <Badge variant="secondary" className="text-xs">{readyCount} of {drafts.length} ready</Badge>
                         )}
                       </div>
                       <Text size="sm" color="muted">
@@ -1547,8 +1600,19 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                                 </div>
 
                                 {draft?.error && (
-                                  <Alert variant="destructive" className="mb-3">
-                                    <AlertDescription>{draft.error}</AlertDescription>
+                                  <Alert variant="destructive" className="mb-3 flex items-center justify-between">
+                                    <div>
+                                      <AlertDescription>{draft.error}</AlertDescription>
+                                    </div>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="ml-auto flex items-center gap-1.5 h-7 text-xs bg-background hover:bg-muted text-foreground flex-shrink-0"
+                                      onClick={() => retrySingleDraft(platform)}
+                                    >
+                                      <RefreshCw className="h-3 w-3" />
+                                      Retry
+                                    </Button>
                                   </Alert>
                                 )}
 
