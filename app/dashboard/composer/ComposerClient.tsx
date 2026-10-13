@@ -67,6 +67,7 @@ import {
   getPlatformBgColor,
   type SupportedPlatformType,
 } from '@/components/dashboard/previews/PlatformMobilePreview';
+import { HashtagEditor } from '@/components/dashboard/HashtagEditor';
 
 type PlatformType = SupportedPlatformType;
 
@@ -907,6 +908,36 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
     ));
   };
 
+  const addHashtag = (platform: PlatformType, rawTag: string) => {
+    const tagsToAdd = rawTag
+      .split(/[\s,]+/)
+      .map(t => t.trim().replace(/^#+/, ''))
+      .filter(Boolean)
+      .map(t => `#${t}`);
+
+    if (tagsToAdd.length === 0) return;
+
+    setDrafts(prev => prev.map(item => {
+      if (item.platform !== platform) return item;
+      const current = item.hashtags || [];
+      const lowerExisting = new Set(current.map(t => t.toLowerCase()));
+      const uniqueNew = tagsToAdd.filter(t => !lowerExisting.has(t.toLowerCase()));
+      if (uniqueNew.length === 0) return item;
+      return {
+        ...item,
+        hashtags: [...current, ...uniqueNew],
+      };
+    }));
+  };
+
+  const removeHashtag = (platform: PlatformType, tagToRemove: string) => {
+    setDrafts(prev => prev.map(item =>
+      item.platform === platform
+        ? { ...item, hashtags: (item.hashtags || []).filter(t => t !== tagToRemove) }
+        : item
+    ));
+  };
+
   const handlePublish = async () => {
     if (!postId) return;
 
@@ -1735,7 +1766,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                                         isOverLimit ? 'text-destructive font-medium' : 'text-muted-foreground'
                                       )}>
                                         {draft?.characterCount ?? 0} / {cfg.maxChars} chars
-                                        {draft && draft.hashtags.length > 0 && ` Â· ${draft.hashtags.length} hashtags`}
+                                        {draft && (draft.hashtags?.length ?? 0) > 0 && ` · ${draft.hashtags.length} ${draft.hashtags.length === 1 ? 'hashtag' : 'hashtags'}`}
                                       </p>
                                     </div>
                                   </div>
@@ -1809,12 +1840,13 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                                   </p>
                                 )}
 
-                                {draft && draft.hashtags.length > 0 && (
-                                  <div className="flex flex-wrap gap-1.5 pt-1">
-                                    {draft.hashtags.map(tag => (
-                                      <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>
-                                    ))}
-                                  </div>
+                                {draft && (
+                                  <HashtagEditor
+                                    hashtags={draft.hashtags || []}
+                                    onAdd={(tag) => addHashtag(platform, tag)}
+                                    onRemove={(tag) => removeHashtag(platform, tag)}
+                                    editable={draft.status === 'ready'}
+                                  />
                                 )}
 
                                 {draft?.firstCommentHint && (

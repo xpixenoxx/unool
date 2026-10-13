@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 import { type Platform } from './PlatformPreview';
+import { HashtagEditor } from '@/components/dashboard/HashtagEditor';
 
 type DraftStatus = 'draft' | 'published' | 'failed';
 
@@ -146,6 +147,38 @@ function PublishContentInner() {
 
   const updateDraft = (platform: Platform, content: string) => {
     setDrafts(d => d.map(d => d.platform === platform ? { ...d, content, characterCount: content.length } : d));
+  };
+
+  const addHashtag = (platform: Platform, rawTag: string) => {
+    const tagsToAdd = rawTag
+      .split(/[\s,]+/)
+      .map(t => t.trim().replace(/^#+/, ''))
+      .filter(Boolean)
+      .map(t => `#${t}`);
+
+    if (tagsToAdd.length === 0) return;
+
+    setDrafts(prev => prev.map(item => {
+      if (item.platform !== platform) return item;
+      const current = item.hashtags || [];
+      const lowerExisting = new Set(current.map(t => t.toLowerCase()));
+      const uniqueNew = tagsToAdd.filter(t => !lowerExisting.has(t.toLowerCase()));
+      if (uniqueNew.length === 0) return item;
+      return {
+        ...item,
+        hashtags: [...current, ...uniqueNew],
+      };
+    }));
+  };
+
+  const removeHashtag = (platform: Platform, tagToRemove: string) => {
+    setDrafts(prev => prev.map(item => {
+      if (item.platform !== platform) return item;
+      return {
+        ...item,
+        hashtags: (item.hashtags || []).filter(t => t !== tagToRemove),
+      };
+    }));
   };
 
   const handlePublish = async () => {
@@ -338,7 +371,7 @@ function PublishContentInner() {
                           <Text weight="semibold">{config.name}</Text>
                           <Text size="sm" color="muted">
                             {draft.characterCount}/{draft.maxChars} characters
-                            {draft.hashtags.length > 0 && ` • ${draft.hashtags.length} hashtags`}
+                            {draft.hashtags.length > 0 && ` • ${draft.hashtags.length} ${draft.hashtags.length === 1 ? 'hashtag' : 'hashtags'}`}
                           </Text>
                         </Box>
                       </Flex>
@@ -379,13 +412,13 @@ function PublishContentInner() {
                       </Text>
                     )}
 
-                    {draft.hashtags.length > 0 && (
-                      <Flex wrap gap={1} className="mt-3">
-                        {draft.hashtags.map(tag => (
-                          <Badge key={tag} variant="outline">{tag}</Badge>
-                        ))}
-                      </Flex>
-                    )}
+                    <HashtagEditor
+                      className="mt-3"
+                      hashtags={draft.hashtags || []}
+                      onAdd={(tag) => addHashtag(draft.platform, tag)}
+                      onRemove={(tag) => removeHashtag(draft.platform, tag)}
+                      editable={!isPublished}
+                    />
 
                     {/* Display success/failure from either recent result or draft status */}
                     {(result?.success || (isPublished && !result)) && (
