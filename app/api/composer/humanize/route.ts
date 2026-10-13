@@ -1,7 +1,9 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { ContentHumanizer } from '@/lib/ai/engines';
 import { PlatformType } from '@/lib/ai/PostAdapter';
 import { z } from 'zod';
+
+export const maxDuration = 60;
 
 /**
  * POST /api/composer/humanize
@@ -45,7 +47,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ diagnosis, needsHumanizing });
     }
 
-    const result = ContentHumanizer.humanize(content, platform as PlatformType | undefined);
+    const result = await ContentHumanizer.humanizeWithAI(content, platform as PlatformType | undefined);
     return NextResponse.json(result);
   } catch (error) {
     return NextResponse.json(

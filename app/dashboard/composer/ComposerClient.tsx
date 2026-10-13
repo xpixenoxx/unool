@@ -490,7 +490,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         updateDraft(platform, data.humanized);
         const platformName = PLATFORM_CONFIG[platform]?.name || platform;
         if (data.changeCount > 0) {
-          toast.success(`De-slopped ${platformName}: ${data.changeCount} AI fix${data.changeCount !== 1 ? 'es' : ''} applied · Score ${data.panelScore}/100`);
+          toast.success(`De-slopped ${platformName}: Rewritten in human expert voice · Score ${data.panelScore}/100`);
         } else {
           toast.info(`${platformName} draft is already clean · Score ${data.panelScore}/100`);
         }
@@ -515,6 +515,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
             const res = await fetch('/api/composer/humanize', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
               body: JSON.stringify({ content: d.content, platform: d.platform }),
             });
             const data = await res.json();
@@ -527,7 +528,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           }
         })
       );
-      toast.success(`De-slopped all drafts: ${totalChanges} AI fix${totalChanges !== 1 ? 'es' : ''} applied`);
+      toast.success(`De-slopped all drafts: Rewritten in human expert voice across ${readyDrafts.length} platforms`);
     } catch {
       toast.error('Failed to de-slop all drafts');
     } finally {

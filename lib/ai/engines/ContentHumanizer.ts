@@ -1,4 +1,4 @@
-﻿// ─── ContentHumanizer (ported from ig-human SKILL.md) ─────────────────────────
+// ─── ContentHumanizer (ported from ig-human SKILL.md) ─────────────────────────
 //
 // Strips "AI fingerprints" from generated content:
 // 1. Removes em dashes and replaces with natural punctuation
@@ -12,6 +12,9 @@
 // The only platform-specific adjustment is whether markdown is preserved.
 
 import { PlatformType } from '@/lib/ai/PostAdapter';
+import { z } from 'zod';
+import { generateWithFallback } from '@/lib/ai/provider';
+import { logger } from '@/lib/logger';
 
 // ─── Slop vocabulary replacements ─────────────────────────────────────────────
 
@@ -113,9 +116,133 @@ export interface HumanizeResult {
   platform: PlatformType | null;
 }
 
-// ─── Main Humanizer ────────────────────────────────────────────────────────────
+// ─── Platform-Specific Humanizer Guidance ─────────────────────────────────────
+function getPlatformHumanizeGuidance(platform: PlatformType): string {
+  switch (platform) {
+    case 'linkedin':
+      return 'LinkedIn: Thoughtful, professional peer-to-peer perspective. Clean single-line breaks, high signal-to-noise ratio, zero cringe bro-poetry, max 2-3 discoverable hashtags.';
+    case 'x':
+      return 'X / Twitter: Ultra-concise, sharp, punchy, opinionated. High density, zero filler. 0-1 hashtags.';
+    case 'threads':
+      return 'Threads: Casual, conversational, authentic builder/creator tone. Like sharing a candid observation with peers.';
+    case 'instagram':
+      return 'Instagram: Strong first-line hook before the fold. Engaging visual story, relatable, clean formatting, max 3-5 community hashtags.';
+    case 'facebook':
+      return 'Facebook: Community-focused, conversational storytelling, relatable and clear.';
+    case 'devto':
+    case 'hashnode':
+      return 'Dev.to / Hashnode: Authentic engineer voice, technical depth, practical realities and architecture lessons.';
+    case 'medium':
+      return 'Medium: Journalistic depth, authoritative narrative with well-structured ideas and genuine insight.';
+    case 'dribbble':
+      return 'Dribbble: Design craft focus, caption highlighting the aesthetic decision or design challenge solved.';
+    case 'reddit':
+      return 'Reddit: 100% authentic community contributor voice. Anti-marketing, substance-first, no hashtags, no self-promo tone.';
+    default:
+      return 'Authentic, engaging, human expert tone with zero corporate fluff.';
+  }
+}
+
+const HumanizeOutputSchema = z.object({
+  humanized: z.string().optional(),
+  content: z.string().optional(),
+  changesMade: z.array(z.string()).optional().default([]),
+}).transform(val => ({
+  humanized: (val.humanized || val.content || '').trim(),
+  changesMade: val.changesMade || [],
+}));
 
 export class ContentHumanizer {
+  /**
+   * Deep AI Humanizer:
+   * Re-engineers AI-generated drafts into authentic, practitioner-level writing
+   * tailored to the specific platform. Removes AI tells, robotic structures,
+   * fake engagement questions, and bold label headers.
+   *
+   * Automatically falls back to deterministic regex pass if AI is unavailable.
+   */
+  static async humanizeWithAI(
+    content: string,
+    platform?: PlatformType | null
+  ): Promise<HumanizeResult> {
+    if (!content || !content.trim()) {
+      return this.humanize(content, platform);
+    }
+
+    const platformKey = platform || 'linkedin';
+    const platformGuidance = getPlatformHumanizeGuidance(platformKey);
+
+    const prompt = `You are an elite copy editor and world-class content creator known for ruthless anti-AI humanization.
+Your task is to take this AI-generated draft and rewrite it so it sounds like it was written by a top 1% human practitioner and industry expert on ${platformKey.toUpperCase()} — NOT an AI.
+
+## Strict Humanization Rules:
+1. REMOVE ALL AI TELLS AND SLOP:
+   - Eliminate robotic bold bullet labels (e.g. "**Week 1:**", "**Step 2:**", "**Key Takeaway:**", "**1. Consistency:**"). Transform into natural, organic narrative flow.
+   - Eliminate cliché motivational platitudes (e.g. "You just need to stay consistent", "In today's fast-paced digital landscape"). Replace with authentic, grounded practitioner insight.
+   - Eliminate fake rhetorical engagement bait (e.g. "**What would you choose?** 👇", "Agree or disagree?", "Drop your thoughts below!", "Let that sink in"). If you end with a prompt, make it an authentic, peer-level discussion starter.
+   - Eliminate emoji clutter (no 👇, 🚀, 🔥, 💡 on every sentence). Keep at most 0 to 1 natural emojis, or none.
+   - Eliminate generic hashtag dumps (#Motivation #Success #CareerGrowth #Innovation). Keep at most 2-3 specific, discoverable community tags, or none if platform conventions discourage them.
+   - Never use em dashes (—). Use natural commas, periods, or clean sentence breaks.
+   - Never use AI vocabulary: delve, tapestry, robust, game-changer, seamless, leverage, journey, unpack, supercharge, revolutionize, elevate.
+
+2. INJECT AUTHENTIC HUMAN PRACTITIONER VOICE:
+   - Write with genuine perspective, skin in the game, and realistic nuance (acknowledging real friction, tradeoffs, and concrete realities).
+   - Vary sentence cadence and rhythm (mix punchy 2-word declarations with descriptive thoughts). Avoid repetitive sentence structures.
+   - Match native platform culture:
+     ${platformGuidance}
+
+Original Draft:
+"""
+${content}
+"""
+
+Return valid JSON with:
+{
+  "humanized": "The rewritten, humanized version written by a human expert",
+  "changesMade": ["Brief list of AI clichés and structures that were removed or humanized"]
+}`;
+
+    try {
+      const result = await generateWithFallback(
+        prompt,
+        { temperature: 0.7, maxTokens: 1500 },
+        HumanizeOutputSchema
+      );
+
+      if (result.ok && result.value.humanized) {
+        // Polish the AI output through deterministic rules (clean remaining em dashes, watermarks, etc.)
+        const deterministicPass = this.humanize(result.value.humanized, platform);
+        const changesReport = [
+          ...result.value.changesMade.map(c => ({
+            type: 'human_expert_rewrite',
+            original: '(AI structure)',
+            replacement: '(human practitioner voice)',
+            reason: c,
+          })),
+          ...deterministicPass.changes,
+        ];
+
+        return {
+          original: content,
+          humanized: deterministicPass.humanized,
+          changed: deterministicPass.humanized !== content,
+          changeCount: Math.max(1, changesReport.length),
+          changes: changesReport,
+          panelChecks: deterministicPass.panelChecks,
+          panelScore: deterministicPass.panelScore,
+          platform: platform ?? null,
+        };
+      }
+    } catch (aiErr) {
+      logger.warn('ContentHumanizer: AI humanization call failed, falling back to deterministic pass', {
+        error: aiErr instanceof Error ? aiErr.message : String(aiErr),
+      });
+    }
+
+    // Graceful fallback to deterministic regex pass
+    return this.humanize(content, platform);
+  }
+
   /**
    * Run the full humanizer pipeline on content.
    * Strips AI fingerprints, replaces slop, removes invisible chars.
