@@ -508,10 +508,6 @@ function ReviewScreen({
       if (!hasChanges) return prev;
       return { ...prev, weekPosts: updatedPosts };
     });
-
-    if (adjustedCount > 0) {
-      toast.info(`Adjusted ${adjustedCount} past post schedule${adjustedCount > 1 ? 's' : ''} to upcoming future times.`);
-    }
   }, [weekStartDate]);
 
   const togglePlatformEnabled = (postIdx: number, platformIdx: number) => {
@@ -629,7 +625,6 @@ function ReviewScreen({
     }
 
     setIsUploadingImage(prev => ({ ...prev, [postIdx]: true }));
-    const uploadingToast = toast.loading(`Uploading ${fileArray.length} image${fileArray.length > 1 ? 's' : ''}…`);
 
     try {
       const uploadedUrls: string[] = [];
@@ -664,12 +659,11 @@ function ReviewScreen({
         return updated;
       });
 
-      toast.success(`${uploadedUrls.length} image${uploadedUrls.length > 1 ? 's' : ''} added`);
+      // images successfully added to post
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Upload failed');
     } finally {
       setIsUploadingImage(prev => ({ ...prev, [postIdx]: false }));
-      toast.dismiss(uploadingToast);
     }
   };
 
@@ -728,7 +722,6 @@ function ReviewScreen({
     });
 
     if (hasPastPost) {
-      toast.info("Adjusted scheduled times forward to upcoming future hours.");
       const updatedArc = { ...editedArc, weekPosts: validatedPosts };
       setEditedArc(updatedArc);
       onApprove(updatedArc);
@@ -783,7 +776,7 @@ function ReviewScreen({
             opacity: isScheduling || activePosts.length === 0 ? 0.6 : 1,
           }}
         >
-          {isScheduling ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+          {isScheduling && <Loader2 className="w-4 h-4 animate-spin" />}
           {isScheduling ? 'Scheduling…' : 'Approve & Schedule'}
         </button>
       </div>
@@ -792,7 +785,7 @@ function ReviewScreen({
         <div className="flex items-center justify-between gap-3 p-4 rounded-xl text-sm"
           style={{ backgroundColor: B.warningBg, border: `1px solid ${B.warning}44`, color: B.warning }}>
           <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 flex-shrink-0" />
+            <Info className="w-4 h-4 flex-shrink-0" />
             <span>
               <strong>Preview Mode:</strong> You haven&apos;t connected platforms yet. You can review and copy these drafts now, or connect accounts in Settings to schedule them automatically.
             </span>
@@ -914,11 +907,6 @@ function ReviewScreen({
                             onClick={e => {
                               e.stopPropagation();
                               togglePlatformEnabled(postIdx, pIdx);
-                              toast.info(
-                                isEnabled
-                                  ? `Excluded ${meta.name} for ${post.dayLabel}`
-                                  : `Included ${meta.name} for ${post.dayLabel}`
-                              );
                             }}
                             title={isEnabled ? `Click to exclude ${meta.name}` : `Click to include ${meta.name}`}
                             className={cn(
@@ -1400,7 +1388,6 @@ function ScheduledPostModal({
     }
 
     setIsUploadingMedia(true);
-    const uploadingToast = toast.loading(`Uploading ${fileArray.length} image${fileArray.length > 1 ? 's' : ''}…`);
 
     try {
       const uploadedMedia: Array<{ url: string; type: string }> = [];
@@ -1431,12 +1418,11 @@ function ScheduledPostModal({
         };
       });
 
-      toast.success(`${uploadedMedia.length} image${uploadedMedia.length > 1 ? 's' : ''} added`);
+      // modal images successfully attached
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Upload failed');
     } finally {
       setIsUploadingMedia(false);
-      toast.dismiss(uploadingToast);
     }
   };
 

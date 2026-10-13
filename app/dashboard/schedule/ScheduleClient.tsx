@@ -439,7 +439,7 @@ function ReviewScreen({
             opacity: isScheduling || editedArc.weekPosts.length === 0 ? 0.6 : 1,
           }}
         >
-          {isScheduling ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+          {isScheduling && <Loader2 className="w-4 h-4 animate-spin" />}
           {isScheduling ? 'Scheduling…' : 'Approve & Schedule'}
         </button>
       </div>
@@ -448,7 +448,7 @@ function ReviewScreen({
         <div className="flex items-center justify-between gap-3 p-4 rounded-xl text-sm"
           style={{ backgroundColor: B.warningBg, border: `1px solid ${B.warning}44`, color: B.warning }}>
           <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 flex-shrink-0" />
+            <Info className="w-4 h-4 flex-shrink-0" />
             <span>
               <strong>Preview Mode:</strong> You haven&apos;t connected platforms yet. You can review and copy these drafts now, or connect accounts in Settings to schedule them automatically.
             </span>
