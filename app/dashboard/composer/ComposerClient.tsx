@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
 import {
   CheckCircle,
   Loader2,
@@ -48,10 +49,40 @@ import {
   Mail,
   Clock,
   Calendar,
+  ChevronDown,
+  ChevronUp,
+  Edit2,
+  Save,
+  Home,
+  Layers,
+  Grid,
+  X as XIcon,
+  Bell,
+  Settings,
+  Search,
+  Camera,
+  Mic,
+  MessageSquare as MessageSquareIcon,
+  BookOpen,
+  Users,
+  Compass,
+  Plus,
+  MoreVertical,
+  ArrowUp,
+  ArrowDown,
+  Flag,
+  Copy,
+  ExternalLink,
+  RefreshCw as RefreshIcon,
+  Briefcase,
+  Play,
+  Menu,
+  Phone,
+  Share2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Box, Flex, Text, Display } from '@/components/ui/layout';
 import { MotionBox, spring } from '@/components/ui/motion';
@@ -66,6 +97,7 @@ import {
   isPlatformDark,
   getPlatformBgColor,
   type SupportedPlatformType,
+  PlatformBrandLogo,
 } from '@/components/dashboard/previews/PlatformMobilePreview';
 import { HashtagEditor } from '@/components/dashboard/HashtagEditor';
 
@@ -138,9 +170,9 @@ interface ComposerClientProps {
   workspaceId: string;
 }
 
-/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+/* ─────────────────────────────────────────────────────────────
    Brand Icons (Real SVGs)
-   â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+   ───────────────────────────────────────────────────────────── */
 
 const BrandIcons = {
   LinkedIn: () => (
@@ -170,9 +202,212 @@ const BrandIcons = {
   ),
 };
 
-/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-   iPhone Live Preview Component
-   â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─────────────────────────────────────────────────────────────
+   iPhone 16 Pro Live Mobile Preview Component
+   ───────────────────────────────────────────────────────────── */
+
+interface IPhonePreviewProps {
+  content: string;
+  media: { url: string; type: 'image' | 'video' | 'document' }[];
+  previewPlatform: PlatformType;
+  setPreviewPlatform: (p: PlatformType) => void;
+  profileName: string;
+  profileHeadline: string;
+  avatarUrl?: string;
+  connectedPlatforms?: PlatformType[];
+  selectedPlatforms?: PlatformType[];
+  drafts?: PlatformDraft[];
+}
+
+function IPhoneBottomNavBar({
+  platform,
+  avatarUrl,
+  initials,
+}: {
+  platform: PlatformType;
+  avatarUrl?: string;
+  initials: string;
+}) {
+  const [activeTab, setActiveTab] = useState('home');
+  const isDark = isPlatformDark(platform);
+
+  const navBorder = isDark ? 'border-[#262626]' : 'border-[#EAEAEA]';
+  const navBg = isDark ? 'bg-[#000000]/95 backdrop-blur-md' : 'bg-white/95 backdrop-blur-md';
+  const iconMuted = isDark ? 'text-[#71767B]' : 'text-[#666666]';
+
+  // Platform specific bottom navigation items
+  const renderNavTabs = () => {
+    switch (platform) {
+      case 'x':
+        return (
+          <>
+            <button type="button" onClick={() => setActiveTab('home')} className={cn('p-2 transition-transform active:scale-90', activeTab === 'home' ? (isDark ? 'text-white' : 'text-black') : iconMuted)}>
+              <Home className="w-5 h-5" strokeWidth={activeTab === 'home' ? 2.5 : 1.8} />
+            </button>
+            <button type="button" onClick={() => setActiveTab('search')} className={cn('p-2 transition-transform active:scale-90', activeTab === 'search' ? (isDark ? 'text-white' : 'text-black') : iconMuted)}>
+              <Search className="w-5 h-5" strokeWidth={activeTab === 'search' ? 2.5 : 1.8} />
+            </button>
+            <button type="button" onClick={() => setActiveTab('grok')} className={cn('p-2 transition-transform active:scale-90', activeTab === 'grok' ? (isDark ? 'text-white' : 'text-black') : iconMuted)}>
+              <Sparkles className="w-5 h-5" strokeWidth={activeTab === 'grok' ? 2.5 : 1.8} />
+            </button>
+            <button type="button" onClick={() => setActiveTab('bell')} className={cn('p-2 transition-transform active:scale-90', activeTab === 'bell' ? (isDark ? 'text-white' : 'text-black') : iconMuted)}>
+              <Bell className="w-5 h-5" strokeWidth={activeTab === 'bell' ? 2.5 : 1.8} />
+            </button>
+            <button type="button" onClick={() => setActiveTab('messages')} className={cn('p-2 transition-transform active:scale-90', activeTab === 'messages' ? (isDark ? 'text-white' : 'text-black') : iconMuted)}>
+              <Mail className="w-5 h-5" strokeWidth={activeTab === 'messages' ? 2.5 : 1.8} />
+            </button>
+          </>
+        );
+
+      case 'linkedin':
+        return (
+          <>
+            <button type="button" onClick={() => setActiveTab('home')} className={cn('flex flex-col items-center gap-0.5 transition-transform active:scale-90', activeTab === 'home' ? 'text-[#0A66C2]' : iconMuted)}>
+              <Home className="w-4 h-4" strokeWidth={activeTab === 'home' ? 2.5 : 1.8} />
+              <span className="text-[9px] font-semibold">Home</span>
+            </button>
+            <button type="button" onClick={() => setActiveTab('network')} className={cn('flex flex-col items-center gap-0.5 transition-transform active:scale-90', activeTab === 'network' ? 'text-[#0A66C2]' : iconMuted)}>
+              <Users className="w-4 h-4" strokeWidth={activeTab === 'network' ? 2.5 : 1.8} />
+              <span className="text-[9px] font-medium">Network</span>
+            </button>
+            <button type="button" onClick={() => setActiveTab('post')} className={cn('flex flex-col items-center gap-0.5 transition-transform active:scale-90', activeTab === 'post' ? 'text-[#0A66C2]' : iconMuted)}>
+              <Plus className="w-4 h-4" strokeWidth={2.5} />
+              <span className="text-[9px] font-medium">Post</span>
+            </button>
+            <button type="button" onClick={() => setActiveTab('notifs')} className={cn('flex flex-col items-center gap-0.5 transition-transform active:scale-90', activeTab === 'notifs' ? 'text-[#0A66C2]' : iconMuted)}>
+              <Bell className="w-4 h-4" strokeWidth={activeTab === 'notifs' ? 2.5 : 1.8} />
+              <span className="text-[9px] font-medium">Notifs</span>
+            </button>
+            <button type="button" onClick={() => setActiveTab('jobs')} className={cn('flex flex-col items-center gap-0.5 transition-transform active:scale-90', activeTab === 'jobs' ? 'text-[#0A66C2]' : iconMuted)}>
+              <Briefcase className="w-4 h-4" strokeWidth={activeTab === 'jobs' ? 2.5 : 1.8} />
+              <span className="text-[9px] font-medium">Jobs</span>
+            </button>
+          </>
+        );
+
+      case 'instagram':
+        return (
+          <>
+            <button type="button" onClick={() => setActiveTab('home')} className={cn('p-2 transition-transform active:scale-90', activeTab === 'home' ? (isDark ? 'text-white' : 'text-black') : iconMuted)}>
+              <Home className="w-5 h-5" strokeWidth={activeTab === 'home' ? 2.5 : 1.8} />
+            </button>
+            <button type="button" onClick={() => setActiveTab('search')} className={cn('p-2 transition-transform active:scale-90', activeTab === 'search' ? (isDark ? 'text-white' : 'text-black') : iconMuted)}>
+              <Search className="w-5 h-5" strokeWidth={activeTab === 'search' ? 2.5 : 1.8} />
+            </button>
+            <button type="button" onClick={() => setActiveTab('create')} className={cn('p-2 transition-transform active:scale-90', activeTab === 'create' ? (isDark ? 'text-white' : 'text-black') : iconMuted)}>
+              <Plus className="w-5 h-5" strokeWidth={2.5} />
+            </button>
+            <button type="button" onClick={() => setActiveTab('reels')} className={cn('p-2 transition-transform active:scale-90', activeTab === 'reels' ? (isDark ? 'text-white' : 'text-black') : iconMuted)}>
+              <Play className="w-5 h-5" strokeWidth={activeTab === 'reels' ? 2.5 : 1.8} />
+            </button>
+            <button type="button" onClick={() => setActiveTab('profile')} className="p-1 transition-transform active:scale-90">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="" className="w-5 h-5 rounded-full object-cover border border-current" />
+              ) : (
+                <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-amber-500 to-rose-500 text-[9px] text-white font-bold flex items-center justify-center">
+                  {initials[0] || 'U'}
+                </div>
+              )}
+            </button>
+          </>
+        );
+
+      case 'threads':
+        return (
+          <>
+            <button type="button" onClick={() => setActiveTab('home')} className={cn('p-2 transition-transform active:scale-90', activeTab === 'home' ? (isDark ? 'text-white' : 'text-black') : iconMuted)}>
+              <Home className="w-5 h-5" strokeWidth={activeTab === 'home' ? 2.5 : 1.8} />
+            </button>
+            <button type="button" onClick={() => setActiveTab('search')} className={cn('p-2 transition-transform active:scale-90', activeTab === 'search' ? (isDark ? 'text-white' : 'text-black') : iconMuted)}>
+              <Search className="w-5 h-5" strokeWidth={activeTab === 'search' ? 2.5 : 1.8} />
+            </button>
+            <button type="button" onClick={() => setActiveTab('post')} className={cn('p-2 transition-transform active:scale-90', activeTab === 'post' ? (isDark ? 'text-white' : 'text-black') : iconMuted)}>
+              <Edit2 className="w-5 h-5" strokeWidth={2.2} />
+            </button>
+            <button type="button" onClick={() => setActiveTab('activity')} className={cn('p-2 transition-transform active:scale-90', activeTab === 'activity' ? (isDark ? 'text-white' : 'text-black') : iconMuted)}>
+              <Heart className="w-5 h-5" strokeWidth={activeTab === 'activity' ? 2.5 : 1.8} />
+            </button>
+            <button type="button" onClick={() => setActiveTab('profile')} className={cn('p-2 transition-transform active:scale-90', activeTab === 'profile' ? (isDark ? 'text-white' : 'text-black') : iconMuted)}>
+              <Users className="w-5 h-5" strokeWidth={activeTab === 'profile' ? 2.5 : 1.8} />
+            </button>
+          </>
+        );
+
+      case 'youtube':
+        return (
+          <>
+            <button type="button" onClick={() => setActiveTab('home')} className={cn('flex flex-col items-center gap-0.5 transition-transform active:scale-90', activeTab === 'home' ? 'text-red-600' : iconMuted)}>
+              <Home className="w-4 h-4" strokeWidth={2.2} />
+              <span className="text-[9px] font-semibold">Home</span>
+            </button>
+            <button type="button" onClick={() => setActiveTab('shorts')} className={cn('flex flex-col items-center gap-0.5 transition-transform active:scale-90', activeTab === 'shorts' ? 'text-red-600' : iconMuted)}>
+              <Zap className="w-4 h-4" strokeWidth={2.2} />
+              <span className="text-[9px] font-medium">Shorts</span>
+            </button>
+            <button type="button" onClick={() => setActiveTab('add')} className="flex items-center justify-center w-8 h-8 rounded-full border border-neutral-700 active:scale-95 text-white">
+              <Plus className="w-5 h-5" />
+            </button>
+            <button type="button" onClick={() => setActiveTab('subs')} className={cn('flex flex-col items-center gap-0.5 transition-transform active:scale-90', activeTab === 'subs' ? 'text-red-600' : iconMuted)}>
+              <Layers className="w-4 h-4" strokeWidth={2.2} />
+              <span className="text-[9px] font-medium">Subs</span>
+            </button>
+            <button type="button" onClick={() => setActiveTab('you')} className={cn('flex flex-col items-center gap-0.5 transition-transform active:scale-90', activeTab === 'you' ? 'text-red-600' : iconMuted)}>
+              <Users className="w-4 h-4" strokeWidth={2.2} />
+              <span className="text-[9px] font-medium">You</span>
+            </button>
+          </>
+        );
+
+      case 'reddit':
+        return (
+          <>
+            <button type="button" onClick={() => setActiveTab('home')} className={cn('p-2 transition-transform active:scale-90', activeTab === 'home' ? 'text-[#FF4500]' : iconMuted)}>
+              <Home className="w-5 h-5" strokeWidth={2.2} />
+            </button>
+            <button type="button" onClick={() => setActiveTab('communities')} className={cn('p-2 transition-transform active:scale-90', activeTab === 'communities' ? 'text-[#FF4500]' : iconMuted)}>
+              <Compass className="w-5 h-5" strokeWidth={2.2} />
+            </button>
+            <button type="button" onClick={() => setActiveTab('create')} className={cn('p-2 transition-transform active:scale-90', activeTab === 'create' ? 'text-[#FF4500]' : iconMuted)}>
+              <Plus className="w-5 h-5" strokeWidth={2.5} />
+            </button>
+            <button type="button" onClick={() => setActiveTab('chat')} className={cn('p-2 transition-transform active:scale-90', activeTab === 'chat' ? 'text-[#FF4500]' : iconMuted)}>
+              <MessageSquareIcon className="w-5 h-5" strokeWidth={2.2} />
+            </button>
+            <button type="button" onClick={() => setActiveTab('inbox')} className={cn('p-2 transition-transform active:scale-90', activeTab === 'inbox' ? 'text-[#FF4500]' : iconMuted)}>
+              <Bell className="w-5 h-5" strokeWidth={2.2} />
+            </button>
+          </>
+        );
+
+      default:
+        return (
+          <>
+            <button type="button" onClick={() => setActiveTab('home')} className={cn('p-2 transition-transform active:scale-90', activeTab === 'home' ? (isDark ? 'text-white' : 'text-black') : iconMuted)}>
+              <Home className="w-5 h-5" strokeWidth={2.2} />
+            </button>
+            <button type="button" onClick={() => setActiveTab('explore')} className={cn('p-2 transition-transform active:scale-90', activeTab === 'explore' ? (isDark ? 'text-white' : 'text-black') : iconMuted)}>
+              <Compass className="w-5 h-5" strokeWidth={2.2} />
+            </button>
+            <button type="button" onClick={() => setActiveTab('plus')} className={cn('p-2 transition-transform active:scale-90', activeTab === 'plus' ? (isDark ? 'text-white' : 'text-black') : iconMuted)}>
+              <Plus className="w-5 h-5" strokeWidth={2.5} />
+            </button>
+            <button type="button" onClick={() => setActiveTab('bell')} className={cn('p-2 transition-transform active:scale-90', activeTab === 'bell' ? (isDark ? 'text-white' : 'text-black') : iconMuted)}>
+              <Bell className="w-5 h-5" strokeWidth={2.2} />
+            </button>
+            <button type="button" onClick={() => setActiveTab('profile')} className={cn('p-2 transition-transform active:scale-90', activeTab === 'profile' ? (isDark ? 'text-white' : 'text-black') : iconMuted)}>
+              <Users className="w-5 h-5" strokeWidth={2.2} />
+            </button>
+          </>
+        );
+    }
+  };
+
+  return (
+    <div className={cn('relative w-full border-t px-3 pt-1.5 pb-0.5 flex items-center justify-around z-20 transition-colors duration-200', navBorder, navBg)}>
+      {renderNavTabs()}
+    </div>
+  );
+}
 
 function IPhonePreview({
   content,
@@ -184,17 +419,8 @@ function IPhonePreview({
   avatarUrl,
   connectedPlatforms = [],
   selectedPlatforms = [],
-}: {
-  content: string;
-  media: { url: string; type: 'image' | 'video' | 'document' }[];
-  previewPlatform: PlatformType;
-  setPreviewPlatform: (p: PlatformType) => void;
-  profileName: string;
-  profileHeadline: string;
-  avatarUrl?: string;
-  connectedPlatforms: PlatformType[];
-  selectedPlatforms: PlatformType[];
-}) {
+  drafts = [],
+}: IPhonePreviewProps) {
   const allPlatforms: PlatformType[] = [
     'linkedin', 'x', 'threads', 'instagram', 'facebook', 'youtube', 'pinterest',
     'bluesky', 'mastodon', 'dribbble', 'telegram', 'discord', 'slack', 'reddit',
@@ -203,6 +429,7 @@ function IPhonePreview({
   ];
 
   const [viewAll, setViewAll] = useState(false);
+  const [islandExpanded, setIslandExpanded] = useState(false);
 
   const activePreviews = useMemo(() => {
     if (viewAll) return allPlatforms;
@@ -231,140 +458,247 @@ function IPhonePreview({
   const isDark = isPlatformDark(previewPlatform);
   const bgColor = getPlatformBgColor(previewPlatform);
 
+  const cfg = PLATFORM_CONFIG[previewPlatform];
+  const charLimit = cfg?.maxChars ?? 1000;
+  const charCount = content.length;
+  const isOverLimit = charCount > charLimit;
+
   return (
-    <div className="flex flex-col items-center gap-4">
-      {/* Platform switcher pills with horizontal scrolling & View All toggle */}
-      <div className="flex flex-col items-center gap-1.5 w-full max-w-[320px]">
-        <div className="flex items-center justify-between w-full px-1 text-[11px] text-[#8B7355] font-medium">
-          <span>
-            {viewAll
-              ? `All Platforms (${allPlatforms.length})`
-              : selectedPlatforms.length > 0
-              ? `Selected (${selectedPlatforms.length})`
-              : `Active Platforms (${platformsToShow.length})`}
-          </span>
+    <div className="flex flex-col items-center gap-3">
+      {/* ── Top App Switcher Dock ─────────────────────────── */}
+      <div className="flex flex-col items-center gap-2 w-full max-w-[340px]">
+        <div className="flex items-center justify-between w-full px-2 text-[11px] text-[#8B7355] font-semibold">
+          <div className="flex items-center gap-1.5">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+            </span>
+            <span className="text-[#3D2B1F]">iPhone 16 Pro Preview</span>
+          </div>
           <button
             type="button"
             onClick={() => setViewAll(!viewAll)}
             className="hover:text-[#3D2B1F] underline text-[11px] cursor-pointer transition-colors"
           >
-            {viewAll ? 'Show Selected' : 'Browse All (27)'}
+            {viewAll ? 'Active Platforms' : 'All 27 Apps'}
           </button>
         </div>
-        <div className="flex gap-1 p-1 rounded-2xl shadow-sm border border-[#E8E0D4] bg-[#FFFDF9]/80 backdrop-blur-sm w-full overflow-x-auto no-scrollbar scroll-smooth">
+
+        {/* App Dock Squircle Carousel */}
+        <div className="flex gap-2 p-1.5 rounded-2xl shadow-sm border border-[#E8E0D4] bg-[#FFFDF9]/90 backdrop-blur-md w-full overflow-x-auto no-scrollbar scroll-smooth">
           {platformsToShow.map(p => {
-            const cfg = PLATFORM_CONFIG[p];
-            const Icon = cfg?.icon || Globe;
+            const pCfg = PLATFORM_CONFIG[p];
             const isActive = previewPlatform === p;
+            const draft = drafts.find(d => d.platform === p);
+            const isReady = draft?.status === 'ready';
+            const isGenerating = draft?.status === 'generating';
+            const isError = draft?.status === 'error';
+            const isDraftOverLimit = (draft?.characterCount ?? 0) > (pCfg?.maxChars ?? 1000);
+
             return (
               <button
                 key={p}
                 type="button"
                 onClick={() => setPreviewPlatform(p)}
                 className={cn(
-                  'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-200 flex-shrink-0 whitespace-nowrap',
+                  'relative group flex flex-col items-center gap-1 p-1 rounded-xl transition-all duration-200 flex-shrink-0 cursor-pointer',
                   isActive
-                    ? 'bg-white shadow-sm text-[#3D2B1F] border border-[#E8E0D4]'
-                    : 'text-[#8B7355] hover:text-[#3D2B1F] border border-transparent hover:bg-white/40'
+                    ? 'scale-105'
+                    : 'opacity-70 hover:opacity-100 hover:scale-100'
                 )}
+                title={pCfg?.name || p}
               >
-                <Icon className="w-3.5 h-3.5 flex-shrink-0" />
-                <span>{cfg?.name || p}</span>
+                {/* Squircle App Icon */}
+                <div
+                  className={cn(
+                    'relative w-9 h-9 rounded-[10px] flex items-center justify-center shadow-sm transition-all duration-200 overflow-hidden',
+                    isActive
+                      ? 'ring-2 ring-[#C4A265] ring-offset-1 shadow-md'
+                      : 'border border-black/5 hover:shadow'
+                  )}
+                  style={{
+                    background: isPlatformDark(p)
+                      ? 'linear-gradient(135deg, #1C1E20 0%, #000000 100%)'
+                      : 'linear-gradient(135deg, #FFFFFF 0%, #F5F5F5 100%)',
+                  }}
+                >
+                  <PlatformBrandLogo platform={p} size={18} />
+
+                  {/* Status Indicator Badge */}
+                  {isGenerating && (
+                    <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-amber-500 border-2 border-white animate-spin flex items-center justify-center text-[7px] text-white" />
+                  )}
+                  {isReady && !isDraftOverLimit && (
+                    <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border border-white" />
+                  )}
+                  {(isError || isDraftOverLimit) && (
+                    <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-rose-500 border border-white" />
+                  )}
+                </div>
+
+                <span
+                  className={cn(
+                    'text-[10px] max-w-[42px] truncate leading-tight tracking-tight',
+                    isActive ? 'font-bold text-[#3D2B1F]' : 'font-medium text-[#8B7355]'
+                  )}
+                >
+                  {pCfg?.name?.split(' ')[0] || p}
+                </span>
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* Realistic iPhone Mockup */}
-      <div className="relative" style={{ width: 320, height: 650 }}>
-        {/* Hardware Buttons */}
-        <div className="absolute -left-1 top-24 w-1.5 h-7 bg-[#B8B8B8] rounded-l-md shadow-inner" style={{ boxShadow: 'inset -1px 0 2px rgba(0,0,0,0.5)' }} />
-        <div className="absolute -left-1 top-36 w-1.5 h-12 bg-[#B8B8B8] rounded-l-md shadow-inner" style={{ boxShadow: 'inset -1px 0 2px rgba(0,0,0,0.5)' }} />
-        <div className="absolute -left-1 top-52 w-1.5 h-12 bg-[#B8B8B8] rounded-l-md shadow-inner" style={{ boxShadow: 'inset -1px 0 2px rgba(0,0,0,0.5)' }} />
-        <div className="absolute -right-1 top-40 w-1.5 h-16 bg-[#B8B8B8] rounded-r-md shadow-inner" style={{ boxShadow: 'inset 1px 0 2px rgba(0,0,0,0.5)' }} />
-
-        {/* Outer phone shell */}
+      {/* ── Realistic iPhone 16 Pro Chassis ───────────────── */}
+      <div className="relative select-none" style={{ width: 326, height: 660 }}>
+        {/* Hardware Buttons - Left: Action Button + Volume Up/Down */}
         <div
-          className="relative w-full h-full rounded-[55px] p-[3px] shadow-2xl z-10"
+          className="absolute -left-[5px] top-24 w-[5px] h-6 rounded-l-md"
           style={{
-            background: 'linear-gradient(135deg, #A8B1B8, #4D5257, #1C1E20, #4D5257, #A8B1B8)',
-            boxShadow: '0 30px 60px rgba(0,0,0,0.4), 0 0 0 2px rgba(255,255,255,0.1) inset, 0 4px 6px rgba(255,255,255,0.2) inset',
+            background: 'linear-gradient(to right, #6E747B, #9CA3AF, #6E747B)',
+            boxShadow: 'inset -1px 0 2px rgba(0,0,0,0.5)',
+          }}
+        />
+        <div
+          className="absolute -left-[5px] top-36 w-[5px] h-12 rounded-l-md"
+          style={{
+            background: 'linear-gradient(to right, #6E747B, #9CA3AF, #6E747B)',
+            boxShadow: 'inset -1px 0 2px rgba(0,0,0,0.5)',
+          }}
+        />
+        <div
+          className="absolute -left-[5px] top-52 w-[5px] h-12 rounded-l-md"
+          style={{
+            background: 'linear-gradient(to right, #6E747B, #9CA3AF, #6E747B)',
+            boxShadow: 'inset -1px 0 2px rgba(0,0,0,0.5)',
+          }}
+        />
+
+        {/* Hardware Button - Right: Power / Side Button */}
+        <div
+          className="absolute -right-[5px] top-38 w-[5px] h-16 rounded-r-md"
+          style={{
+            background: 'linear-gradient(to left, #6E747B, #9CA3AF, #6E747B)',
+            boxShadow: 'inset 1px 0 2px rgba(0,0,0,0.5)',
+          }}
+        />
+
+        {/* Outer Titanium Rim */}
+        <div
+          className="relative w-full h-full rounded-[54px] p-[3.5px] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.45)] z-10 transition-shadow duration-300"
+          style={{
+            background: 'linear-gradient(135deg, #A8B1B8 0%, #52575C 30%, #1C1E20 50%, #52575C 70%, #8A929A 100%)',
+            boxShadow: '0 25px 60px -15px rgba(0,0,0,0.5), inset 0 0 0 1.5px rgba(255,255,255,0.2), inset 0 2px 4px rgba(255,255,255,0.3)',
           }}
         >
-          {/* Inner bezel */}
+          {/* Inner Display Bezel */}
           <div
-            className="relative w-full h-full rounded-[52px] overflow-hidden p-[8px]"
+            className="relative w-full h-full rounded-[50px] overflow-hidden p-[8px]"
             style={{
-              background: '#000',
-              boxShadow: '0 0 0 1px rgba(255,255,255,0.05) inset',
+              background: '#090A0B',
+              boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.06)',
             }}
           >
-            {/* Screen area */}
+            {/* Screen Area with Platform-matched background */}
             <div
-              className="relative w-full h-full rounded-[44px] overflow-hidden transition-colors duration-200"
+              className="relative w-full h-full rounded-[42px] overflow-hidden flex flex-col justify-between transition-colors duration-300"
               style={{
                 background: bgColor,
               }}
             >
-              {/* Status Bar */}
+              {/* ── Status Bar & Dynamic Island ── */}
               <div
-                className="flex items-center justify-between px-7 pt-4 pb-1"
+                className="relative flex items-center justify-between px-6 pt-3 pb-1 z-30"
                 style={{
-                  color: isDark ? '#fff' : '#000',
+                  color: isDark ? '#FFFFFF' : '#000000',
                   fontSize: 13,
                   fontWeight: 600,
                   fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif',
                 }}
               >
-                <span style={{ letterSpacing: 0.5 }}>{now}</span>
-                
-                {/* Dynamic Island */}
-                <div
-                  className="absolute left-1/2 top-3 -translate-x-1/2 rounded-full flex items-center justify-end px-2"
-                  style={{
-                    width: 100,
-                    height: 30,
-                    background: '#000',
-                    borderRadius: 20,
-                    boxShadow: '0 0 0 1px rgba(255,255,255,0.05)',
-                  }}
-                >
-                  <div className="w-2 h-2 rounded-full bg-[#1c1c1e] shadow-inner" style={{ boxShadow: 'inset 0 0 2px rgba(255,255,255,0.2)' }} />
-                </div>
+                <span className="tracking-tight text-[12px] pl-1 font-semibold">{now}</span>
 
-                <div className="flex items-center gap-1.5">
-                  {/* Signal */}
-                  <svg width="17" height="12" viewBox="0 0 16 12" fill="currentColor">
-                    <rect x="0" y="8" width="3" height="4" rx="1" opacity="1"/>
-                    <rect x="4.5" y="5" width="3" height="7" rx="1" opacity="1"/>
-                    <rect x="9" y="2" width="3" height="10" rx="1" opacity="1"/>
-                    <rect x="13.5" y="0" width="3" height="12" rx="1" opacity="0.3"/>
+                {/* Interactive Dynamic Island */}
+                <button
+                  type="button"
+                  onClick={() => setIslandExpanded(!islandExpanded)}
+                  className="absolute left-1/2 top-2.5 -translate-x-1/2 flex items-center justify-between px-2.5 transition-all duration-300 cursor-pointer shadow-lg select-none"
+                  style={{
+                    width: islandExpanded ? 190 : 108,
+                    height: 28,
+                    background: '#000000',
+                    borderRadius: 20,
+                    boxShadow: '0 0 0 1px rgba(255,255,255,0.1)',
+                  }}
+                  title="Dynamic Island: Click to inspect live status"
+                >
+                  {/* Left: Mini Platform Logo */}
+                  <div className="flex items-center gap-1.5">
+                    <PlatformBrandLogo platform={previewPlatform} size={13} className="text-white flex-shrink-0" />
+                    {islandExpanded && (
+                      <span className="text-[10px] font-semibold text-white truncate max-w-[75px]">
+                        {cfg?.name?.split(' ')[0] || previewPlatform}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Camera / Sensor Dot */}
+                  {!islandExpanded && (
+                    <div className="w-2.5 h-2.5 rounded-full bg-[#111214] shadow-inner border border-white/10" />
+                  )}
+
+                  {/* Right: Live Character Counter / State */}
+                  <div className="flex items-center gap-1">
+                    <span
+                      className={cn(
+                        'text-[10px] font-mono tracking-tight font-bold',
+                        isOverLimit ? 'text-rose-400' : 'text-emerald-400'
+                      )}
+                    >
+                      {charCount > 0 ? (isOverLimit ? `+${charCount - charLimit}` : `${charCount}`) : '●'}
+                    </span>
+                  </div>
+                </button>
+
+                {/* Right: Cellular / Wi-Fi / Battery */}
+                <div className="flex items-center gap-1.5 pr-1">
+                  <svg width="15" height="11" viewBox="0 0 16 12" fill="currentColor">
+                    <rect x="0" y="8" width="2.8" height="4" rx="0.8" opacity="1" />
+                    <rect x="4.2" y="5" width="2.8" height="7" rx="0.8" opacity="1" />
+                    <rect x="8.4" y="2" width="2.8" height="10" rx="0.8" opacity="1" />
+                    <rect x="12.6" y="0" width="2.8" height="12" rx="0.8" opacity="0.3" />
                   </svg>
-                  {/* WiFi */}
-                  <svg width="17" height="12" viewBox="0 0 16 12" fill="currentColor">
-                    <path d="M8 10.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zM3.5 7.5C5 6 6.5 5.5 8 5.5s3 .5 4.5 2" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round"/>
-                    <path d="M1 4.5c2.5-2.5 4.5-3 7-3s4.5.5 7 3" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round"/>
+                  <svg width="15" height="11" viewBox="0 0 16 12" fill="currentColor">
+                    <path d="M8 10.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zM3.5 7.5C5 6 6.5 5.5 8 5.5s3 .5 4.5 2" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+                    <path d="M1 4.5c2.5-2.5 4.5-3 7-3s4.5.5 7 3" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" />
                   </svg>
-                  {/* Battery */}
                   <div className="flex items-center">
-                    <div style={{ width: 24, height: 11.5, borderRadius: 3.5, border: `1.5px solid currentColor`, padding: 1.5 }}>
-                      <div style={{ width: '70%', height: '100%', borderRadius: 1.5, background: 'currentColor' }} />
+                    <div style={{ width: 22, height: 11, borderRadius: 3, border: '1.4px solid currentColor', padding: 1.2 }}>
+                      <div
+                        style={{
+                          width: `${Math.min(100, Math.max(15, (charCount / charLimit) * 100))}%`,
+                          height: '100%',
+                          borderRadius: 1.2,
+                          background: isOverLimit ? '#EF4444' : 'currentColor',
+                        }}
+                      />
                     </div>
-                    <div style={{ width: 1.5, height: 4, background: 'currentColor', borderRadius: '0 1px 1px 0', marginLeft: 0.5 }} />
+                    <div style={{ width: 1.2, height: 3.5, background: 'currentColor', borderRadius: '0 1px 1px 0', marginLeft: 0.5 }} />
                   </div>
                 </div>
               </div>
 
-              {/* Platform-specific content scrollable area */}
-              <div className="overflow-y-auto h-[calc(100%-40px)] w-full no-scrollbar">
+              {/* ── Scrollable Feed Canvas ── */}
+              <div className="flex-1 overflow-y-auto w-full no-scrollbar overscroll-contain">
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={previewPlatform}
-                    initial={{ opacity: 0, y: 5 }}
+                    initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -5 }}
-                    transition={{ duration: 0.15 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.18, ease: 'easeOut' }}
+                    className="w-full"
                   >
                     <PlatformMobilePreview
                       platform={previewPlatform}
@@ -379,34 +713,48 @@ function IPhonePreview({
                   </motion.div>
                 </AnimatePresence>
               </div>
+
+              {/* ── Native App Bottom Navigation Bar ── */}
+              <IPhoneBottomNavBar
+                platform={previewPlatform}
+                avatarUrl={avatarUrl}
+                initials={initials}
+              />
+
+              {/* ── iOS Home Indicator Bar ── */}
+              <div className="w-full pb-1 pt-0.5 flex justify-center z-30" style={{ background: isDark ? '#000000' : '#FFFFFF' }}>
+                <div
+                  className="w-32 h-1 rounded-full transition-colors duration-200"
+                  style={{
+                    background: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.25)',
+                  }}
+                />
+              </div>
             </div>
           </div>
-          
-          {/* Subtle phone reflection */}
+
+          {/* Glare Glass Reflection */}
           <div
-            className="absolute inset-0 rounded-[55px] pointer-events-none z-20"
+            className="absolute inset-0 rounded-[54px] pointer-events-none z-40"
             style={{
-              background: 'linear-gradient(110deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 30%, rgba(255,255,255,0) 70%, rgba(255,255,255,0.04) 100%)',
+              background: 'linear-gradient(115deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.01) 35%, rgba(255,255,255,0) 65%, rgba(255,255,255,0.05) 100%)',
             }}
           />
         </div>
       </div>
 
-      {/* Live indicator */}
-      <div className="flex items-center gap-2 text-sm font-medium" style={{ color: '#8B7355' }}>
-        <span className="relative flex h-2 w-2">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
-        </span>
-        Live preview Â· Updates as you type
+      {/* Live Sync Status Pill */}
+      <div className="flex items-center gap-2 text-xs font-medium text-[#8B7355] mt-0.5">
+        <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+        <span>Pixel-perfect {cfg?.name} client preview</span>
       </div>
     </div>
   );
 }
 
-/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+/* ─────────────────────────────────────────────────────────────
    Main Composer Client
-   â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+   ───────────────────────────────────────────────────────────── */
 
 export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const reducedMotion = useReducedMotion();
@@ -439,14 +787,14 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   });
   const [scheduleStrategy, setScheduleStrategy] = useState<'cascading' | 'simultaneous'>('cascading');
   const [isSchedulingPost, setIsSchedulingPost] = useState(false);
-  // â”€â”€ Hook Scorer + Humanizer state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Hook Scorer + Humanizer state ───────────────────────────────────────────
   const [hookScore, setHookScore] = useState<{ score: number; grade: string; suggestion: string | null; slopWords: string[] } | null>(null);
   const [humanizingPlatform, setHumanizingPlatform] = useState<PlatformType | null>(null);
   const [isHumanizingAll, setIsHumanizingAll] = useState(false);
   const springConfig: Transition = reducedMotion ? { type: 'tween', duration: 0.01 } : spring.snappy;
 
-  // â”€â”€ Debounced hook scorer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  // Runs 600ms after the user stops typing, no AI call â€” pure deterministic.
+  // ── Debounced hook scorer ────────────────────────────────────────────────────
+  // Runs 600ms after the user stops typing, no AI call — pure deterministic.
   useEffect(() => {
     if (!sourceContent.trim()) { setHookScore(null); return; }
     const timer = setTimeout(async () => {
@@ -469,12 +817,12 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
             slopWords: top.breakdown.slopWords ?? [],
           });
         }
-      } catch { /* silent â€” non-critical */ }
+      } catch { /* silent — non-critical */ }
     }, 600);
     return () => clearTimeout(timer);
   }, [sourceContent, previewPlatform]);
 
-  // â”€â”€ One-click humanizer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── One-click humanizer ──────────────────────────────────────────────────────
   const handleHumanizeDraft = useCallback(async (platform: PlatformType) => {
     const targetDraft = drafts.find(d => d.platform === platform);
     if (!targetDraft || !targetDraft.content.trim()) return;
@@ -707,7 +1055,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         });
       }
     } catch {
-      // Ignore â€” profile might not exist yet
+      // Ignore — profile might not exist yet
     } finally {
       setProfileLoading(false);
     }
@@ -1058,7 +1406,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         throw new Error(data.error || 'Failed to schedule post');
       }
 
-      toast.success(`Post scheduled for ${scheduledDateObj.toLocaleDateString()} at ${scheduledDateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ðŸš€`);
+      toast.success(`Post scheduled for ${scheduledDateObj.toLocaleDateString()} at ${scheduledDateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} 🚀`);
       setScheduleDialogOpen(false);
       setDrafts([]);
       setSourceContent('');
@@ -1212,7 +1560,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
 
   return (
     <div className="flex gap-8 items-start max-w-[1400px] mx-auto px-4 py-8">
-      {/* â”€â”€â”€â”€â”€ Left Panel: Composer Form â”€â”€â”€â”€â”€ */}
+      {/* ───── Left Panel: Composer Form ───── */}
       <div className="flex-1 min-w-0 space-y-6" style={{ maxWidth: 680 }}>
         {/* Header */}
         <div className="pb-4 border-b border-border flex items-start justify-between flex-wrap gap-3">
@@ -1453,7 +1801,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   Quick Broadcast
                 </CardTitle>
                 <Text size="sm" color="muted">
-                  Publish identical content to all connected platforms instantly â€” no AI adaptation.
+                  Publish identical content to all connected platforms instantly — no AI adaptation.
                 </Text>
               </CardHeader>
               <CardContent 
@@ -1476,7 +1824,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                     quickContent.length > 280 ? 'text-destructive font-medium' : 'text-muted-foreground'
                   )}>
                     {quickContent.length} characters
-                    {quickContent.length > 280 && ' Â· exceeds X/Twitter limit (280)'}
+                    {quickContent.length > 280 && ' · exceeds X/Twitter limit (280)'}
                   </span>
                   <div className="flex gap-2">
                     <Button
@@ -1582,7 +1930,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                     rows={6}
                   />
 
-                  {/* â”€â”€ Hook Score Panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+                  {/* ── Hook Score Panel ─────────────────────────────────── */}
                   {hookScore && (
                     <div className={cn(
                       'flex items-start gap-3 px-3 py-2.5 rounded-lg text-xs border transition-all',
@@ -1610,7 +1958,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                             hookScore.grade === 'OK'     && 'text-yellow-700 dark:text-yellow-400',
                             hookScore.grade === 'WEAK'   && 'text-orange-700 dark:text-orange-400',
                             hookScore.grade === 'FAIL'   && 'text-red-700 dark:text-red-400',
-                          )}>Hook Â· {hookScore.grade}</span>
+                          )}>Hook · {hookScore.grade}</span>
                           {hookScore.slopWords.length > 0 && (
                             <span className="text-[10px] text-muted-foreground">
                               Slop: {hookScore.slopWords.slice(0,2).join(', ')}
@@ -1701,7 +2049,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
               </Card>
             </MotionBox>
 
-            {/* Step 2 â€” Platform Drafts */}
+            {/* Step 2 — Platform Drafts */}
             <AnimatePresence mode="wait">
               {drafts.some(d => d.status !== 'idle') && (
                 <MotionBox key="drafts" variant="slide-up" delay={0.1}>
@@ -1789,7 +2137,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                                         De-Slop
                                       </Button>
                                     )}
-                                    {draft?.status === 'generating' && <Badge variant="secondary">Generatingâ€¦</Badge>}
+                                    {draft?.status === 'generating' && <Badge variant="secondary">Generating…</Badge>}
                                     {draft?.status === 'ready' && (
                                       <Badge className="bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 border-green-200">
                                         Ready
@@ -1827,7 +2175,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                                   rows={7}
                                   readOnly={draft?.status !== 'ready'}
                                   placeholder={
-                                    draft?.status === 'generating' ? 'Generating your draftâ€¦' :
+                                    draft?.status === 'generating' ? 'Generating your draft…' :
                                     draft?.status === 'idle' ? 'Click "Generate Platform Drafts" to start' :
                                     'Your adapted content will appear here'
                                   }
@@ -1836,7 +2184,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                                 {isOverLimit && (
                                   <p className="text-xs text-destructive flex items-center gap-1">
                                     <X className="h-3 w-3" />
-                                    {draft!.characterCount - cfg.maxChars} characters over the {cfg.name} limit â€” please trim
+                                    {draft!.characterCount - cfg.maxChars} characters over the {cfg.name} limit — please trim
                                   </p>
                                 )}
 
@@ -1897,7 +2245,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
               )}
             </AnimatePresence>
 
-            {/* Step 3 â€” Publish bar */}
+            {/* Step 3 — Publish bar */}
             <AnimatePresence mode="wait">
               {readyCount > 0 && (
                 <MotionBox key="publish" variant="slide-up" delay={0.1}>
@@ -1936,7 +2284,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         )}
       </div>
 
-      {/* â”€â”€â”€â”€â”€ Right Panel: iPhone Live Preview â”€â”€â”€â”€â”€ */}
+      {/* ───── Right Panel: iPhone Live Preview ───── */}
       <div className="hidden lg:block sticky top-8 flex-shrink-0" style={{ width: 340 }}>
         <IPhonePreview
           content={liveContent}
@@ -1948,6 +2296,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           avatarUrl={user?.avatarUrl}
           connectedPlatforms={connectedPlatforms}
           selectedPlatforms={selectedPlatforms}
+          drafts={drafts}
         />
       </div>
 
@@ -1988,7 +2337,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                       : 'border-[#EDE7DD] bg-white hover:bg-gray-50'
                   }`}
                 >
-                  <p className="text-xs font-bold text-[#3D2B1F]">âš¡ Cascading</p>
+                  <p className="text-xs font-bold text-[#3D2B1F]">⚡ Cascading</p>
                   <p className="text-[11px] text-[#6B5744] mt-0.5">Stagger platforms by 5-15m for maximum reach</p>
                 </button>
 
@@ -2025,7 +2374,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
               {isSchedulingPost ? (
                 <>
                   <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
-                  Schedulingâ€¦
+                  Scheduling…
                 </>
               ) : (
                 <>
