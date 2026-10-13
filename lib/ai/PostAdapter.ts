@@ -374,14 +374,18 @@ ${context?.profileName ? `**Author Context:** ${context.profileName}${context.pr
         return err(new Error(result.error.message));
       }
 
-      // Validate character count
+      // Validate and clamp character count
       const adapted = result.value;
-      if (adapted.characterCount > spec.maxChars * 1.1) {
-        logger.warn('Adapted content exceeds platform limit', {
+      if (spec?.maxChars && adapted.content.length > spec.maxChars) {
+        logger.warn('Adapted content exceeds platform limit, clamping', {
           platform,
-          count: adapted.characterCount,
+          count: adapted.content.length,
           limit: spec.maxChars,
         });
+        const trimmed = adapted.content.slice(0, spec.maxChars - 3);
+        const lastSpace = trimmed.lastIndexOf(' ');
+        adapted.content = (lastSpace > spec.maxChars * 0.8 ? trimmed.slice(0, lastSpace) : trimmed) + '...';
+        adapted.characterCount = adapted.content.length;
       }
 
       logger.info('Post adaptation completed', {
@@ -479,9 +483,16 @@ ${batch.map(p => `    "${p}": { "content": "...", "characterCount": 100, "hashta
         for (const platform of batch) {
           const rawPlatformData = parsedVariants[platform];
           if (rawPlatformData && typeof rawPlatformData.content === 'string' && rawPlatformData.content.trim()) {
+            let content = rawPlatformData.content.trim();
+            const spec = PLATFORM_SPECS[platform];
+            if (spec?.maxChars && content.length > spec.maxChars) {
+              const trimmed = content.slice(0, spec.maxChars - 3);
+              const lastSpace = trimmed.lastIndexOf(' ');
+              content = (lastSpace > spec.maxChars * 0.8 ? trimmed.slice(0, lastSpace) : trimmed) + '...';
+            }
             const parsed = {
-              content: rawPlatformData.content.trim(),
-              characterCount: typeof rawPlatformData.characterCount === 'number' ? rawPlatformData.characterCount : rawPlatformData.content.trim().length,
+              content,
+              characterCount: content.length,
               hashtags: Array.isArray(rawPlatformData.hashtags) ? rawPlatformData.hashtags.map(String) : [],
               mediaSuggestions: Array.isArray(rawPlatformData.mediaSuggestions) ? rawPlatformData.mediaSuggestions.map(String) : [],
               firstCommentHint: rawPlatformData.firstCommentHint || null,

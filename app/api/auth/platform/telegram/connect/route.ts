@@ -1,5 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { telegramAdapter } from '@/lib/platforms/TelegramAdapter';
+import { telegramAdapter, normalizeTelegramChatId } from '@/lib/platforms/TelegramAdapter';
 import { encryptToken } from '@/lib/crypto/encryption';
 import { SupabasePlatformRepository } from '@/lib/repositories/supabase/SupabasePlatformRepository';
 import { getAuthContext } from '@/lib/auth/context';
@@ -21,6 +20,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const normalizedChatId = normalizeTelegramChatId(chatId);
+
     let workspaceId = bodyWorkspaceId;
     let userId = '';
     
@@ -34,12 +35,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const tokenPayload = JSON.stringify({ botToken, chatId });
+    const tokenPayload = JSON.stringify({ botToken, chatId: normalizedChatId });
 
     // Validate credentials & fetch profile
     let profile;
     try {
       profile = await telegramAdapter.getUserProfile(tokenPayload);
+
+      // Verify chat access
+      const chatRes = await fetch(`https://api.telegram.org/bot${botToken}/getChat?chat_id=${encodeURIComponent(normalizedChatId)}`);
+      const chatData = await chatRes.json();
+      if (!chatData.ok) {
+        const desc = chatData.description || '';
+        if (desc.toLowerCase().includes('chat not found')) {
+          return NextResponse.json({
+            error: `Telegram could not find chat "${normalizedChatId}". Make sure the username/ID is correct and your bot has been added as an Administrator to the channel.`,
+          }, { status: 400 });
+        }
+      }
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       logger.warn('Telegram connect: login failed', { errMsg });
@@ -47,6 +60,8 @@ export async function POST(request: NextRequest) {
       let userFacingError = 'Could not log in to Telegram. Please check your Bot Token and Chat ID.';
       if (errMsg.includes('Invalid bot token') || errMsg.includes('Unauthorized')) {
         userFacingError = 'Invalid Bot Token. Make sure you copied it correctly from BotFather.';
+      } else if (errMsg.includes('chat not found')) {
+        userFacingError = `Telegram chat "${normalizedChatId}" not found. Ensure your bot is added as an Administrator to the channel.`;
       }
 
       return NextResponse.json({ error: userFacingError }, { status: 400 });

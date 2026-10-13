@@ -252,8 +252,15 @@ export async function fetchWithRetry(
       }
 
       if (response.status >= 400) {
+        let errorBody = '';
+        try {
+          errorBody = await response.text();
+        } catch {
+          // ignore stream read failure
+        }
+        const detail = errorBody ? ` - ${errorBody}` : '';
         throw new APIError(
-          `API error: ${response.status} ${response.statusText}`,
+          `API error: ${response.status} ${response.statusText}${detail}`,
           '',
           response.status,
           DEFAULT_RETRY_OPTIONS.retryableStatuses.includes(response.status)

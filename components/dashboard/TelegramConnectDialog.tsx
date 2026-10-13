@@ -90,7 +90,7 @@ export function TelegramConnectDialog({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">Chat ID</label>
+            <label className="text-sm font-medium">Chat ID / Channel Username</label>
             <Input
               placeholder="@yourchannel or -1001234567890"
               value={chatId}
@@ -98,6 +98,9 @@ export function TelegramConnectDialog({
               disabled={submitting}
               required
             />
+            <p className="text-xs text-muted-foreground">
+              For public channels, enter <span className="font-mono">@yourchannel</span>. <strong>Important:</strong> Add your bot as an <em>Administrator</em> in the channel with permission to post messages.
+            </p>
           </div>
 
           {error && (

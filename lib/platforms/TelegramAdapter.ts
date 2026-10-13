@@ -8,6 +8,28 @@ import {
   PublishResult,
 } from './adapter';
 
+export function normalizeTelegramChatId(inputChatId: string): string {
+  let cleaned = (inputChatId || '').trim();
+  if (!cleaned) return '';
+
+  // Handle URLs like https://t.me/mychannel or t.me/mychannel
+  cleaned = cleaned.replace(/^https?:\/\/t\.me\//i, '').replace(/^t\.me\//i, '');
+  cleaned = cleaned.replace(/\/+$/, '');
+
+  // If numeric (e.g. 12345678 or -1001234567890 or -12345), keep as is
+  if (/^-?\d+$/.test(cleaned)) {
+    return cleaned;
+  }
+
+  // If starts with @, keep it
+  if (cleaned.startsWith('@')) {
+    return cleaned;
+  }
+
+  // Otherwise public channel username without @
+  return `@${cleaned}`;
+}
+
 export class TelegramAdapter implements PlatformAdapter {
   readonly platform = 'telegram' as const;
 
@@ -96,7 +118,7 @@ export class TelegramAdapter implements PlatformAdapter {
           body: JSON.stringify(payload)
         });
         const data = await res.json();
-        if (!data.ok) throw new Error(`Telegram media publish failed: ${data.description}`);
+        if (!data.ok) throw new Error(`Telegram media publish failed: ${this.formatTelegramError(data.description, chatId)}`);
         messageId = data.result.message_id.toString();
       } else {
         const media = input.mediaUrls.map((url, i) => {
@@ -116,7 +138,7 @@ export class TelegramAdapter implements PlatformAdapter {
           })
         });
         const data = await res.json();
-        if (!data.ok) throw new Error(`Telegram media group publish failed: ${data.description}`);
+        if (!data.ok) throw new Error(`Telegram media group publish failed: ${this.formatTelegramError(data.description, chatId)}`);
         messageId = data.result[0].message_id.toString();
       }
     } else {
@@ -131,7 +153,7 @@ export class TelegramAdapter implements PlatformAdapter {
 
       const data = await res.json();
       if (!data.ok) {
-        throw new Error(`Telegram publish failed: ${data.description}`);
+        throw new Error(`Telegram publish failed: ${this.formatTelegramError(data.description, chatId)}`);
       }
       messageId = data.result.message_id.toString();
     }
@@ -168,9 +190,20 @@ export class TelegramAdapter implements PlatformAdapter {
     return {};
   }
 
+  private formatTelegramError(description: string, chatId: string): string {
+    if (description?.toLowerCase().includes('chat not found')) {
+      return `Bad Request: chat not found for "${chatId}". Please ensure: 1) The channel username or chat ID is correct (e.g. @yourchannel). 2) The bot has been added to the channel as an Administrator with permission to post messages.`;
+    }
+    return description;
+  }
+
   private parseToken(tokenData: string): { botToken: string; chatId: string } {
     try {
-      return JSON.parse(tokenData);
+      const parsed = JSON.parse(tokenData);
+      return {
+        botToken: parsed.botToken,
+        chatId: normalizeTelegramChatId(parsed.chatId),
+      };
     } catch {
       throw new Error('Invalid Telegram token format');
     }

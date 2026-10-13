@@ -23,7 +23,7 @@ export const PLATFORM_LIMITS: Record<SupportedPlatform, PlatformLimitConfig> = {
   telegram: { maxVideoSizeMB: 50, maxImageSizeMB: 10 },
   discord: { maxVideoSizeMB: 25, maxImageSizeMB: 25 },
   manual: { maxVideoSizeMB: 5000, maxImageSizeMB: 50 },
-  dribbble: { maxVideoSizeMB: 24, maxImageSizeMB: 10 },
+  dribbble: { maxVideoSizeMB: 24, maxImageSizeMB: 10, requiresMedia: true },
   skool: { maxVideoSizeMB: 50, maxImageSizeMB: 10 },
   whop: { maxVideoSizeMB: 50, maxImageSizeMB: 10 },
   kick: { maxVideoSizeMB: 50, maxImageSizeMB: 10 },

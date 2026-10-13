@@ -9,6 +9,7 @@ import {
 } from '@/lib/platforms';
 import type { Platform } from '@/lib/repositories/interfaces/IPostRepository';
 import { TokenExpiredError } from '@/lib/utils/retry';
+import { getPlatformLimit } from '@/lib/config/platformLimits';
 
 const platformRepository = new SupabasePlatformRepository();
 const postRepository = new SupabasePostRepository();
@@ -100,6 +101,20 @@ export class PublishService {
       mediaCount: mediaUrls.length,
       mediaUrls: mediaUrls.map(u => u.substring(0, 80)),
     });
+
+    const limit = getPlatformLimit(input.platform);
+    if (limit.requiresMedia && mediaUrls.length === 0) {
+      const friendlyName = input.platform.charAt(0).toUpperCase() + input.platform.slice(1);
+      const errMsg = `${friendlyName} requires an image to be uploaded. Please attach media to publish to this platform.`;
+      await postRepository.updateVariant(input.postVariantId, {
+        status: 'failed',
+        error: { code: 'MEDIA_REQUIRED', message: errMsg },
+      });
+      return ok({
+        success: false,
+        error: errMsg,
+      });
+    }
 
     // Attempt publish with automatic token refresh on 401
     const attemptPublish = async (currentAccessToken: string, hasRetried: boolean): Promise<PublishJobResult> => {

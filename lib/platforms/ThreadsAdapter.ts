@@ -14,6 +14,16 @@ const META_AUTH_URL = 'https://threads.net/oauth/authorize';
 const META_TOKEN_URL = 'https://graph.threads.net/oauth/access_token';
 const THREADS_API_BASE = 'https://graph.threads.net/v1.0';
 
+export function clampThreadsText(text?: string): string {
+  if (!text) return '';
+  const trimmed = text.trim();
+  if (trimmed.length <= 500) return trimmed;
+  // Threads hard limits text to 500 characters
+  const sliced = trimmed.slice(0, 497);
+  const lastSpace = sliced.lastIndexOf(' ');
+  return (lastSpace > 420 ? sliced.slice(0, lastSpace) : sliced) + '...';
+}
+
 export class ThreadsAdapter implements PlatformAdapter {
   readonly platform = 'threads' as const;
 
@@ -208,7 +218,7 @@ export class ThreadsAdapter implements PlatformAdapter {
         });
 
         if (input.content) {
-          carouselParams.set('text', input.content);
+          carouselParams.set('text', clampThreadsText(input.content));
         }
 
         if (input.firstComment) {
@@ -250,7 +260,7 @@ export class ThreadsAdapter implements PlatformAdapter {
         });
 
         if (input.content) {
-          containerParams.set('text', input.content);
+          containerParams.set('text', clampThreadsText(input.content));
         }
 
         if (mediaUrl) {

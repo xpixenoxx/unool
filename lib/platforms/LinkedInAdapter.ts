@@ -127,11 +127,16 @@ export class LinkedInAdapter implements PlatformAdapter {
 
   async publish(accessToken: string, input: PublishInput): Promise<PublishResult> {
     return platformFetch('linkedin', async () => {
-      // Use pre-fetched platformUserId from the connection if available,
-      // avoiding an extra API call to /v2/userinfo on every publish
-      const authorUrn = input.platformUserId
-        ? `urn:li:person:${input.platformUserId}`
-        : await this.getAuthorUrn(accessToken);
+      // Use pre-fetched platformUserId if available (avoiding extra userinfo call),
+      // ensuring it is formatted properly as a URN without duplicate prefixes
+      let authorUrn = '';
+      if (input.platformUserId && !input.platformUserId.includes('@')) {
+        authorUrn = input.platformUserId.startsWith('urn:li:')
+          ? input.platformUserId
+          : `urn:li:person:${input.platformUserId}`;
+      } else {
+        authorUrn = await this.getAuthorUrn(accessToken);
+      }
 
       let contentObj: any = undefined;
 
@@ -303,25 +308,56 @@ export class LinkedInAdapter implements PlatformAdapter {
         postBody.content = contentObj;
       }
 
-      const response = await fetchWithRetry(`${LINKEDIN_V1_API_BASE}/posts`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-          'X-Restli-Protocol-Version': '2.0.0',
-          'LinkedIn-Version': '202606',
-        },
-        body: JSON.stringify(postBody),
-      });
+      const postHeaders = {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+        'X-Restli-Protocol-Version': '2.0.0',
+        'LinkedIn-Version': '202606',
+      };
 
-      if (!response.ok) {
+      const sendPost = async (urn: string) => {
+        postBody.author = urn;
+        return await fetch(`${LINKEDIN_V1_API_BASE}/posts`, {
+          method: 'POST',
+          headers: postHeaders,
+          body: JSON.stringify(postBody),
+        });
+      };
+
+      let response = await sendPost(authorUrn);
+
+      // If 422 Unprocessable Entity, it could be an author URN mismatch with the token.
+      // Fetch the verified author URN from /v2/userinfo and retry once if it differs.
+      if (response.status === 422) {
+        const errorText = await response.text();
+        logger.warn('LinkedIn: 422 Unprocessable Entity on /posts', { errorText, authorUrn });
+
+        try {
+          const freshUrn = await this.getAuthorUrn(accessToken);
+          if (freshUrn && freshUrn !== authorUrn) {
+            logger.info('Retrying LinkedIn /posts with fresh author URN from userinfo', { freshUrn });
+            authorUrn = freshUrn;
+            response = await sendPost(freshUrn);
+          }
+        } catch (urnErr) {
+          logger.warn('Could not refresh author URN for LinkedIn 422 retry', { error: urnErr });
+        }
+
+        if (!response.ok) {
+          const finalError = await response.text().catch(() => errorText);
+          if (response.status === 401 || response.status === 403) {
+            throw new TokenExpiredError('Token expired or invalid', 'linkedin');
+          }
+          throw new Error(`LinkedIn publish failed: ${response.status} ${response.statusText} - ${finalError || errorText}`);
+        }
+      } else if (!response.ok) {
         const error = await response.text();
         logger.error('LinkedIn publish failed', { errorMessage: error, status: response.status });
 
         if (response.status === 401 || response.status === 403) {
           throw new TokenExpiredError('Token expired or invalid', 'linkedin');
         }
-        throw new Error(`LinkedIn publish failed: ${error}`);
+        throw new Error(`LinkedIn publish failed: ${response.status} ${response.statusText} - ${error}`);
       }
 
       // The /posts API returns 201 Created with an empty body and the ID in the x-restli-id header
@@ -404,16 +440,18 @@ export class LinkedInAdapter implements PlatformAdapter {
 
   private async getAuthorUrn(accessToken: string): Promise<string> {
     return platformFetch('linkedin', async () => {
-      const profileResponse = await fetchWithRetry(`https://api.linkedin.com/v2/userinfo`, {
+      const profileResponse = await fetch(`https://api.linkedin.com/v2/userinfo`, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
 
       if (!profileResponse.ok) {
-        throw new Error('Failed to get author URN');
+        const errText = await profileResponse.text().catch(() => '');
+        throw new Error(`Failed to get author URN: ${profileResponse.status} ${errText}`);
       }
 
       const profile = await profileResponse.json();
-      return `urn:li:person:${profile.sub}`;
+      const sub = String(profile.sub || '');
+      return sub.startsWith('urn:li:') ? sub : `urn:li:person:${sub}`;
     });
   }
 }
