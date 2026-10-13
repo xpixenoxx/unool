@@ -3,7 +3,7 @@ import { generateWithFallback } from './provider';
 import { Result, ok, err } from '@/lib/shared/Result';
 import { logger } from '@/lib/logger';
 
-export const PlatformType = z.enum(['linkedin', 'x', 'threads', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'skool', 'whop', 'kick', 'vk', 'warpcast', 'mewe', 'nostr', 'medium', 'lemmy', 'listmonk', 'hashnode', 'devto']);
+export const PlatformType = z.enum(['linkedin', 'x', 'threads', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'skool', 'whop', 'kick', 'vk', 'warpcast', 'mewe', 'nostr', 'medium', 'lemmy', 'listmonk', 'hashnode', 'devto', 'dribbble', 'reddit']);
 export type PlatformType = z.infer<typeof PlatformType>;
 
 export const AdaptedPostSchema = z.object({
@@ -232,6 +232,22 @@ export const PLATFORM_SPECS: Record<PlatformType, { maxChars: number; style: str
     tone: 'Community-first, welcoming, practical developer voice. Clear, encouraging, with real-world code.',
     audience: 'Software developers from junior to senior looking for practical tutorials, engineering architecture, and career insights.',
     seoFocus: 'Google and DEV tag feeds. Strong descriptive title with relevant engineering keywords.',
+  },
+  dribbble: {
+    maxChars: 250,
+    style: 'Short, visually evocative caption for design work. Lead with the design challenge or creative process. Inspire, don\'t just describe.',
+    hashtagStrategy: '3-5 design-focused hashtags (#uidesign #uxdesign #productdesign #branding #typography).',
+    tone: 'Creative, polished, design-culture aware. Speak as a peer to other designers.',
+    audience: 'Designers, art directors, creative professionals. They appreciate craft, process, and aesthetic detail.',
+    seoFocus: 'Dribbble search is tag-driven. Use specific design discipline terms that designers actually search.',
+  },
+  reddit: {
+    maxChars: 40000,
+    style: 'Conversational, value-first, community-aware. Write a compelling title and a detailed body. No self-promotion tone — contribute genuinely. Markdown supported (headers, bullets, bold, links).',
+    hashtagStrategy: 'No hashtags on Reddit. Use subreddit-specific terminology and relevant flair keywords in the title.',
+    tone: 'Authentic, helpful, community-member voice. Reddit rewards substance over style. Avoid corporate language.',
+    audience: 'Engaged community members who will upvote genuine contributions and downvote spam or self-promotion.',
+    seoFocus: 'Reddit posts rank on Google. Use clear, searchable title phrasing. Front-load the key topic.',
   },
 };
 

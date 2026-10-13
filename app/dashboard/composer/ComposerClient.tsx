@@ -691,7 +691,15 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       return;
     }
 
+    // "Draft for All" generates for every connected platform.
+    // "Draft for Selected" generates for only the user-checked platforms.
+    if (useSelectedOnly && selectedPlatforms.length === 0) {
+      toast.error('Please select at least one platform first.');
+      return;
+    }
+
     const targetPlatforms = useSelectedOnly ? selectedPlatforms : connectedPlatforms;
+
     const skippedPlatforms = targetPlatforms.filter(p => getPlatformLimit(p)?.requiresMedia && media.length === 0);
     if (skippedPlatforms.length > 0) {
       toast.info(
