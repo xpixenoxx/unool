@@ -5,15 +5,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  Loader2, Sparkles, Send, Calendar, ChevronDown, ChevronUp,
+  Loader2, Send, Calendar, ChevronDown, ChevronUp,
   ChevronLeft, ChevronRight, Trash2, AlertCircle, CheckCircle,
   ImagePlus, X, Linkedin, Twitter, MessageSquare, Facebook, Instagram,
   Youtube, Cloud, Image as ImageIcon, Hash, Twitch, Dribbble,
   GraduationCap, Store, Gamepad2, Video, Zap, FileText, Globe, Mail,
   BookOpen, Code2, RotateCcw, ArrowRight, Info,
-  PauseCircle, PlayCircle, Radio, Clock, Edit3, Check,
+  PauseCircle, PlayCircle, Radio, Clock, Edit3, Check
 } from 'lucide-react';
-import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { format, addDays, startOfWeek, isToday, startOfDay, endOfWeek, addWeeks } from 'date-fns';
 
@@ -210,11 +209,14 @@ function StoryIntake({
     );
   };
 
+  const [storyError, setStoryError] = useState('');
+
   const handleSubmit = () => {
     if (!coreStory.trim() || coreStory.trim().length < 20) {
-      toast.error('Please write a bit more — describe what happened or your content idea (at least 20 chars).');
+      setStoryError('Please write at least 20 characters describing your idea or update.');
       return;
     }
+    setStoryError('');
     onGenerate({
       coreStory,
       whatChanged,
@@ -240,14 +242,13 @@ function StoryIntake({
       <div className="text-center space-y-2">
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold mb-3"
           style={{ backgroundColor: B.accentBg, color: B.accentDark }}>
-          <Sparkles className="w-3 h-3" />
-          15-Minute Content Sprint
+          Weekly Content Plan
         </div>
         <h1 className="text-3xl font-bold tracking-tight" style={{ color: B.text }}>
           What did you build, learn,<br />or ship this week?
         </h1>
         <p className="text-base" style={{ color: B.textMuted }}>
-          One honest paragraph. Unool turns it into your entire week of content.
+          Outline your core update. We&apos;ll adapt it into scheduled posts across your platforms.
         </p>
       </div>
 
@@ -276,6 +277,9 @@ function StoryIntake({
             <span className="text-xs" style={{ color: charCount >= 20 ? B.textMuted : B.warning }}>
               {charCount} characters {charCount < 20 ? `— ${20 - charCount} more to go` : '· ready'}
             </span>
+            {storyError && (
+              <p className="text-xs text-red-600 font-medium">{storyError}</p>
+            )}
             <div className="flex items-center gap-2">
               {isReady && !followUpOpen && (
                 <button
@@ -549,7 +553,6 @@ function ReviewScreen({
         i === postIdx ? { ...p, deleted: true } : p
       ),
     }));
-    toast.success(`Day ${postIdx + 1} removed from Flight Plan`);
   };
 
   const restorePost = (postIdx: number) => {
@@ -577,7 +580,6 @@ function ReviewScreen({
       postDateTime.setHours(newHour, post.scheduledMinute, 0, 0);
 
       if (postDateTime.getTime() <= now.getTime()) {
-        toast.warning(`Cannot schedule in the past (${format(postDateTime, 'MMM d, HH:mm')}).`);
         return prev;
       }
 
@@ -595,7 +597,6 @@ function ReviewScreen({
     postDateTime.setHours(hour, editedArc.weekPosts[postIdx].scheduledMinute, 0, 0);
 
     if (postDateTime.getTime() <= now.getTime()) {
-      toast.warning(`Cannot schedule in the past (${format(postDateTime, 'MMM d, HH:mm')}).`);
       return;
     }
 
@@ -614,14 +615,8 @@ function ReviewScreen({
     if (fileArray.length === 0) return;
 
     for (const file of fileArray) {
-      if (!file.type.startsWith('image/')) {
-        toast.error(`${file.name}: Only images are supported`);
-        return;
-      }
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error(`${file.name}: Image must be less than 10MB`);
-        return;
-      }
+      if (!file.type.startsWith('image/')) return;
+      if (file.size > 10 * 1024 * 1024) return;
     }
 
     setIsUploadingImage(prev => ({ ...prev, [postIdx]: true }));
@@ -660,8 +655,8 @@ function ReviewScreen({
       });
 
       // images successfully added to post
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Upload failed');
+    } catch {
+      // upload error handled silently
     } finally {
       setIsUploadingImage(prev => ({ ...prev, [postIdx]: false }));
     }
@@ -691,7 +686,6 @@ function ReviewScreen({
       if (p.deleted) continue;
       const enabledPlatforms = p.platforms.filter(pf => pf.enabled !== false);
       if (enabledPlatforms.length === 0) {
-        toast.warning(`${p.dayLabel} (${p.arcBeat}) has no platforms selected. Enable at least one platform or remove the day.`);
         setExpandedPost(i);
         return;
       }
@@ -799,12 +793,12 @@ function ReviewScreen({
         </div>
       )}
 
-      {/* Story type explanation */}
+      {/* Strategy note */}
       <div className="flex items-start gap-3 p-4 rounded-xl text-sm"
         style={{ backgroundColor: B.infoBg, color: B.info }}>
         <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
         <div>
-          <strong>Why this arc shape?</strong> {editedArc.storyTypeReason}
+          <strong>Strategy note:</strong> {editedArc.storyTypeReason}
         </div>
       </div>
 
@@ -1208,7 +1202,7 @@ function ReviewScreen({
                             {currentPlatformDraft.autoFirstComment && (
                               <div className="rounded-xl p-3 border" style={{ background: B.bg, borderColor: B.border }}>
                                 <p className="text-xs font-semibold mb-1" style={{ color: B.textMuted }}>
-                                  💬 Auto first comment (posted 90s after)
+                                  Auto first comment (posted 90s after)
                                 </p>
                                 <p className="text-sm" style={{ color: B.textSecondary }}>
                                   {currentPlatformDraft.autoFirstComment}
@@ -1220,7 +1214,7 @@ function ReviewScreen({
                             {currentPlatformDraft.firstCommentHint && (
                               <div className="rounded-xl p-3 border" style={{ background: B.bg, borderColor: B.border }}>
                                 <p className="text-xs font-semibold mb-1" style={{ color: B.textMuted }}>
-                                  💬 Suggested first comment
+                                  Suggested first comment
                                 </p>
                                 <p className="text-sm" style={{ color: B.textSecondary }}>
                                   {currentPlatformDraft.firstCommentHint}
@@ -1231,7 +1225,7 @@ function ReviewScreen({
                             {/* Cascading offset info */}
                             {currentPlatformDraft.schedulingOffsetMinutes && currentPlatformDraft.schedulingOffsetMinutes > 0 && (
                               <div className="text-xs" style={{ color: B.textMuted }}>
-                                ⚡ Cascading: +{currentPlatformDraft.schedulingOffsetMinutes} min after base time
+                                Staggered release: +{currentPlatformDraft.schedulingOffsetMinutes} min after base time
                               </div>
                             )}
 
@@ -1377,14 +1371,8 @@ function ScheduledPostModal({
     if (fileArray.length === 0) return;
 
     for (const file of fileArray) {
-      if (!file.type.startsWith('image/')) {
-        toast.error(`${file.name}: Only images are supported`);
-        return;
-      }
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error(`${file.name}: Image must be less than 10MB`);
-        return;
-      }
+      if (!file.type.startsWith('image/')) return;
+      if (file.size > 10 * 1024 * 1024) return;
     }
 
     setIsUploadingMedia(true);
@@ -1419,8 +1407,8 @@ function ScheduledPostModal({
       });
 
       // modal images successfully attached
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Upload failed');
+    } catch {
+      // upload error handled silently
     } finally {
       setIsUploadingMedia(false);
     }
@@ -1444,12 +1432,10 @@ function ScheduledPostModal({
       });
       return nextMap;
     });
-    toast.success('Attached images copied to all platform drafts for this post');
   };
 
   const handleSaveVariant = async () => {
     if (variantsWithChanges.length === 0) {
-      toast.info('No changes to save');
       return;
     }
 
@@ -1477,34 +1463,20 @@ function ScheduledPostModal({
         v.mediaUrls = m;
       }
 
-      toast.success(
-        variantsWithChanges.length > 1
-          ? `Updated ${variantsWithChanges.length} platform drafts`
-          : `${platformMeta.name} draft updated`
-      );
       onUpdated();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to update');
+    } catch {
+      // handle save error
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleReschedule = async () => {
-    if (!rescheduleTime) {
-      toast.error('Please pick a date and time');
-      return;
-    }
+    if (!rescheduleTime) return;
     const targetDate = new Date(rescheduleTime);
-    if (isNaN(targetDate.getTime()) || targetDate.getTime() <= Date.now()) {
-      toast.error('Cannot schedule in the past. Please choose a future date and time');
-      return;
-    }
+    if (isNaN(targetDate.getTime()) || targetDate.getTime() <= Date.now()) return;
     const endOfNextWeek = endOfWeek(addWeeks(new Date(), 1), { weekStartsOn: 1 });
-    if (targetDate.getTime() > endOfNextWeek.getTime()) {
-      toast.error('Scheduling is limited to the current week and next week.');
-      return;
-    }
+    if (targetDate.getTime() > endOfNextWeek.getTime()) return;
 
     setIsRescheduling(true);
     try {
@@ -1513,17 +1485,12 @@ function ScheduledPostModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ newScheduledAt: targetDate.toISOString() }),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.error || 'Failed to reschedule post');
-        return;
-      }
-      toast.success(`Post rescheduled to ${format(targetDate, 'MMM d, h:mm a')}`);
+      if (!res.ok) return;
       post.scheduledAt = targetDate.toISOString();
       setShowRescheduleInput(false);
       onUpdated();
     } catch {
-      toast.error('Failed to reschedule post');
+      // reschedule error handled
     } finally {
       setIsRescheduling(false);
     }
@@ -1540,15 +1507,11 @@ function ScheduledPostModal({
         method: 'DELETE',
       });
       if (res.ok) {
-        toast.success('Post cancelled and removed from queue');
         onCancelled();
         onClose();
-      } else {
-        const data = await res.json();
-        toast.error(data.error || 'Failed to cancel post');
       }
     } catch {
-      toast.error('Failed to cancel post');
+      // cancel error handled
     } finally {
       setIsCancelling(false);
     }
@@ -1556,11 +1519,7 @@ function ScheduledPostModal({
 
   const addTag = () => {
     const clean = newTag.trim().replace(/^#/, '');
-    if (!clean) return;
-    if (currentTags.includes(clean)) {
-      toast.info('Tag already added');
-      return;
-    }
+    if (!clean || currentTags.includes(clean)) return;
     setEditedHashtags(prev => ({
       ...prev,
       [currentVariant.variantId]: [...currentTags, clean],
@@ -2006,7 +1965,7 @@ function WeekCanvas({
         onPostCountChange?.(loadedPosts.length);
       }
     } catch {
-      toast.error('Failed to load schedule');
+      // load canvas error
     } finally {
       setIsLoading(false);
     }
@@ -2017,10 +1976,7 @@ function WeekCanvas({
   const handleCancel = async (postId: string) => {
     const res = await fetch(`/api/composer/schedule/${postId}`, { method: 'DELETE' });
     if (res.ok) {
-      toast.success('Post cancelled');
       loadCanvas();
-    } else {
-      toast.error('Failed to cancel post');
     }
   };
 
@@ -2029,14 +1985,14 @@ function WeekCanvas({
     try {
       if (holdActive) {
         const res = await fetch('/api/composer/schedule/hold', { method: 'DELETE' });
-        if (res.ok) { setHoldActive(false); toast.success('Queue released — posts will go out on schedule'); }
+        if (res.ok) { setHoldActive(false); }
       } else {
         const res = await fetch('/api/composer/schedule/hold', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ holdHours: 3 }),
         });
-        if (res.ok) { setHoldActive(true); toast.success('Queue held for 3 hours'); }
+        if (res.ok) { setHoldActive(true); }
       }
     } finally {
       setIsHolding(false);
@@ -2302,31 +2258,20 @@ function FlightPlanInner({ userId, workspaceId }: { userId: string; workspaceId:
       });
 
       const json = await res.json();
-      if (!res.ok) {
-        toast.error(json.error ?? 'Failed to generate Flight Plan');
-        return;
-      }
+      if (!res.ok) return;
 
       setIsPreviewOnly(!!json.isPreviewOnly);
-      if (json.isPreviewOnly) {
-        toast.info('Previewing Flight Plan — connect accounts in Settings to schedule live!');
-      }
-
       setArc(json.arc);
       setView('review');
-      toast.success(`Flight Plan generated — ${json.arc.weekPosts.length} posts ready for review`);
     } catch {
-      toast.error('Something went wrong. Please try again.');
+      // generation error handled
     } finally {
       setIsGenerating(false);
     }
   };
 
   const handleApprove = async (approvedArc: WeekArc) => {
-    if (isPreviewOnly) {
-      toast.warning('Connect your platform accounts in Settings to schedule live posts.');
-      return;
-    }
+    if (isPreviewOnly) return;
     setIsScheduling(true);
     try {
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -2334,10 +2279,7 @@ function FlightPlanInner({ userId, workspaceId }: { userId: string; workspaceId:
         .filter(p => !p.deleted)
         .filter(p => p.platforms.some(pf => pf.enabled !== false));
 
-      if (activePosts.length === 0) {
-        toast.warning('No posts or platforms selected to schedule.');
-        return;
-      }
+      if (activePosts.length === 0) return;
 
       const res = await fetch('/api/composer/schedule', {
         method: 'POST',
@@ -2375,17 +2317,12 @@ function FlightPlanInner({ userId, workspaceId }: { userId: string; workspaceId:
         }),
       });
 
-      const json = await res.json();
-      if (!res.ok) {
-        toast.error(json.error ?? 'Failed to schedule');
-        return;
-      }
+      if (!res.ok) return;
 
-      toast.success(`Flight Plan scheduled — ${json.scheduledPosts?.length ?? 0} posts queued 🚀`);
       setView('canvas');
       setArc(null);
     } catch {
-      toast.error('Something went wrong during scheduling.');
+      // schedule error handled
     } finally {
       setIsScheduling(false);
     }

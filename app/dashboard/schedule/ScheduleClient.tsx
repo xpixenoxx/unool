@@ -3,12 +3,10 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Sparkles, ChevronRight, ChevronLeft, Calendar, Clock,
+  ChevronRight, ChevronLeft, Calendar, Clock,
   CheckCircle, X, Loader2, AlertTriangle, Send, Zap,
   PauseCircle, PlayCircle, RotateCcw, Trash2, Edit3,
   ArrowRight, Info, Radio, Globe
-} from 'lucide-react';
-import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useUserContext } from '@/lib/hooks/use-user-context';
 import { format, addDays, startOfWeek, isToday, isTomorrow } from 'date-fns';
@@ -158,11 +156,14 @@ function StoryIntake({
     return format(target, 'yyyy-MM-dd');
   }, [weekTarget]);
 
+  const [storyError, setStoryError] = useState('');
+
   const handleSubmit = () => {
     if (!coreStory.trim() || coreStory.trim().length < 20) {
-      toast.error('Please write a bit more — describe what actually happened this week.');
+      setStoryError('Please write at least 20 characters describing your idea or update.');
       return;
     }
+    setStoryError('');
     onGenerate({
       coreStory,
       whatChanged,
@@ -187,14 +188,13 @@ function StoryIntake({
       <div className="text-center space-y-2">
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold mb-3"
           style={{ backgroundColor: B.accentBg, color: B.accentDark }}>
-          <Sparkles className="w-3 h-3" />
-          15-Minute Sunday Sprint
+          Weekly Content Plan
         </div>
         <h1 className="text-3xl font-bold tracking-tight" style={{ color: B.text }}>
           What did you build, learn,<br />or ship this week?
         </h1>
         <p className="text-base" style={{ color: B.textMuted }}>
-          One honest paragraph. Unool turns it into your entire week of content.
+          Outline your core update. We&apos;ll adapt it into scheduled posts across your platforms.
         </p>
       </div>
 
@@ -223,6 +223,9 @@ function StoryIntake({
             <span className="text-xs" style={{ color: charCount >= 20 ? B.textMuted : B.warning }}>
               {charCount} characters {charCount < 20 ? `— ${20 - charCount} more to go` : '· ready'}
             </span>
+            {storyError && (
+              <p className="text-xs text-red-600 font-medium">{storyError}</p>
+            )}
             <div className="flex items-center gap-2">
               {isReady && !followUpOpen && (
                 <button
@@ -467,7 +470,7 @@ function ReviewScreen({
         style={{ backgroundColor: B.infoBg, color: B.info }}>
         <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
         <div>
-          <strong>Why this arc shape?</strong> {editedArc.storyTypeReason}
+          <strong>Strategy note:</strong> {editedArc.storyTypeReason}
         </div>
       </div>
 
@@ -600,7 +603,7 @@ function ReviewScreen({
 
                             {platform.schedulingOffsetMinutes && platform.schedulingOffsetMinutes > 0 && (
                               <div className="text-xs" style={{ color: B.textMuted }}>
-                                ⚡ Cascading: +{platform.schedulingOffsetMinutes} min after base time
+                                Staggered release: +{platform.schedulingOffsetMinutes} min after base time
                               </div>
                             )}
                           </div>
@@ -675,7 +678,7 @@ function WeekCanvas({
         setPosts(data.posts ?? []);
       }
     } catch {
-      toast.error('Failed to load schedule');
+      // load error
     } finally {
       setIsLoading(false);
     }
@@ -686,10 +689,7 @@ function WeekCanvas({
   const handleCancel = async (postId: string) => {
     const res = await fetch(`/api/composer/schedule/${postId}`, { method: 'DELETE' });
     if (res.ok) {
-      toast.success('Post cancelled');
       loadCanvas();
-    } else {
-      toast.error('Failed to cancel post');
     }
   };
 
@@ -698,14 +698,14 @@ function WeekCanvas({
     try {
       if (holdActive) {
         const res = await fetch('/api/composer/schedule/hold', { method: 'DELETE' });
-        if (res.ok) { setHoldActive(false); toast.success('Queue released — posts will go out on schedule'); }
+        if (res.ok) { setHoldActive(false); }
       } else {
         const res = await fetch('/api/composer/schedule/hold', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ holdHours: 3 }),
         });
-        if (res.ok) { setHoldActive(true); toast.success('Queue held for 3 hours'); }
+        if (res.ok) { setHoldActive(true); }
       }
     } finally {
       setIsHolding(false);
@@ -782,7 +782,6 @@ function WeekCanvas({
               boxShadow: `0 4px 16px ${B.accent}40`,
             }}
           >
-            <Sparkles className="w-4 h-4" />
             Plan New Week
           </button>
         </div>
@@ -958,30 +957,20 @@ export default function ScheduleClient({
       });
 
       const json = await res.json();
-      if (!res.ok) {
-        toast.error(json.error ?? 'Failed to generate arc');
-        return;
-      }
+      if (!res.ok) return;
 
       setIsPreviewOnly(!!json.isPreviewOnly);
-      if (json.isPreviewOnly) {
-        toast.info('Previewing week plan — connect accounts in Settings to schedule live!');
-      }
-
       setArc(json.arc);
       setView('review');
     } catch {
-      toast.error('Something went wrong. Please try again.');
+      // generate error
     } finally {
       setIsGenerating(false);
     }
   };
 
   const handleApprove = async (approvedArc: WeekArc) => {
-    if (isPreviewOnly) {
-      toast.warning('Connect your platform accounts in Settings to schedule live posts.');
-      return;
-    }
+    if (isPreviewOnly) return;
     setIsScheduling(true);
     try {
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -1013,17 +1002,12 @@ export default function ScheduleClient({
         }),
       });
 
-      const json = await res.json();
-      if (!res.ok) {
-        toast.error(json.error ?? 'Failed to schedule');
-        return;
-      }
+      if (!res.ok) return;
 
-      toast.success(`Week arc scheduled — ${json.scheduledPosts?.length ?? 0} posts queued 🚀`);
       setView('canvas');
       setArc(null);
     } catch {
-      toast.error('Something went wrong during scheduling.');
+      // schedule error
     } finally {
       setIsScheduling(false);
     }
