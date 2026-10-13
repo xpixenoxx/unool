@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ExternalLink, RefreshCw, AlertCircle, CheckCircle, Clock, Zap, TrendingUp, BarChart2, Calendar, Sparkles } from 'lucide-react';
+import { ExternalLink, RefreshCw, AlertCircle, CheckCircle, Clock, Zap, TrendingUp, BarChart2, Calendar, Sparkles, Pencil, Trash2, Loader2, FileText } from 'lucide-react';
 import Link from 'next/link';
 import { formatDistanceToNow, format } from 'date-fns';
 import { toast } from 'sonner';
@@ -221,11 +221,10 @@ export function SignalClient() {
     loadData();
   }, [loadData]);
 
-  // Poll every 3 seconds if any active post has pending variants
+  // Poll every 3 seconds only if any active post has actively pending in-flight publishing
   useEffect(() => {
     const hasPending = posts.some(p =>
-      getPostAge(p.createdAt) === 'active' &&
-      p.variants.some(v => v.status === 'draft' || v.status === 'pending')
+      p.variants.some(v => v.status === 'pending')
     );
     if (!hasPending) return;
     const t = setInterval(loadData, 3000);
@@ -305,6 +304,7 @@ export function SignalClient() {
                   post={post}
                   delay={i * 0.05}
                   onRefresh={loadData}
+                  onDelete={(id) => setPosts(prev => prev.filter(p => p.id !== id))}
                   profileSubdomain={profileSubdomain}
                   isMostRecentPublished={post.id === mostRecentPublishedPostId}
                 />
@@ -335,12 +335,14 @@ function PostCard({
   post,
   delay,
   onRefresh,
+  onDelete,
   profileSubdomain,
   isMostRecentPublished = false,
 }: {
   post: SignalPost;
   delay: number;
   onRefresh: () => void;
+  onDelete?: (postId: string) => void;
   profileSubdomain?: string | null;
   isMostRecentPublished?: boolean;
 }) {
@@ -349,6 +351,37 @@ function PostCard({
   const publishedVariants = post.variants.filter(v => v.status === 'published');
   const pendingVariants = post.variants.filter(v => v.status === 'draft' || v.status === 'pending');
   const failedVariants = post.variants.filter(v => v.status === 'failed');
+  const isDraft = post.status === 'draft' || publishedVariants.length === 0;
+
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/publish/${post.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        const fallbackRes = await fetch(`/api/signal/posts?postId=${post.id}`, {
+          method: 'DELETE',
+          credentials: 'include',
+        });
+        if (!fallbackRes.ok) {
+          const errData = await fallbackRes.json().catch(() => ({}));
+          throw new Error(errData.error || 'Failed to remove draft');
+        }
+      }
+      toast.success('Draft removed completely');
+      onDelete?.(post.id);
+      onRefresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to remove draft');
+      setIsDeleting(false);
+      setConfirmDelete(false);
+    }
+  };
 
   return (
     <motion.div
@@ -357,26 +390,33 @@ function PostCard({
       transition={{ delay, duration: 0.22 }}
       className="bg-white rounded-2xl border overflow-hidden"
       style={{
-        borderColor: age === 'active' ? '#fbbf24' : age === 'settling' ? '#e5e7eb' : '#f3f4f6',
-        boxShadow: age === 'active' ? '0 0 0 1px #fbbf2420, 0 4px 24px #fbbf2415' : '0 1px 4px #0000000a',
+        borderColor: isDraft ? '#fed7aa' : age === 'active' ? '#fbbf24' : age === 'settling' ? '#e5e7eb' : '#f3f4f6',
+        boxShadow: isDraft
+          ? '0 1px 6px #f9731610'
+          : age === 'active'
+          ? '0 0 0 1px #fbbf2420, 0 4px 24px #fbbf2415'
+          : '0 1px 4px #0000000a',
       }}
     >
       {/* Card header: age badge + time */}
       <div className="flex items-center justify-between px-5 pt-4 pb-2">
         <div className="flex items-center gap-2">
-          {age === 'active' && (
+          {isDraft ? (
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
+              <FileText className="w-3.5 h-3.5 text-amber-600" />
+              Draft
+            </span>
+          ) : age === 'active' ? (
             <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
               <LiveIndicator />
               Active — {goldenRemaining}m left in golden hour
             </span>
-          )}
-          {age === 'settling' && (
+          ) : age === 'settling' ? (
             <span className="flex items-center gap-1.5 text-xs font-medium text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">
               <Clock className="w-3 h-3" />
               Settling
             </span>
-          )}
-          {age === 'cooled' && (
+          ) : (
             <span className="text-xs text-gray-400">{format(new Date(post.createdAt), 'MMM d, h:mm a')}</span>
           )}
         </div>
@@ -455,31 +495,80 @@ function PostCard({
       )}
 
       {/* Summary footer */}
-      <div className="px-5 py-3 bg-gray-50/60 border-t border-gray-100 flex items-center gap-3 text-xs text-gray-500 flex-wrap">
-        {publishedVariants.length > 0 && (
-          <span className="flex items-center gap-1 text-green-600 font-medium">
-            <CheckCircle className="w-3.5 h-3.5" />
-            {publishedVariants.length} live
-          </span>
+      <div className="px-5 py-3 bg-gray-50/60 border-t border-gray-100 flex items-center justify-between gap-3 text-xs text-gray-500 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap">
+          {publishedVariants.length > 0 && (
+            <span className="flex items-center gap-1 text-green-600 font-medium">
+              <CheckCircle className="w-3.5 h-3.5" />
+              {publishedVariants.length} live
+            </span>
+          )}
+          {pendingVariants.length > 0 && (
+            <span className="flex items-center gap-1 text-amber-600">
+              <Clock className="w-3.5 h-3.5" />
+              {pendingVariants.length} pending
+            </span>
+          )}
+          {failedVariants.length > 0 && (
+            <span className="flex items-center gap-1 text-red-500">
+              <AlertCircle className="w-3.5 h-3.5" />
+              {failedVariants.length} failed
+            </span>
+          )}
+          {post.hookType && (
+            <span className="capitalize flex items-center gap-1 text-gray-400">
+              <Sparkles className="w-3 h-3" />
+              {HOOK_LABELS[post.hookType] || post.hookType}
+            </span>
+          )}
+        </div>
+
+        {/* Action buttons for drafts: Review & edit, Remove */}
+        {isDraft && (
+          <div className="flex items-center gap-2 ml-auto">
+            <Link
+              href={`/dashboard/publish?postId=${post.id}`}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-gray-900 text-white hover:bg-black transition-colors shadow-xs cursor-pointer"
+              title="Review, edit, and publish this draft"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              <span>Review & edit</span>
+            </Link>
+
+            {confirmDelete ? (
+              <div className="inline-flex items-center gap-1.5 bg-red-50/90 px-2.5 py-1 rounded-xl border border-red-200">
+                <span className="text-[11px] text-red-700 font-medium">Remove?</span>
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                  className="px-2 py-0.5 rounded-lg text-xs font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  {isDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Yes'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(false)}
+                  disabled={isDeleting}
+                  className="px-1.5 py-0.5 rounded-lg text-xs text-gray-500 hover:text-gray-700 cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200/60 transition-colors cursor-pointer"
+                title="Remove this draft completely"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Remove</span>
+              </button>
+            )}
+          </div>
         )}
-        {pendingVariants.length > 0 && (
-          <span className="flex items-center gap-1 text-amber-600">
-            <Clock className="w-3.5 h-3.5" />
-            {pendingVariants.length} pending
-          </span>
-        )}
-        {failedVariants.length > 0 && (
-          <span className="flex items-center gap-1 text-red-500">
-            <AlertCircle className="w-3.5 h-3.5" />
-            {failedVariants.length} failed
-          </span>
-        )}
-        {post.hookType && (
-          <span className="capitalize flex items-center gap-1 text-gray-400">
-            <Sparkles className="w-3 h-3" />
-            {HOOK_LABELS[post.hookType] || post.hookType}
-          </span>
-        )}
+
         {isMostRecentPublished && publishedVariants.length > 0 && (
           <a
             href={`https://wa.me/?text=${encodeURIComponent(

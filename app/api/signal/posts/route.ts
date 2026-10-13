@@ -74,3 +74,58 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({ posts: result });
 }
+
+export async function DELETE(request: NextRequest) {
+  const auth = await getCurrentAuth(request);
+  if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { searchParams } = new URL(request.url);
+  let postId = searchParams.get('postId');
+  if (!postId) {
+    try {
+      const body = await request.json();
+      postId = body.postId;
+    } catch {}
+  }
+
+  if (!postId) {
+    return NextResponse.json({ error: 'Missing postId' }, { status: 400 });
+  }
+
+  // Verify workspace ownership
+  const { data: post } = await admin
+    .from('posts')
+    .select('id, workspace_id')
+    .eq('id', postId)
+    .eq('workspace_id', auth.workspaceId)
+    .single();
+
+  if (!post) {
+    return NextResponse.json({ error: 'Post not found' }, { status: 404 });
+  }
+
+  // Find and clean up variants & platform posts
+  const { data: variants } = await admin
+    .from('post_variants')
+    .select('id')
+    .eq('post_id', postId);
+
+  const variantIds = (variants || []).map((v: any) => v.id);
+  if (variantIds.length > 0) {
+    await admin.from('platform_posts').delete().in('post_variant_id', variantIds);
+    await admin.from('post_variants').delete().in('id', variantIds);
+  }
+
+  const { error: deleteError } = await admin
+    .from('posts')
+    .delete()
+    .eq('id', postId)
+    .eq('workspace_id', auth.workspaceId);
+
+  if (deleteError) {
+    return NextResponse.json({ error: 'Failed to delete post' }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true, message: 'Draft removed successfully' });
+}
+

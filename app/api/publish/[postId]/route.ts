@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
 import { SupabasePostRepository } from '@/lib/repositories/supabase/SupabasePostRepository';
 import { logger } from '@/lib/logger';
+import { createClient } from '@supabase/supabase-js';
+import { config } from '@/lib/config/schema';
 
 const postRepository = new SupabasePostRepository();
 
@@ -80,3 +82,59 @@ export async function GET(
     return NextResponse.json({ error: 'Failed to fetch post' }, { status: 500 });
   }
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ postId: string }> }
+) {
+  const traceId = crypto.randomUUID();
+  const { postId } = await params;
+
+  try {
+    const auth = await getCurrentAuth(request);
+    if (!auth) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const post = await postRepository.findById(postId);
+    if (!post) {
+      return NextResponse.json({ error: 'Post not found' }, { status: 404 });
+    }
+
+    // Verify workspace ownership
+    if (post.workspaceId !== auth.workspaceId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const admin = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
+    // 1. Find all variants for this post
+    const variants = await postRepository.findVariantsByPostId(postId);
+    const variantIds = variants.map(v => v.id);
+
+    if (variantIds.length > 0) {
+      // 2. Delete platform_posts if any exist
+      await admin.from('platform_posts').delete().in('post_variant_id', variantIds);
+      // 3. Delete post_variants
+      await admin.from('post_variants').delete().in('id', variantIds);
+    }
+
+    // 4. Delete the post record
+    const { error: deleteError } = await admin
+      .from('posts')
+      .delete()
+      .eq('id', postId)
+      .eq('workspace_id', auth.workspaceId);
+
+    if (deleteError) {
+      throw deleteError;
+    }
+
+    logger.info('Draft post removed successfully', { traceId, postId });
+    return NextResponse.json({ success: true, message: 'Draft removed successfully' });
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error('Failed to delete post', { traceId, postId, error: err });
+    return NextResponse.json({ error: 'Failed to delete post' }, { status: 500 });
+  }
+}

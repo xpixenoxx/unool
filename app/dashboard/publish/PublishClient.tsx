@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Linkedin, Twitter, MessageSquare, CheckCircle, Edit, Send, AlertCircle, Sparkles, CircleCheckBig, X, ExternalLink, Facebook, Youtube, Instagram, Cloud, MessageCircle, Image as ImageIcon, Send as SendIcon, Eye, Twitch, Hash, Dribbble, GraduationCap, Store, Gamepad2, Video, Zap, FileText, Copy, Share2, Smartphone, Globe, Mail, BookOpen, Code2 } from 'lucide-react';
+import { Loader2, Linkedin, Twitter, MessageSquare, CheckCircle, Edit, Send, AlertCircle, Sparkles, CircleCheckBig, X, ExternalLink, Facebook, Youtube, Instagram, Cloud, MessageCircle, Image as ImageIcon, Send as SendIcon, Eye, Twitch, Hash, Dribbble, GraduationCap, Store, Gamepad2, Video, Zap, FileText, Copy, Share2, Smartphone, Globe, Mail, BookOpen, Code2, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { Flex, Box, Stack, Text, Display, Divider } from '@/components/ui/layout';
 import { MotionBox, MotionStack, spring, stagger } from '@/components/ui/motion';
@@ -86,6 +86,7 @@ const PLATFORM_CONFIG: Record<Platform, { icon: React.ElementType; name: string;
   listmonk: { icon: Mail, name: 'Listmonk', maxChars: 100000, color: 'bg-[#0045ff]' },
   hashnode: { icon: BookOpen, name: 'Hashnode', maxChars: 100000, color: 'bg-[#2962FF]' },
   devto: { icon: Code2, name: 'DEV.to', maxChars: 100000, color: 'bg-neutral-900 dark:bg-neutral-100' },
+  reddit: { icon: Globe, name: 'Reddit', maxChars: 40000, color: 'bg-[#FF4500]' },
 };
 
 interface PublishClientProps {
@@ -164,7 +165,7 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
         platform: v.platform,
         content: v.adaptedContent,
         characterCount: v.characterCount,
-        maxChars: PLATFORM_CONFIG[v.platform].maxChars,
+        maxChars: PLATFORM_CONFIG[v.platform]?.maxChars ?? 10000,
         hashtags: v.hashtagStrategy,
         mediaUrls: v.mediaUrls,
         status: v.status,
@@ -446,8 +447,15 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
       {/* Header */}
       <Flex between wrap gap={4}>
         <Box>
-          <Display size="xl" weight="bold">Publish (One Click)</Display>
-          <Text size="lg" color="muted">Write once. AI adapts. You approve. One click publishes everywhere.</Text>
+          <Link
+            href="/dashboard/signal"
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-1.5 transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Back to Signal</span>
+          </Link>
+          <Display size="xl" weight="bold">Review & Publish</Display>
+          <Text size="lg" color="muted">Review your draft across platforms, edit where needed, and publish.</Text>
         </Box>
         <Flex gap={2} wrap center>
           {publishedDrafts.length > 0 && shareUrl && (
