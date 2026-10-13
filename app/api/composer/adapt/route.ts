@@ -87,6 +87,17 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // Strip platforms that have no AI adaptation spec (e.g. 'manual') to avoid crashes
+      const { PLATFORM_SPECS } = await import('@/lib/ai/PostAdapter');
+      activePlatforms = activePlatforms.filter(p => p in PLATFORM_SPECS);
+
+      if (activePlatforms.length === 0) {
+        return NextResponse.json(
+          { error: 'None of the connected platforms support AI adaptation' },
+          { status: 400 }
+        );
+      }
+
       logger.info('Composer adaptation requested', { traceId, workspaceId, contentLength: content.length, activePlatforms });
 
       // Adapt content for all connected platforms

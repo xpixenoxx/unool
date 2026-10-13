@@ -322,9 +322,16 @@ export class PostAdapter {
     context?: { profileName?: string; profileHeadline?: string }
   ): Promise<Result<AdaptedPost, Error>> {
     const startTime = Date.now();
-    const spec = PLATFORM_SPECS[platform];
 
     try {
+      const spec = PLATFORM_SPECS[platform];
+
+      // Guard: skip platforms that have no adaptation spec defined
+      if (!spec) {
+        logger.warn('No PLATFORM_SPECS entry for platform — skipping adaptation', { platform });
+        return err(new Error(`Platform '${platform}' is not supported for AI adaptation`));
+      }
+
       logger.info('Adapting post for platform', { platform, sourceLength: sourceContent.length });
 
       const prompt = `${POST_ADAPTER_PROMPT}

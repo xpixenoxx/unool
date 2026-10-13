@@ -503,7 +503,9 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       if (data.connections) {
         const active = Object.values(data.connections)
           .filter((c: any) => c.status === 'connected')
-          .map((c: any) => c.platform as PlatformType);
+          .map((c: any) => c.platform as PlatformType)
+          // Only include platforms that have an AI adaptation spec in the composer
+          .filter((p: PlatformType) => p in PLATFORM_CONFIG);
         setConnectedPlatforms(active);
         setSelectedPlatforms([]);
       }
@@ -753,25 +755,45 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
 
       setPostId(data.postId);
 
-      const platforms = Object.keys(data.variants) as PlatformType[];
-      if (platforms.length > 0) {
-        setActiveTab(platforms[0]);
-        // Also update preview to show the first generated platform
-        setPreviewPlatform(platforms[0]);
-      }
-      setDrafts(platforms.map(platform => {
-        const result = data.variants[platform];
-        return {
-          platform,
-          content: result?.content ?? '',
-          characterCount: result?.characterCount ?? 0,
-          hashtags: result?.hashtags ?? [],
-          firstCommentHint: result?.firstCommentHint,
-          status: result ? ('ready' as const) : ('error' as const),
-        };
-      }));
+      // Build drafts for ALL requested platforms — succeeded ones as 'ready', any that
+      // were excluded by the API (failed on the server) as 'error' so they show in the UI.
+      const succeededPlatforms = Object.keys(data.variants) as PlatformType[];
+      const failedPlatforms = platformsToUse.filter(p => !succeededPlatforms.includes(p));
 
-      toast.success(`Generated drafts for ${platforms.length} platforms`);
+      const allDrafts = [
+        ...succeededPlatforms.map(platform => {
+          const result = data.variants[platform];
+          return {
+            platform,
+            content: result?.content ?? '',
+            characterCount: result?.characterCount ?? 0,
+            hashtags: result?.hashtags ?? [],
+            firstCommentHint: result?.firstCommentHint,
+            status: 'ready' as const,
+          };
+        }),
+        ...failedPlatforms.map(platform => ({
+          platform,
+          content: '',
+          characterCount: 0,
+          hashtags: [] as string[],
+          firstCommentHint: undefined,
+          status: 'error' as const,
+          error: 'AI adaptation failed for this platform',
+        })),
+      ];
+
+      if (allDrafts.length > 0) {
+        setActiveTab(allDrafts[0].platform);
+        setPreviewPlatform(allDrafts[0].platform);
+      }
+      setDrafts(allDrafts);
+
+      if (failedPlatforms.length > 0) {
+        toast.success(`Drafts ready for ${succeededPlatforms.length} platform${succeededPlatforms.length !== 1 ? 's' : ''}. ${failedPlatforms.length} failed — check the error tab${failedPlatforms.length !== 1 ? 's' : ''}.`);
+      } else {
+        toast.success(`Generated drafts for all ${succeededPlatforms.length} platform${succeededPlatforms.length !== 1 ? 's' : ''}!`);
+      }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Failed to generate drafts';
       toast.error(errorMsg);
