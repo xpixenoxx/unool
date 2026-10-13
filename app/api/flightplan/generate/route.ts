@@ -165,11 +165,6 @@ export async function POST(request: NextRequest) {
 
           const finalMedia = await optimizeMediaForPlatform(normalizedMedia, platform);
 
-          await postRepository.createVariant({
-            postId: post.id,
-            platform,
-            adaptedContent: dayPost.content,
-            mediaUrls: finalMedia,
           const cleanedHashtags = (dayPost.hashtags || []).map((t: string) => t.replace(/^#+/, '').trim()).filter(Boolean);
 
           await postRepository.createVariant({
