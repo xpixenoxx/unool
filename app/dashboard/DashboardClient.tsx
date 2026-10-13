@@ -13,6 +13,7 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import { PlatformConnections } from '@/components/dashboard/PlatformConnections';
 import { BlueskyConnectDialog } from '@/components/dashboard/BlueskyConnectDialog';
+import { PlatformBrandLogo, type SupportedPlatformType } from '@/components/dashboard/previews/PlatformMobilePreview';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogTrigger, DialogTitle } from '@/components/ui/dialog';
 
@@ -373,14 +374,14 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           {/* Platform badges */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {[
-              { id: 'linkedin', name: 'LinkedIn', icon: '🔗', color: '#0A66C2', connected: data.connections['linkedin']?.status === 'connected' },
-              { id: 'x', name: 'X (Twitter)', icon: '𝕏', color: '#1A1A1A', connected: data.connections['x']?.status === 'connected' },
-              { id: 'threads', name: 'Threads', icon: '🧵', color: '#000000', connected: data.connections['threads']?.status === 'connected' },
-              { id: 'instagram', name: 'Instagram', icon: '📸', color: '#E1306C', connected: data.connections['instagram']?.status === 'connected' },
-              { id: 'facebook', name: 'Facebook', icon: '👤', color: '#1877F2', connected: data.connections['facebook']?.status === 'connected' },
-              { id: 'youtube', name: 'YouTube', icon: '▶️', color: '#FF0000', connected: data.connections['youtube']?.status === 'connected' },
-              { id: 'pinterest', name: 'Pinterest', icon: '📌', color: '#E60023', connected: data.connections['pinterest']?.status === 'connected' },
-              { id: 'bluesky', name: 'Bluesky', icon: '🦋', color: '#0085ff', connected: data.connections['bluesky']?.status === 'connected' },
+              { id: 'linkedin' as SupportedPlatformType, name: 'LinkedIn', color: '#0A66C2', connected: data.connections['linkedin']?.status === 'connected' },
+              { id: 'x' as SupportedPlatformType, name: 'X (Twitter)', color: '#1A1A1A', connected: data.connections['x']?.status === 'connected' },
+              { id: 'threads' as SupportedPlatformType, name: 'Threads', color: '#000000', connected: data.connections['threads']?.status === 'connected' },
+              { id: 'instagram' as SupportedPlatformType, name: 'Instagram', color: '#E1306C', connected: data.connections['instagram']?.status === 'connected' },
+              { id: 'facebook' as SupportedPlatformType, name: 'Facebook', color: '#1877F2', connected: data.connections['facebook']?.status === 'connected' },
+              { id: 'youtube' as SupportedPlatformType, name: 'YouTube', color: '#FF0000', connected: data.connections['youtube']?.status === 'connected' },
+              { id: 'pinterest' as SupportedPlatformType, name: 'Pinterest', color: '#E60023', connected: data.connections['pinterest']?.status === 'connected' },
+              { id: 'bluesky' as SupportedPlatformType, name: 'Bluesky', color: '#0085ff', connected: data.connections['bluesky']?.status === 'connected' },
             ].map((platform) => {
               const isLinkedinAnalytics = platform.id === 'linkedin' && platform.connected;
               return (
@@ -401,13 +402,13 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 }}
               >
                 <div
-                  className="h-10 w-10 rounded-xl flex items-center justify-center text-lg font-bold"
+                  className="h-10 w-10 rounded-xl flex items-center justify-center shadow-sm"
                   style={{
-                    backgroundColor: platform.connected ? platform.color : B.borderLight,
-                    color: platform.connected ? '#fff' : B.textLight,
+                    backgroundColor: platform.connected ? '#FFFFFF' : B.borderLight,
+                    border: '1px solid rgba(0,0,0,0.06)',
                   }}
                 >
-                  {platform.icon === '𝕏' ? '𝕏' : platform.icon === '🔗' ? 'in' : '@'}
+                  <PlatformBrandLogo platform={platform.id} size={22} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium" style={{ color: B.text }}>

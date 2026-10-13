@@ -705,9 +705,9 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
                     { id: '3', label: 'LinkedIn', url: 'https://linkedin.com', icon: 'linkedin', clicks: 890, order: 2, isVisible: true },
                   ],
                   proofs: [
-                    { id: '1', title: 'Followers', value: '12.3K', icon: '👥' },
-                    { id: '2', title: 'Posts', value: '247', icon: '📝' },
-                    { id: '3', title: 'Engagement', value: '4.2%', icon: '📊' },
+                    { id: '1', title: 'Followers', value: '12.3K' },
+                    { id: '2', title: 'Posts', value: '247' },
+                    { id: '3', title: 'Engagement', value: '4.2%' },
                   ],
                   theme: { template: 'essential-standard', preset: '', accentColor: '', customCss: null },
                   socialHandles: {},

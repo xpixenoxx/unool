@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { ThumbsUp, Heart, MessageSquare, MessageCircle, Repeat2, Share2, Bookmark, Globe, Camera, Pin, Send } from 'lucide-react';
 import { PlatformMobilePreview, type SupportedPlatformType } from '@/components/dashboard/previews/PlatformMobilePreview';
 
 export type Platform = 'linkedin' | 'x' | 'threads' | 'manual' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'slack' | 'mastodon' | 'twitch' | 'telegram' | 'discord' | 'dribbble' | 'skool' | 'whop' | 'kick' | 'vk' | 'warpcast' | 'mewe' | 'nostr' | 'medium' | 'lemmy' | 'listmonk' | 'hashnode' | 'devto' | 'reddit';
@@ -108,7 +109,10 @@ function LinkedInPreview({ content, mediaUrls, username, displayName }: Omit<Pla
           <div>
             <div style={{ fontWeight: 600, fontSize: 14 }}>{displayName || 'User'}</div>
             <div style={{ fontSize: 12, color: '#ffffffa6' }}>@{username || 'user'} · 1st</div>
-            <div style={{ fontSize: 12, color: '#ffffffa6' }}>Just now · 🌐</div>
+            <div style={{ fontSize: 12, color: '#ffffffa6', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span>Just now ·</span>
+              <Globe size={12} color="#ffffffa6" />
+            </div>
           </div>
         </div>
       </div>
@@ -120,14 +124,20 @@ function LinkedInPreview({ content, mediaUrls, username, displayName }: Omit<Pla
         <img src={mediaUrls[0].url} alt="" style={{ width: '100%', maxHeight: 200, objectFit: 'cover' }} />
       )}
       {/* Engagement */}
-      <div style={{ padding: '8px 16px', borderTop: '1px solid #38434f', display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#ffffffa6' }}>
-        <span>👍 24</span>
+      <div style={{ padding: '8px 16px', borderTop: '1px solid #38434f', display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#ffffffa6', alignItems: 'center' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ width: 16, height: 16, borderRadius: '50%', background: '#0a66c2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <ThumbsUp size={10} color="#fff" fill="#fff" />
+          </span>
+          <span>24</span>
+        </span>
         <span>5 comments · 2 reposts</span>
       </div>
       <div style={{ padding: '4px 16px 12px', display: 'flex', justifyContent: 'space-around', borderTop: '1px solid #38434f' }}>
-        {['👍 Like', '💬 Comment', '🔄 Repost', '📤 Send'].map(a => (
-          <span key={a} style={{ fontSize: 12, color: '#ffffffa6', padding: '8px 0' }}>{a}</span>
-        ))}
+        <span style={{ fontSize: 12, color: '#ffffffa6', padding: '8px 0', display: 'flex', alignItems: 'center', gap: 6 }}><ThumbsUp size={14} /> Like</span>
+        <span style={{ fontSize: 12, color: '#ffffffa6', padding: '8px 0', display: 'flex', alignItems: 'center', gap: 6 }}><MessageSquare size={14} /> Comment</span>
+        <span style={{ fontSize: 12, color: '#ffffffa6', padding: '8px 0', display: 'flex', alignItems: 'center', gap: 6 }}><Repeat2 size={14} /> Repost</span>
+        <span style={{ fontSize: 12, color: '#ffffffa6', padding: '8px 0', display: 'flex', alignItems: 'center', gap: 6 }}><Send size={14} /> Send</span>
       </div>
     </div>
   );
@@ -155,11 +165,11 @@ function ThreadsPreview({ content, mediaUrls, username, displayName }: Omit<Plat
               </div>
             )}
             {/* Engagement */}
-            <div style={{ display: 'flex', gap: 16, marginTop: 12, color: '#777', fontSize: 13 }}>
-              <span>♡ 86</span>
-              <span>💬 12</span>
-              <span>⟲ 24</span>
-              <span>↗ Share</span>
+            <div style={{ display: 'flex', gap: 16, marginTop: 12, color: '#777', fontSize: 13, alignItems: 'center' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Heart size={14} /> 86</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><MessageCircle size={14} /> 12</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Repeat2 size={14} /> 24</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Share2 size={14} /> Share</span>
             </div>
           </div>
         </div>
@@ -183,15 +193,15 @@ function InstagramPreview({ content, mediaUrls, username, displayName }: Omit<Pl
         <img src={mediaUrls[0].url} alt="" style={{ width: '100%', maxHeight: 260, objectFit: 'cover' }} />
       ) : (
         <div style={{ width: '100%', height: 120, background: 'linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <span style={{ fontSize: 36 }}>📸</span>
+          <Camera size={32} color="#ffffffcc" />
         </div>
       )}
       {/* Actions */}
-      <div style={{ padding: '10px 14px', display: 'flex', gap: 16, fontSize: 22 }}>
-        <span>♡</span>
-        <span>💬</span>
-        <span>↗</span>
-        <span style={{ marginLeft: 'auto' }}>🔖</span>
+      <div style={{ padding: '10px 14px', display: 'flex', gap: 16, alignItems: 'center', color: '#f5f5f5' }}>
+        <Heart size={20} />
+        <MessageCircle size={20} />
+        <Send size={20} style={{ transform: 'rotate(-15deg)' }} />
+        <Bookmark size={20} style={{ marginLeft: 'auto' }} />
       </div>
       {/* Likes */}
       <div style={{ padding: '0 14px', fontWeight: 600, fontSize: 13 }}>142 likes</div>
@@ -224,10 +234,10 @@ function BlueskyPreview({ content, mediaUrls, username, displayName }: Omit<Plat
                 <img src={mediaUrls[0].url} alt="" style={{ width: '100%', maxHeight: 200, objectFit: 'cover' }} />
               </div>
             )}
-            <div style={{ display: 'flex', gap: 24, marginTop: 10, color: '#7b8c9e', fontSize: 13 }}>
-              <span>💬 8</span>
-              <span>🔁 34</span>
-              <span>♡ 210</span>
+            <div style={{ display: 'flex', gap: 24, marginTop: 10, color: '#7b8c9e', fontSize: 13, alignItems: 'center' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><MessageSquare size={14} /> 8</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Repeat2 size={14} /> 34</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Heart size={14} /> 210</span>
             </div>
           </div>
         </div>
@@ -245,7 +255,10 @@ function FacebookPreview({ content, mediaUrls, username, displayName }: Omit<Pla
           <Avatar size={40} bg="#1877f2" />
           <div>
             <div style={{ fontWeight: 600, fontSize: 14 }}>{displayName || 'User'}</div>
-            <div style={{ fontSize: 12, color: '#b0b3b8' }}>Just now · 🌐</div>
+            <div style={{ fontSize: 12, color: '#b0b3b8', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span>Just now ·</span>
+              <Globe size={12} color="#b0b3b8" />
+            </div>
           </div>
         </div>
       </div>
@@ -255,14 +268,22 @@ function FacebookPreview({ content, mediaUrls, username, displayName }: Omit<Pla
       {mediaUrls && mediaUrls.length > 0 && (
         <img src={mediaUrls[0].url} alt="" style={{ width: '100%', maxHeight: 200, objectFit: 'cover' }} />
       )}
-      <div style={{ padding: '8px 16px', display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#b0b3b8', borderTop: '1px solid #3e4042' }}>
-        <span>👍😂 52</span>
+      <div style={{ padding: '8px 16px', display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#b0b3b8', borderTop: '1px solid #3e4042', alignItems: 'center' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ width: 16, height: 16, borderRadius: '50%', background: '#1877f2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <ThumbsUp size={10} color="#fff" fill="#fff" />
+          </span>
+          <span style={{ width: 16, height: 16, borderRadius: '50%', background: '#fa383e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Heart size={10} color="#fff" fill="#fff" />
+          </span>
+          <span>52</span>
+        </span>
         <span>8 comments · 3 shares</span>
       </div>
       <div style={{ padding: '4px 16px 8px', display: 'flex', justifyContent: 'space-around', borderTop: '1px solid #3e4042' }}>
-        {['👍 Like', '💬 Comment', '↗ Share'].map(a => (
-          <span key={a} style={{ fontSize: 13, color: '#b0b3b8', padding: '8px 0', fontWeight: 600 }}>{a}</span>
-        ))}
+        <span style={{ fontSize: 13, color: '#b0b3b8', padding: '8px 0', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}><ThumbsUp size={14} /> Like</span>
+        <span style={{ fontSize: 13, color: '#b0b3b8', padding: '8px 0', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}><MessageSquare size={14} /> Comment</span>
+        <span style={{ fontSize: 13, color: '#b0b3b8', padding: '8px 0', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}><Share2 size={14} /> Share</span>
       </div>
     </div>
   );
@@ -313,7 +334,7 @@ function PinterestPreview({ content, mediaUrls, username, displayName }: Omit<Pl
         <img src={mediaUrls[0].url} alt="" style={{ width: '100%', maxHeight: 220, objectFit: 'cover' }} />
       ) : (
         <div style={{ width: '100%', height: 140, background: 'linear-gradient(135deg, #e60023, #bd081c)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <span style={{ fontSize: 36 }}>📌</span>
+          <Pin size={32} color="#ffffffcc" />
         </div>
       )}
       <div style={{ padding: '12px 16px' }}>

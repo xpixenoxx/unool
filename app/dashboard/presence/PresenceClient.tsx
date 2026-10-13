@@ -218,17 +218,54 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
   const handleGenerate = async () => {
     if (!sourceUrl.trim()) return;
     setGenerating(true);
+    let urlToUse = sourceUrl.trim();
+    if (!/^https?:\/\//i.test(urlToUse)) {
+      urlToUse = `https://${urlToUse}`;
+    }
+
     try {
-      const res = await fetch('/api/profile/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ url: sourceUrl }) });
-      if (!res.ok) throw new Error('Failed to generate profile');
-      const data = await res.json();
-      if (data.profile) {
-        const ext = data.profile as ExtractedProfile;
-        setProfile(prev => ({ ...prev, name: ext.name || prev.name, headline: ext.headline || prev.headline, bio: ext.bio || prev.bio, role: ext.role || prev.role, company: ext.company || prev.company, links: ext.links || prev.links, proofPoints: ext.proofPoints.map(p => ({ type: p.type, value: p.value, url: p.url || '' })) || prev.proofPoints }));
-        toast.success('Profile magic autofill complete!');
+      let res = await fetch('/api/profile/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ url: urlToUse }),
+      });
+
+      if (!res.ok) {
+        // Fallback to /api/profile/extract
+        res = await fetch('/api/profile/extract', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ url: urlToUse }),
+        });
       }
-    } catch { toast.error('Failed to generate profile'); }
-    finally { setGenerating(false); }
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.profile) {
+        throw new Error(data.error || 'Failed to extract profile information');
+      }
+
+      const ext = data.profile as ExtractedProfile;
+      setProfile(prev => ({
+        ...prev,
+        name: ext.name || prev.name,
+        headline: ext.headline || prev.headline,
+        bio: ext.bio || prev.bio,
+        role: ext.role || prev.role,
+        company: ext.company || prev.company,
+        links: ext.links && ext.links.length > 0 ? ext.links : prev.links,
+        proofPoints: ext.proofPoints && ext.proofPoints.length > 0
+          ? ext.proofPoints.map(p => ({ type: p.type, value: p.value, url: p.url || '' }))
+          : prev.proofPoints,
+      }));
+      toast.success('Profile magic autofill complete! ✨');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to generate profile';
+      toast.error(msg);
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const checkSubdomainAvailability = useCallback(async (value: string) => {

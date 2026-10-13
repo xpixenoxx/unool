@@ -14,7 +14,7 @@ import { OrbitalBackground } from '@/components/ui/3d/OrbitalBackground';
 import { ProfilePreview } from './ProfilePreview';
 import type { TemplateMeta } from './templates/types';
 import { TEMPLATE_REGISTRY, getTemplatesByCategory } from './templates/registry';
-import { X, ChevronRight, ExternalLink, Check } from 'lucide-react';
+import { X, ChevronRight, ExternalLink, Check, MousePointerClick } from 'lucide-react';
 
 interface TemplateSelectorProps {
   selectedTemplate?: string;
@@ -378,7 +378,7 @@ export function TemplateSelector({
                     <div className="flex items-center justify-center h-full p-8 text-center">
                       <Card variant="empty">
                         <CardContent className="text-center">
-                          <div className="text-6xl mb-4">👆</div>
+                          <MousePointerClick className="w-12 h-12 mx-auto mb-4 text-[#C4A265] animate-pulse" />
                           <Heading>Hover a template</Heading>
                           <Text color="muted" className="mt-2">
                             Move your mouse over any template card to see a live preview here.

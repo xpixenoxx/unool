@@ -53,11 +53,11 @@ const PLATFORM_META: Record<string, { name: string; color: string; bg: string; i
   linkedin:  { name: 'LinkedIn',  color: '#0A66C2', bg: '#E8F0FA', icon: 'in' },
   x:         { name: 'X',         color: '#000000', bg: '#F0F0F0', icon: '𝕏'  },
   threads:   { name: 'Threads',   color: '#1A1A1A', bg: '#F0F0F0', icon: '@'  },
-  bluesky:   { name: 'Bluesky',   color: '#0085FF', bg: '#E6F3FF', icon: '🦋' },
-  instagram: { name: 'Instagram', color: '#E1306C', bg: '#FDE8F0', icon: '▷'  },
+  bluesky:   { name: 'Bluesky',   color: '#0085FF', bg: '#E6F3FF', icon: 'bsky' },
+  instagram: { name: 'Instagram', color: '#E1306C', bg: '#FDE8F0', icon: 'ig' },
   facebook:  { name: 'Facebook',  color: '#1877F2', bg: '#E8F0FE', icon: 'f'  },
-  pinterest: { name: 'Pinterest', color: '#E60023', bg: '#FDE8E8', icon: 'P'  },
-  youtube:   { name: 'YouTube',   color: '#FF0000', bg: '#FDE8E8', icon: '▶'  },
+  pinterest: { name: 'Pinterest', color: '#E60023', bg: '#FDE8E8', icon: 'p'  },
+  youtube:   { name: 'YouTube',   color: '#FF0000', bg: '#FDE8E8', icon: 'yt' },
 };
 
 interface ArcPlatformDraft {

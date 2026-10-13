@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { BarChart2 } from 'lucide-react';
 import './styles.css';
 
 /* ── Types ─────────────────────────────── */
@@ -280,7 +281,9 @@ export function LinkedInAnalyticsClient() {
         <main style={{ gridColumn: '1 / -1' }}>
           <section className="clay hero" style={{ textAlign: 'center', justifyItems: 'center' }}>
             <div>
-              <div className="big" style={{ fontSize: 48, marginBottom: 16 }}>📊</div>
+              <div className="big" style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+                <BarChart2 size={48} color="#0A66C2" />
+              </div>
               <div className="ptitle" style={{ maxWidth: '100%' }}>{error || 'No data available'}</div>
               <div className="sub" style={{ marginTop: 8 }}>
                 {error?.includes('token') || error?.includes('reconnect')
