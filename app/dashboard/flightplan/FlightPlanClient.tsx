@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { format, addDays, startOfWeek, isToday } from 'date-fns';
+import { format, addDays, startOfWeek, isToday, startOfDay } from 'date-fns';
 
 /* ─── Types ─── */
 
@@ -69,6 +69,7 @@ interface ArcPlatformDraft {
   firstCommentHint?: string | null;
   autoFirstComment?: string | null;
   schedulingOffsetMinutes?: number;
+  enabled?: boolean;
 }
 
 interface ArcPost {
@@ -378,7 +379,15 @@ function StoryIntake({
         <div className="flex items-center gap-2">
           <Calendar className="w-4 h-4 flex-shrink-0" />
           <span>
-            Planning week of <strong>{format(new Date(targetMonday), 'MMMM d')}</strong> — {format(addDays(new Date(targetMonday), 6), 'MMMM d, yyyy')}
+            {weekTarget === 'current' && (new Date().getDay() + 6) % 7 > 0 ? (
+              <>
+                Planning from <strong>Today ({format(new Date(), 'MMMM d')})</strong> — {format(addDays(new Date(targetMonday), 6), 'MMMM d, yyyy')}
+              </>
+            ) : (
+              <>
+                Planning week of <strong>{format(new Date(targetMonday), 'MMMM d')}</strong> — {format(addDays(new Date(targetMonday), 6), 'MMMM d, yyyy')}
+              </>
+            )}
           </span>
         </div>
         <div className="flex items-center gap-1 bg-white/70 p-0.5 rounded-lg border border-blue-200/50">
@@ -475,11 +484,23 @@ function ReviewScreen({
         const postDateTime = new Date(targetDay);
         postDateTime.setHours(p.scheduledHour, p.scheduledMinute, 0, 0);
 
-        if (isToday(targetDay) && postDateTime.getTime() <= now.getTime()) {
+        if (postDateTime.getTime() <= now.getTime()) {
           hasChanges = true;
           adjustedCount++;
-          const safeHour = Math.min(23, now.getHours() + 1);
-          return { ...p, scheduledHour: safeHour };
+          if (targetDay.getTime() < startOfDay(now).getTime()) {
+            // Day has already passed (e.g. yesterday Monday): shift to today or next future day
+            const todayDay = (now.getDay() + 6) % 7; // Monday = 0
+            const safeHour = Math.min(23, now.getHours() + 1);
+            return {
+              ...p,
+              day: todayDay,
+              dayLabel: format(now, 'EEEE'),
+              scheduledHour: safeHour,
+            };
+          } else {
+            const safeHour = Math.min(23, now.getHours() + 1);
+            return { ...p, scheduledHour: safeHour };
+          }
         }
         return p;
       });
@@ -489,9 +510,26 @@ function ReviewScreen({
     });
 
     if (adjustedCount > 0) {
-      toast.info(`Adjusted ${adjustedCount} post time${adjustedCount > 1 ? 's' : ''} to upcoming future hours for today.`);
+      toast.info(`Adjusted ${adjustedCount} past post schedule${adjustedCount > 1 ? 's' : ''} to upcoming future times.`);
     }
   }, [weekStartDate]);
+
+  const togglePlatformEnabled = (postIdx: number, platformIdx: number) => {
+    setEditedArc(prev => {
+      const updated = { ...prev };
+      updated.weekPosts = [...prev.weekPosts];
+      const post = { ...prev.weekPosts[postIdx] };
+      post.platforms = [...post.platforms];
+      const current = post.platforms[platformIdx];
+      const isCurrentlyEnabled = current.enabled !== false;
+      post.platforms[platformIdx] = {
+        ...current,
+        enabled: !isCurrentlyEnabled,
+      };
+      updated.weekPosts[postIdx] = post;
+      return updated;
+    });
+  };
 
   const updateContent = (postIdx: number, platformIdx: number, newContent: string) => {
     setEditedArc(prev => {
@@ -531,7 +569,6 @@ function ReviewScreen({
     const now = new Date();
     const monday = weekStartDate ? new Date(weekStartDate) : startOfWeek(now, { weekStartsOn: 1 });
     const targetDay = addDays(monday, editedArc.weekPosts[postIdx].day);
-    const isTodayPost = isToday(targetDay);
 
     setEditedArc(prev => {
       const updated = { ...prev };
@@ -540,9 +577,11 @@ function ReviewScreen({
 
       // 24-hour cycle: 0 to 23
       const newHour = (post.scheduledHour + delta + 24) % 24;
+      const postDateTime = new Date(targetDay);
+      postDateTime.setHours(newHour, post.scheduledMinute, 0, 0);
 
-      if (isTodayPost && newHour <= now.getHours() && delta < 0) {
-        toast.warning(`Cannot schedule before current time (${now.getHours()}:00) for today.`);
+      if (postDateTime.getTime() <= now.getTime()) {
+        toast.warning(`Cannot schedule in the past (${format(postDateTime, 'MMM d, HH:mm')}).`);
         return prev;
       }
 
@@ -556,9 +595,11 @@ function ReviewScreen({
     const now = new Date();
     const monday = weekStartDate ? new Date(weekStartDate) : startOfWeek(now, { weekStartsOn: 1 });
     const targetDay = addDays(monday, editedArc.weekPosts[postIdx].day);
+    const postDateTime = new Date(targetDay);
+    postDateTime.setHours(hour, editedArc.weekPosts[postIdx].scheduledMinute, 0, 0);
 
-    if (isToday(targetDay) && hour <= now.getHours()) {
-      toast.warning(`Cannot schedule before current time (${now.getHours()}:00) for today.`);
+    if (postDateTime.getTime() <= now.getTime()) {
+      toast.warning(`Cannot schedule in the past (${format(postDateTime, 'MMM d, HH:mm')}).`);
       return;
     }
 
@@ -650,6 +691,18 @@ function ReviewScreen({
     const now = new Date();
     const monday = weekStartDate ? new Date(weekStartDate) : startOfWeek(now, { weekStartsOn: 1 });
 
+    // Validate that every active post has at least one platform selected
+    for (let i = 0; i < editedArc.weekPosts.length; i++) {
+      const p = editedArc.weekPosts[i];
+      if (p.deleted) continue;
+      const enabledPlatforms = p.platforms.filter(pf => pf.enabled !== false);
+      if (enabledPlatforms.length === 0) {
+        toast.warning(`${p.dayLabel} (${p.arcBeat}) has no platforms selected. Enable at least one platform or remove the day.`);
+        setExpandedPost(i);
+        return;
+      }
+    }
+
     let hasPastPost = false;
     const validatedPosts = editedArc.weekPosts.map(p => {
       if (p.deleted) return p;
@@ -657,15 +710,25 @@ function ReviewScreen({
       const postDateTime = new Date(targetDay);
       postDateTime.setHours(p.scheduledHour, p.scheduledMinute, 0, 0);
 
-      if (isToday(targetDay) && postDateTime.getTime() <= now.getTime()) {
+      if (postDateTime.getTime() <= now.getTime()) {
         hasPastPost = true;
-        return { ...p, scheduledHour: Math.min(23, now.getHours() + 1) };
+        if (targetDay.getTime() < startOfDay(now).getTime()) {
+          const todayDay = (now.getDay() + 6) % 7;
+          return {
+            ...p,
+            day: todayDay,
+            dayLabel: format(now, 'EEEE'),
+            scheduledHour: Math.min(23, now.getHours() + 1),
+          };
+        } else {
+          return { ...p, scheduledHour: Math.min(23, now.getHours() + 1) };
+        }
       }
       return p;
     });
 
     if (hasPastPost) {
-      toast.info("Adjusted scheduled times for today forward to upcoming future hours.");
+      toast.info("Adjusted scheduled times forward to upcoming future hours.");
       const updatedArc = { ...editedArc, weekPosts: validatedPosts };
       setEditedArc(updatedArc);
       onApprove(updatedArc);
@@ -676,7 +739,10 @@ function ReviewScreen({
   };
 
   const activePosts = editedArc.weekPosts.filter(p => !p.deleted);
-  const totalVariants = activePosts.reduce((sum, p) => sum + p.platforms.length, 0);
+  const totalVariants = activePosts.reduce(
+    (sum, p) => sum + p.platforms.filter(pf => pf.enabled !== false).length,
+    0
+  );
 
   return (
     <motion.div
@@ -784,7 +850,7 @@ function ReviewScreen({
             const isTodayPost = isToday(targetDay);
             const postDateTime = new Date(targetDay);
             postDateTime.setHours(post.scheduledHour, post.scheduledMinute, 0, 0);
-            const isPastTime = isTodayPost && postDateTime.getTime() <= now.getTime();
+            const isPastTime = postDateTime.getTime() <= now.getTime();
 
             const isExpanded = expandedPost === postIdx;
             const currentPlatformIdx = activePlatformTab[postIdx] ?? 0;
@@ -831,15 +897,56 @@ function ReviewScreen({
                       {isPastTime && (
                         <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">
                           <AlertCircle className="w-3 h-3" />
-                          Time passed
+                          {targetDay.getTime() < startOfDay(now).getTime() ? 'Past day' : 'Time passed'}
                         </span>
                       )}
                     </div>
                     <div className="text-xs mt-0.5 truncate" style={{ color: B.textMuted }}>{post.arcBeatReason}</div>
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                      {post.platforms.map(p => (
-                        <PlatformBadge key={p.platform} platform={p.platform} />
-                      ))}
+                    <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                      {post.platforms.map((p, pIdx) => {
+                        const meta = PLATFORM_META[p.platform];
+                        if (!meta) return null;
+                        const isEnabled = p.enabled !== false;
+                        return (
+                          <button
+                            key={p.platform}
+                            type="button"
+                            onClick={e => {
+                              e.stopPropagation();
+                              togglePlatformEnabled(postIdx, pIdx);
+                              toast.info(
+                                isEnabled
+                                  ? `Excluded ${meta.name} for ${post.dayLabel}`
+                                  : `Included ${meta.name} for ${post.dayLabel}`
+                              );
+                            }}
+                            title={isEnabled ? `Click to exclude ${meta.name}` : `Click to include ${meta.name}`}
+                            className={cn(
+                              "inline-flex items-center gap-1 rounded-full text-xs font-medium transition-all cursor-pointer border px-2 py-0.5",
+                              isEnabled
+                                ? "hover:scale-105 shadow-xs"
+                                : "opacity-40 hover:opacity-75 border-dashed line-through"
+                            )}
+                            style={{
+                              backgroundColor: isEnabled ? meta.bg : B.bg,
+                              color: isEnabled ? meta.color : B.textMuted,
+                              borderColor: isEnabled ? `${meta.color}33` : B.border,
+                            }}
+                          >
+                            <span style={{ fontSize: 11 }}>{meta.icon}</span>
+                            <span>{meta.name}</span>
+                            <span
+                              className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] font-bold ml-0.5"
+                              style={{
+                                backgroundColor: isEnabled ? `${meta.color}22` : B.border,
+                                color: isEnabled ? meta.color : B.textMuted,
+                              }}
+                            >
+                              {isEnabled ? '✓' : '+'}
+                            </span>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -1006,29 +1113,76 @@ function ReviewScreen({
                             if (!pcfg) return null;
                             const Icn = pcfg.icon;
                             const isActive = currentPlatformIdx === pIdx;
+                            const isPlatformEnabled = p.enabled !== false;
                             return (
                               <button
                                 key={p.platform}
                                 onClick={() => setActivePlatformTab(prev => ({ ...prev, [postIdx]: pIdx }))}
                                 className={cn(
                                   'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
-                                  isActive ? 'shadow-sm' : ''
+                                  isActive ? 'shadow-sm' : '',
+                                  !isPlatformEnabled ? 'opacity-50' : ''
                                 )}
                                 style={isActive
-                                  ? { background: B.card, color: B.text }
+                                  ? { background: B.card, color: isPlatformEnabled ? B.text : B.textMuted }
                                   : { color: B.textMuted }
                                 }
                               >
                                 <Icn className="w-3.5 h-3.5" />
-                                <span className="hidden sm:inline">{pcfg.name}</span>
+                                <span className={cn('hidden sm:inline', !isPlatformEnabled && 'line-through')}>{pcfg.name}</span>
+                                <span className={cn('text-[10px] ml-0.5 font-bold', isPlatformEnabled ? 'text-emerald-600' : 'text-gray-400')}>
+                                  {isPlatformEnabled ? '✓' : '✕'}
+                                </span>
                               </button>
                             );
                           })}
                         </div>
 
+                        {/* Upload toggle bar for currently selected platform */}
+                        {currentPlatformDraft && (
+                          <div
+                            className="flex items-center justify-between p-2.5 rounded-xl border transition-colors text-xs"
+                            style={{
+                              backgroundColor: currentPlatformDraft.enabled !== false ? B.card : B.bg,
+                              borderColor: B.border,
+                            }}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold" style={{ color: B.text }}>
+                                Upload to {PLATFORM_CONFIG[currentPlatformDraft.platform as PlatformType]?.name || currentPlatformDraft.platform}:
+                              </span>
+                              <span style={{ color: currentPlatformDraft.enabled !== false ? B.success : B.textMuted }}>
+                                {currentPlatformDraft.enabled !== false ? '• Included in Flight Plan' : '• Excluded / skipped for this day'}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => togglePlatformEnabled(postIdx, currentPlatformIdx)}
+                              className={cn(
+                                "px-3 py-1 rounded-lg font-semibold transition-all border text-xs flex items-center gap-1.5 cursor-pointer",
+                                currentPlatformDraft.enabled !== false
+                                  ? "bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100"
+                                  : "bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200"
+                              )}
+                            >
+                              {currentPlatformDraft.enabled !== false ? (
+                                <>
+                                  <Check className="w-3.5 h-3.5 text-emerald-700" />
+                                  <span>Enabled</span>
+                                </>
+                              ) : (
+                                <>
+                                  <X className="w-3.5 h-3.5 text-gray-500" />
+                                  <span>Disabled (Skipped)</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        )}
+
                         {/* Content Editor for active platform */}
                         {currentPlatformDraft && (
-                          <div className="space-y-3">
+                          <div className={cn("space-y-3", currentPlatformDraft.enabled === false && "opacity-60")}>
                             <Textarea
                               value={currentPlatformDraft.content}
                               onChange={e => updateContent(postIdx, currentPlatformIdx, e.target.value)}
@@ -2101,6 +2255,7 @@ function FlightPlanInner({ userId, workspaceId }: { userId: string; workspaceId:
           oneRealNumber: data.oneRealNumber,
           weekStartDate: data.weekStartDate,
           audienceTimezone: tz,
+          selectedPlatforms: data.selectedPlatforms,
         }),
       });
 
@@ -2133,7 +2288,14 @@ function FlightPlanInner({ userId, workspaceId }: { userId: string; workspaceId:
     setIsScheduling(true);
     try {
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      const activePosts = approvedArc.weekPosts.filter(p => !p.deleted);
+      const activePosts = approvedArc.weekPosts
+        .filter(p => !p.deleted)
+        .filter(p => p.platforms.some(pf => pf.enabled !== false));
+
+      if (activePosts.length === 0) {
+        toast.warning('No posts or platforms selected to schedule.');
+        return;
+      }
 
       const res = await fetch('/api/composer/schedule', {
         method: 'POST',
@@ -2148,6 +2310,7 @@ function FlightPlanInner({ userId, workspaceId }: { userId: string; workspaceId:
           posts: activePosts.map(p => {
             const allImages = p.imageUrls || (p.imageUrl ? [p.imageUrl] : []);
             const mediaObjects = allImages.map(u => ({ url: u, type: 'image' }));
+            const enabledPlatforms = p.platforms.filter(pf => pf.enabled !== false);
             return {
               day: p.day,
               scheduledHour: p.scheduledHour,
@@ -2156,7 +2319,7 @@ function FlightPlanInner({ userId, workspaceId }: { userId: string; workspaceId:
               arcBeat: p.arcBeat,
               imageUrl: allImages[0] || null,
               imageUrls: allImages,
-              platforms: p.platforms.map(pf => ({
+              platforms: enabledPlatforms.map(pf => ({
                 platform: pf.platform,
                 content: pf.content,
                 hashtags: pf.hashtags,

@@ -11,7 +11,7 @@ export const ArcPostDraftSchema = z.object({
   dayLabel: z.string(),                         // e.g. "Monday", "Tuesday"
   arcBeat: z.string(),                          // e.g. "The Contrarian Hook"
   arcBeatReason: z.string(),                    // Why this beat works here
-  scheduledHour: z.number().min(7).max(20),     // Local hour (24h format)
+  scheduledHour: z.number().min(0).max(23),     // Local hour (24h format)
   scheduledMinute: z.number().default(0),
   platforms: z.array(z.object({
     platform: z.string(),
@@ -21,7 +21,11 @@ export const ArcPostDraftSchema = z.object({
     firstCommentHint: z.string().nullable().optional(),
     autoFirstComment: z.string().nullable().optional(), // Link to move to first comment
     schedulingOffsetMinutes: z.number().default(0),     // For cascading: offset from base time
+    enabled: z.boolean().default(true).optional(),       // Whether the user allows uploading to this platform
   })),
+  imageUrl: z.string().nullable().optional(),
+  imageUrls: z.array(z.string()).optional(),
+  deleted: z.boolean().optional(),
 });
 
 export type ArcPostDraft = z.infer<typeof ArcPostDraftSchema>;
@@ -96,6 +100,58 @@ const PLATFORM_NOTES: Record<string, string> = {
   instagram: 'Caption max 2200 chars. Visual-first framing. Move outbound links to bio or first comment.',
 };
 
+// ─── Upcoming Days Calculator (Prevents scheduling on past days) ───────────
+
+export const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+export function getUpcomingDaysForArc(weekStartDate?: string): Array<{ day: number; dayLabel: string; isToday: boolean }> {
+  const now = new Date();
+  const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  let startMonday: Date;
+  if (weekStartDate) {
+    const parts = weekStartDate.split('-');
+    if (parts.length === 3) {
+      startMonday = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    } else {
+      startMonday = new Date(weekStartDate);
+    }
+    if (isNaN(startMonday.getTime())) {
+      startMonday = new Date(todayMidnight);
+    }
+  } else {
+    startMonday = new Date(todayMidnight);
+    const dayOfWeek = (startMonday.getDay() + 6) % 7; // Monday = 0
+    startMonday.setDate(startMonday.getDate() - dayOfWeek);
+  }
+
+  // Filter only days that are today or in the future
+  const upcoming: Array<{ day: number; dayLabel: string; isToday: boolean }> = [];
+  for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+    const d = new Date(startMonday.getFullYear(), startMonday.getMonth(), startMonday.getDate() + dayOffset);
+    if (d.getTime() >= todayMidnight.getTime()) {
+      upcoming.push({
+        day: dayOffset,
+        dayLabel: DAY_NAMES[dayOffset] || 'Day',
+        isToday: d.getTime() === todayMidnight.getTime(),
+      });
+    }
+  }
+
+  // Fallback: If all days in weekStartDate have already passed, advance to next upcoming week
+  if (upcoming.length === 0) {
+    for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+      upcoming.push({
+        day: dayOffset,
+        dayLabel: DAY_NAMES[dayOffset] || 'Day',
+        isToday: false,
+      });
+    }
+  }
+
+  return upcoming;
+}
+
 // ─── Fact-Grounded Algorithmic Synthesizer (Fallback when AI Provider is offline) ─────
 
 function synthesizeFactGroundedArc(params: {
@@ -104,22 +160,31 @@ function synthesizeFactGroundedArc(params: {
   connectedPlatforms: PlatformType[];
   audienceTimezone: string;
   userFirstName: string;
+  weekStartDate?: string;
 }): WeekArc {
-  const { coreStory, followUps, connectedPlatforms } = params;
+  const { coreStory, followUps, connectedPlatforms, weekStartDate } = params;
   const detectedType = detectStoryType(coreStory);
   const arcBeats = ARC_BEATS[detectedType];
+  const upcomingDays = getUpcomingDaysForArc(weekStartDate);
+  const now = new Date();
 
   const storyClean = coreStory.trim();
   const num = followUps.oneRealNumber.trim();
   const changed = followUps.whatChanged.trim();
   const mistake = followUps.whatWentWrong.trim();
 
-  const weekPosts = arcBeats.map((b) => {
-    // Pick active platforms for this beat matching connected platforms
-    const candidatePlatforms = b.platforms.filter((p) => connectedPlatforms.includes(p as PlatformType));
-    const active = candidatePlatforms.length > 0 ? candidatePlatforms : connectedPlatforms.slice(0, 2);
+  // Generate for ALL connected platforms (fallback to defaults if none)
+  const activePlatforms = connectedPlatforms.length > 0 ? connectedPlatforms : (['linkedin', 'threads', 'x'] as PlatformType[]);
 
-    const platforms = active.map((platform) => {
+  const weekPosts = arcBeats.map((b, i) => {
+    // Map beat to a future/today slot, never a past day
+    const daySlot = upcomingDays[i] || upcomingDays[upcomingDays.length - 1];
+    let scheduledHour = b.scheduledHour;
+    if (daySlot.isToday && now.getHours() >= scheduledHour) {
+      scheduledHour = Math.min(23, now.getHours() + 1);
+    }
+
+    const platforms = activePlatforms.map((platform) => {
       let content = '';
       let hashtags: string[] = ['#BuildInPublic', '#Tech'];
       let autoFirstComment: string | null = null;
@@ -139,7 +204,6 @@ function synthesizeFactGroundedArc(params: {
           content = `Reflecting on the week after ${storyClean.slice(0, 100)}...\n\nQuestion for fellow builders and founders:\nWhen shipping fast, how do you balance edge-case reliability vs speed?\n\nCurious to hear your perspective below 👇`;
         }
 
-        // Keep links out of body for LinkedIn reach
         if (content.includes('http://') || content.includes('https://')) {
           autoFirstComment = 'Links and additional references in the comments below.';
         }
@@ -174,15 +238,16 @@ function synthesizeFactGroundedArc(params: {
         firstCommentHint: null,
         autoFirstComment,
         schedulingOffsetMinutes,
+        enabled: true,
       };
     });
 
     return {
-      day: b.day,
-      dayLabel: b.dayLabel,
+      day: daySlot.day,
+      dayLabel: daySlot.dayLabel,
       arcBeat: b.beat,
       arcBeatReason: `Strategic narrative step: establishes authority and keeps engagement high across connected networks.`,
-      scheduledHour: b.scheduledHour,
+      scheduledHour,
       scheduledMinute: 0,
       platforms,
     };
@@ -206,13 +271,18 @@ export async function generateWeekArc(params: {
   connectedPlatforms: PlatformType[];
   audienceTimezone: string;      // e.g. "Asia/Kolkata"
   userFirstName: string;
+  weekStartDate?: string;
 }): Promise<WeekArc | null> {
-  const { coreStory, followUps, connectedPlatforms, audienceTimezone, userFirstName } = params;
+  const { coreStory, followUps, connectedPlatforms, audienceTimezone, userFirstName, weekStartDate } = params;
   const detectedType = detectStoryType(coreStory);
   const arcBeats = ARC_BEATS[detectedType];
+  const upcomingDays = getUpcomingDaysForArc(weekStartDate);
+  const now = new Date();
 
-  // Filter platforms to only those the user has connected
-  const activePlatformNotes = connectedPlatforms
+  // Generate for ALL connected platforms (fallback to default 3)
+  const activePlatforms = connectedPlatforms.length > 0 ? connectedPlatforms : (['linkedin', 'threads', 'x'] as PlatformType[]);
+
+  const activePlatformNotes = activePlatforms
     .filter(p => PLATFORM_NOTES[p])
     .map(p => `- ${p}: ${PLATFORM_NOTES[p]}`)
     .join('\n');
@@ -224,9 +294,14 @@ export async function generateWeekArc(params: {
     followUps.oneRealNumber ? `Real number: ${followUps.oneRealNumber}` : '',
   ].filter(Boolean).join('\n');
 
-  const beatsDescription = arcBeats.map((b, i) =>
-    `Post ${i + 1}: "${b.beat}" — ${b.dayLabel} at ~${b.scheduledHour}:00, on platforms: ${b.platforms.filter(p => connectedPlatforms.includes(p as PlatformType)).join(', ') || b.platforms.join(', ')}`
-  ).join('\n');
+  const beatsDescription = arcBeats.map((b, i) => {
+    const daySlot = upcomingDays[i] || upcomingDays[upcomingDays.length - 1];
+    let hour = b.scheduledHour;
+    if (daySlot.isToday && now.getHours() >= hour) {
+      hour = Math.min(23, now.getHours() + 1);
+    }
+    return `Post ${i + 1}: "${b.beat}" — ${daySlot.dayLabel} (day: ${daySlot.day}) at ~${hour}:00, generate variants for ALL connected platforms: ${activePlatforms.join(', ')}`;
+  }).join('\n');
 
   const prompt = `You are a world-class content strategist for creators and founders. Your job is to transform ONE real story into a week of native platform content.
 
@@ -251,6 +326,8 @@ RULES (critical):
 5. The opening line of every draft must create immediate curiosity or value. No generic openers.
 6. arcBeatReason must explain in ONE clear sentence why this beat works on this day for this story type.
 7. scheduledHour values are in ${audienceTimezone} local time (24h).
+8. CRITICAL: Every post MUST generate native content for EVERY connected platform: ${activePlatforms.join(', ')}.
+9. CRITICAL: Do NOT schedule any post on a past day. Strictly use the day indices and labels provided in the structure above.
 
 Return a JSON object matching this exact structure:
 {
@@ -273,7 +350,8 @@ Return a JSON object matching this exact structure:
           "hashtags": ["#BuildInPublic"],
           "firstCommentHint": null,
           "autoFirstComment": null,
-          "schedulingOffsetMinutes": 45
+          "schedulingOffsetMinutes": 45,
+          "enabled": true
         }
       ]
     }
@@ -286,7 +364,49 @@ Write ONLY the JSON. No markdown code blocks. No explanation.`;
     const result = await generateWithFallback(prompt, { maxTokens: 6000 }, WeekArcSchema);
 
     if (result.ok && result.value) {
-      return result.value;
+      // Validate that posts are assigned to valid upcoming days and have all active platforms
+      const validUpcomingDayNumbers = new Set(upcomingDays.map(d => d.day));
+      const processedPosts = result.value.weekPosts.map((post, idx) => {
+        const slot = upcomingDays[idx] || upcomingDays[upcomingDays.length - 1];
+        const day = validUpcomingDayNumbers.has(post.day) ? post.day : slot.day;
+        const dayLabel = DAY_NAMES[day] || slot.dayLabel;
+        let scheduledHour = post.scheduledHour;
+        if (slot.isToday && now.getHours() >= scheduledHour) {
+          scheduledHour = Math.min(23, now.getHours() + 1);
+        }
+
+        // Ensure all active platforms are present and enabled
+        const existingPlatforms = new Map(post.platforms.map(p => [p.platform, p]));
+        const mergedPlatforms = activePlatforms.map(platform => {
+          const existing = existingPlatforms.get(platform);
+          if (existing) {
+            return { ...existing, enabled: existing.enabled !== false };
+          }
+          return {
+            platform,
+            content: post.platforms[0]?.content || coreStory.slice(0, 280),
+            characterCount: (post.platforms[0]?.content || coreStory).length,
+            hashtags: ['#BuildInPublic'],
+            firstCommentHint: null,
+            autoFirstComment: null,
+            schedulingOffsetMinutes: platform === 'linkedin' ? 45 : platform === 'threads' || platform === 'instagram' ? 120 : 0,
+            enabled: true,
+          };
+        });
+
+        return {
+          ...post,
+          day,
+          dayLabel,
+          scheduledHour,
+          platforms: mergedPlatforms,
+        };
+      });
+
+      return {
+        ...result.value,
+        weekPosts: processedPosts,
+      };
     }
 
     logger.warn('AI provider generation was not successful — using fact-grounded synthesis fallback', {

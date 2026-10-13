@@ -196,6 +196,7 @@ export async function getUsageSnapshot(workspaceId: string): Promise<UsageSnapsh
       .from('posts')
       .select('id', { count: 'exact', head: true })
       .eq('workspace_id', workspaceId)
+      .eq('status', 'published')
       .gte('created_at', monthStart.toISOString()),
 
     adminClient

@@ -139,6 +139,7 @@ export async function getCurrentUsage(
       .from('posts')
       .select('id', { count: 'exact', head: true })
       .eq('workspace_id', workspaceId)
+      .eq('status', 'published')
       .gte('created_at', monthStart.toISOString()),
 
     supabase

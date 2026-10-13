@@ -947,6 +947,7 @@ function generateHeatmapData(posts: Post[]): number[][] {
   // Count posts per day-of-month
   const postsByDay: Record<number, number> = {};
   for (const post of posts) {
+    if (post.status !== 'published') continue;
     const d = new Date(post.createdAt);
     if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) {
       const day = d.getDate();

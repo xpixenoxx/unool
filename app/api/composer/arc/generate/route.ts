@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
       oneRealNumber = '',
       audienceTimezone = 'UTC',
       weekStartDate,        // ISO date string e.g. "2026-10-12"
+      selectedPlatforms,
     } = body;
 
     if (!coreStory || typeof coreStory !== 'string' || coreStory.trim().length < 20) {
@@ -61,6 +62,15 @@ export async function POST(request: NextRequest) {
       connectedPlatforms = ['linkedin', 'threads', 'x'];
     }
 
+    if (selectedPlatforms && Array.isArray(selectedPlatforms) && selectedPlatforms.length > 0) {
+      const validSelected = (selectedPlatforms as PlatformType[]).filter(p =>
+        isPreviewOnly || connectedPlatforms.includes(p)
+      );
+      if (validSelected.length > 0) {
+        connectedPlatforms = validSelected;
+      }
+    }
+
     logger.info('Generating week arc', {
       workspaceId,
       storyLength: coreStory.length,
@@ -81,6 +91,7 @@ export async function POST(request: NextRequest) {
       connectedPlatforms,
       audienceTimezone,
       userFirstName,
+      weekStartDate,
     });
 
     if (!arc) {
