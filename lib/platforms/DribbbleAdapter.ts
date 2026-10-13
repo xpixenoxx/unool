@@ -8,6 +8,7 @@ import {
   PublishResult,
 } from './adapter';
 import { logger } from '@/lib/logger';
+import sharp from 'sharp';
 
 export class DribbbleAdapter implements PlatformAdapter {
   readonly platform = 'dribbble' as const;
@@ -94,15 +95,58 @@ export class DribbbleAdapter implements PlatformAdapter {
     }
 
     const imageUrl = input.mediaUrls[0];
-    
-    // First, fetch the image to upload
-    const imageRes = await fetch(imageUrl);
-    if (!imageRes.ok) {
-      throw new Error('Failed to download image for Dribbble publish');
+    let imageBuffer: Buffer;
+    let contentType = 'image/png';
+
+    if (imageUrl.startsWith('data:')) {
+      const match = imageUrl.match(/^data:([^;]+);base64,(.+)$/);
+      if (match) {
+        contentType = match[1];
+        imageBuffer = Buffer.from(match[2], 'base64');
+      } else {
+        const base64Data = imageUrl.split(',')[1] || '';
+        imageBuffer = Buffer.from(base64Data, 'base64');
+      }
+    } else {
+      const imageRes = await fetch(imageUrl);
+      if (!imageRes.ok) {
+        throw new Error('Failed to download image for Dribbble publish');
+      }
+      contentType = imageRes.headers.get('content-type') || 'image/png';
+      imageBuffer = Buffer.from(await imageRes.arrayBuffer());
     }
-    
-    const buffer = await imageRes.arrayBuffer();
-    const blob = new Blob([buffer], { type: imageRes.headers.get('content-type') || 'image/png' });
+
+    // Pre-publish normalization safety net for Dribbble: must be exact 4:3 ratio between 400x300 and 1600x1200
+    try {
+      const meta = await sharp(imageBuffer).metadata();
+      const w = meta.width || 0;
+      const h = meta.height || 0;
+      const isExact43 = w > 0 && h > 0 && (w * 3 === h * 4);
+      const isWithinBounds = w >= 400 && w <= 1600 && h >= 300 && h <= 1200;
+
+      if (!isExact43 || !isWithinBounds) {
+        const targetW = (w <= 800 && h <= 600) ? 800 : 1600;
+        const targetH = Math.round((targetW * 3) / 4);
+        logger.info('DribbbleAdapter: Resizing image to exact Dribbble 4:3 shot dimensions', {
+          originalDimensions: `${w}x${h}`,
+          targetDimensions: `${targetW}x${targetH}`,
+        });
+        imageBuffer = await sharp(imageBuffer)
+          .resize({
+            width: targetW,
+            height: targetH,
+            fit: 'contain',
+            background: { r: 255, g: 255, b: 255, alpha: 1 },
+          })
+          .png({ compressionLevel: 9 })
+          .toBuffer();
+        contentType = 'image/png';
+      }
+    } catch (normErr) {
+      logger.warn('DribbbleAdapter: Image normalization check warning', { error: normErr });
+    }
+
+    const blob = new Blob([imageBuffer], { type: contentType });
     
     const formData = new FormData();
     formData.append('image', blob, 'shot.png');

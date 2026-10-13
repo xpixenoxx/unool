@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect, useCallback, Suspense, useMemo } from 'react';
 import Link from 'next/link';
@@ -879,6 +879,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         body: JSON.stringify({
           postId,
           workspaceId,
+          mediaItems: media,
           drafts: readyDrafts.map(d => ({
             platform: d.platform,
             content: d.content,

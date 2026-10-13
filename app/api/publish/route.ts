@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
   return planEnforcement.createPost(request, async (request) => {
     try {
       const body = await request.json();
-      const { postId, workspaceId, drafts } = body;
+      const { postId, workspaceId, drafts, mediaItems } = body;
 
       if (!postId) {
         return NextResponse.json(
@@ -40,9 +40,32 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      const existingVariants = await postRepository.findVariantsByPostId(postId);
+
+      // If media items are provided and variants have missing or outdated media, optimize and associate
+      if (Array.isArray(mediaItems) && mediaItems.length > 0) {
+        const { optimizeMediaForPlatform } = await import('@/lib/media/ImageOptimizer');
+        const normalizedMedia = mediaItems.map((m: any) => {
+          if (typeof m === 'string') return { url: m, type: 'image' as const };
+          return { url: m.url as string, type: (m.type || 'image') as 'image' | 'video' };
+        }).filter((m: any) => Boolean(m.url));
+
+        for (const variant of existingVariants) {
+          if (!variant.mediaUrls || variant.mediaUrls.length === 0) {
+            try {
+              const optimized = await optimizeMediaForPlatform(normalizedMedia, variant.platform);
+              await postRepository.updateVariant(variant.id, {
+                mediaUrls: optimized,
+              });
+            } catch (optErr) {
+              logger.warn('Failed to optimize media for variant in publish route', { variantId: variant.id, platform: variant.platform, error: optErr });
+            }
+          }
+        }
+      }
+
       // If edited drafts were provided from the composer, save updates before publishing
       if (Array.isArray(drafts) && drafts.length > 0) {
-        const existingVariants = await postRepository.findVariantsByPostId(postId);
         for (const d of drafts) {
           if (d.platform && d.content) {
             const targetVariant = existingVariants.find(v => v.platform === d.platform);

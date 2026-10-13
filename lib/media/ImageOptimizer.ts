@@ -14,10 +14,16 @@ import { uploadToR2 } from '@/lib/storage/r2';
 export interface PlatformImageSpec {
   /** Ideal width / height ratio (e.g. 4/5 = 0.8). `null` = no constraint. */
   targetRatio: number | null;
+  /** Minimum width in pixels the platform accepts. */
+  minWidth?: number;
+  /** Minimum height in pixels the platform accepts. */
+  minHeight?: number;
   /** Maximum width in pixels the platform accepts. */
   maxWidth: number;
   /** Maximum height in pixels the platform accepts. */
   maxHeight: number;
+  /** Enforce mathematically exact integer ratio (e.g. 4:3 where width * 3 === height * 4). */
+  exactRatio?: { wRatio: number; hRatio: number };
   /** Maximum file size in bytes after encoding. */
   maxFileSizeBytes: number;
   /** Preferred output format. */
@@ -123,9 +129,12 @@ const PLATFORM_IMAGE_SPECS: Partial<Record<Platform, PlatformImageSpec>> = {
     background: { r: 255, g: 255, b: 255, alpha: 1 },
   },
   dribbble: {
-    targetRatio: 4 / 3,         // 800×600 "shot" standard (4:3)
+    targetRatio: 4 / 3,         // 800×600 or 1600×1200 "shot" standard (4:3)
+    minWidth: 400,
+    minHeight: 300,
     maxWidth: 1600,
     maxHeight: 1200,
+    exactRatio: { wRatio: 4, hRatio: 3 },
     maxFileSizeBytes: 10 * 1024 * 1024,
     format: 'png',              // designers prefer lossless on Dribbble
     quality: 95,
@@ -242,11 +251,17 @@ export async function optimizeMediaForPlatform(
 
     try {
       // 1. Fetch original image ------------------------------------------------
-      const response = await fetch(media.url);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch image: ${response.statusText}`);
+      let buffer: Buffer;
+      if (media.url.startsWith('data:')) {
+        const base64Data = media.url.split(',')[1];
+        buffer = Buffer.from(base64Data, 'base64');
+      } else {
+        const response = await fetch(media.url);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch image: ${response.statusText}`);
+        }
+        buffer = Buffer.from(await response.arrayBuffer());
       }
-      const buffer = Buffer.from(await response.arrayBuffer());
 
       // 2. Read metadata -------------------------------------------------------
       const image = sharp(buffer);
@@ -261,11 +276,20 @@ export async function optimizeMediaForPlatform(
       let targetHeight = metadata.height;
 
       // 3. Aspect-ratio adjustment (letter-box / pillar-box) -------------------
-      if (spec.targetRatio !== null) {
+      if (spec.exactRatio) {
+        // Platform requires mathematically exact integer ratio (e.g. Dribbble 4:3)
+        // Standard Dribbble resolutions: 1600x1200 (Retina) or 800x600 (Standard)
+        const origW = metadata.width;
+        const origH = metadata.height;
+        const targetW = (origW <= 800 && origH <= 600) ? 800 : 1600;
+        const targetH = Math.round((targetW * spec.exactRatio.hRatio) / spec.exactRatio.wRatio);
+        targetWidth = targetW;
+        targetHeight = targetH;
+      } else if (spec.targetRatio !== null) {
         const currentRatio = targetWidth / targetHeight;
 
-        // Skip if already close enough (± 5 %)
-        if (Math.abs(currentRatio - spec.targetRatio) >= 0.05) {
+        // Pad to target ratio if difference exceeds 0.5%
+        if (Math.abs(currentRatio - spec.targetRatio) >= 0.005) {
           if (currentRatio > spec.targetRatio) {
             // Wider than target → pad height
             targetHeight = Math.round(targetWidth / spec.targetRatio);
@@ -283,7 +307,7 @@ export async function optimizeMediaForPlatform(
         }
       }
 
-      // 4. Clamp to maximum dimensions -----------------------------------------
+      // 4. Clamp to maximum & minimum dimensions --------------------------------
       if (targetWidth > spec.maxWidth || targetHeight > spec.maxHeight) {
         const scale = Math.min(
           spec.maxWidth / targetWidth,
@@ -293,14 +317,42 @@ export async function optimizeMediaForPlatform(
         targetHeight = Math.round(targetHeight * scale);
       }
 
-      // Skip processing if nothing meaningful changed
-      const dimensionsUnchanged =
-        targetWidth === metadata.width && targetHeight === metadata.height;
-      const ratioUnchanged =
-        spec.targetRatio === null ||
-        Math.abs(metadata.width / metadata.height - spec.targetRatio) < 0.05;
+      if (spec.minWidth && targetWidth < spec.minWidth) {
+        const scale = spec.minWidth / targetWidth;
+        targetWidth = spec.minWidth;
+        targetHeight = Math.round(targetHeight * scale);
+      }
+      if (spec.minHeight && targetHeight < spec.minHeight) {
+        const scale = spec.minHeight / targetHeight;
+        targetHeight = spec.minHeight;
+        targetWidth = Math.round(targetWidth * scale);
+      }
 
-      if (dimensionsUnchanged && ratioUnchanged) {
+      // If exact integer ratio is required, ensure width * hRatio === height * wRatio exactly
+      if (spec.exactRatio) {
+        const { wRatio, hRatio } = spec.exactRatio;
+        targetWidth = Math.round(targetWidth / wRatio) * wRatio;
+        targetHeight = Math.round((targetWidth / wRatio) * hRatio);
+        if (spec.maxWidth && targetWidth > spec.maxWidth) {
+          targetWidth = spec.maxWidth;
+          targetHeight = Math.round((targetWidth / wRatio) * hRatio);
+        }
+        if (spec.minWidth && targetWidth < spec.minWidth) {
+          targetWidth = spec.minWidth;
+          targetHeight = Math.round((targetWidth / wRatio) * hRatio);
+        }
+      }
+
+      // Skip processing only if dimensions, format, and ratio are already 100% compliant
+      const exactRatioMatches = !spec.exactRatio || (metadata.width * spec.exactRatio.hRatio === metadata.height * spec.exactRatio.wRatio);
+      const boundsMatch = (!spec.minWidth || metadata.width >= spec.minWidth) &&
+                          (!spec.minHeight || metadata.height >= spec.minHeight) &&
+                          (!spec.maxWidth || metadata.width <= spec.maxWidth) &&
+                          (!spec.maxHeight || metadata.height <= spec.maxHeight);
+      const dimensionsUnchanged = targetWidth === metadata.width && targetHeight === metadata.height;
+      const ratioUnchanged = spec.targetRatio === null || (exactRatioMatches && boundsMatch);
+
+      if (dimensionsUnchanged && ratioUnchanged && metadata.format === spec.format) {
         optimizedMedia.push(media);
         continue;
       }
@@ -355,7 +407,7 @@ export async function optimizeMediaForPlatform(
         outputBuffer = await encode(quality);
       }
 
-      // 7. Upload to R2 --------------------------------------------------------
+      // 7. Upload to R2 / Supabase Storage with Data URI fallback ---------------
       const mimeType =
         spec.format === 'png'
           ? 'image/png'
@@ -365,12 +417,43 @@ export async function optimizeMediaForPlatform(
       const ext = spec.format === 'jpeg' ? 'jpg' : spec.format;
 
       const key = `optimized/${platform}_${crypto.randomUUID()}.${ext}`;
-      const { url: publicUrl } = await uploadToR2({
-        bucket: 'post-media',
-        key,
-        body: outputBuffer,
-        contentType: mimeType,
-      });
+      let publicUrl = '';
+
+      try {
+        const { uploadToR2 } = await import('@/lib/storage/r2');
+        const res = await uploadToR2({
+          bucket: 'post-media',
+          key,
+          body: outputBuffer,
+          contentType: mimeType,
+        });
+        publicUrl = res.url;
+      } catch (r2Err) {
+        logger.warn('ImageOptimizer: R2 upload failed, attempting Supabase fallback', { error: r2Err });
+        try {
+          const { createClient } = await import('@supabase/supabase-js');
+          const { config } = await import('@/lib/config/schema');
+          if (config.SUPABASE_URL && config.SUPABASE_SERVICE_ROLE_KEY && !config.SUPABASE_URL.includes('your-project')) {
+            const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+            const { error: supaErr } = await supabase.storage.from('post-media').upload(key, outputBuffer, {
+              contentType: mimeType,
+              upsert: true,
+            });
+            if (!supaErr) {
+              const { data: pubData } = supabase.storage.from('post-media').getPublicUrl(key);
+              publicUrl = pubData.publicUrl;
+            }
+          }
+        } catch (supaErr) {
+          logger.warn('ImageOptimizer: Supabase fallback upload failed', { error: supaErr });
+        }
+
+        // If remote storage is unconfigured or failed, use self-contained Data URI
+        // Node.js fetch() natively supports data: URIs, preserving the optimized image buffer
+        if (!publicUrl) {
+          publicUrl = `data:${mimeType};base64,${outputBuffer.toString('base64')}`;
+        }
+      }
 
       optimizedMedia.push({ ...media, url: publicUrl });
     } catch (error) {

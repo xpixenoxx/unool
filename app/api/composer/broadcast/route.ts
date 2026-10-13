@@ -108,6 +108,9 @@ export async function POST(request: NextRequest) {
         } else if (platform === 'pinterest' && !hasImage) {
           status = 'failed';
           errorObj = { code: 'MEDIA_REQUIRED', message: 'Pinterest requires at least one image to create a Pin.' };
+        } else if (platform === 'dribbble' && !hasImage) {
+          status = 'failed';
+          errorObj = { code: 'MEDIA_REQUIRED', message: 'Dribbble requires an image to publish a Shot.' };
         }
         // You can add more platform media validations here as needed.
         
