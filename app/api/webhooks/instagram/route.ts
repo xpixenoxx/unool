@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing signature' }, { status: 401 });
     }
 
-    const secret = config.META_WEBHOOK_SECRET;
+    const secret = config.INSTAGRAM_WEBHOOK_SECRET;
     if (secret) {
       const isValid = await verifyMetaSignature(body, signature, secret);
       if (!isValid) {
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
       }
     } else if (config.NODE_ENV === 'production') {
-      logger.error('Instagram webhook: META_WEBHOOK_SECRET not configured in production');
+      logger.error('Instagram webhook: INSTAGRAM_WEBHOOK_SECRET not configured in production');
       return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
     }
 
