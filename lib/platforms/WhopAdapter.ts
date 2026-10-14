@@ -20,7 +20,7 @@ export class WhopAdapter implements PlatformAdapter {
     clientId: config.WHOP_CLIENT_ID || '',
     clientSecret: config.WHOP_CLIENT_SECRET || '',
     redirectUri: config.WHOP_REDIRECT_URI || `${config.NEXT_PUBLIC_APP_URL}/api/auth/platform/callback`,
-    scopes: ['read_user'],
+    scopes: ['openid', 'profile', 'email'],
   };
 
   getAuthUrl(state: string): string {
