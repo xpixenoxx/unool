@@ -81,6 +81,7 @@ import {
   Share2,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { studioToast } from '@/components/dashboard/StudioToast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -508,7 +509,7 @@ function IPhonePreview({
                     ? 'scale-105'
                     : 'opacity-70 hover:opacity-100 hover:scale-100'
                 )}
-                title={pCfg?.name || p}
+                title={isError ? `${pCfg?.name || p}: Adaptation unavailable (review Terms of Service)` : pCfg?.name || p}
               >
                 {/* Squircle App Icon */}
                 <div
@@ -789,6 +790,8 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   });
   const [scheduleStrategy, setScheduleStrategy] = useState<'cascading' | 'simultaneous'>('cascading');
   const [isSchedulingPost, setIsSchedulingPost] = useState(false);
+  // ── SignalDM automation badge state ─────────────────────────────────────────
+  const [signalDmEnabled, setSignalDmEnabled] = useState(false);
   // ── Hook Scorer + Humanizer state ───────────────────────────────────────────
   const [hookScore, setHookScore] = useState<{ score: number; grade: string; suggestion: string | null; slopWords: string[] } | null>(null);
   const [humanizingPlatform, setHumanizingPlatform] = useState<PlatformType | null>(null);
@@ -841,13 +844,13 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         updateDraft(platform, data.humanized);
         const platformName = PLATFORM_CONFIG[platform]?.name || platform;
         if (data.changeCount > 0) {
-          toast.success(`De-slopped ${platformName}: Rewritten in human expert voice · Score ${data.panelScore}/100`);
+          studioToast.success(`De-slopped ${platformName}: Rewritten in human expert voice · Score ${data.panelScore}/100`, { platforms: [platform] });
         } else {
-          toast.info(`${platformName} draft is already clean · Score ${data.panelScore}/100`);
+          studioToast.info(`${platformName} draft is already clean · Score ${data.panelScore}/100`, { platforms: [platform] });
         }
       }
     } catch {
-      toast.error('Failed to de-slop draft');
+      studioToast.error('Failed to de-slop draft');
     } finally {
       setHumanizingPlatform(null);
     }
@@ -879,9 +882,11 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           }
         })
       );
-      toast.success(`De-slopped all drafts: Rewritten in human expert voice across ${readyDrafts.length} platforms`);
+      studioToast.success(`De-slopped all drafts: Rewritten in human expert voice across ${readyDrafts.length} platforms`, {
+        platforms: readyDrafts.map(d => d.platform),
+      });
     } catch {
-      toast.error('Failed to de-slop all drafts');
+      studioToast.error('Failed to de-slop all drafts');
     } finally {
       setIsHumanizingAll(false);
     }
@@ -931,25 +936,25 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       const isPdf = file.type === 'application/pdf';
 
       if (!isImage && !isVideo && !isPdf) {
-        toast.error(`${file.name}: Only image, video, and PDF files are supported`);
+        studioToast.error(`${file.name}: Only image, video, and PDF files are supported`);
         continue;
       }
 
       if (isImage) {
         if (currentImages >= 5) {
-          toast.error(`Cannot add ${file.name}: You can only upload up to 5 images`);
+          studioToast.error(`Cannot add ${file.name}: You can only upload up to 5 images`);
           continue;
         }
         currentImages++;
       } else if (isVideo) {
         if (currentVideos >= 1) {
-          toast.error(`Cannot add ${file.name}: You can only upload up to 1 video`);
+          studioToast.error(`Cannot add ${file.name}: You can only upload up to 1 video`);
           continue;
         }
         currentVideos++;
       } else if (isPdf) {
         if (currentPdfs >= 1) {
-          toast.error(`Cannot add ${file.name}: You can only upload up to 1 PDF`);
+          studioToast.error(`Cannot add ${file.name}: You can only upload up to 1 PDF`);
           continue;
         }
         currentPdfs++;
@@ -957,7 +962,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
 
       const sizeLimitMB = isVideo ? 5000 : isPdf ? 50 : 10; // Allow large video uploads generally
       if (file.size > sizeLimitMB * 1024 * 1024) {
-        toast.error(`${file.name}: File must be less than ${sizeLimitMB}MB`);
+        studioToast.error(`${file.name}: File must be less than ${sizeLimitMB}MB`);
         continue;
       }
 
@@ -999,13 +1004,13 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         setMedia(prev => [...prev, ...newMediaItems]);
         if (newMediaItems.length === 1) {
           const type = newMediaItems[0].type;
-          toast.success(`${type === 'document' ? 'PDF document' : type === 'video' ? 'Video' : 'Image'} uploaded successfully`);
+          studioToast.success(`${type === 'document' ? 'PDF document' : type === 'video' ? 'Video' : 'Image'} uploaded successfully`);
         } else {
-          toast.success(`${newMediaItems.length} files uploaded successfully`);
+          studioToast.success(`${newMediaItems.length} files uploaded successfully`);
         }
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Upload failed');
+      studioToast.error(err instanceof Error ? err.message : 'Upload failed');
     } finally {
       setIsUploading(false);
     }
@@ -1069,6 +1074,21 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
     loadConnections();
   }, [loadProfile, loadConnections]);
 
+  // ── Fetch SignalDM automation status (non-blocking, best-effort) ─────────────
+  useEffect(() => {
+    const checkSignalDm = async () => {
+      try {
+        const res = await fetch(`/api/instagram/automation?workspaceId=${workspaceId}`, { credentials: 'include' });
+        if (!res.ok) return;
+        const data = await res.json();
+        setSignalDmEnabled(data?.enabled === true);
+      } catch {
+        // Non-critical — ignore
+      }
+    };
+    checkSignalDm();
+  }, []);
+
   const getValidPlatformsForMedia = (platforms: PlatformType[]) => {
     return platforms.filter(platform => {
       const limit = getPlatformLimit(platform);
@@ -1086,14 +1106,14 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
 
   const generateDrafts = async (useSelectedOnly: boolean = false) => {
     if (!sourceContent.trim() || !profile) {
-      toast.error('Please complete your profile first in the Presence tab');
+      studioToast.error('Please complete your profile first in the Presence tab');
       return;
     }
 
     // "Draft for All" generates for every connected platform.
     // "Draft for Selected" generates for only the user-checked platforms.
     if (useSelectedOnly && selectedPlatforms.length === 0) {
-      toast.error('Please select at least one platform first.');
+      studioToast.error('Please select at least one platform first.');
       return;
     }
 
@@ -1101,14 +1121,17 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
 
     const skippedPlatforms = targetPlatforms.filter(p => getPlatformLimit(p)?.requiresMedia && media.length === 0);
     if (skippedPlatforms.length > 0) {
-      toast.info(
+      studioToast.info(
         `${skippedPlatforms.map(p => PLATFORM_CONFIG[p]?.name || p).join(', ')} require(s) an image/video to publish. Attach media to include them.`
       );
     }
 
     const platformsToUse = getValidPlatformsForMedia(targetPlatforms);
     if (platformsToUse.length === 0) {
-      toast.error('No platforms selected or all selected platforms reject this media.');
+      studioToast.generationFailed('No platforms selected or all selected platforms reject this media.', {
+        platforms: targetPlatforms,
+        knowMoreUrl: '/terms',
+      });
       return;
     }
 
@@ -1197,13 +1220,23 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       setDrafts(allDrafts);
 
       if (failedPlatforms.length > 0) {
-        toast.success(`Drafts ready for ${succeededPlatforms.length} platform${succeededPlatforms.length !== 1 ? 's' : ''}. ${failedPlatforms.length} failed — check the error tab${failedPlatforms.length !== 1 ? 's' : ''}.`);
+        studioToast.success(
+          `Drafts ready for ${succeededPlatforms.length} platform${succeededPlatforms.length !== 1 ? 's' : ''}. ${failedPlatforms.length} failed — check the error tab${failedPlatforms.length !== 1 ? 's' : ''}.`,
+          { platforms: succeededPlatforms }
+        );
       } else {
-        toast.success(`Generated drafts for all ${succeededPlatforms.length} platform${succeededPlatforms.length !== 1 ? 's' : ''}!`);
+        studioToast.success(
+          `Generated drafts for all ${succeededPlatforms.length} platform${succeededPlatforms.length !== 1 ? 's' : ''}!`,
+          { platforms: succeededPlatforms }
+        );
       }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Failed to generate drafts';
-      toast.error(errorMsg);
+      // Post isn't possible to generate: render bespoke popup with "Know more" symbol linking to /terms
+      studioToast.generationFailed(errorMsg, {
+        platforms: platformsToUse,
+        knowMoreUrl: '/terms',
+      });
       setDrafts(d => d.map(d => ({ ...d, status: 'error', error: errorMsg })));
     } finally {
       setGeneratingType(null);
@@ -1243,7 +1276,9 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         firstCommentHint: v.firstCommentHint,
         status: 'ready' as const,
       } : d));
-      toast.success(`Generated draft for ${PLATFORM_CONFIG[platform]?.name || platform}!`);
+      studioToast.success(`Generated draft for ${PLATFORM_CONFIG[platform]?.name || platform}!`, {
+        platforms: [platform],
+      });
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Retry failed';
       setDrafts(prev => prev.map(d => d.platform === platform ? {
@@ -1251,7 +1286,10 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         status: 'error' as const,
         error: errorMsg,
       } : d));
-      toast.error(`Retry failed for ${PLATFORM_CONFIG[platform]?.name || platform}: ${errorMsg}`);
+      studioToast.generationFailed(`Retry failed for ${PLATFORM_CONFIG[platform]?.name || platform}: ${errorMsg}`, {
+        platforms: [platform],
+        knowMoreUrl: '/terms',
+      });
     }
   };
 
@@ -1296,7 +1334,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
 
     const readyDrafts = drafts.filter(d => d.status === 'ready');
     if (readyDrafts.length === 0) {
-      toast.error('No drafts ready to publish');
+      studioToast.error('No drafts ready to publish');
       return;
     }
 
@@ -1337,15 +1375,17 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         throw new Error(data.error || 'Publish failed');
       }
 
-      toast.success('Published successfully!');
+      studioToast.success('Published successfully!', {
+        platforms: readyDrafts.map(d => d.platform),
+      });
 
       const results = (data as AdaptResponse).results;
       if (results) {
         for (const [platform, result] of Object.entries(results)) {
           if (result.success) {
-            toast.success(`${platform}: Published`, { description: result.platformUrl });
+            studioToast.success(`${platform}: Published`, { description: result.platformUrl, platforms: [platform] });
           } else {
-            toast.error(`${platform}: Failed`, { description: result.error });
+            studioToast.error(`${platform}: Failed`, { description: result.error, platforms: [platform] });
           }
         }
       }
@@ -1366,14 +1406,14 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       setPostId(null);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Publish failed';
-      toast.error(errorMsg);
+      studioToast.error(errorMsg);
     }
   };
 
   const handleScheduleSubmit = async () => {
     const readyDrafts = drafts.filter(d => d.status === 'ready');
     if (readyDrafts.length === 0) {
-      toast.error('No drafts ready to schedule');
+      studioToast.error('No drafts ready to schedule');
       return;
     }
 
@@ -1381,7 +1421,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
     try {
       const scheduledDateObj = new Date(scheduleDate);
       if (isNaN(scheduledDateObj.getTime()) || scheduledDateObj.getTime() <= Date.now()) {
-        toast.error('Please choose a time in the future');
+        studioToast.error('Please choose a time in the future');
         setIsSchedulingPost(false);
         return;
       }
@@ -1411,14 +1451,16 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         throw new Error(data.error || 'Failed to schedule post');
       }
 
-      toast.success(`Post scheduled for ${scheduledDateObj.toLocaleDateString()} at ${scheduledDateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} 🚀`);
+      studioToast.success(`Post scheduled for ${scheduledDateObj.toLocaleDateString()} at ${scheduledDateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} 🚀`, {
+        platforms: readyDrafts.map(d => d.platform),
+      });
       setScheduleDialogOpen(false);
       setDrafts([]);
       setSourceContent('');
       setPostId(null);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Scheduling failed';
-      toast.error(errorMsg);
+      studioToast.error(errorMsg);
     } finally {
       setIsSchedulingPost(false);
     }
@@ -1426,21 +1468,24 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
 
   const handleDirectBroadcast = async (useSelectedOnly: boolean = false) => {
     if (!quickContent.trim() || !profile) {
-      toast.error('Please complete your profile first');
+      studioToast.error('Please complete your profile first');
       return;
     }
 
     const targetPlatforms = useSelectedOnly ? selectedPlatforms : connectedPlatforms;
     const skippedPlatforms = targetPlatforms.filter(p => getPlatformLimit(p)?.requiresMedia && media.length === 0);
     if (skippedPlatforms.length > 0) {
-      toast.info(
+      studioToast.info(
         `${skippedPlatforms.map(p => PLATFORM_CONFIG[p]?.name || p).join(', ')} require(s) an image/video to publish. Attach media to include them.`
       );
     }
 
     const platformsToUse = getValidPlatformsForMedia(targetPlatforms);
     if (platformsToUse.length === 0) {
-      toast.error('No platforms selected or all selected platforms reject this media.');
+      studioToast.generationFailed('No platforms selected or all selected platforms reject this media.', {
+        platforms: targetPlatforms,
+        knowMoreUrl: '/terms',
+      });
       return;
     }
 
@@ -1480,15 +1525,17 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         throw new Error(data.error || 'Broadcast failed');
       }
 
-      toast.success('Broadcast published successfully!');
+      studioToast.success('Broadcast published successfully!', {
+        platforms: platformsToUse,
+      });
 
       const results = (data as any)?.results;
       if (results) {
         for (const [platform, result] of Object.entries(results)) {
           if ((result as any).success) {
-            toast.success(`${platform}: Published`);
+            studioToast.success(`${platform}: Published`, { platforms: [platform] });
           } else {
-            toast.error(`${platform}: Failed`, { description: (result as any).error });
+            studioToast.error(`${platform}: Failed`, { description: (result as any).error, platforms: [platform] });
           }
         }
       }
@@ -1505,7 +1552,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       setQuickContent('');
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Broadcast failed';
-      toast.error(errorMsg);
+      studioToast.error(errorMsg);
     } finally {
       setBroadcastingType(null);
     }
@@ -1765,6 +1812,46 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
             </MotionBox>
           )}
         </AnimatePresence>
+
+        {/* ── SignalDM Active Badge ── */}
+        {signalDmEnabled && connectedPlatforms.includes('instagram' as PlatformType) && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '8px 14px',
+              borderRadius: 12,
+              background: 'linear-gradient(135deg, rgba(139,92,246,0.08) 0%, rgba(236,72,153,0.06) 100%)',
+              border: '1px solid rgba(139,92,246,0.2)',
+              marginBottom: 4,
+            }}
+          >
+            <span style={{ fontSize: 16 }}>⚡</span>
+            <div style={{ flex: 1 }}>
+              <span style={{ fontSize: 12.5, fontWeight: 600, color: '#7c3aed' }}>SignalDM Active</span>
+              <span style={{ fontSize: 12, color: '#8b7355', marginLeft: 6 }}>
+                Instagram comments on this post will be auto-handled by AI
+              </span>
+            </div>
+            <a
+              href="/dashboard/automation"
+              style={{
+                fontSize: 11.5,
+                fontWeight: 600,
+                color: '#8b5cf6',
+                textDecoration: 'none',
+                padding: '3px 10px',
+                borderRadius: 8,
+                background: 'rgba(139,92,246,0.1)',
+                border: '1px solid rgba(139,92,246,0.25)',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Configure →
+            </a>
+          </div>
+        )}
 
         {/* Mode toggle */}
         <div className="flex justify-center">
@@ -2153,20 +2240,49 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                                 </div>
 
                                 {draft?.error && (
-                                  <Alert variant="destructive" className="mb-3 flex items-center justify-between">
-                                    <div>
-                                      <AlertDescription>{draft.error}</AlertDescription>
+                                  <div
+                                    className="mb-3 p-3.5 rounded-2xl border flex items-center justify-between gap-3 flex-wrap shadow-2xs"
+                                    style={{
+                                      backgroundColor: '#FFFDFB',
+                                      borderColor: '#F2DEDE',
+                                    }}
+                                  >
+                                    <div className="flex items-center gap-2.5 text-sm">
+                                      <div className="w-7 h-7 rounded-xl bg-[#FBEDED] border border-[#F2D0CE] flex items-center justify-center flex-shrink-0">
+                                        <AlertTriangle className="w-3.5 h-3.5 text-[#B85450]" />
+                                      </div>
+                                      <div>
+                                        <p className="font-semibold text-xs text-[#9E2A2B] leading-tight">{draft.error}</p>
+                                        <p className="text-[11px] text-[#8B7355] mt-0.5">Could not generate draft for this network. Review criteria or retry.</p>
+                                      </div>
                                     </div>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="ml-auto flex items-center gap-1.5 h-7 text-xs bg-background hover:bg-muted text-foreground flex-shrink-0"
-                                      onClick={() => retrySingleDraft(platform)}
-                                    >
-                                      <RefreshCw className="h-3 w-3" />
-                                      Retry
-                                    </Button>
-                                  </Alert>
+                                    <div className="flex items-center gap-2 ml-auto">
+                                      <Link
+                                        href="/terms"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#2D2319] text-[#FAF7F2] hover:bg-[#433527] transition-all cursor-pointer shadow-2xs group"
+                                        title="Review Terms of Service & acceptable use policies"
+                                      >
+                                        <svg viewBox="0 0 16 16" fill="none" className="w-3.5 h-3.5 text-[#C4A265]" stroke="currentColor" strokeWidth="1.75">
+                                          <circle cx="8" cy="8" r="7" stroke="currentColor" strokeOpacity="0.8" />
+                                          <line x1="8" y1="7.5" x2="8" y2="11.5" stroke="currentColor" strokeLinecap="round" />
+                                          <circle cx="8" cy="4.5" r="0.85" fill="currentColor" stroke="none" />
+                                        </svg>
+                                        <span>Know more</span>
+                                        <ArrowUpRight className="w-3 h-3 opacity-70 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                                      </Link>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="flex items-center gap-1.5 h-7 text-xs bg-white hover:bg-muted text-foreground flex-shrink-0 border-[#E8E0D4] rounded-xl"
+                                        onClick={() => retrySingleDraft(platform)}
+                                      >
+                                        <RefreshCw className="h-3 w-3" />
+                                        Retry
+                                      </Button>
+                                    </div>
+                                  </div>
                                 )}
 
                                 <Textarea

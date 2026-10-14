@@ -9,7 +9,7 @@ import {
   Loader2, Linkedin, Twitter, MessageSquare, Facebook, Instagram,
   Phone, CheckCircle, AlertCircle, Unlink2, Link2, Lock, Globe2,
   ArrowRight, Wifi, WifiOff, RefreshCw, Youtube, Cloud, ExternalLink, Image as ImageIcon,
-  MessageCircle, Hash, Twitch, Send, Dribbble, GraduationCap, Store, Gamepad2, Zap, FileText, Mail, BookOpen, Code2
+  MessageCircle, Hash, Twitch, Send, Dribbble, GraduationCap, Store, Gamepad2, Zap, FileText, Mail, BookOpen, Code2, Radio
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -21,6 +21,7 @@ import { TwitchConnectDialog } from './TwitchConnectDialog';
 import { TelegramConnectDialog } from './TelegramConnectDialog';
 import { SkoolConnectDialog } from './SkoolConnectDialog';
 import { WhopConnectDialog } from './WhopConnectDialog';
+import { KickStreamSetupDialog } from './KickStreamSetupDialog';
 import { WarpcastConnectDialog } from './WarpcastConnectDialog';
 import { MeweConnectDialog } from './MeweConnectDialog';
 import { NostrConnectDialog } from './NostrConnectDialog';
@@ -39,6 +40,7 @@ interface PlatformConnection {
   username?: string;
   connectedAt?: string;
   expiresAt?: string;
+  streamConfigured?: boolean;
 }
 
 interface PlatformConnectionsProps {
@@ -391,6 +393,7 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
   const [twitchDialogOpen, setTwitchDialogOpen] = useState(false);
   const [telegramDialogOpen, setTelegramDialogOpen] = useState(false);
   const [skoolDialogOpen, setSkoolDialogOpen] = useState(false);
+  const [kickStreamDialogOpen, setKickStreamDialogOpen] = useState(false);
   const [warpcastDialogOpen, setWarpcastDialogOpen] = useState(false);
   const [meweDialogOpen, setMeweDialogOpen] = useState(false);
   const [nostrDialogOpen, setNostrDialogOpen] = useState(false);
@@ -627,6 +630,14 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
           window.location.reload();
         }}
       />
+      <KickStreamSetupDialog
+        open={kickStreamDialogOpen}
+        onClose={() => setKickStreamDialogOpen(false)}
+        workspaceId={workspaceId}
+        onSuccess={() => {
+          loadConnections();
+        }}
+      />
       <WarpcastConnectDialog
         open={warpcastDialogOpen}
         onClose={() => setWarpcastDialogOpen(false)}
@@ -828,44 +839,62 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
 
                   {/* Action button */}
                   {isConnected || isExpired ? (
-                    <div className="flex gap-2">
-                      {isExpired && (
+                    <div className="space-y-2">
+                      {platform === 'kick' && isConnected && (
                         <Button
                           size="sm"
-                          variant="default"
-                          className="flex-1 h-8 text-xs"
-                          onClick={() => handleConnect(platform)}
-                          disabled={connecting === platform}
+                          variant={connection.streamConfigured ? "ghost" : "outline"}
+                          className={cn(
+                            "w-full h-8 text-xs font-medium gap-1.5",
+                            connection.streamConfigured
+                              ? "text-emerald-700 dark:text-emerald-400 bg-emerald-50/70 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/40"
+                              : "border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50"
+                          )}
+                          onClick={() => setKickStreamDialogOpen(true)}
                         >
-                          {connecting === platform ? (
+                          <Radio className={cn("w-3.5 h-3.5", !connection.streamConfigured && "animate-pulse text-amber-600")} />
+                          {connection.streamConfigured ? "Live Stream Ready (Configure)" : "Complete Setup"}
+                        </Button>
+                      )}
+                      <div className="flex gap-2">
+                        {isExpired && (
+                          <Button
+                            size="sm"
+                            variant="default"
+                            className="flex-1 h-8 text-xs"
+                            onClick={() => handleConnect(platform)}
+                            disabled={connecting === platform}
+                          >
+                            {connecting === platform ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <>
+                                <RefreshCw className="mr-1 h-3 w-3" />
+                                Reconnect
+                              </>
+                            )}
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className={cn(
+                            'h-8 text-xs text-muted-foreground',
+                            !isExpired && 'flex-1'
+                          )}
+                          onClick={() => handleDisconnect(platform)}
+                          disabled={disconnecting === platform}
+                        >
+                          {disconnecting === platform ? (
                             <Loader2 className="h-3 w-3 animate-spin" />
                           ) : (
                             <>
-                              <RefreshCw className="mr-1 h-3 w-3" />
-                              Reconnect
+                              <Unlink2 className="mr-1 h-3 w-3" />
+                              Disconnect
                             </>
                           )}
                         </Button>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className={cn(
-                          'h-8 text-xs text-muted-foreground',
-                          !isExpired && 'flex-1'
-                        )}
-                        onClick={() => handleDisconnect(platform)}
-                        disabled={disconnecting === platform}
-                      >
-                        {disconnecting === platform ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <>
-                            <Unlink2 className="mr-1 h-3 w-3" />
-                            Disconnect
-                          </>
-                        )}
-                      </Button>
+                      </div>
                     </div>
                   ) : (
                     <Button
