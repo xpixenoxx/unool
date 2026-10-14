@@ -30,8 +30,8 @@ export function KickStreamSetupDialog({
     e.preventDefault();
     setError('');
 
-    const trimmedUrl = streamUrl.trim();
-    const trimmedKey = streamKey.trim();
+    let trimmedUrl = streamUrl.trim().replace(/\/+$/, '');
+    const trimmedKey = streamKey.trim().replace(/^\/+/, '');
 
     if (!trimmedUrl || !trimmedKey) {
       setError('Both Stream URL and Stream Key are required.');
@@ -39,8 +39,15 @@ export function KickStreamSetupDialog({
     }
 
     if (!trimmedUrl.startsWith('rtmp://') && !trimmedUrl.startsWith('rtmps://')) {
-      setError('Stream URL must begin with rtmp:// or rtmps://');
-      return;
+      trimmedUrl = `rtmps://${trimmedUrl}`;
+    }
+
+    // Auto-complete port :443 and /app endpoint if missing from Kick dashboard copy
+    if (trimmedUrl.startsWith('rtmps://') && !trimmedUrl.includes(':443') && !trimmedUrl.match(/:\d+/)) {
+      trimmedUrl = trimmedUrl.replace(/(rtmps:\/\/[^/:]+)/, '$1:443');
+    }
+    if (!trimmedUrl.endsWith('/app')) {
+      trimmedUrl = `${trimmedUrl.replace(/\/+$/, '')}/app`;
     }
 
     setSaving(true);

@@ -188,8 +188,21 @@ export class KickAdapter implements PlatformAdapter {
         );
       }
 
-      const fullRtmpUrl = `${streamUrl.replace(/\/+$/, '')}/${streamKey.replace(/^\/+/, '')}`;
-      logger.info('Starting Kick cloud RTMP stream for video', { videoUrl, streamDestination: streamUrl });
+      // Sanitize and ensure proper Kick RTMP ingest URL structure (:443/app)
+      let cleanStreamUrl = streamUrl.trim().replace(/\/+$/, '');
+      if (!cleanStreamUrl.startsWith('rtmp://') && !cleanStreamUrl.startsWith('rtmps://')) {
+        cleanStreamUrl = `rtmps://${cleanStreamUrl}`;
+      }
+      if (cleanStreamUrl.startsWith('rtmps://') && !cleanStreamUrl.includes(':443') && !cleanStreamUrl.match(/:\d+/)) {
+        cleanStreamUrl = cleanStreamUrl.replace(/(rtmps:\/\/[^/:]+)/, '$1:443');
+      }
+      if (!cleanStreamUrl.endsWith('/app')) {
+        cleanStreamUrl = cleanStreamUrl.replace(/\/+$/, '') + '/app';
+      }
+
+      const cleanStreamKey = streamKey.trim().replace(/^\/+/, '');
+      const fullRtmpUrl = `${cleanStreamUrl}/${cleanStreamKey}`;
+      logger.info('Starting Kick cloud RTMP stream for video', { videoUrl, streamDestination: cleanStreamUrl });
 
       let ffmpegPath = 'ffmpeg';
       try {
@@ -204,6 +217,9 @@ export class KickAdapter implements PlatformAdapter {
       const { spawn } = require('child_process');
       const ffmpegArgs = [
         '-re',
+        '-reconnect', '1',
+        '-reconnect_streamed', '1',
+        '-reconnect_delay_max', '2',
         '-i', videoUrl,
         '-c:v', 'libx264',
         '-preset', 'veryfast',
@@ -215,6 +231,7 @@ export class KickAdapter implements PlatformAdapter {
         '-c:a', 'aac',
         '-b:a', '128k',
         '-ar', '44100',
+        '-flvflags', '+no_duration_filesize',
         '-f', 'flv',
         fullRtmpUrl,
       ];
@@ -256,9 +273,9 @@ export class KickAdapter implements PlatformAdapter {
           streamProc.stderr.on('data', (chunk: Buffer) => {
             const text = chunk.toString();
             stderr += text;
-            if (!hasStartedStreaming && (text.includes('frame=') || text.includes('fps='))) {
+            if (!hasStartedStreaming && (text.includes('frame=') || text.includes('fps=') || text.includes('bitrate='))) {
               hasStartedStreaming = true;
-              logger.info('Kick RTMP streaming started successfully');
+              logger.info('Kick RTMP streaming active and transmitting frames');
             }
           });
 
@@ -272,14 +289,19 @@ export class KickAdapter implements PlatformAdapter {
               logger.info('Kick RTMP stream finished', { code });
               resolve();
             } else {
-              logger.error('Kick RTMP stream failed', { code, stderr: stderr.slice(-600) });
-              reject(new Error(`Kick streaming error: ${stderr.slice(-300)}`));
+              let cleanStderr = stderr.slice(-600).replaceAll(cleanStreamKey, 'sk_***');
+              if (cleanStderr.includes('Error in the pull function') || cleanStderr.includes('I/O error') || cleanStderr.includes('Input/output error')) {
+                cleanStderr = 'Kick rejected the stream connection. Please verify your Kick Stream Key is active and not expired in your Kick Creator Dashboard (Settings -> Stream Key), then update it via Complete Setup.';
+              }
+              logger.error('Kick RTMP stream failed', { code, stderr: cleanStderr });
+              reject(new Error(`Kick streaming error: ${cleanStderr}`));
             }
           });
         });
       } catch (streamErr) {
         logger.error('Kick stream execution error', { streamErr });
-        throw streamErr;
+        const rawErr = streamErr instanceof Error ? streamErr.message : String(streamErr);
+        throw new Error(rawErr.replaceAll(cleanStreamKey, 'sk_***'));
       }
 
       return {
