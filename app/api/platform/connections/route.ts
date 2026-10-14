@@ -133,7 +133,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const result: Record<string, { platform: string; status: string; username?: string; connectedAt?: string; expiresAt?: string }> = {};
+    const result: Record<string, { platform: string; status: string; username?: string; connectedAt?: string; expiresAt?: string; streamConfigured?: boolean }> = {};
     for (const platform of SUPPORTED_PLATFORMS) {
       result[platform] = { platform, status: 'not_connected' };
     }
@@ -172,12 +172,25 @@ export async function GET(request: NextRequest) {
           status = 'connected';
         }
 
+        let streamConfigured: boolean | undefined = undefined;
+        if (row.platform === 'kick' && row.access_token_encrypted) {
+          try {
+            const { decryptToken } = await import('@/lib/crypto/encryption');
+            const decrypted = await decryptToken(row.access_token_encrypted);
+            const parsed = JSON.parse(decrypted);
+            streamConfigured = Boolean(parsed.streamKey && parsed.streamUrl);
+          } catch {
+            streamConfigured = false;
+          }
+        }
+
         result[row.platform] = {
           platform: row.platform,
           status,
           username: row.username || undefined,
           connectedAt: row.created_at,
           expiresAt: row.expires_at || undefined,
+          streamConfigured,
         };
       }
 
