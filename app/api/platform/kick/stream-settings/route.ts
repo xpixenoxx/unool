@@ -100,3 +100,50 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+
+export async function GET(request: NextRequest) {
+  try {
+    const auth = await getCurrentAuth(request);
+    if (!auth?.userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const workspaceId = searchParams.get('workspaceId') || auth.workspaceId;
+    if (!workspaceId) {
+      return NextResponse.json({ error: 'Workspace ID required' }, { status: 400 });
+    }
+
+    const adminSupabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+    const { data: connection } = await adminSupabase
+      .from('platform_connections')
+      .select('*')
+      .eq('workspace_id', workspaceId)
+      .eq('platform', 'kick')
+      .single();
+
+    if (!connection) {
+      return NextResponse.json({ configured: false });
+    }
+
+    let streamUrl = '';
+    let hasStreamKey = false;
+    try {
+      const decrypted = await decryptToken(connection.access_token_encrypted);
+      const parsed = JSON.parse(decrypted);
+      if (parsed && typeof parsed === 'object') {
+        streamUrl = parsed.streamUrl || '';
+        hasStreamKey = Boolean(parsed.streamKey);
+      }
+    } catch {}
+
+    return NextResponse.json({
+      configured: Boolean(streamUrl && hasStreamKey),
+      streamUrl,
+      hasStreamKey,
+    });
+  } catch {
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+

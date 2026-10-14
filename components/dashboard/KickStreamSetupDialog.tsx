@@ -26,6 +26,22 @@ export function KickStreamSetupDialog({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  // Pre-fetch existing stream settings if configured
+  useState(() => {
+    if (open) {
+      fetch(`/api/platform/kick/stream-settings?workspaceId=${encodeURIComponent(workspaceId)}`, {
+        credentials: 'include',
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data?.streamUrl) {
+            setStreamUrl(data.streamUrl);
+          }
+        })
+        .catch(() => {});
+    }
+  });
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');

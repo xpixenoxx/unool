@@ -25,8 +25,26 @@ async function tryRefreshToken(row: Record<string, any>, adminSupabase: any): Pr
     const refreshToken = await decryptToken(refreshTokenEncrypted);
     const tokenResponse = await adapter.refreshAccessToken(refreshToken);
 
-    // Encrypt the new tokens
-    const newAccessTokenEncrypted = await encryptToken(tokenResponse.accessToken);
+    // Encrypt the new tokens (preserving Kick stream settings if present)
+    let finalAccessTokenToEncrypt = tokenResponse.accessToken;
+    if (row.platform === 'kick') {
+      try {
+        const oldEncrypted = row.access_token_encrypted || row.access_token;
+        if (oldEncrypted) {
+          const oldDecrypted = await decryptToken(oldEncrypted);
+          const parsed = JSON.parse(oldDecrypted);
+          if (parsed && typeof parsed === 'object' && (parsed.streamUrl || parsed.streamKey)) {
+            finalAccessTokenToEncrypt = JSON.stringify({
+              accessToken: tokenResponse.accessToken,
+              streamUrl: parsed.streamUrl,
+              streamKey: parsed.streamKey,
+            });
+          }
+        }
+      } catch {}
+    }
+
+    const newAccessTokenEncrypted = await encryptToken(finalAccessTokenToEncrypt);
     const newRefreshTokenEncrypted = tokenResponse.refreshToken
       ? await encryptToken(tokenResponse.refreshToken)
       : refreshTokenEncrypted; // Keep original if no new refresh token returned
