@@ -102,6 +102,11 @@ const configSchema = z.object({
   WHOP_CLIENT_SECRET: z.string().optional(),
   WHOP_REDIRECT_URI: z.string().url().optional(),
 
+  // Kick OAuth
+  KICK_CLIENT_ID: z.string().optional(),
+  KICK_CLIENT_SECRET: z.string().optional(),
+  KICK_REDIRECT_URI: z.string().url().optional(),
+
   // Webhook secrets
   LINKEDIN_WEBHOOK_SECRET: z.string().optional(),
   X_WEBHOOK_SECRET: z.string().optional(),

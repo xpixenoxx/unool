@@ -87,8 +87,8 @@ export async function GET(request: NextRequest) {
   }
 
   // Platforms with custom connect flows (e.g. Bluesky uses app-password, not OAuth).
-  const testAuthUrl = adapter.getAuthUrl('test');
-  const resolvedTestUrl = typeof testAuthUrl === 'string' ? testAuthUrl : '';
+  const testAuthResult = await Promise.resolve(adapter.getAuthUrl('test'));
+  const resolvedTestUrl = typeof testAuthResult === 'string' ? testAuthResult : (testAuthResult?.url || '');
   if (!resolvedTestUrl) {
     logger.info('Platform connect: custom flow platform, redirecting to dashboard', { platform });
     const dashboardUrl = new URL('/dashboard', request.url);

@@ -37,7 +37,7 @@ export async function verifyWebhookSignature(
 }
 
 function getWebhookSecret(platform: Platform): string | undefined {
-  const secretMap: Record<Platform, string | undefined> = {
+  const secretMap: Partial<Record<Platform, string | undefined>> = {
     linkedin: config.LINKEDIN_WEBHOOK_SECRET,
     x: config.X_WEBHOOK_SECRET,
     threads: config.META_WEBHOOK_SECRET,
@@ -158,7 +158,7 @@ export function timingSafeEqual(a: string, b: string): boolean {
  * Extracts webhook signature from request headers based on platform
  */
 export function extractWebhookSignature(request: Request, platform: Platform): string | null {
-  const headerMap: Record<Platform, string[]> = {
+  const headerMap: Partial<Record<Platform, string[]>> = {
     linkedin: ['x-li-signature', 'x-linkedin-signature'],
     x: ['x-twitter-webhooks-signature', 'x-twitter-signature'],
     threads: ['x-hub-signature-256', 'x-hub-signature'],
@@ -174,7 +174,8 @@ export function extractWebhookSignature(request: Request, platform: Platform): s
     twitch: [],
   };
 
-  for (const header of headerMap[platform]) {
+  const headers = headerMap[platform] || [];
+  for (const header of headers) {
     const signature = request.headers.get(header);
     if (signature) {
       return signature;

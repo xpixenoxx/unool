@@ -97,21 +97,21 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Get PKCE verifier from cookie for X/Twitter
+  // Get PKCE verifier from cookie for X/Twitter and Kick
   let codeVerifier: string | undefined;
-  if (platform === 'x') {
+  if (platform === 'x' || platform === 'kick') {
     const pkceCookie = parseAndConsumePKCECookie(request.headers.get('cookie'), effectiveState);
     if (pkceCookie) {
       codeVerifier = pkceCookie;
     } else {
-      logger.warn('Missing PKCE verifier for X OAuth', { state: effectiveState.slice(0, 8) + '...' });
+      logger.warn(`Missing PKCE verifier for ${platform} OAuth`, { state: effectiveState.slice(0, 8) + '...' });
     }
   }
 
   try {
     // Exchange code for token
     logger.info('Exchanging OAuth code for token', { platform, workspaceId, userId });
-    const tokenResponse = platform === 'x' && codeVerifier
+    const tokenResponse = (platform === 'x' || platform === 'kick') && codeVerifier
       ? await adapter.exchangeCodeForToken(code, codeVerifier)
       : await adapter.exchangeCodeForToken(code);
 
