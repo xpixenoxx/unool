@@ -35,6 +35,7 @@ import {
   Users,
   Flame,
   BadgeCheck,
+  BarChart2,
 } from 'lucide-react';
 
 export type SupportedPlatformType =
