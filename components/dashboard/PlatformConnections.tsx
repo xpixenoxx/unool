@@ -249,7 +249,6 @@ const PLATFORM_CONFIG: Record<
     description: 'Communities & digital products',
     audience: 'Creators & buyers',
     available: true,
-    customConnect: true,
   },
   kick: {
     icon: Gamepad2,
@@ -396,7 +395,6 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
   const [twitchDialogOpen, setTwitchDialogOpen] = useState(false);
   const [telegramDialogOpen, setTelegramDialogOpen] = useState(false);
   const [skoolDialogOpen, setSkoolDialogOpen] = useState(false);
-  const [whopDialogOpen, setWhopDialogOpen] = useState(false);
   const [kickDialogOpen, setKickDialogOpen] = useState(false);
   const [vkDialogOpen, setVkDialogOpen] = useState(false);
   const [warpcastDialogOpen, setWarpcastDialogOpen] = useState(false);
@@ -457,10 +455,6 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
     }
     if (platform === 'skool') {
       setSkoolDialogOpen(true);
-      return;
-    }
-    if (platform === 'whop') {
-      setWhopDialogOpen(true);
       return;
     }
     if (platform === 'kick') {
@@ -643,18 +637,6 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
           setConnections((prev) => ({
             ...prev,
             skool: { platform: 'skool', status: 'connected', username },
-          }));
-          window.location.reload();
-        }}
-      />
-      <WhopConnectDialog
-        open={whopDialogOpen}
-        onClose={() => setWhopDialogOpen(false)}
-        workspaceId={workspaceId}
-        onSuccess={(username) => {
-          setConnections((prev) => ({
-            ...prev,
-            whop: { platform: 'whop', status: 'connected', username },
           }));
           window.location.reload();
         }}

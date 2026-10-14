@@ -9,8 +9,8 @@ import {
   PublishResult,
 } from './adapter';
 
-const WHOP_AUTH_URL = 'https://whop.com/oauth';
-const WHOP_TOKEN_URL = 'https://api.whop.com/v5/oauth/token';
+const WHOP_AUTH_URL = 'https://api.whop.com/oauth/authorize';
+const WHOP_TOKEN_URL = 'https://api.whop.com/oauth/token';
 const WHOP_API_BASE = 'https://api.whop.com/v5';
 
 export class WhopAdapter implements PlatformAdapter {
