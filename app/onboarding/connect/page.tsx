@@ -3,6 +3,7 @@
 import { Suspense, useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Plus, MoreVertical, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { PlatformBrandLogo, getPlatformConfig } from '@/components/dashboard/PlatformLogos';
 
 interface Connection {
   platformId: string;
@@ -223,14 +224,12 @@ function ConnectPageContent() {
                     </div>
                     <div 
                       className="absolute -bottom-1 -right-1 w-[20px] h-[20px] rounded flex items-center justify-center border-2 border-white overflow-hidden"
-                      style={{ backgroundColor: PLATFORM_BADGE_COLORS[connection.platformId] || '#6b7280' }}
+                      style={{ backgroundColor: getPlatformConfig(connection.platformId).color || '#6b7280' }}
                     >
                       {connection.platformLogo ? (
                         <img src={connection.platformLogo} alt={connection.platformName} className="w-full h-full object-cover" />
                       ) : (
-                        <span className="text-white text-[10px] font-bold">
-                          {connection.platformId === 'linkedin' ? 'in' : connection.platformId === 'threads' ? '@' : connection.platformId.substring(0, 1).toUpperCase()}
-                        </span>
+                        <PlatformBrandLogo platform={connection.platformId} size={12} className="text-white" />
                       )}
                     </div>
                   </div>

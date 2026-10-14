@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, addDays, startOfWeek, isToday, startOfDay, endOfWeek, addWeeks } from 'date-fns';
+import { PlatformBrandLogo, type SupportedPlatformType } from '@/components/dashboard/previews/PlatformMobilePreview';
 
 /* ─── Types ─── */
 
@@ -50,16 +51,34 @@ const PLATFORM_CONFIG: Record<PlatformType, { icon: React.ElementType; name: str
   reddit: { icon: Globe, name: 'Reddit', maxChars: 40000, color: 'bg-[#FF4500]' },
 };
 
-
 const PLATFORM_META: Record<string, { name: string; color: string; bg: string; icon: string }> = {
   linkedin:  { name: 'LinkedIn',  color: '#0A66C2', bg: '#E8F0FA', icon: 'in' },
-  x:         { name: 'X',         color: '#000000', bg: '#F0F0F0', icon: '𝕏'  },
-  threads:   { name: 'Threads',   color: '#1A1A1A', bg: '#F0F0F0', icon: '@'  },
+  x:         { name: 'X',         color: '#000000', bg: '#F0F0F0', icon: '𝕏' },
+  twitter:   { name: 'X',         color: '#000000', bg: '#F0F0F0', icon: '𝕏' },
+  threads:   { name: 'Threads',   color: '#1A1A1A', bg: '#F0F0F0', icon: '@' },
   bluesky:   { name: 'Bluesky',   color: '#0085FF', bg: '#E6F3FF', icon: 'bsky' },
   instagram: { name: 'Instagram', color: '#E1306C', bg: '#FDE8F0', icon: 'ig' },
-  facebook:  { name: 'Facebook',  color: '#1877F2', bg: '#E8F0FE', icon: 'f'  },
-  pinterest: { name: 'Pinterest', color: '#E60023', bg: '#FDE8E8', icon: 'p'  },
+  facebook:  { name: 'Facebook',  color: '#1877F2', bg: '#E8F0FE', icon: 'f' },
+  pinterest: { name: 'Pinterest', color: '#E60023', bg: '#FDE8E8', icon: 'p' },
   youtube:   { name: 'YouTube',   color: '#FF0000', bg: '#FDE8E8', icon: 'yt' },
+  reddit:    { name: 'Reddit',    color: '#FF4500', bg: '#FFEBE5', icon: 'r/' },
+  mastodon:  { name: 'Mastodon',  color: '#6364FF', bg: '#F0F0FF', icon: 'm' },
+  discord:   { name: 'Discord',   color: '#5865F2', bg: '#EEF0FD', icon: 'dc' },
+  slack:     { name: 'Slack',     color: '#4A154B', bg: '#F5ECF5', icon: 'sl' },
+  telegram:  { name: 'Telegram',  color: '#229ED9', bg: '#E9F5FA', icon: 'tg' },
+  twitch:    { name: 'Twitch',    color: '#9146FF', bg: '#F3ECFF', icon: 'tw' },
+  kick:      { name: 'Kick',      color: '#53FC18', bg: '#EBFDE7', icon: 'k' },
+  vk:        { name: 'VK',        color: '#0077FF', bg: '#EBF3FE', icon: 'vk' },
+  whop:      { name: 'Whop',      color: '#FF5A00', bg: '#FFF0E6', icon: 'w' },
+  dribbble:  { name: 'Dribbble',  color: '#EA4C89', bg: '#FDEDF3', icon: 'dr' },
+  skool:     { name: 'Skool',     color: '#E2AD44', bg: '#FDF7EB', icon: 'sk' },
+  warpcast:  { name: 'Warpcast',  color: '#8A63D2', bg: '#F4EFFB', icon: 'fc' },
+  mewe:      { name: 'MeWe',      color: '#2F435E', bg: '#EDEFF2', icon: 'mw' },
+  nostr:     { name: 'Nostr',     color: '#9B51E0', bg: '#F4EEFB', icon: 'nos' },
+  medium:    { name: 'Medium',    color: '#000000', bg: '#F0F0F0', icon: 'med' },
+  devto:     { name: 'DEV.to',    color: '#0A0A0A', bg: '#F0F0F0', icon: 'dev' },
+  hashnode:  { name: 'Hashnode',  color: '#2962FF', bg: '#ECF2FE', icon: 'hn' },
+  whatsapp:  { name: 'WhatsApp',  color: '#25D366', bg: '#E7F9EE', icon: 'wa' },
 };
 
 interface ArcPlatformDraft {
@@ -140,6 +159,141 @@ const B = {
   dangerBg: '#FBEDED',
   border: '#E8E0D4',
 };
+
+/* ─── Instagram-Style Story Progress Bar ─── */
+function InstagramStoryBar({
+  posts,
+  currentIndex,
+  onSelectIndex,
+  isPaused,
+  onTogglePause,
+  durationMs = 5500,
+}: {
+  posts: ArcPost[];
+  currentIndex: number;
+  onSelectIndex: (idx: number) => void;
+  isPaused: boolean;
+  onTogglePause: () => void;
+  durationMs?: number;
+}) {
+  const [progress, setProgress] = useState(0);
+  const activePost = posts[currentIndex] || posts[0];
+
+  useEffect(() => {
+    setProgress(0);
+  }, [currentIndex]);
+
+  useEffect(() => {
+    if (isPaused || posts.length <= 1) return;
+
+    const intervalTime = 40;
+    const step = (intervalTime / durationMs) * 100;
+
+    const timer = setInterval(() => {
+      setProgress(prev => {
+        if (prev + step >= 100) {
+          onSelectIndex((currentIndex + 1) % posts.length);
+          return 0;
+        }
+        return prev + step;
+      });
+    }, intervalTime);
+
+    return () => clearInterval(timer);
+  }, [currentIndex, isPaused, posts.length, durationMs, onSelectIndex]);
+
+  return (
+    <div
+      className="flex-1 space-y-1.5 py-0.5"
+      onMouseEnter={() => !isPaused && onTogglePause()}
+      onMouseLeave={() => isPaused && onTogglePause()}
+    >
+      {/* Segment lines */}
+      <div className="flex items-center gap-1.5 w-full">
+        {posts.map((p, idx) => {
+          const isPast = idx < currentIndex;
+          const isCurrent = idx === currentIndex;
+          const fillWidth = isPast ? 100 : isCurrent ? progress : 0;
+
+          return (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => onSelectIndex(idx)}
+              className="flex-1 h-1.5 sm:h-2 rounded-full overflow-hidden transition-all hover:h-2.5 focus:outline-none cursor-pointer group relative"
+              style={{ backgroundColor: `${B.accent}30` }}
+              title={`Story ${idx + 1}: ${p.dayLabel} — ${p.arcBeat}`}
+            >
+              <div
+                className="h-full rounded-full"
+                style={{
+                  width: `${fillWidth}%`,
+                  backgroundColor: B.accent,
+                  transition: isCurrent && !isPaused ? 'width 40ms linear' : 'width 200ms ease',
+                }}
+              />
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Info & Micro controls */}
+      {activePost && (
+        <div className="flex items-center justify-between text-xs" style={{ color: B.textMuted }}>
+          <div className="flex items-center gap-2">
+            <span className="font-semibold px-2 py-0.5 rounded-md text-[11px]" style={{ backgroundColor: B.accentBg, color: B.accentDark }}>
+              Story {currentIndex + 1} of {posts.length}
+            </span>
+            <span className="font-medium text-[11px] truncate max-w-[200px] sm:max-w-sm" style={{ color: B.text }}>
+              {activePost.dayLabel}: {activePost.arcBeat}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelectIndex((currentIndex - 1 + posts.length) % posts.length);
+              }}
+              className="p-1 rounded-md hover:bg-black/5 transition-colors"
+              title="Previous story"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onTogglePause();
+              }}
+              className="p-1 rounded-md hover:bg-black/5 transition-colors"
+              title={isPaused ? "Resume auto-advance" : "Pause auto-advance"}
+            >
+              {isPaused ? <PlayCircle className="w-3.5 h-3.5" style={{ color: B.accent }} /> : <PauseCircle className="w-3.5 h-3.5" />}
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelectIndex((currentIndex + 1) % posts.length);
+              }}
+              className="p-1 rounded-md hover:bg-black/5 transition-colors"
+              title="Next story"
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+            {isPaused && (
+              <span className="text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 uppercase">
+                Paused
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 /* ─── Step indicator ─── */
 function StepDots({ current, total }: { current: number; total: number }) {
@@ -370,7 +524,7 @@ function StoryIntake({
                     : { borderColor: B.border, color: B.textMuted }
                   }
                 >
-                  <Icon className="w-4 h-4" />
+                  <PlatformBrandLogo platform={p as SupportedPlatformType} size={16} />
                   {cfg.name}
                 </button>
               );
@@ -460,6 +614,9 @@ function ReviewScreen({
   onBack,
   isScheduling,
   isPreviewOnly,
+  activeStoryIndex,
+  onStoryIndexChange,
+  onStoryHoverChange,
 }: {
   arc: WeekArc;
   weekStartDate?: string;
@@ -467,14 +624,55 @@ function ReviewScreen({
   onBack: () => void;
   isScheduling: boolean;
   isPreviewOnly?: boolean;
+  activeStoryIndex?: number;
+  onStoryIndexChange?: (index: number) => void;
+  onStoryHoverChange?: (hovering: boolean) => void;
 }) {
   const [editedArc, setEditedArc] = useState<WeekArc>(arc);
-  const [expandedPost, setExpandedPost] = useState<number>(0);
+  const [expandedPost, setExpandedPost] = useState<number>(activeStoryIndex ?? 0);
   const [editingContent, setEditingContent] = useState<{ postIdx: number; platformIdx: number } | null>(null);
   const [activePlatformTab, setActivePlatformTab] = useState<Record<number, number>>({});
   const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const [isUploadingImage, setIsUploadingImage] = useState<Record<number, boolean>>({});
   const [isDraggingPost, setIsDraggingPost] = useState<Record<number, boolean>>({});
+
+  // Sync expanded card and scroll into view when activeStoryIndex changes from story bar
+  useEffect(() => {
+    if (activeStoryIndex !== undefined && activeStoryIndex >= 0) {
+      setExpandedPost(activeStoryIndex);
+      const el = document.getElementById(`arc-post-${activeStoryIndex}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+  }, [activeStoryIndex]);
+
+  // Track scroll position so scrolling through posts syncs the top story line
+  useEffect(() => {
+    let ticking = false;
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const posts = editedArc.weekPosts;
+          const viewportCenter = window.innerHeight * 0.35;
+          for (let i = 0; i < posts.length; i++) {
+            const el = document.getElementById(`arc-post-${i}`);
+            if (el) {
+              const rect = el.getBoundingClientRect();
+              if (rect.top <= viewportCenter && rect.bottom >= viewportCenter) {
+                onStoryIndexChange?.(i);
+                break;
+              }
+            }
+          }
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [editedArc.weekPosts, onStoryIndexChange]);
 
   // Auto-adjust past times on initial mount if target week is current week
   useEffect(() => {
@@ -761,20 +959,6 @@ function ReviewScreen({
             </span>
           </p>
         </div>
-        <button
-          onClick={handleApproveWithValidation}
-          disabled={isScheduling || activePosts.length === 0}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all"
-          style={{
-            backgroundColor: B.accent,
-            color: '#fff',
-            boxShadow: `0 4px 16px ${B.accent}40`,
-            opacity: isScheduling || activePosts.length === 0 ? 0.6 : 1,
-          }}
-        >
-          {isScheduling && <Loader2 className="w-4 h-4 animate-spin" />}
-          {isScheduling ? 'Scheduling…' : 'Approve & Schedule'}
-        </button>
       </div>
 
       {isPreviewOnly && (
@@ -851,6 +1035,9 @@ function ReviewScreen({
             return (
               <motion.div
                 key={postIdx}
+                id={`arc-post-${postIdx}`}
+                onMouseEnter={() => onStoryHoverChange?.(true)}
+                onMouseLeave={() => onStoryHoverChange?.(false)}
                 layout
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -866,7 +1053,10 @@ function ReviewScreen({
                 {/* Post header row */}
                 <div
                   className="flex items-center gap-4 p-4 cursor-pointer"
-                  onClick={() => setExpandedPost(isExpanded ? -1 : postIdx)}
+                  onClick={() => {
+                    setExpandedPost(isExpanded ? -1 : postIdx);
+                    onStoryIndexChange?.(postIdx);
+                  }}
                 >
                   {/* Day badge */}
                   <div className="flex-shrink-0 text-center w-14">
@@ -893,8 +1083,7 @@ function ReviewScreen({
                     <div className="text-xs mt-0.5 truncate" style={{ color: B.textMuted }}>{post.arcBeatReason}</div>
                     <div className="flex flex-wrap items-center gap-1.5 mt-2">
                       {post.platforms.map((p, pIdx) => {
-                        const meta = PLATFORM_META[p.platform];
-                        if (!meta) return null;
+                        const meta = PLATFORM_META[p.platform] || { name: p.platform, color: '#666', bg: '#F0F0F0' };
                         const isEnabled = p.enabled !== false;
                         return (
                           <button
@@ -904,21 +1093,19 @@ function ReviewScreen({
                               e.stopPropagation();
                               togglePlatformEnabled(postIdx, pIdx);
                             }}
-                            title={isEnabled ? `Click to exclude ${meta.name}` : `Click to include ${meta.name}`}
+                            title={isEnabled ? `Included: ${meta.name} (click to exclude)` : `Excluded: ${meta.name} (click to include)`}
                             className={cn(
-                              "inline-flex items-center gap-1 rounded-full text-xs font-medium transition-all cursor-pointer border px-2 py-0.5",
+                              "inline-flex items-center justify-center w-7 h-7 rounded-full transition-all cursor-pointer border",
                               isEnabled
-                                ? "hover:scale-105 shadow-xs"
-                                : "opacity-40 hover:opacity-75 border-dashed line-through"
+                                ? "hover:scale-110 shadow-xs"
+                                : "opacity-35 hover:opacity-65 border-dashed grayscale"
                             )}
                             style={{
                               backgroundColor: isEnabled ? meta.bg : B.bg,
-                              color: isEnabled ? meta.color : B.textMuted,
-                              borderColor: isEnabled ? `${meta.color}33` : B.border,
+                              borderColor: isEnabled ? `${meta.color}40` : B.border,
                             }}
                           >
-                            <span style={{ fontSize: 11 }}>{meta.icon}</span>
-                            <span>{meta.name}</span>
+                            <PlatformBrandLogo platform={p.platform as SupportedPlatformType} size={15} />
                           </button>
                         );
                       })}
@@ -1116,7 +1303,7 @@ function ReviewScreen({
                                   : { color: B.textMuted }
                                 }
                               >
-                                <Icn className="w-3.5 h-3.5" />
+                                <PlatformBrandLogo platform={p.platform as SupportedPlatformType} size={14} />
                                 <span className={cn('hidden sm:inline', !isPlatformEnabled && 'line-through')}>{pcfg.name}</span>
                               </button>
                             );
@@ -1621,7 +1808,7 @@ function ScheduledPostModal({
                   className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white transition-opacity disabled:opacity-50"
                   style={{ backgroundColor: B.accent }}
                 >
-                  {isRescheduling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                  {isRescheduling && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   Reschedule
                 </button>
               </div>
@@ -1635,7 +1822,7 @@ function ScheduledPostModal({
             </label>
             <div className="flex items-center gap-2 overflow-x-auto pb-1">
               {post.platforms.map((v, idx) => {
-                const meta = PLATFORM_META[v.platform] || { name: v.platform, color: '#666', bg: '#F0F0F0', icon: '•' };
+                const meta = PLATFORM_META[v.platform] || { name: v.platform, color: '#666', bg: '#F0F0F0' };
                 const isSelected = idx === activeVariantIndex;
                 const hasPendingEdit = editedContent[v.variantId] && editedContent[v.variantId] !== v.content;
                 return (
@@ -1650,7 +1837,7 @@ function ScheduledPostModal({
                       boxShadow: isSelected ? `0 2px 8px ${meta.color}25` : 'none',
                     }}
                   >
-                    <span>{meta.icon}</span>
+                    <PlatformBrandLogo platform={v.platform as SupportedPlatformType} size={14} />
                     <span>{meta.name}</span>
                     {hasPendingEdit && (
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
@@ -2114,6 +2301,9 @@ function WeekCanvas({
             const dayKey = format(day, 'yyyy-MM-dd');
             const dayPosts = postsByDay.get(dayKey) ?? [];
             const isNow = isToday(day);
+            const count = dayPosts.length;
+            const isCompact = count >= 4;
+            const isUltraCompact = count >= 6;
 
             return (
               <div key={dayKey} className="space-y-2">
@@ -2133,14 +2323,24 @@ function WeekCanvas({
                   </div>
                 </div>
 
-                {/* Post cards for this day */}
-                <div className="space-y-1.5 min-h-[80px]">
+                {/* Post cards for this day with auto-shrink when > 3 posts */}
+                <div className={cn(
+                  "min-h-[80px]",
+                  isUltraCompact ? "space-y-1" : isCompact ? "space-y-1" : "space-y-1.5"
+                )}>
                   {dayPosts.map(post => (
                     <motion.div
                       key={post.postId}
                       layout
                       onClick={() => setSelectedPost(post)}
-                      className="rounded-xl p-2.5 group relative transition-all hover:scale-[1.02]"
+                      className={cn(
+                        "rounded-xl group relative transition-all hover:scale-[1.02] hover:z-10",
+                        isUltraCompact
+                          ? "p-1.5"
+                          : isCompact
+                          ? "p-2"
+                          : "p-2.5"
+                      )}
                       style={{
                         backgroundColor: B.card,
                         border: `1px solid ${B.border}`,
@@ -2148,47 +2348,87 @@ function WeekCanvas({
                         boxShadow: B.cardShadow,
                       }}
                     >
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-xs font-mono font-medium flex items-center gap-1" style={{ color: B.textMuted }}>
-                          <Clock className="w-3 h-3" />
+                      <div className={cn("flex items-center justify-between", isUltraCompact ? "mb-0.5" : isCompact ? "mb-1" : "mb-1.5")}>
+                        <span
+                          className={cn(
+                            "font-mono font-medium flex items-center gap-1",
+                            isUltraCompact ? "text-[10px]" : "text-xs"
+                          )}
+                          style={{ color: B.textMuted }}
+                        >
+                          <Clock className={isUltraCompact ? "w-2.5 h-2.5" : "w-3 h-3"} />
                           {post.scheduledAt ? format(new Date(post.scheduledAt), 'HH:mm') : '--:--'}
                         </span>
                         <div
-                          className="w-1.5 h-1.5 rounded-full"
+                          className="w-1.5 h-1.5 rounded-full flex-shrink-0"
                           style={{ backgroundColor: statusColor(post.status) }}
                         />
                       </div>
 
-                      <p className="text-xs leading-snug line-clamp-2" style={{ color: B.textSecondary }}>
+                      <p
+                        className={cn(
+                          "leading-snug",
+                          isUltraCompact
+                            ? "text-[10px] truncate"
+                            : isCompact
+                            ? "text-[11px] line-clamp-1"
+                            : "text-xs line-clamp-2"
+                        )}
+                        style={{ color: B.textSecondary }}
+                        title={post.content}
+                      >
                         {post.content}
                       </p>
 
-                      <div className="flex items-center justify-between mt-2 pt-1.5" style={{ borderTop: `1px solid ${B.border}50` }}>
-                        <div className="flex flex-wrap gap-1">
-                          {post.platforms.slice(0, 3).map(v => {
+                      <div
+                        className={cn(
+                          "flex items-center justify-between",
+                          isUltraCompact ? "mt-1 pt-1" : isCompact ? "mt-1.5 pt-1" : "mt-2 pt-1.5"
+                        )}
+                        style={{ borderTop: `1px solid ${B.border}50` }}
+                      >
+                        <div className="flex items-center flex-wrap gap-1">
+                          {post.platforms.slice(0, isUltraCompact ? 2 : 3).map(v => {
                             const meta = PLATFORM_META[v.platform];
-                            return meta ? (
+                            return (
                               <span
                                 key={v.variantId}
-                                className="text-[9px] px-1.5 py-0.5 rounded-full font-medium"
-                                style={{ backgroundColor: meta.bg, color: meta.color }}
+                                className={cn(
+                                  "inline-flex items-center justify-center rounded-full p-0.5 shadow-2xs transition-transform hover:scale-110",
+                                  isUltraCompact ? "w-4 h-4" : "w-5 h-5"
+                                )}
+                                style={{ backgroundColor: meta?.bg || '#F3F4F6' }}
+                                title={meta?.name || v.platform}
                               >
-                                {meta.name.slice(0, 2)}
+                                <PlatformBrandLogo
+                                  platform={v.platform as SupportedPlatformType}
+                                  size={isUltraCompact ? 10 : 12}
+                                />
                               </span>
-                            ) : null;
+                            );
                           })}
-                          {post.platforms.length > 3 && (
-                            <span className="text-[9px] px-1.5 py-0.5 rounded-full"
-                              style={{ backgroundColor: B.border, color: B.textMuted }}>
-                              +{post.platforms.length - 3}
+                          {post.platforms.length > (isUltraCompact ? 2 : 3) && (
+                            <span
+                              className={cn(
+                                "rounded-full font-medium leading-none flex items-center justify-center",
+                                isUltraCompact ? "text-[8px] px-1 py-0.5" : "text-[9px] px-1.5 py-0.5"
+                              )}
+                              style={{ backgroundColor: B.border, color: B.textMuted }}
+                            >
+                              +{post.platforms.length - (isUltraCompact ? 2 : 3)}
                             </span>
                           )}
                         </div>
 
-                        <span className="text-[10px] font-medium flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: B.accentDark }}>
-                          <Edit3 className="w-2.5 h-2.5" />
-                          Edit
-                        </span>
+                        {!isUltraCompact && (
+                          <span
+                            className="text-[10px] font-medium flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                            style={{ color: B.accentDark }}
+                          >
+                            <Edit3 className="w-2.5 h-2.5" />
+                            Edit
+                          </span>
+                        )}
                       </div>
                     </motion.div>
                   ))}
@@ -2221,6 +2461,8 @@ function FlightPlanInner({ userId, workspaceId }: { userId: string; workspaceId:
   const [storyData, setStoryData] = useState<any>(null);
   const [postCount, setPostCount] = useState<number>(0);
   const [connectedPlatforms, setConnectedPlatforms] = useState<PlatformType[]>([]);
+  const [activeStoryIndex, setActiveStoryIndex] = useState<number>(0);
+  const [isStoryPaused, setIsStoryPaused] = useState<boolean>(false);
 
   // Load connected platforms
   useEffect(() => {
@@ -2351,17 +2593,41 @@ function FlightPlanInner({ userId, workspaceId }: { userId: string; workspaceId:
         )}
       </div>
 
-      {/* Step dots for story → review flow */}
-      {(view === 'story' || view === 'review') && (
+      {/* Step indicator / Instagram-style story line for story → review flow */}
+      {view === 'story' && (
         <div className="flex items-center justify-between">
-          <StepDots current={view === 'story' ? 0 : 1} total={2} />
+          <StepDots current={0} total={2} />
           <button
             onClick={() => { setView('canvas'); setArc(null); }}
-            className="text-sm flex items-center gap-1"
+            className="text-sm flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity"
             style={{ color: B.textMuted }}
           >
             <X className="w-3.5 h-3.5" />
             Cancel
+          </button>
+        </div>
+      )}
+
+      {view === 'review' && arc && (
+        <div
+          className="flex items-start sm:items-center justify-between gap-4 p-3 rounded-2xl border"
+          style={{ backgroundColor: B.card, borderColor: B.border }}
+        >
+          <InstagramStoryBar
+            posts={arc.weekPosts.filter(p => !p.deleted)}
+            currentIndex={activeStoryIndex}
+            onSelectIndex={setActiveStoryIndex}
+            isPaused={isStoryPaused}
+            onTogglePause={() => setIsStoryPaused(p => !p)}
+            durationMs={5500}
+          />
+          <button
+            onClick={() => { setView('canvas'); setArc(null); }}
+            className="text-xs font-medium flex items-center gap-1 px-2.5 py-1.5 rounded-lg border hover:bg-black/5 transition-colors cursor-pointer mt-0.5 sm:mt-0 flex-shrink-0"
+            style={{ color: B.textMuted, borderColor: B.border }}
+          >
+            <X className="w-3 h-3" />
+            Exit Review
           </button>
         </div>
       )}
@@ -2385,6 +2651,9 @@ function FlightPlanInner({ userId, workspaceId }: { userId: string; workspaceId:
             onApprove={handleApprove}
             onBack={() => setView('story')}
             isScheduling={isScheduling}
+            activeStoryIndex={activeStoryIndex}
+            onStoryIndexChange={setActiveStoryIndex}
+            onStoryHoverChange={setIsStoryPaused}
           />
         )}
         {view === 'canvas' && (

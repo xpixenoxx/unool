@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { generateWithFallback } from '@/lib/ai/provider';
 import { logger } from '@/lib/logger';
 import type { StoryType } from '@/lib/repositories/interfaces/IPostRepository';
-import type { PlatformType } from '@/lib/ai/PostAdapter';
+import { PlatformType, buildOnboardingPrompt } from '@/lib/ai/PostAdapter';
 
 // ─── Zod Schema for one post in the arc ────────────────────────────────────
 
@@ -272,8 +272,11 @@ export async function generateWeekArc(params: {
   audienceTimezone: string;      // e.g. "Asia/Kolkata"
   userFirstName: string;
   weekStartDate?: string;
+  onboardingPrompt?: string;
+  onboardingAnswers?: Record<string, any> | null;
 }): Promise<WeekArc | null> {
   const { coreStory, followUps, connectedPlatforms, audienceTimezone, userFirstName, weekStartDate } = params;
+  const onboardingPrompt = params.onboardingPrompt || (params.onboardingAnswers ? buildOnboardingPrompt(params.onboardingAnswers) : undefined);
   const detectedType = detectStoryType(coreStory);
   const arcBeats = ARC_BEATS[detectedType];
   const upcomingDays = getUpcomingDaysForArc(weekStartDate);
@@ -305,7 +308,7 @@ export async function generateWeekArc(params: {
 
   const prompt = `You are a world-class content strategist for creators and founders. Your job is to transform ONE real story into a week of native platform content.
 
-CREATOR NAME: ${userFirstName}
+${onboardingPrompt ? `${onboardingPrompt}\n\n` : ''}CREATOR NAME: ${userFirstName}
 AUDIENCE TIMEZONE: ${audienceTimezone}
 
 THE STORY (fact-grounded — use ONLY facts from this input, do NOT invent numbers or claims):

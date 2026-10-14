@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ExternalLink, RefreshCw, AlertCircle, CheckCircle, Clock, Zap,
@@ -8,182 +9,15 @@ import {
   FileText, Activity, Target, Flame, ArrowUpRight, Layers, Eye,
   Award, PieChart, Hash, Type, BarChart3, HelpCircle, Info,
   Share2, Search, Filter, Check, ChevronRight, ChevronDown,
-  BookOpen, ShieldCheck, ArrowRight, Compass, Wand2
+  BookOpen, ShieldCheck, ArrowRight, Compass, Wand2, Copy, Link2, X
 } from 'lucide-react';
 import Link from 'next/link';
 import { formatDistanceToNow, format } from 'date-fns';
 import { toast } from 'sonner';
 
-/* ─── Warm Biscuit Editorial Palette ────────────────────────────────────── */
-const biscuit = {
-  bg: '#F7F3ED',
-  sidebar: '#F0EBE3',
-  card: '#FFFDF9',
-  cardHover: '#FAF7F2',
-  accent: '#C4A265',
-  accentLight: '#D4B87A',
-  accentBg: '#F5EFE2',
-  text: '#3D2B1F',
-  textMuted: '#8B7355',
-  textLight: '#A69279',
-  activeBg: '#3D2B1F',
-  activeFg: '#FAF7F2',
-  border: '#E8E0D4',
-  borderLight: '#F0EBE3',
-  hoverBg: '#EDE7DD',
-  emerald: '#2D6A4F',
-  emeraldBg: '#E8F5E9',
-  terracotta: '#C25E38',
-  terracottaBg: '#FDF0EC',
-};
+import { PlatformLogos, getPlatformConfig } from '@/components/dashboard/PlatformLogos';
 
-/* ─── Real platform SVG logos & Brand Tokens ────────────────────────────── */
-const PlatformLogos: Record<string, { logo: React.FC<{ size?: number }>; name: string; color: string; bg: string }> = {
-  linkedin: {
-    name: 'LinkedIn',
-    color: '#0A66C2',
-    bg: '#E8F0FA',
-    logo: ({ size = 18 }) => (
-      <svg width={size} height={size} viewBox="0 0 24 24" fill="#0A66C2">
-        <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19a1.66 1.66 0 000 1.14V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z" />
-      </svg>
-    ),
-  },
-  x: {
-    name: 'X (Twitter)',
-    color: '#000000',
-    bg: '#F3F4F6',
-    logo: ({ size = 18 }) => (
-      <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-      </svg>
-    ),
-  },
-  threads: {
-    name: 'Threads',
-    color: '#000000',
-    bg: '#F3F4F6',
-    logo: ({ size = 18 }) => (
-      <svg width={size} height={size} viewBox="0 0 192 192" fill="currentColor">
-        <path d="M141.537 88.9883C140.71 88.5919 139.87 88.2104 139.019 87.8451C137.537 60.5382 122.616 44.905 97.5619 44.745C97.4484 44.7443 97.3355 44.7443 97.222 44.745C82.2364 44.745 70.1369 51.5765 63.5765 63.3545L75.2024 70.6031C80.0505 62.2784 88.2266 58.2497 97.222 58.2497C97.302 58.2497 97.3826 58.2497 97.4632 58.2504C108.311 58.3263 116.373 63.2067 121.072 72.5739C124.474 79.3627 125.795 87.5692 125.011 97.0684C118.716 93.8805 111.245 92.2816 103.087 92.2816C78.5459 92.2816 62.2275 105.888 63.285 126.383C63.8385 137.188 69.2854 146.683 78.4808 152.904C86.4024 158.267 96.3883 160.734 106.667 160.173C120.063 159.443 130.581 154.26 137.955 144.781C143.578 137.601 147.258 128.527 149.104 117.317C154.118 120.112 157.935 123.802 160.351 128.423C164.651 136.891 165.029 150.511 155.909 159.773C147.762 168.041 137.856 171.894 122.933 172.032C106.162 171.878 93.5498 167.049 85.2527 157.723C77.3733 148.852 73.2517 136.543 72.9765 121.148C73.2517 105.752 77.3733 93.4436 85.2527 84.573C93.5498 75.2477 106.162 70.4181 122.933 70.264Z" />
-      </svg>
-    ),
-  },
-  instagram: {
-    name: 'Instagram',
-    color: '#E1306C',
-    bg: '#FDE8F0',
-    logo: ({ size = 18 }) => (
-      <svg width={size} height={size} viewBox="0 0 24 24">
-        <defs>
-          <radialGradient id="sig-ig" cx="30%" cy="107%" r="150%">
-            <stop offset="0%" stopColor="#fdf497" />
-            <stop offset="50%" stopColor="#fd5949" />
-            <stop offset="68%" stopColor="#d6249f" />
-            <stop offset="100%" stopColor="#285AEB" />
-          </radialGradient>
-        </defs>
-        <path fill="url(#sig-ig)" d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
-      </svg>
-    ),
-  },
-  bluesky: {
-    name: 'Bluesky',
-    color: '#0085FF',
-    bg: '#E6F3FF',
-    logo: ({ size = 18 }) => (
-      <svg width={size} height={size} viewBox="0 0 360 320" fill="#0085FF">
-        <path d="M180 141.964C163.699 110.262 119.308 51.1817 78.0834 31.0445C38.4622 11.6012 1.01713 22.5943 1.01713 74.2913C1.01713 84.0502 6.28388 149.135 9.29108 160.994C21.6498 207.979 70.8174 219.185 115.124 212.405C175.154 202.921 256.555 190.651 180 141.964ZM180 141.964C196.301 110.262 240.692 51.1817 281.917 31.0445C321.538 11.6012 358.983 22.5943 358.983 74.2913C358.983 84.0502 353.716 149.135 350.709 160.994C338.35 207.979 289.183 219.185 244.876 212.405C184.846 202.921 103.445 190.651 180 141.964Z" />
-        <path d="M180.026 194.895C180.026 194.895 133.738 210.527 118.981 242.765C109.649 263.297 112.956 295.538 155.77 301.622C169.285 303.566 185.24 302.805 199.999 299.375C214.747 295.949 228.248 288.741 237.019 277.879C250.534 261.146 247.888 225.469 232.975 212.205C218.076 198.953 180.026 194.895 180.026 194.895Z" />
-      </svg>
-    ),
-  },
-  whatsapp: {
-    name: 'WhatsApp',
-    color: '#25D366',
-    bg: '#E8F8EE',
-    logo: ({ size = 18 }) => (
-      <svg width={size} height={size} viewBox="0 0 24 24" fill="#25D366">
-        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-      </svg>
-    ),
-  },
-  facebook: {
-    name: 'Facebook',
-    color: '#1877F2',
-    bg: '#E8F0FE',
-    logo: ({ size = 18 }) => (
-      <svg width={size} height={size} viewBox="0 0 24 24" fill="#1877F2">
-        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-      </svg>
-    ),
-  },
-  youtube: {
-    name: 'YouTube',
-    color: '#FF0000',
-    bg: '#FEECEC',
-    logo: ({ size = 18 }) => (
-      <svg width={size} height={size} viewBox="0 0 24 24" fill="#FF0000">
-        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-      </svg>
-    ),
-  },
-};
-
-/* ─── Hook Archetype Metadata ───────────────────────────────────────────── */
-const HOOK_META: Record<string, { label: string; desc: string; icon: React.ReactNode; color: string; bg: string }> = {
-  statement: {
-    label: 'Bold Statement',
-    desc: 'Uncompromising declaration or thesis that commands authority.',
-    icon: <Type className="w-3.5 h-3.5" />,
-    color: '#B48C48',
-    bg: '#FBF7EE',
-  },
-  question: {
-    label: 'Curiosity Question',
-    desc: 'Intriguing opener that compels the mind to seek an answer.',
-    icon: <HelpCircle className="w-3.5 h-3.5" />,
-    color: '#3B82F6',
-    bg: '#EFF6FF',
-  },
-  statistic: {
-    label: 'Data / Statistic',
-    desc: 'Hard metric or multiple that anchors intellectual credibility.',
-    icon: <BarChart3 className="w-3.5 h-3.5" />,
-    color: '#10B981',
-    bg: '#ECFDF5',
-  },
-  story: {
-    label: 'Personal Narrative',
-    desc: 'Vulnerable first-person narrative driving empathy & connection.',
-    icon: <BookOpen className="w-3.5 h-3.5" />,
-    color: '#EC4899',
-    bg: '#FDF2F8',
-  },
-  contrarian: {
-    label: 'Contrarian Angle',
-    desc: 'Direct challenge to common dogmas that halts feed scrolling.',
-    icon: <Flame className="w-3.5 h-3.5" />,
-    color: '#EF4444',
-    bg: '#FEF2F2',
-  },
-  framework: {
-    label: 'Framework / Step-by-Step',
-    desc: 'Systematized blueprint that inspires immediate saving & bookmarking.',
-    icon: <Layers className="w-3.5 h-3.5" />,
-    color: '#8B5CF6',
-    bg: '#F5F3FF',
-  },
-  unknown: {
-    label: 'Standard Dispatch',
-    desc: 'Balanced conversational dispatch.',
-    icon: <FileText className="w-3.5 h-3.5" />,
-    color: '#8B7355',
-    bg: '#F7F3ED',
-  },
-};
-
-/* ─── Types ─────────────────────────────────────────────────────────────── */
+/* ── Types ─────────────────────────────────────────────────────────────────── */
 type PostVariant = {
   id: string;
   platform: string;
@@ -245,6 +79,66 @@ type ResonanceData = {
   }>;
 };
 
+/* ── Hook Archetype Metadata ───────────────────────────────────────────────── */
+const HOOK_META: Record<string, { label: string; desc: string; icon: React.ReactNode; color: string; bg: string; text: string }> = {
+  statement: {
+    label: 'Bold Statement',
+    desc: 'Uncompromising assertion that commands authority.',
+    icon: <Type className="w-3.5 h-3.5" />,
+    color: '#B48C48',
+    bg: 'bg-amber-50',
+    text: 'text-amber-800',
+  },
+  question: {
+    label: 'Curiosity Question',
+    desc: 'Intriguing opener that compels the mind to search for an answer.',
+    icon: <HelpCircle className="w-3.5 h-3.5" />,
+    color: '#3B82F6',
+    bg: 'bg-blue-50',
+    text: 'text-blue-800',
+  },
+  statistic: {
+    label: 'Data / Statistic',
+    desc: 'Hard metric or percentage that anchors intellectual credibility.',
+    icon: <BarChart3 className="w-3.5 h-3.5" />,
+    color: '#10B981',
+    bg: 'bg-emerald-50',
+    text: 'text-emerald-800',
+  },
+  story: {
+    label: 'Personal Narrative',
+    desc: 'First-person journey creating emotional resonance and empathy.',
+    icon: <BookOpen className="w-3.5 h-3.5" />,
+    color: '#EC4899',
+    bg: 'bg-pink-50',
+    text: 'text-pink-800',
+  },
+  contrarian: {
+    label: 'Contrarian Angle',
+    desc: 'Challenging conventional wisdom to disrupt crowded feeds.',
+    icon: <Flame className="w-3.5 h-3.5" />,
+    color: '#EF4444',
+    bg: 'bg-rose-50',
+    text: 'text-rose-800',
+  },
+  framework: {
+    label: 'Framework / Steps',
+    desc: 'Systematized blueprint that inspires saves and bookmarks.',
+    icon: <Layers className="w-3.5 h-3.5" />,
+    color: '#8B5CF6',
+    bg: 'bg-purple-50',
+    text: 'text-purple-800',
+  },
+  unknown: {
+    label: 'Standard Dispatch',
+    desc: 'Balanced conversational dispatch.',
+    icon: <FileText className="w-3.5 h-3.5" />,
+    color: '#6B7280',
+    bg: 'bg-gray-50',
+    text: 'text-gray-700',
+  },
+};
+
 function getPostAge(createdAt: string): 'active' | 'settling' | 'cooled' {
   const ageMs = Date.now() - new Date(createdAt).getTime();
   const ageMin = ageMs / 60000;
@@ -257,6 +151,15 @@ function getGoldenHourRemaining(createdAt: string): number | null {
   const ageMin = (Date.now() - new Date(createdAt).getTime()) / 60000;
   if (ageMin >= 60) return null;
   return Math.max(1, Math.round(60 - ageMin));
+}
+
+function LiveIndicator() {
+  return (
+    <span className="relative flex h-2 w-2">
+      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+    </span>
+  );
 }
 
 function AnimatedNumber({ value, suffix = '' }: { value: number; suffix?: string }) {
@@ -278,7 +181,7 @@ function AnimatedNumber({ value, suffix = '' }: { value: number; suffix?: string
   return <>{display}{suffix}</>;
 }
 
-/* ─── Main Signal Client ─────────────────────────────────────────────────── */
+/* ── Main Signal Client ─────────────────────────────────────────────────────── */
 export function SignalClient() {
   const [posts, setPosts] = useState<SignalPost[]>([]);
   const [resonance, setResonance] = useState<ResonanceData | null>(null);
@@ -339,9 +242,11 @@ export function SignalClient() {
     loadData();
   }, [loadData]);
 
-  // Dynamic poll if active pending variants exist
+  // Poll every 3 seconds only if any active post has actively pending in-flight publishing
   useEffect(() => {
-    const hasPending = posts.some(p => p.variants.some(v => v.status === 'pending'));
+    const hasPending = posts.some(p =>
+      p.variants.some(v => v.status === 'pending')
+    );
     if (!hasPending) return;
     const t = setInterval(loadData, 3000);
     return () => clearInterval(t);
@@ -390,265 +295,158 @@ export function SignalClient() {
 
   if (loading) {
     return (
-      <div className="min-h-[65vh] flex items-center justify-center">
+      <div className="min-h-[60vh] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <motion.div
             animate={{ rotate: 360 }}
-            transition={{ repeat: Infinity, duration: 1.2, ease: 'linear' }}
-            style={{
-              width: 44, height: 44, borderRadius: '50%',
-              border: `3px solid ${biscuit.border}`,
-              borderTopColor: biscuit.accent,
-            }}
-          />
-          <p style={{ fontSize: 13, color: biscuit.textMuted, fontWeight: 500, letterSpacing: '0.04em' }}>
-            Syncing Signal dispatch feed…
-          </p>
+            transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+          >
+            <RefreshCw className="w-5 h-5 text-gray-400" />
+          </motion.div>
+          <p className="text-sm text-gray-400 font-medium">Loading Signal…</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={{ maxWidth: 860, margin: '0 auto', padding: '24px 16px 64px', position: 'relative' }}>
+    <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
       {/* ── Editorial Header ────────────────────────────────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35 }}
-        style={{ marginBottom: 24 }}
-      >
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-              <div style={{
-                width: 38, height: 38, borderRadius: 12,
-                background: biscuit.activeBg,
-                color: biscuit.activeFg,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 2px 8px rgba(61,43,31,0.15)',
-              }}>
-                <Activity className="w-5 h-5" style={{ color: biscuit.accentLight }} />
-              </div>
-              <h1 style={{
-                fontSize: 30, fontWeight: 800, letterSpacing: '-0.03em',
-                color: biscuit.text, fontFamily: 'var(--font-syne), serif',
-              }}>
-                Signal
-              </h1>
-              {liveStats.active > 0 && (
-                <span style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 5,
-                  padding: '3px 10px', borderRadius: 20,
-                  background: biscuit.terracottaBg,
-                  color: biscuit.terracotta,
-                  border: `1px solid ${biscuit.terracotta}30`,
-                  fontSize: 11, fontWeight: 700, letterSpacing: '0.03em',
-                }}>
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500" />
-                  </span>
-                  {liveStats.active} in Golden Hour
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-3xl font-extrabold text-[#3D2B1F] tracking-tight font-serif">Signal</h1>
+            {liveStats.active > 0 && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#FDF0EC] text-[#C25E38] border border-[#C25E38]/20">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500" />
                 </span>
-              )}
-            </div>
-            <p style={{ fontSize: 14, color: biscuit.textMuted, marginLeft: 48, lineHeight: 1.4 }}>
-              Real-time cross-platform broadcast feed and algorithmic content genetic breakdown.
-            </p>
-          </div>
-
-          {/* Segmented Control / Tab Switcher */}
-          <div style={{
-            display: 'flex', alignItems: 'center',
-            background: biscuit.sidebar,
-            borderRadius: 14, padding: 3,
-            border: `1px solid ${biscuit.border}`,
-            position: 'relative',
-          }}>
-            <button
-              onClick={() => setTab('feed')}
-              style={{
-                position: 'relative',
-                padding: '8px 18px', fontSize: 13, fontWeight: 700,
-                borderRadius: 11, border: 'none', cursor: 'pointer',
-                background: tab === 'feed' ? biscuit.card : 'transparent',
-                color: tab === 'feed' ? biscuit.text : biscuit.textMuted,
-                boxShadow: tab === 'feed' ? '0 1px 4px rgba(61,43,31,0.08)' : 'none',
-                transition: 'all 0.2s ease',
-                display: 'flex', alignItems: 'center', gap: 7,
-              }}
-            >
-              <Eye className="w-4 h-4" style={{ color: tab === 'feed' ? biscuit.accent : biscuit.textLight }} />
-              <span>Broadcast Feed</span>
-              {posts.length > 0 && (
-                <span style={{
-                  fontSize: 11, fontWeight: 700,
-                  padding: '1px 6px', borderRadius: 10,
-                  background: tab === 'feed' ? biscuit.accentBg : 'rgba(0,0,0,0.05)',
-                  color: tab === 'feed' ? biscuit.text : biscuit.textMuted,
-                }}>
-                  {posts.length}
-                </span>
-              )}
-            </button>
-
-            <button
-              onClick={() => setTab('dna')}
-              style={{
-                position: 'relative',
-                padding: '8px 18px', fontSize: 13, fontWeight: 700,
-                borderRadius: 11, border: 'none', cursor: 'pointer',
-                background: tab === 'dna' ? biscuit.card : 'transparent',
-                color: tab === 'dna' ? biscuit.text : biscuit.textMuted,
-                boxShadow: tab === 'dna' ? '0 1px 4px rgba(61,43,31,0.08)' : 'none',
-                transition: 'all 0.2s ease',
-                display: 'flex', alignItems: 'center', gap: 7,
-              }}
-            >
-              <Sparkles className="w-4 h-4" style={{ color: tab === 'dna' ? biscuit.accent : biscuit.textLight }} />
-              <span>Post DNA</span>
-              <span style={{
-                fontSize: 10, fontWeight: 800, textTransform: 'uppercase',
-                padding: '2px 6px', borderRadius: 8,
-                background: tab === 'dna' ? biscuit.accent : biscuit.accentBg,
-                color: tab === 'dna' ? '#fff' : biscuit.textMuted,
-                letterSpacing: '0.04em',
-              }}>
-                Intelligence
+                {liveStats.active} in Golden Hour
               </span>
-            </button>
-
-            <Link
-              href="/dashboard/flightplan"
-              style={{
-                position: 'relative',
-                padding: '8px 18px', fontSize: 13, fontWeight: 700,
-                borderRadius: 11, textDecoration: 'none',
-                color: biscuit.textMuted,
-                transition: 'all 0.2s ease',
-                display: 'flex', alignItems: 'center', gap: 7,
-              }}
-              title="Plan your weekly content schedule"
-            >
-              <Calendar className="w-4 h-4" style={{ color: biscuit.accent }} />
-              <span>Flight Plan</span>
-            </Link>
+            )}
           </div>
+          <p className="text-sm text-[#8B7355] mt-1">Your posts, live. Where they go, what they build.</p>
         </div>
-      </motion.div>
 
-      {/* ── Tab Views ───────────────────────────────────────────────────── */}
+        {/* Tab Switcher */}
+        <div className="flex items-center gap-1 p-1 bg-[#F0EBE3] rounded-xl border border-[#E5DFD5]">
+          <button
+            onClick={() => setTab('feed')}
+            className={`px-4 py-1.5 text-sm font-semibold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+              tab === 'feed'
+                ? 'bg-white text-[#3D2B1F] shadow-sm'
+                : 'text-[#8B7355] hover:text-[#3D2B1F]'
+            }`}
+          >
+            <Eye className="w-3.5 h-3.5" />
+            <span>Feed</span>
+            {posts.length > 0 && (
+              <span className="text-[11px] px-1.5 py-0.2 rounded-full bg-[#F5EFE2] text-[#3D2B1F] font-bold">
+                {posts.length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setTab('dna')}
+            className={`px-4 py-1.5 text-sm font-semibold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+              tab === 'dna'
+                ? 'bg-white text-[#3D2B1F] shadow-sm'
+                : 'text-[#8B7355] hover:text-[#3D2B1F]'
+            }`}
+          >
+            <Zap className="w-3.5 h-3.5 text-[#C4A265]" />
+            <span>Post DNA</span>
+          </button>
+          <Link
+            href="/dashboard/schedule"
+            className="px-3.5 py-1.5 text-sm font-semibold rounded-lg transition-all flex items-center gap-1.5 text-[#8B7355] hover:text-[#3D2B1F] hover:bg-[#EDE7DD]"
+            title="View or plan upcoming scheduled posts"
+          >
+            <Calendar className="w-3.5 h-3.5 text-[#C4A265]" />
+            <span>Flight Plan</span>
+          </Link>
+        </div>
+      </div>
+
       <AnimatePresence mode="wait">
+        {/* ── Feed Tab ──────────────────────────────────────────────────── */}
         {tab === 'feed' && (
           <motion.div
-            key="feed-tab"
-            initial={{ opacity: 0, y: 10 }}
+            key="feed"
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.25 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.18 }}
+            className="space-y-4"
           >
-            {/* Quick Stats Strip */}
+            {/* Quick stats strip */}
             {posts.length > 0 && (
-              <div style={{
-                display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12,
-                marginBottom: 20,
-              }}>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {[
-                  { label: 'Dispatches', value: liveStats.total, icon: <Layers className="w-4 h-4" />, color: biscuit.accent },
-                  { label: 'Live Posts', value: liveStats.published, icon: <CheckCircle className="w-4 h-4" />, color: biscuit.emerald },
-                  { label: 'Golden Hour', value: liveStats.active, icon: <Flame className="w-4 h-4" />, color: biscuit.terracotta },
-                  { label: 'Reach Breadth', value: liveStats.platformReach, suffix: ' nets', icon: <Target className="w-4 h-4" />, color: '#6366F1' },
-                ].map((item, idx) => (
-                  <motion.div
-                    key={item.label}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.05 }}
-                    style={{
-                      background: biscuit.card,
-                      borderRadius: 16, padding: '14px 16px',
-                      border: `1px solid ${biscuit.border}`,
-                      boxShadow: '0 2px 8px rgba(61,43,31,0.03)',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                      <span style={{ color: item.color }}>{item.icon}</span>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: biscuit.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                        {item.label}
-                      </span>
+                  { label: 'Dispatches', value: liveStats.total, icon: <Layers className="w-4 h-4 text-[#C4A265]" /> },
+                  { label: 'Live Posts', value: liveStats.published, icon: <CheckCircle className="w-4 h-4 text-emerald-600" /> },
+                  { label: 'Golden Hour', value: liveStats.active, icon: <Flame className="w-4 h-4 text-orange-600" /> },
+                  { label: 'Network Reach', value: liveStats.platformReach, suffix: ' nets', icon: <Target className="w-4 h-4 text-indigo-600" /> },
+                ].map((stat) => (
+                  <div key={stat.label} className="bg-white rounded-2xl p-4 border border-[#E8E0D4] shadow-xs">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-[#8B7355] uppercase tracking-wider mb-1">
+                      {stat.icon}
+                      <span>{stat.label}</span>
                     </div>
-                    <p style={{ fontSize: 24, fontWeight: 800, color: biscuit.text, letterSpacing: '-0.02em', lineHeight: 1 }}>
-                      <AnimatedNumber value={item.value} suffix={item.suffix || ''} />
+                    <p className="text-2xl font-bold text-[#3D2B1F]">
+                      <AnimatedNumber value={stat.value} suffix={stat.suffix || ''} />
                     </p>
-                  </motion.div>
+                  </div>
                 ))}
               </div>
             )}
 
-            {/* Filter & Search Bar */}
+            {/* Filter and Search Bar */}
             {posts.length > 0 && (
-              <div style={{
-                background: biscuit.card,
-                borderRadius: 16, padding: '10px 14px',
-                border: `1px solid ${biscuit.border}`,
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
-                flexWrap: 'wrap', marginBottom: 20,
-                boxShadow: '0 1px 4px rgba(61,43,31,0.02)',
-              }}>
-                {/* Search */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 200 }}>
-                  <Search className="w-4 h-4" style={{ color: biscuit.textLight }} />
+              <div className="bg-white rounded-2xl p-3 border border-[#E8E0D4] flex items-center justify-between gap-3 flex-wrap shadow-xs">
+                <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+                  <Search className="w-4 h-4 text-[#A69279]" />
                   <input
                     type="text"
-                    placeholder="Search posts by content, hook, or platform…"
+                    placeholder="Search posts by content, hook, or network…"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    style={{
-                      border: 'none', outline: 'none', background: 'transparent',
-                      fontSize: 13, color: biscuit.text, width: '100%',
-                    }}
+                    className="border-none outline-none bg-transparent text-sm text-[#3D2B1F] placeholder-[#A69279] w-full"
                   />
                   {searchQuery && (
                     <button
                       onClick={() => setSearchQuery('')}
-                      style={{ fontSize: 11, color: biscuit.textMuted, border: 'none', background: 'transparent', cursor: 'pointer' }}
+                      className="text-xs text-[#8B7355] hover:text-[#3D2B1F] cursor-pointer"
                     >
                       Clear
                     </button>
                   )}
                 </div>
 
-                {/* Status Filter Pills */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div className="flex items-center gap-1.5 flex-wrap">
                   {[
                     { id: 'all', label: 'All' },
                     { id: 'published', label: 'Live' },
-                    { id: 'active', label: 'Active Golden' },
+                    { id: 'active', label: 'Golden Hour' },
                     { id: 'draft', label: 'Drafts' },
-                  ].map(f => (
+                  ].map((f) => (
                     <button
                       key={f.id}
                       onClick={() => setFilterStatus(f.id as any)}
-                      style={{
-                        padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600,
-                        border: filterStatus === f.id ? `1px solid ${biscuit.text}` : `1px solid ${biscuit.border}`,
-                        background: filterStatus === f.id ? biscuit.activeBg : biscuit.card,
-                        color: filterStatus === f.id ? biscuit.activeFg : biscuit.textMuted,
-                        cursor: 'pointer', transition: 'all 0.15s ease',
-                      }}
+                      className={`px-3 py-1 text-xs font-semibold rounded-full border transition-all cursor-pointer ${
+                        filterStatus === f.id
+                          ? 'bg-[#3D2B1F] text-white border-[#3D2B1F]'
+                          : 'bg-white text-[#8B7355] border-[#E8E0D4] hover:bg-[#F7F3ED]'
+                      }`}
                     >
                       {f.label}
                     </button>
                   ))}
                   <button
                     onClick={loadData}
-                    style={{
-                      padding: '5px 10px', borderRadius: 10, border: `1px solid ${biscuit.border}`,
-                      background: biscuit.cardHover, color: biscuit.textMuted, cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600,
-                    }}
-                    title="Refresh data"
+                    className="p-1.5 rounded-lg border border-[#E8E0D4] bg-[#FAF7F2] text-[#8B7355] hover:text-[#3D2B1F] cursor-pointer"
+                    title="Refresh feed"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
                   </button>
@@ -656,45 +454,34 @@ export function SignalClient() {
               </div>
             )}
 
-            {/* Post Feed List */}
+            {/* Post feed list */}
             {posts.length === 0 ? (
               <EmptyState />
             ) : filteredPosts.length === 0 ? (
-              <div style={{
-                background: biscuit.card, borderRadius: 20, border: `1px dashed ${biscuit.border}`,
-                padding: '48px 24px', textAlign: 'center',
-              }}>
-                <Search className="w-8 h-8" style={{ color: biscuit.textLight, margin: '0 auto 12px' }} />
-                <h3 style={{ fontSize: 16, fontWeight: 700, color: biscuit.text, marginBottom: 4 }}>
-                  No matching dispatches found
-                </h3>
-                <p style={{ fontSize: 13, color: biscuit.textMuted, marginBottom: 16 }}>
-                  Try adjusting your search terms or filters.
-                </p>
+              <div className="bg-white rounded-2xl border border-dashed border-[#E8E0D4] p-12 text-center">
+                <Search className="w-8 h-8 text-[#A69279] mx-auto mb-2" />
+                <h3 className="font-bold text-[#3D2B1F] mb-1">No matching dispatches found</h3>
+                <p className="text-sm text-[#8B7355] mb-4">Try clearing filters or searching for different keywords.</p>
                 <button
                   onClick={() => { setSearchQuery(''); setFilterStatus('all'); }}
-                  style={{
-                    padding: '6px 16px', borderRadius: 10, border: `1px solid ${biscuit.border}`,
-                    background: biscuit.cardHover, fontSize: 12, fontWeight: 600, color: biscuit.text,
-                    cursor: 'pointer',
-                  }}
+                  className="px-4 py-1.5 rounded-xl border border-[#E8E0D4] bg-[#FAF7F2] text-xs font-bold text-[#3D2B1F] cursor-pointer"
                 >
                   Reset filters
                 </button>
               </div>
             ) : (() => {
-              const mostRecentPublishedId = posts.find(p => p.variants.some(v => v.status === 'published'))?.id;
+              const mostRecentPublishedPostId = posts.find(p => p.variants.some(v => v.status === 'published'))?.id;
               return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  {filteredPosts.map((post, idx) => (
+                <div className="space-y-4">
+                  {filteredPosts.map((post, i) => (
                     <PostCard
                       key={post.id}
                       post={post}
-                      delay={idx * 0.04}
+                      delay={i * 0.04}
                       onRefresh={loadData}
                       onDelete={(id) => setPosts(prev => prev.filter(p => p.id !== id))}
                       profileSubdomain={profileSubdomain}
-                      isMostRecentPublished={post.id === mostRecentPublishedId}
+                      isMostRecentPublished={post.id === mostRecentPublishedPostId}
                     />
                   ))}
                 </div>
@@ -703,98 +490,67 @@ export function SignalClient() {
           </motion.div>
         )}
 
+        {/* ── Post DNA Tab ──────────────────────────────────────────────── */}
         {tab === 'dna' && (
           <motion.div
-            key="dna-tab"
-            initial={{ opacity: 0, y: 10 }}
+            key="dna"
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.25 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.18 }}
+            className="space-y-5"
           >
-            {/* ── Educational "Why Post DNA?" Hero Card ───────────────────── */}
+            {/* Educational "Why Post DNA?" Card */}
             <AnimatePresence>
               {showDNAInfo && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.3 }}
-                  style={{
-                    background: 'linear-gradient(135deg, #FFFDF9 0%, #FAF5ED 100%)',
-                    borderRadius: 20, border: `1px solid ${biscuit.border}`,
-                    padding: '24px 24px 20px', marginBottom: 20,
-                    boxShadow: '0 4px 16px rgba(61,43,31,0.04)',
-                    position: 'relative', overflow: 'hidden',
-                  }}
+                  className="bg-gradient-to-br from-white to-[#FAF5ED] rounded-2xl border border-[#E8E0D4] p-5 shadow-xs"
                 >
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 14 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{
-                        width: 34, height: 34, borderRadius: 10,
-                        background: biscuit.accentBg,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}>
-                        <Wand2 className="w-5 h-5" style={{ color: biscuit.accent }} />
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-[#F5EFE2] flex items-center justify-center text-[#C4A265]">
+                        <Wand2 className="w-4 h-4" />
                       </div>
                       <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <h2 style={{ fontSize: 16, fontWeight: 800, color: biscuit.text, letterSpacing: '-0.01em' }}>
-                            What is Post DNA & Why Does It Matter?
-                          </h2>
-                          <span style={{
-                            fontSize: 10, fontWeight: 800, textTransform: 'uppercase',
-                            padding: '2px 8px', borderRadius: 10,
-                            background: biscuit.accent, color: '#fff', letterSpacing: '0.04em',
-                          }}>
-                            Algorithmic Intelligence
+                        <div className="flex items-center gap-2">
+                          <h2 className="text-base font-bold text-[#3D2B1F]">What is Post DNA & Why Does It Matter?</h2>
+                          <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-[#C4A265] text-white tracking-wider">
+                            Content Intelligence
                           </span>
                         </div>
-                        <p style={{ fontSize: 13, color: biscuit.textMuted, marginTop: 2 }}>
-                          Your unique content genetic code across social algorithms.
-                        </p>
+                        <p className="text-xs text-[#8B7355] mt-0.5">Your algorithmic fingerprint across social networks.</p>
                       </div>
                     </div>
-
                     <button
                       onClick={() => setShowDNAInfo(false)}
-                      style={{
-                        padding: '4px 8px', borderRadius: 8, border: 'none',
-                        background: 'transparent', color: biscuit.textLight, cursor: 'pointer',
-                        fontSize: 12, fontWeight: 600,
-                      }}
-                      title="Dismiss explanation"
+                      className="text-xs font-semibold text-[#A69279] hover:text-[#3D2B1F] cursor-pointer"
                     >
                       Hide
                     </button>
                   </div>
 
-                  <p style={{ fontSize: 13.5, color: biscuit.text, lineHeight: 1.6, marginBottom: 18 }}>
-                    Social algorithms on LinkedIn, X, Threads, and Bluesky don’t read content like humans—they evaluate
-                    <strong> structural DNA</strong>: opening hook triggers, word pacing, media multiplier, and release cadence.
-                    Post DNA monitors every story you dispatch, decodes which styles stop the scroll, and tells you exactly
-                    how to engineer higher reach without posting blind.
+                  <p className="text-xs text-[#3D2B1F] leading-relaxed mb-3">
+                    Social algorithms on LinkedIn, X, Threads, and Bluesky evaluate <strong>structural patterns</strong>:
+                    opening hook styles, character pacing, visual density, and release windows. Post DNA decodes your real
+                    broadcasts to reveal what stops the scroll so you never post blind again.
                   </p>
 
-                  {/* 4 Pillars Grid */}
-                  <div style={{
-                    display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10,
-                    paddingTop: 12, borderTop: `1px solid ${biscuit.borderLight}`,
-                  }}>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-3 border-t border-[#F0EBE3]">
                     {[
-                      { icon: <Zap className="w-4 h-4" style={{ color: '#F59E0B' }} />, title: '1. Hook Archetype', desc: 'The first sentence trigger that decides 3-sec dropoff.' },
-                      { icon: <Clock className="w-4 h-4" style={{ color: '#3B82F6' }} />, title: '2. Golden Hour', desc: 'First 60 minutes when algorithms test your engagement velocity.' },
-                      { icon: <BarChart2 className="w-4 h-4" style={{ color: '#10B981' }} />, title: '3. Density & Pacing', desc: 'Word count rhythm and punchiness for dwell time.' },
-                      { icon: <Target className="w-4 h-4" style={{ color: '#8B5CF6' }} />, title: '4. Network Synergy', desc: 'Optimal distribution across all your connected profiles.' },
-                    ].map(p => (
-                      <div key={p.title} style={{
-                        background: biscuit.card, borderRadius: 12, padding: '10px 12px',
-                        border: `1px solid ${biscuit.borderLight}`,
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                          {p.icon}
-                          <span style={{ fontSize: 11, fontWeight: 700, color: biscuit.text }}>{p.title}</span>
+                      { icon: <Zap className="w-3.5 h-3.5 text-amber-500" />, title: '1. Hook Style', desc: 'The 3-second dropoff trigger' },
+                      { icon: <Clock className="w-3.5 h-3.5 text-blue-500" />, title: '2. Golden Hour', desc: '60-min viral velocity testing' },
+                      { icon: <BarChart2 className="w-3.5 h-3.5 text-emerald-500" />, title: '3. Density', desc: 'Word count pacing for dwell time' },
+                      { icon: <Target className="w-3.5 h-3.5 text-purple-500" />, title: '4. Synergy', desc: 'Cross-platform audience footprint' },
+                    ].map((item) => (
+                      <div key={item.title} className="bg-white/80 rounded-xl p-2.5 border border-[#F0EBE3]">
+                        <div className="flex items-center gap-1.5 font-bold text-xs text-[#3D2B1F] mb-0.5">
+                          {item.icon}
+                          <span>{item.title}</span>
                         </div>
-                        <p style={{ fontSize: 11, color: biscuit.textMuted, lineHeight: 1.4 }}>{p.desc}</p>
+                        <p className="text-[11px] text-[#8B7355]">{item.desc}</p>
                       </div>
                     ))}
                   </div>
@@ -803,15 +559,10 @@ export function SignalClient() {
             </AnimatePresence>
 
             {!showDNAInfo && (
-              <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>
+              <div className="flex justify-end">
                 <button
                   onClick={() => setShowDNAInfo(true)}
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 6,
-                    fontSize: 12, fontWeight: 600, color: biscuit.accent,
-                    background: biscuit.card, border: `1px solid ${biscuit.border}`,
-                    padding: '6px 14px', borderRadius: 12, cursor: 'pointer',
-                  }}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#C4A265] bg-white border border-[#E8E0D4] px-3 py-1.5 rounded-xl cursor-pointer hover:bg-[#FAF7F2]"
                 >
                   <Info className="w-3.5 h-3.5" />
                   <span>How Post DNA works</span>
@@ -819,7 +570,6 @@ export function SignalClient() {
               </div>
             )}
 
-            {/* ── DNA Intelligence View ─────────────────────────────────── */}
             <DNAView resonance={resonance} posts={posts} />
           </motion.div>
         )}
@@ -828,7 +578,7 @@ export function SignalClient() {
   );
 }
 
-/* ─── Post Card Component ────────────────────────────────────────────────── */
+/* ── Post Card ──────────────────────────────────────────────────────────────── */
 function PostCard({
   post,
   delay,
@@ -853,9 +603,27 @@ function PostCard({
 
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const hookMeta = HOOK_META[post.hookType || ''] || HOOK_META.statement;
+
+  const shareOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://unool.co';
+  const shareUrl = `${shareOrigin}/u/${profileSubdomain || 'preview'}?activity=1`;
+  const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(
+    `Hey! Check out my latest story across platforms. Pick your favourite to view & support:\n\n👉 ${shareUrl}\n\nThanks! ❤️`
+  )}`;
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      toast.success('Link copied to clipboard!');
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error('Failed to copy link');
+    }
+  };
 
   const handleDelete = async () => {
     setIsDeleting(true);
@@ -884,99 +652,49 @@ function PostCard({
     }
   };
 
-  const cardBorder = isDraft
-    ? `1px solid ${biscuit.border}`
-    : age === 'active'
-    ? `1px solid ${biscuit.terracotta}60`
-    : `1px solid ${biscuit.border}`;
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 0.3 }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      transition={{ delay, duration: 0.22 }}
+      className="bg-white rounded-2xl border overflow-hidden transition-all shadow-xs"
       style={{
-        background: biscuit.card,
-        borderRadius: 20,
-        border: cardBorder,
-        overflow: 'hidden',
-        boxShadow: age === 'active'
-          ? '0 4px 20px rgba(194,94,56,0.1), 0 1px 3px rgba(61,43,31,0.04)'
-          : isHovered
-          ? '0 6px 20px rgba(61,43,31,0.06)'
-          : '0 2px 8px rgba(61,43,31,0.03)',
-        transition: 'all 0.25s ease',
+        borderColor: isDraft ? '#fed7aa' : age === 'active' ? '#fbbf24' : age === 'settling' ? '#e5e7eb' : '#f3f4f6',
+        boxShadow: isDraft
+          ? '0 1px 6px #f9731610'
+          : age === 'active'
+          ? '0 0 0 1px #fbbf2420, 0 4px 24px #fbbf2415'
+          : '0 1px 4px #0000000a',
       }}
     >
       {/* Active Golden Hour glowing top strip */}
       {age === 'active' && !isDraft && (
-        <div style={{
-          height: 3,
-          background: 'linear-gradient(90deg, #C25E38, #C4A265, #E5A93C, #C25E38)',
-          backgroundSize: '200% 100%',
-        }} />
+        <div className="h-1 bg-gradient-to-r from-amber-500 via-orange-400 to-amber-500 animate-pulse" />
       )}
 
-      {/* Card Header */}
-      <div style={{
-        padding: '16px 20px 10px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        gap: 12, flexWrap: 'wrap',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      {/* Card header: age badge + time */}
+      <div className="flex items-center justify-between px-5 pt-4 pb-2 flex-wrap gap-2">
+        <div className="flex items-center gap-2">
           {isDraft ? (
-            <span style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              fontSize: 11, fontWeight: 700,
-              padding: '4px 10px', borderRadius: 20,
-              background: biscuit.accentBg, color: biscuit.textMuted,
-              border: `1px solid ${biscuit.border}`,
-            }}>
-              <FileText className="w-3.5 h-3.5" style={{ color: biscuit.accent }} />
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
+              <FileText className="w-3.5 h-3.5 text-amber-600" />
               Draft Dispatch
             </span>
           ) : age === 'active' ? (
-            <span style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              fontSize: 11, fontWeight: 700,
-              padding: '4px 12px', borderRadius: 20,
-              background: biscuit.terracottaBg, color: biscuit.terracotta,
-              border: `1px solid ${biscuit.terracotta}40`,
-            }}>
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500" />
-              </span>
-              Golden Hour — {goldenRemaining}m remaining
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
+              <LiveIndicator />
+              Active — {goldenRemaining}m left in golden hour
             </span>
           ) : age === 'settling' ? (
-            <span style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              fontSize: 11, fontWeight: 600,
-              padding: '4px 10px', borderRadius: 20,
-              background: '#EFF6FF', color: '#1D4ED8',
-              border: '1px solid #BFDBFE',
-            }}>
-              <Clock className="w-3 h-3" />
+            <span className="flex items-center text-xs font-medium text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">
               Settling (Active 24h)
             </span>
           ) : (
-            <span style={{ fontSize: 12, color: biscuit.textLight, fontWeight: 500 }}>
-              {format(new Date(post.createdAt), 'MMM d, yyyy · h:mm a')}
-            </span>
+            <span className="text-xs text-gray-400">{format(new Date(post.createdAt), 'MMM d, h:mm a')}</span>
           )}
 
-          {/* Hook Badge */}
           {post.hookType && (
-            <span style={{
-              display: 'inline-flex', alignItems: 'center', gap: 5,
-              fontSize: 11, fontWeight: 600,
-              padding: '3px 9px', borderRadius: 16,
-              background: hookMeta.bg, color: hookMeta.color,
-              border: `1px solid ${hookMeta.color}25`,
-            }}>
+            <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${hookMeta.bg} ${hookMeta.text}`}>
               {hookMeta.icon}
               <span>{hookMeta.label}</span>
             </span>
@@ -984,252 +702,277 @@ function PostCard({
         </div>
 
         {age !== 'cooled' && (
-          <span style={{ fontSize: 12, color: biscuit.textLight, fontWeight: 500 }}>
-            {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
-          </span>
+          <span className="text-xs text-gray-400">{formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}</span>
         )}
       </div>
 
-      {/* Content Body */}
-      <p style={{
-        padding: '6px 20px 14px', fontSize: 14.5, color: biscuit.text,
-        lineHeight: 1.6, whiteSpace: 'pre-wrap',
-        display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical',
-        overflow: 'hidden',
-      }}>
+      {/* Content preview */}
+      <p className="px-5 py-2 text-[15px] text-[#3D2B1F] leading-relaxed line-clamp-3">
         {post.content}
       </p>
 
-      {/* Platform Variants Row */}
+      {/* Platform status row */}
       {post.variants.length > 0 && (
-        <div style={{
-          padding: '12px 20px',
-          background: biscuit.cardHover,
-          borderTop: `1px solid ${biscuit.borderLight}`,
-          display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center',
-        }}>
-          <span style={{ fontSize: 11, fontWeight: 700, color: biscuit.textLight, textTransform: 'uppercase', letterSpacing: '0.05em', marginRight: 4 }}>
-            Networks:
-          </span>
+        <div className="px-5 py-3 flex flex-wrap gap-2 border-t border-gray-50 bg-[#FAF7F2]/50">
           {post.variants.map(variant => {
-            const cfg = PlatformLogos[variant.platform];
-            const Logo = cfg?.logo;
+            const cfg = getPlatformConfig(variant.platform);
+            const Logo = cfg.logo;
             const isLive = variant.status === 'published';
             const isPending = variant.status === 'draft' || variant.status === 'pending';
             const isFailed = variant.status === 'failed';
 
-            if (isLive && variant.platformUrl) {
-              return (
-                <a
-                  key={variant.id}
-                  href={variant.platformUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 6,
-                    padding: '5px 12px', borderRadius: 12,
-                    background: biscuit.card,
-                    border: `1px solid ${biscuit.border}`,
-                    textDecoration: 'none',
-                    fontSize: 12, fontWeight: 600, color: biscuit.text,
-                    transition: 'all 0.15s ease',
-                  }}
-                  onMouseEnter={e => {
-                    (e.currentTarget as HTMLElement).style.borderColor = cfg?.color || biscuit.text;
-                    (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)';
-                  }}
-                  onMouseLeave={e => {
-                    (e.currentTarget as HTMLElement).style.borderColor = biscuit.border;
-                    (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
-                  }}
-                  title={`View live on ${cfg?.name || variant.platform}`}
-                >
-                  {Logo && <Logo size={15} />}
-                  <span>{cfg?.name || variant.platform}</span>
-                  <ExternalLink className="w-3 h-3" style={{ color: biscuit.textLight }} />
-                </a>
-              );
-            }
-
             return (
-              <div
-                key={variant.id}
-                onClick={isFailed ? () => toast.error(`${cfg?.name || variant.platform} Failed`, { description: variant.error?.message || 'Verification error or platform connection issue.' }) : undefined}
-                style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 6,
-                  padding: '5px 12px', borderRadius: 12,
-                  background: isFailed ? '#FEF2F2' : biscuit.card,
-                  border: isFailed ? '1px solid #FECACA' : `1px solid ${biscuit.borderLight}`,
-                  fontSize: 12, fontWeight: 600,
-                  color: isFailed ? '#DC2626' : biscuit.textMuted,
-                  cursor: isFailed ? 'pointer' : 'default',
-                }}
-              >
-                {Logo && <Logo size={15} />}
-                <span>{cfg?.name || variant.platform}</span>
-                {isFailed && <AlertCircle className="w-3 h-3" style={{ color: '#EF4444' }} />}
-                {isPending && <span style={{ fontSize: 10, color: biscuit.textLight }}>(queue)</span>}
+              <div key={variant.id}>
+                {isLive && variant.platformUrl ? (
+                  <a
+                    href={variant.platformUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl border bg-white hover:bg-gray-50 transition-colors group cursor-pointer"
+                    style={{ borderColor: cfg.color ? `${cfg.color}30` : '#e5e7eb' }}
+                    title={`View on ${cfg.name}`}
+                  >
+                    <Logo size={16} />
+                    <span className="text-xs font-medium text-gray-700">{cfg.name}</span>
+                    <ExternalLink className="w-3 h-3 text-gray-300 group-hover:text-gray-500 transition-colors" />
+                  </a>
+                ) : (
+                  <motion.div
+                    animate={isPending ? { opacity: [1, 0.5, 1] } : {}}
+                    transition={{ repeat: Infinity, duration: 1.4 }}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border ${
+                      isFailed ? 'bg-red-50 border-red-200 cursor-pointer hover:bg-red-100 transition-colors' : 'bg-gray-50 border-gray-200'
+                    }`}
+                    onClick={isFailed ? () => toast.error(`${cfg.name} Failed`, { description: variant.error?.message || 'Publishing failed. Check platform requirements or reconnect account.' }) : undefined}
+                    title={isFailed ? `${variant.error?.message || 'Failed'} (Click to view)` : `Publishing to ${cfg.name}...`}
+                  >
+                    <Logo size={16} />
+                    <span className={`text-xs font-medium ${isFailed ? 'text-red-600' : 'text-gray-500'}`}>
+                      {cfg.name}
+                    </span>
+                    {isFailed && <AlertCircle className="w-3 h-3 text-red-500" />}
+                    {isPending && <span className="text-[10px] text-gray-400 ml-0.5">sending…</span>}
+                  </motion.div>
+                )}
               </div>
             );
           })}
         </div>
       )}
 
-      {/* Failure Diagnostic Banner */}
+      {/* Inline failed variants banner */}
       {failedVariants.length > 0 && (
-        <div style={{
-          padding: '10px 20px', background: '#FEF2F2', borderTop: '1px solid #FECACA',
-          fontSize: 12, color: '#B91C1C', display: 'flex', flexDirection: 'column', gap: 4,
-        }}>
+        <div className="px-5 py-2.5 bg-red-50/70 border-t border-red-100 flex flex-col gap-1.5 text-xs text-red-700">
           {failedVariants.map(fv => (
-            <div key={fv.id} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <AlertCircle className="w-3.5 h-3.5 shrink-0" style={{ color: '#EF4444' }} />
-              <span>
-                <strong>{PlatformLogos[fv.platform]?.name || fv.platform}:</strong>{' '}
-                {fv.error?.message || 'Delivery failed. Reconnect your account in Settings.'}
-              </span>
+            <div key={fv.id} className="flex items-start gap-1.5">
+              <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-semibold">{getPlatformConfig(fv.platform).name}:</span>{' '}
+                <span>{fv.error?.message || 'Publishing failed. Please reconnect account or verify permissions.'}</span>
+              </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Card Footer Actions */}
-      <div style={{
-        padding: '12px 20px',
-        background: biscuit.card,
-        borderTop: `1px solid ${biscuit.borderLight}`,
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        gap: 12, flexWrap: 'wrap',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      {/* Summary footer */}
+      <div className="px-5 py-3 bg-gray-50/60 border-t border-gray-100 flex items-center justify-between gap-3 text-xs text-gray-500 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap">
           {publishedVariants.length > 0 && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 700, color: biscuit.emerald }}>
+            <span className="text-green-600 font-medium flex items-center gap-1">
               <CheckCircle className="w-3.5 h-3.5" />
               {publishedVariants.length} live
             </span>
           )}
           {pendingVariants.length > 0 && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, color: biscuit.accent }}>
+            <span className="text-amber-600 font-medium flex items-center gap-1">
               <Clock className="w-3.5 h-3.5" />
               {pendingVariants.length} pending
             </span>
           )}
           {failedVariants.length > 0 && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, color: '#DC2626' }}>
+            <span className="text-red-500 font-medium flex items-center gap-1">
               <AlertCircle className="w-3.5 h-3.5" />
               {failedVariants.length} failed
             </span>
           )}
-          <span style={{ fontSize: 11, color: biscuit.textLight }}>
+          <span className="text-gray-400">
             {post.wordCount || post.content.split(/\s+/).filter(Boolean).length} words
           </span>
         </div>
 
-        {/* Action Buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
-          {isDraft ? (
-            <>
-              <Link
-                href={`/dashboard/publish?postId=${post.id}`}
-                style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 6,
-                  padding: '6px 14px', borderRadius: 12,
-                  fontSize: 12, fontWeight: 700, textDecoration: 'none',
-                  background: biscuit.activeBg, color: biscuit.activeFg,
-                  boxShadow: '0 2px 6px rgba(61,43,31,0.15)',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <Pencil className="w-3.5 h-3.5" />
-                <span>Review & Publish</span>
-              </Link>
+        {/* Action buttons for drafts: Review & edit, Remove */}
+        {isDraft ? (
+          <div className="flex items-center gap-2 ml-auto">
+            <Link
+              href={`/dashboard/publish?postId=${post.id}`}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-gray-900 text-white hover:bg-black transition-colors shadow-xs cursor-pointer"
+              title="Review, edit, and publish this draft"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              <span>Review & edit</span>
+            </Link>
 
-              {confirmDelete ? (
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <button
-                    onClick={handleDelete}
-                    disabled={isDeleting}
-                    style={{
-                      padding: '5px 10px', borderRadius: 8, border: 'none',
-                      background: '#DC2626', color: '#fff', fontSize: 11, fontWeight: 700,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {isDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Confirm'}
-                  </button>
-                  <button
-                    onClick={() => setConfirmDelete(false)}
-                    style={{
-                      padding: '5px 8px', borderRadius: 8, border: 'none',
-                      background: 'transparent', color: biscuit.textMuted, fontSize: 11,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              ) : (
+            {confirmDelete ? (
+              <div className="inline-flex items-center gap-1.5 bg-red-50/90 px-2.5 py-1 rounded-xl border border-red-200">
+                <span className="text-[11px] text-red-700 font-medium">Remove?</span>
                 <button
-                  onClick={() => setConfirmDelete(true)}
-                  style={{
-                    padding: '6px 12px', borderRadius: 12,
-                    background: '#FEF2F2', border: '1px solid #FECACA',
-                    color: '#DC2626', fontSize: 12, fontWeight: 600,
-                    cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5,
-                  }}
-                  title="Delete draft dispatch"
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                  className="px-2 py-0.5 rounded-lg text-xs font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors cursor-pointer disabled:opacity-50"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Remove</span>
+                  {isDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Yes'}
                 </button>
-              )}
-            </>
-          ) : (
-            isMostRecentPublished && (
-              <a
-                href={`https://wa.me/?text=${encodeURIComponent(
-                  `Check out my latest story across platforms:\n\n👉 ${
-                    typeof window !== 'undefined' ? window.location.origin : 'https://unool.co'
-                  }/u/${profileSubdomain || 'preview'}?activity=1\n\nThanks! ❤️`
-                )}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 6,
-                  padding: '6px 14px', borderRadius: 12,
-                  background: '#25D366', color: '#fff',
-                  fontSize: 12, fontWeight: 700, textDecoration: 'none',
-                  boxShadow: '0 2px 8px rgba(37,211,102,0.25)',
-                }}
-                title="Share One Link to WhatsApp"
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(false)}
+                  disabled={isDeleting}
+                  className="px-1.5 py-0.5 rounded-lg text-xs text-gray-500 hover:text-gray-700 cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200/60 transition-colors cursor-pointer"
+                title="Remove this draft completely"
               >
-                <PlatformLogos.whatsapp.logo size={14} />
-                <span>Share Story</span>
-              </a>
-            )
-          )}
-        </div>
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Remove</span>
+              </button>
+            )}
+          </div>
+        ) : (
+          publishedVariants.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowShareModal(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-gray-900 hover:bg-black transition-all shadow-sm ml-auto cursor-pointer"
+              title="Share this story"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              <span>Share Story</span>
+            </button>
+          )
+        )}
       </div>
+
+      {/* Share Modal Window */}
+      {showShareModal && typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowShareModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 8 }}
+              transition={{ duration: 0.18 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-sm p-6 relative"
+            >
+              <button
+                type="button"
+                onClick={() => setShowShareModal(false)}
+                className="absolute top-4 right-4 p-1.5 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                title="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center text-gray-700">
+                  <Share2 className="w-4 h-4" />
+                </div>
+                <h3 className="text-base font-bold text-gray-900">Share Story</h3>
+              </div>
+              <p className="text-xs text-gray-500 mb-4">
+                Share this post across your network or copy the link directly.
+              </p>
+
+              <div className="mb-4">
+                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
+                  Universal Activity Link
+                </label>
+                <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-xl border border-gray-200 text-xs text-gray-700 font-mono">
+                  <Link2 className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                  <span className="truncate flex-1 select-all">{shareUrl}</span>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2.5">
+                <button
+                  type="button"
+                  onClick={handleCopyLink}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold border border-gray-300 bg-white hover:bg-gray-50 text-gray-800 transition-colors shadow-sm cursor-pointer"
+                >
+                  <Copy className="w-3.5 h-3.5 text-gray-600" />
+                  <span>{copied ? 'Copied to Clipboard!' : 'Copy Link'}</span>
+                </button>
+
+                <a
+                  href={whatsappUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-white bg-gray-900 hover:bg-black transition-colors shadow-sm cursor-pointer"
+                >
+                  {PlatformLogos.whatsapp && <PlatformLogos.whatsapp.logo size={15} />}
+                  <span>Share on WhatsApp</span>
+                </a>
+              </div>
+            </motion.div>
+          </div>
+        </AnimatePresence>,
+        document.body
+      )}
     </motion.div>
   );
 }
 
-/* ─── Post DNA View / Advanced Intelligence Dashboard ─────────────────────── */
+/* ── Post DNA / Advanced Resonance View ─────────────────────────────────────── */
 function DNAView({ resonance, posts }: { resonance: ResonanceData | null; posts: SignalPost[] }) {
   if (!resonance) {
     return (
-      <div style={{ padding: '60px 20px', textAlign: 'center' }}>
-        <Sparkles className="w-8 h-8 animate-spin" style={{ color: biscuit.accent, margin: '0 auto 12px' }} />
-        <p style={{ fontSize: 14, color: biscuit.textMuted, fontWeight: 500 }}>
-          Decoding content DNA metrics…
-        </p>
+      <div className="py-16 text-center text-gray-400">
+        <Sparkles className="w-8 h-8 mx-auto mb-3 text-amber-500 animate-spin" />
+        <p className="text-sm font-medium">Analyzing your Post DNA patterns…</p>
       </div>
     );
   }
 
-  // If user has 0 posts published, show rich interactive preview onboarding
   if (!resonance.hasData || resonance.totalPosts === 0) {
-    return <DNAOnboarding />;
+    return (
+      <div className="bg-white rounded-2xl border border-dashed border-[#E8E0D4] p-12 text-center">
+        <div className="w-12 h-12 rounded-2xl bg-[#F0EBE3] flex items-center justify-center mx-auto mb-3">
+          <Sparkles className="w-6 h-6 text-[#C4A265]" />
+        </div>
+        <h3 className="font-bold text-[#3D2B1F] mb-1">Building Your Post DNA</h3>
+        <p className="text-sm text-[#8B7355] max-w-sm mx-auto mb-5 leading-relaxed">
+          Post DNA decodes your content patterns across social algorithms. Once you broadcast your first story
+          from Studio or queue a dispatch in Flight Plan, your genetic intelligence engine will automatically unlock.
+        </p>
+        <div className="flex items-center justify-center gap-3">
+          <Link
+            href="/dashboard/composer"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#3D2B1F] text-white text-sm font-semibold hover:bg-black transition-colors"
+          >
+            <span>Open Studio</span>
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+          <Link
+            href="/dashboard/schedule"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#F5EFE2] text-[#3D2B1F] border border-[#E8E0D4] text-sm font-semibold hover:bg-[#EDE7DD] transition-colors"
+          >
+            <Calendar className="w-4 h-4 text-[#C4A265]" />
+            <span>Plan My Week</span>
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   const patternRows = resonance.recentPatternRows || [];
@@ -1258,7 +1001,7 @@ function DNAView({ resonance, posts }: { resonance: ResonanceData | null; posts:
   }
   const maxDay = Math.max(...dayDistribution, 1);
 
-  // Hours mini-chart
+  // Hours distribution
   const hourDistribution = resonance.hourDistribution || new Array(24).fill(0);
   if (!resonance.hourDistribution && patternRows.length > 0) {
     patternRows.forEach(r => { hourDistribution[r.hourOfDay]++; });
@@ -1267,10 +1010,10 @@ function DNAView({ resonance, posts }: { resonance: ResonanceData | null; posts:
 
   // Word length breakdown
   const wcBuckets = [
-    { label: 'Micro (<50w)', min: 0, max: 49, count: 0, tag: 'Punchy' },
-    { label: 'Sweet-spot (50–120w)', min: 50, max: 120, count: 0, tag: 'High Dwell' },
-    { label: 'Thought (120–250w)', min: 121, max: 250, count: 0, tag: 'Authority' },
-    { label: 'Deep (250w+)', min: 251, max: Infinity, count: 0, tag: 'Newsletter' },
+    { label: 'Micro (<50w)', min: 0, max: 49, count: 0 },
+    { label: 'Sweet-spot (50–120w)', min: 50, max: 120, count: 0 },
+    { label: 'Thought (120–250w)', min: 121, max: 250, count: 0 },
+    { label: 'Deep (250w+)', min: 251, max: Infinity, count: 0 },
   ];
   patternRows.forEach(r => {
     const bucket = wcBuckets.find(b => r.wordCount >= b.min && r.wordCount <= b.max);
@@ -1278,630 +1021,316 @@ function DNAView({ resonance, posts }: { resonance: ResonanceData | null; posts:
   });
   const maxWc = Math.max(...wcBuckets.map(b => b.count), 1);
 
-  // Streak
-  const publishDates = new Set(
-    posts.filter(p => p.variants.some(v => v.status === 'published')).map(p => format(new Date(p.createdAt), 'yyyy-MM-dd'))
-  );
-  let streak = 0;
-  const today = new Date();
-  for (let i = 0; i < 365; i++) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i);
-    if (publishDates.has(format(d, 'yyyy-MM-dd'))) {
-      streak++;
-    } else if (i > 0) {
-      break;
-    }
-  }
-
-  // Tier classification based on score
   const tierName = resonanceScore >= 80 ? 'Authority Architect' : resonanceScore >= 50 ? 'Ascending Catalyst' : 'Emerging Voice';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {/* ── Hero DNA Score Card ─────────────────────────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35 }}
-        style={{
-          background: biscuit.card,
-          borderRadius: 24, padding: '28px 24px',
-          border: `1px solid ${biscuit.border}`,
-          boxShadow: '0 4px 20px rgba(61,43,31,0.04)',
-          position: 'relative', overflow: 'hidden',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', marginBottom: 24 }}>
+    <div className="space-y-4">
+      {/* ── Content Resonance Score ─────────────────────────────────── */}
+      <div className="bg-white rounded-2xl border border-[#E8E0D4] p-5 shadow-xs">
+        <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-              <Sparkles className="w-4 h-4" style={{ color: biscuit.accent }} />
-              <span style={{ fontSize: 12, fontWeight: 700, color: biscuit.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                Content Resonance Index
-              </span>
+            <div className="flex items-center gap-2 mb-1">
+              <Sparkles className="w-4 h-4 text-[#C4A265]" />
+              <p className="text-xs font-bold text-[#8B7355] uppercase tracking-wider">Content Resonance Index</p>
             </div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
-              <h2 style={{
-                fontSize: 48, fontWeight: 800, color: biscuit.text,
-                letterSpacing: '-0.03em', lineHeight: 1, fontFamily: 'var(--font-syne), serif',
-              }}>
+            <div className="flex items-baseline gap-3">
+              <p className="text-4xl font-extrabold text-[#3D2B1F] tracking-tight">
                 <AnimatedNumber value={resonanceScore} suffix="/100" />
-              </h2>
-              <span style={{
-                fontSize: 12, fontWeight: 700,
-                padding: '4px 12px', borderRadius: 20,
-                background: biscuit.accentBg, color: biscuit.text,
-                border: `1px solid ${biscuit.border}`,
-              }}>
+              </p>
+              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-[#F5EFE2] text-[#3D2B1F] border border-[#E8E0D4]">
                 {tierName}
               </span>
             </div>
-            <p style={{ fontSize: 13, color: biscuit.textMuted, marginTop: 6 }}>
-              Composite score calculated from your hook variety, delivery reliability, word pacing, and network spread.
-            </p>
+            <p className="text-xs text-[#8B7355] mt-1">Based on hook variety, delivery rate, pacing, and network spread.</p>
           </div>
 
-          {/* Quick Metrics Quartet */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, minWidth: 260 }}>
-            <div style={{ background: biscuit.cardHover, borderRadius: 14, padding: '12px 14px', border: `1px solid ${biscuit.borderLight}` }}>
-              <span style={{ fontSize: 11, fontWeight: 600, color: biscuit.textLight, textTransform: 'uppercase' }}>Analyzed</span>
-              <p style={{ fontSize: 20, fontWeight: 800, color: biscuit.text, marginTop: 2 }}>{resonance.totalPosts} posts</p>
+          <div className="grid grid-cols-2 gap-2 text-center min-w-[220px]">
+            <div className="bg-[#FAF7F2] rounded-xl p-2.5 border border-[#E8E0D4]">
+              <span className="text-[10px] uppercase font-bold text-[#8B7355]">Analyzed</span>
+              <p className="text-lg font-bold text-[#3D2B1F]">{resonance.totalPosts} posts</p>
             </div>
-            <div style={{ background: biscuit.cardHover, borderRadius: 14, padding: '12px 14px', border: `1px solid ${biscuit.borderLight}` }}>
-              <span style={{ fontSize: 11, fontWeight: 600, color: biscuit.textLight, textTransform: 'uppercase' }}>Avg Pacing</span>
-              <p style={{ fontSize: 20, fontWeight: 800, color: biscuit.text, marginTop: 2 }}>{avgWords} words</p>
+            <div className="bg-[#FAF7F2] rounded-xl p-2.5 border border-[#E8E0D4]">
+              <span className="text-[10px] uppercase font-bold text-[#8B7355]">Avg Length</span>
+              <p className="text-lg font-bold text-[#3D2B1F]">{avgWords}w</p>
             </div>
-            <div style={{ background: biscuit.cardHover, borderRadius: 14, padding: '12px 14px', border: `1px solid ${biscuit.borderLight}` }}>
-              <span style={{ fontSize: 11, fontWeight: 600, color: biscuit.textLight, textTransform: 'uppercase' }}>Media Rate</span>
-              <p style={{ fontSize: 20, fontWeight: 800, color: biscuit.text, marginTop: 2 }}>{mediaRatio}%</p>
+            <div className="bg-[#FAF7F2] rounded-xl p-2.5 border border-[#E8E0D4]">
+              <span className="text-[10px] uppercase font-bold text-[#8B7355]">Media Rate</span>
+              <p className="text-lg font-bold text-[#3D2B1F]">{mediaRatio}%</p>
             </div>
-            <div style={{ background: biscuit.cardHover, borderRadius: 14, padding: '12px 14px', border: `1px solid ${biscuit.borderLight}` }}>
-              <span style={{ fontSize: 11, fontWeight: 600, color: biscuit.textLight, textTransform: 'uppercase' }}>Cadence</span>
-              <p style={{ fontSize: 20, fontWeight: 800, color: biscuit.text, marginTop: 2 }}>{streak}d streak</p>
+            <div className="bg-[#FAF7F2] rounded-xl p-2.5 border border-[#E8E0D4]">
+              <span className="text-[10px] uppercase font-bold text-[#8B7355]">Top Hook</span>
+              <p className="text-lg font-bold text-[#3D2B1F] capitalize truncate">
+                {resonance.hookBreakdown[0]?.type || 'Statement'}
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Resonance Bar */}
-        <div style={{ height: 8, background: biscuit.sidebar, borderRadius: 100, overflow: 'hidden' }}>
+        <div className="h-2 bg-[#F0EBE3] rounded-full overflow-hidden">
           <motion.div
             initial={{ width: 0 }}
             animate={{ width: `${resonanceScore}%` }}
-            transition={{ duration: 1, ease: 'easeOut' }}
-            style={{
-              height: '100%', borderRadius: 100,
-              background: `linear-gradient(90deg, ${biscuit.accent}, #E5A93C, ${biscuit.terracotta})`,
-            }}
+            transition={{ duration: 0.8, ease: 'easeOut' }}
+            className="h-full rounded-full bg-gradient-to-r from-[#C4A265] to-[#C25E38]"
           />
         </div>
-      </motion.div>
+      </div>
 
-      {/* ── Hook Archetypes: The 6 Pillars of Engagement ─────────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1, duration: 0.35 }}
-        style={{
-          background: biscuit.card, borderRadius: 24, padding: '24px',
-          border: `1px solid ${biscuit.border}`,
-          boxShadow: '0 2px 12px rgba(61,43,31,0.03)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 18 }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{
-                width: 28, height: 28, borderRadius: 8,
-                background: biscuit.accentBg, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <Zap className="w-4 h-4" style={{ color: biscuit.accent }} />
-              </div>
-              <h3 style={{ fontSize: 17, fontWeight: 800, color: biscuit.text }}>
-                Hook Archetype Spectrum
-              </h3>
-            </div>
-            <p style={{ fontSize: 13, color: biscuit.textMuted, marginTop: 2 }}>
-              The opening 3-second triggers detected in your content library.
-            </p>
+      {/* ── Hook Archetype Spectrum ─────────────────────────────────── */}
+      <div className="bg-white rounded-2xl border border-[#E8E0D4] p-5 shadow-xs">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Zap className="w-4 h-4 text-amber-500" />
+            <p className="text-sm font-bold text-[#3D2B1F]">Hook Archetype Performance</p>
           </div>
-          <span style={{ fontSize: 12, fontWeight: 600, color: biscuit.textLight }}>
-            {resonance.hookBreakdown.length} / 6 Archetypes Active
+          <span className="text-xs text-[#8B7355] font-medium">
+            {resonance.hookBreakdown.length} / 6 Styles Tracked
           </span>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-          {['statement', 'question', 'statistic', 'story', 'contrarian', 'framework'].map((hookKey) => {
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {['statement', 'question', 'statistic', 'story', 'contrarian', 'framework'].map(hookKey => {
             const meta = HOOK_META[hookKey];
             const breakdownItem = resonance.hookBreakdown.find(b => b.type === hookKey);
             const isUsed = Boolean(breakdownItem && breakdownItem.count > 0);
             const count = breakdownItem?.count || 0;
-            const pctOfTotal = resonance.totalPosts > 0 ? Math.round((count / resonance.totalPosts) * 100) : 0;
-            const sampleSnippet = breakdownItem?.samples?.[0];
+            const pct = resonance.totalPosts > 0 ? Math.round((count / resonance.totalPosts) * 100) : 0;
+            const sample = breakdownItem?.samples?.[0];
 
             return (
               <div
                 key={hookKey}
-                style={{
-                  background: isUsed ? biscuit.card : biscuit.cardHover,
-                  borderRadius: 16, padding: '16px',
-                  border: isUsed ? `1px solid ${biscuit.border}` : `1px dashed ${biscuit.borderLight}`,
-                  opacity: isUsed ? 1 : 0.65,
-                  display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-                  transition: 'all 0.2s ease',
-                }}
+                className={`p-3.5 rounded-xl border transition-all ${
+                  isUsed ? 'bg-white border-[#E8E0D4]' : 'bg-[#FAF7F2]/60 border-dashed border-[#E8E0D4] opacity-65'
+                }`}
               >
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                      <span style={{
-                        width: 26, height: 26, borderRadius: 8,
-                        background: meta.bg, color: meta.color,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}>
-                        {meta.icon}
-                      </span>
-                      <span style={{ fontSize: 13.5, fontWeight: 700, color: biscuit.text }}>
-                        {meta.label}
-                      </span>
-                    </div>
-
-                    {isUsed ? (
-                      <span style={{
-                        fontSize: 11, fontWeight: 700,
-                        padding: '2px 8px', borderRadius: 10,
-                        background: meta.bg, color: meta.color,
-                      }}>
-                        {count} posts ({pctOfTotal}%)
-                      </span>
-                    ) : (
-                      <span style={{ fontSize: 11, color: biscuit.textLight, fontWeight: 500 }}>
-                        Untapped
-                      </span>
-                    )}
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2">
+                    <span className={`w-6 h-6 rounded-lg ${meta.bg} ${meta.text} flex items-center justify-center`}>
+                      {meta.icon}
+                    </span>
+                    <span className="text-xs font-bold text-[#3D2B1F]">{meta.label}</span>
                   </div>
-
-                  <p style={{ fontSize: 12, color: biscuit.textMuted, lineHeight: 1.45, marginBottom: 10 }}>
-                    {meta.desc}
-                  </p>
+                  {isUsed ? (
+                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${meta.bg} ${meta.text}`}>
+                      {count} ({pct}%)
+                    </span>
+                  ) : (
+                    <span className="text-[11px] text-[#A69279]">Untapped</span>
+                  )}
                 </div>
 
-                {isUsed && sampleSnippet ? (
-                  <div style={{
-                    fontSize: 11.5, color: biscuit.text, fontStyle: 'italic',
-                    background: biscuit.sidebar, borderRadius: 8, padding: '6px 10px',
-                    borderLeft: `3px solid ${meta.color}`,
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  }}>
-                    “{sampleSnippet}…”
-                  </div>
+                <p className="text-[11px] text-[#8B7355] mb-2 leading-relaxed">{meta.desc}</p>
+
+                {isUsed && sample ? (
+                  <p className="text-[11px] italic text-[#3D2B1F] truncate bg-[#F7F3ED] px-2 py-1 rounded-md border-l-2 border-[#C4A265]">
+                    “{sample}…”
+                  </p>
                 ) : (
-                  <div style={{ fontSize: 11, color: biscuit.accent, fontWeight: 600 }}>
-                    💡 Pro tip: Try this style in your next Studio post
-                  </div>
+                  <p className="text-[10px] text-[#C4A265] font-semibold">
+                    💡 Tip: Try this opener in your next dispatch
+                  </p>
                 )}
               </div>
             );
           })}
         </div>
-      </motion.div>
-
-      {/* ── Timing & Launch Windows ─────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        {/* Peak Day Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15, duration: 0.35 }}
-          style={{
-            background: biscuit.card, borderRadius: 24, padding: '24px',
-            border: `1px solid ${biscuit.border}`,
-            boxShadow: '0 2px 12px rgba(61,43,31,0.03)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-            <div style={{
-              width: 28, height: 28, borderRadius: 8,
-              background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <Calendar className="w-4 h-4" style={{ color: '#2563EB' }} />
-            </div>
-            <div>
-              <h4 style={{ fontSize: 15, fontWeight: 800, color: biscuit.text }}>
-                Peak Day of Week
-              </h4>
-              <p style={{ fontSize: 12, color: biscuit.textMuted }}>
-                {resonance.bestDay ? `${resonance.bestDay.name} (${resonance.bestDay.count} posts)` : 'Tracking patterns…'}
-              </p>
-            </div>
-          </div>
-
-          {/* 7-Day Visual Bars */}
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 90, marginBottom: 10 }}>
-            {dayNames.map((name, idx) => {
-              const count = dayDistribution[idx] || 0;
-              const heightPct = count > 0 ? (count / maxDay) * 100 : 8;
-              const isBest = resonance.bestDay?.day === idx;
-
-              return (
-                <div key={name} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, height: '100%', justifyContent: 'flex-end' }}>
-                  <motion.div
-                    initial={{ height: 0 }}
-                    animate={{ height: `${heightPct}%` }}
-                    transition={{ duration: 0.6, delay: 0.2 + idx * 0.05 }}
-                    style={{
-                      width: '100%', borderRadius: '6px 6px 2px 2px',
-                      background: isBest
-                        ? `linear-gradient(180deg, ${biscuit.accent}, ${biscuit.accentLight})`
-                        : count > 0 ? biscuit.border : biscuit.sidebar,
-                      boxShadow: isBest ? '0 2px 8px rgba(196,162,101,0.3)' : 'none',
-                    }}
-                    title={`${name}: ${count} posts`}
-                  />
-                  <span style={{ fontSize: 10, fontWeight: isBest ? 800 : 600, color: isBest ? biscuit.text : biscuit.textLight }}>
-                    {name}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </motion.div>
-
-        {/* Peak Hour Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.35 }}
-          style={{
-            background: biscuit.card, borderRadius: 24, padding: '24px',
-            border: `1px solid ${biscuit.border}`,
-            boxShadow: '0 2px 12px rgba(61,43,31,0.03)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-            <div style={{
-              width: 28, height: 28, borderRadius: 8,
-              background: '#F5F3FF', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <Clock className="w-4 h-4" style={{ color: '#7C3AED' }} />
-            </div>
-            <div>
-              <h4 style={{ fontSize: 15, fontWeight: 800, color: biscuit.text }}>
-                Peak Launch Hour
-              </h4>
-              <p style={{ fontSize: 12, color: biscuit.textMuted }}>
-                {resonance.bestHour ? `${resonance.bestHour.label} (${resonance.bestHour.count} posts)` : 'Tracking times…'}
-              </p>
-            </div>
-          </div>
-
-          {/* 24-Hour Horizon Graph (6am to 11pm) */}
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 90, marginBottom: 10 }}>
-            {Array.from({ length: 18 }, (_, i) => i + 6).map(h => {
-              const count = hourDistribution[h % 24] || 0;
-              const intensity = count / maxHour;
-              const isBest = resonance.bestHour?.hour === (h % 24);
-
-              return (
-                <div key={h} style={{ flex: 1, height: '100%', display: 'flex', alignItems: 'flex-end' }}>
-                  <motion.div
-                    initial={{ height: 0 }}
-                    animate={{ height: `${Math.max(intensity * 100, 8)}%` }}
-                    transition={{ duration: 0.5, delay: 0.2 + (h - 6) * 0.02 }}
-                    style={{
-                      width: '100%', borderRadius: 2,
-                      background: isBest ? '#7C3AED' : count > 0 ? '#C4B5FD' : biscuit.sidebar,
-                    }}
-                    title={`${h % 12 || 12}${h >= 12 ? 'pm' : 'am'}: ${count} posts`}
-                  />
-                </div>
-              );
-            })}
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: biscuit.textLight }}>
-            <span>6:00 AM</span>
-            <span>12:00 PM</span>
-            <span>11:00 PM</span>
-          </div>
-        </motion.div>
       </div>
 
-      {/* ── Content Pacing & Platform Matrix ─────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        {/* Word Count Distribution */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25, duration: 0.35 }}
-          style={{
-            background: biscuit.card, borderRadius: 24, padding: '24px',
-            border: `1px solid ${biscuit.border}`,
-            boxShadow: '0 2px 12px rgba(61,43,31,0.03)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-            <div style={{
-              width: 28, height: 28, borderRadius: 8,
-              background: biscuit.accentBg, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <Type className="w-4 h-4" style={{ color: biscuit.accent }} />
+      {/* ── Best Timing ─────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {resonance.bestDay && (
+          <div className="bg-white rounded-2xl border border-[#E8E0D4] p-5 shadow-xs">
+            <div className="flex items-center gap-2 mb-2">
+              <Calendar className="w-4 h-4 text-blue-500" />
+              <p className="text-xs font-bold text-[#8B7355] uppercase tracking-wider">Most Active Day</p>
             </div>
-            <div>
-              <h4 style={{ fontSize: 15, fontWeight: 800, color: biscuit.text }}>
-                Length & Pacing Spectrum
-              </h4>
-              <p style={{ fontSize: 12, color: biscuit.textMuted }}>
-                Average: {avgWords} words per post
-              </p>
+            <p className="text-3xl font-extrabold text-[#3D2B1F]">{resonance.bestDay.name}</p>
+            <p className="text-xs text-[#8B7355] mt-0.5 mb-3">{resonance.bestDay.count} posts published</p>
+
+            {/* 7-day visual mini-bars */}
+            <div className="flex items-end gap-1.5 h-12">
+              {dayNames.map((d, i) => {
+                const count = dayDistribution[i] || 0;
+                const hPct = count > 0 ? (count / maxDay) * 100 : 10;
+                const isBest = resonance.bestDay?.day === i;
+                return (
+                  <div key={d} className="flex-1 flex flex-col items-center gap-1 h-full justify-end">
+                    <div
+                      className={`w-full rounded-xs transition-all ${isBest ? 'bg-[#C4A265]' : count > 0 ? 'bg-[#D4B87A]' : 'bg-[#F0EBE3]'}`}
+                      style={{ height: `${hPct}%` }}
+                      title={`${d}: ${count} posts`}
+                    />
+                    <span className={`text-[9px] ${isBest ? 'font-bold text-[#3D2B1F]' : 'text-gray-400'}`}>{d}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
+        )}
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {resonance.bestHour && (
+          <div className="bg-white rounded-2xl border border-[#E8E0D4] p-5 shadow-xs">
+            <div className="flex items-center gap-2 mb-2">
+              <Clock className="w-4 h-4 text-purple-500" />
+              <p className="text-xs font-bold text-[#8B7355] uppercase tracking-wider">Most Active Time</p>
+            </div>
+            <p className="text-3xl font-extrabold text-[#3D2B1F]">{resonance.bestHour.label}</p>
+            <p className="text-xs text-[#8B7355] mt-0.5 mb-3">{resonance.bestHour.count} posts published</p>
+
+            {/* 24-hr horizon bar */}
+            <div className="flex items-end gap-0.5 h-12">
+              {Array.from({ length: 18 }, (_, i) => i + 6).map(h => {
+                const count = hourDistribution[h % 24] || 0;
+                const intensity = count / maxHour;
+                const isBest = resonance.bestHour?.hour === (h % 24);
+                return (
+                  <div
+                    key={h}
+                    className={`flex-1 rounded-xs ${isBest ? 'bg-purple-600' : count > 0 ? 'bg-purple-300' : 'bg-[#F0EBE3]'}`}
+                    style={{ height: `${Math.max(intensity * 100, 10)}%` }}
+                    title={`${h % 12 || 12}${h >= 12 ? 'pm' : 'am'}: ${count} posts`}
+                  />
+                );
+              })}
+            </div>
+            <div className="flex justify-between text-[9px] text-[#A69279] mt-1">
+              <span>6am</span>
+              <span>12pm</span>
+              <span>11pm</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Pacing Spectrum & Platform Reach ─────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* Word length */}
+        <div className="bg-white rounded-2xl border border-[#E8E0D4] p-5 shadow-xs">
+          <div className="flex items-center gap-2 mb-3">
+            <Type className="w-4 h-4 text-[#C4A265]" />
+            <p className="text-xs font-bold text-[#8B7355] uppercase tracking-wider">Length & Pacing Spectrum</p>
+          </div>
+          <div className="space-y-2.5">
             {wcBuckets.map(b => {
               const pct = (b.count / maxWc) * 100;
               return (
                 <div key={b.label}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-                    <span style={{ fontWeight: 600, color: biscuit.text }}>{b.label}</span>
-                    <span style={{ color: biscuit.textMuted }}>{b.count} posts</span>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span className="font-medium text-[#3D2B1F]">{b.label}</span>
+                    <span className="font-bold text-[#8B7355]">{b.count} posts</span>
                   </div>
-                  <div style={{ height: 6, background: biscuit.sidebar, borderRadius: 100, overflow: 'hidden' }}>
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${pct}%` }}
-                      transition={{ duration: 0.6 }}
-                      style={{ height: '100%', background: biscuit.accent, borderRadius: 100 }}
-                    />
+                  <div className="h-1.5 bg-[#F0EBE3] rounded-full overflow-hidden">
+                    <div className="h-full bg-[#C4A265] rounded-full" style={{ width: `${pct}%` }} />
                   </div>
                 </div>
               );
             })}
           </div>
-        </motion.div>
+        </div>
 
-        {/* Platform Synergy */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.35 }}
-          style={{
-            background: biscuit.card, borderRadius: 24, padding: '24px',
-            border: `1px solid ${biscuit.border}`,
-            boxShadow: '0 2px 12px rgba(61,43,31,0.03)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-            <div style={{
-              width: 28, height: 28, borderRadius: 8,
-              background: '#ECFDF5', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <Target className="w-4 h-4" style={{ color: biscuit.emerald }} />
-            </div>
-            <div>
-              <h4 style={{ fontSize: 15, fontWeight: 800, color: biscuit.text }}>
-                Platform Footprint
-              </h4>
-              <p style={{ fontSize: 12, color: biscuit.textMuted }}>
-                Cross-channel distribution volume
-              </p>
-            </div>
+        {/* Platform reach */}
+        <div className="bg-white rounded-2xl border border-[#E8E0D4] p-5 shadow-xs">
+          <div className="flex items-center gap-2 mb-3">
+            <Target className="w-4 h-4 text-emerald-600" />
+            <p className="text-xs font-bold text-[#8B7355] uppercase tracking-wider">Network Distribution</p>
           </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="space-y-2.5">
             {topPlatforms.length > 0 ? (
               topPlatforms.map(([platform, count]) => {
-                const cfg = PlatformLogos[platform];
-                const Logo = cfg?.logo;
+                const cfg = getPlatformConfig(platform);
+                const Logo = cfg.logo;
                 const maxP = topPlatforms[0][1];
                 const pct = (count / maxP) * 100;
 
                 return (
                   <div key={platform}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        {Logo && <Logo size={14} />}
-                        <span style={{ fontSize: 12, fontWeight: 600, color: biscuit.text }}>{cfg?.name || platform}</span>
+                    <div className="flex items-center justify-between text-xs mb-1">
+                      <div className="flex items-center gap-1.5">
+                        <Logo size={14} />
+                        <span className="font-medium text-[#3D2B1F]">{cfg.name}</span>
                       </div>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: biscuit.text }}>{count} live</span>
+                      <span className="font-bold text-[#8B7355]">{count} live</span>
                     </div>
-                    <div style={{ height: 6, background: biscuit.sidebar, borderRadius: 100, overflow: 'hidden' }}>
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${pct}%` }}
-                        transition={{ duration: 0.6 }}
-                        style={{ height: '100%', background: cfg?.color || biscuit.text, borderRadius: 100 }}
+                    <div className="h-1.5 bg-[#F0EBE3] rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full"
+                        style={{ width: `${pct}%`, backgroundColor: cfg.color || '#3D2B1F' }}
                       />
                     </div>
                   </div>
                 );
               })
             ) : (
-              <p style={{ fontSize: 13, color: biscuit.textLight, textAlign: 'center', padding: '20px 0' }}>
-                No cross-platform variant data yet.
-              </p>
+              <p className="text-xs text-gray-400 py-4 text-center">No variant data yet</p>
             )}
           </div>
-        </motion.div>
+        </div>
       </div>
 
-      {/* ── Actionable AI Prescriptions ──────────────────────────────── */}
+      {/* ── Strategic Recommendations ─────────────────────────────────── */}
       {resonance.recommendations && resonance.recommendations.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35, duration: 0.35 }}
-          style={{
-            background: biscuit.card, borderRadius: 24, padding: '24px',
-            border: `1px solid ${biscuit.border}`,
-            boxShadow: '0 2px 12px rgba(61,43,31,0.03)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-            <div style={{
-              width: 28, height: 28, borderRadius: 8,
-              background: biscuit.accentBg, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <Compass className="w-4 h-4" style={{ color: biscuit.accent }} />
-            </div>
-            <div>
-              <h4 style={{ fontSize: 16, fontWeight: 800, color: biscuit.text }}>
-                Content Strategy Prescriptions
-              </h4>
-              <p style={{ fontSize: 12, color: biscuit.textMuted }}>
-                Direct suggestions generated from your real delivery statistics.
-              </p>
-            </div>
+        <div className="bg-white rounded-2xl border border-[#E8E0D4] p-5 shadow-xs">
+          <div className="flex items-center gap-2 mb-3">
+            <Compass className="w-4 h-4 text-[#C4A265]" />
+            <p className="text-xs font-bold text-[#8B7355] uppercase tracking-wider">Algorithmic Content Prescriptions</p>
           </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {resonance.recommendations.map(rec => (
-              <div
-                key={rec.id}
-                style={{
-                  background: biscuit.cardHover, borderRadius: 16, padding: '16px',
-                  border: `1px solid ${biscuit.borderLight}`,
-                  display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-                }}
-              >
+              <div key={rec.id} className="p-3.5 bg-[#FAF7F2] rounded-xl border border-[#E8E0D4] flex flex-col justify-between">
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                    <Sparkles className="w-3.5 h-3.5" style={{ color: biscuit.accent }} />
-                    <span style={{ fontSize: 13, fontWeight: 700, color: biscuit.text }}>
-                      {rec.title}
-                    </span>
+                  <div className="flex items-center gap-1.5 font-bold text-xs text-[#3D2B1F] mb-1">
+                    <Sparkles className="w-3.5 h-3.5 text-[#C4A265]" />
+                    <span>{rec.title}</span>
                   </div>
-                  <p style={{ fontSize: 12, color: biscuit.textMuted, lineHeight: 1.5 }}>
-                    {rec.desc}
-                  </p>
+                  <p className="text-xs text-[#8B7355] leading-relaxed mb-3">{rec.desc}</p>
                 </div>
-
-                <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid ${biscuit.borderLight}` }}>
-                  <Link
-                    href="/dashboard/composer"
-                    style={{
-                      fontSize: 11, fontWeight: 700, color: biscuit.accent,
-                      textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4,
-                    }}
-                  >
-                    <span>Apply in Studio</span>
-                    <ArrowRight className="w-3 h-3" />
-                  </Link>
-                </div>
+                <Link
+                  href="/dashboard/composer"
+                  className="inline-flex items-center gap-1 text-xs font-bold text-[#C4A265] hover:text-[#3D2B1F]"
+                >
+                  <span>Apply in Studio</span>
+                  <ArrowRight className="w-3 h-3" />
+                </Link>
               </div>
             ))}
           </div>
-        </motion.div>
+        </div>
       )}
+
+      <p className="text-xs text-gray-400 text-center pb-2">
+        Built directly from your actual publish history. Every post you dispatch refines your Post DNA.
+      </p>
     </div>
   );
 }
 
-/* ─── DNA Onboarding State ───────────────────────────────────────────────── */
-function DNAOnboarding() {
-  return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.98 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.4 }}
-      style={{
-        background: biscuit.card,
-        borderRadius: 24, border: `2px dashed ${biscuit.border}`,
-        padding: '56px 32px', textAlign: 'center',
-      }}
-    >
-      <div style={{
-        width: 60, height: 60, borderRadius: 20, margin: '0 auto 20px',
-        background: biscuit.activeBg,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: '0 4px 16px rgba(61,43,31,0.2)',
-      }}>
-        <Sparkles className="w-7 h-7" style={{ color: biscuit.accentLight }} />
-      </div>
-
-      <h3 style={{
-        fontSize: 24, fontWeight: 800, color: biscuit.text,
-        marginBottom: 8, letterSpacing: '-0.02em', fontFamily: 'var(--font-syne), serif',
-      }}>
-        Initialize Your Post DNA
-      </h3>
-      <p style={{ fontSize: 14, color: biscuit.textMuted, maxWidth: 440, margin: '0 auto 24px', lineHeight: 1.6 }}>
-        Post DNA decodes your content patterns across social algorithms. Once you broadcast your first story
-        from Studio or queue a dispatch in Flight Plan, your genetic intelligence engine will automatically unlock.
-      </p>
-
-      <div style={{ display: 'flex', justifyContent: 'center', gap: 12 }}>
-        <Link
-          href="/dashboard/composer"
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            padding: '10px 22px', borderRadius: 12,
-            background: biscuit.activeBg, color: biscuit.activeFg,
-            fontSize: 13, fontWeight: 700, textDecoration: 'none',
-            boxShadow: '0 2px 8px rgba(61,43,31,0.2)',
-          }}
-        >
-          <ArrowUpRight className="w-4 h-4" />
-          <span>Broadcast From Studio</span>
-        </Link>
-        <Link
-          href="/dashboard/flightplan"
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            padding: '10px 22px', borderRadius: 12,
-            background: biscuit.card, color: biscuit.text,
-            border: `1px solid ${biscuit.border}`,
-            fontSize: 13, fontWeight: 700, textDecoration: 'none',
-          }}
-        >
-          <Calendar className="w-4 h-4" style={{ color: biscuit.accent }} />
-          <span>Plan In Flight Plan</span>
-        </Link>
-      </div>
-    </motion.div>
-  );
-}
-
-/* ─── Empty State ────────────────────────────────────────────────────────── */
+/* ── Empty State ────────────────────────────────────────────────────────────── */
 function EmptyState() {
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.98 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.4 }}
-      style={{
-        background: biscuit.card, borderRadius: 24,
-        border: `2px dashed ${biscuit.border}`,
-        padding: '56px 32px', textAlign: 'center',
-      }}
-    >
-      <div style={{
-        width: 56, height: 56, borderRadius: 18, margin: '0 auto 16px',
-        background: biscuit.sidebar,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        <Activity className="w-7 h-7" style={{ color: biscuit.accent }} />
+    <div className="bg-white rounded-2xl border border-dashed border-[#E8E0D4] p-16 text-center">
+      <div className="w-12 h-12 mx-auto mb-4 rounded-2xl bg-[#F0EBE3] flex items-center justify-center">
+        <Activity className="w-6 h-6 text-[#C4A265]" />
       </div>
-
-      <h3 style={{ fontSize: 20, fontWeight: 800, color: biscuit.text, marginBottom: 6 }}>
-        No Signal dispatches yet
-      </h3>
-      <p style={{ fontSize: 14, color: biscuit.textMuted, maxWidth: 400, margin: '0 auto 24px', lineHeight: 1.5 }}>
+      <h3 className="font-bold text-[#3D2B1F] mb-1 text-lg">No Signal dispatches yet</h3>
+      <p className="text-sm text-[#8B7355] mb-5 max-w-sm mx-auto">
         Broadcast simultaneously to LinkedIn, X, Threads, Bluesky and Instagram in one click.
       </p>
-
-      <div style={{ display: 'flex', justifyContent: 'center', gap: 12 }}>
+      <div className="flex items-center justify-center gap-3">
         <Link
           href="/dashboard/composer"
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            padding: '10px 22px', borderRadius: 12,
-            background: biscuit.activeBg, color: biscuit.activeFg,
-            fontSize: 13, fontWeight: 700, textDecoration: 'none',
-          }}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#3D2B1F] text-white text-sm font-semibold hover:bg-black transition-colors"
         >
-          <span>Open Studio</span>
-          <ArrowRight className="w-4 h-4" />
+          Open Studio
+        </Link>
+        <Link
+          href="/dashboard/schedule"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#F5EFE2] text-[#3D2B1F] border border-[#E8E0D4] text-sm font-semibold hover:bg-[#EDE7DD] transition-colors"
+        >
+          <Calendar className="w-4 h-4 text-[#C4A265]" />
+          Plan My Week
         </Link>
       </div>
-    </motion.div>
+    </div>
   );
 }

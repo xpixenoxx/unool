@@ -484,36 +484,35 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         <motion.div variants={fadeUp} transition={transition}>
           <QuickActionBento
-            icon={CalendarDays}
+            icon={WeeklyFlightPlanIcon}
             title="Weekly Flight Plan"
             subtitle="Story in · Week of content out"
             description="Type one honest paragraph about your week. Unool drafts, cascades, and schedules your multi-network week."
             href="/dashboard/schedule"
             buttonLabel="Plan This Week"
-            badge="Featured"
+            badge="7-Day Arc"
           />
         </motion.div>
         <motion.div variants={fadeUp} transition={transition}>
           <QuickActionBento
-            icon={Send}
+            icon={ContentStudioIcon}
             title="Content Studio"
             subtitle="Write once, broadcast everywhere"
             description="AI adapts your content for LinkedIn, X, Threads, and more. Review and publish in one click."
             href="/dashboard/composer"
             buttonLabel="Open Studio"
-            badge={usageStats.postsThisMonth > 0 ? `${usageStats.postsThisMonth} this month` : undefined}
+            badge={usageStats.postsThisMonth > 0 ? `${usageStats.postsThisMonth} Broadcasts` : 'Multi-Publish'}
           />
         </motion.div>
         <motion.div variants={fadeUp} transition={transition}>
           <QuickActionBento
-            icon={Globe}
+            icon={PublicProfileIcon}
             title="Your Public Profile"
             subtitle="One link for everything"
             description="Professional landing page with links, credentials, and social proof — all in one place."
             href={isProfileLive ? `/u/${profile?.subdomain}` : '/dashboard/presence'}
             buttonLabel={isProfileLive ? 'View Live Profile' : 'Set Up Profile'}
             external={!!isProfileLive}
-            badge={isProfileLive ? 'Live' : undefined}
           />
         </motion.div>
       </div>
@@ -669,6 +668,61 @@ function MetricBentoCard({
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   CUSTOM HANDCRAFTED ICONS FOR DASHBOARD FEATURE BLOCKS
+   ═══════════════════════════════════════════════════════════════ */
+
+function WeeklyFlightPlanIcon({ className = 'h-5 w-5' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      {/* 7-day timeline base horizon */}
+      <line x1="3" y1="21" x2="21" y2="21" strokeOpacity="0.35" />
+      <line x1="4" y1="20" x2="4" y2="22" strokeOpacity="0.45" />
+      <line x1="9.5" y1="20" x2="9.5" y2="22" strokeOpacity="0.45" />
+      <line x1="15" y1="20" x2="15" y2="22" strokeOpacity="0.45" />
+      <line x1="20" y1="20" x2="20" y2="22" strokeOpacity="0.45" />
+      {/* Ascending weekly flight trajectory curve */}
+      <path d="M4 17.5C7.5 17.5 10 14 12.5 9.5C14 6.8 16.5 5 20.5 4.5" />
+      {/* Waypoint nodes along the weekly flight path */}
+      <circle cx="4.5" cy="17.5" r="1.5" fill="currentColor" />
+      <circle cx="12.5" cy="9.5" r="1.5" fill="currentColor" />
+      {/* Flight vessel leading the trajectory */}
+      <path d="M16 2.5L21.5 4.5L18.5 9.5L16.5 6L13.5 5.5L16 2.5Z" fill="currentColor" fillOpacity="0.15" />
+    </svg>
+  );
+}
+
+function ContentStudioIcon({ className = 'h-5 w-5' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      {/* Studio drafting stylus / content quill */}
+      <path d="M14.5 3.5L20.5 9.5L9.5 20.5L3.5 20.5L3.5 14.5L14.5 3.5Z" fill="currentColor" fillOpacity="0.12" />
+      <line x1="12.5" y1="5.5" x2="18.5" y2="11.5" strokeOpacity="0.4" />
+      <line x1="7" y1="17" x2="3.5" y2="20.5" />
+      {/* Omni-channel broadcast propagation signal waves */}
+      <path d="M16.5 14.5C18 16 18.5 18 18 20" strokeOpacity="0.8" />
+      <path d="M19.5 11.5C21.5 14 22 17 21 20.5" strokeOpacity="0.5" />
+      {/* Studio creative aperture sparkle */}
+      <path d="M19 1L19.8 3.2L22 4L19.8 4.8L19 7L18.2 4.8L16 4L18.2 3.2Z" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function PublicProfileIcon({ className = 'h-5 w-5' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      {/* Identity card boundary */}
+      <rect x="3.5" y="3.5" width="17" height="17" rx="4.5" fill="currentColor" fillOpacity="0.08" />
+      {/* Persona silhouette */}
+      <circle cx="12" cy="9.5" r="2.75" />
+      <path d="M7 17.5C7 14.8 9.2 13.5 12 13.5C14.8 13.5 17 14.8 17 17.5" />
+      {/* Direct personal link beacon */}
+      <path d="M17 3.5H20.5V7" strokeOpacity="0.75" />
+      <line x1="20.5" y1="3.5" x2="14.5" y2="9.5" strokeOpacity="0.75" />
+    </svg>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
    QUICK ACTION BENTO CARD
    ═══════════════════════════════════════════════════════════════ */
 
@@ -715,18 +769,14 @@ function QuickActionBento({
         </div>
         {badge && (
           <span
-            className="text-xs font-medium px-2.5 py-1 rounded-full flex items-center gap-1.5"
+            className="text-[11px] font-semibold px-2.5 py-1 rounded-lg border flex items-center gap-1.5 tracking-wide shadow-2xs"
             style={{
-              backgroundColor: badge === 'Live' ? B.successBg : B.accentBg,
-              color: badge === 'Live' ? B.success : B.textSecondary,
+              backgroundColor: '#FAF7F2',
+              borderColor: '#E8E0D4',
+              color: '#7A6248',
             }}
           >
-            {badge === 'Live' && (
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: B.success }} />
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5" style={{ backgroundColor: B.success }} />
-              </span>
-            )}
+            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#C4A265' }} />
             {badge}
           </span>
         )}

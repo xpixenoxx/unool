@@ -92,6 +92,7 @@ export async function POST(request: NextRequest) {
       audienceTimezone,
       userFirstName,
       weekStartDate,
+      onboardingAnswers: profile.onboardingAnswers,
     });
 
     if (!arc) {

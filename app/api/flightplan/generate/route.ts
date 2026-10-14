@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PostAdapter, PlatformType, PostSequence } from '@/lib/ai/PostAdapter';
+import { PostAdapter, PlatformType, PostSequence, AdaptationContext, buildOnboardingPrompt } from '@/lib/ai/PostAdapter';
 import { logger } from '@/lib/logger';
 import { trackAiUsage } from '@/lib/limits/enforcer';
 import { SupabasePostRepository } from '@/lib/repositories/supabase/SupabasePostRepository';
@@ -49,25 +49,39 @@ export async function POST(request: NextRequest) {
       const numDays = Math.min(Math.max(numberOfDays || 3, 1), 14);
 
       // Resolve profile
-      let profileContext: { profileName?: string; profileHeadline?: string } = {};
+      let profileContext: AdaptationContext = {};
       let resolvedProfileId = profileId;
+      let targetProfile = null;
 
       if (!resolvedProfileId) {
-        const workspaceProfile = await profileRepository.findByWorkspaceId(workspaceId);
-        if (workspaceProfile) {
-          resolvedProfileId = workspaceProfile.id;
-          profileContext = {
-            profileName: workspaceProfile.name || undefined,
-            profileHeadline: workspaceProfile.headline || undefined,
-          };
+        targetProfile = await profileRepository.findByWorkspaceId(workspaceId);
+        if (targetProfile) {
+          resolvedProfileId = targetProfile.id;
         }
       } else {
-        const profile = await profileRepository.findById(profileId);
-        if (profile) {
-          profileContext = {
-            profileName: profile.name || undefined,
-            profileHeadline: profile.headline || undefined,
-          };
+        targetProfile = await profileRepository.findById(profileId);
+        if (!targetProfile) {
+          targetProfile = await profileRepository.findByWorkspaceId(workspaceId);
+        }
+      }
+
+      if (targetProfile) {
+        profileContext.profileName = targetProfile.name || undefined;
+        profileContext.profileHeadline = targetProfile.headline || undefined;
+      }
+
+      // Check for onboarding profile (either passed in body or saved on profile)
+      const effectiveAnswers = body.onboardingAnswers || targetProfile?.onboardingAnswers;
+      if (effectiveAnswers) {
+        const onboardingPrompt = buildOnboardingPrompt(effectiveAnswers);
+        if (onboardingPrompt) {
+          profileContext.onboardingPrompt = onboardingPrompt;
+          profileContext.onboardingAnswers = effectiveAnswers;
+          logger.info('Flight Plan generation using user onboarding profile', {
+            workspaceId,
+            persona: effectiveAnswers.persona,
+            focus: effectiveAnswers.focus,
+          });
         }
       }
 

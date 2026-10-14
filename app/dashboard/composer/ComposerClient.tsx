@@ -100,6 +100,7 @@ import {
   PlatformBrandLogo,
 } from '@/components/dashboard/previews/PlatformMobilePreview';
 import { HashtagEditor } from '@/components/dashboard/HashtagEditor';
+import { StudioOnboardingModal } from '@/components/dashboard/StudioOnboardingModal';
 
 type PlatformType = SupportedPlatformType;
 
@@ -163,6 +164,7 @@ interface Profile {
   bio: string;
   role: string;
   company: string;
+  onboardingAnswers?: any;
 }
 
 interface ComposerClientProps {
@@ -1052,6 +1054,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           bio: data.profile.bio || '',
           role: data.profile.role || '',
           company: data.profile.company || '',
+          onboardingAnswers: data.profile.onboardingAnswers || null,
         });
       }
     } catch {
@@ -1131,7 +1134,8 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           content: sourceContent, 
           profileId: profile.id, 
           mediaItems: media,
-          selectedPlatforms: platformsToUse
+          selectedPlatforms: platformsToUse,
+          onboardingAnswers: profile.onboardingAnswers || undefined
         }),
       });
 
@@ -1220,6 +1224,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           mediaItems: media,
           selectedPlatforms: [platform],
           postId,
+          onboardingAnswers: profile.onboardingAnswers || undefined,
         }),
       });
       const data = await res.json();
@@ -2386,6 +2391,11 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <StudioOnboardingModal
+        userId={userId}
+        onComplete={(answers) => setProfile(prev => prev ? { ...prev, onboardingAnswers: answers } : null)}
+      />
     </div>
   );
 }

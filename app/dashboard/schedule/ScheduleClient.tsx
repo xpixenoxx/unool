@@ -11,6 +11,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useUserContext } from '@/lib/hooks/use-user-context';
 import { format, addDays, startOfWeek, isToday, isTomorrow } from 'date-fns';
+import { PlatformBrandLogo, type SupportedPlatformType } from '@/components/dashboard/previews/PlatformMobilePreview';
 
 /* ─── Design tokens (matches Biscuit theme) ────────────────────────────── */
 const B = {
@@ -38,13 +39,29 @@ const B = {
 };
 
 /* ─── Platform display configs ──────────────────────────────────────────── */
-const PLATFORM_META: Record<string, { name: string; color: string; bg: string; icon: string }> = {
-  linkedin:  { name: 'LinkedIn',  color: '#0A66C2', bg: '#E8F0FA', icon: 'in' },
-  x:         { name: 'X',        color: '#000000', bg: '#F0F0F0', icon: '𝕏'  },
-  threads:   { name: 'Threads',  color: '#1A1A1A', bg: '#F0F0F0', icon: '@'  },
-  bluesky:   { name: 'Bluesky',  color: '#0085FF', bg: '#E6F3FF', icon: 'bsky' },
-  instagram: { name: 'Instagram',color: '#E1306C', bg: '#FDE8F0', icon: 'ig' },
-  facebook:  { name: 'Facebook', color: '#1877F2', bg: '#E8F0FE', icon: 'f'  },
+const PLATFORM_META: Record<string, { name: string; color: string; bg: string; icon?: string }> = {
+  linkedin:  { name: 'LinkedIn',  color: '#0A66C2', bg: '#E8F0FA' },
+  x:         { name: 'X',         color: '#000000', bg: '#F0F0F0' },
+  twitter:   { name: 'X',         color: '#000000', bg: '#F0F0F0' },
+  threads:   { name: 'Threads',   color: '#1A1A1A', bg: '#F0F0F0' },
+  bluesky:   { name: 'Bluesky',   color: '#0085FF', bg: '#E6F3FF' },
+  instagram: { name: 'Instagram', color: '#E1306C', bg: '#FDE8F0' },
+  facebook:  { name: 'Facebook',  color: '#1877F2', bg: '#E8F0FE' },
+  pinterest: { name: 'Pinterest', color: '#E60023', bg: '#FDE8E8' },
+  youtube:   { name: 'YouTube',   color: '#FF0000', bg: '#FDE8E8' },
+  reddit:    { name: 'Reddit',    color: '#FF4500', bg: '#FFEBE5' },
+  mastodon:  { name: 'Mastodon',  color: '#6364FF', bg: '#F0F0FF' },
+  discord:   { name: 'Discord',   color: '#5865F2', bg: '#EEF0FD' },
+  slack:     { name: 'Slack',     color: '#4A154B', bg: '#F5ECF5' },
+  telegram:  { name: 'Telegram',  color: '#229ED9', bg: '#E9F5FA' },
+  twitch:    { name: 'Twitch',    color: '#9146FF', bg: '#F3ECFF' },
+  kick:      { name: 'Kick',      color: '#53FC18', bg: '#EBFDE7' },
+  vk:        { name: 'VK',        color: '#0077FF', bg: '#EBF3FE' },
+  whop:      { name: 'Whop',      color: '#FF5A00', bg: '#FFF0E6' },
+  dribbble:  { name: 'Dribbble',  color: '#EA4C89', bg: '#FDEDF3' },
+  skool:     { name: 'Skool',     color: '#E2AD44', bg: '#FDF7EB' },
+  warpcast:  { name: 'Warpcast',  color: '#8A63D2', bg: '#F4EFFB' },
+  whatsapp:  { name: 'WhatsApp',  color: '#25D366', bg: '#E7F9EE' },
 };
 
 /* ─── Types ─────────────────────────────────────────────────────────────── */
@@ -838,6 +855,9 @@ function WeekCanvas({
             const dayKey = format(day, 'yyyy-MM-dd');
             const dayPosts = postsByDay.get(dayKey) ?? [];
             const isNow = isToday(day);
+            const count = dayPosts.length;
+            const isCompact = count >= 4;
+            const isUltraCompact = count >= 6;
 
             return (
               <div key={dayKey} className="space-y-2">
@@ -857,52 +877,100 @@ function WeekCanvas({
                   </div>
                 </div>
 
-                {/* Post cards for this day */}
-                <div className="space-y-1.5 min-h-[80px]">
+                {/* Post cards for this day with auto-shrink */}
+                <div className={cn(
+                  "min-h-[80px]",
+                  isUltraCompact ? "space-y-1" : isCompact ? "space-y-1" : "space-y-1.5"
+                )}>
                   {dayPosts.map(post => (
                     <motion.div
                       key={post.postId}
                       layout
-                      className="rounded-xl p-2.5 group relative"
+                      className={cn(
+                        "rounded-xl group relative transition-all hover:scale-[1.02] hover:z-10",
+                        isUltraCompact
+                          ? "p-1.5"
+                          : isCompact
+                          ? "p-2"
+                          : "p-2.5"
+                      )}
                       style={{
                         backgroundColor: B.card,
                         border: `1px solid ${B.border}`,
                         cursor: 'pointer',
                       }}
                     >
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-xs font-mono font-medium" style={{ color: B.textMuted }}>
+                      <div className={cn("flex items-center justify-between", isUltraCompact ? "mb-0.5" : isCompact ? "mb-1" : "mb-1.5")}>
+                        <span
+                          className={cn(
+                            "font-mono font-medium flex items-center gap-1",
+                            isUltraCompact ? "text-[10px]" : "text-xs"
+                          )}
+                          style={{ color: B.textMuted }}
+                        >
+                          <Clock className={isUltraCompact ? "w-2.5 h-2.5" : "w-3 h-3"} />
                           {post.scheduledAt ? format(new Date(post.scheduledAt), 'HH:mm') : '--:--'}
                         </span>
                         <div
-                          className="w-1.5 h-1.5 rounded-full"
+                          className="w-1.5 h-1.5 rounded-full flex-shrink-0"
                           style={{ backgroundColor: statusColor(post.status) }}
                         />
                       </div>
 
-                      <p className="text-xs leading-snug line-clamp-2" style={{ color: B.textSecondary }}>
+                      <p
+                        className={cn(
+                          "leading-snug",
+                          isUltraCompact
+                            ? "text-[10px] truncate"
+                            : isCompact
+                            ? "text-[11px] line-clamp-1"
+                            : "text-xs line-clamp-2"
+                        )}
+                        style={{ color: B.textSecondary }}
+                        title={post.content}
+                      >
                         {post.content}
                       </p>
 
-                      <div className="flex flex-wrap gap-1 mt-1.5">
-                        {post.platforms.slice(0, 3).map(v => {
-                          const meta = PLATFORM_META[v.platform];
-                          return meta ? (
-                            <span
-                              key={v.variantId}
-                              className="text-[9px] px-1.5 py-0.5 rounded-full font-medium"
-                              style={{ backgroundColor: meta.bg, color: meta.color }}
-                            >
-                              {meta.name.slice(0, 2)}
-                            </span>
-                          ) : null;
-                        })}
-                        {post.platforms.length > 3 && (
-                          <span className="text-[9px] px-1.5 py-0.5 rounded-full"
-                            style={{ backgroundColor: B.border, color: B.textMuted }}>
-                            +{post.platforms.length - 3}
-                          </span>
+                      <div
+                        className={cn(
+                          "flex items-center justify-between",
+                          isUltraCompact ? "mt-1 pt-1" : isCompact ? "mt-1.5 pt-1" : "mt-2 pt-1.5"
                         )}
+                        style={{ borderTop: `1px solid ${B.border}50` }}
+                      >
+                        <div className="flex items-center flex-wrap gap-1">
+                          {post.platforms.slice(0, isUltraCompact ? 2 : 3).map(v => {
+                            const meta = PLATFORM_META[v.platform];
+                            return (
+                              <span
+                                key={v.variantId}
+                                className={cn(
+                                  "inline-flex items-center justify-center rounded-full p-0.5 shadow-2xs transition-transform hover:scale-110",
+                                  isUltraCompact ? "w-4 h-4" : "w-5 h-5"
+                                )}
+                                style={{ backgroundColor: meta?.bg || '#F3F4F6' }}
+                                title={meta?.name || v.platform}
+                              >
+                                <PlatformBrandLogo
+                                  platform={v.platform as SupportedPlatformType}
+                                  size={isUltraCompact ? 10 : 12}
+                                />
+                              </span>
+                            );
+                          })}
+                          {post.platforms.length > (isUltraCompact ? 2 : 3) && (
+                            <span
+                              className={cn(
+                                "rounded-full font-medium leading-none flex items-center justify-center",
+                                isUltraCompact ? "text-[8px] px-1 py-0.5" : "text-[9px] px-1.5 py-0.5"
+                              )}
+                              style={{ backgroundColor: B.border, color: B.textMuted }}
+                            >
+                              +{post.platforms.length - (isUltraCompact ? 2 : 3)}
+                            </span>
+                          )}
+                        </div>
                       </div>
 
                       {/* Hover actions */}

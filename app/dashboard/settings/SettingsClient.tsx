@@ -15,8 +15,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Key, Shield, Bell, Palette, Trash2, User, Lock, LogOut, CheckCircle, AlertCircle, Copy, Trash, Check, Sparkles, Settings, AlertTriangle, Link as LinkIcon, Key as KeyIcon, User as UserIcon, CheckCircle2, XCircle } from 'lucide-react';
 import { TemplateSelector } from '@/components/profile/TemplateSelector';
 import { getSupabaseBrowserClient } from '@/lib/supabase/browser';
+import { StudioOnboardingModal } from '@/components/dashboard/StudioOnboardingModal';
 
-type TabValue = 'account' | 'security' | 'notifications' | 'appearance' | 'danger';
+type TabValue = 'account' | 'persona' | 'security' | 'notifications' | 'appearance' | 'danger';
 
 interface Workspace {
   id: string;
@@ -48,6 +49,7 @@ const ALL_SCOPES: { value: ApiKeyScope; label: string; description: string }[] =
 
 const TAB_CONFIG: Record<TabValue, { icon: React.ElementType; label: string; description: string }> = {
   account: { icon: UserIcon, label: 'Account', description: 'Workspace name, plan, and API keys' },
+  persona: { icon: Sparkles, label: 'Studio Persona', description: 'Your persona, focus, target audience, and tone' },
   security: { icon: Shield, label: 'Security', description: 'Password, 2FA, and active sessions' },
   notifications: { icon: Bell, label: 'Notifications', description: 'Email and in-app notification preferences' },
   appearance: { icon: Palette, label: 'Appearance', description: 'Theme, density, and display preferences' },
@@ -83,6 +85,71 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
   const [mfaEnabled, setMfaEnabled] = useState(false);
   const [togglingMfa, setTogglingMfa] = useState(false);
 
+  // Studio Persona / Onboarding state
+  const [onboardingAnswers, setOnboardingAnswers] = useState<{
+    persona: string;
+    focus: string;
+    audience: string[];
+    tone: string[];
+    custom: Record<string, string>;
+  }>({
+    persona: '',
+    focus: '',
+    audience: [],
+    tone: [],
+    custom: {},
+  });
+  const [onboardingCompleted, setOnboardingCompleted] = useState(false);
+  const [savingOnboarding, setSavingOnboarding] = useState(false);
+  const [showRetakeModal, setShowRetakeModal] = useState(false);
+
+  const loadOnboardingProfile = async () => {
+    try {
+      const res = await fetch('/api/profile/onboarding', { credentials: 'include', cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        setOnboardingCompleted(data.onboarding_completed || data.onboardingCompleted || false);
+        if (data.answers || data.onboarding_answers) {
+          const a = data.answers || data.onboarding_answers;
+          setOnboardingAnswers({
+            persona: a.persona || '',
+            focus: a.focus || '',
+            audience: Array.isArray(a.audience) ? a.audience : [],
+            tone: Array.isArray(a.tone) ? a.tone : [],
+            custom: a.custom || {},
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load onboarding in settings:', e);
+    }
+  };
+
+  const handleSaveOnboarding = async () => {
+    setSavingOnboarding(true);
+    try {
+      const res = await fetch('/api/profile/onboarding', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          onboarding_completed: true,
+          answers: onboardingAnswers,
+        }),
+      });
+      if (res.ok) {
+        toast.success('Studio Persona updated successfully!');
+        setOnboardingCompleted(true);
+      } else {
+        throw new Error('Failed to save settings');
+      }
+    } catch (e) {
+      toast.error('Failed to update Studio Persona');
+    } finally {
+      setSavingOnboarding(false);
+    }
+  };
+
   const connected = searchParams.get('connected');
   const error = searchParams.get('error');
   const description = searchParams.get('description');
@@ -109,6 +176,7 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
     loadWorkspace();
     loadApiKeys();
     loadUserSecurity();
+    loadOnboardingProfile();
   }, []);
 
   const loadUserSecurity = async () => {
@@ -326,7 +394,7 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
       )}
 
       <Tabs value={activeTab} onValueChange={(value: string) => setActiveTab(value as TabValue)} className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-6">
           {Object.entries(TAB_CONFIG).map(([value, config]) => (
             <TabsTrigger key={value} value={value as TabValue} className="flex items-center gap-2">
               <config.icon className="h-4 w-4" />
@@ -334,6 +402,150 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
             </TabsTrigger>
           ))}
         </TabsList>
+
+        {/* Studio Persona Tab */}
+        <TabsContent value="persona" className="mt-6 space-y-6">
+          <Card>
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <CardTitle className="text-lg font-semibold">
+                  Studio Persona & Tone Settings
+                </CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">
+                  These answers calibrate Studio's AI adaptation, audience hooks, and posting recommendations.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant={onboardingCompleted ? 'default' : 'secondary'} className={onboardingCompleted ? 'bg-green-600' : ''}>
+                  {onboardingCompleted ? 'Onboarding Completed' : 'Pending / Skipped'}
+                </Badge>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowRetakeModal(true)}
+                  className="text-xs font-semibold"
+                >
+                  Retake Flow
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid gap-5 sm:grid-cols-2">
+                {/* Persona */}
+                <div>
+                  <Label htmlFor="persona-select">Persona (Role)</Label>
+                  <Input
+                    id="persona-select"
+                    value={onboardingAnswers.persona}
+                    onChange={(e) => setOnboardingAnswers(prev => ({ ...prev, persona: e.target.value }))}
+                    placeholder="e.g. Founder, Creator, Business Owner..."
+                    className="mt-1"
+                  />
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Who you are when walking into the Studio.
+                  </p>
+                </div>
+
+                {/* Focus */}
+                <div>
+                  <Label htmlFor="focus-input">Focus / What you build or do</Label>
+                  <Input
+                    id="focus-input"
+                    value={onboardingAnswers.focus}
+                    onChange={(e) => setOnboardingAnswers(prev => ({ ...prev, focus: e.target.value }))}
+                    placeholder="e.g. Software or AI product, Tech and coding..."
+                    className="mt-1"
+                  />
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Your industry, product category, or primary offering.
+                  </p>
+                </div>
+
+                {/* Audience */}
+                <div>
+                  <Label htmlFor="audience-input">Target Audience (comma-separated)</Label>
+                  <Input
+                    id="audience-input"
+                    value={onboardingAnswers.audience.join(', ')}
+                    onChange={(e) => {
+                      const vals = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
+                      setOnboardingAnswers(prev => ({ ...prev, audience: vals }));
+                    }}
+                    placeholder="e.g. Investors, First customers"
+                    className="mt-1"
+                  />
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Who should stop scrolling for your posts.
+                  </p>
+                </div>
+
+                {/* Tone */}
+                <div>
+                  <Label htmlFor="tone-input">Voice Personality / Tone (comma-separated)</Label>
+                  <Input
+                    id="tone-input"
+                    value={onboardingAnswers.tone.join(', ')}
+                    onChange={(e) => {
+                      const vals = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
+                      setOnboardingAnswers(prev => ({ ...prev, tone: vals }));
+                    }}
+                    placeholder="e.g. Witty, Storyteller, Smooth..."
+                    className="mt-1"
+                  />
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    The personality traits that define your written voice.
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-2 flex items-center justify-between border-t">
+                <Button
+                  onClick={handleSaveOnboarding}
+                  disabled={savingOnboarding}
+                  className="bg-[#C4A265] hover:bg-[#b09055] text-white font-semibold"
+                >
+                  {savingOnboarding ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Save Persona Settings'
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Modal if user clicks Retake Flow */}
+          {showRetakeModal && (
+            <StudioOnboardingModal
+              isOpen={showRetakeModal}
+              onClose={() => {
+                setShowRetakeModal(false);
+                loadOnboardingProfile();
+              }}
+              onComplete={(answers) => {
+                if (answers) {
+                  setOnboardingAnswers({
+                    persona: answers.persona || '',
+                    focus: answers.focus || '',
+                    audience: Array.isArray(answers.audience) ? answers.audience : [],
+                    tone: Array.isArray(answers.tone) ? answers.tone : [],
+                    custom: answers.custom || {},
+                  });
+                }
+                setShowRetakeModal(false);
+                loadOnboardingProfile();
+              }}
+              forceOpen={true}
+              isRetake={true}
+              initialAnswers={onboardingAnswers}
+              userId={userId}
+            />
+          )}
+        </TabsContent>
 
         {/* Account Tab */}
         <TabsContent value="account" className="mt-6 space-y-6">
