@@ -220,18 +220,7 @@ export class KickAdapter implements PlatformAdapter {
         fullRtmpUrl,
       ];
 
-      try {
-        const streamProc = spawn(ffmpegPath, ffmpegArgs, {
-          detached: true,
-          stdio: 'ignore',
-        });
-        streamProc.unref();
-      } catch (spawnErr) {
-        logger.error('Failed to spawn FFmpeg RTMP stream process', { spawnErr });
-        throw new Error(`Failed to start Kick live stream: ${spawnErr instanceof Error ? spawnErr.message : String(spawnErr)}`);
-      }
-
-      // Also announce the stream in the Kick live chat
+      // 1. Announce the stream in the Kick live chat
       try {
         let chatText = `🔴 LIVE STREAM: ${input.content || 'Streaming video broadcast!'}`;
         if (chatText.length > 500) chatText = chatText.substring(0, 497) + '...';
@@ -255,7 +244,43 @@ export class KickAdapter implements PlatformAdapter {
           }),
         });
       } catch (chatErr) {
-        logger.warn('Kick chat stream announcement failed (stream still running)', { chatErr });
+        logger.warn('Kick chat stream announcement failed (proceeding with stream)', { chatErr });
+      }
+
+      // 2. Stream the video via RTMP to Kick
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const streamProc = spawn(ffmpegPath, ffmpegArgs);
+          let stderr = '';
+          let hasStartedStreaming = false;
+
+          streamProc.stderr.on('data', (chunk: Buffer) => {
+            const text = chunk.toString();
+            stderr += text;
+            if (!hasStartedStreaming && (text.includes('frame=') || text.includes('fps='))) {
+              hasStartedStreaming = true;
+              logger.info('Kick RTMP streaming started successfully');
+            }
+          });
+
+          streamProc.on('error', (err: Error) => {
+            logger.error('Failed to spawn FFmpeg process', { err });
+            reject(new Error(`Failed to start Kick streaming: ${err.message}`));
+          });
+
+          streamProc.on('close', (code: number) => {
+            if (code === 0 || hasStartedStreaming) {
+              logger.info('Kick RTMP stream finished', { code });
+              resolve();
+            } else {
+              logger.error('Kick RTMP stream failed', { code, stderr: stderr.slice(-600) });
+              reject(new Error(`Kick streaming error: ${stderr.slice(-300)}`));
+            }
+          });
+        });
+      } catch (streamErr) {
+        logger.error('Kick stream execution error', { streamErr });
+        throw streamErr;
       }
 
       return {
