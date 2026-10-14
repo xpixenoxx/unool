@@ -252,7 +252,7 @@ export class VKAdapter implements PlatformAdapter {
         body: deleteParams.toString(),
       });
     } catch (err) {
-      logger.error('VK wall.delete failed', { error: err });
+      logger.error('VK wall.delete failed', { error: err instanceof Error ? err : new Error(String(err)) });
     }
   }
 
