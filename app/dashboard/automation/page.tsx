@@ -1,6 +1,8 @@
-import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { getAuthContext } from '@/lib/auth/context';
 import { redirect } from 'next/navigation';
+import { Suspense } from 'react';
 import AutomationClient from './AutomationClient';
+import { Loader2 } from 'lucide-react';
 
 export const metadata = {
   title: 'SignalDM — Instagram Automation | UNOOL',
@@ -8,21 +10,21 @@ export const metadata = {
 };
 
 export default async function AutomationPage() {
-  const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const auth = await getAuthContext();
 
-  if (!user) {
+  if (!auth) {
     redirect('/signin');
   }
 
-  // Get workspace ID from memberships
-  const { data: membership } = await supabase
-    .from('workspace_members')
-    .select('workspace_id')
-    .eq('user_id', user.id)
-    .single();
-
-  const workspaceId = membership?.workspace_id || null;
-
-  return <AutomationClient workspaceId={workspaceId} userId={user.id} />;
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Loader2 className="h-8 w-8 animate-spin" style={{ color: '#8b5cf6' }} />
+        </div>
+      }
+    >
+      <AutomationClient workspaceId={auth.workspaceId} userId={auth.userId} />
+    </Suspense>
+  );
 }

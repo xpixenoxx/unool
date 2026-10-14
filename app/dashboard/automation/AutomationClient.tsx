@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useUserContext } from '@/lib/hooks/use-user-context';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -124,11 +125,14 @@ const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
   .sdm-root {
-    min-height: 100vh;
+    min-height: calc(100vh - 100px);
     background: #0a0a0f;
     color: #e8e6f0;
     font-family: 'Inter', sans-serif;
-    padding: 0;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.15);
+    overflow: hidden;
   }
 
   .sdm-header {
@@ -799,12 +803,15 @@ const styles = `
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function AutomationClient({
-  workspaceId,
-  userId,
+  workspaceId: initialWorkspaceId,
+  userId: initialUserId,
 }: {
   workspaceId: string | null;
-  userId: string;
+  userId?: string;
 }) {
+  const userCtx = useUserContext();
+  const workspaceId = initialWorkspaceId || userCtx?.workspace?.id || null;
+  const userId = initialUserId || userCtx?.user?.id || '';
   const [activeTab, setActiveTab] = useState<'control' | 'simulator' | 'feed' | 'inbox' | 'dms'>('control');
   const [config, setConfig] = useState<AutomationConfig | null>(null);
   const [saving, setSaving] = useState(false);
@@ -952,6 +959,20 @@ export default function AutomationClient({
     setConfig(prev => prev ? { ...prev, ...patch } : prev);
   };
 
+  if (!workspaceId && userCtx?.loading) {
+    return (
+      <>
+        <style>{styles}</style>
+        <div className="sdm-root" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+          <div style={{ textAlign: 'center' }}>
+            <div className="sdm-spinner" />
+            <p style={{ color: '#6b7280', fontSize: 14 }}>Connecting workspace...</p>
+          </div>
+        </div>
+      </>
+    );
+  }
+
   if (!workspaceId) {
     return (
       <>
@@ -960,7 +981,22 @@ export default function AutomationClient({
           <div className="sdm-no-workspace">
             <div style={{ fontSize: 48, marginBottom: 16 }}>⚡</div>
             <h2 style={{ color: '#a78bfa', marginBottom: 8 }}>No workspace found</h2>
-            <p style={{ color: '#6b7280' }}>Please create or join a workspace first.</p>
+            <p style={{ color: '#6b7280', marginBottom: 20 }}>Please create or join a workspace first to access SignalDM.</p>
+            <a
+              href="/dashboard"
+              style={{
+                display: 'inline-block',
+                padding: '8px 20px',
+                borderRadius: 10,
+                background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+                color: '#fff',
+                fontSize: 13,
+                fontWeight: 600,
+                textDecoration: 'none',
+              }}
+            >
+              Go to Overview
+            </a>
           </div>
         </div>
       </>
