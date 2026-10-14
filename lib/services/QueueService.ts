@@ -45,6 +45,9 @@ class QueueService {
         url: this.webhookUrl,
         body: { postId, workspaceId, isScheduled: false },
         retries: 3,
+        headers: {
+          'Upstash-Timeout': '300s',
+        },
       });
 
       logger.info('Enqueued immediate publish task', { messageId: res.messageId, postId });

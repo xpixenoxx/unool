@@ -176,9 +176,8 @@ export class KickAdapter implements PlatformAdapter {
 
     // Detect if this post has a video file attached
     const videoUrl = input.mediaUrls?.find(url =>
-      /\.(mp4|mov|webm|mkv|m4v)(\?.*)?$/i.test(url) ||
-      url.includes('/uploads/') ||
-      url.toLowerCase().includes('video')
+      /\.(mp4|mov|webm|mkv|m4v|avi|flv)(\?.*)?$/i.test(url) ||
+      (url.toLowerCase().includes('video') && !/\.(jpe?g|png|webp|gif|svg)$/i.test(url))
     );
 
     // If there is a video, stream it over RTMP directly to Kick
