@@ -73,7 +73,6 @@ export async function POST(request: NextRequest) {
       platform: 'bluesky',
       platformUserId: profile.platformUserId,
       username: profile.username,
-      displayName: profile.displayName,
       avatarUrl: profile.avatarUrl,
       accessToken: encryptedToken,
       refreshToken: '', // required by interface, but unused
