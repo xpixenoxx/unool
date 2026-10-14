@@ -21,7 +21,6 @@ import { TwitchConnectDialog } from './TwitchConnectDialog';
 import { TelegramConnectDialog } from './TelegramConnectDialog';
 import { SkoolConnectDialog } from './SkoolConnectDialog';
 import { WhopConnectDialog } from './WhopConnectDialog';
-import { VKConnectDialog } from './VKConnectDialog';
 import { WarpcastConnectDialog } from './WarpcastConnectDialog';
 import { MeweConnectDialog } from './MeweConnectDialog';
 import { NostrConnectDialog } from './NostrConnectDialog';
@@ -268,7 +267,6 @@ const PLATFORM_CONFIG: Record<
     description: 'Communities & discussions',
     audience: 'Russian & CIS communities',
     available: true,
-    customConnect: true,
   },
   warpcast: {
     icon: Hash,
@@ -393,7 +391,6 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
   const [twitchDialogOpen, setTwitchDialogOpen] = useState(false);
   const [telegramDialogOpen, setTelegramDialogOpen] = useState(false);
   const [skoolDialogOpen, setSkoolDialogOpen] = useState(false);
-  const [vkDialogOpen, setVkDialogOpen] = useState(false);
   const [warpcastDialogOpen, setWarpcastDialogOpen] = useState(false);
   const [meweDialogOpen, setMeweDialogOpen] = useState(false);
   const [nostrDialogOpen, setNostrDialogOpen] = useState(false);
@@ -452,10 +449,6 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
     }
     if (platform === 'skool') {
       setSkoolDialogOpen(true);
-      return;
-    }
-    if (platform === 'vk') {
-      setVkDialogOpen(true);
       return;
     }
     if (platform === 'warpcast') {
@@ -630,18 +623,6 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
           setConnections((prev) => ({
             ...prev,
             skool: { platform: 'skool', status: 'connected', username },
-          }));
-          window.location.reload();
-        }}
-      />
-      <VKConnectDialog
-        open={vkDialogOpen}
-        onClose={() => setVkDialogOpen(false)}
-        workspaceId={workspaceId}
-        onSuccess={(username) => {
-          setConnections((prev) => ({
-            ...prev,
-            vk: { platform: 'vk', status: 'connected', username },
           }));
           window.location.reload();
         }}

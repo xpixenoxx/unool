@@ -107,6 +107,12 @@ const configSchema = z.object({
   KICK_CLIENT_SECRET: z.string().optional(),
   KICK_REDIRECT_URI: z.string().url().optional(),
 
+  // VK (VKontakte) OAuth
+  VK_CLIENT_ID: z.string().optional(),
+  VK_CLIENT_SECRET: z.string().optional(),
+  VK_SERVICE_TOKEN: z.string().optional(),
+  VK_REDIRECT_URI: z.string().url().optional(),
+
   // Webhook secrets
   LINKEDIN_WEBHOOK_SECRET: z.string().optional(),
   X_WEBHOOK_SECRET: z.string().optional(),
