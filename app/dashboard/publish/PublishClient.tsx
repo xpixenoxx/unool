@@ -781,19 +781,24 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
                             <Text size="sm" className="text-green-700 dark:text-green-300 font-medium">Published successfully</Text>
                           </Flex>
                           <Flex center gap={2}>
-                            {shareUrl && (
-                              <a
-                                href={`https://wa.me/?text=${whatsappMsg}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-white shadow-sm hover:opacity-90 transition-opacity cursor-pointer"
-                                style={{ background: '#25D366' }}
-                                title="Share One Link to WhatsApp (auto-scrolls to recent activity)"
-                              >
-                                <MessageCircle className="h-3.5 w-3.5" />
-                                WhatsApp
-                              </a>
-                            )}
+                            {(result?.platformUrl || draft.platformUrl) && (() => {
+                              const _shareUrl = result?.platformUrl || draft.platformUrl || '';
+                              const _whatsappMsg = encodeURIComponent(`Check out my latest post: ${_shareUrl}`);
+                              return (
+                                <a
+                                  href={`https://wa.me/?text=${_whatsappMsg}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-white shadow-sm hover:opacity-90 transition-opacity cursor-pointer"
+                                  style={{ background: '#25D366' }}
+                                  title="Share to WhatsApp"
+                                >
+                                  <MessageCircle className="h-3.5 w-3.5" />
+                                  WhatsApp
+                                </a>
+                              );
+                            })()}
+
                             {(result?.platformUrl || draft.platformUrl) && (
                               <a
                                 href={result?.platformUrl || draft.platformUrl || '#'}

@@ -9,6 +9,7 @@ import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseP
 import { getCurrentAuth } from '@/lib/auth/server';
 import { planEnforcement } from '@/lib/middleware/plan-enforcement-middleware';
 import { optimizeMediaForPlatform } from '@/lib/media/ImageOptimizer';
+import { ContentGuard } from '@/lib/ai/ContentGuard';
 
 const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
 const postRepository = new SupabasePostRepository();
@@ -35,6 +36,19 @@ export async function POST(request: NextRequest) {
       if (!content || typeof content !== 'string' || !content.trim()) {
         return NextResponse.json({ error: 'Content is required' }, { status: 400 });
       }
+
+      // ─── ContentGuard: validate input before any AI call ───────────────
+      const guard = ContentGuard.validateInput(content, { route: 'composer/adapt' });
+      if (!guard.safe) {
+        logger.warn('ContentGuard blocked composer input', {
+          code: guard.violation.code,
+          internal: guard.violation.internal,
+          workspaceId,
+          traceId,
+        });
+        return NextResponse.json(ContentGuard.blockedResponse(guard.violation), { status: 400 });
+      }
+      const safeContent = guard.sanitizedContent;
 
       // Get profile for context - if not provided, find one for the workspace
       let profileContext: { profileName?: string; profileHeadline?: string } = {};
@@ -103,7 +117,7 @@ export async function POST(request: NextRequest) {
       logger.info('Composer adaptation requested', { traceId, workspaceId, contentLength: content.length, activePlatforms });
 
       // Adapt content for all connected platforms
-      const results = await PostAdapter.adaptForPlatforms(content.trim(), activePlatforms, profileContext);
+      const results = await PostAdapter.adaptForPlatforms(safeContent, activePlatforms, profileContext);
 
       const variants: Record<PlatformType, AdaptedPost> = {} as Record<PlatformType, AdaptedPost>;
       let totalTokensIn = 0;
