@@ -5,6 +5,8 @@ import { Receiver } from '@upstash/qstash';
 import { SupabasePostRepository } from '@/lib/repositories/supabase/SupabasePostRepository';
 import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
+import { postFirstComment } from '@/lib/platforms/firstComment';
+import { decryptToken } from '@/lib/crypto/encryption';
 
 const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
 
@@ -96,6 +98,51 @@ async function handlePublish(body: Record<string, unknown>, _request: NextReques
     // Post was cancelled or reset to draft — skip without retrying
     logger.info('QStash scheduled publish: post reverted to draft — skipping', { postId });
     return NextResponse.json({ skipped: true, reason: 'post_cancelled' });
+  }
+
+  // ── First-comment dispatch ─────────────────────────────────────────────
+  // Format: "first-comment:{originalVariantId}:{platformPostId}"
+  if (variantId && variantId.startsWith('first-comment:')) {
+    const parts = variantId.split(':');
+    const originalVariantId = parts[1];
+    const platformPostId = parts[2];
+
+    if (!platformPostId || !autoFirstComment) {
+      logger.info('QStash first-comment: missing data — skipping', { variantId });
+      return NextResponse.json({ skipped: true, reason: 'missing_first_comment_data' });
+    }
+
+    const variant = await postRepository.findVariantById(originalVariantId);
+    if (!variant) {
+      logger.warn('QStash first-comment: variant not found', { originalVariantId });
+      return NextResponse.json({ skipped: true, reason: 'variant_not_found' });
+    }
+
+    // Find the platform connection for this variant's workspace
+    const { data: connections } = await supabase
+      .from('platform_connections')
+      .select('*')
+      .eq('workspace_id', workspaceId)
+      .eq('platform', variant.platform)
+      .eq('status', 'connected')
+      .limit(1);
+
+    if (!connections || connections.length === 0) {
+      logger.warn('QStash first-comment: no active platform connection', { workspaceId, platform: variant.platform });
+      return NextResponse.json({ skipped: true, reason: 'no_connection' });
+    }
+
+    try {
+      const accessToken = await decryptToken(connections[0].access_token_encrypted);
+      await postFirstComment(accessToken, platformPostId, autoFirstComment, variant.platform);
+      logger.info('QStash first-comment: posted successfully', { platformPostId, platform: variant.platform });
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      logger.error('QStash first-comment: failed to post', { error, platformPostId });
+      // Don't throw — return success so QStash doesn't retry and double-post
+    }
+
+    return NextResponse.json({ success: true, firstComment: true });
   }
 
   // ── Cascading single-variant mode ──────────────────────────────────────

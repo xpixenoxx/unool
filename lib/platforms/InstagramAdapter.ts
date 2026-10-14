@@ -329,6 +329,32 @@ export class InstagramAdapter implements PlatformAdapter {
         logger.warn('Could not fetch Instagram permalink', { error: err });
       }
 
+      // If firstComment is provided, post it to the newly created media
+      if (input.firstComment && input.firstComment.trim()) {
+        try {
+          const commentParams = new URLSearchParams({
+            message: input.firstComment.trim(),
+            access_token: accessToken,
+          });
+          const commentRes = await fetchWithRetry(
+            `https://graph.instagram.com/v20.0/${platformPostId}/comments`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: commentParams.toString(),
+            }
+          );
+          if (!commentRes.ok) {
+            const commentErr = await commentRes.text();
+            logger.warn('Failed to post first comment on Instagram', { platformPostId, error: commentErr });
+          } else {
+            logger.info('First comment posted on Instagram', { platformPostId });
+          }
+        } catch (err) {
+          logger.warn('Error posting first comment on Instagram', { platformPostId, error: err });
+        }
+      }
+
       return {
         platformPostId,
         platformUrl: permalink || `https://instagram.com/`,

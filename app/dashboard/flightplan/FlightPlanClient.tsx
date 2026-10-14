@@ -2463,6 +2463,8 @@ function FlightPlanInner({ userId, workspaceId }: { userId: string; workspaceId:
   const [connectedPlatforms, setConnectedPlatforms] = useState<PlatformType[]>([]);
   const [activeStoryIndex, setActiveStoryIndex] = useState<number>(0);
   const [isStoryPaused, setIsStoryPaused] = useState<boolean>(false);
+  // ── SignalDM automation status ─────────────────────────────────────────────────
+  const [signalDmEnabled, setSignalDmEnabled] = useState(false);
 
   // Load connected platforms
   useEffect(() => {
@@ -2480,6 +2482,16 @@ function FlightPlanInner({ userId, workspaceId }: { userId: string; workspaceId:
     }
     loadConnections();
   }, []);
+
+  // ── Check SignalDM automation status (best-effort, non-blocking) ─────────────
+  useEffect(() => {
+    if (!workspaceId) return;
+    fetch(`/api/instagram/automation?workspaceId=${workspaceId}`, { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.enabled) setSignalDmEnabled(true); })
+      .catch(() => {});
+  }, [workspaceId]);
+
 
   const handleGenerate = async (data: any) => {
     setIsGenerating(true);
@@ -2592,6 +2604,46 @@ function FlightPlanInner({ userId, workspaceId }: { userId: string; workspaceId:
           </button>
         )}
       </div>
+
+      {/* ── SignalDM Active Banner ── */}
+      {signalDmEnabled && connectedPlatforms.includes('instagram' as PlatformType) && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            padding: '8px 16px',
+            borderRadius: 12,
+            background: 'linear-gradient(135deg, rgba(139,92,246,0.08) 0%, rgba(236,72,153,0.05) 100%)',
+            border: '1px solid rgba(139,92,246,0.2)',
+            marginBottom: 4,
+          }}
+        >
+          <span style={{ fontSize: 16 }}>⚡</span>
+          <div style={{ flex: 1, fontSize: 12.5, color: '#6b5744' }}>
+            <span style={{ fontWeight: 700, color: '#7c3aed' }}>SignalDM Active</span>
+            <span style={{ marginLeft: 6 }}>
+              Instagram comments on your scheduled posts will be auto-handled by AI
+            </span>
+          </div>
+          <a
+            href="/dashboard/automation"
+            style={{
+              fontSize: 11.5,
+              fontWeight: 600,
+              color: '#8b5cf6',
+              textDecoration: 'none',
+              padding: '3px 10px',
+              borderRadius: 8,
+              background: 'rgba(139,92,246,0.1)',
+              border: '1px solid rgba(139,92,246,0.2)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Manage →
+          </a>
+        </div>
+      )}
 
       {/* Step indicator / Instagram-style story line for story → review flow */}
       {view === 'story' && (

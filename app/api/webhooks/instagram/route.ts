@@ -8,16 +8,21 @@ import {
   InstagramCommentAutomation,
   DEFAULT_AUTOMATION_CONFIG,
   type CommentEvent,
+  type DmEvent,
   type AutomationConfig,
+  type ClassifiedComment,
 } from '@/lib/services/InstagramCommentAutomation';
+import { ContentGuard } from '@/lib/ai/ContentGuard';
+import { ContentHumanizer } from '@/lib/ai/engines/ContentHumanizer';
+import { humanizedSleep } from '@/lib/services/automation/jitter';
+import { velocityThrottle } from '@/lib/services/automation/velocity';
+import { lexicalEntropyGuard } from '@/lib/services/automation/lexical';
 import { createClient } from '@supabase/supabase-js';
 
 const platformRepository = new SupabasePlatformRepository();
 const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
 
 // ─── GET: Meta Webhook Verification ─────────────────────────────────────────
-// Meta sends a GET request with hub.mode, hub.challenge, hub.verify_token
-// to verify your endpoint. You must echo back the challenge.
 
 export async function GET(request: NextRequest) {
   const mode = request.nextUrl.searchParams.get('hub.mode');
@@ -26,7 +31,6 @@ export async function GET(request: NextRequest) {
 
   if (mode === 'subscribe' && token === config.META_WEBHOOK_VERIFY_TOKEN) {
     logger.info('Instagram webhook verified successfully');
-    // Must return the challenge as plain text, not JSON
     return new NextResponse(challenge, { status: 200, headers: { 'Content-Type': 'text/plain' } });
   }
 
@@ -34,7 +38,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ error: 'Verification failed' }, { status: 403 });
 }
 
-// ─── POST: Receive Instagram Webhook Events ─────────────────────────────────
+// ─── POST: Receive Instagram Webhook Events ──────────────────────────────────
 
 export async function POST(request: NextRequest) {
   try {
@@ -67,8 +71,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
     }
 
-    // Meta webhook payload format:
-    // { object: "instagram", entry: [{ id: "ig_user_id", changes: [...] }] }
     if (payload.object !== 'instagram') {
       logger.debug('Instagram webhook: not an instagram object', { object: payload.object });
       return NextResponse.json({ received: true });
@@ -79,27 +81,39 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ received: true });
     }
 
-    // Process each entry (each represents one subscribed IG account)
+    // Process each entry asynchronously — return 200 immediately to Meta
     for (const entry of entries) {
       const igUserId = entry.id as string;
       const changes = entry.changes as Array<Record<string, unknown>> | undefined;
+      const messaging = entry.messaging as Array<Record<string, unknown>> | undefined;
 
-      if (!changes || !Array.isArray(changes)) continue;
-
-      for (const change of changes) {
-        if (change.field === 'comments') {
-          const value = change.value as Record<string, unknown>;
-          if (value) {
-            // Process asynchronously so we return 200 quickly to Meta
-            processCommentEvent(igUserId, value).catch((err) => {
-              logger.error('Error processing Instagram comment event', {
-                igUserId,
-                error: err instanceof Error ? err : new Error(String(err)),
+      // Handle comment events
+      if (changes && Array.isArray(changes)) {
+        for (const change of changes) {
+          if (change.field === 'comments') {
+            const value = change.value as Record<string, unknown>;
+            if (value) {
+              processCommentEvent(igUserId, value).catch((err) => {
+                logger.error('Error processing Instagram comment event', {
+                  igUserId,
+                  error: err instanceof Error ? err : new Error(String(err)),
+                });
               });
-            });
+            }
           }
         }
-        // Future: handle 'messages' field for DM receipts/responses
+      }
+
+      // Handle inbound DM events (messages field)
+      if (messaging && Array.isArray(messaging)) {
+        for (const msg of messaging) {
+          processDmEvent(igUserId, msg).catch((err) => {
+            logger.error('Error processing Instagram DM event', {
+              igUserId,
+              error: err instanceof Error ? err : new Error(String(err)),
+            });
+          });
+        }
       }
     }
 
@@ -108,12 +122,11 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     logger.error('Instagram webhook processing error', { error: err });
-    // Return 200 even on error to prevent Meta from retrying
     return NextResponse.json({ received: true });
   }
 }
 
-// ─── Comment Processing Logic ───────────────────────────────────────────────
+// ─── Comment Processing Logic ─────────────────────────────────────────────────
 
 async function processCommentEvent(igUserId: string, value: Record<string, unknown>): Promise<void> {
   const commentEvent: CommentEvent = {
@@ -125,7 +138,7 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
     parentId: value.parent_id as string || undefined,
   };
 
-  // Don't process replies to our own comments (avoid loops)
+  // Anti-loop guard: skip reply-to-reply comments
   if (commentEvent.parentId) {
     logger.debug('Skipping reply-to-reply comment', { commentId: commentEvent.commentId });
     return;
@@ -136,7 +149,24 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
     return;
   }
 
-  // Find the platform connection for this IG user
+  // ── ContentGuard: pre-filter harmful incoming content ──────────────────
+  const guardResult = ContentGuard.validateInput(commentEvent.text);
+  if (!guardResult.safe && guardResult.violation.level === 'blocked') {
+    logger.info('ContentGuard blocked incoming comment', {
+      code: guardResult.violation.code,
+      commentId: commentEvent.commentId,
+    });
+    // Flag internally without engaging
+    await flagCommentForReview(
+      await getWorkspaceIdForIgUser(igUserId),
+      commentEvent,
+      { classification: 'harmful', suggestedReply: 'SKIP', reasoning: guardResult.violation.internal || guardResult.violation.message },
+      0
+    );
+    return;
+  }
+
+  // Find the platform connection
   const { data: connections } = await supabase
     .from('platform_connections')
     .select('*')
@@ -157,7 +187,6 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
     return;
   }
 
-  // Decrypt the access token
   let accessToken: string;
   try {
     accessToken = await decryptToken(connection.access_token_encrypted);
@@ -166,7 +195,6 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
     return;
   }
 
-  // Load automation config for this workspace (or use defaults)
   const automationConfig = await loadAutomationConfig(connection.workspace_id);
 
   if (!automationConfig.enabled) {
@@ -174,7 +202,26 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
     return;
   }
 
-  // Get the post caption for context (best-effort)
+  // ── Velocity check: enforce hourly rate limits ──────────────────────────
+  const canReply = await velocityThrottle.canReply(
+    connection.workspace_id,
+    automationConfig.maxRepliesPerHour || 30
+  );
+  if (!canReply) {
+    logger.info('Velocity limit reached — queuing comment for later', {
+      workspaceId: connection.workspace_id,
+      commentId: commentEvent.commentId,
+    });
+    // Flag for human review instead of dropping
+    await flagCommentForReview(connection.workspace_id, commentEvent, {
+      classification: 'unrelated',
+      suggestedReply: '',
+      reasoning: 'Rate limit reached — deferred for human review',
+    }, 0);
+    return;
+  }
+
+  // Get the post caption for AI context (best-effort)
   let postCaption = '';
   if (commentEvent.mediaId) {
     try {
@@ -190,36 +237,184 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
     }
   }
 
-  // Classify and generate reply
+  // ── Fetch recent replies for anti-duplication ───────────────────────────
+  const recentReplies = await lexicalEntropyGuard.getRecentReplies(connection.workspace_id, 15);
+
+  // ── Classify and generate reply ─────────────────────────────────────────
   const automation = new InstagramCommentAutomation(groqApiKey);
-  const result = await automation.classifyAndGenerateReply(commentEvent, postCaption, automationConfig);
+  const result = await automation.classifyAndGenerateReply(commentEvent, postCaption, automationConfig, recentReplies);
 
   // Log the comment and classification
   await logCommentEvent(connection.workspace_id, commentEvent, result);
 
   // Act on the classification
   if (result.shouldAutoReply && result.suggestedReply && result.suggestedReply !== 'SKIP') {
-    // Post the public reply
-    await automation.postPublicReply(accessToken, commentEvent.mediaId, commentEvent.commentId, result.suggestedReply);
+    // ── Humanize the reply through ContentHumanizer ─────────────────────
+    let finalReply = result.suggestedReply;
+    try {
+      const humanized = ContentHumanizer.humanize(finalReply, 'instagram');
+      finalReply = humanized.humanized || finalReply;
+    } catch {
+      logger.debug('ContentHumanizer failed — using raw reply');
+    }
 
-    // For link requests, also send a DM
-    if (result.classification === 'link_request' && automationConfig.linkUrl) {
-      // The commenter's IG scoped ID is needed for DMs
-      // In the webhook payload, value.from.id is the IGSID (Instagram Scoped ID)
-      const commenterIgScopedId = (value.from as Record<string, unknown>)?.id as string;
+    // ── Anti-duplication check ─────────────────────────────────────────
+    if (lexicalEntropyGuard.isTooSimilar(finalReply, recentReplies)) {
+      logger.info('Reply too similar to recent replies — flagging for review', {
+        commentId: commentEvent.commentId,
+      });
+      result.shouldFlagForReview = true;
+    } else {
+      // ── Poisson jitter delay before posting ────────────────────────────
+      await humanizedSleep(
+        automationConfig.jitterMinSeconds || 25,
+        automationConfig.jitterMaxSeconds || 120
+      );
+
+      // Post the public reply
+      const replyResult = await automation.postPublicReply(
+        accessToken,
+        commentEvent.mediaId,
+        commentEvent.commentId,
+        finalReply
+      );
+
+      if (replyResult) {
+        // Record in velocity tracker and lexical guard
+        await velocityThrottle.recordReply(connection.workspace_id);
+        lexicalEntropyGuard.recordReply(connection.workspace_id, finalReply);
+      }
+    }
+
+    // ── Send DM for link_request / purchase_intent ──────────────────────
+    if (result.shouldSendDM && automationConfig.linkUrl) {
+      const commenterIgScopedId = (value as any)?.from?.id as string;
       if (commenterIgScopedId) {
-        const dmMessage = `Hey @${commentEvent.username}! Here's the link you asked for: ${automationConfig.linkUrl}`;
-        await automation.sendPrivateMessage(accessToken, igUserId, commenterIgScopedId, dmMessage);
+        const dmText = result.suggestedDM ||
+          `Hey @${commentEvent.username}! Here's the link you asked for: ${automationConfig.linkUrl}`;
+        await automation.sendPrivateMessage(accessToken, igUserId, commenterIgScopedId, dmText);
       }
     }
   }
 
   if (result.shouldFlagForReview) {
-    await flagCommentForReview(connection.workspace_id, commentEvent, result);
+    await flagCommentForReview(connection.workspace_id, commentEvent, result, result.leadScore);
   }
 }
 
-// ─── Helper: Load automation config ─────────────────────────────────────────
+// ─── Inbound DM Processing Logic ─────────────────────────────────────────────
+
+async function processDmEvent(igUserId: string, messaging: Record<string, unknown>): Promise<void> {
+  const message = messaging.message as Record<string, unknown> | undefined;
+  const sender = messaging.sender as Record<string, unknown> | undefined;
+  const recipient = messaging.recipient as Record<string, unknown> | undefined;
+
+  if (!message || !sender) return;
+
+  // Don't process our own outbound messages (echo)
+  if (sender.id === igUserId || (recipient && recipient.id !== igUserId)) {
+    logger.debug('Skipping echo/outbound DM', { senderId: sender.id, igUserId });
+    return;
+  }
+
+  const dmEvent: DmEvent = {
+    messageId: messaging.mid as string || message.mid as string || String(Date.now()),
+    senderId: sender.id as string,
+    senderUsername: (sender as any).username,
+    text: message.text as string || '',
+    timestamp: messaging.timestamp as string || new Date().toISOString(),
+  };
+
+  if (!dmEvent.text || !dmEvent.senderId) {
+    logger.debug('Skipping empty DM event');
+    return;
+  }
+
+  // ContentGuard check on DM text
+  const guardResult = ContentGuard.validateInput(dmEvent.text);
+  if (!guardResult.safe && guardResult.violation.level === 'blocked') {
+    logger.info('ContentGuard blocked incoming DM', { code: guardResult.violation.code });
+    return;
+  }
+
+  // Find the platform connection
+  const { data: connections } = await supabase
+    .from('platform_connections')
+    .select('*')
+    .eq('platform', 'instagram')
+    .eq('platform_user_id', igUserId)
+    .eq('status', 'connected');
+
+  if (!connections || connections.length === 0) {
+    logger.warn('No active Instagram connection for DM webhook', { igUserId });
+    return;
+  }
+
+  const connection = connections[0];
+  const groqApiKey = process.env.GROQ_API_KEY;
+
+  if (!groqApiKey) return;
+
+  const automationConfig = await loadAutomationConfig(connection.workspace_id);
+
+  if (!automationConfig.enabled || !automationConfig.dmAutoReplyEnabled) {
+    logger.debug('DM automation disabled for workspace', { workspaceId: connection.workspace_id });
+    return;
+  }
+
+  // Velocity check for DMs
+  const canReply = await velocityThrottle.canReply(
+    `dm:${connection.workspace_id}`,
+    automationConfig.dmMaxRepliesPerHour || 20
+  );
+  if (!canReply) {
+    logger.info('DM velocity limit reached', { workspaceId: connection.workspace_id });
+    return;
+  }
+
+  let accessToken: string;
+  try {
+    accessToken = await decryptToken(connection.access_token_encrypted);
+  } catch {
+    logger.error('Failed to decrypt token for DM automation', { connectionId: connection.id });
+    return;
+  }
+
+  const automation = new InstagramCommentAutomation(groqApiKey);
+  const result = await automation.classifyAndReplyDM(dmEvent, automationConfig);
+
+  // Log the DM
+  await logDmEvent(connection.workspace_id, dmEvent, result);
+
+  if (result.shouldAutoReply && result.suggestedReply && result.suggestedReply !== 'SKIP') {
+    // Humanize the reply
+    let finalReply = result.suggestedReply;
+    try {
+      const humanized = ContentHumanizer.humanize(finalReply, 'instagram');
+      finalReply = humanized.humanized || finalReply;
+    } catch {
+      logger.debug('ContentHumanizer failed for DM — using raw reply');
+    }
+
+    // Jitter delay
+    await humanizedSleep(10, 45); // Shorter delay for DMs (10–45s)
+
+    // Send the DM reply
+    await automation.sendPrivateMessage(accessToken, igUserId, dmEvent.senderId, finalReply);
+    await velocityThrottle.recordReply(`dm:${connection.workspace_id}`);
+  }
+
+  if (result.shouldEscalate) {
+    logger.info('DM escalated for human review', {
+      workspaceId: connection.workspace_id,
+      senderId: dmEvent.senderId,
+      classification: result.classification,
+    });
+    // Future: push to flagged_inbox or send notification to workspace owner
+  }
+}
+
+// ─── Helper: Load automation config ──────────────────────────────────────────
 
 async function loadAutomationConfig(workspaceId: string): Promise<AutomationConfig> {
   try {
@@ -235,10 +430,22 @@ async function loadAutomationConfig(workspaceId: string): Promise<AutomationConf
         autoReplyPositive: data.auto_reply_positive ?? true,
         autoReplyQuestions: data.auto_reply_questions ?? true,
         autoReplyLinkRequests: data.auto_reply_link_requests ?? true,
+        autoReplyPurchaseIntent: data.auto_reply_purchase_intent ?? true,
         linkUrl: data.link_url || undefined,
         customInstructions: data.custom_instructions || undefined,
+        brandPersona: data.brand_persona || undefined,
         flagNegative: data.flag_negative ?? true,
         flagSpam: data.flag_spam ?? true,
+        maxRepliesPerHour: data.max_replies_per_hour ?? 30,
+        jitterMinSeconds: data.jitter_min_seconds ?? 25,
+        jitterMaxSeconds: data.jitter_max_seconds ?? 120,
+        threadChainingEnabled: data.thread_chaining_enabled ?? true,
+        dmTemplate: data.dm_template || undefined,
+        dmAutoReplyEnabled: data.dm_auto_reply_enabled ?? false,
+        dmWelcomeMessage: data.dm_welcome_message || undefined,
+        dmKnowledgeBase: data.dm_knowledge_base || undefined,
+        dmEscalationEnabled: data.dm_escalation_enabled ?? true,
+        dmMaxRepliesPerHour: data.dm_max_replies_per_hour ?? 20,
       };
     }
   } catch {
@@ -248,12 +455,23 @@ async function loadAutomationConfig(workspaceId: string): Promise<AutomationConf
   return DEFAULT_AUTOMATION_CONFIG;
 }
 
-// ─── Helper: Log comment event ──────────────────────────────────────────────
+async function getWorkspaceIdForIgUser(igUserId: string): Promise<string> {
+  const { data } = await supabase
+    .from('platform_connections')
+    .select('workspace_id')
+    .eq('platform', 'instagram')
+    .eq('platform_user_id', igUserId)
+    .eq('status', 'connected')
+    .single();
+  return data?.workspace_id || '';
+}
+
+// ─── Helper: Log comment event ────────────────────────────────────────────────
 
 async function logCommentEvent(
   workspaceId: string,
   comment: CommentEvent,
-  classification: { classification: string; confidence: number; suggestedReply: string; shouldAutoReply: boolean; shouldFlagForReview: boolean; reasoning: string }
+  classification: ClassifiedComment
 ): Promise<void> {
   try {
     await supabase.from('instagram_comment_logs').insert({
@@ -268,19 +486,52 @@ async function logCommentEvent(
       auto_replied: classification.shouldAutoReply,
       flagged_for_review: classification.shouldFlagForReview,
       reasoning: classification.reasoning,
+      lead_score: classification.leadScore,
+      dm_sent: classification.shouldSendDM,
+      dm_message: classification.suggestedDM,
+      thread_hook: classification.threadHook,
     });
   } catch (error) {
     logger.warn('Failed to log Instagram comment event', { error });
   }
 }
 
-// ─── Helper: Flag comment for review ────────────────────────────────────────
+// ─── Helper: Log DM event ─────────────────────────────────────────────────────
+
+async function logDmEvent(
+  workspaceId: string,
+  dm: DmEvent,
+  classification: { classification: string; confidence: number; suggestedReply: string; leadScore: number; shouldAutoReply: boolean; shouldEscalate: boolean; reasoning: string }
+): Promise<void> {
+  try {
+    await supabase.from('instagram_dm_logs').insert({
+      workspace_id: workspaceId,
+      message_id: dm.messageId,
+      sender_id: dm.senderId,
+      sender_username: dm.senderUsername,
+      message_text: dm.text,
+      classification: classification.classification,
+      confidence: classification.confidence,
+      ai_reply: classification.suggestedReply,
+      auto_replied: classification.shouldAutoReply,
+      escalated: classification.shouldEscalate,
+      lead_score: classification.leadScore,
+      reasoning: classification.reasoning,
+    });
+  } catch (error) {
+    logger.warn('Failed to log Instagram DM event', { error });
+  }
+}
+
+// ─── Helper: Flag comment for review ─────────────────────────────────────────
 
 async function flagCommentForReview(
   workspaceId: string,
   comment: CommentEvent,
-  classification: { classification: string; suggestedReply: string; reasoning: string }
+  classification: { classification: string; suggestedReply: string; reasoning: string },
+  leadScore = 0
 ): Promise<void> {
+  if (!workspaceId) return;
   try {
     await supabase.from('instagram_flagged_comments').insert({
       workspace_id: workspaceId,
@@ -292,6 +543,8 @@ async function flagCommentForReview(
       suggested_reply: classification.suggestedReply,
       reasoning: classification.reasoning,
       status: 'pending',
+      lead_score: leadScore,
+      priority: leadScore >= 2 ? 'high' : 'normal',
     });
   } catch (error) {
     logger.warn('Failed to flag Instagram comment for review', { error });
