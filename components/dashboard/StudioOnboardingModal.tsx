@@ -1,15 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
   ArrowRight,
-  Sparkles,
-  Check,
-  X,
-  Plus,
 } from 'lucide-react';
 
 /* ─────────────────────────────────────────────────────────────
@@ -23,7 +19,6 @@ export interface OnboardingConfig {
     options: Array<{
       id: string;
       label: string;
-      emoji: string;
       hint: string;
     }>;
   };
@@ -52,7 +47,6 @@ export interface OnboardingConfig {
     maxSelections: number;
     options: Array<{
       label: string;
-      emoji: string;
       hint?: string;
     }>;
     otherPlaceholder: string;
@@ -64,12 +58,12 @@ export const STUDIO_ONBOARDING_CONFIG: OnboardingConfig = {
     title: "Who's walking into the Studio?",
     subtitle: 'Pick the hat you wear most often so Studio knows how to assist you.',
     options: [
-      { id: 'Founder', label: 'Founder', emoji: '🚀', hint: 'Building a product or company' },
-      { id: 'Business Owner', label: 'Business Owner', emoji: '🏪', hint: 'Running commerce, store or services' },
-      { id: 'Creator', label: 'Creator', emoji: '🎨', hint: 'Crafting content, media or stories' },
-      { id: 'Student', label: 'Student', emoji: '🎓', hint: 'Learning, preparing & networking' },
-      { id: 'Individual', label: 'Individual', emoji: '👤', hint: 'Sharing thoughts & personal journey' },
-      { id: 'Other', label: 'Other', emoji: '✨', hint: 'Something uniquely yours' },
+      { id: 'Founder', label: 'Founder', hint: 'Building a product or company' },
+      { id: 'Business Owner', label: 'Business Owner', hint: 'Running commerce, store or services' },
+      { id: 'Creator', label: 'Creator', hint: 'Crafting content, media or stories' },
+      { id: 'Student', label: 'Student', hint: 'Learning, preparing & networking' },
+      { id: 'Individual', label: 'Individual', hint: 'Sharing thoughts & personal journey' },
+      { id: 'Other', label: 'Other', hint: 'Something uniquely yours' },
     ],
   },
   q2: {
@@ -206,13 +200,13 @@ export const STUDIO_ONBOARDING_CONFIG: OnboardingConfig = {
     subtitle: 'Pick up to 2 tones that reflect your authentic voice.',
     maxSelections: 2,
     options: [
-      { label: 'Smooth', emoji: '🍸', hint: 'Polished & effortless' },
-      { label: 'Soft', emoji: '☁️', hint: 'Warm, calm & human' },
-      { label: 'Rebel', emoji: '⚡', hint: 'Bold, provocative & unconventional' },
-      { label: 'Witty', emoji: '💡', hint: 'Playful, sharp & quick-humored' },
-      { label: 'Nerdy', emoji: '🔬', hint: 'Deep-dive, data-rich & curious' },
-      { label: 'Straight shooter', emoji: '🎯', hint: 'Direct, clear & no fluff' },
-      { label: 'Storyteller', emoji: '📖', hint: 'Narrative, emotive & immersive' },
+      { label: 'Smooth', hint: 'Polished & effortless' },
+      { label: 'Soft', hint: 'Warm, calm & human' },
+      { label: 'Rebel', hint: 'Bold, provocative & unconventional' },
+      { label: 'Witty', hint: 'Playful, sharp & quick-humored' },
+      { label: 'Nerdy', hint: 'Deep-dive, data-rich & curious' },
+      { label: 'Straight shooter', hint: 'Direct, clear & no fluff' },
+      { label: 'Storyteller', hint: 'Narrative, emotive & immersive' },
     ],
     otherPlaceholder: 'e.g. Poetic, Motivational, Sarcastic...',
   },
@@ -227,6 +221,8 @@ export interface StudioOnboardingModalProps {
   onComplete?: (answers: any) => void;
   userId?: string;
   forceOpen?: boolean;
+  isRetake?: boolean;
+  initialAnswers?: any;
 }
 
 export function StudioOnboardingModal({
@@ -235,7 +231,10 @@ export function StudioOnboardingModal({
   onComplete,
   userId,
   forceOpen = false,
+  isRetake = false,
+  initialAnswers,
 }: StudioOnboardingModalProps) {
+  const modalRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
@@ -262,16 +261,78 @@ export function StudioOnboardingModal({
   // Feedback states
   const [isFinishing, setIsFinishing] = useState(false);
 
+  // Sync controlledIsOpen
+  useEffect(() => {
+    if (controlledIsOpen !== undefined) {
+      setIsOpen(controlledIsOpen);
+    }
+  }, [controlledIsOpen]);
+
+  // Click outside and escape key handling
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+        controlledOnClose?.();
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsOpen(false);
+        controlledOnClose?.();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleOutsideClick);
+      document.addEventListener('keydown', handleEscape);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isOpen, controlledOnClose]);
+
+  // Preload initialAnswers if provided
+  useEffect(() => {
+    if (initialAnswers) {
+      if (initialAnswers.persona) setPersona(initialAnswers.persona);
+      if (initialAnswers.focus) setFocus(initialAnswers.focus);
+      if (Array.isArray(initialAnswers.audience)) setAudience(initialAnswers.audience);
+      if (Array.isArray(initialAnswers.tone)) setTone(initialAnswers.tone);
+      if (initialAnswers.custom) {
+        if (initialAnswers.custom.persona) {
+          setQ1OtherText(initialAnswers.custom.persona);
+          setQ1ShowOtherInput(true);
+        }
+        if (initialAnswers.custom.focus) {
+          setQ2OtherText(initialAnswers.custom.focus);
+          setQ2ShowOtherInput(true);
+        }
+        if (initialAnswers.custom.audience) {
+          setQ3OtherText(initialAnswers.custom.audience);
+          setQ3ShowOtherInput(true);
+        }
+        if (initialAnswers.custom.tone) {
+          setQ4OtherText(initialAnswers.custom.tone);
+          setQ4ShowOtherInput(true);
+        }
+      }
+    }
+  }, [initialAnswers]);
+
   // Initialize and check database onboarding status
   useEffect(() => {
     setMounted(true);
 
     if (controlledIsOpen !== undefined) {
       setIsOpen(controlledIsOpen);
-      return;
+      if (!isRetake) return;
     }
 
-    if (forceOpen) {
+    if (forceOpen && !isRetake) {
       setIsOpen(true);
       return;
     }
@@ -468,6 +529,15 @@ export function StudioOnboardingModal({
     }
   };
 
+  // Skip step handler for retake flow
+  const handleSkipStep = () => {
+    if (step < 4) {
+      setStep((prev) => (prev + 1) as 1 | 2 | 3 | 4);
+    } else {
+      handleFinish();
+    }
+  };
+
   /* ─────────────────────────────────────────────────────────────
      Q1 Handlers (Single-Select: auto-advance)
      ───────────────────────────────────────────────────────────── */
@@ -572,8 +642,17 @@ export function StudioOnboardingModal({
 
   return createPortal(
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-md">
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-md"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) {
+            setIsOpen(false);
+            controlledOnClose?.();
+          }
+        }}
+      >
         <motion.div
+          ref={modalRef}
           initial={{ opacity: 0, scale: 0.94, y: 16 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.94, y: 16 }}
@@ -598,7 +677,6 @@ export function StudioOnboardingModal({
                 </button>
               ) : (
                 <div className="flex items-center gap-1.5 text-xs font-bold tracking-wide uppercase text-[#C4A265]">
-                  <Sparkles className="w-3.5 h-3.5" />
                   <span>Studio Welcome</span>
                 </div>
               )}
@@ -609,13 +687,23 @@ export function StudioOnboardingModal({
               <span className="text-xs font-semibold text-gray-400 dark:text-zinc-500">
                 Step {step} of 4
               </span>
-              <button
-                type="button"
-                onClick={handleSkip}
-                className="text-xs font-medium text-gray-400 hover:text-gray-700 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors cursor-pointer underline decoration-gray-300 dark:decoration-zinc-700 underline-offset-4"
-              >
-                Skip for now
-              </button>
+              {isRetake ? (
+                <button
+                  type="button"
+                  onClick={handleSkipStep}
+                  className="text-xs font-medium text-gray-400 hover:text-gray-700 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors cursor-pointer underline decoration-gray-300 dark:decoration-zinc-700 underline-offset-4"
+                >
+                  Skip this step
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleSkip}
+                  className="text-xs font-medium text-gray-400 hover:text-gray-700 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors cursor-pointer underline decoration-gray-300 dark:decoration-zinc-700 underline-offset-4"
+                >
+                  Skip for now
+                </button>
+              )}
             </div>
           </div>
 
@@ -665,7 +753,6 @@ export function StudioOnboardingModal({
                               : 'bg-gray-50/70 hover:bg-gray-100/90 dark:bg-zinc-800/40 dark:hover:bg-zinc-800/80 border-gray-200/70 dark:border-zinc-800 text-gray-800 dark:text-zinc-200'
                           }`}
                         >
-                          <span className="text-2xl select-none shrink-0 mt-0.5">{opt.emoji}</span>
                           <div className="flex-1 min-w-0">
                             <p className="font-semibold text-sm leading-tight">{opt.label}</p>
                             <p className="text-[11px] text-gray-500 dark:text-zinc-400 mt-0.5 truncate">
@@ -705,6 +792,18 @@ export function StudioOnboardingModal({
                         <ArrowRight className="w-3.5 h-3.5" />
                       </button>
                     </motion.div>
+                  )}
+
+                  {isRetake && (
+                    <div className="pt-2 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={handleSkipStep}
+                        className="text-xs font-semibold text-[#C4A265] hover:underline cursor-pointer"
+                      >
+                        Skip this step &rarr;
+                      </button>
+                    </div>
                   )}
                 </motion.div>
               )}
@@ -822,6 +921,18 @@ export function StudioOnboardingModal({
                       )}
                     </>
                   )}
+
+                  {isRetake && (
+                    <div className="pt-2 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={handleSkipStep}
+                        className="text-xs font-semibold text-[#C4A265] hover:underline cursor-pointer"
+                      >
+                        Skip this step &rarr;
+                      </button>
+                    </div>
+                  )}
                 </motion.div>
               )}
 
@@ -864,15 +975,6 @@ export function StudioOnboardingModal({
                           }`}
                         >
                           <span className="font-semibold text-xs sm:text-sm">{opt}</span>
-                          <div
-                            className={`w-5 h-5 rounded-lg flex items-center justify-center border transition-colors ${
-                              isSelected
-                                ? 'bg-[#C4A265] border-[#C4A265] text-white'
-                                : 'border-gray-300 dark:border-zinc-700'
-                            }`}
-                          >
-                            {isSelected && <Check className="w-3.5 h-3.5 stroke-[2.5]" />}
-                          </div>
                         </button>
                       );
                     })}
@@ -888,19 +990,7 @@ export function StudioOnboardingModal({
                       }`}
                     >
                       <span className="font-semibold text-xs sm:text-sm">Other</span>
-                      <div
-                        className={`w-5 h-5 rounded-lg flex items-center justify-center border transition-colors ${
-                          q3ShowOtherInput
-                            ? 'bg-[#C4A265] border-[#C4A265] text-white'
-                            : 'border-gray-300 dark:border-zinc-700'
-                        }`}
-                      >
-                        {q3ShowOtherInput ? (
-                          <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-                        ) : (
-                          <Plus className="w-3.5 h-3.5 text-gray-400" />
-                        )}
-                      </div>
+                      <span className="text-xs text-gray-400">custom</span>
                     </button>
                   </div>
 
@@ -923,12 +1013,21 @@ export function StudioOnboardingModal({
                   )}
 
                   {/* Continue Button for Q3 */}
-                  <div className="pt-2">
+                  <div className="pt-2 flex items-center gap-3">
+                    {isRetake && (
+                      <button
+                        type="button"
+                        onClick={handleSkipStep}
+                        className="w-1/3 py-3 rounded-xl border border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-zinc-300 text-xs sm:text-sm font-semibold hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                      >
+                        Skip
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => setStep(4)}
                       disabled={!canContinueQ3}
-                      className="w-full py-3 rounded-xl bg-gray-900 hover:bg-black dark:bg-[#C4A265] dark:hover:bg-[#b39255] text-white text-xs sm:text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                      className={`${isRetake ? 'w-2/3' : 'w-full'} py-3 rounded-xl bg-gray-900 hover:bg-black dark:bg-[#C4A265] dark:hover:bg-[#b39255] text-white text-xs sm:text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer shadow-sm`}
                     >
                       <span>Continue</span>
                       <ArrowRight className="w-4 h-4" />
@@ -976,7 +1075,6 @@ export function StudioOnboardingModal({
                           }`}
                         >
                           <div className="flex items-center gap-2.5">
-                            <span className="text-lg select-none">{opt.emoji}</span>
                             <div>
                               <p className="font-semibold text-xs sm:text-sm leading-tight">{opt.label}</p>
                               {opt.hint && (
@@ -985,15 +1083,6 @@ export function StudioOnboardingModal({
                                 </p>
                               )}
                             </div>
-                          </div>
-                          <div
-                            className={`w-5 h-5 rounded-lg flex items-center justify-center border transition-colors shrink-0 ${
-                              isSelected
-                                ? 'bg-[#C4A265] border-[#C4A265] text-white'
-                                : 'border-gray-300 dark:border-zinc-700'
-                            }`}
-                          >
-                            {isSelected && <Check className="w-3.5 h-3.5 stroke-[2.5]" />}
                           </div>
                         </button>
                       );
@@ -1010,7 +1099,6 @@ export function StudioOnboardingModal({
                       }`}
                     >
                       <div className="flex items-center gap-2.5">
-                        <span className="text-lg select-none">✨</span>
                         <div>
                           <p className="font-semibold text-xs sm:text-sm leading-tight">Other</p>
                           <p className="text-[10px] text-gray-500 dark:text-zinc-400 mt-0.5">
@@ -1018,19 +1106,7 @@ export function StudioOnboardingModal({
                           </p>
                         </div>
                       </div>
-                      <div
-                        className={`w-5 h-5 rounded-lg flex items-center justify-center border transition-colors shrink-0 ${
-                          q4ShowOtherInput
-                            ? 'bg-[#C4A265] border-[#C4A265] text-white'
-                            : 'border-gray-300 dark:border-zinc-700'
-                        }`}
-                      >
-                        {q4ShowOtherInput ? (
-                          <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-                        ) : (
-                          <Plus className="w-3.5 h-3.5 text-gray-400" />
-                        )}
-                      </div>
+                      <span className="text-xs text-gray-400">custom</span>
                     </button>
                   </div>
 
@@ -1053,20 +1129,27 @@ export function StudioOnboardingModal({
                   )}
 
                   {/* Finish / Continue Button for Q4 */}
-                  <div className="pt-2">
+                  <div className="pt-2 flex items-center gap-3">
+                    {isRetake && (
+                      <button
+                        type="button"
+                        onClick={handleSkipStep}
+                        disabled={isFinishing}
+                        className="w-1/3 py-3.5 rounded-xl border border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-zinc-300 text-xs sm:text-sm font-semibold hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                      >
+                        Skip
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={handleFinish}
                       disabled={!canContinueQ4 || isFinishing}
-                      className="w-full py-3.5 rounded-xl bg-gray-900 hover:bg-black dark:bg-[#C4A265] dark:hover:bg-[#b39255] text-white text-xs sm:text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer shadow-lg"
+                      className={`${isRetake ? 'w-2/3' : 'w-full'} py-3.5 rounded-xl bg-gray-900 hover:bg-black dark:bg-[#C4A265] dark:hover:bg-[#b39255] text-white text-xs sm:text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer shadow-lg`}
                     >
                       {isFinishing ? (
-                        <span>Entering Studio...</span>
+                        <span>{isRetake ? 'Updating...' : 'Entering Studio...'}</span>
                       ) : (
-                        <>
-                          <Sparkles className="w-4 h-4" />
-                          <span>Enter Studio</span>
-                        </>
+                        <span>{isRetake ? 'Update' : 'Enter Studio'}</span>
                       )}
                     </button>
                   </div>

@@ -408,8 +408,7 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
           <Card>
             <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-[#C4A265]" />
+                <CardTitle className="text-lg font-semibold">
                   Studio Persona & Tone Settings
                 </CardTitle>
                 <p className="text-xs text-muted-foreground mt-1">
@@ -425,9 +424,8 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
                   variant="outline"
                   size="sm"
                   onClick={() => setShowRetakeModal(true)}
-                  className="flex items-center gap-1.5 text-xs font-semibold"
+                  className="text-xs font-semibold"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-[#C4A265]" />
                   Retake Flow
                 </Button>
               </div>
@@ -528,7 +526,22 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
                 setShowRetakeModal(false);
                 loadOnboardingProfile();
               }}
+              onComplete={(answers) => {
+                if (answers) {
+                  setOnboardingAnswers({
+                    persona: answers.persona || '',
+                    focus: answers.focus || '',
+                    audience: Array.isArray(answers.audience) ? answers.audience : [],
+                    tone: Array.isArray(answers.tone) ? answers.tone : [],
+                    custom: answers.custom || {},
+                  });
+                }
+                setShowRetakeModal(false);
+                loadOnboardingProfile();
+              }}
               forceOpen={true}
+              isRetake={true}
+              initialAnswers={onboardingAnswers}
               userId={userId}
             />
           )}
