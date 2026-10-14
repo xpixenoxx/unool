@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { generateWithFallback } from './provider';
 import { Result, ok, err } from '@/lib/shared/Result';
 import { logger } from '@/lib/logger';
+import { ContentGuard } from './ContentGuard';
 
 export const PlatformType = z.enum(['linkedin', 'x', 'threads', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'skool', 'whop', 'kick', 'vk', 'warpcast', 'mewe', 'nostr', 'medium', 'lemmy', 'listmonk', 'hashnode', 'devto', 'dribbble', 'reddit']);
 export type PlatformType = z.infer<typeof PlatformType>;
@@ -253,7 +254,7 @@ export const PLATFORM_SPECS: Record<PlatformType, { maxChars: number; style: str
 
 /* ─── Enhanced Prompt: Single Post Adaptation ─── */
 
-const POST_ADAPTER_PROMPT = `You are a world-class social media strategist and content writer. Your job is NOT to copy-paste or lightly reword — your job is to genuinely TRANSFORM content for maximum impact on a specific platform.
+const POST_ADAPTER_PROMPT_BASE = `You are a world-class social media strategist and content writer. Your job is NOT to copy-paste or lightly reword — your job is to genuinely TRANSFORM content for maximum impact on a specific platform.
 
 ## Your Core Principles:
 1. **Preserve intent, transform execution.** The user's core message must survive, but HOW it's delivered must feel native to the platform.
@@ -280,9 +281,12 @@ const POST_ADAPTER_PROMPT = `You are a world-class social media strategist and c
 
 Return ONLY valid JSON matching the schema.`;
 
+// Safety-wrapped versions — always used in actual generation calls
+const POST_ADAPTER_PROMPT = ContentGuard.buildSafePrompt(POST_ADAPTER_PROMPT_BASE);
+
 /* ─── Enhanced Prompt: Multi-Post Sequence (Flight Plan) ─── */
 
-const SEQUENCE_PROMPT = `You are a world-class content strategist creating a multi-day publishing plan from a single piece of source content.
+const SEQUENCE_PROMPT_BASE = `You are a world-class content strategist creating a multi-day publishing plan from a single piece of source content.
 
 ## Your Mission:
 Transform one piece of content into a SEQUENCE of posts where:
@@ -312,6 +316,8 @@ Transform one piece of content into a SEQUENCE of posts where:
 - Content that only makes sense if you read the whole sequence
 
 Return ONLY valid JSON matching the schema.`;
+
+const SEQUENCE_PROMPT = ContentGuard.buildSafePrompt(SEQUENCE_PROMPT_BASE);
 
 export class PostAdapter {
   private static readonly PROMPT_VERSION = 'post-adapter-v2';
@@ -374,8 +380,10 @@ ${context?.profileName ? `**Author Context:** ${context.profileName}${context.pr
         return err(new Error(result.error.message));
       }
 
-      // Validate and clamp character count
+      // Validate and clamp character count; sanitize output
       const adapted = result.value;
+      adapted.content = ContentGuard.sanitizeOutput(adapted.content);
+      adapted.hashtags = ContentGuard.filterHashtags(adapted.hashtags, { maxCount: 15 });
       if (spec?.maxChars && adapted.content.length > spec.maxChars) {
         logger.warn('Adapted content exceeds platform limit, clamping', {
           platform,
@@ -490,10 +498,11 @@ ${batch.map(p => `    "${p}": { "content": "...", "characterCount": 100, "hashta
               const lastSpace = trimmed.lastIndexOf(' ');
               content = (lastSpace > spec.maxChars * 0.8 ? trimmed.slice(0, lastSpace) : trimmed) + '...';
             }
+            const rawHashtags = Array.isArray(rawPlatformData.hashtags) ? rawPlatformData.hashtags.map(String) : [];
             const parsed = {
-              content,
+              content: ContentGuard.sanitizeOutput(content),
               characterCount: content.length,
-              hashtags: Array.isArray(rawPlatformData.hashtags) ? rawPlatformData.hashtags.map(String) : [],
+              hashtags: ContentGuard.filterHashtags(rawHashtags, { maxCount: 15 }),
               mediaSuggestions: Array.isArray(rawPlatformData.mediaSuggestions) ? rawPlatformData.mediaSuggestions.map(String) : [],
               firstCommentHint: rawPlatformData.firstCommentHint || null,
             };
@@ -582,8 +591,10 @@ Each post must:
 
       const sequence = result.value;
 
-      // Validate each post
+      // Sanitize & validate each post in the sequence
       for (const post of sequence.posts) {
+        post.content = ContentGuard.sanitizeOutput(post.content);
+        post.hashtags = ContentGuard.filterHashtags(post.hashtags, { maxCount: 10 });
         if (post.characterCount > spec.maxChars * 1.1) {
           logger.warn('Sequence post exceeds platform limit', {
             platform,

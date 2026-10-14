@@ -414,7 +414,7 @@ Write ONLY the JSON. No markdown code blocks. No explanation.`;
     });
   } catch (err) {
     logger.error('generateWithFallback exception caught in generateWeekArc', {
-      error: err instanceof Error ? err.message : String(err),
+      error: err instanceof Error ? err : new Error(String(err)),
     });
   }
 

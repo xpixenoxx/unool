@@ -34,6 +34,8 @@ export interface CreatePlatformConnectionInput {
   platform: Platform;
   platformUserId: string;
   username?: string;
+  displayName?: string;
+  avatarUrl?: string;
   accessToken: string;
   refreshToken?: string;
   expiresAt?: Date;

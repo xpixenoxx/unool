@@ -19,7 +19,7 @@ import { PlatformBrandLogo, type SupportedPlatformType } from '@/components/dash
 
 /* ─── Types ─── */
 
-type PlatformType = 'linkedin' | 'x' | 'threads' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'mastodon' | 'slack' | 'twitch' | 'telegram' | 'discord' | 'skool' | 'whop' | 'kick' | 'vk' | 'warpcast' | 'mewe' | 'nostr' | 'medium' | 'lemmy' | 'listmonk' | 'hashnode' | 'devto';
+type PlatformType = 'linkedin' | 'x' | 'threads' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'mastodon' | 'slack' | 'twitch' | 'telegram' | 'discord' | 'skool' | 'whop' | 'kick' | 'vk' | 'warpcast' | 'mewe' | 'nostr' | 'medium' | 'lemmy' | 'listmonk' | 'hashnode' | 'devto' | 'dribbble' | 'reddit';
 
 const PLATFORM_CONFIG: Record<PlatformType, { icon: React.ElementType; name: string; maxChars: number; color: string }> = {
   linkedin: { icon: Linkedin, name: 'LinkedIn', maxChars: 3000, color: 'bg-blue-600' },
@@ -48,36 +48,37 @@ const PLATFORM_CONFIG: Record<PlatformType, { icon: React.ElementType; name: str
   listmonk: { icon: Mail, name: 'Listmonk', maxChars: 100000, color: 'bg-[#0045ff]' },
   hashnode: { icon: BookOpen, name: 'Hashnode', maxChars: 100000, color: 'bg-[#2962FF]' },
   devto: { icon: Code2, name: 'DEV.to', maxChars: 100000, color: 'bg-neutral-900 dark:bg-neutral-100' },
+  reddit: { icon: Globe, name: 'Reddit', maxChars: 40000, color: 'bg-[#FF4500]' },
 };
 
-const PLATFORM_META: Record<string, { name: string; color: string; bg: string; icon?: string }> = {
-  linkedin:  { name: 'LinkedIn',  color: '#0A66C2', bg: '#E8F0FA' },
-  x:         { name: 'X',         color: '#000000', bg: '#F0F0F0' },
-  twitter:   { name: 'X',         color: '#000000', bg: '#F0F0F0' },
-  threads:   { name: 'Threads',   color: '#1A1A1A', bg: '#F0F0F0' },
-  bluesky:   { name: 'Bluesky',   color: '#0085FF', bg: '#E6F3FF' },
-  instagram: { name: 'Instagram', color: '#E1306C', bg: '#FDE8F0' },
-  facebook:  { name: 'Facebook',  color: '#1877F2', bg: '#E8F0FE' },
-  pinterest: { name: 'Pinterest', color: '#E60023', bg: '#FDE8E8' },
-  youtube:   { name: 'YouTube',   color: '#FF0000', bg: '#FDE8E8' },
-  reddit:    { name: 'Reddit',    color: '#FF4500', bg: '#FFEBE5' },
-  mastodon:  { name: 'Mastodon',  color: '#6364FF', bg: '#F0F0FF' },
-  discord:   { name: 'Discord',   color: '#5865F2', bg: '#EEF0FD' },
-  slack:     { name: 'Slack',     color: '#4A154B', bg: '#F5ECF5' },
-  telegram:  { name: 'Telegram',  color: '#229ED9', bg: '#E9F5FA' },
-  twitch:    { name: 'Twitch',    color: '#9146FF', bg: '#F3ECFF' },
-  kick:      { name: 'Kick',      color: '#53FC18', bg: '#EBFDE7' },
-  vk:        { name: 'VK',        color: '#0077FF', bg: '#EBF3FE' },
-  whop:      { name: 'Whop',      color: '#FF5A00', bg: '#FFF0E6' },
-  dribbble:  { name: 'Dribbble',  color: '#EA4C89', bg: '#FDEDF3' },
-  skool:     { name: 'Skool',     color: '#E2AD44', bg: '#FDF7EB' },
-  warpcast:  { name: 'Warpcast',  color: '#8A63D2', bg: '#F4EFFB' },
-  mewe:      { name: 'MeWe',      color: '#2F435E', bg: '#EDEFF2' },
-  nostr:     { name: 'Nostr',     color: '#9B51E0', bg: '#F4EEFB' },
-  medium:    { name: 'Medium',    color: '#000000', bg: '#F0F0F0' },
-  devto:     { name: 'DEV.to',    color: '#0A0A0A', bg: '#F0F0F0' },
-  hashnode:  { name: 'Hashnode',  color: '#2962FF', bg: '#ECF2FE' },
-  whatsapp:  { name: 'WhatsApp',  color: '#25D366', bg: '#E7F9EE' },
+const PLATFORM_META: Record<string, { name: string; color: string; bg: string; icon: string }> = {
+  linkedin:  { name: 'LinkedIn',  color: '#0A66C2', bg: '#E8F0FA', icon: 'in' },
+  x:         { name: 'X',         color: '#000000', bg: '#F0F0F0', icon: '𝕏' },
+  twitter:   { name: 'X',         color: '#000000', bg: '#F0F0F0', icon: '𝕏' },
+  threads:   { name: 'Threads',   color: '#1A1A1A', bg: '#F0F0F0', icon: '@' },
+  bluesky:   { name: 'Bluesky',   color: '#0085FF', bg: '#E6F3FF', icon: 'bsky' },
+  instagram: { name: 'Instagram', color: '#E1306C', bg: '#FDE8F0', icon: 'ig' },
+  facebook:  { name: 'Facebook',  color: '#1877F2', bg: '#E8F0FE', icon: 'f' },
+  pinterest: { name: 'Pinterest', color: '#E60023', bg: '#FDE8E8', icon: 'p' },
+  youtube:   { name: 'YouTube',   color: '#FF0000', bg: '#FDE8E8', icon: 'yt' },
+  reddit:    { name: 'Reddit',    color: '#FF4500', bg: '#FFEBE5', icon: 'r/' },
+  mastodon:  { name: 'Mastodon',  color: '#6364FF', bg: '#F0F0FF', icon: 'm' },
+  discord:   { name: 'Discord',   color: '#5865F2', bg: '#EEF0FD', icon: 'dc' },
+  slack:     { name: 'Slack',     color: '#4A154B', bg: '#F5ECF5', icon: 'sl' },
+  telegram:  { name: 'Telegram',  color: '#229ED9', bg: '#E9F5FA', icon: 'tg' },
+  twitch:    { name: 'Twitch',    color: '#9146FF', bg: '#F3ECFF', icon: 'tw' },
+  kick:      { name: 'Kick',      color: '#53FC18', bg: '#EBFDE7', icon: 'k' },
+  vk:        { name: 'VK',        color: '#0077FF', bg: '#EBF3FE', icon: 'vk' },
+  whop:      { name: 'Whop',      color: '#FF5A00', bg: '#FFF0E6', icon: 'w' },
+  dribbble:  { name: 'Dribbble',  color: '#EA4C89', bg: '#FDEDF3', icon: 'dr' },
+  skool:     { name: 'Skool',     color: '#E2AD44', bg: '#FDF7EB', icon: 'sk' },
+  warpcast:  { name: 'Warpcast',  color: '#8A63D2', bg: '#F4EFFB', icon: 'fc' },
+  mewe:      { name: 'MeWe',      color: '#2F435E', bg: '#EDEFF2', icon: 'mw' },
+  nostr:     { name: 'Nostr',     color: '#9B51E0', bg: '#F4EEFB', icon: 'nos' },
+  medium:    { name: 'Medium',    color: '#000000', bg: '#F0F0F0', icon: 'med' },
+  devto:     { name: 'DEV.to',    color: '#0A0A0A', bg: '#F0F0F0', icon: 'dev' },
+  hashnode:  { name: 'Hashnode',  color: '#2962FF', bg: '#ECF2FE', icon: 'hn' },
+  whatsapp:  { name: 'WhatsApp',  color: '#25D366', bg: '#E7F9EE', icon: 'wa' },
 };
 
 interface ArcPlatformDraft {

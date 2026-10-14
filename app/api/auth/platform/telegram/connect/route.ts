@@ -1,3 +1,4 @@
+import { NextRequest, NextResponse } from 'next/server';
 import { telegramAdapter, normalizeTelegramChatId } from '@/lib/platforms/TelegramAdapter';
 import { encryptToken } from '@/lib/crypto/encryption';
 import { SupabasePlatformRepository } from '@/lib/repositories/supabase/SupabasePlatformRepository';

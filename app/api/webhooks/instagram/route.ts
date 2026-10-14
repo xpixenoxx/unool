@@ -118,9 +118,9 @@ export async function POST(request: NextRequest) {
 async function processCommentEvent(igUserId: string, value: Record<string, unknown>): Promise<void> {
   const commentEvent: CommentEvent = {
     commentId: value.id as string,
-    mediaId: value.media?.id as string || value.media_id as string || '',
+    mediaId: (value.media as any)?.id as string || value.media_id as string || '',
     text: value.text as string || '',
-    username: value.from?.username as string || '',
+    username: (value.from as any)?.username as string || '',
     timestamp: value.created_time as string || new Date().toISOString(),
     parentId: value.parent_id as string || undefined,
   };

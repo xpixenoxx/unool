@@ -39,7 +39,7 @@ async function ensureCorsConfigured() {
     corsConfigured = true;
     logger.info('Successfully configured R2 CORS policies');
   } catch (error) {
-    logger.error('Failed to configure R2 CORS policies', { error });
+    logger.error('Failed to configure R2 CORS policies', { error: error instanceof Error ? error : new Error(String(error)) });
     // Don't throw, let the upload attempt proceed. If CORS fails, it fails in the browser.
   }
 }

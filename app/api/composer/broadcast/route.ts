@@ -7,6 +7,7 @@ import { getCurrentAuth } from '@/lib/auth/server';
 import { planEnforcement } from '@/lib/middleware/plan-enforcement-middleware';
 import { publishService } from '@/lib/services/PublishService';
 import { optimizeMediaForPlatform } from '@/lib/media/ImageOptimizer';
+import { ContentGuard } from '@/lib/ai/ContentGuard';
 
 const postRepository = new SupabasePostRepository();
 const profileRepository = new SupabaseProfileRepository();
@@ -32,6 +33,18 @@ export async function POST(request: NextRequest) {
 
       if (!content || typeof content !== 'string' || !content.trim()) {
         return NextResponse.json({ error: 'Content is required' }, { status: 400 });
+      }
+
+      // ─── ContentGuard: validate & sanitize before storing/broadcasting ────
+      const guard = ContentGuard.validateInput(content, { route: 'composer/broadcast' });
+      if (!guard.safe) {
+        logger.warn('ContentGuard blocked broadcast input', {
+          code: guard.violation.code,
+          internal: guard.violation.internal,
+          workspaceId,
+          traceId,
+        });
+        return NextResponse.json(ContentGuard.blockedResponse(guard.violation), { status: 400 });
       }
 
       let resolvedProfileId = profileId;
@@ -72,7 +85,7 @@ export async function POST(request: NextRequest) {
 
       logger.info('Direct broadcast requested', { traceId, workspaceId, contentLength: content.length, activePlatforms });
 
-      const rawContent = content.trim();
+      const rawContent = guard.sanitizedContent;
 
       // Create post in database
       const post = await postRepository.create({

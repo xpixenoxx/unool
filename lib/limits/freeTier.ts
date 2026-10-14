@@ -53,8 +53,8 @@ export interface UsageSnapshot {
   scheduledPosts: number;
   teamMembers: number;
   apiCallsToday: number;
-  profileViews: number;
-  linkClicks: number;
+  profileViews?: number;
+  linkClicks?: number;
 }
 
 export interface LimitCheckResult {
