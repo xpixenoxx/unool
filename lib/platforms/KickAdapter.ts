@@ -157,29 +157,43 @@ export class KickAdapter implements PlatformAdapter {
       throw new Error('Kick user profile not found');
     }
 
-    const userId = String(user.id || user.user_id || '');
-    const username = user.username || user.name || user.slug || 'kick_user';
-    const slug = user.slug || username;
+    const userId = String(user.user_id || user.id || '');
+    const username = user.name || user.username || user.slug || 'kick_user';
+    const slug = user.slug || user.name || username;
 
     return {
       platformUserId: userId,
       username,
-      displayName: user.username || user.name || slug,
+      displayName: user.name || user.username || slug,
       profileUrl: `https://kick.com/${slug}`,
-      avatarUrl: user.profile_pic || user.avatar_url || '',
+      avatarUrl: user.profile_picture || user.profile_pic || user.avatar_url || '',
     };
   }
 
   async publish(accessToken: string, input: PublishInput): Promise<PublishResult> {
     let broadcasterId = input.platformUserId;
-    if (!broadcasterId) {
+    if (!broadcasterId || isNaN(parseInt(broadcasterId, 10))) {
       const profile = await this.getUserProfile(accessToken);
       broadcasterId = profile.platformUserId;
     }
 
-    let text = input.content;
+    const numericBroadcasterId = parseInt(broadcasterId, 10);
+    if (!numericBroadcasterId || isNaN(numericBroadcasterId)) {
+      throw new Error('Invalid Kick broadcaster ID. Please reconnect your Kick account.');
+    }
+
+    let text = (input.content || '').trim();
     if (input.mediaUrls && input.mediaUrls.length > 0) {
-      text += ' ' + input.mediaUrls.join(' ');
+      text = text ? `${text} ${input.mediaUrls.join(' ')}` : input.mediaUrls.join(' ');
+    }
+
+    if (!text) {
+      text = 'Live update';
+    }
+
+    // Kick chat messages cannot exceed 500 characters
+    if (text.length > 500) {
+      text = text.substring(0, 497) + '...';
     }
 
     const response = await fetchWithRetry(`${KICK_API_BASE}/chat`, {
@@ -189,8 +203,9 @@ export class KickAdapter implements PlatformAdapter {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        broadcaster_user_id: parseInt(broadcasterId, 10),
+        broadcaster_user_id: numericBroadcasterId,
         content: text,
+        type: 'user',
       }),
     });
 
