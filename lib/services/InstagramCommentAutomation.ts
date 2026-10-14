@@ -163,7 +163,7 @@ Return ONLY valid JSON matching this exact structure:
         const errorText = await response.text();
         logger.error('Failed to post Instagram comment reply', {
           commentId,
-          error: errorText,
+          error: new Error(errorText),
           status: response.status,
         });
         return null;
@@ -209,7 +209,7 @@ Return ONLY valid JSON matching this exact structure:
         const errorText = await response.text();
         logger.error('Failed to send Instagram DM', {
           recipientIgScopedId,
-          error: errorText,
+          error: new Error(errorText),
           status: response.status,
         });
         return null;
@@ -252,7 +252,7 @@ Return ONLY valid JSON matching this exact structure:
         const errorText = await response.text();
         logger.error('Failed to subscribe Instagram account to webhook', {
           igUserId,
-          error: errorText,
+          error: new Error(errorText),
           status: response.status,
         });
         return false;

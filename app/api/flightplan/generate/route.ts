@@ -8,6 +8,7 @@ import { getCurrentAuth } from '@/lib/auth/server';
 import { planEnforcement } from '@/lib/middleware/plan-enforcement-middleware';
 import { optimizeMediaForPlatform } from '@/lib/media/ImageOptimizer';
 import { config } from '@/lib/config/schema';
+import { ContentGuard } from '@/lib/ai/ContentGuard';
 
 const postRepository = new SupabasePostRepository();
 const profileRepository = new SupabaseProfileRepository();
@@ -31,6 +32,19 @@ export async function POST(request: NextRequest) {
       if (!content || typeof content !== 'string' || !content.trim()) {
         return NextResponse.json({ error: 'Content is required' }, { status: 400 });
       }
+
+      // ─── ContentGuard: validate input before Flight Plan generation ─────
+      const guard = ContentGuard.validateInput(content, { route: 'flightplan/generate' });
+      if (!guard.safe) {
+        logger.warn('ContentGuard blocked flight plan input', {
+          code: guard.violation.code,
+          internal: guard.violation.internal,
+          workspaceId,
+          traceId,
+        });
+        return NextResponse.json(ContentGuard.blockedResponse(guard.violation), { status: 400 });
+      }
+      const safeContent = guard.sanitizedContent;
 
       const numDays = Math.min(Math.max(numberOfDays || 3, 1), 14);
 
@@ -90,7 +104,7 @@ export async function POST(request: NextRequest) {
 
       // Generate sequences for all platforms
       const sequenceResults = await PostAdapter.generateFlightPlan(
-        content.trim(),
+        safeContent,
         activePlatforms,
         numDays,
         profileContext
@@ -165,7 +179,10 @@ export async function POST(request: NextRequest) {
 
           const finalMedia = await optimizeMediaForPlatform(normalizedMedia, platform);
 
-          const cleanedHashtags = (dayPost.hashtags || []).map((t: string) => t.replace(/^#+/, '').trim()).filter(Boolean);
+          const cleanedHashtags = ContentGuard.filterHashtags(
+            dayPost.hashtags || [],
+            { maxCount: 10 }
+          );
 
           await postRepository.createVariant({
             postId: post.id,

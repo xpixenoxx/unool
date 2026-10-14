@@ -257,7 +257,7 @@ export function TemplateGallery({
             return (
               <button
                 key={cat.id}
-                onClick={() => setActiveCategory(cat.id)}
+                onClick={() => setActiveCategory(cat.id as any)}
                 className={cn(
                   "px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200",
                   isActive ? "bg-[#3D2B1F] text-[#FFFDF9] shadow-md" : "bg-[#F0EBE3] text-[#8B7355] hover:bg-[#E8E0D4]"

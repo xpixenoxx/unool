@@ -212,7 +212,7 @@ export class BlueskyAdapter implements PlatformAdapter {
           };
           logger.info('Bluesky: video embed ready');
         } catch (vidErr) {
-          logger.error('Bluesky: video upload failed', { error: vidErr instanceof Error ? vidErr.message : String(vidErr) });
+          logger.error('Bluesky: video upload failed', { error: vidErr instanceof Error ? vidErr : new Error(String(vidErr)) });
           throw new Error(`Bluesky video upload failed: ${vidErr instanceof Error ? vidErr.message : String(vidErr)}`);
         }
       } else {
@@ -255,7 +255,7 @@ export class BlueskyAdapter implements PlatformAdapter {
                 alt: '',
               };
             } catch (imgErr) {
-              logger.error(`Bluesky: image upload ${idx} failed`, { error: imgErr instanceof Error ? imgErr.message : String(imgErr), url: url.substring(0, 100) });
+              logger.error(`Bluesky: image upload ${idx} failed`, { error: imgErr instanceof Error ? imgErr : new Error(String(imgErr)), url: url.substring(0, 100) });
               return null;
             }
           })

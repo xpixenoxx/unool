@@ -258,7 +258,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ subdom
       customCss: profile.theme?.customCss || null,
     },
     socialHandles: profile.socialHandles || {},
-    openTo: profile.openTo || [],
+    openTo: (profile as any).openTo || [],
     recentActivity: (profile as any).recentActivity ?? null,
     autoScroll: shouldScrollToActivity,
     seo: profile.seo || {

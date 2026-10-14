@@ -168,7 +168,7 @@ export function BroadcastCelebrationModal({
                       key={idx}
                       className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/[0.06] border border-white/10 text-xs text-white/90"
                     >
-                      <PlatformBrandLogo platform={ch.platform as SupportedPlatformType} size={14} />
+                      <PlatformBrandLogo platform={(ch.platform ? ch.platform.toLowerCase() : '') as SupportedPlatformType} size={14} />
                       <span className="font-semibold capitalize text-[11px]">{ch.platform}</span>
                       {ch.platformUrl && (
                         <a

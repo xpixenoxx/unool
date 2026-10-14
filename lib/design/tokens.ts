@@ -60,14 +60,17 @@ export const primitives = {
 
     // Semantic color primitives (light mode)
     success: {
+      400: 'oklch(0.76 0.18 85)',
       500: 'oklch(0.68 0.16 85)',
       600: 'oklch(0.58 0.14 85)',
     },
     warning: {
+      400: 'oklch(0.82 0.20 75)',
       500: 'oklch(0.75 0.18 75)',
       600: 'oklch(0.65 0.16 75)',
     },
     destructive: {
+      400: 'oklch(0.65 0.24 25)',
       500: 'oklch(0.58 0.22 25)',
       600: 'oklch(0.48 0.20 25)',
     },
