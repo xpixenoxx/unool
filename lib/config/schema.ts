@@ -97,6 +97,11 @@ const configSchema = z.object({
   DRIBBBLE_CLIENT_SECRET: z.string().optional(),
   DRIBBBLE_REDIRECT_URI: z.string().url().optional(),
 
+  // Whop OAuth
+  WHOP_CLIENT_ID: z.string().optional(),
+  WHOP_CLIENT_SECRET: z.string().optional(),
+  WHOP_REDIRECT_URI: z.string().url().optional(),
+
   // Webhook secrets
   LINKEDIN_WEBHOOK_SECRET: z.string().optional(),
   X_WEBHOOK_SECRET: z.string().optional(),
