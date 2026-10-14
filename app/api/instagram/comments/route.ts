@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/logger';
+import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
 
 const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
 
@@ -22,15 +23,9 @@ export async function GET(request: NextRequest) {
 
     if (!workspaceId) return NextResponse.json({ error: 'workspaceId required' }, { status: 400 });
 
-    // Verify membership
-    const { data: membership } = await supabase
-      .from('workspace_members')
-      .select('workspace_id')
-      .eq('workspace_id', workspaceId)
-      .eq('user_id', user.id)
-      .single();
-
-    if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    // Verify user has access to this workspace
+    const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
+    if (!hasAccess) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const offset = (page - 1) * limit;
 

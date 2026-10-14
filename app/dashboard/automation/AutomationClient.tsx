@@ -800,6 +800,24 @@ const styles = `
   @keyframes sdm-spin { to { transform: rotate(360deg); } }
 `;
 
+// ─── Test Presets ─────────────────────────────────────────────────────────────
+
+const COMMENT_PRESETS = [
+  { label: '🔗 Link Request', text: 'Where can I get this template? Can you send me the link?', caption: 'New workflow template just dropped for engineering teams.' },
+  { label: '🛒 Purchase Intent', text: 'How much does this cost? Shut up and take my money!', caption: 'Pricing and packages for our enterprise automation suite.' },
+  { label: '🌟 Positive Praise', text: 'This workflow completely changed how our team operates! 🔥👏', caption: 'How we scaled our async communication.' },
+  { label: '❓ Feature Question', text: 'Does this integrate with Slack and Supabase out of the box?', caption: 'Deep dive into our modern stack architecture.' },
+  { label: '⚠️ Customer Complaint', text: 'Your tool charged my card twice and customer support hasn\'t responded!', caption: 'Product update and billing overview.' },
+  { label: '🚫 Spam Bot', text: 'Invest in Bitcoin now and make 500% ROI in 24 hours! DM me!', caption: 'Weekly newsletter edition.' },
+];
+
+const DM_PRESETS = [
+  { label: '💰 Price Inquiry', text: 'Hey, how much is your course and is there a payment plan?' },
+  { label: '📩 Resource Ask', text: 'Hi! Could you send over the spreadsheet you mentioned in your story?' },
+  { label: '🤝 Partnership', text: 'We love your content! Would you be open to a brand collab next month?' },
+  { label: '⚠️ Angry Issue', text: 'I bought the template 3 days ago and the download link is broken. Fix this now.' },
+];
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function AutomationClient({
@@ -818,10 +836,14 @@ export default function AutomationClient({
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
+  // Instagram connection state
+  const [igConnection, setIgConnection] = useState<{ status: 'connected' | 'not_connected' | 'expired'; username?: string } | null>(null);
+
   // Feed state
   const [comments, setComments] = useState<CommentLog[]>([]);
   const [commentStats, setCommentStats] = useState<any>(null);
   const [commentFilter, setCommentFilter] = useState('all');
+  const [commentSearch, setCommentSearch] = useState('');
   const [commentPage, setCommentPage] = useState(1);
   const [feedLoading, setFeedLoading] = useState(false);
 
@@ -850,6 +872,18 @@ export default function AutomationClient({
     setToast({ message, type });
     setTimeout(() => setToast(null), 3500);
   };
+
+  // Load Instagram connection status
+  useEffect(() => {
+    fetch('/api/platform/connections', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.instagram) {
+          setIgConnection(data.instagram);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Load config
   useEffect(() => {
@@ -1024,12 +1058,57 @@ export default function AutomationClient({
         {/* Header */}
         <div className="sdm-header">
           <div className="sdm-header-inner">
-            <div className="sdm-title-row">
-              <div className="sdm-logo-mark">⚡</div>
-              <div>
-                <div className="sdm-title">SignalDM</div>
-                <div className="sdm-subtitle">Instagram Comment & DM Automation Engine</div>
+            <div className="sdm-title-row" style={{ justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div className="sdm-logo-mark">⚡</div>
+                <div>
+                  <div className="sdm-title">SignalDM</div>
+                  <div className="sdm-subtitle">Instagram Comment & DM Automation Engine</div>
+                </div>
               </div>
+
+              {/* Instagram account connection indicator */}
+              {igConnection && (
+                <div>
+                  {igConnection.status === 'connected' ? (
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      background: 'rgba(34,197,94,0.1)',
+                      border: '1px solid rgba(34,197,94,0.25)',
+                      borderRadius: 20,
+                      padding: '4px 12px',
+                      fontSize: 12,
+                      color: '#4ade80',
+                    }}>
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
+                      <span>@{igConnection.username || 'instagram'}</span>
+                      <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>connected</span>
+                    </div>
+                  ) : (
+                    <a
+                      href={`/api/auth/platform/connect?platform=instagram&workspaceId=${workspaceId || ''}`}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        background: 'rgba(239,68,68,0.12)',
+                        border: '1px solid rgba(239,68,68,0.3)',
+                        borderRadius: 20,
+                        padding: '4px 12px',
+                        fontSize: 12,
+                        color: '#f87171',
+                        textDecoration: 'none',
+                        transition: 'all 0.2s',
+                      }}
+                    >
+                      <span>⚠️ Not Connected</span>
+                      <span style={{ fontWeight: 600, color: '#fff', textDecoration: 'underline' }}>Connect →</span>
+                    </a>
+                  )}
+                </div>
+              )}
             </div>
             <div className="sdm-tabs">
               {[
@@ -1057,6 +1136,50 @@ export default function AutomationClient({
           {/* ── Tab: Control Panel ── */}
           {activeTab === 'control' && (
             <div>
+              {/* Instagram Not Connected Warning Banner */}
+              {igConnection && igConnection.status !== 'connected' && (
+                <div style={{
+                  background: 'linear-gradient(135deg, rgba(239,68,68,0.12) 0%, rgba(249,115,22,0.08) 100%)',
+                  border: '1px solid rgba(239,68,68,0.25)',
+                  borderRadius: 14,
+                  padding: '16px 20px',
+                  marginBottom: 20,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 16,
+                  flexWrap: 'wrap',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span style={{ fontSize: 26 }}>📸</span>
+                    <div>
+                      <div style={{ color: '#f87171', fontWeight: 600, fontSize: 13.5 }}>
+                        {igConnection.status === 'expired' ? 'Instagram connection has expired' : 'Instagram account is not connected'}
+                      </div>
+                      <div style={{ color: '#9ca3af', fontSize: 12, marginTop: 2 }}>
+                        Connect your Instagram Creator or Business account to enable automatic AI comment replies and lead conversion DMs.
+                      </div>
+                    </div>
+                  </div>
+                  <a
+                    href={`/api/auth/platform/connect?platform=instagram&workspaceId=${workspaceId || ''}`}
+                    style={{
+                      background: 'linear-gradient(135deg, #e1306c, #c13584)',
+                      color: '#fff',
+                      padding: '8px 18px',
+                      borderRadius: 10,
+                      fontSize: 12.5,
+                      fontWeight: 600,
+                      textDecoration: 'none',
+                      whiteSpace: 'nowrap',
+                      boxShadow: '0 4px 14px rgba(225,48,108,0.3)',
+                    }}
+                  >
+                    Connect Instagram →
+                  </a>
+                </div>
+              )}
+
               {/* Master toggle */}
               <div className={`sdm-master-toggle ${config.enabled ? 'active' : ''}`}>
                 <div className="sdm-toggle-label">
@@ -1248,6 +1371,41 @@ export default function AutomationClient({
                     </button>
                   </div>
 
+                  {/* Quick Test Presets */}
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ fontSize: 11, color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8 }}>
+                      ⚡ Quick Test Scenarios:
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {(simType === 'comment' ? COMMENT_PRESETS : DM_PRESETS).map(preset => (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          onClick={() => {
+                            if (simType === 'comment') {
+                              setSimComment(preset.text);
+                              if ('caption' in preset && preset.caption) setSimCaption(preset.caption);
+                            } else {
+                              setSimDmText(preset.text);
+                            }
+                          }}
+                          style={{
+                            background: 'rgba(139,92,246,0.1)',
+                            border: '1px solid rgba(139,92,246,0.25)',
+                            borderRadius: 14,
+                            padding: '4px 10px',
+                            fontSize: 11.5,
+                            color: '#c4b5fd',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   {simType === 'comment' ? (
                     <>
                       <div className="sdm-field">
@@ -1407,14 +1565,29 @@ export default function AutomationClient({
                 </div>
               )}
 
-              {/* Filter tabs */}
-              <div className="sdm-filter-tabs">
-                {['all', 'positive', 'question', 'link_request', 'purchase_intent', 'negative', 'spam', 'harmful'].map(f => (
-                  <button key={f} className={`sdm-filter-tab ${commentFilter === f ? 'active' : ''}`}
-                    onClick={() => { setCommentFilter(f); setCommentPage(1); }}>
-                    {f === 'all' ? 'All' : CLASSIFICATION_LABELS[f] || f}
+              {/* Filter tabs & Search */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
+                <div className="sdm-filter-tabs" style={{ marginBottom: 0 }}>
+                  {['all', 'positive', 'question', 'link_request', 'purchase_intent', 'negative', 'spam', 'harmful'].map(f => (
+                    <button key={f} className={`sdm-filter-tab ${commentFilter === f ? 'active' : ''}`}
+                      onClick={() => { setCommentFilter(f); setCommentPage(1); }}>
+                      {f === 'all' ? 'All' : CLASSIFICATION_LABELS[f] || f}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <input
+                    type="text"
+                    className="sdm-input"
+                    placeholder="Search comments or @user..."
+                    value={commentSearch}
+                    onChange={e => setCommentSearch(e.target.value)}
+                    style={{ width: 220, padding: '7px 12px', fontSize: 12.5 }}
+                  />
+                  <button className="sdm-btn sdm-btn-secondary" onClick={loadComments} style={{ padding: '7px 12px', fontSize: 12 }}>
+                    ↻ Refresh
                   </button>
-                ))}
+                </div>
               </div>
 
               {feedLoading ? (
@@ -1427,52 +1600,88 @@ export default function AutomationClient({
                   <p>No comments yet. Enable automation and wait for comments to roll in.</p>
                 </div>
               ) : (
-                <div className="sdm-card" style={{ padding: 0, overflow: 'hidden' }}>
-                  <table className="sdm-table">
-                    <thead>
-                      <tr>
-                        <th>User</th>
-                        <th>Comment</th>
-                        <th>Classification</th>
-                        <th>AI Reply</th>
-                        <th>Lead</th>
-                        <th>Status</th>
-                        <th>Time</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {comments.map(c => {
-                        const colors = CLASSIFICATION_COLORS[c.classification] || CLASSIFICATION_COLORS['unrelated'];
-                        return (
-                          <tr key={c.id}>
-                            <td><span className="sdm-username">@{c.commenter_username || '—'}</span></td>
-                            <td style={{ maxWidth: 200, color: '#d1d5db' }}>{c.comment_text}</td>
-                            <td>
-                              <span className="sdm-classification-badge" style={{ background: colors.bg, color: colors.text, fontSize: 11 }}>
-                                {CLASSIFICATION_LABELS[c.classification] || c.classification}
-                              </span>
-                            </td>
-                            <td style={{ maxWidth: 200, color: '#9ca3af', fontSize: 12 }}>{c.suggested_reply || '—'}</td>
-                            <td>
-                              <span style={{ color: LEAD_SCORE_COLORS[c.lead_score] || '#6b7280', fontWeight: 600, fontSize: 12 }}>
-                                {c.lead_score > 0 ? LEAD_SCORE_LABELS[c.lead_score] : '—'}
-                              </span>
-                            </td>
-                            <td>
-                              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                                {c.auto_replied && <span style={{ fontSize: 10, background: 'rgba(34,197,94,0.12)', color: '#22c55e', borderRadius: 10, padding: '2px 6px' }}>replied</span>}
-                                {c.dm_sent && <span style={{ fontSize: 10, background: 'rgba(168,85,247,0.12)', color: '#a855f7', borderRadius: 10, padding: '2px 6px' }}>dm sent</span>}
-                              </div>
-                            </td>
-                            <td style={{ color: '#4b5563', fontSize: 11, whiteSpace: 'nowrap' }}>
-                              {new Date(c.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                <>
+                  <div className="sdm-card" style={{ padding: 0, overflow: 'hidden' }}>
+                    <table className="sdm-table">
+                      <thead>
+                        <tr>
+                          <th>User</th>
+                          <th>Comment</th>
+                          <th>Classification</th>
+                          <th>AI Reply</th>
+                          <th>Lead</th>
+                          <th>Status</th>
+                          <th>Time</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {comments
+                          .filter(c => {
+                            if (!commentSearch.trim()) return true;
+                            const q = commentSearch.toLowerCase();
+                            return (
+                              (c.commenter_username && c.commenter_username.toLowerCase().includes(q)) ||
+                              (c.comment_text && c.comment_text.toLowerCase().includes(q)) ||
+                              (c.suggested_reply && c.suggested_reply.toLowerCase().includes(q))
+                            );
+                          })
+                          .map(c => {
+                            const colors = CLASSIFICATION_COLORS[c.classification] || CLASSIFICATION_COLORS['unrelated'];
+                            return (
+                              <tr key={c.id}>
+                                <td><span className="sdm-username">@{c.commenter_username || '—'}</span></td>
+                                <td style={{ maxWidth: 200, color: '#d1d5db' }}>{c.comment_text}</td>
+                                <td>
+                                  <span className="sdm-classification-badge" style={{ background: colors.bg, color: colors.text, fontSize: 11 }}>
+                                    {CLASSIFICATION_LABELS[c.classification] || c.classification}
+                                  </span>
+                                </td>
+                                <td style={{ maxWidth: 200, color: '#9ca3af', fontSize: 12 }}>{c.suggested_reply || '—'}</td>
+                                <td>
+                                  <span style={{ color: LEAD_SCORE_COLORS[c.lead_score] || '#6b7280', fontWeight: 600, fontSize: 12 }}>
+                                    {c.lead_score > 0 ? LEAD_SCORE_LABELS[c.lead_score] : '—'}
+                                  </span>
+                                </td>
+                                <td>
+                                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                                    {c.auto_replied && <span style={{ fontSize: 10, background: 'rgba(34,197,94,0.12)', color: '#22c55e', borderRadius: 10, padding: '2px 6px' }}>replied</span>}
+                                    {c.dm_sent && <span style={{ fontSize: 10, background: 'rgba(168,85,247,0.12)', color: '#a855f7', borderRadius: 10, padding: '2px 6px' }}>dm sent</span>}
+                                  </div>
+                                </td>
+                                <td style={{ color: '#4b5563', fontSize: 11, whiteSpace: 'nowrap' }}>
+                                  {new Date(c.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {commentStats && commentStats.total > 25 && (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, fontSize: 12.5, color: '#6b7280' }}>
+                      <span>Showing page {commentPage} of {Math.ceil(commentStats.total / 25)} ({commentStats.total} total)</span>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                          className="sdm-btn sdm-btn-secondary"
+                          disabled={commentPage <= 1}
+                          onClick={() => setCommentPage(p => Math.max(1, p - 1))}
+                          style={{ padding: '5px 12px', fontSize: 12 }}
+                        >
+                          ← Previous
+                        </button>
+                        <button
+                          className="sdm-btn sdm-btn-secondary"
+                          disabled={commentPage >= Math.ceil(commentStats.total / 25)}
+                          onClick={() => setCommentPage(p => p + 1)}
+                          style={{ padding: '5px 12px', fontSize: 12 }}
+                        >
+                          Next →
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
