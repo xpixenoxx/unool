@@ -23,7 +23,7 @@ export class VKAdapter implements PlatformAdapter {
     clientId: config.VK_CLIENT_ID || process.env.VK_CLIENT_ID || '',
     clientSecret: config.VK_CLIENT_SECRET || process.env.VK_CLIENT_SECRET || '',
     redirectUri: config.VK_REDIRECT_URI || `${config.NEXT_PUBLIC_APP_URL}/api/auth/platform/callback`,
-    scopes: ['wall', 'photos', 'offline', 'groups'],
+    scopes: ['wall', 'photos', 'groups'],
   };
 
   getAuthUrl(state: string): string {
