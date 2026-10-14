@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { verifyMetaSignature } from '@/lib/webhooks/verify';
 import { config } from '@/lib/config/schema';
-import { SupabasePlatformRepository } from '@/lib/repositories/supabase/SupabasePlatformRepository';
 import { decryptToken } from '@/lib/crypto/encryption';
+
 import {
   InstagramCommentAutomation,
   DEFAULT_AUTOMATION_CONFIG,
@@ -19,8 +19,8 @@ import { velocityThrottle } from '@/lib/services/automation/velocity';
 import { lexicalEntropyGuard } from '@/lib/services/automation/lexical';
 import { createClient } from '@supabase/supabase-js';
 
-const platformRepository = new SupabasePlatformRepository();
 const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
 
 // ─── GET: Meta Webhook Verification ─────────────────────────────────────────
 
@@ -150,7 +150,7 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
   }
 
   // ── ContentGuard: pre-filter harmful incoming content ──────────────────
-  const guardResult = ContentGuard.validateInput(commentEvent.text);
+  const guardResult = ContentGuard.validateComment(commentEvent.text);
   if (!guardResult.safe && guardResult.violation.level === 'blocked') {
     logger.info('ContentGuard blocked incoming comment', {
       code: guardResult.violation.code,
@@ -331,7 +331,7 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
   }
 
   // ContentGuard check on DM text
-  const guardResult = ContentGuard.validateInput(dmEvent.text);
+  const guardResult = ContentGuard.validateComment(dmEvent.text);
   if (!guardResult.safe && guardResult.violation.level === 'blocked') {
     logger.info('ContentGuard blocked incoming DM', { code: guardResult.violation.code });
     return;

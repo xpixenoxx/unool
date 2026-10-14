@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ContentGuard check first
-    const guardResult = ContentGuard.validateInput(inputText);
+    const guardResult = ContentGuard.validateComment(inputText);
     if (!guardResult.safe && guardResult.violation.level === 'blocked') {
       return NextResponse.json({
         blocked: true,

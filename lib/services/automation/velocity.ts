@@ -15,10 +15,18 @@ import { logger } from '@/lib/logger';
 export class VelocityThrottle {
   private supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
 
+  private parseKey(key: string, explicitChannel?: 'comment' | 'dm'): { workspaceId: string; channel: 'comment' | 'dm' } {
+    if (key.startsWith('dm:')) {
+      return { workspaceId: key.slice(3), channel: 'dm' };
+    }
+    return { workspaceId: key, channel: explicitChannel || 'comment' };
+  }
+
   /**
    * Check if a workspace can send another reply this hour.
    */
-  async canReply(workspaceId: string, maxPerHour = 30): Promise<boolean> {
+  async canReply(key: string, maxPerHour = 30, channel?: 'comment' | 'dm'): Promise<boolean> {
+    const { workspaceId, channel: ch } = this.parseKey(key, channel);
     const hourBucket = this.getCurrentHourBucket();
 
     try {
@@ -26,6 +34,7 @@ export class VelocityThrottle {
         .from('instagram_reply_velocity')
         .select('reply_count')
         .eq('workspace_id', workspaceId)
+        .eq('channel', ch)
         .eq('hour_bucket', hourBucket)
         .single();
 
@@ -40,7 +49,8 @@ export class VelocityThrottle {
   /**
    * Record a reply action in the velocity tracker.
    */
-  async recordReply(workspaceId: string): Promise<void> {
+  async recordReply(key: string, channel?: 'comment' | 'dm'): Promise<void> {
+    const { workspaceId, channel: ch } = this.parseKey(key, channel);
     const hourBucket = this.getCurrentHourBucket();
 
     try {
@@ -49,6 +59,7 @@ export class VelocityThrottle {
         .from('instagram_reply_velocity')
         .select('reply_count')
         .eq('workspace_id', workspaceId)
+        .eq('channel', ch)
         .eq('hour_bucket', hourBucket)
         .single();
 
@@ -57,25 +68,28 @@ export class VelocityThrottle {
           .from('instagram_reply_velocity')
           .update({ reply_count: existing.reply_count + 1 })
           .eq('workspace_id', workspaceId)
+          .eq('channel', ch)
           .eq('hour_bucket', hourBucket);
       } else {
         await this.supabase
           .from('instagram_reply_velocity')
           .insert({
             workspace_id: workspaceId,
+            channel: ch,
             hour_bucket: hourBucket,
             reply_count: 1,
           });
       }
     } catch (error) {
-      logger.warn('Failed to record reply velocity', { error, workspaceId });
+      logger.warn('Failed to record reply velocity', { error, workspaceId, channel: ch });
     }
   }
 
   /**
    * Get current reply count for this hour.
    */
-  async getCurrentCount(workspaceId: string): Promise<number> {
+  async getCurrentCount(key: string, channel?: 'comment' | 'dm'): Promise<number> {
+    const { workspaceId, channel: ch } = this.parseKey(key, channel);
     const hourBucket = this.getCurrentHourBucket();
 
     try {
@@ -83,6 +97,7 @@ export class VelocityThrottle {
         .from('instagram_reply_velocity')
         .select('reply_count')
         .eq('workspace_id', workspaceId)
+        .eq('channel', ch)
         .eq('hour_bucket', hourBucket)
         .single();
 

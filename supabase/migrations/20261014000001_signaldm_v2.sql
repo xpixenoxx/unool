@@ -33,9 +33,10 @@ ALTER TABLE instagram_flagged_comments
 -- 4. Create rate limiting tracking table
 CREATE TABLE IF NOT EXISTS instagram_reply_velocity (
   workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  channel TEXT NOT NULL DEFAULT 'comment',
   hour_bucket TIMESTAMPTZ NOT NULL,
   reply_count INTEGER NOT NULL DEFAULT 0,
-  PRIMARY KEY (workspace_id, hour_bucket)
+  PRIMARY KEY (workspace_id, channel, hour_bucket)
 );
 
 -- 5. Create DM logs table for inbound DM automation
@@ -62,7 +63,7 @@ CREATE INDEX IF NOT EXISTS idx_ig_logs_classification
 CREATE INDEX IF NOT EXISTS idx_ig_logs_lead_score
   ON instagram_comment_logs(workspace_id, lead_score DESC, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ig_velocity_bucket
-  ON instagram_reply_velocity(workspace_id, hour_bucket DESC);
+  ON instagram_reply_velocity(workspace_id, channel, hour_bucket DESC);
 CREATE INDEX IF NOT EXISTS idx_ig_dm_logs_workspace
   ON instagram_dm_logs(workspace_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ig_dm_logs_sender

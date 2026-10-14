@@ -24,6 +24,10 @@ const mockClassifyAndGenerate = vi.fn();
 
 vi.mock('@/lib/ai/providers/GroqProvider', () => ({
   GroqProvider: vi.fn().mockImplementation(() => ({
+    generateObject: vi.fn().mockImplementation(async () => {
+      const val = await mockClassifyAndGenerate();
+      return { ok: true, value: val };
+    }),
     generateStructuredJSON: mockClassifyAndGenerate,
   })),
 }));
