@@ -59,22 +59,15 @@ describe('VelocityThrottle', () => {
   beforeEach(() => {
     throttle = new VelocityThrottle();
     // Mock Supabase to avoid real DB calls
+    const mockQueryChain: any = {
+      select: () => mockQueryChain,
+      update: () => mockQueryChain,
+      insert: () => Promise.resolve({ error: null }),
+      eq: () => mockQueryChain,
+      single: () => Promise.resolve({ data: null }),
+    };
     vi.spyOn(throttle as any, 'supabase', 'get').mockReturnValue({
-      from: () => ({
-        select: () => ({
-          eq: () => ({
-            eq: () => ({
-              single: () => Promise.resolve({ data: null }),
-            }),
-          }),
-        }),
-        update: () => ({
-          eq: () => ({
-            eq: () => Promise.resolve({ error: null }),
-          }),
-        }),
-        insert: () => Promise.resolve({ error: null }),
-      }),
+      from: () => mockQueryChain,
     });
   });
 
