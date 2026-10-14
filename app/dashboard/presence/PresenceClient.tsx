@@ -756,7 +756,7 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
                   
                   <input 
                     value={(profile.theme as any).conversationUrl || ''} 
-                    onChange={e => setProfile({...profile, theme: { ...profile.theme, conversationUrl: e.target.value }})} 
+                    onChange={e => setProfile({...profile, theme: { ...profile.theme, conversationUrl: e.target.value } as any})} 
                     placeholder="https://cal.com/yourname or similar" 
                     className="w-full px-4 py-2 text-sm rounded-lg focus:outline-none" 
                     style={{ backgroundColor: B.inputBg, border: `1px solid ${B.border}`, color: B.text }} 

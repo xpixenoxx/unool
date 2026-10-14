@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion, type Variants } from 'framer-motion';
 import {
   ArrowRight, CheckCircle, Zap, Shield, Sparkles,
   PenTool, Globe, Clock, Users, BarChart2,
@@ -26,12 +26,12 @@ const C = {
   warmGrayLight: '#9A8B7F',
 } as const;
 
-const spring = { type: 'spring', stiffness: 60, damping: 20 };
-const fadeUp = {
+const spring = { type: 'spring' as const, stiffness: 60, damping: 20 };
+const fadeUp: Variants = {
   hidden: { opacity: 0, y: 50 },
   visible: { opacity: 1, y: 0, transition: spring },
 };
-const stagger = {
+const stagger: Variants = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.15 } },
 };
