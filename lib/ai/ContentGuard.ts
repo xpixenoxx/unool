@@ -256,6 +256,66 @@ export class ContentGuard {
   }
 
   /**
+   * Lightweight validation for direct-broadcast routes (Quick Broadcast, no AI).
+   *
+   * Skips all AI-quality gates (min length, word count, garbage detection, entropy).
+   * Only enforces hard safety blocks (terrorism, CSAM, etc.) and the max-length cap.
+   * Content is sanitized (control chars stripped) but NOT filtered for AI quality.
+   */
+  static validateForBroadcast(rawContent: string, context?: { route?: string }): GuardResult {
+    const content = (rawContent || '').trim();
+
+    // Must not be empty
+    if (!content) {
+      return {
+        safe: false,
+        violation: {
+          code: 'CONTENT_EMPTY',
+          level: 'blocked',
+          message: 'Content cannot be empty.',
+        },
+      };
+    }
+
+    // Max length cap still applies
+    if (content.length > MAX_CONTENT_LENGTH) {
+      return {
+        safe: false,
+        violation: {
+          code: 'CONTENT_TOO_LONG',
+          level: 'blocked',
+          message: `Content exceeds the maximum allowed length (${(MAX_CONTENT_LENGTH / 1000).toFixed(0)}K characters). Please shorten your input.`,
+        },
+      };
+    }
+
+    // Hard-blocked safety checks still apply
+    for (const { pattern, code, internal } of HARD_BLOCKED_PATTERNS) {
+      if (pattern.test(content)) {
+        pattern.lastIndex = 0;
+        return {
+          safe: false,
+          violation: {
+            code,
+            level: 'blocked',
+            message:
+              'This content cannot be processed — it appears to violate our safety policies. If you believe this is a mistake, please contact support.',
+            internal: `[ContentGuard] Hard block: ${internal} | route=${context?.route ?? 'unknown'}`,
+          },
+        };
+      }
+      pattern.lastIndex = 0;
+    }
+
+    // Safe — return sanitized version (no AI quality filters applied)
+    return {
+      safe: true,
+      sanitizedContent: ContentGuard.sanitizeForAI(content),
+      warnings: [],
+    };
+  }
+
+  /**
    * Sanitize content before sending to AI.
    * Removes injection attempts, control characters, Unicode watermarks.
    */

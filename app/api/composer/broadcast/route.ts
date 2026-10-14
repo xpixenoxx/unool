@@ -36,7 +36,9 @@ export async function POST(request: NextRequest) {
       }
 
       // ─── ContentGuard: validate & sanitize before storing/broadcasting ────
-      const guard = ContentGuard.validateInput(content, { route: 'composer/broadcast' });
+      // NOTE: Quick Broadcast has NO AI — use validateForBroadcast (safety-only).
+      // This skips AI quality gates (min length, word count) that don't apply here.
+      const guard = ContentGuard.validateForBroadcast(content, { route: 'composer/broadcast' });
       if (!guard.safe) {
         logger.warn('ContentGuard blocked broadcast input', {
           code: guard.violation.code,
