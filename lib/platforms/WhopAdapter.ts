@@ -24,12 +24,15 @@ export class WhopAdapter implements PlatformAdapter {
   };
 
   getAuthUrl(state: string): string {
+    // Whop strictly enforces OIDC specification: nonce is required whenever openid scope is requested
+    const nonce = crypto.randomUUID().replace(/-/g, '');
     const params = new URLSearchParams({
       client_id: this.authConfig.clientId,
       redirect_uri: this.authConfig.redirectUri,
       response_type: 'code',
       scope: this.authConfig.scopes.join(' '),
       state,
+      nonce,
     });
     return `${WHOP_AUTH_URL}?${params.toString()}`;
   }
@@ -93,11 +96,21 @@ export class WhopAdapter implements PlatformAdapter {
   }
 
   async getUserProfile(accessToken: string): Promise<UserProfile> {
-    const res = await fetch(`${WHOP_API_BASE}/me`, {
+    // 1. Try standard OIDC userinfo endpoint first
+    let res = await fetch('https://api.whop.com/oauth/userinfo', {
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
     });
+
+    // 2. Fallback to /v5/me if userinfo fails
+    if (!res.ok) {
+      res = await fetch(`${WHOP_API_BASE}/me`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+    }
 
     if (!res.ok) {
       const error = await res.text();
@@ -108,12 +121,17 @@ export class WhopAdapter implements PlatformAdapter {
     const data = await res.json();
     const user = data.user || data;
 
+    const platformUserId = user.sub || user.id || user.username || 'whop-user';
+    const username = user.preferred_username || user.username || platformUserId;
+    const displayName = user.name || username;
+    const avatarUrl = user.picture || user.profile_pic_url || '';
+
     return {
-      platformUserId: user.id || user.username,
-      username: user.username,
-      displayName: user.name || user.username,
-      avatarUrl: user.profile_pic_url || '',
-      profileUrl: `https://whop.com/${user.username}`,
+      platformUserId,
+      username,
+      displayName,
+      avatarUrl,
+      profileUrl: `https://whop.com/${username}`,
     };
   }
 
