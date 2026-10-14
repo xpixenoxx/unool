@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, Suspense, useRef } from 'react';
+import { useState, useEffect, useCallback, Suspense, useRef, Component, type ErrorInfo, type ReactNode } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence, Transition } from 'framer-motion';
@@ -163,16 +163,16 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
       const data = await res.json();
       setPost(data.post);
 
-      const initialDrafts: PlatformDraft[] = data.variants.map((v: PostVariant) => ({
+      const initialDrafts: PlatformDraft[] = (data.variants || []).map((v: PostVariant) => ({
         platform: v.platform,
-        content: v.adaptedContent,
-        characterCount: v.characterCount,
+        content: v.adaptedContent || '',
+        characterCount: typeof v.characterCount === 'number' ? v.characterCount : (v.adaptedContent || '').length,
         maxChars: PLATFORM_CONFIG[v.platform]?.maxChars ?? 10000,
-        hashtags: v.hashtagStrategy,
-        mediaUrls: v.mediaUrls,
-        status: v.status,
+        hashtags: Array.isArray(v.hashtagStrategy) ? v.hashtagStrategy : [],
+        mediaUrls: Array.isArray(v.mediaUrls) ? v.mediaUrls : [],
+        status: v.status || 'draft',
         error: v.error?.message,
-        platformUrl: v.platformUrl,
+        platformUrl: v.platformUrl || null,
         variantId: v.id,
       }));
       setDrafts(initialDrafts);
@@ -623,9 +623,14 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {drafts.map((draft) => {
-                const config = PLATFORM_CONFIG[draft.platform];
-                const Icon = config.icon;
-                const isOverLimit = draft.characterCount > draft.maxChars;
+                const config = PLATFORM_CONFIG[draft.platform] || {
+                  icon: Sparkles,
+                  name: String(draft.platform || 'Platform'),
+                  maxChars: 10000,
+                  color: 'bg-primary',
+                };
+                const Icon = config.icon || Sparkles;
+                const isOverLimit = (draft.characterCount || 0) > (draft.maxChars || 10000);
                 const isPublished = draft.status === 'published';
                 const isFailed = draft.status === 'failed';
                 const result = publishResults[draft.platform];
@@ -646,14 +651,14 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
                   >
                     <Flex between wrap gap={4} className="mb-4">
                       <Flex center gap={3}>
-                        <span className={`p-2 rounded-lg ${config.color} text-white`}>
+                        <span className={`p-2 rounded-lg ${config.color || 'bg-primary'} text-white`}>
                           <Icon className="h-5 w-5" />
                         </span>
                         <Box>
-                          <Text weight="semibold">{config.name}</Text>
+                          <Text weight="semibold">{config.name || draft.platform}</Text>
                           <Text size="sm" color="muted">
-                            {draft.characterCount}/{draft.maxChars} characters
-                            {draft.hashtags.length > 0 && ` • ${draft.hashtags.length} ${draft.hashtags.length === 1 ? 'hashtag' : 'hashtags'}`}
+                            {draft.characterCount || 0}/{draft.maxChars || 10000} characters
+                            {(draft.hashtags?.length || 0) > 0 && ` • ${draft.hashtags.length} ${draft.hashtags.length === 1 ? 'hashtag' : 'hashtags'}`}
                           </Text>
                         </Box>
                       </Flex>
@@ -851,33 +856,64 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
       </motion.details>
 
       {/* ── World-Class Broadcast Celebration Modal ── */}
-      <BroadcastCelebrationModal
-        isOpen={amplifyOpen}
-        onClose={() => setAmplifyOpen(false)}
-        shareUrl={shareUrl}
-        subdomain={effectiveSubdomain}
-        publishedChannels={(publishedDrafts || []).map(d => ({
-          platform: d.platform,
-          platformUrl: d.platformUrl,
-        }))}
-        successCount={successCount}
-        onNavigateDashboard={() => router.push('/dashboard')}
-      />
+      <PublishErrorBoundary>
+        <BroadcastCelebrationModal
+          isOpen={amplifyOpen}
+          onClose={() => setAmplifyOpen(false)}
+          shareUrl={shareUrl}
+          subdomain={effectiveSubdomain}
+          publishedChannels={(publishedDrafts || []).map(d => ({
+            platform: d.platform,
+            platformUrl: d.platformUrl,
+          }))}
+          successCount={successCount}
+          onNavigateDashboard={() => router.push('/dashboard')}
+        />
+      </PublishErrorBoundary>
     </MotionBox>
   );
 }
 
+class PublishErrorBoundary extends Component<{ children: ReactNode; fallback?: ReactNode }, { hasError: boolean; error: Error | null }> {
+  constructor(props: { children: ReactNode; fallback?: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('PublishErrorBoundary caught error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      if (this.props.fallback) return this.props.fallback;
+      return (
+        <div className="p-4 my-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 text-amber-900 dark:text-amber-200 text-sm">
+          <p className="font-semibold mb-1">A recovery display was triggered for this component.</p>
+          <p className="text-xs opacity-80">{this.state.error?.message}</p>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 export default function PublishClientWrapper({ userId, workspaceId }: PublishClientProps) {
   return (
-    <Suspense fallback={
-      <MotionBox className="space-y-8 max-w-4xl mx-auto px-4 py-8" variant="fade">
-        <Box className="min-h-[300px] flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </Box>
-      </MotionBox>
-    }>
-      <PublishClientInner userId={userId} workspaceId={workspaceId} />
-    </Suspense>
+    <PublishErrorBoundary>
+      <Suspense fallback={
+        <MotionBox className="space-y-8 max-w-4xl mx-auto px-4 py-8" variant="fade">
+          <Box className="min-h-[300px] flex items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </Box>
+        </MotionBox>
+      }>
+        <PublishClientInner userId={userId} workspaceId={workspaceId} />
+      </Suspense>
+    </PublishErrorBoundary>
   );
 }

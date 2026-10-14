@@ -581,51 +581,57 @@ function ManualPreview({ content }: Omit<PlatformPreviewProps, 'platform'>) {
 
 /* ─── Main export ─── */
 export function PlatformPreview({ platform, content, mediaUrls, username, displayName }: PlatformPreviewProps) {
-  const props = { content, mediaUrls, username, displayName };
+  const safeContent = content || '';
+  const safeMedia = Array.isArray(mediaUrls) ? mediaUrls : [];
+  const props = { content: safeContent, mediaUrls: safeMedia, username, displayName };
   const mobileProps = {
-    content,
-    isEmpty: !content.trim(),
-    media: (mediaUrls || []).map(m => ({ url: m.url, type: m.type as 'image' | 'video' | 'document', alt: m.alt })),
+    content: safeContent,
+    isEmpty: !safeContent.trim(),
+    media: safeMedia.map(m => ({ url: m?.url || '', type: (m?.type as 'image' | 'video' | 'document') || 'image', alt: m?.alt })),
     profileName: displayName || username || 'User',
     profileHeadline: 'Creator',
     initials: (displayName || username || 'U').slice(0, 2).toUpperCase(),
     avatarUrl: undefined,
   };
 
-  const previewMap: Record<Platform, React.ReactNode> = {
-    x: <XPreview {...props} />,
-    linkedin: <LinkedInPreview {...props} />,
-    threads: <ThreadsPreview {...props} />,
-    instagram: <InstagramPreview {...props} />,
-    bluesky: <BlueskyPreview {...props} />,
-    facebook: <FacebookPreview {...props} />,
-    youtube: <YouTubePreview {...props} />,
-    pinterest: <PinterestPreview {...props} />,
-    mastodon: <PlatformMobilePreview platform="mastodon" {...mobileProps} />,
-    slack: <PlatformMobilePreview platform="slack" {...mobileProps} />,
-    twitch: <PlatformMobilePreview platform="twitch" {...mobileProps} />,
-    telegram: <PlatformMobilePreview platform="telegram" {...mobileProps} />,
-    discord: <PlatformMobilePreview platform="discord" {...mobileProps} />,
-    dribbble: <PlatformMobilePreview platform="dribbble" {...mobileProps} />,
-    skool: <PlatformMobilePreview platform="skool" {...mobileProps} />,
-    whop: <PlatformMobilePreview platform="whop" {...mobileProps} />,
-    kick: <PlatformMobilePreview platform="kick" {...mobileProps} />,
-    vk: <PlatformMobilePreview platform="vk" {...mobileProps} />,
-    warpcast: <PlatformMobilePreview platform="warpcast" {...mobileProps} />,
-    mewe: <PlatformMobilePreview platform="mewe" {...mobileProps} />,
-    nostr: <PlatformMobilePreview platform="nostr" {...mobileProps} />,
-    medium: <PlatformMobilePreview platform="medium" {...mobileProps} />,
-    lemmy: <PlatformMobilePreview platform="lemmy" {...mobileProps} />,
-    reddit: <PlatformMobilePreview platform="reddit" {...mobileProps} />,
-    listmonk: <ListmonkPreview {...props} />,
-    hashnode: <HashnodePreview {...props} />,
-    devto: <DevtoPreview {...props} />,
-    manual: <ManualPreview {...props} />,
+  const renderContent = () => {
+    switch (platform) {
+      case 'x': return <XPreview {...props} />;
+      case 'linkedin': return <LinkedInPreview {...props} />;
+      case 'threads': return <ThreadsPreview {...props} />;
+      case 'instagram': return <InstagramPreview {...props} />;
+      case 'bluesky': return <BlueskyPreview {...props} />;
+      case 'facebook': return <FacebookPreview {...props} />;
+      case 'youtube': return <YouTubePreview {...props} />;
+      case 'pinterest': return <PinterestPreview {...props} />;
+      case 'mastodon': return <PlatformMobilePreview platform="mastodon" {...mobileProps} />;
+      case 'slack': return <PlatformMobilePreview platform="slack" {...mobileProps} />;
+      case 'twitch': return <PlatformMobilePreview platform="twitch" {...mobileProps} />;
+      case 'telegram': return <PlatformMobilePreview platform="telegram" {...mobileProps} />;
+      case 'discord': return <PlatformMobilePreview platform="discord" {...mobileProps} />;
+      case 'dribbble': return <PlatformMobilePreview platform="dribbble" {...mobileProps} />;
+      case 'skool': return <PlatformMobilePreview platform="skool" {...mobileProps} />;
+      case 'whop': return <PlatformMobilePreview platform="whop" {...mobileProps} />;
+      case 'kick': return <PlatformMobilePreview platform="kick" {...mobileProps} />;
+      case 'vk': return <PlatformMobilePreview platform="vk" {...mobileProps} />;
+      case 'warpcast': return <PlatformMobilePreview platform="warpcast" {...mobileProps} />;
+      case 'mewe': return <PlatformMobilePreview platform="mewe" {...mobileProps} />;
+      case 'nostr': return <PlatformMobilePreview platform="nostr" {...mobileProps} />;
+      case 'medium': return <PlatformMobilePreview platform="medium" {...mobileProps} />;
+      case 'lemmy': return <PlatformMobilePreview platform="lemmy" {...mobileProps} />;
+      case 'reddit': return <PlatformMobilePreview platform="reddit" {...mobileProps} />;
+      case 'listmonk': return <ListmonkPreview {...props} />;
+      case 'hashnode': return <HashnodePreview {...props} />;
+      case 'devto': return <DevtoPreview {...props} />;
+      case 'manual':
+      default:
+        return <ManualPreview {...props} />;
+    }
   };
 
   return (
     <div style={{ borderRadius: 16, overflow: 'hidden', maxHeight: 450, overflowY: 'auto' }}>
-      {previewMap[platform] || <ManualPreview {...props} />}
+      {renderContent()}
     </div>
   );
 }
