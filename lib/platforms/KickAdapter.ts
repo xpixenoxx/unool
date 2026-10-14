@@ -40,7 +40,7 @@ export class KickAdapter implements PlatformAdapter {
       clientId: config.KICK_CLIENT_ID || '',
       clientSecret: config.KICK_CLIENT_SECRET || '',
       redirectUri: config.KICK_REDIRECT_URI || `${config.NEXT_PUBLIC_APP_URL}/api/auth/platform/callback`,
-      scopes: ['user:read', 'channel:read', 'chat:write'],
+      scopes: ['user:read', 'channel:read', 'chat:write', 'streamkey:read', 'channel:write'],
     };
   }
 
