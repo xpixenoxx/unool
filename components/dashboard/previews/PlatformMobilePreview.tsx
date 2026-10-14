@@ -66,10 +66,7 @@ export type SupportedPlatformType =
   | 'listmonk'
   | 'reddit'
   | 'hashnode'
-  | 'devto'
-  | 'whatsapp'
-  | 'manual'
-  | 'tiktok';
+  | 'devto';
 
 export interface MobilePreviewProps {
   platform: SupportedPlatformType;
