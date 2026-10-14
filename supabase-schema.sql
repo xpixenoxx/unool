@@ -59,6 +59,8 @@ CREATE TABLE IF NOT EXISTS profiles (
     links JSONB NOT NULL DEFAULT '[]',
     proof_points JSONB NOT NULL DEFAULT '[]',
     theme JSONB NOT NULL DEFAULT '{"preset": "minimal"}',
+    onboarding_completed BOOLEAN NOT NULL DEFAULT false,
+    onboarding_answers JSONB DEFAULT NULL,
     source_url TEXT,
     extraction_prompt_version TEXT,
     version INTEGER NOT NULL DEFAULT 1,

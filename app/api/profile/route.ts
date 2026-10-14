@@ -23,6 +23,10 @@ export async function GET(request: NextRequest) {
     const normalizedProfile = {
       ...profile,
       proofs: profile.proofPoints || [],
+      onboarding_completed: profile.onboardingCompleted ?? false,
+      onboardingCompleted: profile.onboardingCompleted ?? false,
+      onboarding_answers: profile.onboardingAnswers ?? null,
+      onboardingAnswers: profile.onboardingAnswers ?? null,
     };
 
     return NextResponse.json({ profile: normalizedProfile });
@@ -43,7 +47,38 @@ export async function PUT(request: NextRequest) {
     const { userId, workspaceId } = auth;
 
     const body = await request.json();
-    const { name, headline, bio, role, company, avatarUrl, links, proofPoints, theme, subdomain, visibility, openTo } = body;
+    const {
+      name,
+      headline,
+      bio,
+      role,
+      company,
+      avatarUrl,
+      links,
+      proofPoints,
+      theme,
+      subdomain,
+      visibility,
+      openTo,
+      onboardingCompleted,
+      onboarding_completed,
+      onboardingAnswers,
+      onboarding_answers,
+    } = body;
+
+    const finalOnboardingCompleted =
+      onboardingCompleted !== undefined
+        ? onboardingCompleted
+        : onboarding_completed !== undefined
+        ? onboarding_completed
+        : undefined;
+
+    const finalOnboardingAnswers =
+      onboardingAnswers !== undefined
+        ? onboardingAnswers
+        : onboarding_answers !== undefined
+        ? onboarding_answers
+        : undefined;
 
     // Get existing profile or create new
     let profile = await profileRepository.findByWorkspaceId(workspaceId);
@@ -63,6 +98,8 @@ export async function PUT(request: NextRequest) {
         subdomain: subdomain || undefined,
         visibility,
         openTo,
+        onboardingCompleted: finalOnboardingCompleted,
+        onboardingAnswers: finalOnboardingAnswers,
       }, profile.version);
     } else {
       // Creating a new profile - generate a temporary subdomain if none provided

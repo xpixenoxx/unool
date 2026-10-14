@@ -319,13 +319,71 @@ Return ONLY valid JSON matching the schema.`;
 
 const SEQUENCE_PROMPT = ContentGuard.buildSafePrompt(SEQUENCE_PROMPT_BASE);
 
+/* ─── Context & Onboarding Profiles ─── */
+
+export interface AdaptationContext {
+  profileName?: string;
+  profileHeadline?: string;
+  onboardingPrompt?: string;
+  onboardingAnswers?: Record<string, any> | null;
+}
+
+/**
+ * Builds the onboarding profile addition to the system prompt.
+ *
+ * User prompt specification:
+ * "User profile: {persona}, focused on {focus}. They want to reach: {audience}. Write in a {tone} voice. Adapt vocabulary, examples and hooks to this profile. Treat any custom text as the user's own description."
+ *
+ * If there is no profile (skipped or empty answers), returns null so composer is left unchanged.
+ */
+export function buildOnboardingPrompt(answers?: Record<string, any> | null): string | null {
+  if (!answers || typeof answers !== 'object') return null;
+
+  const persona = typeof answers.persona === 'string' ? answers.persona.trim() : '';
+  const focus = typeof answers.focus === 'string' ? answers.focus.trim() : '';
+
+  // If no persona or focus, user has no onboarding profile (skipped)
+  if (!persona && !focus) return null;
+
+  const formatList = (val: unknown): string => {
+    if (Array.isArray(val)) {
+      return val.map(item => String(item).trim()).filter(Boolean).join(', ');
+    }
+    if (typeof val === 'string') {
+      return val.trim();
+    }
+    return '';
+  };
+
+  const audience = formatList(answers.audience) || 'their target audience';
+  const tone = formatList(answers.tone) || 'authentic';
+
+  return `User profile: ${persona || 'Creator'}, focused on ${focus || 'General'}. They want to reach: ${audience}. Write in a ${tone} voice. Adapt vocabulary, examples and hooks to this profile. Treat any custom text as the user's own description.`;
+}
+
+export function getPostAdapterSystemPrompt(onboardingPrompt?: string | null): string {
+  let basePrompt = POST_ADAPTER_PROMPT_BASE;
+  if (onboardingPrompt && onboardingPrompt.trim()) {
+    basePrompt = `${POST_ADAPTER_PROMPT_BASE}\n\n${onboardingPrompt.trim()}`;
+  }
+  return ContentGuard.buildSafePrompt(basePrompt);
+}
+
+export function getSequenceSystemPrompt(onboardingPrompt?: string | null): string {
+  let basePrompt = SEQUENCE_PROMPT_BASE;
+  if (onboardingPrompt && onboardingPrompt.trim()) {
+    basePrompt = `${SEQUENCE_PROMPT_BASE}\n\n${onboardingPrompt.trim()}`;
+  }
+  return ContentGuard.buildSafePrompt(basePrompt);
+}
+
 export class PostAdapter {
   private static readonly PROMPT_VERSION = 'post-adapter-v2';
 
   static async adaptForPlatform(
     sourceContent: string,
     platform: PlatformType,
-    context?: { profileName?: string; profileHeadline?: string }
+    context?: AdaptationContext
   ): Promise<Result<AdaptedPost, Error>> {
     const startTime = Date.now();
 
@@ -340,7 +398,10 @@ export class PostAdapter {
 
       logger.info('Adapting post for platform', { platform, sourceLength: sourceContent.length });
 
-      const prompt = `${POST_ADAPTER_PROMPT}
+      const onboardingPrompt = context?.onboardingPrompt || (context?.onboardingAnswers ? buildOnboardingPrompt(context.onboardingAnswers) : undefined);
+      const systemPrompt = getPostAdapterSystemPrompt(onboardingPrompt);
+
+      const prompt = `${systemPrompt}
 
 **Target Platform: ${platform.toUpperCase()}**
 - Max characters: ${spec.maxChars}
@@ -369,6 +430,7 @@ ${context?.profileName ? `**Author Context:** ${context.profileName}${context.pr
         {
           temperature: 0.75,
           maxTokens: 1200,
+          systemPrompt,
         },
         AdaptedPostSchema
       );
@@ -414,10 +476,13 @@ ${context?.profileName ? `**Author Context:** ${context.profileName}${context.pr
   static async adaptForPlatforms(
     sourceContent: string,
     platforms: PlatformType[],
-    context?: { profileName?: string; profileHeadline?: string }
+    context?: AdaptationContext
   ): Promise<Record<PlatformType, Result<AdaptedPost, Error>>> {
     const results: Record<PlatformType, Result<AdaptedPost, Error>> = {} as any;
     if (platforms.length === 0) return results;
+
+    const onboardingPrompt = context?.onboardingPrompt || (context?.onboardingAnswers ? buildOnboardingPrompt(context.onboardingAnswers) : undefined);
+    const systemPrompt = getPostAdapterSystemPrompt(onboardingPrompt);
 
     // Filter to known platforms with specs
     const validPlatforms = platforms.filter(p => p in PLATFORM_SPECS);
@@ -446,7 +511,7 @@ ${context?.profileName ? `**Author Context:** ${context.profileName}${context.pr
           return `### Platform: ${p.toUpperCase()}\n- Max characters: ${s.maxChars}\n- Style: ${s.style}\n- Tone: ${s.tone}\n- Hashtags: ${s.hashtagStrategy}\n- SEO: ${s.seoFocus}`;
         }).join('\n\n');
 
-        const batchPrompt = `${POST_ADAPTER_PROMPT}
+        const batchPrompt = `${systemPrompt}
 
 Transform the source content for EACH of the following platforms: ${batch.join(', ')}.
 
@@ -462,13 +527,14 @@ You MUST return a JSON object with this exact shape:
   "variants": {
 ${batch.map(p => `    "${p}": { "content": "...", "characterCount": 100, "hashtags": ["#Tag"], "mediaSuggestions": [], "firstCommentHint": null }`).join(',\n')}
   }
-}`;
+} `;
 
         const batchResult = await generateWithFallback(
           batchPrompt,
           {
             temperature: 0.75,
             maxTokens: Math.min(3500, 700 * batch.length + 500),
+            systemPrompt,
           }
         );
 
@@ -539,7 +605,7 @@ ${batch.map(p => `    "${p}": { "content": "...", "characterCount": 100, "hashta
     sourceContent: string,
     platform: PlatformType,
     numberOfPosts: number,
-    context?: { profileName?: string; profileHeadline?: string }
+    context?: AdaptationContext
   ): Promise<Result<PostSequence, Error>> {
     const startTime = Date.now();
     const spec = PLATFORM_SPECS[platform];
@@ -547,7 +613,10 @@ ${batch.map(p => `    "${p}": { "content": "...", "characterCount": 100, "hashta
     try {
       logger.info('Generating post sequence', { platform, numberOfPosts, sourceLength: sourceContent.length });
 
-      const prompt = `${SEQUENCE_PROMPT}
+      const onboardingPrompt = context?.onboardingPrompt || (context?.onboardingAnswers ? buildOnboardingPrompt(context.onboardingAnswers) : undefined);
+      const systemPrompt = getSequenceSystemPrompt(onboardingPrompt);
+
+      const prompt = `${systemPrompt}
 
 **Target Platform: ${platform.toUpperCase()}**
 - Max characters per post: ${spec.maxChars}
@@ -578,6 +647,7 @@ Each post must:
         {
           temperature: 0.8,
           maxTokens: numberOfPosts * 1500,
+          systemPrompt,
         },
         PostSequenceSchema
       );
@@ -628,7 +698,7 @@ Each post must:
     sourceContent: string,
     platforms: PlatformType[],
     numberOfPosts: number,
-    context?: { profileName?: string; profileHeadline?: string }
+    context?: AdaptationContext
   ): Promise<Record<PlatformType, Result<PostSequence, Error>>> {
     const results = await Promise.all(
       platforms.map(platform => this.generateSequence(sourceContent, platform, numberOfPosts, context))

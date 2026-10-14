@@ -26,6 +26,14 @@ export class SupabaseProfileRepository implements IProfileRepository {
       version: row.version as number,
       visibility: (row.visibility as 'public' | 'private') || 'public',
       openTo: (row.open_to as string[]) || [],
+      onboardingCompleted:
+        (row.onboarding_completed as boolean) ??
+        Boolean((row.theme as Record<string, unknown>)?.onboarding_completed) ??
+        false,
+      onboardingAnswers:
+        (row.onboarding_answers as any) ??
+        ((row.theme as Record<string, unknown>)?.onboarding_answers as any) ??
+        null,
       createdAt: new Date(row.created_at as string),
       updatedAt: new Date(row.updated_at as string),
     };
@@ -121,12 +129,31 @@ export class SupabaseProfileRepository implements IProfileRepository {
     if (data.avatarUrl !== undefined) updateData.avatar_url = data.avatarUrl;
     if (data.links !== undefined) updateData.links = data.links;
     if (data.proofPoints !== undefined) updateData.proof_points = data.proofPoints;
-    if (data.theme !== undefined) updateData.theme = data.theme;
     if (data.subdomain !== undefined) updateData.subdomain = data.subdomain;
     if (data.visibility !== undefined) updateData.visibility = data.visibility;
     if (data.openTo !== undefined) updateData.open_to = data.openTo;
 
-    const { data: row, error } = await this.supabase
+    // Build theme object with fallback onboarding metadata
+    let themeObj: Record<string, unknown> = (data.theme as Record<string, unknown>) || {};
+    if (data.onboardingCompleted !== undefined || data.onboardingAnswers !== undefined) {
+      themeObj = {
+        ...themeObj,
+        ...(data.onboardingCompleted !== undefined ? { onboarding_completed: data.onboardingCompleted } : {}),
+        ...(data.onboardingAnswers !== undefined ? { onboarding_answers: data.onboardingAnswers } : {}),
+      };
+      updateData.theme = themeObj;
+    } else if (data.theme !== undefined) {
+      updateData.theme = data.theme;
+    }
+
+    if (data.onboardingCompleted !== undefined) {
+      updateData.onboarding_completed = data.onboardingCompleted;
+    }
+    if (data.onboardingAnswers !== undefined) {
+      updateData.onboarding_answers = data.onboardingAnswers;
+    }
+
+    let result = await this.supabase
       .from('profiles')
       .update(updateData)
       .eq('id', id)
@@ -134,13 +161,27 @@ export class SupabaseProfileRepository implements IProfileRepository {
       .select()
       .single();
 
-    if (error) {
-      if (error.code === 'PGRST116') {
+    // If top-level columns onboarding_completed / onboarding_answers don't exist in Supabase yet,
+    // fallback gracefully to updating without them (theme already has them saved)
+    if (result.error && (result.error.code === '42703' || result.error.message?.includes('onboarding'))) {
+      delete updateData.onboarding_completed;
+      delete updateData.onboarding_answers;
+      result = await this.supabase
+        .from('profiles')
+        .update(updateData)
+        .eq('id', id)
+        .eq('version', expectedVersion)
+        .select()
+        .single();
+    }
+
+    if (result.error) {
+      if (result.error.code === 'PGRST116') {
         throw new Error('VERSION_CONFLICT');
       }
-      throw error;
+      throw result.error;
     }
-    return this.mapRow(row);
+    return this.mapRow(result.data);
   }
 
   async updateVersion(id: string, newVersion: number): Promise<void> {

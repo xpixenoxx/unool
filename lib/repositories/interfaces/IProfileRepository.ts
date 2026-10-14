@@ -26,6 +26,14 @@ export interface ProfileViewer {
   fullName?: string;
 }
 
+export interface OnboardingAnswers {
+  persona: string;
+  focus: string;
+  audience: string[];
+  tone: string[];
+  custom?: Record<string, string>;
+}
+
 export interface Profile {
   id: string;
   workspaceId: string;
@@ -45,6 +53,8 @@ export interface Profile {
   version: number;
   visibility: 'public' | 'private';
   openTo: string[];
+  onboardingCompleted?: boolean;
+  onboardingAnswers?: OnboardingAnswers | null;
   authorizedViewers?: ProfileViewer[];
   createdAt: Date;
   updatedAt: Date;
@@ -71,6 +81,8 @@ export interface UpdateProfileInput {
   subdomain?: string | null;
   visibility?: 'public' | 'private';
   openTo?: string[];
+  onboardingCompleted?: boolean;
+  onboardingAnswers?: OnboardingAnswers | null;
 }
 
 export interface IProfileRepository {
