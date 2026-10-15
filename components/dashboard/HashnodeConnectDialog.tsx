@@ -10,8 +10,9 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, ExternalLink, ShieldCheck, Sparkles, BookOpen } from 'lucide-react';
+import { Loader2, ExternalLink, ShieldCheck, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
+import { PlatformBrandLogo } from '@/components/dashboard/PlatformLogos';
 
 interface HashnodeConnectDialogProps {
   open: boolean;
@@ -79,8 +80,8 @@ export function HashnodeConnectDialog({
       <DialogContent className="sm:max-w-lg bg-white dark:bg-black/95 dark:backdrop-blur-xl border dark:border-white/10 z-[100] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-lg">
-            <div className="p-2 rounded-lg bg-[#2962FF] text-white flex items-center justify-center shadow-sm">
-              <BookOpen className="w-5 h-5" />
+            <div className="p-1 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200/50 flex items-center justify-center shadow-sm">
+              <PlatformBrandLogo platform="hashnode" size={20} />
             </div>
             Connect Hashnode
           </DialogTitle>

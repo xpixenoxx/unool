@@ -10,8 +10,9 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { Loader2, MessageSquare, ExternalLink, ShieldCheck, KeyRound } from 'lucide-react';
+import { Loader2, ExternalLink, ShieldCheck, KeyRound } from 'lucide-react';
 import { toast } from 'sonner';
+import { PlatformBrandLogo } from '@/components/dashboard/PlatformLogos';
 
 interface MeweConnectDialogProps {
   open: boolean;
@@ -89,8 +90,8 @@ export function MeweConnectDialog({
       <DialogContent className="sm:max-w-lg bg-white dark:bg-black/95 dark:backdrop-blur-xl border dark:border-white/10 z-[100] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-[#2F435E] text-white">
-              <MessageSquare className="w-4 h-4" />
+            <div className="p-1 rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-200/50 flex items-center justify-center">
+              <PlatformBrandLogo platform="mewe" size={18} />
             </div>
             Connect MeWe
           </DialogTitle>

@@ -132,13 +132,12 @@ function StepDots({ current, total }: { current: number; total: number }) {
   );
 }
 
-/* ─── Platform badge ──────────────────────────────────────────────────────── */
 function PlatformBadge({ platform, size = 'sm' }: { platform: string; size?: 'sm' | 'md' }) {
-  const meta = PLATFORM_META[platform];
-  if (!meta) return null;
+  const meta = PLATFORM_META[platform] || { name: platform, color: '#3D2B1F', bg: '#EDE7DD' };
+  const iconSize = size === 'sm' ? 12 : 14;
   return (
     <span
-      className="inline-flex items-center gap-1 rounded-full font-medium"
+      className="inline-flex items-center gap-1.5 rounded-full font-medium"
       style={{
         backgroundColor: meta.bg,
         color: meta.color,
@@ -147,7 +146,7 @@ function PlatformBadge({ platform, size = 'sm' }: { platform: string; size?: 'sm
         border: `1px solid ${meta.color}22`,
       }}
     >
-      <span style={{ fontSize: size === 'sm' ? 10 : 12 }}>{meta.icon}</span>
+      <PlatformBrandLogo platform={platform as SupportedPlatformType} size={iconSize} />
       {meta.name}
     </span>
   );

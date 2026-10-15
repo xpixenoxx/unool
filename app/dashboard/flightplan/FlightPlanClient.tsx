@@ -16,39 +16,40 @@ import {
 import { cn } from '@/lib/utils';
 import { format, addDays, startOfWeek, isToday, startOfDay, endOfWeek, addWeeks } from 'date-fns';
 import { PlatformBrandLogo, type SupportedPlatformType } from '@/components/dashboard/previews/PlatformMobilePreview';
+import { PlatformSVGs } from '@/components/dashboard/PlatformLogos';
 
 /* ─── Types ─── */
 
 type PlatformType = 'linkedin' | 'x' | 'threads' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'mastodon' | 'slack' | 'twitch' | 'telegram' | 'discord' | 'skool' | 'whop' | 'kick' | 'vk' | 'warpcast' | 'mewe' | 'nostr' | 'medium' | 'lemmy' | 'listmonk' | 'hashnode' | 'devto' | 'dribbble' | 'reddit';
 
 const PLATFORM_CONFIG: Record<PlatformType, { icon: React.ElementType; name: string; maxChars: number; color: string }> = {
-  linkedin: { icon: Linkedin, name: 'LinkedIn', maxChars: 3000, color: 'bg-blue-600' },
-  x: { icon: Twitter, name: 'X (Twitter)', maxChars: 280, color: 'bg-gray-800' },
-  threads: { icon: MessageSquare, name: 'Threads', maxChars: 500, color: 'bg-black' },
-  facebook: { icon: Facebook, name: 'Facebook', maxChars: 63206, color: 'bg-blue-600' },
-  instagram: { icon: Instagram, name: 'Instagram', maxChars: 2200, color: 'bg-pink-600' },
-  youtube: { icon: Youtube, name: 'YouTube', maxChars: 5000, color: 'bg-red-600' },
-  pinterest: { icon: ImageIcon, name: 'Pinterest', maxChars: 500, color: 'bg-red-600' },
-  bluesky: { icon: Cloud, name: 'Bluesky', maxChars: 300, color: 'bg-blue-400' },
-  mastodon: { icon: Globe, name: 'Mastodon', maxChars: 500, color: 'bg-purple-600' },
-  slack: { icon: Hash, name: 'Slack', maxChars: 40000, color: 'bg-[#4A154B]' },
-  twitch: { icon: Twitch, name: 'Twitch', maxChars: 500, color: 'bg-[#9146FF]' },
-  telegram: { icon: Send, name: 'Telegram', maxChars: 4096, color: 'bg-[#229ED9]' },
-  discord: { icon: Hash, name: 'Discord', maxChars: 2000, color: 'bg-[#5865F2]' },
-  skool: { icon: GraduationCap, name: 'Skool', maxChars: 10000, color: 'bg-[#E2AD44]' },
-  whop: { icon: Store, name: 'Whop', maxChars: 10000, color: 'bg-[#FF5A00]' },
-  kick: { icon: Gamepad2, name: 'Kick', maxChars: 10000, color: 'bg-[#53FC18]' },
-  vk: { icon: Video, name: 'VK', maxChars: 4096, color: 'bg-[#0077FF]' },
-  warpcast: { icon: Hash, name: 'Farcaster', maxChars: 320, color: 'bg-[#8A63D2]' },
-  mewe: { icon: MessageSquare, name: 'MeWe', maxChars: 4000, color: 'bg-[#2F435E]' },
-  nostr: { icon: Zap, name: 'Nostr', maxChars: 65535, color: 'bg-[#9B51E0]' },
-  dribbble: { icon: Dribbble, name: 'Dribbble', maxChars: 250, color: 'bg-[#EA4C89]' },
-  medium: { icon: FileText, name: 'Medium', maxChars: 100000, color: 'bg-black' },
-  lemmy: { icon: Globe, name: 'Lemmy', maxChars: 10000, color: 'bg-[#00BC8C]' },
-  listmonk: { icon: Mail, name: 'Listmonk', maxChars: 100000, color: 'bg-[#0045ff]' },
-  hashnode: { icon: BookOpen, name: 'Hashnode', maxChars: 100000, color: 'bg-[#2962FF]' },
-  devto: { icon: Code2, name: 'DEV.to', maxChars: 100000, color: 'bg-neutral-900 dark:bg-neutral-100' },
-  reddit: { icon: Globe, name: 'Reddit', maxChars: 40000, color: 'bg-[#FF4500]' },
+  linkedin: { icon: PlatformSVGs.linkedin, name: 'LinkedIn', maxChars: 3000, color: 'bg-blue-600' },
+  x: { icon: PlatformSVGs.x, name: 'X (Twitter)', maxChars: 280, color: 'bg-gray-800' },
+  threads: { icon: PlatformSVGs.threads, name: 'Threads', maxChars: 500, color: 'bg-black' },
+  facebook: { icon: PlatformSVGs.facebook, name: 'Facebook', maxChars: 63206, color: 'bg-blue-600' },
+  instagram: { icon: PlatformSVGs.instagram, name: 'Instagram', maxChars: 2200, color: 'bg-pink-600' },
+  youtube: { icon: PlatformSVGs.youtube, name: 'YouTube', maxChars: 5000, color: 'bg-red-600' },
+  pinterest: { icon: PlatformSVGs.pinterest, name: 'Pinterest', maxChars: 500, color: 'bg-red-600' },
+  bluesky: { icon: PlatformSVGs.bluesky, name: 'Bluesky', maxChars: 300, color: 'bg-blue-400' },
+  mastodon: { icon: PlatformSVGs.mastodon, name: 'Mastodon', maxChars: 500, color: 'bg-purple-600' },
+  slack: { icon: PlatformSVGs.slack, name: 'Slack', maxChars: 40000, color: 'bg-[#4A154B]' },
+  twitch: { icon: PlatformSVGs.twitch, name: 'Twitch', maxChars: 500, color: 'bg-[#9146FF]' },
+  telegram: { icon: PlatformSVGs.telegram, name: 'Telegram', maxChars: 4096, color: 'bg-[#229ED9]' },
+  discord: { icon: PlatformSVGs.discord, name: 'Discord', maxChars: 2000, color: 'bg-[#5865F2]' },
+  skool: { icon: PlatformSVGs.skool, name: 'Skool', maxChars: 10000, color: 'bg-[#E2AD44]' },
+  whop: { icon: PlatformSVGs.whop, name: 'Whop', maxChars: 10000, color: 'bg-[#FF5A00]' },
+  kick: { icon: PlatformSVGs.kick, name: 'Kick', maxChars: 10000, color: 'bg-[#53FC18]' },
+  vk: { icon: PlatformSVGs.vk, name: 'VK', maxChars: 4096, color: 'bg-[#0077FF]' },
+  warpcast: { icon: PlatformSVGs.warpcast, name: 'Farcaster', maxChars: 320, color: 'bg-[#8A63D2]' },
+  mewe: { icon: PlatformSVGs.mewe, name: 'MeWe', maxChars: 4000, color: 'bg-[#2F435E]' },
+  nostr: { icon: PlatformSVGs.nostr, name: 'Nostr', maxChars: 65535, color: 'bg-[#9B51E0]' },
+  dribbble: { icon: PlatformSVGs.dribbble, name: 'Dribbble', maxChars: 250, color: 'bg-[#EA4C89]' },
+  medium: { icon: PlatformSVGs.medium, name: 'Medium', maxChars: 100000, color: 'bg-black' },
+  lemmy: { icon: PlatformSVGs.lemmy, name: 'Lemmy', maxChars: 10000, color: 'bg-[#00BC8C]' },
+  listmonk: { icon: PlatformSVGs.listmonk, name: 'Listmonk', maxChars: 100000, color: 'bg-[#0045ff]' },
+  hashnode: { icon: PlatformSVGs.hashnode, name: 'Hashnode', maxChars: 100000, color: 'bg-[#2962FF]' },
+  devto: { icon: PlatformSVGs.devto, name: 'DEV.to', maxChars: 100000, color: 'bg-neutral-900 dark:bg-neutral-100' },
+  reddit: { icon: PlatformSVGs.reddit, name: 'Reddit', maxChars: 40000, color: 'bg-[#FF4500]' },
 };
 
 const PLATFORM_META: Record<string, { name: string; color: string; bg: string; icon: string }> = {
@@ -321,7 +322,7 @@ function PlatformBadge({ platform, size = 'sm' }: { platform: string; size?: 'sm
   if (!meta) return null;
   return (
     <span
-      className="inline-flex items-center gap-1 rounded-full font-medium"
+      className="inline-flex items-center gap-1.5 rounded-full font-medium"
       style={{
         backgroundColor: meta.bg,
         color: meta.color,
@@ -330,7 +331,7 @@ function PlatformBadge({ platform, size = 'sm' }: { platform: string; size?: 'sm
         border: `1px solid ${meta.color}22`,
       }}
     >
-      <span style={{ fontSize: size === 'sm' ? 10 : 12 }}>{meta.icon}</span>
+      <PlatformBrandLogo platform={platform as SupportedPlatformType} size={size === 'sm' ? 12 : 14} />
       {meta.name}
     </span>
   );

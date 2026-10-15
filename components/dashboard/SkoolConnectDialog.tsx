@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { GraduationCap, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { PlatformBrandLogo } from '@/components/dashboard/PlatformLogos';
 
 interface SkoolConnectDialogProps {
   open: boolean;
@@ -59,8 +60,8 @@ export function SkoolConnectDialog({
       <DialogContent className="sm:max-w-md bg-white dark:bg-black/95 dark:backdrop-blur-xl border dark:border-white/10 z-[100]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-[#E2AD44] text-white">
-              <GraduationCap className="w-4 h-4" />
+            <div className="p-1 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200/50 flex items-center justify-center">
+              <PlatformBrandLogo platform="skool" size={18} />
             </div>
             Connect Skool
           </DialogTitle>

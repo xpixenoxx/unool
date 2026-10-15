@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { ExternalLink, Loader2, Twitch } from 'lucide-react';
+import { ExternalLink, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { PlatformBrandLogo } from '@/components/dashboard/PlatformLogos';
 
 interface TwitchConnectDialogProps {
   open: boolean;
@@ -59,8 +60,8 @@ export function TwitchConnectDialog({
       <DialogContent className="sm:max-w-md bg-white dark:bg-black/95 dark:backdrop-blur-xl border dark:border-white/10 z-[100]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-[#9146FF] text-white">
-              <Twitch className="w-4 h-4" />
+            <div className="p-1 rounded-lg bg-purple-50 dark:bg-purple-950/40 border border-purple-200/50 flex items-center justify-center">
+              <PlatformBrandLogo platform="twitch" size={18} />
             </div>
             Connect Twitch
           </DialogTitle>

@@ -100,41 +100,42 @@ import {
   type SupportedPlatformType,
   PlatformBrandLogo,
 } from '@/components/dashboard/previews/PlatformMobilePreview';
+import { PlatformSVGs } from '@/components/dashboard/PlatformLogos';
 import { HashtagEditor } from '@/components/dashboard/HashtagEditor';
 import { StudioIdeaGenerator } from '@/components/dashboard/StudioIdeaGenerator';
 
 type PlatformType = SupportedPlatformType;
 
 const PLATFORM_CONFIG: Record<PlatformType, { icon: React.ElementType; name: string; maxChars: number; color: string }> = {
-  linkedin: { icon: Linkedin, name: 'LinkedIn', maxChars: 3000, color: 'bg-blue-600' },
-  x: { icon: Twitter, name: 'X (Twitter)', maxChars: 280, color: 'bg-gray-800 dark:bg-gray-200' },
-  threads: { icon: MessageSquare, name: 'Threads', maxChars: 500, color: 'bg-black dark:bg-white' },
-  facebook: { icon: Facebook, name: 'Facebook', maxChars: 63206, color: 'bg-blue-600' },
-  instagram: { icon: Instagram, name: 'Instagram', maxChars: 2200, color: 'bg-pink-600' },
-  youtube: { icon: Youtube, name: 'YouTube', maxChars: 5000, color: 'bg-red-600' },
-  pinterest: { icon: ImageIcon, name: 'Pinterest', maxChars: 500, color: 'bg-red-600' },
-  bluesky: { icon: Cloud, name: 'Bluesky', maxChars: 300, color: 'bg-blue-400' },
-  mastodon: { icon: Globe, name: 'Mastodon', maxChars: 500, color: 'bg-purple-600' },
-  slack: { icon: Hash, name: 'Slack', maxChars: 40000, color: 'bg-[#4A154B]' },
-  twitch: { icon: Twitch, name: 'Twitch', maxChars: 500, color: 'bg-[#9146FF]' },
-  telegram: { icon: Send, name: 'Telegram', maxChars: 4096, color: 'bg-[#229ED9]' },
-  discord: { icon: Hash, name: 'Discord', maxChars: 2000, color: 'bg-[#5865F2]' },
-  dribbble: { icon: Dribbble, name: 'Dribbble', maxChars: 250, color: 'bg-[#EA4C89]' },
-  skool: { icon: GraduationCap, name: 'Skool', maxChars: 10000, color: 'bg-[#E2AD44]' },
-  whop: { icon: Store, name: 'Whop', maxChars: 10000, color: 'bg-[#FF5A00]' },
-  kick: { icon: Gamepad2, name: 'Kick', maxChars: 10000, color: 'bg-[#53FC18]' },
-  vk: { icon: Video, name: 'VK', maxChars: 4096, color: 'bg-[#0077FF]' },
-  warpcast: { icon: Hash, name: 'Farcaster', maxChars: 320, color: 'bg-[#8A63D2]' },
-  mewe: { icon: MessageSquare, name: 'MeWe', maxChars: 4000, color: 'bg-[#2F435E]' },
-  nostr: { icon: Zap, name: 'Nostr', maxChars: 65535, color: 'bg-[#9B51E0]' },
-  medium: { icon: FileText, name: 'Medium', maxChars: 100000, color: 'bg-black' },
-  lemmy: { icon: Globe, name: 'Lemmy', maxChars: 10000, color: 'bg-[#00BC8C]' },
-  listmonk: { icon: Mail, name: 'Listmonk', maxChars: 100000, color: 'bg-[#0045ff]' },
-  reddit: { icon: Globe, name: 'Reddit', maxChars: 40000, color: 'bg-[#FF4500]' },
-  hashnode: { icon: FileText, name: 'Hashnode', maxChars: 100000, color: 'bg-[#2962FF]' },
-  devto: { icon: FileText, name: 'DEV.to', maxChars: 100000, color: 'bg-[#090909]' },
-  twitter: { icon: Twitter, name: 'X (Twitter)', maxChars: 280, color: 'bg-gray-800 dark:bg-gray-200' },
-  whatsapp: { icon: MessageSquare, name: 'WhatsApp', maxChars: 4096, color: 'bg-green-600' },
+  linkedin: { icon: PlatformSVGs.linkedin, name: 'LinkedIn', maxChars: 3000, color: 'bg-blue-600' },
+  x: { icon: PlatformSVGs.x, name: 'X (Twitter)', maxChars: 280, color: 'bg-gray-800 dark:bg-gray-200' },
+  threads: { icon: PlatformSVGs.threads, name: 'Threads', maxChars: 500, color: 'bg-black dark:bg-white' },
+  facebook: { icon: PlatformSVGs.facebook, name: 'Facebook', maxChars: 63206, color: 'bg-blue-600' },
+  instagram: { icon: PlatformSVGs.instagram, name: 'Instagram', maxChars: 2200, color: 'bg-pink-600' },
+  youtube: { icon: PlatformSVGs.youtube, name: 'YouTube', maxChars: 5000, color: 'bg-red-600' },
+  pinterest: { icon: PlatformSVGs.pinterest, name: 'Pinterest', maxChars: 500, color: 'bg-red-600' },
+  bluesky: { icon: PlatformSVGs.bluesky, name: 'Bluesky', maxChars: 300, color: 'bg-blue-400' },
+  mastodon: { icon: PlatformSVGs.mastodon, name: 'Mastodon', maxChars: 500, color: 'bg-purple-600' },
+  slack: { icon: PlatformSVGs.slack, name: 'Slack', maxChars: 40000, color: 'bg-[#4A154B]' },
+  twitch: { icon: PlatformSVGs.twitch, name: 'Twitch', maxChars: 500, color: 'bg-[#9146FF]' },
+  telegram: { icon: PlatformSVGs.telegram, name: 'Telegram', maxChars: 4096, color: 'bg-[#229ED9]' },
+  discord: { icon: PlatformSVGs.discord, name: 'Discord', maxChars: 2000, color: 'bg-[#5865F2]' },
+  dribbble: { icon: PlatformSVGs.dribbble, name: 'Dribbble', maxChars: 250, color: 'bg-[#EA4C89]' },
+  skool: { icon: PlatformSVGs.skool, name: 'Skool', maxChars: 10000, color: 'bg-[#E2AD44]' },
+  whop: { icon: PlatformSVGs.whop, name: 'Whop', maxChars: 10000, color: 'bg-[#FF5A00]' },
+  kick: { icon: PlatformSVGs.kick, name: 'Kick', maxChars: 10000, color: 'bg-[#53FC18]' },
+  vk: { icon: PlatformSVGs.vk, name: 'VK', maxChars: 4096, color: 'bg-[#0077FF]' },
+  warpcast: { icon: PlatformSVGs.warpcast, name: 'Farcaster', maxChars: 320, color: 'bg-[#8A63D2]' },
+  mewe: { icon: PlatformSVGs.mewe, name: 'MeWe', maxChars: 4000, color: 'bg-[#2F435E]' },
+  nostr: { icon: PlatformSVGs.nostr, name: 'Nostr', maxChars: 65535, color: 'bg-[#9B51E0]' },
+  medium: { icon: PlatformSVGs.medium, name: 'Medium', maxChars: 100000, color: 'bg-black' },
+  lemmy: { icon: PlatformSVGs.lemmy, name: 'Lemmy', maxChars: 10000, color: 'bg-[#00BC8C]' },
+  listmonk: { icon: PlatformSVGs.listmonk, name: 'Listmonk', maxChars: 100000, color: 'bg-[#0045ff]' },
+  reddit: { icon: PlatformSVGs.reddit, name: 'Reddit', maxChars: 40000, color: 'bg-[#FF4500]' },
+  hashnode: { icon: PlatformSVGs.hashnode, name: 'Hashnode', maxChars: 100000, color: 'bg-[#2962FF]' },
+  devto: { icon: PlatformSVGs.devto, name: 'DEV.to', maxChars: 100000, color: 'bg-[#090909]' },
+  twitter: { icon: PlatformSVGs.x, name: 'X (Twitter)', maxChars: 280, color: 'bg-gray-800 dark:bg-gray-200' },
+  whatsapp: { icon: PlatformSVGs.whatsapp, name: 'WhatsApp', maxChars: 4096, color: 'bg-green-600' },
 };
 
 interface PlatformDraft {
@@ -1596,8 +1597,8 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   disabled={!!warningMsg}
                   onCheckedChange={() => !warningMsg && togglePlatform(platform)} 
                 />
-                <span className={cn('p-1 rounded-md text-white', cfg.color, warningMsg ? 'grayscale' : '')}>
-                  <Icon className="w-3 h-3" />
+                <span className={cn('p-1 rounded-md text-white flex items-center justify-center', cfg.color, warningMsg ? 'grayscale' : '')}>
+                  <PlatformBrandLogo platform={platform} size={14} />
                 </span>
                 {cfg.name}
               </label>
@@ -2241,8 +2242,8 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                             const Icon = cfg.icon;
                             return (
                               <TabsTrigger key={platform} value={platform} className="flex-1 min-w-[80px] flex items-center justify-center gap-1.5 py-2">
-                                <span className={cn('p-1 rounded-md text-white', cfg.color)}>
-                                  <Icon className="w-3 h-3" />
+                                <span className={cn('p-1 rounded-md text-white flex items-center justify-center', cfg.color)}>
+                                  <PlatformBrandLogo platform={platform} size={14} />
                                 </span>
                                 <span className="hidden sm:inline text-xs font-medium">{cfg.name}</span>
                                 {draft.status === 'generating' && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
@@ -2268,8 +2269,8 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                               >
                                 <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                                   <div className="flex items-center gap-2">
-                                    <span className={cn('p-1.5 rounded-lg text-white', cfg.color)}>
-                                      <cfg.icon className="h-4 w-4" />
+                                    <span className={cn('p-1.5 rounded-lg text-white flex items-center justify-center', cfg.color)}>
+                                      <PlatformBrandLogo platform={platform} size={16} />
                                     </span>
                                     <div>
                                       <p className="text-sm font-semibold leading-tight">{cfg.name}</p>
