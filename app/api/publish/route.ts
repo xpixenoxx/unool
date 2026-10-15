@@ -71,6 +71,8 @@ export async function POST(request: NextRequest) {
             const targetVariant = existingVariants.find(v => v.platform === d.platform);
             if (targetVariant) {
               await postRepository.updateVariant(targetVariant.id, {
+                status: 'draft',
+                error: null,
                 adaptedContent: d.content,
                 characterCount: d.content.length,
                 hashtagStrategy: d.hashtags || targetVariant.hashtagStrategy,

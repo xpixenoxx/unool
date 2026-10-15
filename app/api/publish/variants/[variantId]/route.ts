@@ -35,9 +35,9 @@ export async function PATCH(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Only allow editing drafts and scheduled variants
-    if (variant.status !== 'draft' && variant.status !== 'scheduled') {
-      return NextResponse.json({ error: 'Can only edit draft or scheduled variants' }, { status: 400 });
+    // Only allow editing drafts, scheduled, or failed variants
+    if (variant.status !== 'draft' && variant.status !== 'scheduled' && variant.status !== 'failed') {
+      return NextResponse.json({ error: 'Can only edit draft, scheduled, or failed variants' }, { status: 400 });
     }
 
     const updateData: Record<string, any> = {};

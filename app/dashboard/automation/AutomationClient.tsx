@@ -70,6 +70,7 @@ interface FlaggedComment {
   status: string;
   lead_score: number;
   priority: string;
+  owner_reply?: string;
   created_at: string;
 }
 
@@ -1431,7 +1432,7 @@ export default function AutomationClient({
                           onClick={() => {
                             if (simType === 'comment') {
                               setSimComment(preset.text);
-                              if ('caption' in preset && preset.caption) setSimCaption(preset.caption);
+                              if ('caption' in preset && typeof preset.caption === 'string') setSimCaption(preset.caption);
                             } else {
                               setSimDmText(preset.text);
                             }

@@ -79,13 +79,32 @@ async function tryRefreshToken(row: Record<string, any>, adminSupabase: any): Pr
       error: err.message,
     });
 
-    // Mark connection as expired so user knows to reconnect
-    await adminSupabase
-      .from('platform_connections')
-      .update({ status: 'expired', updated_at: new Date().toISOString() })
-      .eq('id', row.id);
+    // For Kick: do not mark connection as expired if it has live stream credentials configured
+    let hasKickStream = false;
+    if (row.platform === 'kick' && row.access_token_encrypted) {
+      try {
+        const { decryptToken } = await import('@/lib/crypto/encryption');
+        const decrypted = await decryptToken(row.access_token_encrypted);
+        const parsed = JSON.parse(decrypted);
+        if (parsed?.streamUrl && parsed?.streamKey) {
+          hasKickStream = true;
+        }
+      } catch {}
+    }
 
-    return false;
+    if (!hasKickStream) {
+      await adminSupabase
+        .from('platform_connections')
+        .update({ status: 'expired', updated_at: new Date().toISOString() })
+        .eq('id', row.id);
+    } else {
+      await adminSupabase
+        .from('platform_connections')
+        .update({ status: 'connected', updated_at: new Date().toISOString() })
+        .eq('id', row.id);
+    }
+
+    return hasKickStream;
   }
 }
 
@@ -199,6 +218,17 @@ export async function GET(request: NextRequest) {
             streamConfigured = Boolean(parsed.streamKey && parsed.streamUrl);
           } catch {
             streamConfigured = false;
+          }
+        }
+
+        if (row.platform === 'kick' && streamConfigured) {
+          status = 'connected';
+          if (row.status !== 'connected') {
+            adminSupabase
+              .from('platform_connections')
+              .update({ status: 'connected', updated_at: new Date().toISOString() })
+              .eq('id', row.id)
+              .then();
           }
         }
 

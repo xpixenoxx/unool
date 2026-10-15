@@ -1,4 +1,5 @@
 import { logger } from '@/lib/logger';
+import { config } from '@/lib/config/schema';
 import { Result, ok, err } from '@/lib/shared/Result';
 import { decryptToken } from '@/lib/crypto/encryption';
 import { SupabasePlatformRepository } from '@/lib/repositories/supabase/SupabasePlatformRepository';
@@ -40,7 +41,21 @@ export class PublishService {
 
     // Get platform connection for workspace
     const connection = await platformRepository.findByWorkspaceAndPlatform(input.workspaceId, input.platform);
-    if (!connection || connection.status !== 'connected') {
+
+    let isKickStreamReady = false;
+    if (input.platform === 'kick' && connection?.accessTokenEncrypted) {
+      try {
+        const decrypted = await decryptToken(connection.accessTokenEncrypted);
+        const parsed = JSON.parse(decrypted);
+        if (parsed?.streamUrl && parsed?.streamKey) {
+          isKickStreamReady = true;
+        }
+      } catch {
+        // Stream credentials not present or failed to decrypt
+      }
+    }
+
+    if (!connection || (connection.status !== 'connected' && !isKickStreamReady)) {
       const errorMsg = `No active connection for ${input.platform}. Please connect this platform in settings.`;
       await postRepository.updateVariant(input.postVariantId, {
         status: 'failed',
@@ -49,15 +64,27 @@ export class PublishService {
       return err(new Error(errorMsg));
     }
 
+    // Auto-heal connection status in DB if Kick stream credentials are ready
+    if (input.platform === 'kick' && isKickStreamReady && connection.status !== 'connected') {
+      try {
+        const { createClient } = await import('@supabase/supabase-js');
+        const adminSupabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+        await adminSupabase
+          .from('platform_connections')
+          .update({ status: 'connected', updated_at: new Date().toISOString() })
+          .eq('id', connection.id);
+      } catch {}
+    }
+
     // Get post variant with adapted content
     const variant = await postRepository.findVariantById(input.postVariantId);
     if (!variant) {
       return err(new Error(`Post variant not found: ${input.postVariantId}`));
     }
 
-    // If variant is already marked as failed (e.g., failed media validation), do not attempt to publish
-    if (variant.status === 'failed') {
-      logger.info('Variant is already marked as failed, skipping publish', { variantId: variant.id, platform: variant.platform });
+    // If variant is marked as failed due to unresolvable media validation, do not attempt to publish
+    if (variant.status === 'failed' && variant.error?.code === 'MEDIA_VALIDATION_FAILED') {
+      logger.info('Variant is already marked as failed due to media validation, skipping publish', { variantId: variant.id, platform: variant.platform });
       return ok({
         success: false,
         error: variant.error?.message || 'Variant marked as failed prior to publishing',
@@ -200,6 +227,15 @@ export class PublishService {
     // Get all variants for this post
     const variants = await postRepository.findVariantsByPostId(postId);
     const results: Record<string, PublishJobResult> = {};
+
+    // Reset any previously failed variants to draft so retrying publishes cleanly
+    for (const v of variants) {
+      if (v.status === 'failed') {
+        await postRepository.updateVariant(v.id, { status: 'draft', error: null });
+        v.status = 'draft';
+        v.error = null;
+      }
+    }
 
     // Publish each variant to its platform in parallel
     logger.info('PublishService: publishing to all platforms', {

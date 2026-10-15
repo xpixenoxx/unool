@@ -185,7 +185,7 @@ function PublishContentInner() {
   const handlePublish = async () => {
     if (!postId || !post) return;
 
-    const readyDrafts = drafts.filter(d => d.status === 'draft');
+    const readyDrafts = drafts.filter(d => d.status === 'draft' || d.status === 'failed');
     if (readyDrafts.length === 0) {
       toast.error('No drafts ready to publish');
       return;

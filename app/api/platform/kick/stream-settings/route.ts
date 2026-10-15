@@ -89,6 +89,7 @@ export async function POST(request: NextRequest) {
       .from('platform_connections')
       .update({
         access_token_encrypted: encryptedToken,
+        status: 'connected',
         updated_at: new Date().toISOString(),
       })
       .eq('id', connection.id);
