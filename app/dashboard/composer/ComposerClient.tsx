@@ -79,6 +79,7 @@ import {
   Menu,
   Phone,
   Share2,
+  Sliders,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { studioToast } from '@/components/dashboard/StudioToast';
@@ -133,6 +134,8 @@ const PLATFORM_CONFIG: Record<PlatformType, { icon: React.ElementType; name: str
   reddit: { icon: Globe, name: 'Reddit', maxChars: 40000, color: 'bg-[#FF4500]' },
   hashnode: { icon: FileText, name: 'Hashnode', maxChars: 100000, color: 'bg-[#2962FF]' },
   devto: { icon: FileText, name: 'DEV.to', maxChars: 100000, color: 'bg-[#090909]' },
+  twitter: { icon: Twitter, name: 'Twitter', maxChars: 280, color: 'bg-blue-400' },
+  whatsapp: { icon: Phone, name: 'WhatsApp', maxChars: 65536, color: 'bg-[#25D366]' },
 };
 
 interface PlatformDraft {
@@ -796,6 +799,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const [hookScore, setHookScore] = useState<{ score: number; grade: string; suggestion: string | null; slopWords: string[] } | null>(null);
   const [humanizingPlatform, setHumanizingPlatform] = useState<PlatformType | null>(null);
   const [isHumanizingAll, setIsHumanizingAll] = useState(false);
+  const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
   const springConfig: Transition = reducedMotion ? { type: 'tween', duration: 0.01 } : spring.snappy;
 
   // ── Debounced hook scorer ────────────────────────────────────────────────────
@@ -1451,7 +1455,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         throw new Error(data.error || 'Failed to schedule post');
       }
 
-      studioToast.success(`Post scheduled for ${scheduledDateObj.toLocaleDateString()} at ${scheduledDateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} 🚀`, {
+      studioToast.success(`Post scheduled for ${scheduledDateObj.toLocaleDateString()} at ${scheduledDateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`, {
         platforms: readyDrafts.map(d => d.platform),
       });
       setScheduleDialogOpen(false);
@@ -1766,6 +1770,57 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
               </div>
             </MotionBox>
           )}
+
+          {/* Studio Voice Calibrations Strip */}
+          {profile && !profileLoading && (
+            <MotionBox key="voice-profile" variant="slide-up">
+              <div
+                className="overflow-hidden rounded-2xl border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 shadow-xs px-4 py-3 flex items-center justify-between flex-wrap gap-3"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(196,162,101,0.06) 0%, rgba(255,255,255,0.02) 100%)',
+                }}
+              >
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="w-8 h-8 rounded-xl bg-[#C4A265]/15 text-[#C4A265] border border-[#C4A265]/30 flex items-center justify-center shrink-0">
+                    <Sliders className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                        {profile.onboardingAnswers?.persona || 'Publishing Persona'}
+                      </span>
+                      {profile.onboardingAnswers?.focus && (
+                        <span className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate max-w-[200px]">
+                          • {profile.onboardingAnswers.focus}
+                        </span>
+                      )}
+                      {Array.isArray(profile.onboardingAnswers?.tone) && profile.onboardingAnswers.tone.length > 0 && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#C4A265]/10 text-[#C4A265] border border-[#C4A265]/20">
+                          {profile.onboardingAnswers.tone.slice(0, 2).join(' & ')}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">
+                      {profile.onboardingAnswers
+                        ? `${(profile.onboardingAnswers.extras || []).length} active guardrails calibrating AI adaptations`
+                        : 'Calibrate your voice archetype, target circles, and publishing guardrails'}
+                    </p>
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsVoiceModalOpen(true)}
+                  className="h-8 text-xs font-semibold px-3 bg-white dark:bg-zinc-800 hover:bg-[#F5EFE2] dark:hover:bg-zinc-700 border-zinc-200 dark:border-zinc-700 text-[#8B7355] dark:text-zinc-200 hover:text-[#3D2B1F] flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-[#C4A265]" />
+                  <span>{profile.onboardingAnswers ? 'Tune Voice' : 'Calibrate Voice'}</span>
+                </Button>
+              </div>
+            </MotionBox>
+          )}
           {!profile && !profileLoading && (
             <MotionBox key="no-profile" variant="slide-up">
               <div className="relative group overflow-hidden rounded-2xl border border-[#FDE68A]/60 bg-gradient-to-r from-[#FFFCF0] to-[#FFFDF9] shadow-sm transition-all duration-300 hover:shadow-md hover:border-[#FCD34D]/80"
@@ -1827,7 +1882,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
               marginBottom: 4,
             }}
           >
-            <span style={{ fontSize: 16 }}>⚡</span>
+            <Zap className="w-4 h-4 text-violet-600 shrink-0" />
             <div style={{ flex: 1 }}>
               <span style={{ fontSize: 12.5, fontWeight: 600, color: '#7c3aed' }}>SignalDM Active</span>
               <span style={{ fontSize: 12, color: '#8b7355', marginLeft: 6 }}>
@@ -2458,7 +2513,10 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                       : 'border-[#EDE7DD] bg-white hover:bg-gray-50'
                   }`}
                 >
-                  <p className="text-xs font-bold text-[#3D2B1F]">⚡ Cascading</p>
+                  <p className="text-xs font-bold text-[#3D2B1F] flex items-center gap-1.5">
+                    <Zap className="w-3.5 h-3.5 text-[#C4A265]" />
+                    <span>Cascading</span>
+                  </p>
                   <p className="text-[11px] text-[#6B5744] mt-0.5">Stagger platforms by 5-15m for maximum reach</p>
                 </button>
 
@@ -2510,7 +2568,15 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
 
       <StudioOnboardingModal
         userId={userId}
-        onComplete={(answers) => setProfile(prev => prev ? { ...prev, onboardingAnswers: answers } : null)}
+        isOpen={isVoiceModalOpen ? true : undefined}
+        onClose={() => setIsVoiceModalOpen(false)}
+        forceOpen={isVoiceModalOpen}
+        isRetake={isVoiceModalOpen}
+        initialAnswers={profile?.onboardingAnswers}
+        onComplete={(answers) => {
+          setProfile(prev => prev ? { ...prev, onboardingAnswers: answers } : null);
+          setIsVoiceModalOpen(false);
+        }}
       />
     </div>
   );

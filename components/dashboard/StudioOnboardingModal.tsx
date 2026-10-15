@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -8,11 +8,27 @@ import {
   ArrowRight,
   Plus,
   Check,
+  X,
+  Sparkles,
+  Layers,
+  Cpu,
+  TrendingUp,
+  Terminal,
+  Compass,
+  Feather,
+  Sliders,
+  Target,
+  ShieldCheck,
+  CheckCircle2,
+  RefreshCw,
+  Search,
+  Zap,
 } from 'lucide-react';
 
 /* ─────────────────────────────────────────────────────────────
    STUDIO ONBOARDING CONFIGURATION
-   All questions, options, copy, and icons in one single config.
+   Modern, high-signal publishing archetypes, domains, audiences,
+   voice signatures, and architectural guardrails (Zero emojis).
    ───────────────────────────────────────────────────────────── */
 export interface OnboardingConfig {
   q1: {
@@ -21,7 +37,9 @@ export interface OnboardingConfig {
     options: Array<{
       id: string;
       label: string;
+      sub: string;
       hint: string;
+      iconType: 'cpu' | 'trending' | 'terminal' | 'compass' | 'feather' | 'sliders';
     }>;
   };
   q2: {
@@ -39,8 +57,12 @@ export interface OnboardingConfig {
     title: string;
     subtitle: string;
     maxSelections: number;
-    byPersona: Record<string, string[]>;
-    defaultOptions: string[];
+    byPersona?: Record<string, string[]>;
+    defaultOptions: Array<{
+      id: string;
+      label: string;
+      hint: string;
+    }>;
     otherPlaceholder: string;
   };
   q4: {
@@ -49,202 +71,412 @@ export interface OnboardingConfig {
     maxSelections: number;
     options: Array<{
       label: string;
-      hint?: string;
+      sub: string;
+      hint: string;
     }>;
     otherPlaceholder: string;
   };
   q5: {
     title: string;
     subtitle: string;
+    categories: Array<{
+      id: string;
+      label: string;
+      chips: string[];
+    }>;
     chips: string[];
+    recommendedDefaults: string[];
     otherPlaceholder: string;
   };
 }
 
 export const STUDIO_ONBOARDING_CONFIG: OnboardingConfig = {
   q1: {
-    title: "Who's walking into the Studio?",
-    subtitle: 'Pick the hat you wear most often so Studio knows how to assist you.',
+    title: 'Define your publishing archetype',
+    subtitle: 'Select the strategic lens that guides your thinking, perspectives, and authority across networks.',
     options: [
-      { id: 'Founder', label: 'Founder', hint: 'Building a product or company' },
-      { id: 'Business Owner', label: 'Business Owner', hint: 'Running commerce, store or services' },
-      { id: 'Creator', label: 'Creator', hint: 'Crafting content, media or stories' },
-      { id: 'Student', label: 'Student', hint: 'Learning, preparing & networking' },
-      { id: 'Individual', label: 'Individual', hint: 'Sharing thoughts & personal journey' },
-      { id: 'Other', label: 'Other', hint: 'Something uniquely yours' },
+      {
+        id: 'Venture Architect',
+        label: 'Venture Architect',
+        sub: 'Founding, engineering & scaling',
+        hint: 'Scaling products from zero to one, shipping AI architectures, bootstrapping, and venture execution',
+        iconType: 'cpu',
+      },
+      {
+        id: 'Growth Operator',
+        label: 'Growth Operator',
+        sub: 'Systems, distribution & revenue',
+        hint: 'Growth loops, client engines, acquisition mechanics, agency craft, and commerce operations',
+        iconType: 'trending',
+      },
+      {
+        id: 'Domain Authority',
+        label: 'Domain Authority',
+        sub: 'Technical depth & tradecraft',
+        hint: 'Deep system teardowns, software architecture, developer tooling, and applied engineering',
+        iconType: 'terminal',
+      },
+      {
+        id: 'Market Strategist',
+        label: 'Market Strategist',
+        sub: 'Macro shifts & industry foresight',
+        hint: 'Executive perspectives, market analysis, venture capital theses, governance, and business models',
+        iconType: 'compass',
+      },
+      {
+        id: 'Cultural Essayist',
+        label: 'Cultural Essayist',
+        sub: 'Essays, philosophy & human craft',
+        hint: 'Human psychology, intentional living, mental models, creative writing, and cultural critique',
+        iconType: 'feather',
+      },
+      {
+        id: 'Bespoke Archetype',
+        label: 'Bespoke Archetype',
+        sub: 'Custom creative stance',
+        hint: 'Define your own unique signature publishing identity and specialized mission',
+        iconType: 'sliders',
+      },
     ],
   },
   q2: {
     byPersona: {
+      'Venture Architect': {
+        title: 'What is your venture frontier?',
+        subtitle: 'Select the primary space where you are building products or technical systems.',
+        options: [
+          'Autonomous AI & Agentic Systems',
+          'Vertical SaaS & Enterprise Platforms',
+          'Fintech, Web3 & Digital Infrastructure',
+          'Developer Tooling & Cloud Platforms',
+          'Consumer Products & Social Networks',
+          'Hardware, Robotics & Deep Tech',
+        ],
+        otherPlaceholder: 'e.g. Climate Tech, Quantum Computing, Spatial Computing...',
+      },
+      'Growth Operator': {
+        title: 'What engine do you operate?',
+        subtitle: 'Select your primary growth, commerce, or client advisory engine.',
+        options: [
+          'Performance Marketing & Funnel Architecture',
+          'Client Advisory & High-Ticket Services',
+          'Omnichannel Commerce & Direct-to-Consumer',
+          'Media Studio & High-Output Production',
+          'Executive Coaching & Cohort Programs',
+          'Product-Led Growth & Retention Systems',
+        ],
+        otherPlaceholder: 'e.g. Retained Search, Boutique Agency, Fractional Leadership...',
+      },
+      'Domain Authority': {
+        title: 'What is your technical craft?',
+        subtitle: 'Select the core discipline where your insights carry deep signal.',
+        options: [
+          'Distributed Cloud Systems & Microservices',
+          'AI Engineering, LLMs & Latent Space',
+          'Frontend Engineering, Motion & UI Craft',
+          'Cybersecurity, Zero Trust & Cryptography',
+          'Open-Source Protocols & Applied Mathematics',
+          'Mobile Engineering & Native Platforms',
+        ],
+        otherPlaceholder: 'e.g. Database Internals, Compiler Design, Embedded Firmware...',
+      },
+      'Market Strategist': {
+        title: 'Where do you deliver strategic foresight?',
+        subtitle: 'Select your primary industry lens or advisory domain.',
+        options: [
+          'Corporate Strategy & Market Disruption',
+          'Venture Capital, Syndicates & Dealflow',
+          'Geopolitical Tech & Macroeconomic Trends',
+          'Organizational Velocity & Elite Talent',
+          'AI Ethics, Governance & Public Policy',
+          'Mergers, Acquisitions & Enterprise Scaling',
+        ],
+        otherPlaceholder: 'e.g. Healthcare Innovation, Supply Chain Logistics, Defense Tech...',
+      },
+      'Cultural Essayist': {
+        title: 'What themes anchor your writing?',
+        subtitle: 'Select the conceptual territory you explore through your content.',
+        options: [
+          'Mental Models & First-Principles Decisions',
+          'Human Optimization, Longevity & Health',
+          'Creative Craft, Visual Media & Storytelling',
+          'Modern Work, Solopreneurship & Autonomy',
+          'Societal Shifts, Technology & Psychology',
+          'Personal Finance, Wealth Philosophy & Freedom',
+        ],
+        otherPlaceholder: 'e.g. Architecture & Space, Film Critique, Digital Minimalism...',
+      },
+      'Bespoke Archetype': {
+        title: 'Define your publishing territory',
+        subtitle: 'Describe the core focus and domain of your content.',
+        options: [],
+        otherPlaceholder: 'e.g. Investigative Tech Journalism, Independent Research, Climate Intelligence...',
+      },
+      // Backwards-compatible mappings for legacy personas
       Founder: {
         title: 'What are you building?',
-        subtitle: 'Select what best matches your startup or project.',
+        subtitle: 'Select the category that best matches your venture.',
         options: [
-          'Software or AI product',
-          'Consumer brand',
-          'Fintech/edtech/healthtech',
-          'Agency or services',
-          'App or marketplace',
-          'Deep tech or hardware',
+          'Autonomous AI & Agentic Systems',
+          'Vertical SaaS & Enterprise Platforms',
+          'Fintech, Web3 & Digital Infrastructure',
+          'Developer Tooling & Cloud Platforms',
+          'Consumer Products & Social Networks',
+          'Hardware, Robotics & Deep Tech',
         ],
-        otherPlaceholder: 'e.g. Climate tech, Web3, Biotech...',
+        otherPlaceholder: 'e.g. Climate Tech, Quantum Computing...',
       },
       'Business Owner': {
-        title: 'What does your business sell?',
-        subtitle: 'Select what best captures your products or services.',
+        title: 'What engine do you operate?',
+        subtitle: 'Select your primary commercial or services engine.',
         options: [
-          'Food or cafe',
-          'Fashion or beauty',
-          'Local services',
-          'Retail or online store',
-          'Real estate or construction',
-          'Coaching or education',
+          'Performance Marketing & Funnel Architecture',
+          'Client Advisory & High-Ticket Services',
+          'Omnichannel Commerce & Direct-to-Consumer',
+          'Media Studio & High-Output Production',
+          'Executive Coaching & Cohort Programs',
+          'Product-Led Growth & Retention Systems',
         ],
-        otherPlaceholder: 'e.g. Fitness center, Law firm, Handcrafted gifts...',
+        otherPlaceholder: 'e.g. Boutique Agency, Retail Group...',
       },
       Creator: {
-        title: 'What do you make?',
+        title: 'What is your core discipline?',
         subtitle: 'Pick the space where you share your best work.',
         options: [
-          'Tech and coding',
-          'Lifestyle and vlogs',
-          'Beauty and fashion',
-          'Fitness and wellness',
-          'Comedy and entertainment',
-          'Explainers and education',
-          'Gaming',
+          'Technical Teardowns & Tutorials',
+          'Cultural Commentary & Media Essays',
+          'Design, Aesthetics & Visual Systems',
+          'Performance, Longevity & Wellness',
+          'Macro Markets, Tech & Finance',
+          'Creative Storytelling & Media',
         ],
-        otherPlaceholder: 'e.g. Music production, Animation, Photography...',
+        otherPlaceholder: 'e.g. Music Production, Film Analysis...',
       },
       Student: {
-        title: 'What are you studying?',
-        subtitle: 'Select your field of focus or career ambition.',
+        title: 'What is your focus area?',
+        subtitle: 'Select your field of deep study or career ambition.',
         options: [
-          'Engineering or tech',
-          'Medical or sciences',
-          'Commerce or business',
-          'Design or arts',
-          'Humanities',
-          'Competitive exams',
+          'Computer Science & Machine Learning',
+          'Biomedical Sciences & Health Tech',
+          'Quantitative Finance & Economics',
+          'Design Systems & Interaction Architecture',
+          'Applied Physics & Hardware',
+          'Law, Ethics & Policy',
         ],
-        otherPlaceholder: 'e.g. Law, Architecture, Aviation...',
+        otherPlaceholder: 'e.g. Aerospace, Computational Biology...',
       },
       Individual: {
-        title: "What's your day-to-day?",
-        subtitle: 'What keeps you busy during the week?',
+        title: 'What is your primary territory?',
+        subtitle: 'What captures your professional and intellectual energy?',
         options: [
-          'Working professional',
-          'Freelancer',
-          'Job hunting',
-          'Side hustler',
-          'Personal brand',
-          'Sharing life and hobbies',
+          'Technical Building & Open Source',
+          'Strategic Consulting & Advisory',
+          'Creative Writing & Essays',
+          'Industry Analysis & Frameworks',
+          'Career Evolution & Skill Mastery',
+          'Side Ventures & Digital Products',
         ],
-        otherPlaceholder: 'e.g. Consultant, Remote worker, Researcher...',
+        otherPlaceholder: 'e.g. Research Fellow, Independent Operator...',
       },
       Other: {
-        title: "What's your primary focus?",
-        subtitle: 'Tell us a bit about what you do or want to publish about.',
+        title: 'What is your primary focus?',
+        subtitle: 'Describe what you do or want to publish about.',
         options: [],
-        otherPlaceholder: 'e.g. Community organizer, Independent writer...',
+        otherPlaceholder: 'e.g. Community Builder, Independent Thinker...',
       },
     },
   },
   q3: {
-    title: 'Who should stop scrolling for you?',
-    subtitle: 'Pick up to 2 audiences who should see your posts first.',
+    title: 'Who should stop scrolling for your posts?',
+    subtitle: 'Select up to 2 high-leverage circles your content is engineered to influence.',
     maxSelections: 2,
-    byPersona: {
-      Founder: [
-        'Investors',
-        'First customers',
-        'Future teammates',
-        'Fellow founders',
-        'Industry leaders',
-      ],
-      'Business Owner': [
-        'People in my city',
-        'Online shoppers',
-        'Other businesses',
-        'Loyal regulars',
-      ],
-      Creator: [
-        'Fellow creators',
-        'Gen Z scrollers',
-        'Brands who might collab',
-        'Niche superfans',
-        'Everyone',
-      ],
-      Student: [
-        'Recruiters',
-        'Classmates',
-        'Mentors and professors',
-        'Juniors',
-        'The internet at large',
-      ],
-      Individual: [
-        'Recruiters',
-        'Clients',
-        'Friends and followers',
-        'Industry peers',
-      ],
-      Other: [
-        'Recruiters',
-        'Clients',
-        'Friends and followers',
-        'Industry peers',
-      ],
-    },
     defaultOptions: [
-      'Recruiters',
-      'Clients',
-      'Friends and followers',
-      'Industry peers',
+      {
+        id: 'Early Adopters & Tech Builders',
+        label: 'Early Adopters & Tech Builders',
+        hint: 'Engineers, builders, and power users who test, champion, and adopt new tools',
+      },
+      {
+        id: 'Angel Investors & Venture Capitalists',
+        label: 'Angel Investors & Venture Capitalists',
+        hint: 'Partners, scouts, and angels evaluating category-defining teams and traction',
+      },
+      {
+        id: 'Enterprise Decision-Makers & Buyers',
+        label: 'Enterprise Decision-Makers & Buyers',
+        hint: 'VPs, Directors, and founders holding departmental procurement and sign-off budgets',
+      },
+      {
+        id: 'High-Caliber Operators & Future Teammates',
+        label: 'High-Caliber Operators & Future Teammates',
+        hint: 'Top-tier talent looking for ambitious missions, culture, and high velocity',
+      },
+      {
+        id: 'Ambitious Peers & Industry Insiders',
+        label: 'Ambitious Peers & Industry Insiders',
+        hint: 'Fellow founders, operators, and creators swapping tactical battle-tested playbooks',
+      },
+      {
+        id: 'Curious Intellectuals & Avid Readers',
+        label: 'Curious Intellectuals & Avid Readers',
+        hint: 'Discerning readers hungry for rigorous analysis, fresh perspectives, and deep signal',
+      },
     ],
-    otherPlaceholder: 'e.g. Angel investors, Local founders, Design directors...',
+    otherPlaceholder: 'e.g. Chief Technology Officers, Seed Founders, Design Directors...',
   },
   q4: {
-    title: "If your posts had a personality, they'd be...",
-    subtitle: 'Pick up to 2 tones that reflect your authentic voice.',
+    title: 'What is your signature voice cadence?',
+    subtitle: 'Select up to 2 rhetorical tones that define how your posts read, resonate, and hook.',
     maxSelections: 2,
     options: [
-      { label: 'Smooth', hint: 'Polished & effortless' },
-      { label: 'Soft', hint: 'Warm, calm & human' },
-      { label: 'Rebel', hint: 'Bold, provocative & unconventional' },
-      { label: 'Witty', hint: 'Playful, sharp & quick-humored' },
-      { label: 'Nerdy', hint: 'Deep-dive, data-rich & curious' },
-      { label: 'Straight shooter', hint: 'Direct, clear & no fluff' },
-      { label: 'Storyteller', hint: 'Narrative, emotive & immersive' },
+      {
+        label: 'The Provocative Contrarian',
+        sub: 'Bold & questioning',
+        hint: 'Challenges consensus, dismantles industry clichés, and takes high-conviction counter-intuitive stances',
+      },
+      {
+        label: 'The Pragmatic Operator',
+        sub: 'Tactical & rigorous',
+        hint: 'Zero fluff, actionable playbooks, concrete numbers, clear frameworks, and immediate utility',
+      },
+      {
+        label: 'The Rigorous Scholar',
+        sub: 'Analytical & research-backed',
+        hint: 'Methodical teardowns, deep citations, intellectual rigor, and high signal-to-noise ratio',
+      },
+      {
+        label: 'The Cinematic Storyteller',
+        sub: 'Narrative & emotive',
+        hint: 'Compelling hooks, personal vulnerability, suspenseful narrative pacing, and cinematic arcs',
+      },
+      {
+        label: 'The Sharp Minimalist',
+        sub: 'Dense & punchy',
+        hint: 'Razor-sharp stanzas, high idea-per-word density, pithy one-liners, and poetic precision',
+      },
+      {
+        label: 'The Candid Insider',
+        sub: 'Transparent & warm',
+        hint: 'Behind-closed-doors transparency, unvarnished lessons, peer-level warmth, and direct candor',
+      },
+      {
+        label: 'The Visionary Futurist',
+        sub: 'Expansive & thesis-driven',
+        hint: 'Horizon-scanning, macro predictions, technological optimism, and bold future roadmaps',
+      },
     ],
-    otherPlaceholder: 'e.g. Poetic, Motivational, Sarcastic...',
+    otherPlaceholder: 'e.g. Sarcastic Satirist, Executive Mentor, Poetic Philosopher...',
   },
   q5: {
-    title: 'Anything else we should know before you start creating?',
-    subtitle: 'Tap anything that fits. Skip if nothing does.',
-    chips: [
-      "Don't Use emojis",
-      'Add hashtags',
-      'Add a call-to-action',
-      'Keep posts short',
-      'Write long-form',
-      'Avoid jargon',
-      'Start with a hook',
-      'Ask my audience questions',
-      'Add humor',
-      'Share stories',
-      'Use numbers and stats',
-      'Mix in Hindi',
-      'Mix in Telugu',
-      'Keep it simple English',
-      'Use local slang',
-      'Mention my brand name',
-      'Promote my products',
-      'Share behind-the-scenes',
-      'Highlight achievements',
+    title: 'Set your publishing guardrails',
+    subtitle: 'Curate non-negotiable styling directives and formatting constraints applied to every AI draft.',
+    categories: [
+      {
+        id: 'structure',
+        label: 'Structure & Hooks',
+        chips: [
+          'Hook in the opening line',
+          'Single-sentence punchy paragraphs',
+          'Use structured bullet points',
+          'Thought-provoking closing question',
+          'Clear tactical takeaway at the end',
+          'Include real-world case studies',
+        ],
+      },
+      {
+        id: 'tone',
+        label: 'Tone & Style',
+        chips: [
+          'Strictly no corporate buzzwords',
+          'No generic filler phrases',
+          'High signal-to-noise ratio',
+          'Ground statements in metrics and data',
+          'Write in first-person active voice',
+          'Conversational yet authoritative',
+          'Eliminate exclamation marks',
+          'Skip hype words like delve or game-changer',
+        ],
+      },
+      {
+        id: 'cadence',
+        label: 'Cadence & Length',
+        chips: [
+          'Keep drafts compact and concise',
+          'Expand into long-form micro-essays',
+          'Rhythmic stanza breaks',
+          'Pithy one-line summaries',
+        ],
+      },
+      {
+        id: 'directives',
+        label: 'Directives & CTAs',
+        chips: [
+          'Never use emojis',
+          'Include 2-3 targeted discovery hashtags',
+          'Strictly zero hashtags',
+          'Include subtle call-to-action',
+          'Encourage thoughtful debate in comments',
+          'Mention brand or project when relevant',
+        ],
+      },
     ],
-    otherPlaceholder: 'Something else? Tell us in your own words.',
+    chips: [
+      'Hook in the opening line',
+      'Single-sentence punchy paragraphs',
+      'Use structured bullet points',
+      'Thought-provoking closing question',
+      'Clear tactical takeaway at the end',
+      'Include real-world case studies',
+      'Strictly no corporate buzzwords',
+      'No generic filler phrases',
+      'High signal-to-noise ratio',
+      'Ground statements in metrics and data',
+      'Write in first-person active voice',
+      'Conversational yet authoritative',
+      'Eliminate exclamation marks',
+      'Skip hype words like delve or game-changer',
+      'Keep drafts compact and concise',
+      'Expand into long-form micro-essays',
+      'Rhythmic stanza breaks',
+      'Pithy one-line summaries',
+      'Never use emojis',
+      'Include 2-3 targeted discovery hashtags',
+      'Strictly zero hashtags',
+      'Include subtle call-to-action',
+      'Encourage thoughtful debate in comments',
+      'Mention brand or project when relevant',
+    ],
+    recommendedDefaults: [
+      'Hook in the opening line',
+      'Strictly no corporate buzzwords',
+      'High signal-to-noise ratio',
+      'Never use emojis',
+      'Thought-provoking closing question',
+    ],
+    otherPlaceholder: 'Additional bespoke notes or guidelines for your voice',
   },
 };
+
+/* ─────────────────────────────────────────────────────────────
+   HELPER ICON COMPONENT
+   ───────────────────────────────────────────────────────────── */
+function ArchetypeIcon({ type, className }: { type: string; className?: string }) {
+  switch (type) {
+    case 'cpu':
+      return <Cpu className={className} />;
+    case 'trending':
+      return <TrendingUp className={className} />;
+    case 'terminal':
+      return <Terminal className={className} />;
+    case 'compass':
+      return <Compass className={className} />;
+    case 'feather':
+      return <Feather className={className} />;
+    case 'sliders':
+    default:
+      return <Sliders className={className} />;
+  }
+}
 
 /* ─────────────────────────────────────────────────────────────
    COMPONENT INTERFACE
@@ -294,6 +526,11 @@ export function StudioOnboardingModal({
   const [q4ShowOtherInput, setQ4ShowOtherInput] = useState(false);
 
   const [q5OtherText, setQ5OtherText] = useState('');
+  const [q5FilterCategory, setQ5FilterCategory] = useState<string>('all');
+  const [q5SearchQuery, setQ5SearchQuery] = useState('');
+
+  // Feedback states
+  const [isFinishing, setIsFinishing] = useState(false);
 
   // Toggle chip in Q5 multi-select
   const toggleExtraChip = (chip: string) => {
@@ -302,8 +539,16 @@ export function StudioOnboardingModal({
     );
   };
 
-  // Feedback states
-  const [isFinishing, setIsFinishing] = useState(false);
+  const handleApplyRecommended = () => {
+    setExtras((prev) => {
+      const merged = new Set([...prev, ...STUDIO_ONBOARDING_CONFIG.q5.recommendedDefaults]);
+      return Array.from(merged);
+    });
+  };
+
+  const handleClearExtras = () => {
+    setExtras([]);
+  };
 
   // Sync controlledIsOpen
   useEffect(() => {
@@ -407,7 +652,6 @@ export function StudioOnboardingModal({
   useEffect(() => {
     setMounted(true);
 
-    // If modal is explicitly controlled, forced, or in retake flow, DO NOT run onboarding gate
     if (controlledIsOpen !== undefined || forceOpen || isRetake) {
       if (controlledIsOpen !== undefined) {
         setIsOpen(controlledIsOpen);
@@ -434,11 +678,9 @@ export function StudioOnboardingModal({
             markCompleted();
             setIsOpen(false);
           } else {
-            // Not completed in database: show onboarding
             setIsOpen(true);
           }
 
-          // Preload previous answers if available (for editing later in settings)
           if (data.answers || data.onboarding_answers) {
             const a = data.answers || data.onboarding_answers;
             if (a.persona) setPersona(a.persona);
@@ -471,10 +713,9 @@ export function StudioOnboardingModal({
           return;
         }
       } catch (err) {
-        console.warn('Could not query /api/profile/onboarding, falling back to local state:', err);
+        console.warn('Could not query /api/profile/onboarding, falling back to local storage:', err);
       }
 
-      // LocalStorage fallback if network / fetch fails
       try {
         const storageKey = userId
           ? `studio_onboarding_completed_${userId}`
@@ -490,7 +731,6 @@ export function StudioOnboardingModal({
 
     checkDatabaseOnboarding();
 
-    // Allow re-opening for QA / settings editing via custom event
     const handleReopen = () => {
       setStep(1);
       setIsOpen(true);
@@ -519,7 +759,6 @@ export function StudioOnboardingModal({
     setIsOpen(false);
     controlledOnClose?.();
 
-    // Persist skipped status to database
     try {
       await fetch('/api/profile/onboarding', {
         method: 'PUT',
@@ -539,10 +778,10 @@ export function StudioOnboardingModal({
     setIsFinishing(true);
 
     const customObj: Record<string, string> = {};
-    if (persona === 'Other' && q1OtherText.trim()) {
+    if (persona === 'Bespoke Archetype' && q1OtherText.trim()) {
       customObj.persona = q1OtherText.trim();
     }
-    if ((focus === 'Other' || persona === 'Other') && q2OtherText.trim()) {
+    if ((focus === 'Other' || persona === 'Bespoke Archetype' || persona === 'Other') && q2OtherText.trim()) {
       customObj.focus = q2OtherText.trim();
     }
     if (q3ShowOtherInput && q3OtherText.trim()) {
@@ -555,13 +794,15 @@ export function StudioOnboardingModal({
       customObj.extras_text = q5OtherText.trim();
     }
 
-    // Determine final values
     const finalPersona =
-      persona === 'Other' && q1OtherText.trim() ? q1OtherText.trim() : persona;
+      (persona === 'Bespoke Archetype' || persona === 'Other') && q1OtherText.trim()
+        ? q1OtherText.trim()
+        : persona || 'Venture Architect';
+
     const finalFocus =
-      (focus === 'Other' || persona === 'Other') && q2OtherText.trim()
+      (focus === 'Other' || persona === 'Bespoke Archetype' || persona === 'Other') && q2OtherText.trim()
         ? q2OtherText.trim()
-        : focus;
+        : focus || 'Autonomous AI & Agentic Systems';
 
     const finalAudience = [...audience];
     if (q3ShowOtherInput && q3OtherText.trim() && !finalAudience.includes(q3OtherText.trim())) {
@@ -576,18 +817,14 @@ export function StudioOnboardingModal({
     const finalPayload = {
       persona: finalPersona,
       focus: finalFocus,
-      audience: finalAudience,
-      tone: finalTone,
+      audience: finalAudience.length > 0 ? finalAudience : ['Early Adopters & Tech Builders'],
+      tone: finalTone.length > 0 ? finalTone : ['The Pragmatic Operator'],
       extras: extras,
       custom: customObj,
     };
 
-    // Log the answers exactly as specified
-    console.log(finalPayload);
-
     markCompleted();
 
-    // Persist answers and completed flag to user profile in database
     try {
       await fetch('/api/profile/onboarding', {
         method: 'PUT',
@@ -610,14 +847,12 @@ export function StudioOnboardingModal({
     }, 400);
   };
 
-  // Back button handler
   const handleBack = () => {
     if (step > 1) {
       setStep((prev) => (prev - 1) as 1 | 2 | 3 | 4 | 5);
     }
   };
 
-  // Skip step handler for retake flow
   const handleSkipStep = () => {
     if (step < 5) {
       setStep((prev) => (prev + 1) as 1 | 2 | 3 | 4 | 5);
@@ -627,18 +862,17 @@ export function StudioOnboardingModal({
   };
 
   /* ─────────────────────────────────────────────────────────────
-     Q1 Handlers (Single-Select: auto-advance)
+     Q1 Handlers (Archetype)
      ───────────────────────────────────────────────────────────── */
   const handleSelectQ1 = (id: string) => {
-    if (id === 'Other') {
-      setPersona('Other');
+    if (id === 'Bespoke Archetype' || id === 'Other') {
+      setPersona('Bespoke Archetype');
       setQ1ShowOtherInput(true);
       return;
     }
 
     setPersona(id);
     setQ1ShowOtherInput(false);
-    // Auto-advance after brief visual feedback
     setTimeout(() => {
       setStep(2);
     }, 220);
@@ -646,16 +880,17 @@ export function StudioOnboardingModal({
 
   const handleContinueQ1Other = () => {
     if (!q1OtherText.trim()) return;
-    setPersona('Other');
+    setPersona(q1OtherText.trim());
     setStep(2);
   };
 
   /* ─────────────────────────────────────────────────────────────
-     Q2 Handlers (Single-Select: auto-advance)
+     Q2 Handlers (Territory / Domain)
      ───────────────────────────────────────────────────────────── */
   const currentQ2Config =
     STUDIO_ONBOARDING_CONFIG.q2.byPersona[persona] ||
-    STUDIO_ONBOARDING_CONFIG.q2.byPersona['Other'];
+    STUDIO_ONBOARDING_CONFIG.q2.byPersona['Venture Architect'] ||
+    STUDIO_ONBOARDING_CONFIG.q2.byPersona['Bespoke Archetype'];
 
   const handleSelectQ2 = (option: string) => {
     if (option === 'Other') {
@@ -666,7 +901,6 @@ export function StudioOnboardingModal({
 
     setFocus(option);
     setQ2ShowOtherInput(false);
-    // Auto-advance after brief visual feedback
     setTimeout(() => {
       setStep(3);
     }, 220);
@@ -679,22 +913,17 @@ export function StudioOnboardingModal({
   };
 
   /* ─────────────────────────────────────────────────────────────
-     Q3 Handlers (Multi-Select: max 2, Continue button)
+     Q3 Handlers (Audience - Multi-select max 2)
      ───────────────────────────────────────────────────────────── */
-  const currentQ3Options =
-    STUDIO_ONBOARDING_CONFIG.q3.byPersona[persona] ||
-    STUDIO_ONBOARDING_CONFIG.q3.defaultOptions;
-
-  const toggleQ3Option = (opt: string) => {
+  const toggleQ3Option = (optId: string) => {
     setAudience((prev) => {
-      if (prev.includes(opt)) {
-        return prev.filter((item) => item !== opt);
+      if (prev.includes(optId)) {
+        return prev.filter((item) => item !== optId);
       }
       if (prev.length >= STUDIO_ONBOARDING_CONFIG.q3.maxSelections) {
-        // Replace oldest or cap at max
-        return [prev[1], opt];
+        return [prev[1], optId];
       }
-      return [...prev, opt];
+      return [...prev, optId];
     });
   };
 
@@ -705,7 +934,7 @@ export function StudioOnboardingModal({
   const canContinueQ3 = audience.length > 0 || (q3ShowOtherInput && q3OtherText.trim().length > 0);
 
   /* ─────────────────────────────────────────────────────────────
-     Q4 Handlers (Multi-Select: max 2, Continue button)
+     Q4 Handlers (Voice Signature - Multi-select max 2)
      ───────────────────────────────────────────────────────────── */
   const toggleQ4Option = (label: string) => {
     setTone((prev) => {
@@ -713,7 +942,6 @@ export function StudioOnboardingModal({
         return prev.filter((item) => item !== label);
       }
       if (prev.length >= STUDIO_ONBOARDING_CONFIG.q4.maxSelections) {
-        // Replace oldest or cap at max
         return [prev[1], label];
       }
       return [...prev, label];
@@ -726,19 +954,39 @@ export function StudioOnboardingModal({
 
   const canContinueQ4 = tone.length > 0 || (q4ShowOtherInput && q4OtherText.trim().length > 0);
 
+  /* ─────────────────────────────────────────────────────────────
+     Filtered Q5 Chips
+     ───────────────────────────────────────────────────────────── */
+  const visibleQ5Chips = useMemo(() => {
+    let chipsList: string[] = [];
+    if (q5FilterCategory === 'all') {
+      chipsList = STUDIO_ONBOARDING_CONFIG.q5.chips;
+    } else {
+      const cat = STUDIO_ONBOARDING_CONFIG.q5.categories.find((c) => c.id === q5FilterCategory);
+      chipsList = cat ? cat.chips : STUDIO_ONBOARDING_CONFIG.q5.chips;
+    }
+
+    if (!q5SearchQuery.trim()) return chipsList;
+    const q = q5SearchQuery.toLowerCase();
+    return chipsList.filter((chip) => chip.toLowerCase().includes(q));
+  }, [q5FilterCategory, q5SearchQuery]);
+
+  // Stepper titles
+  const stepTitles = [
+    { num: 1, label: 'Identity' },
+    { num: 2, label: 'Territory' },
+    { num: 3, label: 'Audience' },
+    { num: 4, label: 'Voice' },
+    { num: 5, label: 'Guardrails' },
+  ];
+
   if (!mounted || !isOpen) return null;
 
   return createPortal(
     <AnimatePresence>
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-md"
+        className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-md"
         onMouseDown={(e) => {
-          if (e.target === e.currentTarget) {
-            setIsOpen(false);
-            controlledOnClose?.();
-          }
-        }}
-        onClick={(e) => {
           if (e.target === e.currentTarget) {
             setIsOpen(false);
             controlledOnClose?.();
@@ -747,75 +995,108 @@ export function StudioOnboardingModal({
       >
         <motion.div
           ref={modalRef}
-          initial={{ opacity: 0, scale: 0.94, y: 16 }}
+          initial={{ opacity: 0, scale: 0.95, y: 14 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.94, y: 16 }}
+          exit={{ opacity: 0, scale: 0.95, y: 14 }}
           transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-          className="relative w-full max-w-xl bg-white dark:bg-[#18181b] text-gray-900 dark:text-zinc-100 rounded-3xl shadow-2xl border border-gray-100 dark:border-zinc-800 flex flex-col max-h-[90vh] overflow-hidden"
+          className="relative w-full max-w-2xl bg-white dark:bg-[#121215] text-zinc-900 dark:text-zinc-100 rounded-3xl shadow-2xl border border-zinc-200/80 dark:border-zinc-800 flex flex-col max-h-[92vh] overflow-hidden"
           style={{
-            boxShadow: '0 20px 60px -15px rgba(0, 0, 0, 0.3)',
+            boxShadow: '0 24px 70px -15px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(196, 162, 101, 0.15)',
           }}
         >
           {/* Header Bar */}
-          <div className="px-6 pt-6 pb-4 border-b border-gray-100 dark:border-zinc-800 flex items-center justify-between">
+          <div className="px-6 pt-5 pb-3 border-b border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               {step > 1 ? (
                 <button
                   type="button"
                   onClick={handleBack}
-                  className="p-1.5 -ml-1 text-gray-500 hover:text-gray-900 dark:text-zinc-400 dark:hover:text-zinc-100 rounded-xl hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer flex items-center gap-1 text-xs font-semibold"
-                  title="Previous question"
+                  className="p-1.5 -ml-1 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800/80 transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
                 >
-                  <ArrowLeft className="w-4 h-4" />
+                  <ArrowLeft className="w-3.5 h-3.5" />
                   <span>Back</span>
                 </button>
               ) : (
-                <div className="flex items-center gap-1.5 text-xs font-bold tracking-wide uppercase text-[#C4A265]">
-                  <span>Studio Welcome</span>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-[#C4A265] animate-pulse" />
+                  <span className="text-xs font-bold tracking-wider uppercase text-[#C4A265]">
+                    Studio Voice Calibrator
+                  </span>
                 </div>
               )}
             </div>
 
-            {/* Step & Skip link & Close button */}
-            <div className="flex items-center gap-4">
-              <span className="text-xs font-semibold text-gray-400 dark:text-zinc-500">
-                Step {step} of 5
+            {/* Stepper Navigation Pills */}
+            <div className="hidden sm:flex items-center gap-1.5">
+              {stepTitles.map((st) => {
+                const isCurrent = step === st.num;
+                const isDone = step > st.num;
+                return (
+                  <button
+                    key={st.num}
+                    type="button"
+                    onClick={() => {
+                      if (isDone || isCurrent) setStep(st.num as 1 | 2 | 3 | 4 | 5);
+                    }}
+                    disabled={!isDone && !isCurrent}
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all ${
+                      isCurrent
+                        ? 'bg-[#C4A265]/15 text-[#C4A265] border border-[#C4A265]/40 font-semibold'
+                        : isDone
+                        ? 'bg-zinc-100 dark:bg-zinc-800/60 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200/70 dark:hover:bg-zinc-700 cursor-pointer'
+                        : 'text-zinc-400 dark:text-zinc-600 opacity-60 cursor-not-allowed'
+                    }`}
+                  >
+                    <span>{st.num}.</span>
+                    <span>{st.label}</span>
+                    {isDone && <Check className="w-3 h-3 text-[#C4A265]" />}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Actions: Skip / Close */}
+            <div className="flex items-center gap-3">
+              <span className="sm:hidden text-xs font-semibold text-zinc-400 dark:text-zinc-500">
+                {step}/5
               </span>
+
               {isRetake ? (
                 <button
                   type="button"
                   onClick={handleSkipStep}
-                  className="text-xs font-medium text-gray-400 hover:text-gray-700 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors cursor-pointer underline decoration-gray-300 dark:decoration-zinc-700 underline-offset-4"
+                  className="text-xs font-medium text-zinc-400 hover:text-zinc-700 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors cursor-pointer underline decoration-zinc-300 dark:decoration-zinc-700 underline-offset-4"
                 >
-                  Skip this step
+                  Skip step
                 </button>
               ) : (
                 <button
                   type="button"
                   onClick={handleSkip}
-                  className="text-xs font-medium text-gray-400 hover:text-gray-700 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors cursor-pointer underline decoration-gray-300 dark:decoration-zinc-700 underline-offset-4"
+                  className="text-xs font-medium text-zinc-400 hover:text-zinc-700 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors cursor-pointer underline decoration-zinc-300 dark:decoration-zinc-700 underline-offset-4"
                 >
                   Skip for now
                 </button>
               )}
+
               <button
                 type="button"
                 onClick={() => {
                   setIsOpen(false);
                   controlledOnClose?.();
                 }}
-                className="p-1 text-gray-400 hover:text-gray-700 dark:text-zinc-500 dark:hover:text-zinc-300 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer text-sm font-semibold leading-none"
+                className="p-1.5 text-zinc-400 hover:text-zinc-700 dark:text-zinc-500 dark:hover:text-zinc-300 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                 title="Close"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
           </div>
 
           {/* Progress Bar */}
-          <div className="w-full bg-gray-100 dark:bg-zinc-800/80 h-1">
+          <div className="w-full bg-zinc-100 dark:bg-zinc-800/50 h-1">
             <motion.div
-              className="h-1 bg-[#C4A265]"
+              className="h-1 bg-gradient-to-r from-[#C4A265] via-[#D4B87A] to-[#C4A265]"
               initial={{ width: `${((step - 1) / 5) * 100}%` }}
               animate={{ width: `${(step / 5) * 100}%` }}
               transition={{ duration: 0.3, ease: 'easeOut' }}
@@ -825,7 +1106,7 @@ export function StudioOnboardingModal({
           {/* Body Content Area */}
           <div className="px-6 py-6 sm:px-8 overflow-y-auto flex-1">
             <AnimatePresence mode="wait">
-              {/* ── QUESTION 1 ─────────────────────────────────────── */}
+              {/* ── QUESTION 1: PUBLISHING IDENTITY ─────────────────── */}
               {step === 1 && (
                 <motion.div
                   key="step-1"
@@ -836,31 +1117,49 @@ export function StudioOnboardingModal({
                   className="space-y-5"
                 >
                   <div>
-                    <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900 dark:text-zinc-100">
+                    <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
                       {STUDIO_ONBOARDING_CONFIG.q1.title}
                     </h2>
-                    <p className="text-xs sm:text-sm text-gray-500 dark:text-zinc-400 mt-1">
+                    <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
                       {STUDIO_ONBOARDING_CONFIG.q1.subtitle}
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {STUDIO_ONBOARDING_CONFIG.q1.options.map((opt) => {
-                      const isSelected = persona === opt.id;
+                      const isSelected = persona === opt.id || (opt.id === 'Bespoke Archetype' && q1ShowOtherInput);
                       return (
                         <button
                           key={opt.id}
                           type="button"
                           onClick={() => handleSelectQ1(opt.id)}
-                          className={`text-left p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-3.5 ${
+                          className={`group text-left p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-3.5 relative overflow-hidden ${
                             isSelected
-                              ? 'bg-[#C4A265]/10 border-[#C4A265] text-gray-900 dark:text-white shadow-sm ring-1 ring-[#C4A265]'
-                              : 'bg-gray-50/70 hover:bg-gray-100/90 dark:bg-zinc-800/40 dark:hover:bg-zinc-800/80 border-gray-200/70 dark:border-zinc-800 text-gray-800 dark:text-zinc-200'
+                              ? 'bg-[#C4A265]/10 border-[#C4A265] text-zinc-950 dark:text-white shadow-sm ring-1 ring-[#C4A265]'
+                              : 'bg-zinc-50/70 hover:bg-zinc-100/90 dark:bg-zinc-900/40 dark:hover:bg-zinc-800/70 border-zinc-200/80 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 hover:border-zinc-300 dark:hover:border-zinc-700'
                           }`}
                         >
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-sm leading-tight">{opt.label}</p>
-                            <p className="text-[11px] text-gray-500 dark:text-zinc-400 mt-0.5 truncate">
+                          <div
+                            className={`p-2.5 rounded-xl shrink-0 transition-colors ${
+                              isSelected
+                                ? 'bg-[#C4A265] text-white shadow-sm'
+                                : 'bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200/60 dark:border-zinc-700 group-hover:text-[#C4A265]'
+                            }`}
+                          >
+                            <ArchetypeIcon type={opt.iconType} className="w-4 h-4" />
+                          </div>
+
+                          <div className="flex-1 min-w-0 pr-2">
+                            <div className="flex items-center justify-between gap-1">
+                              <p className="font-semibold text-sm leading-tight text-zinc-900 dark:text-zinc-100">
+                                {opt.label}
+                              </p>
+                              {isSelected && <Check className="w-3.5 h-3.5 text-[#C4A265] stroke-[3]" />}
+                            </div>
+                            <p className="text-[11px] font-medium text-[#C4A265] dark:text-[#D4B87A] mt-0.5">
+                              {opt.sub}
+                            </p>
+                            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1 line-clamp-2 leading-relaxed">
                               {opt.hint}
                             </p>
                           </div>
@@ -869,51 +1168,41 @@ export function StudioOnboardingModal({
                     })}
                   </div>
 
-                  {/* "Other" Text input for Q1 */}
+                  {/* Bespoke / Custom input for Q1 */}
                   {q1ShowOtherInput && (
                     <motion.div
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
-                      className="pt-2 flex flex-col sm:flex-row gap-2"
+                      className="pt-2 space-y-2"
                     >
-                      <input
-                        type="text"
-                        value={q1OtherText}
-                        onChange={(e) => setQ1OtherText(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleContinueQ1Other();
-                        }}
-                        autoFocus
-                        placeholder="Tell us who you are (e.g. Researcher, Filmmaker)..."
-                        className="flex-1 px-4 py-2.5 rounded-xl border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs sm:text-sm text-gray-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#C4A265]"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleContinueQ1Other}
-                        disabled={!q1OtherText.trim()}
-                        className="px-4 py-2.5 rounded-xl bg-gray-900 hover:bg-black dark:bg-[#C4A265] dark:hover:bg-[#b39255] text-white text-xs font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
-                      >
-                        <span>Continue</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <input
+                          type="text"
+                          value={q1OtherText}
+                          onChange={(e) => setQ1OtherText(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleContinueQ1Other();
+                          }}
+                          autoFocus
+                          placeholder="e.g. AI Researcher, Investigative Tech Journalist, Venture Partner..."
+                          className="flex-1 px-4 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs sm:text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#C4A265]"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleContinueQ1Other}
+                          disabled={!q1OtherText.trim()}
+                          className="px-5 py-2.5 rounded-xl bg-zinc-900 hover:bg-black dark:bg-[#C4A265] dark:hover:bg-[#b39255] text-white text-xs font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 cursor-pointer shrink-0 shadow-sm"
+                        >
+                          <span>Confirm</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </motion.div>
-                  )}
-
-                  {isRetake && (
-                    <div className="pt-2 flex justify-end">
-                      <button
-                        type="button"
-                        onClick={handleSkipStep}
-                        className="text-xs font-semibold text-[#C4A265] hover:underline cursor-pointer"
-                      >
-                        Skip this step &rarr;
-                      </button>
-                    </div>
                   )}
                 </motion.div>
               )}
 
-              {/* ── QUESTION 2 ─────────────────────────────────────── */}
+              {/* ── QUESTION 2: TERRITORY & DOMAIN ─────────────────── */}
               {step === 2 && (
                 <motion.div
                   key="step-2"
@@ -924,19 +1213,18 @@ export function StudioOnboardingModal({
                   className="space-y-5"
                 >
                   <div>
-                    <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900 dark:text-zinc-100">
+                    <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
                       {currentQ2Config.title}
                     </h2>
-                    <p className="text-xs sm:text-sm text-gray-500 dark:text-zinc-400 mt-1">
+                    <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
                       {currentQ2Config.subtitle}
                     </p>
                   </div>
 
-                  {/* If Q1 was "Other", show direct text input for Q2 */}
-                  {persona === 'Other' || currentQ2Config.options.length === 0 ? (
+                  {persona === 'Bespoke Archetype' || currentQ2Config.options.length === 0 ? (
                     <div className="space-y-3">
-                      <label className="block text-xs font-medium text-gray-500 dark:text-zinc-400">
-                        Describe what you build, sell or share:
+                      <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                        Describe your core industry, product category, or domain of authority:
                       </label>
                       <input
                         type="text"
@@ -947,13 +1235,13 @@ export function StudioOnboardingModal({
                         }}
                         autoFocus
                         placeholder={currentQ2Config.otherPlaceholder}
-                        className="w-full px-4 py-3 rounded-2xl border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-gray-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#C4A265]"
+                        className="w-full px-4 py-3 rounded-2xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#C4A265]"
                       />
                       <button
                         type="button"
                         onClick={handleContinueQ2Other}
                         disabled={!q2OtherText.trim()}
-                        className="w-full py-3 rounded-xl bg-gray-900 hover:bg-black dark:bg-[#C4A265] dark:hover:bg-[#b39255] text-white text-xs font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 cursor-pointer"
+                        className="w-full py-3 rounded-xl bg-zinc-900 hover:bg-black dark:bg-[#C4A265] dark:hover:bg-[#b39255] text-white text-xs font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 cursor-pointer"
                       >
                         <span>Continue</span>
                         <ArrowRight className="w-3.5 h-3.5" />
@@ -961,7 +1249,7 @@ export function StudioOnboardingModal({
                     </div>
                   ) : (
                     <>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {currentQ2Config.options.map((opt) => {
                           const isSelected = focus === opt;
                           return (
@@ -969,33 +1257,40 @@ export function StudioOnboardingModal({
                               key={opt}
                               type="button"
                               onClick={() => handleSelectQ2(opt)}
-                              className={`text-left p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-2 ${
+                              className={`text-left p-3.5 sm:p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-2.5 ${
                                 isSelected
-                                  ? 'bg-[#C4A265]/10 border-[#C4A265] text-gray-900 dark:text-white shadow-sm ring-1 ring-[#C4A265]'
-                                  : 'bg-gray-50/70 hover:bg-gray-100/90 dark:bg-zinc-800/40 dark:hover:bg-zinc-800/80 border-gray-200/70 dark:border-zinc-800 text-gray-800 dark:text-zinc-200'
+                                  ? 'bg-[#C4A265]/10 border-[#C4A265] text-zinc-950 dark:text-white shadow-sm ring-1 ring-[#C4A265]'
+                                  : 'bg-zinc-50/70 hover:bg-zinc-100/90 dark:bg-zinc-900/40 dark:hover:bg-zinc-800/70 border-zinc-200/80 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200'
                               }`}
                             >
-                              <span className="font-semibold text-xs sm:text-sm">{opt}</span>
+                              <span className="font-semibold text-xs sm:text-sm leading-snug">{opt}</span>
+                              {isSelected ? (
+                                <Check className="w-4 h-4 text-[#C4A265] shrink-0" />
+                              ) : (
+                                <span className="w-2 h-2 rounded-full bg-zinc-300 dark:bg-zinc-700 shrink-0" />
+                              )}
                             </button>
                           );
                         })}
 
-                        {/* "Other" option button */}
+                        {/* "Other" option card */}
                         <button
                           type="button"
                           onClick={() => handleSelectQ2('Other')}
-                          className={`text-left p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-2 ${
-                            focus === 'Other'
-                              ? 'bg-[#C4A265]/10 border-[#C4A265] text-gray-900 dark:text-white shadow-sm ring-1 ring-[#C4A265]'
-                              : 'bg-gray-50/70 hover:bg-gray-100/90 dark:bg-zinc-800/40 dark:hover:bg-zinc-800/80 border-gray-200/70 dark:border-zinc-800 text-gray-800 dark:text-zinc-200'
+                          className={`text-left p-3.5 sm:p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-2.5 ${
+                            focus === 'Other' || q2ShowOtherInput
+                              ? 'bg-[#C4A265]/10 border-[#C4A265] text-zinc-950 dark:text-white shadow-sm ring-1 ring-[#C4A265]'
+                              : 'bg-zinc-50/70 hover:bg-zinc-100/90 dark:bg-zinc-900/40 dark:hover:bg-zinc-800/70 border-zinc-200/80 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200'
                           }`}
                         >
-                          <span className="font-semibold text-xs sm:text-sm">Other</span>
-                          <span className="text-xs text-gray-400">custom</span>
+                          <div>
+                            <span className="font-semibold text-xs sm:text-sm leading-snug">Custom Territory</span>
+                            <p className="text-[10px] text-zinc-400 mt-0.5">Specify your specialized sector</p>
+                          </div>
+                          <Sliders className="w-4 h-4 text-zinc-400 shrink-0" />
                         </button>
                       </div>
 
-                      {/* "Other" Text input */}
                       {q2ShowOtherInput && (
                         <motion.div
                           initial={{ opacity: 0, height: 0 }}
@@ -1011,13 +1306,13 @@ export function StudioOnboardingModal({
                             }}
                             autoFocus
                             placeholder={currentQ2Config.otherPlaceholder}
-                            className="flex-1 px-4 py-2.5 rounded-xl border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs sm:text-sm text-gray-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#C4A265]"
+                            className="flex-1 px-4 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs sm:text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#C4A265]"
                           />
                           <button
                             type="button"
                             onClick={handleContinueQ2Other}
                             disabled={!q2OtherText.trim()}
-                            className="px-4 py-2.5 rounded-xl bg-gray-900 hover:bg-black dark:bg-[#C4A265] dark:hover:bg-[#b39255] text-white text-xs font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                            className="px-5 py-2.5 rounded-xl bg-zinc-900 hover:bg-black dark:bg-[#C4A265] dark:hover:bg-[#b39255] text-white text-xs font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
                           >
                             <span>Continue</span>
                             <ArrowRight className="w-3.5 h-3.5" />
@@ -1026,22 +1321,10 @@ export function StudioOnboardingModal({
                       )}
                     </>
                   )}
-
-                  {isRetake && (
-                    <div className="pt-2 flex justify-end">
-                      <button
-                        type="button"
-                        onClick={handleSkipStep}
-                        className="text-xs font-semibold text-[#C4A265] hover:underline cursor-pointer"
-                      >
-                        Skip this step &rarr;
-                      </button>
-                    </div>
-                  )}
                 </motion.div>
               )}
 
-              {/* ── QUESTION 3 ─────────────────────────────────────── */}
+              {/* ── QUESTION 3: TARGET AUDIENCE CIRCLES ─────────────── */}
               {step === 3 && (
                 <motion.div
                   key="step-3"
@@ -1053,53 +1336,83 @@ export function StudioOnboardingModal({
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900 dark:text-zinc-100">
+                      <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
                         {STUDIO_ONBOARDING_CONFIG.q3.title}
                       </h2>
-                      <p className="text-xs sm:text-sm text-gray-500 dark:text-zinc-400 mt-1">
+                      <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
                         {STUDIO_ONBOARDING_CONFIG.q3.subtitle}
                       </p>
                     </div>
-                    <span className="shrink-0 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-zinc-300">
+                    <span className="shrink-0 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
                       {audience.length + (q3ShowOtherInput && q3OtherText.trim() ? 1 : 0)} / 2
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    {currentQ3Options.map((opt) => {
-                      const isSelected = audience.includes(opt);
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {STUDIO_ONBOARDING_CONFIG.q3.defaultOptions.map((opt) => {
+                      const isSelected = audience.includes(opt.id);
                       return (
                         <button
-                          key={opt}
+                          key={opt.id}
                           type="button"
-                          onClick={() => toggleQ3Option(opt)}
-                          className={`text-left p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-2 ${
+                          onClick={() => toggleQ3Option(opt.id)}
+                          className={`group text-left p-3.5 sm:p-4 rounded-2xl border transition-all cursor-pointer flex items-start justify-between gap-2.5 ${
                             isSelected
-                              ? 'bg-[#C4A265]/10 border-[#C4A265] text-gray-900 dark:text-white shadow-sm ring-1 ring-[#C4A265]'
-                              : 'bg-gray-50/70 hover:bg-gray-100/90 dark:bg-zinc-800/40 dark:hover:bg-zinc-800/80 border-gray-200/70 dark:border-zinc-800 text-gray-800 dark:text-zinc-200'
+                              ? 'bg-[#C4A265]/10 border-[#C4A265] text-zinc-950 dark:text-white shadow-sm ring-1 ring-[#C4A265]'
+                              : 'bg-zinc-50/70 hover:bg-zinc-100/90 dark:bg-zinc-900/40 dark:hover:bg-zinc-800/70 border-zinc-200/80 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200'
                           }`}
                         >
-                          <span className="font-semibold text-xs sm:text-sm">{opt}</span>
+                          <div className="flex-1 min-w-0 pr-1">
+                            <p className="font-semibold text-xs sm:text-sm leading-tight text-zinc-900 dark:text-zinc-100">
+                              {opt.label}
+                            </p>
+                            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1 line-clamp-2 leading-relaxed">
+                              {opt.hint}
+                            </p>
+                          </div>
+                          <div
+                            className={`w-5 h-5 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                              isSelected
+                                ? 'bg-[#C4A265] text-white'
+                                : 'border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800'
+                            }`}
+                          >
+                            {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                          </div>
                         </button>
                       );
                     })}
 
-                    {/* "Other" Option Card */}
+                    {/* Custom Circle Card */}
                     <button
                       type="button"
                       onClick={toggleQ3Other}
-                      className={`text-left p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-2 ${
+                      className={`text-left p-3.5 sm:p-4 rounded-2xl border transition-all cursor-pointer flex items-start justify-between gap-2.5 ${
                         q3ShowOtherInput
-                          ? 'bg-[#C4A265]/10 border-[#C4A265] text-gray-900 dark:text-white shadow-sm ring-1 ring-[#C4A265]'
-                          : 'bg-gray-50/70 hover:bg-gray-100/90 dark:bg-zinc-800/40 dark:hover:bg-zinc-800/80 border-gray-200/70 dark:border-zinc-800 text-gray-800 dark:text-zinc-200'
+                          ? 'bg-[#C4A265]/10 border-[#C4A265] text-zinc-950 dark:text-white shadow-sm ring-1 ring-[#C4A265]'
+                          : 'bg-zinc-50/70 hover:bg-zinc-100/90 dark:bg-zinc-900/40 dark:hover:bg-zinc-800/70 border-zinc-200/80 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200'
                       }`}
                     >
-                      <span className="font-semibold text-xs sm:text-sm">Other</span>
-                      <span className="text-xs text-gray-400">custom</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-xs sm:text-sm leading-tight text-zinc-900 dark:text-zinc-100">
+                          Custom Audience
+                        </p>
+                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">
+                          Define a specialized target niche
+                        </p>
+                      </div>
+                      <div
+                        className={`w-5 h-5 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                          q3ShowOtherInput
+                            ? 'bg-[#C4A265] text-white'
+                            : 'border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800'
+                        }`}
+                      >
+                        {q3ShowOtherInput && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                      </div>
                     </button>
                   </div>
 
-                  {/* "Other" text input for Q3 */}
                   {q3ShowOtherInput && (
                     <motion.div
                       initial={{ opacity: 0, height: 0 }}
@@ -1112,18 +1425,17 @@ export function StudioOnboardingModal({
                         onChange={(e) => setQ3OtherText(e.target.value)}
                         autoFocus
                         placeholder={STUDIO_ONBOARDING_CONFIG.q3.otherPlaceholder}
-                        className="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs sm:text-sm text-gray-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#C4A265]"
+                        className="w-full px-4 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs sm:text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#C4A265]"
                       />
                     </motion.div>
                   )}
 
-                  {/* Continue Button for Q3 */}
                   <div className="pt-2 flex items-center gap-3">
                     {isRetake && (
                       <button
                         type="button"
                         onClick={handleSkipStep}
-                        className="w-1/3 py-3 rounded-xl border border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-zinc-300 text-xs sm:text-sm font-semibold hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                        className="w-1/3 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 text-xs sm:text-sm font-semibold hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                       >
                         Skip
                       </button>
@@ -1132,7 +1444,9 @@ export function StudioOnboardingModal({
                       type="button"
                       onClick={() => setStep(4)}
                       disabled={!canContinueQ3}
-                      className={`${isRetake ? 'w-2/3' : 'w-full'} py-3 rounded-xl bg-gray-900 hover:bg-black dark:bg-[#C4A265] dark:hover:bg-[#b39255] text-white text-xs sm:text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer shadow-sm`}
+                      className={`${
+                        isRetake ? 'w-2/3' : 'w-full'
+                      } py-3 rounded-xl bg-zinc-900 hover:bg-black dark:bg-[#C4A265] dark:hover:bg-[#b39255] text-white text-xs sm:text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer shadow-sm`}
                     >
                       <span>Continue</span>
                       <ArrowRight className="w-4 h-4" />
@@ -1141,7 +1455,7 @@ export function StudioOnboardingModal({
                 </motion.div>
               )}
 
-              {/* ── QUESTION 4 ─────────────────────────────────────── */}
+              {/* ── QUESTION 4: VOICE SIGNATURE CADENCE ────────────── */}
               {step === 4 && (
                 <motion.div
                   key="step-4"
@@ -1153,19 +1467,19 @@ export function StudioOnboardingModal({
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900 dark:text-zinc-100">
+                      <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
                         {STUDIO_ONBOARDING_CONFIG.q4.title}
                       </h2>
-                      <p className="text-xs sm:text-sm text-gray-500 dark:text-zinc-400 mt-1">
+                      <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
                         {STUDIO_ONBOARDING_CONFIG.q4.subtitle}
                       </p>
                     </div>
-                    <span className="shrink-0 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-zinc-300">
+                    <span className="shrink-0 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
                       {tone.length + (q4ShowOtherInput && q4OtherText.trim() ? 1 : 0)} / 2
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {STUDIO_ONBOARDING_CONFIG.q4.options.map((opt) => {
                       const isSelected = tone.includes(opt.label);
                       return (
@@ -1173,49 +1487,66 @@ export function StudioOnboardingModal({
                           key={opt.label}
                           type="button"
                           onClick={() => toggleQ4Option(opt.label)}
-                          className={`text-left p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-2 ${
+                          className={`group text-left p-3.5 sm:p-4 rounded-2xl border transition-all cursor-pointer flex items-start justify-between gap-2.5 ${
                             isSelected
-                              ? 'bg-[#C4A265]/10 border-[#C4A265] text-gray-900 dark:text-white shadow-sm ring-1 ring-[#C4A265]'
-                              : 'bg-gray-50/70 hover:bg-gray-100/90 dark:bg-zinc-800/40 dark:hover:bg-zinc-800/80 border-gray-200/70 dark:border-zinc-800 text-gray-800 dark:text-zinc-200'
+                              ? 'bg-[#C4A265]/10 border-[#C4A265] text-zinc-950 dark:text-white shadow-sm ring-1 ring-[#C4A265]'
+                              : 'bg-zinc-50/70 hover:bg-zinc-100/90 dark:bg-zinc-900/40 dark:hover:bg-zinc-800/70 border-zinc-200/80 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200'
                           }`}
                         >
-                          <div className="flex items-center gap-2.5">
-                            <div>
-                              <p className="font-semibold text-xs sm:text-sm leading-tight">{opt.label}</p>
-                              {opt.hint && (
-                                <p className="text-[10px] text-gray-500 dark:text-zinc-400 mt-0.5">
-                                  {opt.hint}
-                                </p>
-                              )}
-                            </div>
+                          <div className="flex-1 min-w-0 pr-1">
+                            <p className="font-semibold text-xs sm:text-sm leading-tight text-zinc-900 dark:text-zinc-100">
+                              {opt.label}
+                            </p>
+                            <p className="text-[10px] font-medium text-[#C4A265] dark:text-[#D4B87A] mt-0.5">
+                              {opt.sub}
+                            </p>
+                            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1 line-clamp-2 leading-relaxed">
+                              {opt.hint}
+                            </p>
+                          </div>
+                          <div
+                            className={`w-5 h-5 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                              isSelected
+                                ? 'bg-[#C4A265] text-white'
+                                : 'border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800'
+                            }`}
+                          >
+                            {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                           </div>
                         </button>
                       );
                     })}
 
-                    {/* "Other" Option Card */}
+                    {/* Custom Voice Card */}
                     <button
                       type="button"
                       onClick={toggleQ4Other}
-                      className={`text-left p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-2 ${
+                      className={`text-left p-3.5 sm:p-4 rounded-2xl border transition-all cursor-pointer flex items-start justify-between gap-2.5 ${
                         q4ShowOtherInput
-                          ? 'bg-[#C4A265]/10 border-[#C4A265] text-gray-900 dark:text-white shadow-sm ring-1 ring-[#C4A265]'
-                          : 'bg-gray-50/70 hover:bg-gray-100/90 dark:bg-zinc-800/40 dark:hover:bg-zinc-800/80 border-gray-200/70 dark:border-zinc-800 text-gray-800 dark:text-zinc-200'
+                          ? 'bg-[#C4A265]/10 border-[#C4A265] text-zinc-950 dark:text-white shadow-sm ring-1 ring-[#C4A265]'
+                          : 'bg-zinc-50/70 hover:bg-zinc-100/90 dark:bg-zinc-900/40 dark:hover:bg-zinc-800/70 border-zinc-200/80 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200'
                       }`}
                     >
-                      <div className="flex items-center gap-2.5">
-                        <div>
-                          <p className="font-semibold text-xs sm:text-sm leading-tight">Other</p>
-                          <p className="text-[10px] text-gray-500 dark:text-zinc-400 mt-0.5">
-                            Custom voice
-                          </p>
-                        </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-xs sm:text-sm leading-tight text-zinc-900 dark:text-zinc-100">
+                          Custom Voice
+                        </p>
+                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">
+                          Describe your bespoke writing style
+                        </p>
                       </div>
-                      <span className="text-xs text-gray-400">custom</span>
+                      <div
+                        className={`w-5 h-5 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                          q4ShowOtherInput
+                            ? 'bg-[#C4A265] text-white'
+                            : 'border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800'
+                        }`}
+                      >
+                        {q4ShowOtherInput && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                      </div>
                     </button>
                   </div>
 
-                  {/* "Other" text input for Q4 */}
                   {q4ShowOtherInput && (
                     <motion.div
                       initial={{ opacity: 0, height: 0 }}
@@ -1228,18 +1559,17 @@ export function StudioOnboardingModal({
                         onChange={(e) => setQ4OtherText(e.target.value)}
                         autoFocus
                         placeholder={STUDIO_ONBOARDING_CONFIG.q4.otherPlaceholder}
-                        className="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs sm:text-sm text-gray-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#C4A265]"
+                        className="w-full px-4 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs sm:text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#C4A265]"
                       />
                     </motion.div>
                   )}
 
-                  {/* Continue Button for Q4 */}
                   <div className="pt-2 flex items-center gap-3">
                     {isRetake && (
                       <button
                         type="button"
                         onClick={handleSkipStep}
-                        className="w-1/3 py-3 rounded-xl border border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-zinc-300 text-xs sm:text-sm font-semibold hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                        className="w-1/3 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 text-xs sm:text-sm font-semibold hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                       >
                         Skip
                       </button>
@@ -1248,7 +1578,9 @@ export function StudioOnboardingModal({
                       type="button"
                       onClick={() => setStep(5)}
                       disabled={!canContinueQ4}
-                      className={`${isRetake ? 'w-2/3' : 'w-full'} py-3 rounded-xl bg-gray-900 hover:bg-black dark:bg-[#C4A265] dark:hover:bg-[#b39255] text-white text-xs sm:text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer shadow-sm`}
+                      className={`${
+                        isRetake ? 'w-2/3' : 'w-full'
+                      } py-3 rounded-xl bg-zinc-900 hover:bg-black dark:bg-[#C4A265] dark:hover:bg-[#b39255] text-white text-xs sm:text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer shadow-sm`}
                     >
                       <span>Continue</span>
                       <ArrowRight className="w-4 h-4" />
@@ -1257,7 +1589,7 @@ export function StudioOnboardingModal({
                 </motion.div>
               )}
 
-              {/* ── QUESTION 5 ─────────────────────────────────────── */}
+              {/* ── QUESTION 5: PUBLISHING GUARDRAILS ───────────────── */}
               {step === 5 && (
                 <motion.div
                   key="step-5"
@@ -1265,43 +1597,94 @@ export function StudioOnboardingModal({
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -12 }}
                   transition={{ duration: 0.18 }}
-                  className="space-y-5"
+                  className="space-y-4"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900 dark:text-zinc-100">
+                      <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
                         {STUDIO_ONBOARDING_CONFIG.q5.title}
                       </h2>
-                      <p className="text-xs sm:text-sm text-gray-500 dark:text-zinc-400 mt-1">
+                      <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
                         {STUDIO_ONBOARDING_CONFIG.q5.subtitle}
                       </p>
                     </div>
                     {extras.length > 0 && (
-                      <span className="shrink-0 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900">
-                        {extras.length} selected
+                      <span className="shrink-0 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-[#C4A265]/15 text-[#C4A265] border border-[#C4A265]/30">
+                        {extras.length} active
                       </span>
                     )}
                   </div>
 
-                  {/* Wrapping pill chips (multi-select, no limit) */}
-                  <div className="flex flex-wrap gap-2 pt-1 max-h-[36vh] overflow-y-auto pr-1">
-                    {STUDIO_ONBOARDING_CONFIG.q5.chips.map((chip) => {
+                  {/* Category Filter Tabs & Quick Actions */}
+                  <div className="flex items-center justify-between flex-wrap gap-2 pt-1 border-b border-zinc-100 dark:border-zinc-800/80 pb-2">
+                    <div className="flex flex-wrap gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setQ5FilterCategory('all')}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+                          q5FilterCategory === 'all'
+                            ? 'bg-zinc-900 text-white dark:bg-[#C4A265] dark:text-zinc-900 font-semibold'
+                            : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100'
+                        }`}
+                      >
+                        All Rules
+                      </button>
+                      {STUDIO_ONBOARDING_CONFIG.q5.categories.map((cat) => (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          onClick={() => setQ5FilterCategory(cat.id)}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+                            q5FilterCategory === cat.id
+                              ? 'bg-zinc-900 text-white dark:bg-[#C4A265] dark:text-zinc-900 font-semibold'
+                              : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100'
+                          }`}
+                        >
+                          {cat.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleApplyRecommended}
+                        className="text-[11px] font-semibold text-[#C4A265] hover:underline cursor-pointer flex items-center gap-1"
+                      >
+                        <Sparkles className="w-3 h-3" />
+                        <span>Recommended preset</span>
+                      </button>
+                      {extras.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleClearExtras}
+                          className="text-[11px] text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 cursor-pointer"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Chips Grid */}
+                  <div className="flex flex-wrap gap-2 pt-1 max-h-[30vh] overflow-y-auto pr-1">
+                    {visibleQ5Chips.map((chip) => {
                       const isSelected = extras.includes(chip);
                       return (
                         <button
                           key={chip}
                           type="button"
                           onClick={() => toggleExtraChip(chip)}
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all cursor-pointer border ${
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border ${
                             isSelected
-                              ? 'bg-blue-600 hover:bg-blue-700 text-white border-blue-600 shadow-sm'
-                              : 'bg-white hover:bg-gray-100/80 dark:bg-zinc-800/60 dark:hover:bg-zinc-800 text-gray-700 dark:text-zinc-200 border-gray-300 dark:border-zinc-700'
+                              ? 'bg-zinc-900 text-white dark:bg-[#C4A265] dark:text-zinc-950 border-zinc-900 dark:border-[#C4A265] shadow-sm font-semibold'
+                              : 'bg-white hover:bg-zinc-100/80 dark:bg-zinc-900/60 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-300 dark:border-zinc-700'
                           }`}
                         >
                           {isSelected ? (
                             <Check className="w-3.5 h-3.5 stroke-[2.5] shrink-0" />
                           ) : (
-                            <Plus className="w-3.5 h-3.5 text-gray-500 dark:text-zinc-400 shrink-0" />
+                            <Plus className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
                           )}
                           <span>{chip}</span>
                         </button>
@@ -1309,36 +1692,36 @@ export function StudioOnboardingModal({
                     })}
                   </div>
 
-                  {/* Text box: Something else? Tell us in your own words. */}
+                  {/* Bespoke instructions textarea */}
                   <div className="pt-1">
-                    <label className="block text-xs font-medium text-gray-700 dark:text-zinc-300 mb-1.5">
+                    <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">
                       {STUDIO_ONBOARDING_CONFIG.q5.otherPlaceholder}
                     </label>
                     <textarea
                       value={q5OtherText}
                       onChange={(e) => setQ5OtherText(e.target.value)}
                       rows={2}
-                      placeholder="e.g. Keep posts conversational, mention our brand name, avoid buzzwords..."
-                      className="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs sm:text-sm text-gray-900 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-600 resize-none"
+                      placeholder="e.g. Frame lessons through real experiments, mention our product when sharing workflows, keep tone candid..."
+                      className="w-full px-3.5 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs sm:text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#C4A265] resize-none"
                     />
                   </div>
 
-                  {/* Action row with Back, Skip, and Finish (or Update in retake mode) */}
+                  {/* Action row */}
                   <div className="pt-2 flex items-center gap-3">
                     <button
                       type="button"
                       onClick={handleBack}
                       disabled={isFinishing}
-                      className="w-1/4 py-3.5 rounded-xl border border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-zinc-300 text-xs sm:text-sm font-semibold hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                      className="w-1/4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 text-xs sm:text-sm font-semibold hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer flex items-center justify-center gap-1.5"
                     >
-                      <ArrowLeft className="w-4 h-4" />
+                      <ArrowLeft className="w-3.5 h-3.5" />
                       <span>Back</span>
                     </button>
                     <button
                       type="button"
                       onClick={handleFinish}
                       disabled={isFinishing}
-                      className="w-1/4 py-3.5 rounded-xl border border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-zinc-300 text-xs sm:text-sm font-semibold hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                      className="w-1/4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 text-xs sm:text-sm font-semibold hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                     >
                       Skip
                     </button>
@@ -1346,18 +1729,44 @@ export function StudioOnboardingModal({
                       type="button"
                       onClick={handleFinish}
                       disabled={isFinishing}
-                      className="w-1/2 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer shadow-lg"
+                      className="w-1/2 py-3 rounded-xl bg-[#C4A265] hover:bg-[#b09055] text-white text-xs sm:text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer shadow-md"
                     >
                       {isFinishing ? (
-                        <span>{isRetake ? 'Updating...' : 'Finishing...'}</span>
+                        <span>{isRetake ? 'Updating Voice...' : 'Calibrating Studio...'}</span>
                       ) : (
-                        <span>{isRetake ? 'Update' : 'Finish'}</span>
+                        <span>{isRetake ? 'Save Calibrations' : 'Activate Studio Voice'}</span>
                       )}
                     </button>
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
+          </div>
+
+          {/* Dynamic Real-Time Voice Signature Ribbon Footer */}
+          <div className="px-6 py-2.5 bg-zinc-50 dark:bg-zinc-900/70 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400 overflow-x-auto gap-2">
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="font-semibold text-zinc-700 dark:text-zinc-300">Active Profile:</span>
+              <span className="text-[#C4A265] font-medium">{persona || 'Archetype pending'}</span>
+            </div>
+            {focus && (
+              <div className="hidden sm:flex items-center gap-1 shrink-0">
+                <span className="text-zinc-300 dark:text-zinc-700">•</span>
+                <span>{focus}</span>
+              </div>
+            )}
+            {tone.length > 0 && (
+              <div className="hidden md:flex items-center gap-1 shrink-0">
+                <span className="text-zinc-300 dark:text-zinc-700">•</span>
+                <span className="text-zinc-600 dark:text-zinc-300 font-medium">{tone.join(', ')}</span>
+              </div>
+            )}
+            {extras.length > 0 && (
+              <div className="hidden lg:flex items-center gap-1 shrink-0">
+                <span className="text-zinc-300 dark:text-zinc-700">•</span>
+                <span>{extras.length} guardrails</span>
+              </div>
+            )}
           </div>
         </motion.div>
       </div>

@@ -408,19 +408,23 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
 
         {/* Studio Persona Tab */}
         <TabsContent value="persona" className="mt-6 space-y-6">
-          <Card>
-            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <Card className="border-border shadow-xs">
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b pb-4">
               <div>
-                <CardTitle className="text-lg font-semibold">
-                  Studio Persona & Tone Settings
+                <CardTitle className="text-lg font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-[#C4A265]" />
+                  <span>Studio Voice Calibrations & Persona</span>
                 </CardTitle>
                 <p className="text-xs text-muted-foreground mt-1">
-                  These answers calibrate Studio's AI adaptation, audience hooks, and posting recommendations.
+                  These strategic calibrations anchor Studio's multi-platform AI adaptations, opening hooks, voice cadence, and guardrails.
                 </p>
               </div>
-              <div className="flex items-center gap-2">
-                <Badge variant={onboardingCompleted ? 'default' : 'secondary'} className={onboardingCompleted ? 'bg-green-600' : ''}>
-                  {onboardingCompleted ? 'Onboarding Completed' : 'Pending / Skipped'}
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge
+                  variant={onboardingCompleted ? 'default' : 'secondary'}
+                  className={onboardingCompleted ? 'bg-[#C4A265] text-white font-medium hover:bg-[#b09055]' : 'text-xs'}
+                >
+                  {onboardingCompleted ? 'Voice Calibrated' : 'Pending Calibration'}
                 </Badge>
                 <Button
                   type="button"
@@ -430,47 +434,101 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
                     setShowRetakeModal(false);
                     setTimeout(() => setShowRetakeModal(true), 0);
                   }}
-                  className="text-xs font-semibold"
+                  className="text-xs font-semibold flex items-center gap-1.5 cursor-pointer hover:bg-[#F5EFE2] dark:hover:bg-zinc-800"
                 >
-                  Retake Flow
+                  <Sparkles className="w-3.5 h-3.5 text-[#C4A265]" />
+                  <span>Launch Calibrator</span>
                 </Button>
               </div>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-6 pt-5">
+              {/* Active Voice Signature Summary */}
+              <div
+                className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900/40"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(196,162,101,0.05) 0%, rgba(255,255,255,0.01) 100%)',
+                }}
+              >
+                <p className="text-xs font-bold uppercase tracking-wider text-[#C4A265] mb-2.5">
+                  Current Voice Signature
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="p-3 rounded-xl bg-white dark:bg-zinc-800/80 border border-zinc-200/60 dark:border-zinc-700">
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase">Archetype</p>
+                    <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 truncate">
+                      {onboardingAnswers.persona || 'Not calibrated'}
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-white dark:bg-zinc-800/80 border border-zinc-200/60 dark:border-zinc-700">
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase">Territory</p>
+                    <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 truncate">
+                      {onboardingAnswers.focus || 'Not specified'}
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-white dark:bg-zinc-800/80 border border-zinc-200/60 dark:border-zinc-700">
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase">Target Circles</p>
+                    <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 truncate">
+                      {onboardingAnswers.audience.length > 0 ? onboardingAnswers.audience.join(', ') : 'Not selected'}
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-white dark:bg-zinc-800/80 border border-zinc-200/60 dark:border-zinc-700">
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase">Voice Tone</p>
+                    <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 truncate">
+                      {onboardingAnswers.tone.length > 0 ? onboardingAnswers.tone.join(', ') : 'Not selected'}
+                    </p>
+                  </div>
+                </div>
+
+                {onboardingAnswers.extras && onboardingAnswers.extras.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-zinc-200/60 dark:border-zinc-700 flex flex-wrap items-center gap-1.5">
+                    <span className="text-[11px] font-medium text-muted-foreground mr-1">Active Guardrails:</span>
+                    {onboardingAnswers.extras.map((extra) => (
+                      <span
+                        key={extra}
+                        className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700"
+                      >
+                        {extra}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Direct Configuration Form */}
               <div className="grid gap-5 sm:grid-cols-2">
                 {/* Persona */}
                 <div>
-                  <Label htmlFor="persona-select">Persona (Role)</Label>
+                  <Label htmlFor="persona-select">Publishing Archetype</Label>
                   <Input
                     id="persona-select"
                     value={onboardingAnswers.persona}
                     onChange={(e) => setOnboardingAnswers(prev => ({ ...prev, persona: e.target.value }))}
-                    placeholder="e.g. Founder, Creator, Business Owner..."
+                    placeholder="e.g. Venture Architect, Growth Operator, Domain Authority..."
                     className="mt-1"
                   />
                   <p className="text-[11px] text-muted-foreground mt-1">
-                    Who you are when walking into the Studio.
+                    Your core perspective and identity across publications.
                   </p>
                 </div>
 
                 {/* Focus */}
                 <div>
-                  <Label htmlFor="focus-input">Focus / What you build or do</Label>
+                  <Label htmlFor="focus-input">Domain / Venture Territory</Label>
                   <Input
                     id="focus-input"
                     value={onboardingAnswers.focus}
                     onChange={(e) => setOnboardingAnswers(prev => ({ ...prev, focus: e.target.value }))}
-                    placeholder="e.g. Software or AI product, Tech and coding..."
+                    placeholder="e.g. Autonomous AI & Agentic Systems, Client Advisory..."
                     className="mt-1"
                   />
                   <p className="text-[11px] text-muted-foreground mt-1">
-                    Your industry, product category, or primary offering.
+                    Your core sector, product architecture, or specialized discipline.
                   </p>
                 </div>
 
                 {/* Audience */}
                 <div>
-                  <Label htmlFor="audience-input">Target Audience (comma-separated)</Label>
+                  <Label htmlFor="audience-input">Target Decision-Making Circles (comma-separated)</Label>
                   <Input
                     id="audience-input"
                     value={onboardingAnswers.audience.join(', ')}
@@ -478,17 +536,17 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
                       const vals = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
                       setOnboardingAnswers(prev => ({ ...prev, audience: vals }));
                     }}
-                    placeholder="e.g. Investors, First customers"
+                    placeholder="e.g. Early Adopters & Tech Builders, Angel Investors & VCs"
                     className="mt-1"
                   />
                   <p className="text-[11px] text-muted-foreground mt-1">
-                    Who should stop scrolling for your posts.
+                    The circles your writing is strategically engineered to influence.
                   </p>
                 </div>
 
                 {/* Tone */}
                 <div>
-                  <Label htmlFor="tone-input">Voice Personality / Tone (comma-separated)</Label>
+                  <Label htmlFor="tone-input">Voice Signature Cadence (comma-separated)</Label>
                   <Input
                     id="tone-input"
                     value={onboardingAnswers.tone.join(', ')}
@@ -496,17 +554,17 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
                       const vals = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
                       setOnboardingAnswers(prev => ({ ...prev, tone: vals }));
                     }}
-                    placeholder="e.g. Witty, Storyteller, Smooth..."
+                    placeholder="e.g. The Pragmatic Operator, The Provocative Contrarian..."
                     className="mt-1"
                   />
                   <p className="text-[11px] text-muted-foreground mt-1">
-                    The personality traits that define your written voice.
+                    The rhetorical tone and cadence that defines your written voice.
                   </p>
                 </div>
 
                 {/* Additional Preferences & Rules */}
-                <div>
-                  <Label htmlFor="extras-input">Preferences & Rules (comma-separated)</Label>
+                <div className="sm:col-span-2">
+                  <Label htmlFor="extras-input">Publishing Guardrails & Rules (comma-separated)</Label>
                   <Input
                     id="extras-input"
                     value={(onboardingAnswers.extras || []).join(', ')}
@@ -514,17 +572,17 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
                       const vals = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
                       setOnboardingAnswers(prev => ({ ...prev, extras: vals }));
                     }}
-                    placeholder="e.g. Don't Use emojis, Add hashtags, Start with a hook..."
+                    placeholder="e.g. Hook in the opening line, Strictly no corporate buzzwords, High signal-to-noise ratio, Never use emojis..."
                     className="mt-1"
                   />
                   <p className="text-[11px] text-muted-foreground mt-1">
-                    Formatting rules and creative constraints for AI generations.
+                    Stylistic constraints and structural rules enforced on every AI draft generation.
                   </p>
                 </div>
 
                 {/* Additional Notes */}
-                <div>
-                  <Label htmlFor="extras-text-input">Additional Notes & Instructions</Label>
+                <div className="sm:col-span-2">
+                  <Label htmlFor="extras-text-input">Bespoke Guidelines & Notes</Label>
                   <Input
                     id="extras-text-input"
                     value={onboardingAnswers.custom?.extras_text || ''}
@@ -535,11 +593,11 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
                         custom: { ...prev.custom, extras_text: text },
                       }));
                     }}
-                    placeholder="e.g. Mention our brand name when relevant, avoid buzzwords..."
+                    placeholder="e.g. Frame lessons through real experiments, mention product when sharing workflows, avoid hype words..."
                     className="mt-1"
                   />
                   <p className="text-[11px] text-muted-foreground mt-1">
-                    Custom context or instructions in your own words.
+                    Additional personalized instructions incorporated into the AI system prompt.
                   </p>
                 </div>
               </div>
@@ -548,12 +606,12 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
                 <Button
                   onClick={handleSaveOnboarding}
                   disabled={savingOnboarding}
-                  className="bg-[#C4A265] hover:bg-[#b09055] text-white font-semibold"
+                  className="bg-[#C4A265] hover:bg-[#b09055] text-white font-semibold cursor-pointer shadow-sm"
                 >
                   {savingOnboarding ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Saving...
+                      Saving Calibrations...
                     </>
                   ) : (
                     'Save Persona Settings'
