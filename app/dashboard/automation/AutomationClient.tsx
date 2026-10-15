@@ -870,10 +870,38 @@ export default function AutomationClient({
   const [simLoading, setSimLoading] = useState(false);
 
   const [syncingWebhook, setSyncingWebhook] = useState(false);
+  const [syncingComments, setSyncingComments] = useState(false);
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3500);
+  };
+
+  const syncLiveComments = async () => {
+    if (!workspaceId) return;
+    setSyncingComments(true);
+    try {
+      const res = await fetch('/api/instagram/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workspaceId }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        if (data.newCommentsProcessed > 0) {
+          showToast(`Synced ${data.newCommentsProcessed} comment${data.newCommentsProcessed > 1 ? 's' : ''} (${data.repliesPosted} auto-replied)!`, 'success');
+        } else {
+          showToast('Comments up to date. No new comments found on Instagram.', 'success');
+        }
+      } else {
+        showToast(data.message || data.error || 'Failed to sync comments', 'error');
+      }
+    } catch {
+      showToast('Error syncing comments with Instagram', 'error');
+    } finally {
+      setSyncingComments(false);
+      loadComments();
+    }
   };
 
   const syncWebhook = async () => {
@@ -1632,8 +1660,13 @@ export default function AutomationClient({
                     onChange={e => setCommentSearch(e.target.value)}
                     style={{ width: 220, padding: '7px 12px', fontSize: 12.5 }}
                   />
-                  <button className="sdm-btn sdm-btn-secondary" onClick={loadComments} style={{ padding: '7px 12px', fontSize: 12 }}>
-                    ↻ Refresh
+                  <button
+                    className="sdm-btn sdm-btn-secondary"
+                    onClick={syncLiveComments}
+                    disabled={syncingComments || feedLoading}
+                    style={{ padding: '7px 12px', fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                  >
+                    {syncingComments ? '⏳ Syncing...' : '↻ Sync & Refresh'}
                   </button>
                 </div>
               </div>
@@ -1645,7 +1678,7 @@ export default function AutomationClient({
               ) : comments.length === 0 ? (
                 <div className="sdm-empty">
                   <div className="sdm-empty-icon">💬</div>
-                  <p>No comments yet. Enable automation and wait for comments to roll in.</p>
+                  <p>No comments yet. Click "Sync & Refresh" above or wait for comments to arrive via webhook.</p>
                 </div>
               ) : (
                 <>
@@ -1692,8 +1725,13 @@ export default function AutomationClient({
                                 </td>
                                 <td>
                                   <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                                    {c.auto_replied && <span style={{ fontSize: 10, background: 'rgba(34,197,94,0.12)', color: '#22c55e', borderRadius: 10, padding: '2px 6px' }}>replied</span>}
-                                    {c.dm_sent && <span style={{ fontSize: 10, background: 'rgba(168,85,247,0.12)', color: '#a855f7', borderRadius: 10, padding: '2px 6px' }}>dm sent</span>}
+                                    {c.auto_replied && <span style={{ fontSize: 10, background: 'rgba(34,197,94,0.15)', color: '#22c55e', borderRadius: 10, padding: '2px 7px', fontWeight: 600 }}>replied</span>}
+                                    {c.dm_sent && <span style={{ fontSize: 10, background: 'rgba(168,85,247,0.15)', color: '#a855f7', borderRadius: 10, padding: '2px 7px', fontWeight: 600 }}>dm sent</span>}
+                                    {!c.auto_replied && !c.dm_sent && (
+                                      <span style={{ fontSize: 10, background: 'rgba(156,163,175,0.12)', color: '#9ca3af', borderRadius: 10, padding: '2px 7px' }}>
+                                        {c.classification === 'harmful' || c.classification === 'spam' ? 'filtered' : 'logged'}
+                                      </span>
+                                    )}
                                   </div>
                                 </td>
                                 <td style={{ color: '#4b5563', fontSize: 11, whiteSpace: 'nowrap' }}>

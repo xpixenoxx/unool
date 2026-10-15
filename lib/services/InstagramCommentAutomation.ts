@@ -393,6 +393,8 @@ Return ONLY valid JSON:
 
   /**
    * Posts a public reply to an Instagram comment.
+   * Targets the comment's replies edge: POST /{commentId}/replies
+   * Falls back to Facebook Graph API, and then to media comments edge.
    */
   async postPublicReply(
     accessToken: string,
@@ -401,39 +403,95 @@ Return ONLY valid JSON:
     message: string
   ): Promise<{ replyId: string } | null> {
     try {
-      const params = new URLSearchParams({
-        message,
-        reply_to_id: commentId,
-        access_token: accessToken,
-      });
-
-      // Correct endpoint: POST /{media-id}/comments with reply_to_id
-      // Note: /{commentId}/replies is deprecated and unsupported on v20+
-      const response = await fetchWithRetry(
-        `https://graph.instagram.com/v20.0/${mediaId}/comments`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: params.toString(),
-        }
-      );
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        logger.error('Failed to post Instagram comment reply', {
-          commentId,
-          error: new Error(errorText),
-          status: response.status,
+      // 1. Reply directly under the specific comment (nested reply)
+      if (commentId && !commentId.startsWith('test_')) {
+        const replyParams = new URLSearchParams({
+          message,
+          access_token: accessToken,
         });
-        return null;
+
+        // 1a: Try graph.instagram.com/{commentId}/replies
+        let response = await fetchWithRetry(
+          `https://graph.instagram.com/v20.0/${commentId}/replies`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: replyParams.toString(),
+          }
+        );
+
+        // 1b: If graph.instagram.com fails, try graph.facebook.com/{commentId}/replies
+        if (!response.ok) {
+          const igError = await response.text();
+          logger.warn('graph.instagram.com comment reply failed, trying graph.facebook.com', {
+            commentId,
+            error: igError,
+            status: response.status,
+          });
+
+          response = await fetchWithRetry(
+            `https://graph.facebook.com/v20.0/${commentId}/replies`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: replyParams.toString(),
+            }
+          );
+        }
+
+        if (response.ok) {
+          const data = await response.json();
+          logger.info('Instagram comment reply posted successfully via replies edge', {
+            commentId,
+            replyId: data.id,
+          });
+          return { replyId: data.id };
+        }
+
+        const replyErr = await response.text();
+        logger.warn('Direct reply to comment failed, attempting fallback to media comments', {
+          commentId,
+          error: replyErr,
+        });
       }
 
-      const data = await response.json();
-      logger.info('Instagram comment reply posted', { commentId, replyId: data.id });
-      return { replyId: data.id };
+      // 2. Fallback: post to media comments edge
+      if (mediaId && !mediaId.startsWith('test_')) {
+        const mediaParams = new URLSearchParams({
+          message,
+          access_token: accessToken,
+        });
+
+        const mediaResponse = await fetchWithRetry(
+          `https://graph.instagram.com/v20.0/${mediaId}/comments`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: mediaParams.toString(),
+          }
+        );
+
+        if (mediaResponse.ok) {
+          const data = await mediaResponse.json();
+          logger.info('Instagram comment posted via media fallback', {
+            mediaId,
+            commentId,
+            replyId: data.id,
+          });
+          return { replyId: data.id };
+        }
+
+        const mediaErr = await mediaResponse.text();
+        logger.error('Failed to post comment via media fallback', {
+          mediaId,
+          error: mediaErr,
+        });
+      }
+
+      return null;
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
-      logger.error('Error posting Instagram reply', { commentId, error: err });
+      logger.error('Error posting Instagram reply', { commentId, mediaId, error: err });
       return null;
     }
   }
