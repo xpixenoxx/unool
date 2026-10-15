@@ -12,11 +12,41 @@ const platformRepo = new SupabasePlatformRepository();
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { webhookUrl, username, workspaceId: bodyWorkspaceId } = body;
+    const {
+      clientId,
+      appId,
+      apiKey,
+      clientSecret,
+      accessToken,
+      username,
+      webhookUrl,
+      workspaceId: bodyWorkspaceId,
+    } = body;
 
-    if (!webhookUrl || !username) {
+    const resolvedAppId = (appId || clientId || "").trim();
+    const resolvedApiKey = (apiKey || clientSecret || "").trim();
+    const resolvedClientId = (clientId || appId || "").trim();
+    const resolvedAccessToken = (accessToken || "").trim();
+    const resolvedUsername = (username || "").trim();
+    const resolvedWebhookUrl = (webhookUrl || "").trim();
+
+    // Validate that either official developer credentials or legacy webhookUrl is provided
+    if (!resolvedAppId && !resolvedApiKey && !resolvedAccessToken && !resolvedWebhookUrl) {
       return NextResponse.json(
-        { error: "webhookUrl and username are required" },
+        {
+          error:
+            "MeWe Developer credentials required: Please provide App ID (X-App-Id) and API Key/Secret.",
+        },
+        { status: 400 },
+      );
+    }
+
+    if (!resolvedWebhookUrl && (!resolvedAppId || (!resolvedApiKey && !resolvedAccessToken))) {
+      return NextResponse.json(
+        {
+          error:
+            "MeWe connection requires both App ID and an API Key/Secret or Access Token.",
+        },
         { status: 400 },
       );
     }
@@ -34,20 +64,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const tokenPayload = JSON.stringify({ webhookUrl, username });
+    const tokenPayload = JSON.stringify({
+      clientId: resolvedClientId,
+      appId: resolvedAppId,
+      apiKey: resolvedApiKey,
+      clientSecret: resolvedApiKey,
+      accessToken: resolvedAccessToken || undefined,
+      username: resolvedUsername || undefined,
+      webhookUrl: resolvedWebhookUrl || undefined,
+    });
 
-    // Validate credentials & fetch profile (simulated for webhooks)
+    // Validate credentials & fetch profile
     let profile;
     try {
       profile = await meweAdapter.getUserProfile(tokenPayload);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      logger.warn("MeWe connect: login failed", { errMsg });
+      logger.warn("MeWe connect: credentials verification failed", { errMsg });
 
       return NextResponse.json(
         {
-          error:
-            "Could not connect MeWe account. Please check your details.",
+          error: `Could not verify MeWe credentials: ${errMsg}`,
         },
         { status: 400 },
       );
@@ -64,12 +101,15 @@ export async function POST(request: NextRequest) {
       platformUserId: profile.platformUserId,
       username: profile.username,
       accessToken: encryptedToken,
-      refreshToken: "", // not used
-      expiresAt: undefined, // no expiration
-      scopes: [],
+      refreshToken: "",
+      expiresAt: undefined,
+      scopes: ["post_content", "user_profile"],
     });
 
-    logger.info("MeWe connected successfully", { workspaceId });
+    logger.info("MeWe connected successfully", {
+      workspaceId,
+      username: profile.username,
+    });
 
     return NextResponse.json({
       success: true,

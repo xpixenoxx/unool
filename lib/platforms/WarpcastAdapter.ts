@@ -23,7 +23,7 @@ export class WarpcastAdapter implements PlatformAdapter {
   }
 
   async exchangeCodeForToken(_code: string): Promise<TokenResponse> {
-    throw new Error("Using custom connection for Warpcast (Webhook logic)");
+    throw new Error("Using custom connection for Farcaster (Webhook logic)");
   }
 
   async refreshAccessToken(_refreshToken: string): Promise<TokenResponse> {
@@ -39,7 +39,7 @@ export class WarpcastAdapter implements PlatformAdapter {
     return {
       platformUserId: username || "warpcast_user",
       username: username || "warpcast",
-      displayName: username || "Warpcast User",
+      displayName: username || "Farcaster User",
       profileUrl: `https://warpcast.com/${username || ""}`,
       avatarUrl: "",
     };
@@ -52,7 +52,7 @@ export class WarpcastAdapter implements PlatformAdapter {
     const { webhookUrl, username } = this.parseToken(tokenData);
 
     if (!webhookUrl) {
-      throw new Error("Warpcast Webhook URL is required to publish.");
+      throw new Error("Farcaster Webhook URL is required to publish.");
     }
 
     const payload: Record<string, unknown> = {
@@ -72,7 +72,7 @@ export class WarpcastAdapter implements PlatformAdapter {
       });
 
       if (!res.ok) {
-        throw new Error(`Warpcast webhook request failed: ${res.statusText}`);
+        throw new Error(`Farcaster webhook request failed: ${res.statusText}`);
       }
 
       const messageId = `warpcast-${Date.now()}`;
@@ -83,15 +83,15 @@ export class WarpcastAdapter implements PlatformAdapter {
         publishedAt: new Date(),
       };
     } catch (err) {
-      logger.error("Failed to post to Warpcast webhook", {
+      logger.error("Failed to post to Farcaster webhook", {
         error: err instanceof Error ? err : new Error(String(err)),
       });
-      throw new Error("Failed to post to Warpcast webhook");
+      throw new Error("Failed to post to Farcaster webhook");
     }
   }
 
   async deletePost(tokenData: string, platformPostId: string): Promise<void> {
-    logger.info("Warpcast webhook delete requested", { platformPostId });
+    logger.info("Farcaster webhook delete requested", { platformPostId });
   }
 
   async getEngagement(
@@ -108,7 +108,7 @@ export class WarpcastAdapter implements PlatformAdapter {
     try {
       return JSON.parse(tokenData);
     } catch {
-      throw new Error("Invalid Warpcast token format");
+      throw new Error("Invalid Farcaster token format");
     }
   }
 }

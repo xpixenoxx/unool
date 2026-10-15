@@ -189,7 +189,7 @@ ${recentReplies.slice(-10).map((r, i) => `  ${i + 1}. "${r}"`).join('\n') || '  
 CLASSIFICATION RULES
 ═══════════════════════════════════════════════════════════
 Classify into ONE category:
-- "positive": Compliments, praise, emoji reactions (❤️🔥👏)
+- "positive": Friendly greetings (e.g. "Hi", "Hey", "Hello", "GM"), compliments, praise, friendly reactions, emoji reactions (❤️🔥👏)
 - "question": Genuine questions about the content, product, process
 - "link_request": ANY form of asking for a link, resource, template, file — even implicit ones like "Where can I get this?", "Send it to me", "Need this"
 - "purchase_intent": Price inquiries, buying signals ("How much?", "Shut up and take my money", "Need this for my agency")

@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "Could not connect Warpcast account. Please check your details.",
+            "Could not connect Farcaster account. Please check your details.",
         },
         { status: 400 },
       );
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
       scopes: [],
     });
 
-    logger.info("Warpcast connected successfully", { workspaceId });
+    logger.info("Farcaster connected successfully", { workspaceId });
 
     return NextResponse.json({
       success: true,

@@ -14,6 +14,8 @@ vi.mock('@/lib/config/schema', () => ({
   config: {
     META_WEBHOOK_VERIFY_TOKEN: 'test_verify_token_123',
     META_WEBHOOK_SECRET: 'test_secret_456',
+    INSTAGRAM_WEBHOOK_VERIFY_TOKEN: 'test_verify_token_123',
+    INSTAGRAM_WEBHOOK_SECRET: 'test_secret_456',
     SUPABASE_URL: 'https://test.supabase.co',
     SUPABASE_SERVICE_ROLE_KEY: 'test_service_key',
     NODE_ENV: 'test',

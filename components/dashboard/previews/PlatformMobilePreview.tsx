@@ -1800,7 +1800,7 @@ function ListmonkMobile({ content, isEmpty, media, profileName, initials }: Mobi
 }
 
 /* ─────────────────────────────────────────────────────────────
-   21. Warpcast
+   21. Farcaster
    ───────────────────────────────────────────────────────────── */
 function WarpcastMobile({ content, isEmpty, media, profileName, initials, avatarUrl }: MobilePreviewProps) {
   const [liked, setLiked] = useState(false);
@@ -1813,7 +1813,7 @@ function WarpcastMobile({ content, isEmpty, media, profileName, initials, avatar
       <div className="flex items-center justify-between px-3.5 py-2.5 bg-[#1C1C1E] border-b border-[#2C2C2E]">
         <div className="flex items-center gap-1.5">
           <PlatformBrandLogo platform="warpcast" size={20} />
-          <span className="font-bold text-sm text-[#8A63D2]">Warpcast</span>
+          <span className="font-bold text-sm text-[#8A63D2]">Farcaster</span>
         </div>
         <span className="text-[10px] bg-[#8A63D2]/20 text-[#8A63D2] px-2 py-0.5 rounded font-bold">Farcaster</span>
       </div>

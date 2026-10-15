@@ -173,7 +173,7 @@ export const PLATFORM_SPECS: Record<PlatformType, { maxChars: number; style: str
   warpcast: {
     maxChars: 320,
     style: 'Web3 native, casual, thoughtful. Like X but for the Farcaster crypto/tech community.',
-    hashtagStrategy: '0-2 relevant tags if any. Warpcast is conversation-driven, not hashtag-driven.',
+    hashtagStrategy: '0-2 relevant tags if any. Farcaster is conversation-driven, not hashtag-driven.',
     tone: 'Tech-forward, crypto-literate, intellectual curiosity. Avoid shilling.',
     audience: 'Web3 builders, crypto enthusiasts, tech thinkers.',
     seoFocus: 'Use web3/crypto terminology naturally. Channel-based discovery matters more.',

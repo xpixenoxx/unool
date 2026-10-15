@@ -868,9 +868,33 @@ export default function AutomationClient({
   const [simResult, setSimResult] = useState<SimulateResult | null>(null);
   const [simLoading, setSimLoading] = useState(false);
 
+  const [syncingWebhook, setSyncingWebhook] = useState(false);
+
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3500);
+  };
+
+  const syncWebhook = async () => {
+    if (!workspaceId) return;
+    setSyncingWebhook(true);
+    try {
+      const res = await fetch('/api/instagram/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workspaceId }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast('Webhook synced with Meta Graph API ✓');
+      } else {
+        showToast(data.error || 'Failed to sync webhook with Meta', 'error');
+      }
+    } catch {
+      showToast('Network error while syncing webhook', 'error');
+    } finally {
+      setSyncingWebhook(false);
+    }
   };
 
   // Load Instagram connection status
@@ -1071,20 +1095,43 @@ export default function AutomationClient({
               {igConnection && (
                 <div>
                   {igConnection.status === 'connected' ? (
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      background: 'rgba(34,197,94,0.1)',
-                      border: '1px solid rgba(34,197,94,0.25)',
-                      borderRadius: 20,
-                      padding: '4px 12px',
-                      fontSize: 12,
-                      color: '#4ade80',
-                    }}>
-                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
-                      <span>@{igConnection.username || 'instagram'}</span>
-                      <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>connected</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        background: 'rgba(34,197,94,0.1)',
+                        border: '1px solid rgba(34,197,94,0.25)',
+                        borderRadius: 20,
+                        padding: '4px 12px',
+                        fontSize: 12,
+                        color: '#4ade80',
+                      }}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
+                        <span>@{igConnection.username || 'instagram'}</span>
+                        <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>connected</span>
+                      </div>
+                      <button
+                        onClick={syncWebhook}
+                        disabled={syncingWebhook}
+                        title="Re-sync Webhook Subscriptions (comments & messages) with Meta Graph API"
+                        style={{
+                          background: 'rgba(139,92,246,0.12)',
+                          border: '1px solid rgba(139,92,246,0.3)',
+                          borderRadius: 20,
+                          padding: '4px 12px',
+                          fontSize: 12,
+                          color: '#c4b5fd',
+                          cursor: syncingWebhook ? 'not-allowed' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 5,
+                          transition: 'all 0.2s',
+                        }}
+                      >
+                        <span>{syncingWebhook ? '⏳' : '🔄'}</span>
+                        <span>{syncingWebhook ? 'Syncing...' : 'Sync Webhook'}</span>
+                      </button>
                     </div>
                   ) : (
                     <a

@@ -60,7 +60,8 @@ const PLATFORM_META: Record<string, { name: string; color: string; bg: string; i
   whop:      { name: 'Whop',      color: '#FF5A00', bg: '#FFF0E6' },
   dribbble:  { name: 'Dribbble',  color: '#EA4C89', bg: '#FDEDF3' },
   skool:     { name: 'Skool',     color: '#E2AD44', bg: '#FDF7EB' },
-  warpcast:  { name: 'Warpcast',  color: '#8A63D2', bg: '#F4EFFB' },
+  warpcast:  { name: 'Farcaster',  color: '#8A63D2', bg: '#F4EFFB' },
+  farcaster: { name: 'Farcaster',  color: '#8A63D2', bg: '#F4EFFB' },
   whatsapp:  { name: 'WhatsApp',  color: '#25D366', bg: '#E7F9EE' },
 };
 

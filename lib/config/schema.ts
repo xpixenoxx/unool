@@ -113,6 +113,13 @@ const configSchema = z.object({
   VK_SERVICE_TOKEN: z.string().optional(),
   VK_REDIRECT_URI: z.string().url().optional(),
 
+  // MeWe Developer API
+  MEWE_CLIENT_ID: z.string().optional(),
+  MEWE_APP_ID: z.string().optional(),
+  MEWE_API_KEY: z.string().optional(),
+  MEWE_CLIENT_SECRET: z.string().optional(),
+  MEWE_REDIRECT_URI: z.string().url().optional(),
+
   // Webhook secrets
   LINKEDIN_WEBHOOK_SECRET: z.string().optional(),
   X_WEBHOOK_SECRET: z.string().optional(),
@@ -123,6 +130,7 @@ const configSchema = z.object({
   // Legacy alias — kept for backwards compat, not used directly by code
   META_WEBHOOK_SECRET: z.string().optional(),
   META_WEBHOOK_VERIFY_TOKEN: z.string().optional(),  // Shared verify token for Instagram & Facebook webhook handshake
+  INSTAGRAM_WEBHOOK_VERIFY_TOKEN: z.string().optional(),
 
   // Groq API (for AI generation and automation)
   GROQ_API_KEY: z.string().optional(),
@@ -162,6 +170,11 @@ const env = {
   THREADS_CLIENT_ID: process.env.THREADS_CLIENT_ID || process.env.META_CLIENT_ID,
   THREADS_CLIENT_SECRET: process.env.THREADS_CLIENT_SECRET || process.env.META_CLIENT_SECRET,
   THREADS_REDIRECT_URI: process.env.THREADS_REDIRECT_URI || process.env.META_REDIRECT_URI,
+  // Instagram / Meta Webhook: support both INSTAGRAM_* and META_* env var names interchangeably
+  META_WEBHOOK_SECRET: process.env.META_WEBHOOK_SECRET || process.env.INSTAGRAM_WEBHOOK_SECRET,
+  META_WEBHOOK_VERIFY_TOKEN: process.env.META_WEBHOOK_VERIFY_TOKEN || process.env.INSTAGRAM_WEBHOOK_VERIFY_TOKEN,
+  INSTAGRAM_WEBHOOK_SECRET: process.env.INSTAGRAM_WEBHOOK_SECRET || process.env.META_WEBHOOK_SECRET,
+  INSTAGRAM_WEBHOOK_VERIFY_TOKEN: process.env.INSTAGRAM_WEBHOOK_VERIFY_TOKEN || process.env.META_WEBHOOK_VERIFY_TOKEN,
 };
 
 export const config = configSchema.parse(env);
