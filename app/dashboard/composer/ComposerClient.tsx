@@ -124,7 +124,7 @@ const PLATFORM_CONFIG: Record<PlatformType, { icon: React.ElementType; name: str
   whop: { icon: Store, name: 'Whop', maxChars: 10000, color: 'bg-[#FF5A00]' },
   kick: { icon: Gamepad2, name: 'Kick', maxChars: 10000, color: 'bg-[#53FC18]' },
   vk: { icon: Video, name: 'VK', maxChars: 4096, color: 'bg-[#0077FF]' },
-  warpcast: { icon: Hash, name: 'Warpcast', maxChars: 320, color: 'bg-[#8A63D2]' },
+  warpcast: { icon: Hash, name: 'Farcaster', maxChars: 320, color: 'bg-[#8A63D2]' },
   mewe: { icon: MessageSquare, name: 'MeWe', maxChars: 4000, color: 'bg-[#2F435E]' },
   nostr: { icon: Zap, name: 'Nostr', maxChars: 65535, color: 'bg-[#9B51E0]' },
   medium: { icon: FileText, name: 'Medium', maxChars: 100000, color: 'bg-black' },
@@ -133,6 +133,8 @@ const PLATFORM_CONFIG: Record<PlatformType, { icon: React.ElementType; name: str
   reddit: { icon: Globe, name: 'Reddit', maxChars: 40000, color: 'bg-[#FF4500]' },
   hashnode: { icon: FileText, name: 'Hashnode', maxChars: 100000, color: 'bg-[#2962FF]' },
   devto: { icon: FileText, name: 'DEV.to', maxChars: 100000, color: 'bg-[#090909]' },
+  twitter: { icon: Twitter, name: 'X (Twitter)', maxChars: 280, color: 'bg-gray-800 dark:bg-gray-200' },
+  whatsapp: { icon: MessageSquare, name: 'WhatsApp', maxChars: 4096, color: 'bg-green-600' },
 };
 
 interface PlatformDraft {

@@ -22,6 +22,7 @@ export type SupportedPlatform =
   | 'kick'
   | 'vk'
   | 'warpcast'
+  | 'farcaster'
   | 'skool'
   | 'whop'
   | 'mewe'
@@ -184,7 +185,7 @@ export const PlatformSVGs: Record<string, React.FC<{ size?: number; className?: 
     </svg>
   ),
 
-  // 19. Warpcast / Farcaster (Official arch W)
+  // 19. Farcaster (Official arch W)
   warpcast: ({ size = 20, className = '' }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="#8A63D2" className={`flex-shrink-0 ${className}`}>
       <path d="M18.24.24H5.76A5.52 5.52 0 0 0 .24 5.76v12.48a5.52 5.52 0 0 0 5.52 5.52h12.48a5.52 5.52 0 0 0 5.52-5.52V5.76A5.52 5.52 0 0 0 18.24.24zm-1.8 17.52h-2.16v-6.36c0-1.19-.97-2.16-2.16-2.16h-.24c-1.19 0-2.16.97-2.16 2.16v6.36H7.56V8.16h2.16v1.44c.66-.99 1.77-1.56 2.97-1.56h.24c1.98 0 3.51 1.62 3.51 3.6v6.12z" />
@@ -273,6 +274,7 @@ export const PlatformSVGs: Record<string, React.FC<{ size?: number; className?: 
 // Aliases
 PlatformSVGs['twitter'] = PlatformSVGs['x'];
 PlatformSVGs['dev.to'] = PlatformSVGs['devto'];
+PlatformSVGs['farcaster'] = PlatformSVGs['warpcast'];
 
 // ── Complete Platform Config Map (Logos, Names, Brand Colors) ─────────────────
 
@@ -404,7 +406,13 @@ export const PlatformLogos: Record<string, PlatformConfig> = {
     logo: PlatformSVGs.vk,
   },
   warpcast: {
-    name: 'Warpcast',
+    name: 'Farcaster',
+    color: '#8A63D2',
+    bg: '#8A63D2',
+    logo: PlatformSVGs.warpcast,
+  },
+  farcaster: {
+    name: 'Farcaster',
     color: '#8A63D2',
     bg: '#8A63D2',
     logo: PlatformSVGs.warpcast,

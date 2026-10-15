@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { HookScorer, HOOK_FORMULAS } from '@/lib/ai/engines';
 import { PlatformType } from '@/lib/ai/PostAdapter';
 import { z } from 'zod';
@@ -11,7 +11,7 @@ import { z } from 'zod';
  * matched formula IDs, platform fold warnings, and improvement suggestions.
  *
  * Supports all text-based UNOOL platforms: LinkedIn, X, Threads, Bluesky,
- * Instagram, Medium, Hashnode, Dev.to, Mastodon, Warpcast, etc.
+ * Instagram, Medium, Hashnode, Dev.to, Mastodon, Farcaster, etc.
  *
  * No AI call needed — pure deterministic scoring.
  */

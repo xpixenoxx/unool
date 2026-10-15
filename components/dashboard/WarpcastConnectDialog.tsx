@@ -44,7 +44,7 @@ export function WarpcastConnectDialog({
         return;
       }
 
-      toast.success(`Warpcast connected successfully!`);
+      toast.success(`Farcaster connected successfully!`);
       onSuccess(data.username);
       onClose();
     } catch {
@@ -62,10 +62,10 @@ export function WarpcastConnectDialog({
             <div className="p-1.5 rounded-lg bg-[#8A63D2] text-white">
               <Hash className="w-4 h-4" />
             </div>
-            Connect Warpcast
+            Connect Farcaster
           </DialogTitle>
           <DialogDescription>
-            Warpcast automated posting requires a Webhook URL configured to send casts on your behalf.
+            Farcaster automated posting requires a Webhook URL configured to send casts on your behalf.
           </DialogDescription>
         </DialogHeader>
 
@@ -85,7 +85,7 @@ export function WarpcastConnectDialog({
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Username (Handle)</label>
             <Input
-              placeholder="Your Warpcast handle"
+              placeholder="Your Farcaster handle"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               disabled={submitting}

@@ -79,6 +79,7 @@ export const platformAdapters: Record<string, PlatformAdapter> = {
   kick: kickAdapter,
   vk: vkAdapter,
   warpcast: warpcastAdapter,
+  farcaster: warpcastAdapter,
   mewe: meweAdapter,
   nostr: nostrAdapter,
   medium: mediumAdapter,
