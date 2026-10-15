@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse, after } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { verifyMetaSignature } from '@/lib/webhooks/verify';
 import { config } from '@/lib/config/schema';
@@ -60,21 +60,35 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing signature' }, { status: 401 });
     }
 
-    const secret =
-      config.INSTAGRAM_WEBHOOK_SECRET ||
-      config.META_WEBHOOK_SECRET ||
-      process.env.INSTAGRAM_WEBHOOK_SECRET ||
-      process.env.META_WEBHOOK_SECRET;
+    // Try all possible webhook secrets (Instagram, Facebook, Meta)
+    const secretsToTry = [
+      config.INSTAGRAM_WEBHOOK_SECRET,
+      config.FACEBOOK_WEBHOOK_SECRET,
+      config.META_WEBHOOK_SECRET,
+      process.env.INSTAGRAM_WEBHOOK_SECRET,
+      process.env.FACEBOOK_WEBHOOK_SECRET,
+      process.env.META_WEBHOOK_SECRET,
+    ].filter(Boolean) as string[];
 
-    if (secret) {
-      const isValid = await verifyMetaSignature(body, signature, secret);
-      if (!isValid) {
-        logger.warn('Instagram webhook: invalid signature');
-        return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+    let isValid = false;
+    for (const secret of secretsToTry) {
+      if (await verifyMetaSignature(body, signature, secret)) {
+        isValid = true;
+        break;
       }
-    } else if (config.NODE_ENV === 'production') {
-      logger.error('Instagram webhook: INSTAGRAM_WEBHOOK_SECRET or META_WEBHOOK_SECRET not configured in production');
-      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+    }
+
+    if (!isValid) {
+      if (secretsToTry.length > 0) {
+        logger.warn('Instagram webhook: invalid signature across all secrets', {
+          secretsCount: secretsToTry.length,
+          signaturePrefix: signature.slice(0, 15),
+        });
+        return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+      } else if (config.NODE_ENV === 'production') {
+        logger.error('Instagram webhook: no webhook secret configured in production');
+        return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+      }
     }
 
     let payload: Record<string, unknown>;
@@ -85,8 +99,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
     }
 
-    if (payload.object !== 'instagram') {
-      logger.debug('Instagram webhook: not an instagram object', { object: payload.object });
+    if (payload.object !== 'instagram' && payload.object !== 'page') {
+      logger.debug('Instagram webhook: unhandled object type', { object: payload.object });
       return NextResponse.json({ received: true });
     }
 
@@ -95,9 +109,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ received: true });
     }
 
-    const backgroundTasks: Promise<void>[] = [];
+    const tasks: Promise<void>[] = [];
 
-    // Process each entry asynchronously
+    // Process each entry
     for (const entry of entries) {
       const igUserId = entry.id as string;
       const changes = entry.changes as Array<Record<string, unknown>> | undefined;
@@ -106,10 +120,10 @@ export async function POST(request: NextRequest) {
       // Handle comment events
       if (changes && Array.isArray(changes)) {
         for (const change of changes) {
-          if (change.field === 'comments') {
-            const value = change.value as Record<string, unknown>;
+          if (change.field === 'comments' || change.field === 'feed') {
+            const value = (change.value as Record<string, unknown>) || change;
             if (value) {
-              backgroundTasks.push(
+              tasks.push(
                 processCommentEvent(igUserId, value).catch((err) => {
                   logger.error('Error processing Instagram comment event', {
                     igUserId,
@@ -125,7 +139,7 @@ export async function POST(request: NextRequest) {
       // Handle inbound DM events (messages field)
       if (messaging && Array.isArray(messaging)) {
         for (const msg of messaging) {
-          backgroundTasks.push(
+          tasks.push(
             processDmEvent(igUserId, msg).catch((err) => {
               logger.error('Error processing Instagram DM event', {
                 igUserId,
@@ -137,14 +151,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Schedule background tasks with Next.js after() to keep the serverless lambda alive
-    if (typeof after === 'function' && backgroundTasks.length > 0) {
-      after(async () => {
-        await Promise.allSettled(backgroundTasks);
-      });
+    // Await all tasks to finish completely so Vercel never freezes before execution completes
+    if (tasks.length > 0) {
+      await Promise.allSettled(tasks);
     }
 
-    // Always return 200 quickly to Meta to avoid retries
+    // Return 200 to Meta
     return NextResponse.json({ received: true });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
@@ -194,19 +206,54 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
   }
 
   // Find the platform connection
-  const { data: connections } = await supabase
+  let connection: any = null;
+  const { data: directConnections } = await supabase
     .from('platform_connections')
     .select('*')
     .eq('platform', 'instagram')
     .eq('platform_user_id', igUserId)
     .eq('status', 'connected');
 
-  if (!connections || connections.length === 0) {
+  if (directConnections && directConnections.length > 0) {
+    connection = directConnections[0];
+  } else {
+    // Fallback: check if there is an active Instagram connection in any workspace
+    const { data: allActive } = await supabase
+      .from('platform_connections')
+      .select('*')
+      .eq('platform', 'instagram')
+      .eq('status', 'connected');
+
+    if (allActive && allActive.length > 0) {
+      connection = allActive[0];
+      logger.info('Resolved Instagram connection via active connection fallback', {
+        igUserId,
+        matchedUserId: connection.platform_user_id,
+        matchedUsername: connection.username,
+      });
+    }
+  }
+
+  if (!connection) {
     logger.warn('No active Instagram connection found for webhook', { igUserId });
+    const { data: ws } = await supabase.from('workspaces').select('id').limit(1).single();
+    if (ws?.id) {
+      await logCommentEvent(ws.id, commentEvent, {
+        classification: 'unrelated',
+        confidence: 0,
+        suggestedReply: '',
+        suggestedDM: null,
+        threadHook: null,
+        leadScore: 0,
+        shouldAutoReply: false,
+        shouldSendDM: false,
+        shouldFlagForReview: true,
+        reasoning: `No active connection matched webhook igUserId: ${igUserId}`,
+      });
+    }
     return;
   }
 
-  const connection = connections[0];
   const groqApiKey = config.GROQ_API_KEY || process.env.GROQ_API_KEY;
 
   if (!groqApiKey) {
@@ -305,9 +352,27 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
 
   // ── Classify and generate reply ─────────────────────────────────────────
   const automation = new InstagramCommentAutomation(groqApiKey);
-  const result = await automation.classifyAndGenerateReply(commentEvent, postCaption, automationConfig, recentReplies);
+  let result: ClassifiedComment;
+  try {
+    result = await automation.classifyAndGenerateReply(commentEvent, postCaption, automationConfig, recentReplies);
+  } catch (aiErr) {
+    const err = aiErr instanceof Error ? aiErr : new Error(String(aiErr));
+    logger.error('Error during AI comment classification', { error: err, commentId: commentEvent.commentId });
+    result = {
+      classification: 'unrelated',
+      confidence: 0,
+      suggestedReply: '',
+      suggestedDM: null,
+      threadHook: null,
+      leadScore: 0,
+      shouldAutoReply: false,
+      shouldSendDM: false,
+      shouldFlagForReview: true,
+      reasoning: `AI classification exception: ${err.message}`,
+    };
+  }
 
-  // Log the comment and classification
+  // Log the comment and classification immediately
   await logCommentEvent(connection.workspace_id, commentEvent, result);
 
   // Act on the classification
@@ -328,11 +393,8 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
       });
       result.shouldFlagForReview = true;
     } else {
-      // ── Poisson jitter delay before posting ────────────────────────────
-      // Bound delay to 2–6s so the serverless function completes safely within Vercel execution limits
-      const minDelay = Math.min(automationConfig.jitterMinSeconds ?? 3, 3);
-      const maxDelay = Math.min(automationConfig.jitterMaxSeconds ?? 6, 6);
-      await humanizedSleep(minDelay, maxDelay);
+      // ── Fast jitter delay (1-2s) so response feels natural but runs well within serverless limits
+      await humanizedSleep(1, 2);
 
       // Post the public reply
       const replyResult = await automation.postPublicReply(
@@ -346,6 +408,16 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
         // Record in velocity tracker and lexical guard
         await velocityThrottle.recordReply(connection.workspace_id);
         lexicalEntropyGuard.recordReply(connection.workspace_id, finalReply);
+      } else {
+        logger.error('Failed to post public reply via Instagram Graph API', { commentId: commentEvent.commentId });
+        await supabase
+          .from('instagram_comment_logs')
+          .update({
+            auto_replied: false,
+            flagged_for_review: true,
+            reasoning: `${result.reasoning} (Failed to post reply via Graph API - check account permissions)`,
+          })
+          .eq('comment_id', commentEvent.commentId);
       }
     }
 
