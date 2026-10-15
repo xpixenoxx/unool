@@ -91,7 +91,7 @@ ${studioContextBlock}
 Generate exactly 3 post ideas.
 
 MUST-FOLLOW RULES
-- UNIQUE: each idea combines at least TWO things from the profile (for example profession + hobby, or audience + a seasonal moment). Nothing that any creator in any niche could post.
+- UNIQUE: each idea combines at least TWO things from the profile (for example what their business does + a stage lesson/challenge, or what they love talking about at work + an outside interest or seasonal moment). Nothing that any creator in any niche could post.
 - NOT GENERIC: ban '5 tips for...', 'why consistency matters', 'my journey', 'lessons I learned', 'Monday motivation' style ideas.
 - CONVERSATIONAL AND EASY TO UNDERSTAND: write like a smart friend talking, in simple everyday words. Short sentences. No jargon, no buzzwords, no abstract or poetic phrasing. A person should understand the idea in 3 seconds without re-reading. Each title must be plain (max 12 words) and say exactly what the post is about.
 - Each hook is the first line of the post, written the way the creator would actually say it out loud, in their tone (${tone}).

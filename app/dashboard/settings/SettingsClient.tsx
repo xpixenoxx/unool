@@ -89,6 +89,9 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
   // Studio Profile state
   const [studioProfile, setStudioProfile] = useState<StudioProfile>({
     role: '',
+    businessStage: '',
+    businessDomain: '',
+    workInterests: '',
     doing: '',
     audience: '',
     tone: '',
@@ -108,7 +111,10 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
         if (data.profile) {
           setStudioProfile({
             role: data.profile.role || '',
-            doing: data.profile.doing || '',
+            businessStage: data.profile.businessStage || '',
+            businessDomain: data.profile.businessDomain || data.profile.doing || '',
+            workInterests: data.profile.workInterests || '',
+            doing: data.profile.doing || data.profile.businessDomain || '',
             audience: data.profile.audience || '',
             tone: data.profile.tone || '',
             style: data.profile.style || '',
@@ -127,7 +133,10 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
           const sp = legacyData.studio_profile || legacyData.studioProfile;
           setStudioProfile({
             role: sp.role || '',
-            doing: sp.doing || '',
+            businessStage: sp.businessStage || '',
+            businessDomain: sp.businessDomain || sp.doing || '',
+            workInterests: sp.workInterests || '',
+            doing: sp.doing || sp.businessDomain || '',
             audience: sp.audience || '',
             tone: sp.tone || '',
             style: sp.style || '',
@@ -139,6 +148,9 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
           const a = legacyData.answers || legacyData.onboarding_answers;
           setStudioProfile({
             role: a.persona || '',
+            businessStage: '',
+            businessDomain: a.focus || '',
+            workInterests: '',
             doing: a.focus || '',
             audience: Array.isArray(a.audience) ? a.audience.join(', ') : a.audience || '',
             tone: Array.isArray(a.tone) ? a.tone.join(', ') : a.tone || '',
@@ -156,9 +168,13 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
   const handleSaveOnboarding = async () => {
     setSavingOnboarding(true);
     try {
+      const domain = (studioProfile.businessDomain || studioProfile.doing || '').trim();
       const payload: StudioProfile = {
         role: (studioProfile.role.trim() || 'Creator').slice(0, 80),
-        doing: (studioProfile.doing.trim() || 'Content creation and storytelling').slice(0, 80),
+        businessStage: (studioProfile.businessStage?.trim() || 'Growing').slice(0, 80),
+        businessDomain: (domain || 'Software/AI').slice(0, 80),
+        workInterests: studioProfile.workInterests?.trim() ? studioProfile.workInterests.trim().slice(0, 120) : undefined,
+        doing: (domain || 'Software/AI').slice(0, 80),
         audience: (studioProfile.audience.trim() || 'Followers in my niche').slice(0, 80),
         tone: (studioProfile.tone.trim() || 'Conversational & candid').slice(0, 80),
         style: (studioProfile.style.trim() || 'Short punchy lines').slice(0, 80),
@@ -489,7 +505,7 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
                 <p className="text-xs font-bold uppercase tracking-wider text-[#C4A265] mb-2.5">
                   Current Voice Signature
                 </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                   <div className="p-3 rounded-xl bg-white dark:bg-zinc-800/80 border border-zinc-200/60 dark:border-zinc-700">
                     <p className="text-[10px] font-semibold text-muted-foreground uppercase">Role</p>
                     <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 truncate">
@@ -497,9 +513,15 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
                     </p>
                   </div>
                   <div className="p-3 rounded-xl bg-white dark:bg-zinc-800/80 border border-zinc-200/60 dark:border-zinc-700">
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase">Focus</p>
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase">Business Stage</p>
                     <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 truncate">
-                      {studioProfile.doing || 'Not specified'}
+                      {studioProfile.businessStage || 'Growing'}
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-white dark:bg-zinc-800/80 border border-zinc-200/60 dark:border-zinc-700">
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase">Business Domain</p>
+                    <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 truncate">
+                      {studioProfile.businessDomain || studioProfile.doing || 'Not specified'}
                     </p>
                   </div>
                   <div className="p-3 rounded-xl bg-white dark:bg-zinc-800/80 border border-zinc-200/60 dark:border-zinc-700">
@@ -520,6 +542,14 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
                       {studioProfile.style || 'Not selected'}
                     </p>
                   </div>
+                  {Boolean(studioProfile.workInterests) && (
+                    <div className="p-3 rounded-xl bg-white dark:bg-zinc-800/80 border border-zinc-200/60 dark:border-zinc-700 sm:col-span-2">
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase">Work Themes</p>
+                      <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 truncate">
+                        {studioProfile.workInterests}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {studioProfile.interests && studioProfile.interests.length > 0 && (
@@ -554,22 +584,58 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
                   </p>
                 </div>
 
-                {/* 2. Focus / Project */}
+                {/* 2. Business Stage */}
                 <div>
-                  <Label htmlFor="studio-doing-input">Current Focus / What you build or do</Label>
+                  <Label htmlFor="studio-stage-input">Business Stage</Label>
                   <Input
-                    id="studio-doing-input"
-                    value={studioProfile.doing}
-                    onChange={(e) => setStudioProfile((prev) => ({ ...prev, doing: e.target.value }))}
-                    placeholder="e.g. Tech startup, AI / ML, Content creation, Studies..."
+                    id="studio-stage-input"
+                    value={studioProfile.businessStage || ''}
+                    onChange={(e) => setStudioProfile((prev) => ({ ...prev, businessStage: e.target.value }))}
+                    placeholder="e.g. Just an idea, Early stage / startup, Growing, Settled, Expert / established..."
                     className="mt-1"
                   />
                   <p className="text-[11px] text-muted-foreground mt-1">
-                    What you are building, studying, or creating on a daily basis.
+                    Where your business is right now.
                   </p>
                 </div>
 
-                {/* 3. Target Audience */}
+                {/* 3. Business Domain */}
+                <div>
+                  <Label htmlFor="studio-domain-input-settings">What your business does (Domain)</Label>
+                  <Input
+                    id="studio-domain-input-settings"
+                    value={studioProfile.businessDomain || studioProfile.doing}
+                    onChange={(e) =>
+                      setStudioProfile((prev) => ({
+                        ...prev,
+                        businessDomain: e.target.value,
+                        doing: e.target.value,
+                      }))
+                    }
+                    placeholder="e.g. Software/AI, Food & dairy, Fashion & beauty, Education, Agency..."
+                    className="mt-1"
+                  />
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    What your business actually does on a daily basis.
+                  </p>
+                </div>
+
+                {/* 4. Work Themes / Topics */}
+                <div>
+                  <Label htmlFor="studio-work-interests-settings">What you love talking about in your work</Label>
+                  <Input
+                    id="studio-work-interests-settings"
+                    value={studioProfile.workInterests || ''}
+                    onChange={(e) => setStudioProfile((prev) => ({ ...prev, workInterests: e.target.value }))}
+                    placeholder="e.g. Scaling systems, zero to one, storytelling, customer psychology..."
+                    className="mt-1"
+                  />
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Optional work topics and themes you love discussing in posts.
+                  </p>
+                </div>
+
+                {/* 5. Target Audience */}
                 <div>
                   <Label htmlFor="studio-audience-input">Target Audience</Label>
                   <Input
@@ -584,7 +650,7 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
                   </p>
                 </div>
 
-                {/* 4. Voice Tone */}
+                {/* 6. Voice Tone */}
                 <div>
                   <Label htmlFor="studio-tone-input">Voice Tone Cadence</Label>
                   <Input
@@ -599,7 +665,7 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
                   </p>
                 </div>
 
-                {/* 5. Reading Style */}
+                {/* 7. Reading Style */}
                 <div>
                   <Label htmlFor="studio-style-input">Reading & Content Style</Label>
                   <Input

@@ -32,6 +32,9 @@ export interface StudioOnboardingModalProps {
 
 interface DraftAnswers {
   role: string;
+  businessStage: string;
+  businessDomain: string;
+  workInterests: string;
   doing: string;
   audience: string;
   tone: string;
@@ -51,12 +54,15 @@ export function StudioOnboardingModal({
 }: StudioOnboardingModalProps) {
   const [mounted, setMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
-  const [currentStep, setCurrentStep] = useState<number>(1); // 1 to 6: questions, 7: All Set
+  const [currentStep, setCurrentStep] = useState<number>(1); // 1 to 7: questions, 8: All Set
   const otherInputId = useId();
 
   // Answer state
   const [answers, setAnswers] = useState<DraftAnswers>({
     role: '',
+    businessStage: '',
+    businessDomain: '',
+    workInterests: '',
     doing: '',
     audience: '',
     tone: '',
@@ -150,7 +156,10 @@ export function StudioOnboardingModal({
     if (initialAnswers) {
       // Normalize from both new and legacy shapes
       const mappedRole = initialAnswers.role || initialAnswers.persona || '';
-      const mappedDoing = initialAnswers.doing || initialAnswers.focus || '';
+      const mappedStage = initialAnswers.businessStage || '';
+      const mappedDomain = initialAnswers.businessDomain || initialAnswers.doing || initialAnswers.focus || '';
+      const mappedWorkInterests = initialAnswers.workInterests || '';
+      const mappedDoing = initialAnswers.doing || mappedDomain;
       const mappedAudience =
         typeof initialAnswers.audience === 'string'
           ? initialAnswers.audience
@@ -172,6 +181,9 @@ export function StudioOnboardingModal({
 
       setAnswers({
         role: mappedRole,
+        businessStage: mappedStage,
+        businessDomain: mappedDomain,
+        workInterests: mappedWorkInterests,
         doing: mappedDoing,
         audience: mappedAudience,
         tone: mappedTone,
@@ -191,7 +203,7 @@ export function StudioOnboardingModal({
             if (parsed.answers) {
               setAnswers(parsed.answers);
             }
-            if (parsed.step && parsed.step >= 1 && parsed.step <= 6) {
+            if (parsed.step && parsed.step >= 1 && parsed.step <= 7) {
               setCurrentStep(parsed.step);
             }
           }
@@ -202,7 +214,7 @@ export function StudioOnboardingModal({
 
   // Persist draft to local storage on changes
   useEffect(() => {
-    if (currentStep <= 6 && !savedProfile) {
+    if (currentStep <= 7 && !savedProfile) {
       try {
         localStorage.setItem(
           draftKey,
@@ -240,11 +252,11 @@ export function StudioOnboardingModal({
 
   // Synchronize "Other" input state when navigating steps
   useEffect(() => {
-    if (currentStep > 6) return;
+    if (currentStep > 7) return;
     const question = STUDIO_ONBOARDING_QUESTIONS[currentStep - 1];
     if (!question) return;
 
-    if (question.key === 'interests') {
+    if (question.key === 'interests' || question.key === 'businessDomain') {
       setIsOtherSelected(false);
       setOtherText('');
       return;
@@ -268,7 +280,7 @@ export function StudioOnboardingModal({
   };
 
   // Step questions config
-  const currentQuestionConfig = currentStep <= 6 ? STUDIO_ONBOARDING_QUESTIONS[currentStep - 1] : null;
+  const currentQuestionConfig = currentStep <= 7 ? STUDIO_ONBOARDING_QUESTIONS[currentStep - 1] : null;
 
   const currentTitle = currentQuestionConfig
     ? typeof currentQuestionConfig.title === 'function'
@@ -276,7 +288,7 @@ export function StudioOnboardingModal({
       : currentQuestionConfig.title
     : '';
 
-  const currentOptions: string[] = currentQuestionConfig
+  const currentOptions: readonly string[] = currentQuestionConfig
     ? typeof currentQuestionConfig.options === 'function'
       ? currentQuestionConfig.options(answers)
       : currentQuestionConfig.options
@@ -287,21 +299,10 @@ export function StudioOnboardingModal({
     if (!currentQuestionConfig) return;
 
     const key = currentQuestionConfig.key;
-
-    if (key === 'role') {
-      // If changing role on Back, clear dependent "doing" answer!
-      const isRoleChanging = option !== answers.role;
-      setAnswers((prev) => ({
-        ...prev,
-        role: option,
-        doing: isRoleChanging ? '' : prev.doing,
-      }));
-    } else {
-      setAnswers((prev) => ({
-        ...prev,
-        [key]: option,
-      }));
-    }
+    setAnswers((prev) => ({
+      ...prev,
+      [key]: option,
+    }));
 
     setIsOtherSelected(false);
     setOtherText('');
@@ -324,19 +325,10 @@ export function StudioOnboardingModal({
     if (!trimmed) return;
 
     const key = currentQuestionConfig.key;
-    if (key === 'role') {
-      const isRoleChanging = trimmed !== answers.role;
-      setAnswers((prev) => ({
-        ...prev,
-        role: trimmed,
-        doing: isRoleChanging ? '' : prev.doing,
-      }));
-    } else {
-      setAnswers((prev) => ({
-        ...prev,
-        [key]: trimmed,
-      }));
-    }
+    setAnswers((prev) => ({
+      ...prev,
+      [key]: trimmed,
+    }));
 
     goToNextStep();
   };
@@ -370,9 +362,9 @@ export function StudioOnboardingModal({
   // Step Navigation
   const goToNextStep = () => {
     setSaveError(null);
-    if (currentStep < 6) {
+    if (currentStep < 7) {
       setCurrentStep((prev) => prev + 1);
-    } else if (currentStep === 6) {
+    } else if (currentStep === 7) {
       // Complete & Save
       saveStudioProfile();
     }
@@ -380,9 +372,9 @@ export function StudioOnboardingModal({
 
   const handleSkipStep = () => {
     setSaveError(null);
-    if (currentStep < 6) {
+    if (currentStep < 7) {
       setCurrentStep((prev) => prev + 1);
-    } else if (currentStep === 6) {
+    } else if (currentStep === 7) {
       saveStudioProfile();
     }
   };
@@ -399,9 +391,13 @@ export function StudioOnboardingModal({
     setIsSaving(true);
     setSaveError(null);
 
+    const domain = (answers.businessDomain.trim() || answers.doing.trim() || 'Software/AI').slice(0, 80);
     const payload: StudioProfile = {
       role: (answers.role.trim() || 'Creator').slice(0, 80),
-      doing: (answers.doing.trim() || 'Content creation and storytelling').slice(0, 80),
+      businessStage: (answers.businessStage.trim() || 'Growing').slice(0, 80),
+      businessDomain: domain,
+      workInterests: answers.workInterests.trim() ? answers.workInterests.trim().slice(0, 120) : undefined,
+      doing: domain,
       audience: (answers.audience.trim() || 'Followers in my niche').slice(0, 80),
       tone: (answers.tone.trim() || 'Conversational & candid').slice(0, 80),
       style: (answers.style.trim() || 'Short punchy lines').slice(0, 80),
@@ -434,7 +430,7 @@ export function StudioOnboardingModal({
       } catch {}
 
       onComplete?.(payload);
-      setCurrentStep(7); // Show "You're all set"
+      setCurrentStep(8); // Show "You're all set"
     } catch (err) {
       console.error('Failed to save studio profile:', err);
       setSaveError(err instanceof Error ? err.message : 'Failed to save profile. Please try again.');
@@ -483,12 +479,12 @@ export function StudioOnboardingModal({
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-[#C4A265]" />
               <span className="text-xs font-semibold tracking-wider uppercase text-[#8B7355] dark:text-zinc-400">
-                {currentStep <= 6 ? `Question ${currentStep} of 6` : 'Profile Complete'}
+                {currentStep <= 7 ? `Question ${currentStep} of 7` : 'Profile Complete'}
               </span>
             </div>
 
             <div className="flex items-center gap-2">
-              {currentStep <= 6 && (
+              {currentStep <= 7 && (
                 <button
                   type="button"
                   onClick={handleSkipStep}
@@ -518,7 +514,7 @@ export function StudioOnboardingModal({
             <motion.div
               className="bg-[#C4A265] h-full rounded-full"
               initial={{ width: 0 }}
-              animate={{ width: `${Math.min(100, (currentStep / 6) * 100)}%` }}
+              animate={{ width: `${Math.min(100, (currentStep / 7) * 100)}%` }}
               transition={{ duration: 0.3 }}
             />
           </div>
@@ -527,7 +523,7 @@ export function StudioOnboardingModal({
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto px-6 py-6 sm:px-8">
           <AnimatePresence mode="wait">
-            {currentStep <= 6 ? (
+            {currentStep <= 7 ? (
               <motion.div
                 key={`step-${currentStep}`}
                 initial={{ opacity: 0, x: 14 }}
@@ -545,14 +541,16 @@ export function StudioOnboardingModal({
                     {currentTitle}
                   </h2>
                   <p className="text-xs sm:text-sm text-[#8B7355] dark:text-zinc-400 mt-1">
-                    {currentQuestionConfig?.multiSelect
+                    {currentQuestionConfig?.key === 'interests'
                       ? 'Select all that apply. Choose at least one to continue.'
+                      : currentQuestionConfig?.key === 'businessDomain'
+                      ? 'Pick your domain or type your own, then add what you love talking about.'
                       : 'Select one option or type your own.'}
                   </p>
                 </div>
 
-                {/* Question 1-5 (Single Select) */}
-                {!currentQuestionConfig?.multiSelect && (
+                {/* Single Select Questions (role, businessStage, audience, tone, style) */}
+                {!currentQuestionConfig?.multiSelect && !currentQuestionConfig?.isCustomStep && (
                   <div className="space-y-4">
                     {/* Options Grid */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -651,7 +649,145 @@ export function StudioOnboardingModal({
                   </div>
                 )}
 
-                {/* Question 6 (Interests - Multi-Select) */}
+                {/* Question 3: What does your business actually do? (Custom Step) */}
+                {currentQuestionConfig?.key === 'businessDomain' && (
+                  <div className="space-y-5">
+                    {/* Quick-pick chips */}
+                    <div className="space-y-2">
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-[#8B7355] dark:text-zinc-400">
+                        Quick-pick domain
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {currentOptions.map((domain) => {
+                          const isSelected = answers.businessDomain === domain;
+                          return (
+                            <button
+                              key={domain}
+                              type="button"
+                              onClick={() => {
+                                setAnswers((prev) => ({
+                                  ...prev,
+                                  businessDomain: domain,
+                                  doing: domain,
+                                }));
+                              }}
+                              className={`px-3.5 py-2 rounded-xl text-sm font-medium border transition-all cursor-pointer flex items-center gap-1.5 ${
+                                isSelected
+                                  ? 'bg-[#3D2B1F] dark:bg-zinc-100 text-white dark:text-zinc-900 border-[#3D2B1F] dark:border-zinc-100 shadow-xs'
+                                  : 'bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 border-[#E8E0D4] dark:border-zinc-800 hover:border-[#C4A265] hover:bg-[#FAF6EE] dark:hover:bg-zinc-800'
+                              }`}
+                            >
+                              <span>{domain}</span>
+                              {isSelected && <Check className="w-3.5 h-3.5 stroke-[2.5]" />}
+                            </button>
+                          );
+                        })}
+                        {/* 'Other' chip */}
+                        {(() => {
+                          const isOther =
+                            Boolean(answers.businessDomain) &&
+                            !currentOptions.includes(answers.businessDomain);
+                          return (
+                            <button
+                              key="Other-chip"
+                              type="button"
+                              onClick={() => {
+                                const domainInput = document.getElementById('studio-domain-input');
+                                domainInput?.focus();
+                              }}
+                              className={`px-3.5 py-2 rounded-xl text-sm font-medium border transition-all cursor-pointer flex items-center gap-1.5 ${
+                                isOther
+                                  ? 'bg-[#3D2B1F] dark:bg-zinc-100 text-white dark:text-zinc-900 border-[#3D2B1F] dark:border-zinc-100 shadow-xs'
+                                  : 'bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 border-[#E8E0D4] dark:border-zinc-800 hover:border-[#C4A265] hover:bg-[#FAF6EE] dark:hover:bg-zinc-800'
+                              }`}
+                            >
+                              <span>Other</span>
+                              {isOther && <Check className="w-3.5 h-3.5 stroke-[2.5]" />}
+                            </button>
+                          );
+                        })()}
+                      </div>
+                    </div>
+
+                    {/* Primary Free-Text Input */}
+                    <div className="space-y-1.5 pt-1">
+                      <div className="flex items-center justify-between">
+                        <label
+                          htmlFor="studio-domain-input"
+                          className="text-xs font-semibold uppercase tracking-wider text-[#8B7355] dark:text-zinc-400"
+                        >
+                          What your business does
+                        </label>
+                        <span className="text-[11px] text-[#8B7355]/80 dark:text-zinc-500">
+                          {answers.businessDomain.length}/80
+                        </span>
+                      </div>
+                      <input
+                        id="studio-domain-input"
+                        type="text"
+                        maxLength={80}
+                        value={answers.businessDomain}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setAnswers((prev) => ({
+                            ...prev,
+                            businessDomain: val,
+                            doing: val,
+                          }));
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && answers.businessDomain.trim()) {
+                            e.preventDefault();
+                            goToNextStep();
+                          }
+                        }}
+                        placeholder="e.g. AI-powered analytics for creators, Boutique apparel brand..."
+                        className="w-full px-4 py-3 rounded-2xl border border-[#DACFBF] dark:border-zinc-700 bg-white dark:bg-zinc-950 text-sm text-[#3D2B1F] dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-hidden focus:ring-2 focus:ring-[#C4A265]"
+                      />
+                    </div>
+
+                    {/* Optional Second Field: What do you love talking about in your work? */}
+                    <div className="space-y-1.5 pt-1">
+                      <div className="flex items-center justify-between">
+                        <label
+                          htmlFor="studio-work-interests-input"
+                          className="text-xs font-semibold uppercase tracking-wider text-[#8B7355] dark:text-zinc-400"
+                        >
+                          What do you love talking about in your work? (optional)
+                        </label>
+                        <span className="text-[11px] text-[#8B7355]/80 dark:text-zinc-500">
+                          {answers.workInterests.length}/120
+                        </span>
+                      </div>
+                      <input
+                        id="studio-work-interests-input"
+                        type="text"
+                        maxLength={120}
+                        value={answers.workInterests}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setAnswers((prev) => ({
+                            ...prev,
+                            workInterests: val,
+                          }));
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && answers.businessDomain.trim()) {
+                            e.preventDefault();
+                            goToNextStep();
+                          }
+                        }}
+                        placeholder="e.g. Scaling systems, zero to one product building, customer psychology..."
+                        className="w-full px-4 py-3 rounded-2xl border border-[#DACFBF] dark:border-zinc-700 bg-white dark:bg-zinc-950 text-sm text-[#3D2B1F] dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-hidden focus:ring-2 focus:ring-[#C4A265]"
+                      />
+                      <p className="text-[11px] text-[#8B7355] dark:text-zinc-400">
+                        Optional themes and work angles the AI composer and idea generator will draw from.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Question 7 (Interests - Multi-Select) */}
                 {currentQuestionConfig?.key === 'interests' && (
                   <div className="space-y-6">
                     {/* Chips Cloud */}
@@ -753,7 +889,7 @@ export function StudioOnboardingModal({
                 )}
               </motion.div>
             ) : (
-              /* Step 7: "You're all set" Final Screen */
+              /* Step 8: "You're all set" Final Screen */
               <motion.div
                 key="step-complete"
                 initial={{ opacity: 0, scale: 0.98 }}
@@ -787,12 +923,24 @@ export function StudioOnboardingModal({
                     </div>
 
                     <div className="p-2.5 rounded-xl bg-[#FAF6EE] dark:bg-zinc-800/60 border border-[#EDE4D5] dark:border-zinc-800">
-                      <span className="text-[#8B7355] dark:text-zinc-400 block mb-0.5 font-medium">Focus</span>
-                      <span className="font-semibold text-[#3D2B1F] dark:text-zinc-100">{savedProfile?.doing || answers.doing || '—'}</span>
+                      <span className="text-[#8B7355] dark:text-zinc-400 block mb-0.5 font-medium">Business Stage</span>
+                      <span className="font-semibold text-[#3D2B1F] dark:text-zinc-100">{savedProfile?.businessStage || answers.businessStage || 'Growing'}</span>
                     </div>
 
                     <div className="p-2.5 rounded-xl bg-[#FAF6EE] dark:bg-zinc-800/60 border border-[#EDE4D5] dark:border-zinc-800">
-                      <span className="text-[#8B7355] dark:text-zinc-400 block mb-0.5 font-medium">Audience</span>
+                      <span className="text-[#8B7355] dark:text-zinc-400 block mb-0.5 font-medium">Business Domain</span>
+                      <span className="font-semibold text-[#3D2B1F] dark:text-zinc-100">{savedProfile?.businessDomain || savedProfile?.doing || answers.businessDomain || answers.doing || '—'}</span>
+                    </div>
+
+                    {Boolean(savedProfile?.workInterests || answers.workInterests) && (
+                      <div className="p-2.5 rounded-xl bg-[#FAF6EE] dark:bg-zinc-800/60 border border-[#EDE4D5] dark:border-zinc-800">
+                        <span className="text-[#8B7355] dark:text-zinc-400 block mb-0.5 font-medium">Work Themes</span>
+                        <span className="font-semibold text-[#3D2B1F] dark:text-zinc-100">{savedProfile?.workInterests || answers.workInterests}</span>
+                      </div>
+                    )}
+
+                    <div className="p-2.5 rounded-xl bg-[#FAF6EE] dark:bg-zinc-800/60 border border-[#EDE4D5] dark:border-zinc-800">
+                      <span className="text-[#8B7355] dark:text-zinc-400 block mb-0.5 font-medium">Target Audience</span>
                       <span className="font-semibold text-[#3D2B1F] dark:text-zinc-100">{savedProfile?.audience || answers.audience || '—'}</span>
                     </div>
 
@@ -807,7 +955,7 @@ export function StudioOnboardingModal({
                     </div>
 
                     <div className="p-2.5 rounded-xl bg-[#FAF6EE] dark:bg-zinc-800/60 border border-[#EDE4D5] dark:border-zinc-800">
-                      <span className="text-[#8B7355] dark:text-zinc-400 block mb-1 font-medium">Interests</span>
+                      <span className="text-[#8B7355] dark:text-zinc-400 block mb-1 font-medium">Interests Outside Work</span>
                       <div className="flex flex-wrap gap-1">
                         {((savedProfile?.interests && savedProfile.interests.length > 0)
                           ? savedProfile.interests
@@ -853,8 +1001,8 @@ export function StudioOnboardingModal({
           </AnimatePresence>
         </div>
 
-        {/* Bottom Navigation Toolbar (Only for Questions 1 to 6) */}
-        {currentStep <= 6 && (
+        {/* Bottom Navigation Toolbar (Only for Questions 1 to 7) */}
+        {currentStep <= 7 && (
           <div className="px-6 py-4 border-t border-[#EFE9DF] dark:border-zinc-800/80 bg-white/70 dark:bg-zinc-900/70 backdrop-blur-md flex items-center justify-between gap-3">
             {/* Back Button */}
             {currentStep > 1 ? (
@@ -881,8 +1029,8 @@ export function StudioOnboardingModal({
                 Skip
               </button>
 
-              {/* Next / Continue Button (Always shown for multiSelect or when answer is present) */}
-              {currentQuestionConfig?.multiSelect ? (
+              {/* Next / Continue Button */}
+              {currentQuestionConfig?.key === 'interests' ? (
                 <button
                   type="button"
                   onClick={goToNextStep}
@@ -896,10 +1044,20 @@ export function StudioOnboardingModal({
                     </>
                   ) : (
                     <>
-                      <span>Continue</span>
+                      <span>Save and finish</span>
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}
+                </button>
+              ) : currentQuestionConfig?.key === 'businessDomain' ? (
+                <button
+                  type="button"
+                  onClick={goToNextStep}
+                  disabled={!answers.businessDomain.trim() || isSaving}
+                  className="px-5 py-2.5 rounded-xl bg-[#3D2B1F] dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs sm:text-sm font-semibold hover:bg-[#2C1F16] dark:hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-2 shadow-xs cursor-pointer"
+                >
+                  <span>Continue</span>
+                  <ArrowRight className="w-4 h-4" />
                 </button>
               ) : (answers as any)[currentQuestionConfig?.key || ''] ? (
                 <button

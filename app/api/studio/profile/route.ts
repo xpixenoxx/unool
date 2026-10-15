@@ -66,10 +66,16 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: validation.error || 'Invalid profile data' }, { status: 400 });
     }
 
+    const businessDomain = String(profileData.businessDomain || profileData.doing || '').trim();
+    const doing = String(profileData.doing || profileData.businessDomain || '').trim();
+
     // Cleaned studio profile
     const cleanedProfile: StudioProfile = {
       role: String(profileData.role).trim(),
-      doing: String(profileData.doing).trim(),
+      businessStage: profileData.businessStage ? String(profileData.businessStage).trim() : undefined,
+      businessDomain: businessDomain || undefined,
+      workInterests: profileData.workInterests ? String(profileData.workInterests).trim() : undefined,
+      doing: doing || businessDomain,
       audience: String(profileData.audience).trim(),
       tone: String(profileData.tone).trim(),
       style: String(profileData.style).trim(),

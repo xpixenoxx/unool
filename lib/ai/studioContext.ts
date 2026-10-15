@@ -72,6 +72,9 @@ export function buildStudioContext(profile?: StudioProfile | Record<string, any>
 
   const p = profile as any;
   const role = sanitizeProfileValue(p.role || p.persona);
+  const businessStage = sanitizeProfileValue(p.businessStage);
+  const businessDomain = sanitizeProfileValue(p.businessDomain);
+  const workInterests = sanitizeProfileValue(p.workInterests, 120);
   const doing = sanitizeProfileValue(p.doing || p.focus);
   const audience = sanitizeProfileValue(
     Array.isArray(p.audience) ? p.audience[0] : p.audience
@@ -84,7 +87,17 @@ export function buildStudioContext(profile?: StudioProfile | Record<string, any>
   const interests = sanitizeInterests(rawInterests, 12);
 
   // If all fields are empty, return empty string
-  if (!role && !doing && !audience && !tone && !style && interests.length === 0) {
+  if (
+    !role &&
+    !doing &&
+    !businessStage &&
+    !businessDomain &&
+    !workInterests &&
+    !audience &&
+    !tone &&
+    !style &&
+    interests.length === 0
+  ) {
     return '';
   }
 
@@ -95,8 +108,16 @@ export function buildStudioContext(profile?: StudioProfile | Record<string, any>
   if (role) {
     lines.push(`- Role: ${role}`);
   }
-  if (doing) {
+  if (businessStage) {
+    lines.push(`- Business stage: ${businessStage}`);
+  }
+  if (businessDomain) {
+    lines.push(`- What their business does: ${businessDomain}`);
+  } else if (doing) {
     lines.push(`- What they do: ${doing}`);
+  }
+  if (workInterests) {
+    lines.push(`- What they love talking about in their work: ${workInterests}`);
   }
   if (audience) {
     lines.push(`- Target audience: ${audience}`);

@@ -1,22 +1,26 @@
 /**
  * Studio Onboarding Questions Configuration
- * Single source of truth for the 6-question Studio profile flow.
+ * Single source of truth for the 7-step Studio profile flow.
  *
- * Config shape per requirement:
- * { key, title, options: string[] | (answers) => string[], multiSelect, allowOther, required }
+ * Config shape:
+ * { key, title, options: string[] | (answers) => string[], multiSelect, allowOther, required, isCustomStep }
  */
 
 export interface StudioQuestionConfig {
-  key: 'role' | 'doing' | 'audience' | 'tone' | 'style' | 'interests';
+  key: 'role' | 'businessStage' | 'businessDomain' | 'doing' | 'audience' | 'tone' | 'style' | 'interests';
   title: string | ((answers: Record<string, any>) => string);
-  options: string[] | ((answers: Record<string, any>) => string[]);
+  options: readonly string[] | string[] | ((answers: Record<string, any>) => string[]);
   multiSelect?: boolean;
   allowOther?: boolean;
   required?: boolean;
+  isCustomStep?: boolean;
 }
 
 export interface StudioProfile {
   role: string;
+  businessStage?: string;
+  businessDomain?: string;
+  workInterests?: string;
   doing: string;
   audience: string;
   tone: string;
@@ -32,6 +36,25 @@ export const ROLE_OPTIONS = [
   'Influencer',
   'Software engineer',
   'Company / Brand',
+] as const;
+
+export const BUSINESS_STAGE_OPTIONS = [
+  'Just an idea',
+  'Early stage / startup',
+  'Growing',
+  'Settled',
+  'Expert / established',
+] as const;
+
+export const BUSINESS_DOMAIN_OPTIONS = [
+  'Software/AI',
+  'Food & dairy',
+  'Fashion & beauty',
+  'Education',
+  'Health & fitness',
+  'Agency/services',
+  'Finance',
+  'Creator/media',
 ] as const;
 
 export const DOING_BY_ROLE: Record<string, { title: string; options: string[] }> = {
@@ -79,37 +102,27 @@ export const STUDIO_ONBOARDING_QUESTIONS: StudioQuestionConfig[] = [
   {
     key: 'role',
     title: "Let's meet. Which hat do you wear most days?",
-    options: [
-      'Student',
-      'Founder',
-      'Creator',
-      'Influencer',
-      'Software engineer',
-      'Company / Brand',
-    ],
+    options: [...ROLE_OPTIONS],
     multiSelect: false,
     allowOther: true,
     required: true,
   },
   {
-    key: 'doing',
-    title: (answers: Record<string, any>) => {
-      const role = answers?.role;
-      if (role && DOING_BY_ROLE[role]) {
-        return DOING_BY_ROLE[role].title;
-      }
-      return 'What is your primary focus or project?';
-    },
-    options: (answers: Record<string, any>) => {
-      const role = answers?.role;
-      if (role && DOING_BY_ROLE[role]) {
-        return DOING_BY_ROLE[role].options;
-      }
-      return [];
-    },
+    key: 'businessStage',
+    title: 'Where is your business right now?',
+    options: [...BUSINESS_STAGE_OPTIONS],
     multiSelect: false,
     allowOther: true,
     required: true,
+  },
+  {
+    key: 'businessDomain',
+    title: 'What does your business actually do?',
+    options: [...BUSINESS_DOMAIN_OPTIONS],
+    multiSelect: false,
+    allowOther: true,
+    required: true,
+    isCustomStep: true,
   },
   {
     key: 'audience',
@@ -193,14 +206,41 @@ export function validateStudioProfile(data: any): { valid: boolean; error?: stri
     return { valid: false, error: 'Profile data must be an object' };
   }
 
-  const stringFields = ['role', 'doing', 'audience', 'tone', 'style'] as const;
-  for (const field of stringFields) {
+  const baseStringFields = ['role', 'audience', 'tone', 'style'] as const;
+  for (const field of baseStringFields) {
     const val = data[field];
     if (typeof val !== 'string' || !val.trim()) {
       return { valid: false, error: `Field '${field}' is required and must be a non-empty string` };
     }
     if (val.trim().length > 80) {
       return { valid: false, error: `Field '${field}' exceeds maximum length of 80 characters` };
+    }
+  }
+
+  // Either businessDomain or doing must be present
+  const domainOrDoing = data.businessDomain || data.doing;
+  if (typeof domainOrDoing !== 'string' || !domainOrDoing.trim()) {
+    return { valid: false, error: "Field 'businessDomain' or 'doing' is required and must be a non-empty string" };
+  }
+  if (domainOrDoing.trim().length > 80) {
+    return { valid: false, error: "Field 'businessDomain' exceeds maximum length of 80 characters" };
+  }
+
+  if (data.businessStage !== undefined && data.businessStage !== null) {
+    if (typeof data.businessStage !== 'string') {
+      return { valid: false, error: "Field 'businessStage' must be a string" };
+    }
+    if (data.businessStage.trim().length > 80) {
+      return { valid: false, error: "Field 'businessStage' exceeds maximum length of 80 characters" };
+    }
+  }
+
+  if (data.workInterests !== undefined && data.workInterests !== null) {
+    if (typeof data.workInterests !== 'string') {
+      return { valid: false, error: "Field 'workInterests' must be a string" };
+    }
+    if (data.workInterests.trim().length > 120) {
+      return { valid: false, error: "Field 'workInterests' exceeds maximum length of 120 characters" };
     }
   }
 
