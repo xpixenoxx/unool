@@ -403,11 +403,14 @@ Return ONLY valid JSON:
     try {
       const params = new URLSearchParams({
         message,
+        reply_to_id: commentId,
         access_token: accessToken,
       });
 
+      // Correct endpoint: POST /{media-id}/comments with reply_to_id
+      // Note: /{commentId}/replies is deprecated and unsupported on v20+
       const response = await fetchWithRetry(
-        `https://graph.instagram.com/v20.0/${commentId}/replies`,
+        `https://graph.instagram.com/v20.0/${mediaId}/comments`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

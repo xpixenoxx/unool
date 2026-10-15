@@ -117,11 +117,11 @@ export async function POST(request: NextRequest) {
       const changes = entry.changes as Array<Record<string, unknown>> | undefined;
       const messaging = entry.messaging as Array<Record<string, unknown>> | undefined;
 
-      // Handle comment events
+      // Handle comment events (only 'comments' field — 'feed' has a different structure)
       if (changes && Array.isArray(changes)) {
         for (const change of changes) {
-          if (change.field === 'comments' || change.field === 'feed') {
-            const value = (change.value as Record<string, unknown>) || change;
+          if (change.field === 'comments') {
+            const value = change.value as Record<string, unknown>;
             if (value) {
               tasks.push(
                 processCommentEvent(igUserId, value).catch((err) => {
@@ -188,6 +188,17 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
     return;
   }
 
+  // ── Deduplication guard: skip if this comment_id was already processed ──
+  const { data: existing } = await supabase
+    .from('instagram_comment_logs')
+    .select('id')
+    .eq('comment_id', commentEvent.commentId)
+    .limit(1);
+  if (existing && existing.length > 0) {
+    logger.debug('Skipping already-processed comment (idempotency guard)', { commentId: commentEvent.commentId });
+    return;
+  }
+
   // ── ContentGuard: pre-filter harmful incoming content ──────────────────
   const guardResult = ContentGuard.validateComment(commentEvent.text);
   if (!guardResult.safe && guardResult.violation.level === 'blocked') {
@@ -205,7 +216,7 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
     return;
   }
 
-  // Find the platform connection
+  // Find the platform connection — prefer exact match on platform_user_id
   let connection: any = null;
   const { data: directConnections } = await supabase
     .from('platform_connections')
@@ -217,7 +228,8 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
   if (directConnections && directConnections.length > 0) {
     connection = directConnections[0];
   } else {
-    // Fallback: check if there is an active Instagram connection in any workspace
+    // Fallback: find a connection whose workspace has automation ENABLED
+    // This avoids using a random account's token for the wrong workspace
     const { data: allActive } = await supabase
       .from('platform_connections')
       .select('*')
@@ -225,12 +237,28 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
       .eq('status', 'connected');
 
     if (allActive && allActive.length > 0) {
-      connection = allActive[0];
-      logger.info('Resolved Instagram connection via active connection fallback', {
-        igUserId,
-        matchedUserId: connection.platform_user_id,
-        matchedUsername: connection.username,
-      });
+      // Prefer the workspace that has automation config enabled
+      for (const conn of allActive) {
+        const { data: cfg } = await supabase
+          .from('instagram_automation_config')
+          .select('enabled')
+          .eq('workspace_id', conn.workspace_id)
+          .single();
+        if (cfg?.enabled) {
+          connection = conn;
+          logger.info('Resolved Instagram connection via automation-enabled workspace fallback', {
+            igUserId,
+            matchedUserId: conn.platform_user_id,
+            matchedUsername: conn.username,
+          });
+          break;
+        }
+      }
+      // Last resort: use first active connection
+      if (!connection) {
+        connection = allActive[0];
+        logger.warn('Using first active connection as last-resort fallback', { igUserId });
+      }
     }
   }
 
@@ -405,9 +433,15 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
       );
 
       if (replyResult) {
+        // Mark the log row as actually replied
+        await supabase
+          .from('instagram_comment_logs')
+          .update({ auto_replied: true })
+          .eq('comment_id', commentEvent.commentId);
         // Record in velocity tracker and lexical guard
         await velocityThrottle.recordReply(connection.workspace_id);
         lexicalEntropyGuard.recordReply(connection.workspace_id, finalReply);
+        logger.info('Auto-reply posted and logged', { commentId: commentEvent.commentId });
       } else {
         logger.error('Failed to post public reply via Instagram Graph API', { commentId: commentEvent.commentId });
         await supabase
@@ -423,11 +457,11 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
 
     // ── Send DM for link_request / purchase_intent ──────────────────────
     if (result.shouldSendDM && automationConfig.linkUrl) {
-      const commenterIgScopedId = (value as any)?.from?.id as string;
+      const commenterIgScopedId = (value.from as any)?.id as string;
       if (commenterIgScopedId) {
         const dmText = result.suggestedDM ||
           `Hey @${commentEvent.username}! Here's the link you asked for: ${automationConfig.linkUrl}`;
-        await automation.sendPrivateMessage(accessToken, igUserId, commenterIgScopedId, dmText);
+        await automation.sendPrivateMessage(accessToken, connection.platform_user_id, commenterIgScopedId, dmText);
       }
     }
   }
@@ -609,23 +643,26 @@ async function logCommentEvent(
   classification: ClassifiedComment
 ): Promise<void> {
   try {
-    await supabase.from('instagram_comment_logs').insert({
-      workspace_id: workspaceId,
-      comment_id: comment.commentId,
-      media_id: comment.mediaId,
-      comment_text: comment.text,
-      commenter_username: comment.username,
-      classification: classification.classification,
-      confidence: classification.confidence,
-      suggested_reply: classification.suggestedReply,
-      auto_replied: classification.shouldAutoReply,
-      flagged_for_review: classification.shouldFlagForReview,
-      reasoning: classification.reasoning,
-      lead_score: classification.leadScore,
-      dm_sent: classification.shouldSendDM,
-      dm_message: classification.suggestedDM,
-      thread_hook: classification.threadHook,
-    });
+    await supabase.from('instagram_comment_logs').upsert(
+      {
+        workspace_id: workspaceId,
+        comment_id: comment.commentId,
+        media_id: comment.mediaId,
+        comment_text: comment.text,
+        commenter_username: comment.username,
+        classification: classification.classification,
+        confidence: classification.confidence,
+        suggested_reply: classification.suggestedReply,
+        auto_replied: classification.shouldAutoReply,
+        flagged_for_review: classification.shouldFlagForReview,
+        reasoning: classification.reasoning,
+        lead_score: classification.leadScore,
+        dm_sent: classification.shouldSendDM,
+        dm_message: classification.suggestedDM,
+        thread_hook: classification.threadHook,
+      },
+      { onConflict: 'comment_id', ignoreDuplicates: true }
+    );
   } catch (error) {
     logger.warn('Failed to log Instagram comment event', { error });
   }
