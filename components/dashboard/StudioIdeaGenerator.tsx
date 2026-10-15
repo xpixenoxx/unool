@@ -21,12 +21,15 @@ import {
 import { StudioIdea, IdeaFormat } from '@/lib/ai/studioIdeas';
 import { studioToast } from '@/components/dashboard/StudioToast';
 
+import { StudioProfile } from '@/lib/config/studioOnboarding';
+
 export interface StudioIdeaGeneratorProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectIdea: (idea: StudioIdea) => void;
   onOpenProfileModal?: () => void;
   hasCompletedProfile: boolean;
+  studioProfile?: StudioProfile | null;
 }
 
 const LOADING_MESSAGES = [
@@ -97,6 +100,7 @@ export function StudioIdeaGenerator({
   onSelectIdea,
   onOpenProfileModal,
   hasCompletedProfile,
+  studioProfile,
 }: StudioIdeaGeneratorProps) {
   const [ideas, setIdeas] = useState<StudioIdea[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -106,6 +110,7 @@ export function StudioIdeaGenerator({
   const [selectedTitle, setSelectedTitle] = useState<string | null>(null);
   const [loadingMsgIndex, setLoadingMsgIndex] = useState(0);
   const hasLoadedRef = useRef(false);
+  const prevProfileRef = useRef<string>('');
 
   // Rotate loading message while loading
   useEffect(() => {
@@ -138,6 +143,7 @@ export function StudioIdeaGenerator({
           credentials: 'include',
           body: JSON.stringify({
             alreadyShown: accumulatedTitles.slice(-15),
+            studioProfile: studioProfile || undefined,
           }),
         });
 
@@ -182,7 +188,7 @@ export function StudioIdeaGenerator({
         setIsLoading(false);
       }
     },
-    [hasCompletedProfile]
+    [hasCompletedProfile, studioProfile]
   );
 
   // Initial load when opened
@@ -192,6 +198,20 @@ export function StudioIdeaGenerator({
       fetchIdeas([], 1);
     }
   }, [isOpen, fetchIdeas]);
+
+  // Re-fetch if studioProfile changes while open
+  useEffect(() => {
+    const profileKey = studioProfile
+      ? `${studioProfile.role}_${studioProfile.businessDomain || studioProfile.doing}_${studioProfile.businessStage}`
+      : '';
+    if (prevProfileRef.current && prevProfileRef.current !== profileKey && isOpen) {
+      setShownTitles([]);
+      fetchIdeas([], 1);
+    }
+    if (profileKey) {
+      prevProfileRef.current = profileKey;
+    }
+  }, [studioProfile, isOpen, fetchIdeas]);
 
   // If user opened with incomplete profile, immediately show nudge
   useEffect(() => {

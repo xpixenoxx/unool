@@ -20,11 +20,13 @@ describe('Studio Onboarding Config & Cascading Logic', () => {
     ]);
   });
 
-  it('should configure question 2 (businessStage) with expected stage options', () => {
+  it('should configure question 2 (businessStage) with dynamic stage options', () => {
     const stageQuestion = STUDIO_ONBOARDING_QUESTIONS[1];
     expect(stageQuestion.key).toBe('businessStage');
-    expect(stageQuestion.title).toBe('Where is your business right now?');
-    expect(stageQuestion.options).toEqual([
+    const founderTitle = typeof stageQuestion.title === 'function' ? stageQuestion.title({ role: 'Founder' }) : stageQuestion.title;
+    const founderOptions = typeof stageQuestion.options === 'function' ? stageQuestion.options({ role: 'Founder' }) : stageQuestion.options;
+    expect(founderTitle).toBe('Where is your business right now?');
+    expect(founderOptions).toEqual([
       'Just an idea',
       'Early stage / startup',
       'Growing',
@@ -35,11 +37,13 @@ describe('Studio Onboarding Config & Cascading Logic', () => {
     expect(stageQuestion.multiSelect).toBe(false);
   });
 
-  it('should configure question 3 (businessDomain) with quick-pick chips', () => {
+  it('should configure question 3 (businessDomain) with dynamic quick-pick chips', () => {
     const domainQuestion = STUDIO_ONBOARDING_QUESTIONS[2];
     expect(domainQuestion.key).toBe('businessDomain');
-    expect(domainQuestion.title).toBe('What does your business actually do?');
-    expect(domainQuestion.options).toEqual([
+    const founderTitle = typeof domainQuestion.title === 'function' ? domainQuestion.title({ role: 'Founder' }) : domainQuestion.title;
+    const founderOptions = typeof domainQuestion.options === 'function' ? domainQuestion.options({ role: 'Founder' }) : domainQuestion.options;
+    expect(founderTitle).toBe('What does your business actually do?');
+    expect(founderOptions).toEqual([
       'Software/AI',
       'Food & dairy',
       'Fashion & beauty',

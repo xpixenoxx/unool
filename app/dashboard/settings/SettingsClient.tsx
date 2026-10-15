@@ -16,7 +16,7 @@ import { Loader2, Key, Shield, Bell, Palette, Trash2, User, Lock, LogOut, CheckC
 import { TemplateSelector } from '@/components/profile/TemplateSelector';
 import { getSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { StudioOnboardingModal } from '@/components/dashboard/StudioOnboardingModal';
-import { StudioProfile } from '@/lib/config/studioOnboarding';
+import { StudioProfile, getRoleConfig } from '@/lib/config/studioOnboarding';
 
 type TabValue = 'account' | 'persona' | 'security' | 'notifications' | 'appearance' | 'danger';
 
@@ -101,6 +101,7 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
   const [onboardingCompleted, setOnboardingCompleted] = useState(false);
   const [savingOnboarding, setSavingOnboarding] = useState(false);
   const [showRetakeModal, setShowRetakeModal] = useState(false);
+  const roleConfig = getRoleConfig(studioProfile.role);
 
   const loadOnboardingProfile = async () => {
     try {
@@ -193,6 +194,9 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
 
       if (res.ok) {
         setStudioProfile(payload);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('studio-profile-updated', { detail: payload }));
+        }
         toast.success('Studio Profile calibrations saved successfully!');
         setOnboardingCompleted(true);
       } else {
@@ -513,19 +517,19 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
                     </p>
                   </div>
                   <div className="p-3 rounded-xl bg-white dark:bg-zinc-800/80 border border-zinc-200/60 dark:border-zinc-700">
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase">Business Stage</p>
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase">{roleConfig.stageTitle.replace(/\?$/, '')}</p>
                     <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 truncate">
                       {studioProfile.businessStage || 'Growing'}
                     </p>
                   </div>
                   <div className="p-3 rounded-xl bg-white dark:bg-zinc-800/80 border border-zinc-200/60 dark:border-zinc-700">
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase">Business Domain</p>
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase">{roleConfig.domainLabel}</p>
                     <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 truncate">
                       {studioProfile.businessDomain || studioProfile.doing || 'Not specified'}
                     </p>
                   </div>
                   <div className="p-3 rounded-xl bg-white dark:bg-zinc-800/80 border border-zinc-200/60 dark:border-zinc-700">
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase">Target Audience</p>
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase">{roleConfig.audienceTitle.replace(/\?$/, '')}</p>
                     <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 truncate">
                       {studioProfile.audience || 'Not selected'}
                     </p>
@@ -544,7 +548,7 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
                   </div>
                   {Boolean(studioProfile.workInterests) && (
                     <div className="p-3 rounded-xl bg-white dark:bg-zinc-800/80 border border-zinc-200/60 dark:border-zinc-700 sm:col-span-2">
-                      <p className="text-[10px] font-semibold text-muted-foreground uppercase">Work Themes</p>
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase">{roleConfig.workInterestsLabel.replace(/\?$/, '')}</p>
                       <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 truncate">
                         {studioProfile.workInterests}
                       </p>
@@ -579,29 +583,61 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
                     placeholder="e.g. Student, Founder, Creator, Influencer, Software engineer..."
                     className="mt-1"
                   />
-                  <p className="text-[11px] text-muted-foreground mt-1">
-                    Which hat you wear most days (Student, Founder, Creator, Influencer, Software engineer, Brand, or custom).
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {['Student', 'Founder', 'Creator', 'Influencer', 'Software engineer', 'Company / Brand'].map((r) => (
+                      <button
+                        key={r}
+                        type="button"
+                        onClick={() => setStudioProfile((prev) => ({ ...prev, role: r }))}
+                        className={`px-2.5 py-1 text-xs rounded-lg border transition-all cursor-pointer ${
+                          studioProfile.role.toLowerCase() === r.toLowerCase()
+                            ? 'bg-[#C4A265] text-white border-[#C4A265] font-semibold shadow-xs'
+                            : 'bg-background hover:bg-muted text-muted-foreground border-border'
+                        }`}
+                      >
+                        {r}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1.5">
+                    Which hat you wear most days. Selecting a role dynamically updates the questions and choices below.
                   </p>
                 </div>
 
                 {/* 2. Business Stage */}
                 <div>
-                  <Label htmlFor="studio-stage-input">Business Stage</Label>
+                  <Label htmlFor="studio-stage-input">{roleConfig.stageTitle}</Label>
                   <Input
                     id="studio-stage-input"
                     value={studioProfile.businessStage || ''}
                     onChange={(e) => setStudioProfile((prev) => ({ ...prev, businessStage: e.target.value }))}
-                    placeholder="e.g. Just an idea, Early stage / startup, Growing, Settled, Expert / established..."
+                    placeholder={`e.g. ${roleConfig.stageOptions.slice(0, 3).join(', ')}...`}
                     className="mt-1"
                   />
-                  <p className="text-[11px] text-muted-foreground mt-1">
-                    Where your business is right now.
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {roleConfig.stageOptions.map((opt) => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => setStudioProfile((prev) => ({ ...prev, businessStage: opt }))}
+                        className={`px-2.5 py-1 text-xs rounded-lg border transition-all cursor-pointer ${
+                          studioProfile.businessStage === opt
+                            ? 'bg-[#3D2B1F] dark:bg-zinc-100 text-white dark:text-zinc-900 border-[#3D2B1F] dark:border-zinc-100 font-semibold shadow-xs'
+                            : 'bg-background hover:bg-muted text-muted-foreground border-border'
+                        }`}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1.5">
+                    Select a stage option or type your own above.
                   </p>
                 </div>
 
                 {/* 3. Business Domain */}
                 <div>
-                  <Label htmlFor="studio-domain-input-settings">What your business does (Domain)</Label>
+                  <Label htmlFor="studio-domain-input-settings">{roleConfig.domainTitle}</Label>
                   <Input
                     id="studio-domain-input-settings"
                     value={studioProfile.businessDomain || studioProfile.doing}
@@ -612,22 +648,44 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
                         doing: e.target.value,
                       }))
                     }
-                    placeholder="e.g. Software/AI, Food & dairy, Fashion & beauty, Education, Agency..."
+                    placeholder={roleConfig.domainPlaceholder}
                     className="mt-1"
                   />
-                  <p className="text-[11px] text-muted-foreground mt-1">
-                    What your business actually does on a daily basis.
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {roleConfig.domainChips.map((chip) => (
+                      <button
+                        key={chip}
+                        type="button"
+                        onClick={() =>
+                          setStudioProfile((prev) => ({
+                            ...prev,
+                            businessDomain: chip,
+                            doing: chip,
+                          }))
+                        }
+                        className={`px-2.5 py-1 text-xs rounded-lg border transition-all cursor-pointer ${
+                          (studioProfile.businessDomain || studioProfile.doing) === chip
+                            ? 'bg-[#3D2B1F] dark:bg-zinc-100 text-white dark:text-zinc-900 border-[#3D2B1F] dark:border-zinc-100 font-semibold shadow-xs'
+                            : 'bg-background hover:bg-muted text-muted-foreground border-border'
+                        }`}
+                      >
+                        {chip}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1.5">
+                    {roleConfig.domainLabel}. Pick a chip or type your custom domain.
                   </p>
                 </div>
 
                 {/* 4. Work Themes / Topics */}
                 <div>
-                  <Label htmlFor="studio-work-interests-settings">What you love talking about in your work</Label>
+                  <Label htmlFor="studio-work-interests-settings">{roleConfig.workInterestsLabel}</Label>
                   <Input
                     id="studio-work-interests-settings"
                     value={studioProfile.workInterests || ''}
                     onChange={(e) => setStudioProfile((prev) => ({ ...prev, workInterests: e.target.value }))}
-                    placeholder="e.g. Scaling systems, zero to one, storytelling, customer psychology..."
+                    placeholder={roleConfig.workInterestsPlaceholder}
                     className="mt-1"
                   />
                   <p className="text-[11px] text-muted-foreground mt-1">
@@ -637,15 +695,31 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
 
                 {/* 5. Target Audience */}
                 <div>
-                  <Label htmlFor="studio-audience-input">Target Audience</Label>
+                  <Label htmlFor="studio-audience-input">{roleConfig.audienceTitle}</Label>
                   <Input
                     id="studio-audience-input"
                     value={studioProfile.audience}
                     onChange={(e) => setStudioProfile((prev) => ({ ...prev, audience: e.target.value }))}
-                    placeholder="e.g. Followers in my niche, Customers, Recruiters, Investors..."
+                    placeholder={`e.g. ${roleConfig.audienceOptions.slice(0, 3).join(', ')}...`}
                     className="mt-1"
                   />
-                  <p className="text-[11px] text-muted-foreground mt-1">
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {roleConfig.audienceOptions.map((aud) => (
+                      <button
+                        key={aud}
+                        type="button"
+                        onClick={() => setStudioProfile((prev) => ({ ...prev, audience: aud }))}
+                        className={`px-2.5 py-1 text-xs rounded-lg border transition-all cursor-pointer ${
+                          studioProfile.audience === aud
+                            ? 'bg-[#3D2B1F] dark:bg-zinc-100 text-white dark:text-zinc-900 border-[#3D2B1F] dark:border-zinc-100 font-semibold shadow-xs'
+                            : 'bg-background hover:bg-muted text-muted-foreground border-border'
+                        }`}
+                      >
+                        {aud}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1.5">
                     Who you are hoping to catch the attention of across publications.
                   </p>
                 </div>

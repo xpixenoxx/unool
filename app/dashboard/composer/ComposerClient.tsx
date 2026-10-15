@@ -1079,6 +1079,22 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   useEffect(() => {
     loadProfile();
     loadConnections();
+
+    const handleProfileUpdate = (e: any) => {
+      if (e?.detail) {
+        setProfile((prev) => (prev ? { ...prev, studioProfile: e.detail } : null));
+      } else {
+        loadProfile();
+      }
+    };
+
+    window.addEventListener('studio-profile-updated', handleProfileUpdate);
+    window.addEventListener('focus', loadProfile);
+
+    return () => {
+      window.removeEventListener('studio-profile-updated', handleProfileUpdate);
+      window.removeEventListener('focus', loadProfile);
+    };
   }, [loadProfile, loadConnections]);
 
   // ── Fetch SignalDM automation status (non-blocking, best-effort) ─────────────
@@ -1166,6 +1182,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           mediaItems: media,
           selectedPlatforms: platformsToUse,
           disablePersonalization: !personalizeWithProfile,
+          studioProfile: profile.studioProfile || null,
         }),
       });
 
@@ -1508,7 +1525,8 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           content: quickContent, 
           profileId: profile.id, 
           mediaItems: media,
-          selectedPlatforms: platformsToUse
+          selectedPlatforms: platformsToUse,
+          studioProfile: profile.studioProfile || null,
         }),
       });
 
@@ -1895,14 +1913,28 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         {mode === 'quick' && (
           <MotionBox variant="slide-up" delay={0.05}>
             <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Zap className="h-4 w-4 text-primary" />
-                  Quick Broadcast
-                </CardTitle>
-                <Text size="sm" color="muted">
-                  Publish identical content to all connected platforms instantly — no AI adaptation.
-                </Text>
+              <CardHeader className="pb-3 flex flex-row items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Zap className="h-4 w-4 text-primary" />
+                    Quick Broadcast
+                  </CardTitle>
+                  <Text size="sm" color="muted">
+                    Publish identical content to all connected platforms instantly — no AI adaptation.
+                  </Text>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setIsIdeaGeneratorOpen((prev) => !prev);
+                  }}
+                  className="h-8 text-xs font-semibold px-3 bg-white dark:bg-zinc-800 hover:bg-[#F5EFE2] dark:hover:bg-zinc-700 border-zinc-200 dark:border-zinc-700 text-[#8B7355] dark:text-zinc-200 hover:text-[#3D2B1F] flex items-center gap-1.5 cursor-pointer shrink-0 shadow-2xs"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-[#C4A265]" />
+                  <span>{isIdeaGeneratorOpen ? 'Hide ideas' : 'Generate ideas'}</span>
+                </Button>
               </CardHeader>
               <CardContent 
                 className={cn("space-y-4 transition-colors", isDragging && "bg-muted/50 rounded-lg")}
@@ -1910,6 +1942,49 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
               >
+                {/* Active Studio Persona Banner */}
+                {(profile?.studioProfile || profile?.onboardingAnswers) && (
+                  <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-[#FAF6EE] dark:bg-zinc-800/60 border border-[#E8E0D4] dark:border-zinc-800 text-xs text-[#8B7355] dark:text-zinc-300 transition-colors">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Sparkles className="w-3.5 h-3.5 text-[#C4A265] shrink-0" />
+                      <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                        <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+                          Active Persona:
+                        </span>
+                        <span className="font-medium text-zinc-800 dark:text-zinc-200 truncate">
+                          {profile?.studioProfile?.role || 'Creator'}
+                          {(profile?.studioProfile?.businessDomain || profile?.studioProfile?.doing)
+                            ? ` · ${profile?.studioProfile?.businessDomain || profile?.studioProfile?.doing}`
+                            : ''}
+                          {profile?.studioProfile?.businessStage
+                            ? ` · ${profile?.studioProfile?.businessStage}`
+                            : ''}
+                        </span>
+                      </div>
+                    </div>
+                    <Link
+                      href="/dashboard/settings?tab=persona"
+                      className="text-[11px] font-semibold text-[#8B7355] hover:text-[#3D2B1F] dark:text-zinc-400 dark:hover:text-zinc-200 shrink-0 underline underline-offset-2 ml-2"
+                    >
+                      Edit Persona
+                    </Link>
+                  </div>
+                )}
+
+                {/* Interactive Studio Idea Generator for Quick Broadcast */}
+                <StudioIdeaGenerator
+                  isOpen={isIdeaGeneratorOpen}
+                  onClose={() => setIsIdeaGeneratorOpen(false)}
+                  hasCompletedProfile={Boolean(
+                    (profile?.studioProfile && profile.studioProfile.role) ||
+                    (profile?.onboardingAnswers && (profile.onboardingAnswers as any).persona)
+                  )}
+                  studioProfile={profile?.studioProfile}
+                  onSelectIdea={(idea) => {
+                    const formattedIdea = idea.hook ? `${idea.hook}\n\n${idea.title}` : idea.title;
+                    setQuickContent(formattedIdea);
+                  }}
+                />
                 <PlatformSelector />
                 <Textarea
                   placeholder="What do you want to share? Drag and drop an image here, or type your exact text."
@@ -2040,34 +2115,51 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                     <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-[#FAF6EE] dark:bg-zinc-800/60 border border-[#E8E0D4] dark:border-zinc-800 text-xs text-[#8B7355] dark:text-zinc-300 transition-colors">
                       <div className="flex items-center gap-2 min-w-0">
                         <Sparkles className="w-3.5 h-3.5 text-[#C4A265] shrink-0" />
-                        <span className="font-medium text-zinc-800 dark:text-zinc-200 truncate">
-                          {personalizeWithProfile
-                            ? 'Personalized with your Studio profile'
-                            : 'Studio profile personalization paused'}
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                          <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+                            {personalizeWithProfile ? 'Personalized with' : 'Personalization paused:'}
+                          </span>
+                          <span className="font-medium text-zinc-800 dark:text-zinc-200 truncate">
+                            {profile?.studioProfile?.role || 'Studio profile'}
+                            {(profile?.studioProfile?.businessDomain || profile?.studioProfile?.doing)
+                              ? ` · ${profile?.studioProfile?.businessDomain || profile?.studioProfile?.doing}`
+                              : ''}
+                            {profile?.studioProfile?.businessStage
+                              ? ` · ${profile?.studioProfile?.businessStage}`
+                              : ''}
+                          </span>
+                        </div>
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                          {personalizeWithProfile ? 'Personalize' : 'Generic'}
-                        </span>
-                        <button
-                          type="button"
-                          role="switch"
-                          aria-checked={personalizeWithProfile}
-                          onClick={() => setPersonalizeWithProfile(prev => !prev)}
-                          className={cn(
-                            "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden",
-                            personalizeWithProfile ? "bg-[#C4A265]" : "bg-zinc-300 dark:bg-zinc-700"
-                          )}
+                      <div className="flex items-center gap-3 shrink-0">
+                        <Link
+                          href="/dashboard/settings?tab=persona"
+                          className="text-[11px] font-semibold text-[#8B7355] hover:text-[#3D2B1F] dark:text-zinc-400 dark:hover:text-zinc-200 underline underline-offset-2"
                         >
-                          <span
+                          Edit Persona
+                        </Link>
+                        <div className="flex items-center gap-1.5 border-l border-zinc-200 dark:border-zinc-700 pl-3">
+                          <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                            {personalizeWithProfile ? 'Active' : 'Paused'}
+                          </span>
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={personalizeWithProfile}
+                            onClick={() => setPersonalizeWithProfile(prev => !prev)}
                             className={cn(
-                              "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out",
-                              personalizeWithProfile ? "translate-x-4" : "translate-x-0"
+                              "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden",
+                              personalizeWithProfile ? "bg-[#C4A265]" : "bg-zinc-300 dark:bg-zinc-700"
                             )}
-                          />
-                        </button>
+                          >
+                            <span
+                              className={cn(
+                                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out",
+                                personalizeWithProfile ? "translate-x-4" : "translate-x-0"
+                              )}
+                            />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -2080,6 +2172,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                       (profile?.studioProfile && profile.studioProfile.role) ||
                       (profile?.onboardingAnswers && (profile.onboardingAnswers as any).persona)
                     )}
+                    studioProfile={profile?.studioProfile}
                     onSelectIdea={(idea) => {
                       const formattedIdea = idea.hook ? `${idea.hook}\n\n${idea.title}` : idea.title;
                       setSourceContent(formattedIdea);

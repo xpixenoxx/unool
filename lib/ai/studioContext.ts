@@ -108,16 +108,46 @@ export function buildStudioContext(profile?: StudioProfile | Record<string, any>
   if (role) {
     lines.push(`- Role: ${role}`);
   }
+
+  const roleLower = role.toLowerCase();
+  const isStudent = roleLower.includes('student');
+  const isEng = roleLower.includes('engineer') || roleLower.includes('developer');
+  const isCreatorOrInfluencer = roleLower.includes('creator') || roleLower.includes('influencer');
+
   if (businessStage) {
-    lines.push(`- Business stage: ${businessStage}`);
+    if (isStudent) {
+      lines.push(`- Stage in studies: ${businessStage}`);
+    } else if (isEng) {
+      lines.push(`- Career level: ${businessStage}`);
+    } else if (isCreatorOrInfluencer) {
+      lines.push(`- Audience / creator stage: ${businessStage}`);
+    } else {
+      lines.push(`- Business stage: ${businessStage}`);
+    }
   }
+
   if (businessDomain) {
-    lines.push(`- What their business does: ${businessDomain}`);
+    if (isStudent) {
+      lines.push(`- Major / field of study: ${businessDomain}`);
+    } else if (isEng) {
+      lines.push(`- Tech stack / what they build: ${businessDomain}`);
+    } else if (isCreatorOrInfluencer) {
+      lines.push(`- Content niche / format: ${businessDomain}`);
+    } else {
+      lines.push(`- What their business does: ${businessDomain}`);
+    }
   } else if (doing) {
     lines.push(`- What they do: ${doing}`);
   }
+
   if (workInterests) {
-    lines.push(`- What they love talking about in their work: ${workInterests}`);
+    if (isStudent) {
+      lines.push(`- Favorite study topics & projects: ${workInterests}`);
+    } else if (isEng) {
+      lines.push(`- Favorite tech topics & discussions: ${workInterests}`);
+    } else {
+      lines.push(`- What they love talking about in their work: ${workInterests}`);
+    }
   }
   if (audience) {
     lines.push(`- Target audience: ${audience}`);

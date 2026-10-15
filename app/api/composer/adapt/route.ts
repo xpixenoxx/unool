@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
       let profileApplied = false;
 
       if (!disablePersonalization) {
-        const effectiveProfile = targetProfile?.studioProfile || targetProfile?.onboardingAnswers;
+        const effectiveProfile = body.studioProfile || targetProfile?.studioProfile || targetProfile?.onboardingAnswers;
         if (effectiveProfile) {
           const studioContext = buildStudioContext(effectiveProfile);
           if (studioContext) {

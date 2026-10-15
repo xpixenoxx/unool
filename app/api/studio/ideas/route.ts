@@ -63,14 +63,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 3. Load profile server-side (never trust client profile)
+    // 3. Parse & sanitize request body
+    const body = await request.json().catch(() => ({}));
+    const rawAlreadyShown = body?.alreadyShown;
+    const sanitizedAlreadyShown = sanitizeAlreadyShown(rawAlreadyShown);
+    const clientStudioProfile = body?.studioProfile;
+
+    // 4. Load profile server-side, allowing fresh client preference overrides
     const profile = await profileRepository.findByWorkspaceId(workspaceId);
-    const studioProfile: any = profile?.studioProfile || profile?.onboardingAnswers;
+    const studioProfile: any = clientStudioProfile || profile?.studioProfile || profile?.onboardingAnswers;
 
     const isCompleted = Boolean(
       studioProfile &&
       (studioProfile.role || studioProfile.persona) &&
-      (studioProfile.completedAt || profile?.onboardingCompleted)
+      (studioProfile.completedAt || profile?.onboardingCompleted || clientStudioProfile)
     );
 
     if (!isCompleted || !studioProfile) {
@@ -82,11 +88,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    // 4. Parse & sanitize alreadyShown from request body
-    const body = await request.json().catch(() => ({}));
-    const rawAlreadyShown = body?.alreadyShown;
-    const sanitizedAlreadyShown = sanitizeAlreadyShown(rawAlreadyShown);
 
     // 5. Initialize AI provider (Groq priority, fallback to configured provider)
     const aiProvider = config.GROQ_API_KEY

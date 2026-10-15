@@ -17,6 +17,7 @@ import {
   STUDIO_ONBOARDING_QUESTIONS,
   DOING_BY_ROLE,
   StudioProfile,
+  getRoleConfig,
 } from '@/lib/config/studioOnboarding';
 
 export interface StudioOnboardingModalProps {
@@ -281,6 +282,7 @@ export function StudioOnboardingModal({
 
   // Step questions config
   const currentQuestionConfig = currentStep <= 7 ? STUDIO_ONBOARDING_QUESTIONS[currentStep - 1] : null;
+  const currentRoleConfig = getRoleConfig(answers.role);
 
   const currentTitle = currentQuestionConfig
     ? typeof currentQuestionConfig.title === 'function'
@@ -428,6 +430,10 @@ export function StudioOnboardingModal({
         localStorage.removeItem(draftKey);
         localStorage.setItem(completedKey, 'true');
       } catch {}
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('studio-profile-updated', { detail: payload }));
+      }
 
       onComplete?.(payload);
       setCurrentStep(8); // Show "You're all set"
@@ -649,13 +655,13 @@ export function StudioOnboardingModal({
                   </div>
                 )}
 
-                {/* Question 3: What does your business actually do? (Custom Step) */}
+                {/* Question 3: Dynamic Domain & Focus Step */}
                 {currentQuestionConfig?.key === 'businessDomain' && (
                   <div className="space-y-5">
                     {/* Quick-pick chips */}
                     <div className="space-y-2">
                       <label className="block text-xs font-semibold uppercase tracking-wider text-[#8B7355] dark:text-zinc-400">
-                        Quick-pick domain
+                        Quick-pick options
                       </label>
                       <div className="flex flex-wrap gap-2">
                         {currentOptions.map((domain) => {
@@ -716,7 +722,7 @@ export function StudioOnboardingModal({
                           htmlFor="studio-domain-input"
                           className="text-xs font-semibold uppercase tracking-wider text-[#8B7355] dark:text-zinc-400"
                         >
-                          What your business does
+                          {currentRoleConfig.domainLabel}
                         </label>
                         <span className="text-[11px] text-[#8B7355]/80 dark:text-zinc-500">
                           {answers.businessDomain.length}/80
@@ -741,19 +747,19 @@ export function StudioOnboardingModal({
                             goToNextStep();
                           }
                         }}
-                        placeholder="e.g. AI-powered analytics for creators, Boutique apparel brand..."
+                        placeholder={currentRoleConfig.domainPlaceholder}
                         className="w-full px-4 py-3 rounded-2xl border border-[#DACFBF] dark:border-zinc-700 bg-white dark:bg-zinc-950 text-sm text-[#3D2B1F] dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-hidden focus:ring-2 focus:ring-[#C4A265]"
                       />
                     </div>
 
-                    {/* Optional Second Field: What do you love talking about in your work? */}
+                    {/* Optional Second Field */}
                     <div className="space-y-1.5 pt-1">
                       <div className="flex items-center justify-between">
                         <label
                           htmlFor="studio-work-interests-input"
                           className="text-xs font-semibold uppercase tracking-wider text-[#8B7355] dark:text-zinc-400"
                         >
-                          What do you love talking about in your work? (optional)
+                          {currentRoleConfig.workInterestsLabel} (optional)
                         </label>
                         <span className="text-[11px] text-[#8B7355]/80 dark:text-zinc-500">
                           {answers.workInterests.length}/120
@@ -777,11 +783,11 @@ export function StudioOnboardingModal({
                             goToNextStep();
                           }
                         }}
-                        placeholder="e.g. Scaling systems, zero to one product building, customer psychology..."
+                        placeholder={currentRoleConfig.workInterestsPlaceholder}
                         className="w-full px-4 py-3 rounded-2xl border border-[#DACFBF] dark:border-zinc-700 bg-white dark:bg-zinc-950 text-sm text-[#3D2B1F] dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-hidden focus:ring-2 focus:ring-[#C4A265]"
                       />
                       <p className="text-[11px] text-[#8B7355] dark:text-zinc-400">
-                        Optional themes and work angles the AI composer and idea generator will draw from.
+                        Optional themes and topics the AI composer and idea generator will draw from.
                       </p>
                     </div>
                   </div>
@@ -923,24 +929,24 @@ export function StudioOnboardingModal({
                     </div>
 
                     <div className="p-2.5 rounded-xl bg-[#FAF6EE] dark:bg-zinc-800/60 border border-[#EDE4D5] dark:border-zinc-800">
-                      <span className="text-[#8B7355] dark:text-zinc-400 block mb-0.5 font-medium">Business Stage</span>
+                      <span className="text-[#8B7355] dark:text-zinc-400 block mb-0.5 font-medium">{currentRoleConfig.stageTitle.replace(/\?$/, '')}</span>
                       <span className="font-semibold text-[#3D2B1F] dark:text-zinc-100">{savedProfile?.businessStage || answers.businessStage || 'Growing'}</span>
                     </div>
 
                     <div className="p-2.5 rounded-xl bg-[#FAF6EE] dark:bg-zinc-800/60 border border-[#EDE4D5] dark:border-zinc-800">
-                      <span className="text-[#8B7355] dark:text-zinc-400 block mb-0.5 font-medium">Business Domain</span>
+                      <span className="text-[#8B7355] dark:text-zinc-400 block mb-0.5 font-medium">{currentRoleConfig.domainLabel}</span>
                       <span className="font-semibold text-[#3D2B1F] dark:text-zinc-100">{savedProfile?.businessDomain || savedProfile?.doing || answers.businessDomain || answers.doing || '—'}</span>
                     </div>
 
                     {Boolean(savedProfile?.workInterests || answers.workInterests) && (
                       <div className="p-2.5 rounded-xl bg-[#FAF6EE] dark:bg-zinc-800/60 border border-[#EDE4D5] dark:border-zinc-800">
-                        <span className="text-[#8B7355] dark:text-zinc-400 block mb-0.5 font-medium">Work Themes</span>
+                        <span className="text-[#8B7355] dark:text-zinc-400 block mb-0.5 font-medium">{currentRoleConfig.workInterestsLabel.replace(/\?$/, '')}</span>
                         <span className="font-semibold text-[#3D2B1F] dark:text-zinc-100">{savedProfile?.workInterests || answers.workInterests}</span>
                       </div>
                     )}
 
                     <div className="p-2.5 rounded-xl bg-[#FAF6EE] dark:bg-zinc-800/60 border border-[#EDE4D5] dark:border-zinc-800">
-                      <span className="text-[#8B7355] dark:text-zinc-400 block mb-0.5 font-medium">Target Audience</span>
+                      <span className="text-[#8B7355] dark:text-zinc-400 block mb-0.5 font-medium">{currentRoleConfig.audienceTitle.replace(/\?$/, '')}</span>
                       <span className="font-semibold text-[#3D2B1F] dark:text-zinc-100">{savedProfile?.audience || answers.audience || '—'}</span>
                     </div>
 
