@@ -79,7 +79,6 @@ import {
   Menu,
   Phone,
   Share2,
-  Sliders,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { studioToast } from '@/components/dashboard/StudioToast';
@@ -102,7 +101,6 @@ import {
   PlatformBrandLogo,
 } from '@/components/dashboard/previews/PlatformMobilePreview';
 import { HashtagEditor } from '@/components/dashboard/HashtagEditor';
-import { StudioOnboardingModal } from '@/components/dashboard/StudioOnboardingModal';
 import { StudioIdeaGenerator } from '@/components/dashboard/StudioIdeaGenerator';
 
 type PlatformType = SupportedPlatformType;
@@ -801,7 +799,6 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const [hookScore, setHookScore] = useState<{ score: number; grade: string; suggestion: string | null; slopWords: string[] } | null>(null);
   const [humanizingPlatform, setHumanizingPlatform] = useState<PlatformType | null>(null);
   const [isHumanizingAll, setIsHumanizingAll] = useState(false);
-  const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
   const [personalizeWithProfile, setPersonalizeWithProfile] = useState(true);
   const [isIdeaGeneratorOpen, setIsIdeaGeneratorOpen] = useState(false);
   const springConfig: Transition = reducedMotion ? { type: 'tween', duration: 0.01 } : spring.snappy;
@@ -1776,63 +1773,6 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
             </MotionBox>
           )}
 
-          {/* Studio Voice Calibrations Strip */}
-          {profile && !profileLoading && (
-            <MotionBox key="voice-profile" variant="slide-up">
-              <div
-                className="overflow-hidden rounded-2xl border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 shadow-xs px-4 py-3 flex items-center justify-between flex-wrap gap-3"
-                style={{
-                  background: 'linear-gradient(135deg, rgba(196,162,101,0.06) 0%, rgba(255,255,255,0.02) 100%)',
-                }}
-              >
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <div className="w-8 h-8 rounded-xl bg-[#C4A265]/15 text-[#C4A265] border border-[#C4A265]/30 flex items-center justify-center shrink-0">
-                    <Sliders className="w-4 h-4" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                        {profile.studioProfile?.role || profile.onboardingAnswers?.persona || 'Studio Persona'}
-                      </span>
-                      {(profile.studioProfile?.doing || profile.onboardingAnswers?.focus) && (
-                        <span className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate max-w-[200px]">
-                          • {profile.studioProfile?.doing || profile.onboardingAnswers?.focus}
-                        </span>
-                      )}
-                      {(profile.studioProfile?.tone || (Array.isArray(profile.onboardingAnswers?.tone) && profile.onboardingAnswers.tone.length > 0)) && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#C4A265]/10 text-[#C4A265] border border-[#C4A265]/20">
-                          {profile.studioProfile?.tone || profile.onboardingAnswers?.tone?.slice(0, 2).join(' & ')}
-                        </span>
-                      )}
-                      {profile.studioProfile?.style && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#8B7355]/10 text-[#8B7355] dark:text-zinc-400 border border-[#8B7355]/20">
-                          {profile.studioProfile.style}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">
-                      {profile.studioProfile
-                        ? `Audience: ${profile.studioProfile.audience} · ${(profile.studioProfile.interests || []).length} outside-work interests`
-                        : profile.onboardingAnswers
-                        ? `${(profile.onboardingAnswers.extras || []).length} active guardrails calibrating AI adaptations`
-                        : 'Calibrate your voice archetype, target audience, and content style'}
-                    </p>
-                  </div>
-                </div>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsVoiceModalOpen(true)}
-                  className="h-8 text-xs font-semibold px-3 bg-white dark:bg-zinc-800 hover:bg-[#F5EFE2] dark:hover:bg-zinc-700 border-zinc-200 dark:border-zinc-700 text-[#8B7355] dark:text-zinc-200 hover:text-[#3D2B1F] flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-[#C4A265]" />
-                  <span>Edit Studio profile</span>
-                </Button>
-              </div>
-            </MotionBox>
-          )}
           {!profile && !profileLoading && (
             <MotionBox key="no-profile" variant="slide-up">
               <div className="relative group overflow-hidden rounded-2xl border border-[#FDE68A]/60 bg-gradient-to-r from-[#FFFCF0] to-[#FFFDF9] shadow-sm transition-all duration-300 hover:shadow-md hover:border-[#FCD34D]/80"
@@ -2080,15 +2020,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      const hasProfile = Boolean(
-                        (profile?.studioProfile && profile.studioProfile.role) ||
-                        (profile?.onboardingAnswers && (profile.onboardingAnswers as any).persona)
-                      );
-                      if (!hasProfile) {
-                        setIsVoiceModalOpen(true);
-                      } else {
-                        setIsIdeaGeneratorOpen((prev) => !prev);
-                      }
+                      setIsIdeaGeneratorOpen((prev) => !prev);
                     }}
                     className="h-8 text-xs font-semibold px-3 bg-white dark:bg-zinc-800 hover:bg-[#F5EFE2] dark:hover:bg-zinc-700 border-zinc-200 dark:border-zinc-700 text-[#8B7355] dark:text-zinc-200 hover:text-[#3D2B1F] flex items-center gap-1.5 cursor-pointer shrink-0 shadow-2xs"
                   >
@@ -2105,20 +2037,13 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   {/* Subtle Studio Profile Personalization Indicator & Toggle */}
                   {(profile?.studioProfile || profile?.onboardingAnswers) && (
                     <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-[#FAF6EE] dark:bg-zinc-800/60 border border-[#E8E0D4] dark:border-zinc-800 text-xs text-[#8B7355] dark:text-zinc-300 transition-colors">
-                      <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                      <div className="flex items-center gap-2 min-w-0">
                         <Sparkles className="w-3.5 h-3.5 text-[#C4A265] shrink-0" />
-                        <span className="font-medium text-zinc-800 dark:text-zinc-200">
+                        <span className="font-medium text-zinc-800 dark:text-zinc-200 truncate">
                           {personalizeWithProfile
                             ? 'Personalized with your Studio profile'
                             : 'Studio profile personalization paused'}
                         </span>
-                        <button
-                          type="button"
-                          onClick={() => setIsVoiceModalOpen(true)}
-                          className="font-semibold text-[#8B7355] dark:text-zinc-400 hover:text-[#3D2B1F] dark:hover:text-zinc-100 underline underline-offset-2 transition-colors cursor-pointer"
-                        >
-                          Edit profile
-                        </button>
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0">
@@ -2154,10 +2079,6 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                       (profile?.studioProfile && profile.studioProfile.role) ||
                       (profile?.onboardingAnswers && (profile.onboardingAnswers as any).persona)
                     )}
-                    onOpenProfileModal={() => {
-                      setIsIdeaGeneratorOpen(false);
-                      setIsVoiceModalOpen(true);
-                    }}
                     onSelectIdea={(idea) => {
                       const formattedIdea = idea.hook ? `${idea.hook}\n\n${idea.title}` : idea.title;
                       setSourceContent(formattedIdea);
@@ -2661,36 +2582,6 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <StudioOnboardingModal
-        userId={userId}
-        isOpen={isVoiceModalOpen ? true : undefined}
-        onClose={() => setIsVoiceModalOpen(false)}
-        forceOpen={isVoiceModalOpen}
-        isRetake={isVoiceModalOpen}
-        initialAnswers={profile?.studioProfile || profile?.onboardingAnswers}
-        onComplete={(newProfile) => {
-          setProfile(prev => prev ? {
-            ...prev,
-            studioProfile: newProfile,
-            onboardingAnswers: {
-              persona: newProfile.role,
-              focus: newProfile.doing,
-              audience: [newProfile.audience],
-              tone: [newProfile.tone],
-              custom: {
-                style: newProfile.style,
-                interests: Array.isArray(newProfile.interests) ? newProfile.interests.join(', ') : '',
-              },
-            },
-          } : null);
-          setIsVoiceModalOpen(false);
-        }}
-        onGenerateIdeas={() => {
-          setIsVoiceModalOpen(false);
-          setIsIdeaGeneratorOpen(true);
-        }}
-      />
     </div>
   );
 }

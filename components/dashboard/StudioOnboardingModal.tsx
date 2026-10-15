@@ -378,6 +378,15 @@ export function StudioOnboardingModal({
     }
   };
 
+  const handleSkipStep = () => {
+    setSaveError(null);
+    if (currentStep < 6) {
+      setCurrentStep((prev) => prev + 1);
+    } else if (currentStep === 6) {
+      saveStudioProfile();
+    }
+  };
+
   const goToPreviousStep = () => {
     setSaveError(null);
     if (currentStep > 1) {
@@ -391,12 +400,15 @@ export function StudioOnboardingModal({
     setSaveError(null);
 
     const payload: StudioProfile = {
-      role: answers.role.trim().slice(0, 80),
-      doing: answers.doing.trim().slice(0, 80),
-      audience: answers.audience.trim().slice(0, 80),
-      tone: answers.tone.trim().slice(0, 80),
-      style: answers.style.trim().slice(0, 80),
-      interests: answers.interests.map((i) => i.trim().slice(0, 80)).filter(Boolean),
+      role: (answers.role.trim() || 'Creator').slice(0, 80),
+      doing: (answers.doing.trim() || 'Content creation and storytelling').slice(0, 80),
+      audience: (answers.audience.trim() || 'Followers in my niche').slice(0, 80),
+      tone: (answers.tone.trim() || 'Conversational & candid').slice(0, 80),
+      style: (answers.style.trim() || 'Short punchy lines').slice(0, 80),
+      interests:
+        answers.interests.length > 0
+          ? answers.interests.map((i) => i.trim().slice(0, 80)).filter(Boolean)
+          : ['General topics'],
       completedAt: new Date().toISOString(),
     };
 
@@ -475,17 +487,30 @@ export function StudioOnboardingModal({
               </span>
             </div>
 
-            {/* Close button if retaking or finished */}
-            {(isRetake || savedProfile) && (
-              <button
-                type="button"
-                onClick={handleClose}
-                aria-label="Close modal"
-                className="w-8 h-8 rounded-full flex items-center justify-center text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-[#F3ECE0] dark:hover:bg-zinc-800 transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              {currentStep <= 6 && (
+                <button
+                  type="button"
+                  onClick={handleSkipStep}
+                  disabled={isSaving}
+                  className="text-xs font-semibold text-[#8B7355] dark:text-zinc-400 hover:text-[#3D2B1F] dark:hover:text-zinc-200 px-2.5 py-1 rounded-lg hover:bg-[#F3ECE0] dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                >
+                  Skip
+                </button>
+              )}
+
+              {/* Close button if retaking or finished */}
+              {(isRetake || savedProfile) && (
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  aria-label="Close modal"
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-[#F3ECE0] dark:hover:bg-zinc-800 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Progress Bar Indicator */}
@@ -758,44 +783,43 @@ export function StudioOnboardingModal({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                     <div className="p-2.5 rounded-xl bg-[#FAF6EE] dark:bg-zinc-800/60 border border-[#EDE4D5] dark:border-zinc-800">
                       <span className="text-[#8B7355] dark:text-zinc-400 block mb-0.5 font-medium">Role</span>
-                      <span className="font-semibold text-[#3D2B1F] dark:text-zinc-100">{answers.role || '—'}</span>
+                      <span className="font-semibold text-[#3D2B1F] dark:text-zinc-100">{savedProfile?.role || answers.role || '—'}</span>
                     </div>
 
                     <div className="p-2.5 rounded-xl bg-[#FAF6EE] dark:bg-zinc-800/60 border border-[#EDE4D5] dark:border-zinc-800">
                       <span className="text-[#8B7355] dark:text-zinc-400 block mb-0.5 font-medium">Focus</span>
-                      <span className="font-semibold text-[#3D2B1F] dark:text-zinc-100">{answers.doing || '—'}</span>
+                      <span className="font-semibold text-[#3D2B1F] dark:text-zinc-100">{savedProfile?.doing || answers.doing || '—'}</span>
                     </div>
 
                     <div className="p-2.5 rounded-xl bg-[#FAF6EE] dark:bg-zinc-800/60 border border-[#EDE4D5] dark:border-zinc-800">
                       <span className="text-[#8B7355] dark:text-zinc-400 block mb-0.5 font-medium">Audience</span>
-                      <span className="font-semibold text-[#3D2B1F] dark:text-zinc-100">{answers.audience || '—'}</span>
+                      <span className="font-semibold text-[#3D2B1F] dark:text-zinc-100">{savedProfile?.audience || answers.audience || '—'}</span>
                     </div>
 
                     <div className="p-2.5 rounded-xl bg-[#FAF6EE] dark:bg-zinc-800/60 border border-[#EDE4D5] dark:border-zinc-800">
                       <span className="text-[#8B7355] dark:text-zinc-400 block mb-0.5 font-medium">Voice Tone</span>
-                      <span className="font-semibold text-[#3D2B1F] dark:text-zinc-100">{answers.tone || '—'}</span>
+                      <span className="font-semibold text-[#3D2B1F] dark:text-zinc-100">{savedProfile?.tone || answers.tone || '—'}</span>
                     </div>
 
                     <div className="p-2.5 rounded-xl bg-[#FAF6EE] dark:bg-zinc-800/60 border border-[#EDE4D5] dark:border-zinc-800">
                       <span className="text-[#8B7355] dark:text-zinc-400 block mb-0.5 font-medium">Reading Style</span>
-                      <span className="font-semibold text-[#3D2B1F] dark:text-zinc-100">{answers.style || '—'}</span>
+                      <span className="font-semibold text-[#3D2B1F] dark:text-zinc-100">{savedProfile?.style || answers.style || '—'}</span>
                     </div>
 
                     <div className="p-2.5 rounded-xl bg-[#FAF6EE] dark:bg-zinc-800/60 border border-[#EDE4D5] dark:border-zinc-800">
                       <span className="text-[#8B7355] dark:text-zinc-400 block mb-1 font-medium">Interests</span>
                       <div className="flex flex-wrap gap-1">
-                        {answers.interests.length > 0 ? (
-                          answers.interests.map((interest) => (
-                            <span
-                              key={interest}
-                              className="px-2 py-0.5 rounded-md bg-[#3D2B1F]/10 dark:bg-zinc-700 text-[#3D2B1F] dark:text-zinc-200 text-[11px] font-medium"
-                            >
-                              {interest}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="text-zinc-400">—</span>
-                        )}
+                        {((savedProfile?.interests && savedProfile.interests.length > 0)
+                          ? savedProfile.interests
+                          : answers.interests
+                        ).map((interest) => (
+                          <span
+                            key={interest}
+                            className="px-2 py-0.5 rounded-md bg-[#3D2B1F]/10 dark:bg-zinc-700 text-[#3D2B1F] dark:text-zinc-200 text-[11px] font-medium"
+                          >
+                            {interest}
+                          </span>
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -847,37 +871,48 @@ export function StudioOnboardingModal({
               <div />
             )}
 
-            {/* Next / Continue Button (Always shown for multiSelect or when answer is present) */}
-            {currentQuestionConfig?.multiSelect ? (
+            <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={goToNextStep}
-                disabled={answers.interests.length === 0 || isSaving}
-                className="px-5 py-2.5 rounded-xl bg-[#3D2B1F] dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs sm:text-sm font-semibold hover:bg-[#2C1F16] dark:hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-2 shadow-xs cursor-pointer"
-              >
-                {isSaving ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Saving profile...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Continue</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
-            ) : (answers as any)[currentQuestionConfig?.key || ''] ? (
-              <button
-                type="button"
-                onClick={goToNextStep}
+                onClick={handleSkipStep}
                 disabled={isSaving}
-                className="px-4 py-2.5 rounded-xl border border-[#DACFBF] dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs sm:text-sm font-semibold text-[#3D2B1F] dark:text-zinc-200 hover:bg-[#FAF6EE] dark:hover:bg-zinc-700 transition-colors flex items-center gap-1.5 cursor-pointer"
+                className="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-[#8B7355] dark:text-zinc-400 hover:text-[#3D2B1F] dark:hover:text-zinc-200 hover:bg-[#F3ECE0]/70 dark:hover:bg-zinc-800 transition-colors cursor-pointer disabled:opacity-40"
               >
-                <span>Next</span>
-                <ArrowRight className="w-4 h-4" />
+                Skip
               </button>
-            ) : null}
+
+              {/* Next / Continue Button (Always shown for multiSelect or when answer is present) */}
+              {currentQuestionConfig?.multiSelect ? (
+                <button
+                  type="button"
+                  onClick={goToNextStep}
+                  disabled={answers.interests.length === 0 || isSaving}
+                  className="px-5 py-2.5 rounded-xl bg-[#3D2B1F] dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs sm:text-sm font-semibold hover:bg-[#2C1F16] dark:hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-2 shadow-xs cursor-pointer"
+                >
+                  {isSaving ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Saving profile...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Continue</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+              ) : (answers as any)[currentQuestionConfig?.key || ''] ? (
+                <button
+                  type="button"
+                  onClick={goToNextStep}
+                  disabled={isSaving}
+                  className="px-4 py-2.5 rounded-xl border border-[#DACFBF] dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs sm:text-sm font-semibold text-[#3D2B1F] dark:text-zinc-200 hover:bg-[#FAF6EE] dark:hover:bg-zinc-700 transition-colors flex items-center gap-1.5 cursor-pointer"
+                >
+                  <span>Next</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              ) : null}
+            </div>
           </div>
         )}
       </motion.div>

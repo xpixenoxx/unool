@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Sparkles,
@@ -24,7 +25,7 @@ export interface StudioIdeaGeneratorProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectIdea: (idea: StudioIdea) => void;
-  onOpenProfileModal: () => void;
+  onOpenProfileModal?: () => void;
   hasCompletedProfile: boolean;
 }
 
@@ -286,14 +287,13 @@ export function StudioIdeaGenerator({
 
             <div className="flex items-center gap-2 pt-1">
               {error.isProfileMissing ? (
-                <button
-                  type="button"
-                  onClick={onOpenProfileModal}
+                <Link
+                  href="/dashboard/settings?tab=persona"
                   className="px-3.5 py-1.5 rounded-lg bg-[#3D2B1F] hover:bg-[#2A1D15] dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
                 >
                   <SlidersHorizontal className="w-3.5 h-3.5" />
-                  <span>Complete Studio profile</span>
-                </button>
+                  <span>Configure in Settings</span>
+                </Link>
               ) : (
                 <button
                   type="button"
