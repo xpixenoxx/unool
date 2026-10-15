@@ -169,6 +169,7 @@ interface Profile {
   role: string;
   company: string;
   onboardingAnswers?: any;
+  studioProfile?: any;
 }
 
 interface ComposerClientProps {
@@ -1064,6 +1065,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           role: data.profile.role || '',
           company: data.profile.company || '',
           onboardingAnswers: data.profile.onboardingAnswers || null,
+          studioProfile: data.profile.studioProfile || null,
         });
       }
     } catch {
@@ -1787,23 +1789,30 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                        {profile.onboardingAnswers?.persona || 'Publishing Persona'}
+                        {profile.studioProfile?.role || profile.onboardingAnswers?.persona || 'Studio Persona'}
                       </span>
-                      {profile.onboardingAnswers?.focus && (
+                      {(profile.studioProfile?.doing || profile.onboardingAnswers?.focus) && (
                         <span className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate max-w-[200px]">
-                          • {profile.onboardingAnswers.focus}
+                          • {profile.studioProfile?.doing || profile.onboardingAnswers?.focus}
                         </span>
                       )}
-                      {Array.isArray(profile.onboardingAnswers?.tone) && profile.onboardingAnswers.tone.length > 0 && (
+                      {(profile.studioProfile?.tone || (Array.isArray(profile.onboardingAnswers?.tone) && profile.onboardingAnswers.tone.length > 0)) && (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#C4A265]/10 text-[#C4A265] border border-[#C4A265]/20">
-                          {profile.onboardingAnswers.tone.slice(0, 2).join(' & ')}
+                          {profile.studioProfile?.tone || profile.onboardingAnswers?.tone?.slice(0, 2).join(' & ')}
+                        </span>
+                      )}
+                      {profile.studioProfile?.style && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#8B7355]/10 text-[#8B7355] dark:text-zinc-400 border border-[#8B7355]/20">
+                          {profile.studioProfile.style}
                         </span>
                       )}
                     </div>
                     <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">
-                      {profile.onboardingAnswers
+                      {profile.studioProfile
+                        ? `Audience: ${profile.studioProfile.audience} · ${(profile.studioProfile.interests || []).length} outside-work interests`
+                        : profile.onboardingAnswers
                         ? `${(profile.onboardingAnswers.extras || []).length} active guardrails calibrating AI adaptations`
-                        : 'Calibrate your voice archetype, target circles, and publishing guardrails'}
+                        : 'Calibrate your voice archetype, target audience, and content style'}
                     </p>
                   </div>
                 </div>
@@ -1816,7 +1825,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   className="h-8 text-xs font-semibold px-3 bg-white dark:bg-zinc-800 hover:bg-[#F5EFE2] dark:hover:bg-zinc-700 border-zinc-200 dark:border-zinc-700 text-[#8B7355] dark:text-zinc-200 hover:text-[#3D2B1F] flex items-center gap-1.5 cursor-pointer shadow-2xs"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-[#C4A265]" />
-                  <span>{profile.onboardingAnswers ? 'Tune Voice' : 'Calibrate Voice'}</span>
+                  <span>Edit Studio profile</span>
                 </Button>
               </div>
             </MotionBox>
@@ -2572,9 +2581,22 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         onClose={() => setIsVoiceModalOpen(false)}
         forceOpen={isVoiceModalOpen}
         isRetake={isVoiceModalOpen}
-        initialAnswers={profile?.onboardingAnswers}
-        onComplete={(answers) => {
-          setProfile(prev => prev ? { ...prev, onboardingAnswers: answers } : null);
+        initialAnswers={profile?.studioProfile || profile?.onboardingAnswers}
+        onComplete={(newProfile) => {
+          setProfile(prev => prev ? {
+            ...prev,
+            studioProfile: newProfile,
+            onboardingAnswers: {
+              persona: newProfile.role,
+              focus: newProfile.doing,
+              audience: [newProfile.audience],
+              tone: [newProfile.tone],
+              custom: {
+                style: newProfile.style,
+                interests: Array.isArray(newProfile.interests) ? newProfile.interests.join(', ') : '',
+              },
+            },
+          } : null);
           setIsVoiceModalOpen(false);
         }}
       />

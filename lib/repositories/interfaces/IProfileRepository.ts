@@ -34,6 +34,16 @@ export interface OnboardingAnswers {
   custom?: Record<string, string>;
 }
 
+export interface StudioProfile {
+  role: string;
+  doing: string;
+  audience: string;
+  tone: string;
+  style: string;
+  interests: string[];
+  completedAt?: string;
+}
+
 export interface Profile {
   id: string;
   workspaceId: string;
@@ -55,6 +65,7 @@ export interface Profile {
   openTo: string[];
   onboardingCompleted?: boolean;
   onboardingAnswers?: OnboardingAnswers | null;
+  studioProfile?: StudioProfile | null;
   authorizedViewers?: ProfileViewer[];
   createdAt: Date;
   updatedAt: Date;
@@ -83,6 +94,7 @@ export interface UpdateProfileInput {
   openTo?: string[];
   onboardingCompleted?: boolean;
   onboardingAnswers?: OnboardingAnswers | null;
+  studioProfile?: StudioProfile | null;
 }
 
 export interface IProfileRepository {

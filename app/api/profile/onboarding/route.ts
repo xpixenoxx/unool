@@ -32,6 +32,8 @@ export async function GET(request: NextRequest) {
       onboardingCompleted: profile.onboardingCompleted ?? false,
       answers: profile.onboardingAnswers ?? null,
       onboarding_answers: profile.onboardingAnswers ?? null,
+      studio_profile: profile.studioProfile ?? null,
+      studioProfile: profile.studioProfile ?? null,
       profileId: profile.id,
     });
   } catch (error) {
@@ -58,6 +60,8 @@ export async function PUT(request: NextRequest) {
       onboardingCompleted,
       answers,
       onboarding_answers,
+      studio_profile,
+      studioProfile,
       skipped,
     } = body;
 
@@ -71,6 +75,7 @@ export async function PUT(request: NextRequest) {
         : true;
 
     const finalAnswers = answers !== undefined ? answers : onboarding_answers !== undefined ? onboarding_answers : undefined;
+    const finalStudioProfile = studioProfile !== undefined ? studioProfile : studio_profile !== undefined ? studio_profile : undefined;
 
     let profile = await profileRepository.findByWorkspaceId(auth.workspaceId);
 
@@ -90,6 +95,7 @@ export async function PUT(request: NextRequest) {
       {
         onboardingCompleted: isCompleted,
         ...(finalAnswers !== undefined ? { onboardingAnswers: finalAnswers } : {}),
+        ...(finalStudioProfile !== undefined ? { studioProfile: finalStudioProfile } : {}),
       },
       profile.version
     );
@@ -100,6 +106,8 @@ export async function PUT(request: NextRequest) {
       onboardingCompleted: updated.onboardingCompleted ?? isCompleted,
       answers: updated.onboardingAnswers ?? finalAnswers ?? null,
       onboarding_answers: updated.onboardingAnswers ?? finalAnswers ?? null,
+      studio_profile: updated.studioProfile ?? finalStudioProfile ?? null,
+      studioProfile: updated.studioProfile ?? finalStudioProfile ?? null,
     });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));

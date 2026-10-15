@@ -34,6 +34,10 @@ export class SupabaseProfileRepository implements IProfileRepository {
         (row.onboarding_answers as any) ??
         ((row.theme as Record<string, unknown>)?.onboarding_answers as any) ??
         null,
+      studioProfile:
+        ((row.studio_profile as any) ??
+        ((row.theme as Record<string, unknown>)?.studio_profile as any) ??
+        null),
       createdAt: new Date(row.created_at as string),
       updatedAt: new Date(row.updated_at as string),
     };
@@ -135,11 +139,12 @@ export class SupabaseProfileRepository implements IProfileRepository {
 
     // Build theme object with fallback onboarding metadata
     let themeObj: Record<string, unknown> = (data.theme as Record<string, unknown>) || {};
-    if (data.onboardingCompleted !== undefined || data.onboardingAnswers !== undefined) {
+    if (data.onboardingCompleted !== undefined || data.onboardingAnswers !== undefined || data.studioProfile !== undefined) {
       themeObj = {
         ...themeObj,
         ...(data.onboardingCompleted !== undefined ? { onboarding_completed: data.onboardingCompleted } : {}),
         ...(data.onboardingAnswers !== undefined ? { onboarding_answers: data.onboardingAnswers } : {}),
+        ...(data.studioProfile !== undefined ? { studio_profile: data.studioProfile } : {}),
       };
       updateData.theme = themeObj;
     } else if (data.theme !== undefined) {
@@ -152,6 +157,9 @@ export class SupabaseProfileRepository implements IProfileRepository {
     if (data.onboardingAnswers !== undefined) {
       updateData.onboarding_answers = data.onboardingAnswers;
     }
+    if (data.studioProfile !== undefined) {
+      updateData.studio_profile = data.studioProfile;
+    }
 
     let result = await this.supabase
       .from('profiles')
@@ -161,11 +169,12 @@ export class SupabaseProfileRepository implements IProfileRepository {
       .select()
       .single();
 
-    // If top-level columns onboarding_completed / onboarding_answers don't exist in Supabase yet,
+    // If top-level columns onboarding_completed / onboarding_answers / studio_profile don't exist in Supabase yet,
     // fallback gracefully to updating without them (theme already has them saved)
-    if (result.error && (result.error.code === '42703' || result.error.message?.includes('onboarding'))) {
+    if (result.error && (result.error.code === '42703' || result.error.message?.includes('onboarding') || result.error.message?.includes('studio_profile'))) {
       delete updateData.onboarding_completed;
       delete updateData.onboarding_answers;
+      delete updateData.studio_profile;
       result = await this.supabase
         .from('profiles')
         .update(updateData)

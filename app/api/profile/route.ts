@@ -27,6 +27,8 @@ export async function GET(request: NextRequest) {
       onboardingCompleted: profile.onboardingCompleted ?? false,
       onboarding_answers: profile.onboardingAnswers ?? null,
       onboardingAnswers: profile.onboardingAnswers ?? null,
+      studio_profile: profile.studioProfile ?? null,
+      studioProfile: profile.studioProfile ?? null,
     };
 
     return NextResponse.json({ profile: normalizedProfile });

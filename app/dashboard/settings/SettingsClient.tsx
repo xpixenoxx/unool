@@ -629,14 +629,14 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
                 setShowRetakeModal(false);
                 loadOnboardingProfile();
               }}
-              onComplete={(answers) => {
+              onComplete={(answers: any) => {
                 if (answers) {
                   setOnboardingAnswers({
-                    persona: answers.persona || '',
-                    focus: answers.focus || '',
-                    audience: Array.isArray(answers.audience) ? answers.audience : [],
-                    tone: Array.isArray(answers.tone) ? answers.tone : [],
-                    extras: Array.isArray(answers.extras) ? answers.extras : [],
+                    persona: answers.role || answers.persona || '',
+                    focus: answers.doing || answers.focus || '',
+                    audience: answers.audience ? (Array.isArray(answers.audience) ? answers.audience : [answers.audience]) : [],
+                    tone: answers.tone ? (Array.isArray(answers.tone) ? answers.tone : [answers.tone]) : [],
+                    extras: Array.isArray(answers.interests) ? answers.interests : (Array.isArray(answers.extras) ? answers.extras : []),
                     custom: answers.custom || {},
                   });
                 }
