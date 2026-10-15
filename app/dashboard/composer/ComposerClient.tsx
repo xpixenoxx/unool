@@ -103,6 +103,7 @@ import {
 } from '@/components/dashboard/previews/PlatformMobilePreview';
 import { HashtagEditor } from '@/components/dashboard/HashtagEditor';
 import { StudioOnboardingModal } from '@/components/dashboard/StudioOnboardingModal';
+import { StudioIdeaGenerator } from '@/components/dashboard/StudioIdeaGenerator';
 
 type PlatformType = SupportedPlatformType;
 
@@ -801,6 +802,8 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const [humanizingPlatform, setHumanizingPlatform] = useState<PlatformType | null>(null);
   const [isHumanizingAll, setIsHumanizingAll] = useState(false);
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
+  const [personalizeWithProfile, setPersonalizeWithProfile] = useState(true);
+  const [isIdeaGeneratorOpen, setIsIdeaGeneratorOpen] = useState(false);
   const springConfig: Transition = reducedMotion ? { type: 'tween', duration: 0.01 } : spring.snappy;
 
   // ── Debounced hook scorer ────────────────────────────────────────────────────
@@ -1164,7 +1167,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           profileId: profile.id, 
           mediaItems: media,
           selectedPlatforms: platformsToUse,
-          onboardingAnswers: profile.onboardingAnswers || undefined
+          disablePersonalization: !personalizeWithProfile,
         }),
       });
 
@@ -2062,14 +2065,36 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
             {/* Step 1 */}
             <MotionBox variant="slide-up" delay={0.05}>
               <Card>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold flex-shrink-0">1</span>
-                    <CardTitle className="text-base">Write Your Idea</CardTitle>
+                <CardHeader className="pb-3 flex flex-row items-start justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold flex-shrink-0">1</span>
+                      <CardTitle className="text-base">Write Your Idea</CardTitle>
+                    </div>
+                    <Text size="sm" color="muted">
+                      Describe what you want to share. AI will adapt it perfectly for each platform.
+                    </Text>
                   </div>
-                  <Text size="sm" color="muted">
-                    Describe what you want to share. AI will adapt it perfectly for each platform.
-                  </Text>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const hasProfile = Boolean(
+                        (profile?.studioProfile && profile.studioProfile.role) ||
+                        (profile?.onboardingAnswers && (profile.onboardingAnswers as any).persona)
+                      );
+                      if (!hasProfile) {
+                        setIsVoiceModalOpen(true);
+                      } else {
+                        setIsIdeaGeneratorOpen((prev) => !prev);
+                      }
+                    }}
+                    className="h-8 text-xs font-semibold px-3 bg-white dark:bg-zinc-800 hover:bg-[#F5EFE2] dark:hover:bg-zinc-700 border-zinc-200 dark:border-zinc-700 text-[#8B7355] dark:text-zinc-200 hover:text-[#3D2B1F] flex items-center gap-1.5 cursor-pointer shrink-0 shadow-2xs"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-[#C4A265]" />
+                    <span>{isIdeaGeneratorOpen ? 'Hide ideas' : 'Generate ideas'}</span>
+                  </Button>
                 </CardHeader>
                 <CardContent 
                   className={cn("space-y-4 transition-colors", isDragging && "bg-muted/50 rounded-lg")}
@@ -2077,6 +2102,68 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
                 >
+                  {/* Subtle Studio Profile Personalization Indicator & Toggle */}
+                  {(profile?.studioProfile || profile?.onboardingAnswers) && (
+                    <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-[#FAF6EE] dark:bg-zinc-800/60 border border-[#E8E0D4] dark:border-zinc-800 text-xs text-[#8B7355] dark:text-zinc-300 transition-colors">
+                      <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                        <Sparkles className="w-3.5 h-3.5 text-[#C4A265] shrink-0" />
+                        <span className="font-medium text-zinc-800 dark:text-zinc-200">
+                          {personalizeWithProfile
+                            ? 'Personalized with your Studio profile'
+                            : 'Studio profile personalization paused'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setIsVoiceModalOpen(true)}
+                          className="font-semibold text-[#8B7355] dark:text-zinc-400 hover:text-[#3D2B1F] dark:hover:text-zinc-100 underline underline-offset-2 transition-colors cursor-pointer"
+                        >
+                          Edit profile
+                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                          {personalizeWithProfile ? 'Personalize' : 'Generic'}
+                        </span>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={personalizeWithProfile}
+                          onClick={() => setPersonalizeWithProfile(prev => !prev)}
+                          className={cn(
+                            "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden",
+                            personalizeWithProfile ? "bg-[#C4A265]" : "bg-zinc-300 dark:bg-zinc-700"
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out",
+                              personalizeWithProfile ? "translate-x-4" : "translate-x-0"
+                            )}
+                          />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Interactive Studio Idea Generator */}
+                  <StudioIdeaGenerator
+                    isOpen={isIdeaGeneratorOpen}
+                    onClose={() => setIsIdeaGeneratorOpen(false)}
+                    hasCompletedProfile={Boolean(
+                      (profile?.studioProfile && profile.studioProfile.role) ||
+                      (profile?.onboardingAnswers && (profile.onboardingAnswers as any).persona)
+                    )}
+                    onOpenProfileModal={() => {
+                      setIsIdeaGeneratorOpen(false);
+                      setIsVoiceModalOpen(true);
+                    }}
+                    onSelectIdea={(idea) => {
+                      const formattedIdea = idea.hook ? `${idea.hook}\n\n${idea.title}` : idea.title;
+                      setSourceContent(formattedIdea);
+                    }}
+                  />
+
                   <PlatformSelector />
                   <Textarea
                     placeholder="e.g. 'Just launched v2 of our product...' (Drag and drop media here to attach it!)"
@@ -2598,6 +2685,10 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
             },
           } : null);
           setIsVoiceModalOpen(false);
+        }}
+        onGenerateIdeas={() => {
+          setIsVoiceModalOpen(false);
+          setIsIdeaGeneratorOpen(true);
         }}
       />
     </div>

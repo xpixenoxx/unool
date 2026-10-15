@@ -12,8 +12,6 @@ import {
   Sparkles,
   RefreshCw,
   AlertCircle,
-  Lightbulb,
-  PenTool,
 } from 'lucide-react';
 import {
   STUDIO_ONBOARDING_QUESTIONS,
@@ -25,12 +23,11 @@ export interface StudioOnboardingModalProps {
   isOpen?: boolean;
   onClose?: () => void;
   onComplete?: (profile: StudioProfile) => void;
+  onGenerateIdeas?: () => void;
   userId?: string;
   forceOpen?: boolean;
   isRetake?: boolean;
   initialAnswers?: any;
-  onGenerateIdeas?: (profile: StudioProfile) => void;
-  onHaveIdea?: (profile: StudioProfile) => void;
 }
 
 interface DraftAnswers {
@@ -46,12 +43,11 @@ export function StudioOnboardingModal({
   isOpen: controlledIsOpen,
   onClose: controlledOnClose,
   onComplete,
+  onGenerateIdeas,
   userId,
   forceOpen = false,
   isRetake = false,
   initialAnswers,
-  onGenerateIdeas,
-  onHaveIdea,
 }: StudioOnboardingModalProps) {
   const [mounted, setMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
@@ -435,17 +431,10 @@ export function StudioOnboardingModal({
     }
   };
 
-  // Action handlers for final screen
-  const handleGenerateIdeasAction = () => {
+  // Completion handler for final screen
+  const handleDone = () => {
     if (savedProfile) {
-      onGenerateIdeas?.(savedProfile);
-    }
-    handleClose();
-  };
-
-  const handleHaveIdeaAction = () => {
-    if (savedProfile) {
-      onHaveIdea?.(savedProfile);
+      onComplete?.(savedProfile);
     }
     handleClose();
   };
@@ -812,24 +801,27 @@ export function StudioOnboardingModal({
                   </div>
                 </div>
 
-                {/* Final Two Action Buttons */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                {/* Final Completion Action Buttons */}
+                <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
                   <button
                     type="button"
-                    onClick={handleGenerateIdeasAction}
-                    className="w-full px-5 py-3.5 rounded-2xl bg-[#3D2B1F] hover:bg-[#2A1D15] dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 font-semibold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    onClick={() => {
+                      handleDone();
+                      onGenerateIdeas?.();
+                    }}
+                    className="flex-1 px-5 py-3.5 rounded-2xl bg-white dark:bg-zinc-800 border border-[#DACFBF] dark:border-zinc-700 text-[#3D2B1F] dark:text-zinc-100 hover:bg-[#FAF6EE] dark:hover:bg-zinc-700 font-semibold text-sm shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <Lightbulb className="w-4 h-4 text-[#C4A265] dark:text-amber-600" />
+                    <Sparkles className="w-4 h-4 text-[#C4A265]" />
                     <span>Generate ideas</span>
                   </button>
 
                   <button
                     type="button"
-                    onClick={handleHaveIdeaAction}
-                    className="w-full px-5 py-3.5 rounded-2xl bg-white hover:bg-[#FAF6EE] dark:bg-zinc-800 dark:hover:bg-zinc-700 text-[#3D2B1F] dark:text-zinc-100 border border-[#E8E0D4] dark:border-zinc-700 font-semibold text-sm shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    onClick={handleDone}
+                    className="flex-1 px-5 py-3.5 rounded-2xl bg-[#3D2B1F] hover:bg-[#2A1D15] dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 font-semibold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <PenTool className="w-4 h-4 text-[#8B7355] dark:text-zinc-400" />
-                    <span>I already have an idea</span>
+                    <span>Continue to Studio</span>
+                    <ArrowRight className="w-4 h-4" />
                   </button>
                 </div>
               </motion.div>
