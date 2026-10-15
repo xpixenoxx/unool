@@ -1,8 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { logger } from '@/lib/logger';
 import { verifyMetaSignature } from '@/lib/webhooks/verify';
 import { config } from '@/lib/config/schema';
 import { decryptToken } from '@/lib/crypto/encryption';
+
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 import {
   InstagramCommentAutomation,
@@ -29,12 +32,18 @@ export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get('hub.verify_token');
   const challenge = request.nextUrl.searchParams.get('hub.challenge');
 
-  if (mode === 'subscribe' && token === config.META_WEBHOOK_VERIFY_TOKEN) {
+  const verifyToken =
+    config.INSTAGRAM_WEBHOOK_VERIFY_TOKEN ||
+    config.META_WEBHOOK_VERIFY_TOKEN ||
+    process.env.INSTAGRAM_WEBHOOK_VERIFY_TOKEN ||
+    process.env.META_WEBHOOK_VERIFY_TOKEN;
+
+  if (mode === 'subscribe' && token === verifyToken) {
     logger.info('Instagram webhook verified successfully');
     return new NextResponse(challenge, { status: 200, headers: { 'Content-Type': 'text/plain' } });
   }
 
-  logger.warn('Instagram webhook verification failed', { mode, tokenMatch: token === config.META_WEBHOOK_VERIFY_TOKEN });
+  logger.warn('Instagram webhook verification failed', { mode, tokenMatch: token === verifyToken });
   return NextResponse.json({ error: 'Verification failed' }, { status: 403 });
 }
 
@@ -51,7 +60,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing signature' }, { status: 401 });
     }
 
-    const secret = config.INSTAGRAM_WEBHOOK_SECRET;
+    const secret =
+      config.INSTAGRAM_WEBHOOK_SECRET ||
+      config.META_WEBHOOK_SECRET ||
+      process.env.INSTAGRAM_WEBHOOK_SECRET ||
+      process.env.META_WEBHOOK_SECRET;
+
     if (secret) {
       const isValid = await verifyMetaSignature(body, signature, secret);
       if (!isValid) {
@@ -59,7 +73,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
       }
     } else if (config.NODE_ENV === 'production') {
-      logger.error('Instagram webhook: INSTAGRAM_WEBHOOK_SECRET not configured in production');
+      logger.error('Instagram webhook: INSTAGRAM_WEBHOOK_SECRET or META_WEBHOOK_SECRET not configured in production');
       return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
     }
 
@@ -81,7 +95,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ received: true });
     }
 
-    // Process each entry asynchronously — return 200 immediately to Meta
+    const backgroundTasks: Promise<void>[] = [];
+
+    // Process each entry asynchronously
     for (const entry of entries) {
       const igUserId = entry.id as string;
       const changes = entry.changes as Array<Record<string, unknown>> | undefined;
@@ -93,12 +109,14 @@ export async function POST(request: NextRequest) {
           if (change.field === 'comments') {
             const value = change.value as Record<string, unknown>;
             if (value) {
-              processCommentEvent(igUserId, value).catch((err) => {
-                logger.error('Error processing Instagram comment event', {
-                  igUserId,
-                  error: err instanceof Error ? err : new Error(String(err)),
-                });
-              });
+              backgroundTasks.push(
+                processCommentEvent(igUserId, value).catch((err) => {
+                  logger.error('Error processing Instagram comment event', {
+                    igUserId,
+                    error: err instanceof Error ? err : new Error(String(err)),
+                  });
+                })
+              );
             }
           }
         }
@@ -107,14 +125,23 @@ export async function POST(request: NextRequest) {
       // Handle inbound DM events (messages field)
       if (messaging && Array.isArray(messaging)) {
         for (const msg of messaging) {
-          processDmEvent(igUserId, msg).catch((err) => {
-            logger.error('Error processing Instagram DM event', {
-              igUserId,
-              error: err instanceof Error ? err : new Error(String(err)),
-            });
-          });
+          backgroundTasks.push(
+            processDmEvent(igUserId, msg).catch((err) => {
+              logger.error('Error processing Instagram DM event', {
+                igUserId,
+                error: err instanceof Error ? err : new Error(String(err)),
+              });
+            })
+          );
         }
       }
+    }
+
+    // Schedule background tasks with Next.js after() to keep the serverless lambda alive
+    if (typeof after === 'function' && backgroundTasks.length > 0) {
+      after(async () => {
+        await Promise.allSettled(backgroundTasks);
+      });
     }
 
     // Always return 200 quickly to Meta to avoid retries
@@ -180,10 +207,22 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
   }
 
   const connection = connections[0];
-  const groqApiKey = process.env.GROQ_API_KEY;
+  const groqApiKey = config.GROQ_API_KEY || process.env.GROQ_API_KEY;
 
   if (!groqApiKey) {
-    logger.warn('GROQ_API_KEY not configured, skipping comment automation');
+    logger.warn('GROQ_API_KEY not configured, logging comment without AI reply');
+    await logCommentEvent(connection.workspace_id, commentEvent, {
+      classification: 'unrelated',
+      confidence: 0,
+      suggestedReply: '',
+      suggestedDM: null,
+      threadHook: null,
+      leadScore: 0,
+      shouldAutoReply: false,
+      shouldSendDM: false,
+      shouldFlagForReview: true,
+      reasoning: 'GROQ_API_KEY not configured in environment variables',
+    });
     return;
   }
 
@@ -192,6 +231,18 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
     accessToken = await decryptToken(connection.access_token_encrypted);
   } catch (error) {
     logger.error('Failed to decrypt Instagram access token', { connectionId: connection.id });
+    await logCommentEvent(connection.workspace_id, commentEvent, {
+      classification: 'unrelated',
+      confidence: 0,
+      suggestedReply: '',
+      suggestedDM: null,
+      threadHook: null,
+      leadScore: 0,
+      shouldAutoReply: false,
+      shouldSendDM: false,
+      shouldFlagForReview: true,
+      reasoning: 'Failed to decrypt access token',
+    });
     return;
   }
 
@@ -199,6 +250,18 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
 
   if (!automationConfig.enabled) {
     logger.debug('Instagram comment automation disabled for workspace', { workspaceId: connection.workspace_id });
+    await logCommentEvent(connection.workspace_id, commentEvent, {
+      classification: 'unrelated',
+      confidence: 0,
+      suggestedReply: '',
+      suggestedDM: null,
+      threadHook: null,
+      leadScore: 0,
+      shouldAutoReply: false,
+      shouldSendDM: false,
+      shouldFlagForReview: false,
+      reasoning: 'Automation disabled in SignalDM settings',
+    });
     return;
   }
 
@@ -266,10 +329,10 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
       result.shouldFlagForReview = true;
     } else {
       // ── Poisson jitter delay before posting ────────────────────────────
-      await humanizedSleep(
-        automationConfig.jitterMinSeconds || 25,
-        automationConfig.jitterMaxSeconds || 120
-      );
+      // Bound delay to 2–6s so the serverless function completes safely within Vercel execution limits
+      const minDelay = Math.min(automationConfig.jitterMinSeconds ?? 3, 3);
+      const maxDelay = Math.min(automationConfig.jitterMaxSeconds ?? 6, 6);
+      await humanizedSleep(minDelay, maxDelay);
 
       // Post the public reply
       const replyResult = await automation.postPublicReply(
@@ -396,8 +459,8 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
       logger.debug('ContentHumanizer failed for DM — using raw reply');
     }
 
-    // Jitter delay
-    await humanizedSleep(10, 45); // Shorter delay for DMs (10–45s)
+    // Jitter delay for DMs (2–4s for natural and fast response)
+    await humanizedSleep(2, 4);
 
     // Send the DM reply
     await automation.sendPrivateMessage(accessToken, igUserId, dmEvent.senderId, finalReply);
