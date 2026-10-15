@@ -5,7 +5,7 @@ const nextConfig = {
       bodySizeLimit: '2mb',
     },
   },
-  serverExternalPackages: ['argon2'],
+  serverExternalPackages: ['argon2', '@ffmpeg-installer/ffmpeg'],
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: '*.supabase.co' },

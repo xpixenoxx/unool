@@ -357,8 +357,26 @@ export function buildOnboardingPrompt(answers?: Record<string, any> | null): str
 
   const audience = formatList(answers.audience) || 'their target audience';
   const tone = formatList(answers.tone) || 'authentic';
+  const extras = formatList(answers.extras);
+  const extrasText = typeof answers.custom?.extras_text === 'string'
+    ? answers.custom.extras_text.trim()
+    : typeof answers.extras_text === 'string'
+      ? answers.extras_text.trim()
+      : '';
 
-  return `User profile: ${persona || 'Creator'}, focused on ${focus || 'General'}. They want to reach: ${audience}. Write in a ${tone} voice. Adapt vocabulary, examples and hooks to this profile. Treat any custom text as the user's own description.`;
+  let prompt = `User profile: ${persona || 'Creator'}, focused on ${focus || 'General'}. They want to reach: ${audience}. Write in a ${tone} voice. Adapt vocabulary, examples and hooks to this profile. Treat any custom text as the user's own description.`;
+
+  if (extras || extrasText) {
+    if (extras && extrasText) {
+      prompt += ` Also follow these preferences: ${extras}. Extra notes from the user: ${extrasText.replace(/\.+$/, '')}.`;
+    } else if (extras) {
+      prompt += ` Also follow these preferences: ${extras}.`;
+    } else if (extrasText) {
+      prompt += ` Extra notes from the user: ${extrasText.replace(/\.+$/, '')}.`;
+    }
+  }
+
+  return prompt;
 }
 
 export function getPostAdapterSystemPrompt(onboardingPrompt?: string | null): string {

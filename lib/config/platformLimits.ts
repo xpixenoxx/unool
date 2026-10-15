@@ -26,7 +26,7 @@ export const PLATFORM_LIMITS: Record<SupportedPlatform, PlatformLimitConfig> = {
   dribbble: { maxVideoSizeMB: 24, maxImageSizeMB: 10, requiresMedia: true },
   skool: { maxVideoSizeMB: 50, maxImageSizeMB: 10 },
   whop: { maxVideoSizeMB: 50, maxImageSizeMB: 10 },
-  kick: { maxVideoSizeMB: 50, maxImageSizeMB: 10 },
+  kick: { maxVideoSizeMB: 5000, maxImageSizeMB: 10, maxDurationSeconds: 43200 },
   vk: { maxVideoSizeMB: 50, maxImageSizeMB: 10 },
   warpcast: { maxVideoSizeMB: 50, maxImageSizeMB: 10 },
   mewe: { maxVideoSizeMB: 50, maxImageSizeMB: 10 },

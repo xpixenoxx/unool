@@ -6,6 +6,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
   ArrowRight,
+  Plus,
+  Check,
 } from 'lucide-react';
 
 /* ─────────────────────────────────────────────────────────────
@@ -49,6 +51,12 @@ export interface OnboardingConfig {
       label: string;
       hint?: string;
     }>;
+    otherPlaceholder: string;
+  };
+  q5: {
+    title: string;
+    subtitle: string;
+    chips: string[];
     otherPlaceholder: string;
   };
 }
@@ -210,6 +218,32 @@ export const STUDIO_ONBOARDING_CONFIG: OnboardingConfig = {
     ],
     otherPlaceholder: 'e.g. Poetic, Motivational, Sarcastic...',
   },
+  q5: {
+    title: 'Anything else we should know before you start creating?',
+    subtitle: 'Tap anything that fits. Skip if nothing does.',
+    chips: [
+      "Don't Use emojis",
+      'Add hashtags',
+      'Add a call-to-action',
+      'Keep posts short',
+      'Write long-form',
+      'Avoid jargon',
+      'Start with a hook',
+      'Ask my audience questions',
+      'Add humor',
+      'Share stories',
+      'Use numbers and stats',
+      'Mix in Hindi',
+      'Mix in Telugu',
+      'Keep it simple English',
+      'Use local slang',
+      'Mention my brand name',
+      'Promote my products',
+      'Share behind-the-scenes',
+      'Highlight achievements',
+    ],
+    otherPlaceholder: 'Something else? Tell us in your own words.',
+  },
 };
 
 /* ─────────────────────────────────────────────────────────────
@@ -237,13 +271,14 @@ export function StudioOnboardingModal({
   const modalRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
 
   // Stored answers
   const [persona, setPersona] = useState<string>('');
   const [focus, setFocus] = useState<string>('');
   const [audience, setAudience] = useState<string[]>([]);
   const [tone, setTone] = useState<string[]>([]);
+  const [extras, setExtras] = useState<string[]>([]);
 
   // "Other" text inputs
   const [q1OtherText, setQ1OtherText] = useState('');
@@ -258,6 +293,15 @@ export function StudioOnboardingModal({
   const [q4OtherText, setQ4OtherText] = useState('');
   const [q4ShowOtherInput, setQ4ShowOtherInput] = useState(false);
 
+  const [q5OtherText, setQ5OtherText] = useState('');
+
+  // Toggle chip in Q5 multi-select
+  const toggleExtraChip = (chip: string) => {
+    setExtras((prev) =>
+      prev.includes(chip) ? prev.filter((c) => c !== chip) : [...prev, chip]
+    );
+  };
+
   // Feedback states
   const [isFinishing, setIsFinishing] = useState(false);
 
@@ -268,15 +312,8 @@ export function StudioOnboardingModal({
     }
   }, [controlledIsOpen]);
 
-  // Click outside and escape key handling
+  // Escape key handling
   useEffect(() => {
-    const handleOutsideClick = (event: MouseEvent) => {
-      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-        controlledOnClose?.();
-      }
-    };
-
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setIsOpen(false);
@@ -285,12 +322,10 @@ export function StudioOnboardingModal({
     };
 
     if (isOpen) {
-      document.addEventListener('mousedown', handleOutsideClick);
       document.addEventListener('keydown', handleEscape);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleOutsideClick);
       document.removeEventListener('keydown', handleEscape);
     };
   }, [isOpen, controlledOnClose]);
@@ -302,6 +337,7 @@ export function StudioOnboardingModal({
       if (initialAnswers.focus) setFocus(initialAnswers.focus);
       if (Array.isArray(initialAnswers.audience)) setAudience(initialAnswers.audience);
       if (Array.isArray(initialAnswers.tone)) setTone(initialAnswers.tone);
+      if (Array.isArray(initialAnswers.extras)) setExtras(initialAnswers.extras);
       if (initialAnswers.custom) {
         if (initialAnswers.custom.persona) {
           setQ1OtherText(initialAnswers.custom.persona);
@@ -319,21 +355,65 @@ export function StudioOnboardingModal({
           setQ4OtherText(initialAnswers.custom.tone);
           setQ4ShowOtherInput(true);
         }
+        if (initialAnswers.custom.extras_text) {
+          setQ5OtherText(initialAnswers.custom.extras_text);
+        }
       }
     }
   }, [initialAnswers]);
+
+  // Fallback preload for retake flow if initialAnswers was not provided
+  useEffect(() => {
+    if (isRetake && (!initialAnswers || !initialAnswers.persona)) {
+      fetch('/api/profile/onboarding', { credentials: 'include', cache: 'no-store' })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (!data) return;
+          const a = data.answers || data.onboarding_answers;
+          if (a) {
+            if (a.persona) setPersona(a.persona);
+            if (a.focus) setFocus(a.focus);
+            if (Array.isArray(a.audience)) setAudience(a.audience);
+            if (Array.isArray(a.tone)) setTone(a.tone);
+            if (Array.isArray(a.extras)) setExtras(a.extras);
+            if (a.custom) {
+              if (a.custom.persona) {
+                setQ1OtherText(a.custom.persona);
+                setQ1ShowOtherInput(true);
+              }
+              if (a.custom.focus) {
+                setQ2OtherText(a.custom.focus);
+                setQ2ShowOtherInput(true);
+              }
+              if (a.custom.audience) {
+                setQ3OtherText(a.custom.audience);
+                setQ3ShowOtherInput(true);
+              }
+              if (a.custom.tone) {
+                setQ4OtherText(a.custom.tone);
+                setQ4ShowOtherInput(true);
+              }
+              if (a.custom.extras_text) {
+                setQ5OtherText(a.custom.extras_text);
+              }
+            }
+          }
+        })
+        .catch((err) => console.warn('Could not preload answers for retake:', err));
+    }
+  }, [isRetake, initialAnswers]);
 
   // Initialize and check database onboarding status
   useEffect(() => {
     setMounted(true);
 
-    if (controlledIsOpen !== undefined) {
-      setIsOpen(controlledIsOpen);
-      if (!isRetake) return;
-    }
-
-    if (forceOpen && !isRetake) {
-      setIsOpen(true);
+    // If modal is explicitly controlled, forced, or in retake flow, DO NOT run onboarding gate
+    if (controlledIsOpen !== undefined || forceOpen || isRetake) {
+      if (controlledIsOpen !== undefined) {
+        setIsOpen(controlledIsOpen);
+      } else {
+        setIsOpen(true);
+      }
       return;
     }
 
@@ -365,6 +445,7 @@ export function StudioOnboardingModal({
             if (a.focus) setFocus(a.focus);
             if (Array.isArray(a.audience)) setAudience(a.audience);
             if (Array.isArray(a.tone)) setTone(a.tone);
+            if (Array.isArray(a.extras)) setExtras(a.extras);
             if (a.custom) {
               if (a.custom.persona) {
                 setQ1OtherText(a.custom.persona);
@@ -381,6 +462,9 @@ export function StudioOnboardingModal({
               if (a.custom.tone) {
                 setQ4OtherText(a.custom.tone);
                 setQ4ShowOtherInput(true);
+              }
+              if (a.custom.extras_text) {
+                setQ5OtherText(a.custom.extras_text);
               }
             }
           }
@@ -467,6 +551,9 @@ export function StudioOnboardingModal({
     if (q4ShowOtherInput && q4OtherText.trim()) {
       customObj.tone = q4OtherText.trim();
     }
+    if (q5OtherText.trim()) {
+      customObj.extras_text = q5OtherText.trim();
+    }
 
     // Determine final values
     const finalPersona =
@@ -491,6 +578,7 @@ export function StudioOnboardingModal({
       focus: finalFocus,
       audience: finalAudience,
       tone: finalTone,
+      extras: extras,
       custom: customObj,
     };
 
@@ -525,14 +613,14 @@ export function StudioOnboardingModal({
   // Back button handler
   const handleBack = () => {
     if (step > 1) {
-      setStep((prev) => (prev - 1) as 1 | 2 | 3 | 4);
+      setStep((prev) => (prev - 1) as 1 | 2 | 3 | 4 | 5);
     }
   };
 
   // Skip step handler for retake flow
   const handleSkipStep = () => {
-    if (step < 4) {
-      setStep((prev) => (prev + 1) as 1 | 2 | 3 | 4);
+    if (step < 5) {
+      setStep((prev) => (prev + 1) as 1 | 2 | 3 | 4 | 5);
     } else {
       handleFinish();
     }
@@ -644,6 +732,12 @@ export function StudioOnboardingModal({
     <AnimatePresence>
       <div
         className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-md"
+        onMouseDown={(e) => {
+          if (e.target === e.currentTarget) {
+            setIsOpen(false);
+            controlledOnClose?.();
+          }
+        }}
         onClick={(e) => {
           if (e.target === e.currentTarget) {
             setIsOpen(false);
@@ -682,10 +776,10 @@ export function StudioOnboardingModal({
               )}
             </div>
 
-            {/* Step & Skip link */}
+            {/* Step & Skip link & Close button */}
             <div className="flex items-center gap-4">
               <span className="text-xs font-semibold text-gray-400 dark:text-zinc-500">
-                Step {step} of 4
+                Step {step} of 5
               </span>
               {isRetake ? (
                 <button
@@ -704,6 +798,17 @@ export function StudioOnboardingModal({
                   Skip for now
                 </button>
               )}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsOpen(false);
+                  controlledOnClose?.();
+                }}
+                className="p-1 text-gray-400 hover:text-gray-700 dark:text-zinc-500 dark:hover:text-zinc-300 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer text-sm font-semibold leading-none"
+                title="Close"
+              >
+                ✕
+              </button>
             </div>
           </div>
 
@@ -711,8 +816,8 @@ export function StudioOnboardingModal({
           <div className="w-full bg-gray-100 dark:bg-zinc-800/80 h-1">
             <motion.div
               className="h-1 bg-[#C4A265]"
-              initial={{ width: `${((step - 1) / 4) * 100}%` }}
-              animate={{ width: `${(step / 4) * 100}%` }}
+              initial={{ width: `${((step - 1) / 5) * 100}%` }}
+              animate={{ width: `${(step / 5) * 100}%` }}
               transition={{ duration: 0.3, ease: 'easeOut' }}
             />
           </div>
@@ -1128,28 +1233,125 @@ export function StudioOnboardingModal({
                     </motion.div>
                   )}
 
-                  {/* Finish / Continue Button for Q4 */}
+                  {/* Continue Button for Q4 */}
                   <div className="pt-2 flex items-center gap-3">
                     {isRetake && (
                       <button
                         type="button"
                         onClick={handleSkipStep}
-                        disabled={isFinishing}
-                        className="w-1/3 py-3.5 rounded-xl border border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-zinc-300 text-xs sm:text-sm font-semibold hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                        className="w-1/3 py-3 rounded-xl border border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-zinc-300 text-xs sm:text-sm font-semibold hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                       >
                         Skip
                       </button>
                     )}
                     <button
                       type="button"
+                      onClick={() => setStep(5)}
+                      disabled={!canContinueQ4}
+                      className={`${isRetake ? 'w-2/3' : 'w-full'} py-3 rounded-xl bg-gray-900 hover:bg-black dark:bg-[#C4A265] dark:hover:bg-[#b39255] text-white text-xs sm:text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer shadow-sm`}
+                    >
+                      <span>Continue</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* ── QUESTION 5 ─────────────────────────────────────── */}
+              {step === 5 && (
+                <motion.div
+                  key="step-5"
+                  initial={{ opacity: 0, x: 12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -12 }}
+                  transition={{ duration: 0.18 }}
+                  className="space-y-5"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900 dark:text-zinc-100">
+                        {STUDIO_ONBOARDING_CONFIG.q5.title}
+                      </h2>
+                      <p className="text-xs sm:text-sm text-gray-500 dark:text-zinc-400 mt-1">
+                        {STUDIO_ONBOARDING_CONFIG.q5.subtitle}
+                      </p>
+                    </div>
+                    {extras.length > 0 && (
+                      <span className="shrink-0 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900">
+                        {extras.length} selected
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Wrapping pill chips (multi-select, no limit) */}
+                  <div className="flex flex-wrap gap-2 pt-1 max-h-[36vh] overflow-y-auto pr-1">
+                    {STUDIO_ONBOARDING_CONFIG.q5.chips.map((chip) => {
+                      const isSelected = extras.includes(chip);
+                      return (
+                        <button
+                          key={chip}
+                          type="button"
+                          onClick={() => toggleExtraChip(chip)}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all cursor-pointer border ${
+                            isSelected
+                              ? 'bg-blue-600 hover:bg-blue-700 text-white border-blue-600 shadow-sm'
+                              : 'bg-white hover:bg-gray-100/80 dark:bg-zinc-800/60 dark:hover:bg-zinc-800 text-gray-700 dark:text-zinc-200 border-gray-300 dark:border-zinc-700'
+                          }`}
+                        >
+                          {isSelected ? (
+                            <Check className="w-3.5 h-3.5 stroke-[2.5] shrink-0" />
+                          ) : (
+                            <Plus className="w-3.5 h-3.5 text-gray-500 dark:text-zinc-400 shrink-0" />
+                          )}
+                          <span>{chip}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Text box: Something else? Tell us in your own words. */}
+                  <div className="pt-1">
+                    <label className="block text-xs font-medium text-gray-700 dark:text-zinc-300 mb-1.5">
+                      {STUDIO_ONBOARDING_CONFIG.q5.otherPlaceholder}
+                    </label>
+                    <textarea
+                      value={q5OtherText}
+                      onChange={(e) => setQ5OtherText(e.target.value)}
+                      rows={2}
+                      placeholder="e.g. Keep posts conversational, mention our brand name, avoid buzzwords..."
+                      className="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs sm:text-sm text-gray-900 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-600 resize-none"
+                    />
+                  </div>
+
+                  {/* Action row with Back, Skip, and Finish (or Update in retake mode) */}
+                  <div className="pt-2 flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={handleBack}
+                      disabled={isFinishing}
+                      className="w-1/4 py-3.5 rounded-xl border border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-zinc-300 text-xs sm:text-sm font-semibold hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                      <span>Back</span>
+                    </button>
+                    <button
+                      type="button"
                       onClick={handleFinish}
-                      disabled={!canContinueQ4 || isFinishing}
-                      className={`${isRetake ? 'w-2/3' : 'w-full'} py-3.5 rounded-xl bg-gray-900 hover:bg-black dark:bg-[#C4A265] dark:hover:bg-[#b39255] text-white text-xs sm:text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer shadow-lg`}
+                      disabled={isFinishing}
+                      className="w-1/4 py-3.5 rounded-xl border border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-zinc-300 text-xs sm:text-sm font-semibold hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                    >
+                      Skip
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleFinish}
+                      disabled={isFinishing}
+                      className="w-1/2 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer shadow-lg"
                     >
                       {isFinishing ? (
-                        <span>{isRetake ? 'Updating...' : 'Entering Studio...'}</span>
+                        <span>{isRetake ? 'Updating...' : 'Finishing...'}</span>
                       ) : (
-                        <span>{isRetake ? 'Update' : 'Enter Studio'}</span>
+                        <span>{isRetake ? 'Update' : 'Finish'}</span>
                       )}
                     </button>
                   </div>

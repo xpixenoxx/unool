@@ -269,9 +269,23 @@ export class PublishService {
 
       const tokenResponse = await adapter.refreshAccessToken(refreshToken);
 
-      // Encrypt new tokens
+      // Encrypt new tokens (preserving Kick stream settings)
       const { encryptToken } = await import('@/lib/crypto/encryption');
-      const accessTokenEncrypted = await encryptToken(tokenResponse.accessToken);
+      let finalAccessTokenToEncrypt = tokenResponse.accessToken;
+      if (connection.platform === 'kick') {
+        try {
+          const oldDecrypted = await decryptToken(connection.accessTokenEncrypted);
+          const parsed = JSON.parse(oldDecrypted);
+          if (parsed && typeof parsed === 'object' && (parsed.streamUrl || parsed.streamKey)) {
+            finalAccessTokenToEncrypt = JSON.stringify({
+              accessToken: tokenResponse.accessToken,
+              streamUrl: parsed.streamUrl,
+              streamKey: parsed.streamKey,
+            });
+          }
+        } catch {}
+      }
+      const accessTokenEncrypted = await encryptToken(finalAccessTokenToEncrypt);
       const refreshTokenEncrypted = tokenResponse.refreshToken
         ? await encryptToken(tokenResponse.refreshToken)
         : connection.refreshTokenEncrypted;

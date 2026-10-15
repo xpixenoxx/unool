@@ -38,11 +38,12 @@ export async function verifyWebhookSignature(
 
 function getWebhookSecret(platform: Platform): string | undefined {
   const secretMap: Partial<Record<Platform, string | undefined>> = {
-    linkedin: config.LINKEDIN_WEBHOOK_SECRET,
-    x: config.X_WEBHOOK_SECRET,
-    threads: config.META_WEBHOOK_SECRET,
-    facebook: config.META_WEBHOOK_SECRET,
-    instagram: config.META_WEBHOOK_SECRET,
+    linkedin:  config.LINKEDIN_WEBHOOK_SECRET,
+    x:         config.X_WEBHOOK_SECRET,
+    // Each Meta app has its own App Secret — they CANNOT share one value
+    instagram: config.INSTAGRAM_WEBHOOK_SECRET,
+    facebook:  config.FACEBOOK_WEBHOOK_SECRET,
+    threads:   config.THREADS_WEBHOOK_SECRET,
     youtube: undefined,
     pinterest: undefined,
     bluesky: undefined,

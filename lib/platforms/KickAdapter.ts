@@ -40,7 +40,7 @@ export class KickAdapter implements PlatformAdapter {
       clientId: config.KICK_CLIENT_ID || '',
       clientSecret: config.KICK_CLIENT_SECRET || '',
       redirectUri: config.KICK_REDIRECT_URI || `${config.NEXT_PUBLIC_APP_URL}/api/auth/platform/callback`,
-      scopes: ['user:read', 'channel:read', 'chat:write'],
+      scopes: ['user:read', 'channel:read', 'chat:write', 'streamkey:read', 'channel:write'],
     };
   }
 
@@ -138,7 +138,8 @@ export class KickAdapter implements PlatformAdapter {
     };
   }
 
-  async getUserProfile(accessToken: string): Promise<UserProfile> {
+  async getUserProfile(tokenData: string): Promise<UserProfile> {
+    const { accessToken } = this.parseToken(tokenData);
     const response = await fetchWithRetry(`${KICK_API_BASE}/users`, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -170,7 +171,147 @@ export class KickAdapter implements PlatformAdapter {
     };
   }
 
-  async publish(accessToken: string, input: PublishInput): Promise<PublishResult> {
+  async publish(tokenData: string, input: PublishInput): Promise<PublishResult> {
+    const { accessToken, streamUrl, streamKey } = this.parseToken(tokenData);
+
+    // Detect if this post has a video file attached
+    const videoUrl = input.mediaUrls?.find(url =>
+      /\.(mp4|mov|webm|mkv|m4v|avi|flv)(\?.*)?$/i.test(url) ||
+      (url.toLowerCase().includes('video') && !/\.(jpe?g|png|webp|gif|svg)$/i.test(url))
+    );
+
+    // If there is a video, stream it over RTMP directly to Kick
+    if (videoUrl) {
+      if (!streamUrl || !streamKey) {
+        throw new Error(
+          'Kick Live Streaming setup is not complete. Please go to your Kick card under Settings / Publishing Network, click "Complete Setup", and enter your Kick Stream URL and Stream Key.'
+        );
+      }
+
+      // Sanitize and ensure proper Kick RTMP ingest URL structure (:443/app)
+      let cleanStreamUrl = streamUrl.trim().replace(/\/+$/, '');
+      if (!cleanStreamUrl.startsWith('rtmp://') && !cleanStreamUrl.startsWith('rtmps://')) {
+        cleanStreamUrl = `rtmps://${cleanStreamUrl}`;
+      }
+      if (cleanStreamUrl.startsWith('rtmps://') && !cleanStreamUrl.includes(':443') && !cleanStreamUrl.match(/:\d+/)) {
+        cleanStreamUrl = cleanStreamUrl.replace(/(rtmps:\/\/[^/:]+)/, '$1:443');
+      }
+      if (!cleanStreamUrl.endsWith('/app')) {
+        cleanStreamUrl = cleanStreamUrl.replace(/\/+$/, '') + '/app';
+      }
+
+      const cleanStreamKey = streamKey.trim().replace(/^\/+/, '');
+      const fullRtmpUrl = `${cleanStreamUrl}/${cleanStreamKey}`;
+      logger.info('Starting Kick cloud RTMP stream for video', { videoUrl, streamDestination: cleanStreamUrl });
+
+      let ffmpegPath = 'ffmpeg';
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg');
+        ffmpegPath = ffmpegInstaller.path || 'ffmpeg';
+      } catch (err) {
+        logger.warn('Could not load @ffmpeg-installer/ffmpeg, falling back to system ffmpeg', { err });
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { spawn } = require('child_process');
+      const ffmpegArgs = [
+        '-re',
+        '-reconnect', '1',
+        '-reconnect_streamed', '1',
+        '-reconnect_delay_max', '2',
+        '-i', videoUrl,
+        '-c:v', 'libx264',
+        '-preset', 'veryfast',
+        '-b:v', '3000k',
+        '-maxrate', '3500k',
+        '-bufsize', '6000k',
+        '-pix_fmt', 'yuv420p',
+        '-g', '60',
+        '-c:a', 'aac',
+        '-b:a', '128k',
+        '-ar', '44100',
+        '-flvflags', '+no_duration_filesize',
+        '-f', 'flv',
+        fullRtmpUrl,
+      ];
+
+      // 1. Announce the stream in the Kick live chat
+      try {
+        let chatText = `🔴 LIVE STREAM: ${input.content || 'Streaming video broadcast!'}`;
+        if (chatText.length > 500) chatText = chatText.substring(0, 497) + '...';
+
+        let broadcasterId = input.platformUserId;
+        if (!broadcasterId || isNaN(parseInt(broadcasterId, 10))) {
+          const profile = await this.getUserProfile(accessToken);
+          broadcasterId = profile.platformUserId;
+        }
+
+        await fetchWithRetry(`${KICK_API_BASE}/chat`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            broadcaster_user_id: parseInt(broadcasterId, 10),
+            content: chatText,
+            type: 'user',
+          }),
+        });
+      } catch (chatErr) {
+        logger.warn('Kick chat stream announcement failed (proceeding with stream)', { chatErr });
+      }
+
+      // 2. Stream the video via RTMP to Kick
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const streamProc = spawn(ffmpegPath, ffmpegArgs);
+          let stderr = '';
+          let hasStartedStreaming = false;
+
+          streamProc.stderr.on('data', (chunk: Buffer) => {
+            const text = chunk.toString();
+            stderr += text;
+            if (!hasStartedStreaming && (text.includes('frame=') || text.includes('fps=') || text.includes('bitrate='))) {
+              hasStartedStreaming = true;
+              logger.info('Kick RTMP streaming active and transmitting frames');
+            }
+          });
+
+          streamProc.on('error', (err: Error) => {
+            logger.error('Failed to spawn FFmpeg process', { err });
+            reject(new Error(`Failed to start Kick streaming: ${err.message}`));
+          });
+
+          streamProc.on('close', (code: number) => {
+            if (code === 0 || hasStartedStreaming) {
+              logger.info('Kick RTMP stream finished', { code });
+              resolve();
+            } else {
+              let cleanStderr = stderr.slice(-600).replaceAll(cleanStreamKey, 'sk_***');
+              if (cleanStderr.includes('Error in the pull function') || cleanStderr.includes('I/O error') || cleanStderr.includes('Input/output error')) {
+                cleanStderr = 'Kick rejected the stream connection. Please verify your Kick Stream Key is active and not expired in your Kick Creator Dashboard (Settings -> Stream Key), then update it via Complete Setup.';
+              }
+              logger.error('Kick RTMP stream failed', { code, stderr: cleanStderr });
+              reject(new Error(`Kick streaming error: ${cleanStderr}`));
+            }
+          });
+        });
+      } catch (streamErr) {
+        logger.error('Kick stream execution error', { streamErr });
+        const rawErr = streamErr instanceof Error ? streamErr.message : String(streamErr);
+        throw new Error(rawErr.replaceAll(cleanStreamKey, 'sk_***'));
+      }
+
+      return {
+        platformPostId: `kick-stream-${Date.now()}`,
+        platformUrl: input.username ? `https://kick.com/${input.username}` : `https://kick.com`,
+        publishedAt: new Date(),
+      };
+    }
+
+    // Otherwise, text / image only — post to chat
     let broadcasterId = input.platformUserId;
     if (!broadcasterId || isNaN(parseInt(broadcasterId, 10))) {
       const profile = await this.getUserProfile(accessToken);
@@ -223,6 +364,22 @@ export class KickAdapter implements PlatformAdapter {
       platformUrl: input.username ? `https://kick.com/${input.username}` : `https://kick.com`,
       publishedAt: new Date(),
     };
+  }
+
+  private parseToken(tokenData: string): { accessToken: string; streamUrl?: string; streamKey?: string } {
+    try {
+      const parsed = JSON.parse(tokenData);
+      if (parsed && typeof parsed === 'object') {
+        return {
+          accessToken: parsed.accessToken || tokenData,
+          streamUrl: parsed.streamUrl,
+          streamKey: parsed.streamKey,
+        };
+      }
+    } catch {
+      // Not JSON, plain access token
+    }
+    return { accessToken: tokenData };
   }
 
   async deletePost(_accessToken: string, platformPostId: string): Promise<void> {

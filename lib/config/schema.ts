@@ -116,8 +116,13 @@ const configSchema = z.object({
   // Webhook secrets
   LINKEDIN_WEBHOOK_SECRET: z.string().optional(),
   X_WEBHOOK_SECRET: z.string().optional(),
+  // Meta platform webhook secrets — each Meta app has its own App Secret
+  INSTAGRAM_WEBHOOK_SECRET: z.string().optional(),   // Instagram app secret (App ID: 1641543683580039)
+  FACEBOOK_WEBHOOK_SECRET: z.string().optional(),    // Facebook/main Meta app secret (App ID: 2577316406036871)
+  THREADS_WEBHOOK_SECRET: z.string().optional(),     // Threads app secret (App ID: 1669649600933861)
+  // Legacy alias — kept for backwards compat, not used directly by code
   META_WEBHOOK_SECRET: z.string().optional(),
-  META_WEBHOOK_VERIFY_TOKEN: z.string().optional(),
+  META_WEBHOOK_VERIFY_TOKEN: z.string().optional(),  // Shared verify token for Instagram & Facebook webhook handshake
 
   // Groq API (for AI generation and automation)
   GROQ_API_KEY: z.string().optional(),

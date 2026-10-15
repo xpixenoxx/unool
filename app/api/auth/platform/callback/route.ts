@@ -194,6 +194,35 @@ export async function GET(request: NextRequest) {
       logger.debug('WorkspaceId verified as existing workspace', { workspaceId: finalWorkspaceId });
     }
 
+    // Preserve existing Kick stream settings if reconnecting
+    let finalAccessTokenToEncrypt = tokenResponse.accessToken;
+    if (platform === 'kick') {
+      try {
+        const existingConn = await platformRepository.findByWorkspaceAndPlatform(finalWorkspaceId, 'kick');
+        if (existingConn?.accessTokenEncrypted) {
+          const { decryptToken } = await import('@/lib/crypto/encryption');
+          const decrypted = await decryptToken(existingConn.accessTokenEncrypted);
+          try {
+            const parsed = JSON.parse(decrypted);
+            if (parsed && typeof parsed === 'object' && (parsed.streamUrl || parsed.streamKey)) {
+              finalAccessTokenToEncrypt = JSON.stringify({
+                accessToken: tokenResponse.accessToken,
+                streamUrl: parsed.streamUrl,
+                streamKey: parsed.streamKey,
+              });
+              logger.info('Preserved Kick stream settings during OAuth reconnect', { workspaceId: finalWorkspaceId });
+            }
+          } catch {
+            // Not JSON payload
+          }
+        }
+      } catch (preserveErr) {
+        logger.warn('Could not check existing Kick stream settings on reconnect', { preserveErr });
+      }
+    }
+
+    const finalAccessTokenEncrypted = await encryptToken(finalAccessTokenToEncrypt);
+
     // Save or update platform connection
     const savedConnection = await platformRepository.create({
       workspaceId: finalWorkspaceId,
@@ -201,7 +230,7 @@ export async function GET(request: NextRequest) {
       platform,
       platformUserId: profile.platformUserId,
       username: profile.username,
-      accessToken: accessTokenEncrypted,
+      accessToken: finalAccessTokenEncrypted,
       refreshToken: refreshTokenEncrypted || '',
       expiresAt,
       scopes: tokenResponse.scope ? tokenResponse.scope.split(' ') : adapter.authConfig.scopes,

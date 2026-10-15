@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Globe, PenTool, Settings, LogOut, ChevronLeft, Menu, LayoutDashboard, Radio, Network, BarChart3, Bell, CalendarDays } from 'lucide-react';
+import { Globe, PenTool, Settings, LogOut, ChevronLeft, Menu, LayoutDashboard, Radio, Network, BarChart3, Bell, CalendarDays, Zap } from 'lucide-react';
 import { UserProvider, useUserContext } from '@/lib/hooks/use-user-context';
 import { SignalStrip } from './signal/SignalStrip';
 
@@ -55,6 +55,12 @@ const navigation = [
     href: '/dashboard/signal',
     icon: Radio,
     description: 'Publish & schedule',
+  },
+  {
+    name: 'Automation',
+    href: '/dashboard/automation',
+    icon: Zap,
+    description: 'Instagram comment automation',
   },
   {
     name: 'Profile',

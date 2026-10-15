@@ -91,12 +91,14 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
     focus: string;
     audience: string[];
     tone: string[];
+    extras: string[];
     custom: Record<string, string>;
   }>({
     persona: '',
     focus: '',
     audience: [],
     tone: [],
+    extras: [],
     custom: {},
   });
   const [onboardingCompleted, setOnboardingCompleted] = useState(false);
@@ -116,6 +118,7 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
             focus: a.focus || '',
             audience: Array.isArray(a.audience) ? a.audience : [],
             tone: Array.isArray(a.tone) ? a.tone : [],
+            extras: Array.isArray(a.extras) ? a.extras : [],
             custom: a.custom || {},
           });
         }
@@ -423,7 +426,10 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => setShowRetakeModal(true)}
+                  onClick={() => {
+                    setShowRetakeModal(false);
+                    setTimeout(() => setShowRetakeModal(true), 0);
+                  }}
                   className="text-xs font-semibold"
                 >
                   Retake Flow
@@ -497,6 +503,45 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
                     The personality traits that define your written voice.
                   </p>
                 </div>
+
+                {/* Additional Preferences & Rules */}
+                <div>
+                  <Label htmlFor="extras-input">Preferences & Rules (comma-separated)</Label>
+                  <Input
+                    id="extras-input"
+                    value={(onboardingAnswers.extras || []).join(', ')}
+                    onChange={(e) => {
+                      const vals = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
+                      setOnboardingAnswers(prev => ({ ...prev, extras: vals }));
+                    }}
+                    placeholder="e.g. Don't Use emojis, Add hashtags, Start with a hook..."
+                    className="mt-1"
+                  />
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Formatting rules and creative constraints for AI generations.
+                  </p>
+                </div>
+
+                {/* Additional Notes */}
+                <div>
+                  <Label htmlFor="extras-text-input">Additional Notes & Instructions</Label>
+                  <Input
+                    id="extras-text-input"
+                    value={onboardingAnswers.custom?.extras_text || ''}
+                    onChange={(e) => {
+                      const text = e.target.value;
+                      setOnboardingAnswers(prev => ({
+                        ...prev,
+                        custom: { ...prev.custom, extras_text: text },
+                      }));
+                    }}
+                    placeholder="e.g. Mention our brand name when relevant, avoid buzzwords..."
+                    className="mt-1"
+                  />
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Custom context or instructions in your own words.
+                  </p>
+                </div>
               </div>
 
               <div className="pt-2 flex items-center justify-between border-t">
@@ -533,6 +578,7 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
                     focus: answers.focus || '',
                     audience: Array.isArray(answers.audience) ? answers.audience : [],
                     tone: Array.isArray(answers.tone) ? answers.tone : [],
+                    extras: Array.isArray(answers.extras) ? answers.extras : [],
                     custom: answers.custom || {},
                   });
                 }

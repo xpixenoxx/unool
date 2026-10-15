@@ -191,6 +191,13 @@ export function SignalClient() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'active' | 'draft' | 'failed'>('all');
   const [showDNAInfo, setShowDNAInfo] = useState(true);
+  const [automationStats, setAutomationStats] = useState<{
+    enabled: boolean;
+    todayComments: number;
+    todayDms: number;
+    hotLeads: number;
+    pendingFlagged: number;
+  } | null>(null);
 
   useEffect(() => {
     async function fetchSub() {
@@ -241,6 +248,66 @@ export function SignalClient() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // ── Fetch automation stats for the metrics card (best-effort) ─────────────────
+  useEffect(() => {
+    const fetchAutomationStats = async () => {
+      try {
+        // Get workspace from user context
+        const ctxRes = await fetch('/api/user/context', { credentials: 'include' });
+        if (!ctxRes.ok) return;
+        const ctxData = await ctxRes.json();
+        const workspaceId = ctxData?.workspace?.id;
+        if (!workspaceId) return;
+
+        // Check if automation is enabled
+        const [configRes, commentsRes, flaggedRes] = await Promise.all([
+          fetch(`/api/instagram/automation?workspaceId=${workspaceId}`, { credentials: 'include' }),
+          fetch(`/api/instagram/comments?workspaceId=${workspaceId}&limit=100`, { credentials: 'include' }),
+          fetch(`/api/instagram/flagged?workspaceId=${workspaceId}&status=pending`, { credentials: 'include' }),
+        ]);
+
+        if (!configRes.ok) return;
+        const config = await configRes.json();
+        if (!config.enabled) {
+          setAutomationStats(null);
+          return;
+        }
+
+        // Build today's stats from comment logs
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        let todayComments = 0;
+        let todayDms = 0;
+        let hotLeads = 0;
+
+        if (commentsRes.ok) {
+          const commentsData = await commentsRes.json();
+          for (const c of (commentsData.comments || [])) {
+            const createdAt = new Date(c.created_at);
+            if (createdAt >= today) {
+              todayComments++;
+              if (c.dm_sent) todayDms++;
+              if ((c.lead_score || 0) >= 2) hotLeads++;
+            }
+          }
+        }
+
+        let pendingFlagged = 0;
+        if (flaggedRes.ok) {
+          const flaggedData = await flaggedRes.json();
+          pendingFlagged = flaggedData.statusCounts?.pending || 0;
+        }
+
+        setAutomationStats({ enabled: true, todayComments, todayDms, hotLeads, pendingFlagged });
+      } catch {
+        // Non-critical — hide card silently
+      }
+    };
+    fetchAutomationStats();
+  }, []);
+
 
   // Poll every 3 seconds only if any active post has actively pending in-flight publishing
   useEffect(() => {
@@ -380,6 +447,59 @@ export function SignalClient() {
             transition={{ duration: 0.18 }}
             className="space-y-4"
           >
+            {/* ── SignalDM Automation Metrics Card ── */}
+            {automationStats && (
+              <motion.div
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2 }}
+                style={{
+                  background: 'linear-gradient(135deg, rgba(139,92,246,0.07) 0%, rgba(236,72,153,0.05) 100%)',
+                  border: '1px solid rgba(139,92,246,0.2)',
+                  borderRadius: 16,
+                  padding: '16px 20px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 18 }}>⚡</span>
+                    <span style={{ fontSize: 13.5, fontWeight: 700, color: '#7c3aed' }}>SignalDM</span>
+                    <span style={{
+                      fontSize: 10.5, fontWeight: 600, color: '#22c55e',
+                      background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.25)',
+                      borderRadius: 20, padding: '1px 8px'
+                    }}>ACTIVE</span>
+                  </div>
+                  <Link
+                    href="/dashboard/automation"
+                    style={{
+                      fontSize: 12, fontWeight: 600, color: '#8b5cf6',
+                      textDecoration: 'none',
+                      padding: '4px 12px',
+                      borderRadius: 8,
+                      background: 'rgba(139,92,246,0.1)',
+                      border: '1px solid rgba(139,92,246,0.2)',
+                    }}
+                  >
+                    Manage →
+                  </Link>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+                  {[
+                    { label: 'Comments today', value: automationStats.todayComments, color: '#3b82f6' },
+                    { label: 'DMs sent today', value: automationStats.todayDms, color: '#8b5cf6' },
+                    { label: 'Hot leads', value: automationStats.hotLeads, color: '#f97316' },
+                    { label: 'Pending review', value: automationStats.pendingFlagged, color: automationStats.pendingFlagged > 0 ? '#ef4444' : '#9ca3af' },
+                  ].map(({ label, value, color }) => (
+                    <div key={label} style={{ textAlign: 'center', padding: '10px 8px', borderRadius: 10, background: 'rgba(255,255,255,0.6)' }}>
+                      <div style={{ fontSize: 22, fontWeight: 700, color, lineHeight: 1.2 }}>{value}</div>
+                      <div style={{ fontSize: 10.5, color: '#6b7280', marginTop: 3 }}>{label}</div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
             {/* Quick stats strip */}
             {posts.length > 0 && (
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

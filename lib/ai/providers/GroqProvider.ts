@@ -136,7 +136,14 @@ export class GroqProvider implements AIProvider {
     const systemPrompt = options?.systemPrompt || 'You are an AI that outputs valid JSON only. Follow the required JSON schema keys strictly.';
 
     // Guide the model on expected schema if not explicitly defined in prompt
-    const enhancedPrompt = prompt.includes('"content"')
+    const hasExplicitSchema =
+      prompt.includes('"content"') ||
+      prompt.includes('"classification"') ||
+      prompt.includes('OUTPUT FORMAT') ||
+      prompt.includes('valid JSON matching') ||
+      prompt.includes('Return ONLY valid JSON');
+
+    const enhancedPrompt = hasExplicitSchema
       ? prompt
       : `${prompt}\n\nYou MUST respond with valid JSON matching this schema: {"content": string, "characterCount": number, "hashtags": string[], "mediaSuggestions": string[], "firstCommentHint": string | null}`;
 
@@ -164,8 +171,8 @@ export class GroqProvider implements AIProvider {
 
       const parsed: any = JSON.parse(text);
 
-      // Resilient normalization for common LLM field variations
-      if (parsed && typeof parsed === 'object') {
+      // Resilient normalization for common LLM field variations (for social post generation)
+      if (parsed && typeof parsed === 'object' && ('post' in parsed || 'hashtags' in parsed || 'mediaSuggestions' in parsed)) {
         if (parsed.post && !parsed.content) parsed.content = parsed.post;
         if (parsed.text && !parsed.content) parsed.content = parsed.text;
         if (typeof parsed.characterCount !== 'number' && typeof parsed.content === 'string') {
