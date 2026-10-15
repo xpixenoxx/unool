@@ -137,6 +137,24 @@ export async function POST(request: NextRequest) {
 
     const conn = connections[0];
     const accessToken = await decryptToken(conn.access_token_encrypted);
+
+    // Action 1: Fetch live comments on post from Meta Graph API
+    if (body.action === 'fetch_live_comments') {
+      const mediaId = body.mediaId || '17939119815372917';
+      const res = await fetch(`https://graph.instagram.com/v20.0/${mediaId}/comments?fields=id,text,username,timestamp&access_token=${accessToken}`);
+      const data = await res.json();
+      return NextResponse.json({ ok: res.ok, mediaId, commentsData: data });
+    }
+
+    // Action 2: Post live test reply to a specific comment
+    if (body.action === 'reply_to_comment' && body.commentId) {
+      const groqApiKey = config.GROQ_API_KEY || process.env.GROQ_API_KEY || '';
+      const automation = new InstagramCommentAutomation(groqApiKey);
+      const message = body.message || 'Hey! Thanks for stopping by! 👋';
+      const replyRes = await automation.postPublicReply(accessToken, body.mediaId || '17939119815372917', body.commentId, message);
+      return NextResponse.json({ ok: !!replyRes, commentId: body.commentId, replyRes });
+    }
+
     const groqApiKey = config.GROQ_API_KEY || process.env.GROQ_API_KEY;
 
     if (!groqApiKey) {
