@@ -76,6 +76,7 @@ export interface AutomationConfig {
   brandPersona?: string;
   flagNegative: boolean;
   flagSpam: boolean;
+  autoHideSpam?: boolean;
   maxRepliesPerHour?: number;
   jitterMinSeconds?: number;
   jitterMaxSeconds?: number;
@@ -98,6 +99,7 @@ export const DEFAULT_AUTOMATION_CONFIG: AutomationConfig = {
   autoReplyPurchaseIntent: true,
   flagNegative: true,
   flagSpam: true,
+  autoHideSpam: false,
   maxRepliesPerHour: 30,
   jitterMinSeconds: 25,
   jitterMaxSeconds: 120,
@@ -484,7 +486,7 @@ Return ONLY valid JSON:
         const mediaErr = await mediaResponse.text();
         logger.error('Failed to post comment via media fallback', {
           mediaId,
-          error: mediaErr,
+          error: new Error(mediaErr),
         });
       }
 

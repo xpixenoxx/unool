@@ -28,6 +28,14 @@ type PostVariant = {
   error: any;
   createdAt: string;
   updatedAt: string;
+  engagement?: {
+    likes: number;
+    comments: number;
+    shares: number;
+    views: number;
+    totalInteractions: number;
+    hasRealData: boolean;
+  };
 };
 
 type SignalPost = {
@@ -40,23 +48,47 @@ type SignalPost = {
   createdAt: string;
   publishedAt: string | null;
   variants: PostVariant[];
+  engagement?: {
+    likes: number;
+    comments: number;
+    shares: number;
+    views: number;
+    total: number;
+    hasRealData: boolean;
+  };
 };
 
 type ResonanceData = {
   hasData: boolean;
+  hasRealEngagement?: boolean;
   totalPosts: number;
+  totalInteractions?: number;
+  avgInteractionsPerPost?: number;
+  totalViews?: number;
+  topHook?: string;
   hookBreakdown: Array<{
     type: string;
     count: number;
-    avgSuccess: number;
+    totalInteractions?: number;
+    avgInteractions?: number;
+    avgComments?: number;
+    avgLikes?: number;
+    avgShares?: number;
+    performanceIndex?: number;
+    avgSuccess?: number;
     samples?: string[];
+    topPostSnippet?: string;
+    hasRealData?: boolean;
   }>;
-  bestDay: { day: number; name: string; count: number } | null;
-  bestHour: { hour: number; label: string; count: number } | null;
+  bestDay: { day: number; name: string; count: number; interactions?: number } | null;
+  bestHour: { hour: number; label: string; count: number; interactions?: number } | null;
   dayDistribution?: number[];
+  dayEngagement?: number[];
   hourDistribution?: number[];
+  hourEngagement?: number[];
   avgWordCount?: number;
   mediaRatio?: number;
+  mediaLift?: number;
   resonanceScore?: number;
   recommendations?: Array<{
     id: string;
@@ -72,10 +104,17 @@ type ResonanceData = {
     dayOfWeek: number;
     hourOfDay: number;
     hasMedia: boolean;
-    successRate: number;
+    deliveryRate?: number;
+    successRate?: number;
     publishedCount: number;
     totalPlatforms?: number;
     status?: string;
+    likes?: number;
+    comments?: number;
+    shares?: number;
+    views?: number;
+    interactions?: number;
+    hasRealData?: boolean;
   }>;
 };
 
@@ -245,6 +284,32 @@ export function SignalClient() {
     }
   }, []);
 
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const syncLiveEngagement = useCallback(async () => {
+    setIsSyncing(true);
+    try {
+      toast.info('Fetching live metrics from social channels…');
+      const [postsRes, resonanceRes] = await Promise.all([
+        fetch('/api/signal/posts?sync=true', { credentials: 'include' }),
+        fetch('/api/signal/resonance?sync=true', { credentials: 'include' }),
+      ]);
+      if (postsRes.ok) {
+        const postsData = await postsRes.json();
+        setPosts(postsData.posts || []);
+      }
+      if (resonanceRes.ok) {
+        const resData = await resonanceRes.json();
+        setResonance(resData);
+      }
+      toast.success('Live engagement updated across all networks!');
+    } catch {
+      toast.error('Could not sync live stats. Using cached metrics.');
+    } finally {
+      setIsSyncing(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadData();
   }, [loadData]);
@@ -356,8 +421,9 @@ export function SignalClient() {
     const totalVariants = posts.flatMap(p => p.variants).length;
     const liveVariants = posts.flatMap(p => p.variants.filter(v => v.status === 'published')).length;
     const deliveryRate = totalVariants > 0 ? Math.round((liveVariants / totalVariants) * 100) : 100;
+    const totalInteractions = posts.reduce((sum, p) => sum + (p.engagement?.total || 0), 0);
 
-    return { total, published, active, platformReach, deliveryRate };
+    return { total, published, active, platformReach, deliveryRate, totalInteractions };
   }, [posts]);
 
   if (loading) {
@@ -506,7 +572,11 @@ export function SignalClient() {
                 {[
                   { label: 'Dispatches', value: liveStats.total, icon: <Layers className="w-4 h-4 text-[#C4A265]" /> },
                   { label: 'Live Posts', value: liveStats.published, icon: <CheckCircle className="w-4 h-4 text-emerald-600" /> },
-                  { label: 'Golden Hour', value: liveStats.active, icon: <Flame className="w-4 h-4 text-orange-600" /> },
+                  {
+                    label: liveStats.totalInteractions > 0 ? 'Interactions' : 'Golden Hour',
+                    value: liveStats.totalInteractions > 0 ? liveStats.totalInteractions : liveStats.active,
+                    icon: <Flame className={`w-4 h-4 ${liveStats.totalInteractions > 0 ? 'text-rose-500' : 'text-orange-600'}`} />,
+                  },
                   { label: 'Network Reach', value: liveStats.platformReach, suffix: ' nets', icon: <Target className="w-4 h-4 text-indigo-600" /> },
                 ].map((stat) => (
                   <div key={stat.label} className="bg-white rounded-2xl p-4 border border-[#E8E0D4] shadow-xs">
@@ -690,7 +760,12 @@ export function SignalClient() {
               </div>
             )}
 
-            <DNAView resonance={resonance} posts={posts} />
+            <DNAView
+              resonance={resonance}
+              posts={posts}
+              onSync={syncLiveEngagement}
+              isSyncing={isSyncing}
+            />
           </motion.div>
         )}
       </AnimatePresence>
@@ -831,6 +906,40 @@ function PostCard({
         {post.content}
       </p>
 
+      {/* Live Audience Engagement Metrics */}
+      {post.engagement && post.engagement.hasRealData && (
+        <div className="px-5 py-2 flex items-center gap-2 text-xs bg-[#FAF7F2] border-t border-[#EDE7DD] flex-wrap">
+          <div className="flex items-center gap-1 font-bold text-[#3D2B1F] mr-1">
+            <Flame className="w-3.5 h-3.5 text-orange-500" />
+            <span>Audience:</span>
+          </div>
+          {post.engagement.likes > 0 && (
+            <span className="inline-flex items-center gap-1 font-semibold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200">
+              <span>❤️</span>
+              <span>{post.engagement.likes}</span>
+            </span>
+          )}
+          {post.engagement.comments > 0 && (
+            <span className="inline-flex items-center gap-1 font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
+              <span>💬</span>
+              <span>{post.engagement.comments}</span>
+            </span>
+          )}
+          {post.engagement.shares > 0 && (
+            <span className="inline-flex items-center gap-1 font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+              <span>🔄</span>
+              <span>{post.engagement.shares}</span>
+            </span>
+          )}
+          {post.engagement.views > 0 && (
+            <span className="inline-flex items-center gap-1 font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-200">
+              <span>👁️</span>
+              <span>{post.engagement.views}</span>
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Platform status row */}
       {post.variants.length > 0 && (
         <div className="px-5 py-3 flex flex-wrap gap-2 border-t border-gray-50 bg-[#FAF7F2]/50">
@@ -854,6 +963,11 @@ function PostCard({
                   >
                     <Logo size={16} />
                     <span className="text-xs font-medium text-gray-700">{cfg.name}</span>
+                    {variant.engagement && variant.engagement.totalInteractions > 0 && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-[#F5EFE2] text-[#3D2B1F]">
+                        🔥 {variant.engagement.totalInteractions}
+                      </span>
+                    )}
                     <ExternalLink className="w-3 h-3 text-gray-300 group-hover:text-gray-500 transition-colors" />
                   </a>
                 ) : (
@@ -1054,7 +1168,17 @@ function PostCard({
 }
 
 /* ── Post DNA / Advanced Resonance View ─────────────────────────────────────── */
-function DNAView({ resonance, posts }: { resonance: ResonanceData | null; posts: SignalPost[] }) {
+function DNAView({
+  resonance,
+  posts,
+  onSync,
+  isSyncing = false,
+}: {
+  resonance: ResonanceData | null;
+  posts: SignalPost[];
+  onSync?: () => void;
+  isSyncing?: boolean;
+}) {
   if (!resonance) {
     return (
       <div className="py-16 text-center text-gray-400">
@@ -1161,26 +1285,78 @@ function DNAView({ resonance, posts }: { resonance: ResonanceData | null; posts:
                 {tierName}
               </span>
             </div>
-            <p className="text-xs text-[#8B7355] mt-1">Based on hook variety, delivery rate, pacing, and network spread.</p>
+            <p className="text-xs text-[#8B7355] mt-1">
+              {resonance.hasRealEngagement
+                ? 'Calculated from live audience interactions, comment triggers, dwell density, and multi-network spread.'
+                : 'Based on hook variety, delivery rate, pacing, and multi-network spread.'}
+            </p>
+
+            <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+              {resonance.hasRealEngagement ? (
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Live Platform Analytics Active
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-[#8B7355] bg-[#F5EFE2] px-2.5 py-0.5 rounded-full border border-[#E8E0D4]">
+                  Algorithmic Baseline
+                </span>
+              )}
+              {onSync && (
+                <button
+                  onClick={onSync}
+                  disabled={isSyncing}
+                  className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#3D2B1F] hover:text-black bg-white hover:bg-[#FAF7F2] px-2.5 py-0.5 rounded-full border border-[#E8E0D4] transition-all cursor-pointer shadow-2xs"
+                  title="Sync live likes, comments, and views directly from connected platforms"
+                >
+                  <RefreshCw className={`w-3 h-3 text-[#C4A265] ${isSyncing ? 'animate-spin' : ''}`} />
+                  <span>{isSyncing ? 'Syncing...' : 'Sync Live Stats'}</span>
+                </button>
+              )}
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 text-center min-w-[220px]">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center min-w-[280px]">
             <div className="bg-[#FAF7F2] rounded-xl p-2.5 border border-[#E8E0D4]">
-              <span className="text-[10px] uppercase font-bold text-[#8B7355]">Analyzed</span>
-              <p className="text-lg font-bold text-[#3D2B1F]">{resonance.totalPosts} posts</p>
+              <span className="text-[10px] uppercase font-bold text-[#8B7355]">
+                {resonance.hasRealEngagement ? 'Total Reactions' : 'Analyzed'}
+              </span>
+              <p className="text-lg font-bold text-[#3D2B1F]">
+                {resonance.hasRealEngagement ? (
+                  <span className="text-orange-600 font-extrabold">🔥 {resonance.totalInteractions}</span>
+                ) : (
+                  `${resonance.totalPosts} posts`
+                )}
+              </p>
             </div>
             <div className="bg-[#FAF7F2] rounded-xl p-2.5 border border-[#E8E0D4]">
-              <span className="text-[10px] uppercase font-bold text-[#8B7355]">Avg Length</span>
-              <p className="text-lg font-bold text-[#3D2B1F]">{avgWords}w</p>
+              <span className="text-[10px] uppercase font-bold text-[#8B7355]">
+                {resonance.hasRealEngagement ? 'Avg / Post' : 'Avg Length'}
+              </span>
+              <p className="text-lg font-bold text-[#3D2B1F]">
+                {resonance.hasRealEngagement ? (
+                  `${resonance.avgInteractionsPerPost} acts`
+                ) : (
+                  `${avgWords}w`
+                )}
+              </p>
             </div>
             <div className="bg-[#FAF7F2] rounded-xl p-2.5 border border-[#E8E0D4]">
-              <span className="text-[10px] uppercase font-bold text-[#8B7355]">Media Rate</span>
-              <p className="text-lg font-bold text-[#3D2B1F]">{mediaRatio}%</p>
+              <span className="text-[10px] uppercase font-bold text-[#8B7355]">
+                {resonance.mediaLift && resonance.mediaLift > 0 ? 'Media Lift' : 'Media Rate'}
+              </span>
+              <p className="text-lg font-bold text-[#3D2B1F]">
+                {resonance.mediaLift && resonance.mediaLift > 0 ? (
+                  <span className="text-emerald-600 font-bold">+{resonance.mediaLift}%</span>
+                ) : (
+                  `${mediaRatio}%`
+                )}
+              </p>
             </div>
             <div className="bg-[#FAF7F2] rounded-xl p-2.5 border border-[#E8E0D4]">
-              <span className="text-[10px] uppercase font-bold text-[#8B7355]">Top Hook</span>
+              <span className="text-[10px] uppercase font-bold text-[#8B7355]">Winning Hook</span>
               <p className="text-lg font-bold text-[#3D2B1F] capitalize truncate">
-                {resonance.hookBreakdown[0]?.type || 'Statement'}
+                {resonance.topHook || resonance.hookBreakdown[0]?.type || 'Statement'}
               </p>
             </div>
           </div>
@@ -1198,7 +1374,7 @@ function DNAView({ resonance, posts }: { resonance: ResonanceData | null; posts:
 
       {/* ── Hook Archetype Spectrum ─────────────────────────────────── */}
       <div className="bg-white rounded-2xl border border-[#E8E0D4] p-5 shadow-xs">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <Zap className="w-4 h-4 text-amber-500" />
             <p className="text-sm font-bold text-[#3D2B1F]">Hook Archetype Performance</p>
@@ -1216,31 +1392,55 @@ function DNAView({ resonance, posts }: { resonance: ResonanceData | null; posts:
             const count = breakdownItem?.count || 0;
             const pct = resonance.totalPosts > 0 ? Math.round((count / resonance.totalPosts) * 100) : 0;
             const sample = breakdownItem?.samples?.[0];
+            const isTopPerformer = breakdownItem?.type === resonance.topHook && Boolean(resonance.hasRealEngagement);
 
             return (
               <div
                 key={hookKey}
                 className={`p-3.5 rounded-xl border transition-all ${
-                  isUsed ? 'bg-white border-[#E8E0D4]' : 'bg-[#FAF7F2]/60 border-dashed border-[#E8E0D4] opacity-65'
+                  isTopPerformer
+                    ? 'bg-[#FFFDF7] border-amber-300 ring-1 ring-amber-200 shadow-2xs'
+                    : isUsed
+                    ? 'bg-white border-[#E8E0D4]'
+                    : 'bg-[#FAF7F2]/60 border-dashed border-[#E8E0D4] opacity-65'
                 }`}
               >
-                <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
                   <div className="flex items-center gap-2">
                     <span className={`w-6 h-6 rounded-lg ${meta.bg} ${meta.text} flex items-center justify-center`}>
                       {meta.icon}
                     </span>
                     <span className="text-xs font-bold text-[#3D2B1F]">{meta.label}</span>
+                    {isTopPerformer && (
+                      <span className="text-[10px] font-extrabold px-1.5 py-0.2 rounded-md bg-amber-100 text-amber-900 border border-amber-300">
+                        ⭐ Top Performer
+                      </span>
+                    )}
                   </div>
                   {isUsed ? (
-                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${meta.bg} ${meta.text}`}>
-                      {count} ({pct}%)
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {breakdownItem?.avgInteractions !== undefined && breakdownItem.avgInteractions > 0 && (
+                        <span className="text-[11px] font-extrabold px-2 py-0.5 rounded-md bg-orange-50 text-orange-700 border border-orange-200">
+                          🔥 {breakdownItem.avgInteractions} avg
+                        </span>
+                      )}
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${meta.bg} ${meta.text}`}>
+                        {count} ({pct}%)
+                      </span>
+                    </div>
                   ) : (
                     <span className="text-[11px] text-[#A69279]">Untapped</span>
                   )}
                 </div>
 
                 <p className="text-[11px] text-[#8B7355] mb-2 leading-relaxed">{meta.desc}</p>
+
+                {isUsed && breakdownItem?.avgComments !== undefined && breakdownItem.avgComments > 0 && (
+                  <p className="text-[11px] font-medium text-blue-700 mb-1.5 flex items-center gap-1">
+                    <span>💬</span>
+                    <span>Generates avg <strong>{breakdownItem.avgComments}</strong> comments / dispatch</span>
+                  </p>
+                )}
 
                 {isUsed && sample ? (
                   <p className="text-[11px] italic text-[#3D2B1F] truncate bg-[#F7F3ED] px-2 py-1 rounded-md border-l-2 border-[#C4A265]">
@@ -1263,10 +1463,16 @@ function DNAView({ resonance, posts }: { resonance: ResonanceData | null; posts:
           <div className="bg-white rounded-2xl border border-[#E8E0D4] p-5 shadow-xs">
             <div className="flex items-center gap-2 mb-2">
               <Calendar className="w-4 h-4 text-blue-500" />
-              <p className="text-xs font-bold text-[#8B7355] uppercase tracking-wider">Most Active Day</p>
+              <p className="text-xs font-bold text-[#8B7355] uppercase tracking-wider">
+                {resonance.bestDay.interactions && resonance.bestDay.interactions > 0 ? 'Peak Engagement Day' : 'Most Active Day'}
+              </p>
             </div>
             <p className="text-3xl font-extrabold text-[#3D2B1F]">{resonance.bestDay.name}</p>
-            <p className="text-xs text-[#8B7355] mt-0.5 mb-3">{resonance.bestDay.count} posts published</p>
+            <p className="text-xs text-[#8B7355] mt-0.5 mb-3">
+              {resonance.bestDay.interactions && resonance.bestDay.interactions > 0
+                ? `${resonance.bestDay.interactions} audience interactions recorded (${resonance.bestDay.count} posts)`
+                : `${resonance.bestDay.count} posts published`}
+            </p>
 
             {/* 7-day visual mini-bars */}
             <div className="flex items-end gap-1.5 h-12">
@@ -1293,10 +1499,16 @@ function DNAView({ resonance, posts }: { resonance: ResonanceData | null; posts:
           <div className="bg-white rounded-2xl border border-[#E8E0D4] p-5 shadow-xs">
             <div className="flex items-center gap-2 mb-2">
               <Clock className="w-4 h-4 text-purple-500" />
-              <p className="text-xs font-bold text-[#8B7355] uppercase tracking-wider">Most Active Time</p>
+              <p className="text-xs font-bold text-[#8B7355] uppercase tracking-wider">
+                {resonance.bestHour.interactions && resonance.bestHour.interactions > 0 ? 'Peak Engagement Window' : 'Most Active Time'}
+              </p>
             </div>
             <p className="text-3xl font-extrabold text-[#3D2B1F]">{resonance.bestHour.label}</p>
-            <p className="text-xs text-[#8B7355] mt-0.5 mb-3">{resonance.bestHour.count} posts published</p>
+            <p className="text-xs text-[#8B7355] mt-0.5 mb-3">
+              {resonance.bestHour.interactions && resonance.bestHour.interactions > 0
+                ? `${resonance.bestHour.interactions} audience interactions recorded (${resonance.bestHour.count} posts)`
+                : `${resonance.bestHour.count} posts published`}
+            </p>
 
             {/* 24-hr horizon bar */}
             <div className="flex items-end gap-0.5 h-12">
