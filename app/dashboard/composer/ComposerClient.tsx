@@ -518,18 +518,13 @@ function IPhonePreview({
                 {/* Squircle App Icon */}
                 <div
                   className={cn(
-                    'relative w-9 h-9 rounded-[10px] flex items-center justify-center shadow-sm transition-all duration-200 overflow-hidden',
+                    'relative w-9 h-9 rounded-[10px] flex items-center justify-center transition-all duration-200 overflow-hidden',
                     isActive
-                      ? 'ring-2 ring-[#C4A265] ring-offset-1 shadow-md'
-                      : 'border border-black/5 hover:shadow'
+                      ? 'ring-2 ring-[#C4A265] ring-offset-2 scale-105 shadow-md'
+                      : 'hover:scale-105 hover:shadow-xs'
                   )}
-                  style={{
-                    background: isPlatformDark(p)
-                      ? 'linear-gradient(135deg, #1C1E20 0%, #000000 100%)'
-                      : 'linear-gradient(135deg, #FFFFFF 0%, #F5F5F5 100%)',
-                  }}
                 >
-                  <PlatformBrandLogo platform={p} size={18} />
+                  <PlatformBrandLogo platform={p} size={30} />
 
                   {/* Status Indicator Badge */}
                   {isGenerating && (
@@ -1615,10 +1610,10 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   disabled={!!warningMsg}
                   onCheckedChange={() => !warningMsg && togglePlatform(platform)} 
                 />
-                <span className={cn('p-1 rounded-md text-white flex items-center justify-center', cfg.color, warningMsg ? 'grayscale' : '')}>
-                  <PlatformBrandLogo platform={platform} size={14} />
+                <span className={cn('flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110 drop-shadow-xs', warningMsg ? 'grayscale opacity-50' : '')}>
+                  <PlatformBrandLogo platform={platform} size={22} />
                 </span>
-                {cfg.name}
+                <span className="font-medium text-foreground">{cfg.name}</span>
               </label>
               {warningMsg && (
                 <div className="absolute top-full left-0 mt-1 hidden group-hover:block z-10 w-48 text-xs bg-black text-white p-2 rounded shadow-lg">
@@ -2335,8 +2330,8 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                             const Icon = cfg.icon;
                             return (
                               <TabsTrigger key={platform} value={platform} className="flex-1 min-w-[80px] flex items-center justify-center gap-1.5 py-2">
-                                <span className={cn('p-1 rounded-md text-white flex items-center justify-center', cfg.color)}>
-                                  <PlatformBrandLogo platform={platform} size={14} />
+                                <span className="flex items-center justify-center flex-shrink-0">
+                                  <PlatformBrandLogo platform={platform} size={18} />
                                 </span>
                                 <span className="hidden sm:inline text-xs font-medium">{cfg.name}</span>
                                 {draft.status === 'generating' && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
@@ -2362,8 +2357,8 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                               >
                                 <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                                   <div className="flex items-center gap-2">
-                                    <span className={cn('p-1.5 rounded-lg text-white flex items-center justify-center', cfg.color)}>
-                                      <PlatformBrandLogo platform={platform} size={16} />
+                                    <span className="flex items-center justify-center flex-shrink-0">
+                                      <PlatformBrandLogo platform={platform} size={24} />
                                     </span>
                                     <div>
                                       <p className="text-sm font-semibold leading-tight">{cfg.name}</p>

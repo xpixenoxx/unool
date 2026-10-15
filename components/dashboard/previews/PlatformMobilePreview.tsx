@@ -413,7 +413,7 @@ function XMobile({ content, isEmpty, media, profileName, initials, avatarUrl }: 
     <div style={{ background: '#000', color: '#E7E9EA', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#2F3336]">
         <AvatarCircle initials={initials} avatarUrl={avatarUrl} size={28} bg="#6366F1" />
-        <PlatformBrandLogo platform="x" size={20} className="text-white" />
+        <PlatformBrandLogo platform="x" size={20} variant="glyph" className="text-white" />
         <div className="w-7 flex justify-end">
           <Sparkles className="w-4 h-4 text-[#71767B]" />
         </div>
@@ -525,7 +525,7 @@ function ThreadsMobile({ content, isEmpty, media, profileName, initials, avatarU
   return (
     <div style={{ background: '#101010', color: '#F3F5F7', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
       <div className="flex items-center justify-center py-2.5 border-b border-[#262626]">
-        <PlatformBrandLogo platform="threads" size={22} className="text-white" />
+        <PlatformBrandLogo platform="threads" size={22} variant="glyph" className="text-white" />
       </div>
 
       <div className="px-3.5 py-3 border-b border-[#262626]">

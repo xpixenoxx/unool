@@ -652,8 +652,8 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
                   >
                     <Flex between wrap gap={4} className="mb-4">
                       <Flex center gap={3}>
-                        <span className={`p-1.5 rounded-lg ${config.color || 'bg-primary'} text-white flex items-center justify-center`}>
-                          <PlatformBrandLogo platform={draft.platform} size={20} />
+                        <span className="flex items-center justify-center flex-shrink-0 drop-shadow-xs">
+                          <PlatformBrandLogo platform={draft.platform} size={28} />
                         </span>
                         <Box>
                           <Text weight="semibold">{config.name || draft.platform}</Text>

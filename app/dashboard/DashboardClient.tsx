@@ -402,13 +402,13 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 }}
               >
                 <div
-                  className="h-10 w-10 rounded-xl flex items-center justify-center shadow-sm"
+                  className="h-10 w-10 rounded-xl flex items-center justify-center shadow-xs flex-shrink-0"
                   style={{
                     backgroundColor: platform.connected ? '#FFFFFF' : B.borderLight,
                     border: '1px solid rgba(0,0,0,0.06)',
                   }}
                 >
-                  <PlatformBrandLogo platform={platform.id} size={22} />
+                  <PlatformBrandLogo platform={platform.id} size={28} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium" style={{ color: B.text }}>

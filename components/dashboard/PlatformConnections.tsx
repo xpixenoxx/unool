@@ -785,23 +785,8 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
                 >
                   {/* Platform header */}
                   <div className="flex items-center gap-3 mb-3">
-                    <div
-                      className={cn(
-                        'w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-xs border border-border/40',
-                        platform === 'x' || platform === 'threads' || platform === 'medium' || platform === 'devto'
-                          ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900'
-                          : 'bg-muted/40'
-                      )}
-                    >
-                      <PlatformBrandLogo
-                        platform={platform}
-                        size={18}
-                        className={cn(
-                          platform === 'x' || platform === 'threads' || platform === 'medium' || platform === 'devto'
-                            ? 'text-current'
-                            : ''
-                        )}
-                      />
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 drop-shadow-xs">
+                      <PlatformBrandLogo platform={platform} size={28} />
                     </div>
                     <div className="min-w-0 flex-1">
                       <h4 className="text-sm font-semibold text-foreground truncate">
@@ -940,8 +925,8 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
                       key={platform}
                       className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-border/50 bg-muted/20 text-muted-foreground"
                     >
-                      <div className="p-1 rounded bg-muted/40 flex items-center justify-center">
-                        <PlatformBrandLogo platform={platform} size={14} />
+                      <div className="flex items-center justify-center flex-shrink-0">
+                        <PlatformBrandLogo platform={platform} size={18} />
                       </div>
                       <span className="text-xs">{cfg.shortName}</span>
                       <Lock className="h-3 w-3 opacity-40" />
