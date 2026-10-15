@@ -50,25 +50,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Decrypt existing token to preserve the OAuth access token
+    // Decrypt existing token to preserve the OAuth access token if possible
     let currentAccessToken = '';
-    try {
-      const decrypted = await decryptToken(connection.access_token_encrypted);
+    if (connection.access_token_encrypted) {
       try {
-        const parsed = JSON.parse(decrypted);
-        currentAccessToken = parsed.accessToken || decrypted;
-      } catch {
-        currentAccessToken = decrypted;
+        const decrypted = await decryptToken(connection.access_token_encrypted);
+        try {
+          const parsed = JSON.parse(decrypted);
+          currentAccessToken = parsed.accessToken || decrypted;
+        } catch {
+          currentAccessToken = decrypted;
+        }
+      } catch (err) {
+        logger.warn('Could not decrypt existing Kick access token, proceeding with stream settings update', { err });
+        currentAccessToken = connection.access_token_encrypted;
       }
-    } catch (err) {
-      logger.error('Failed to decrypt Kick access token', { err });
-      return NextResponse.json({ error: 'Could not decrypt access token' }, { status: 500 });
+    }
+
+    // Normalize stream URL (:443/app)
+    let cleanStreamUrl = trimmedUrl.replace(/\/+$/, '');
+    if (cleanStreamUrl.startsWith('rtmps://') && !cleanStreamUrl.includes(':443') && !cleanStreamUrl.match(/:\d+/)) {
+      cleanStreamUrl = cleanStreamUrl.replace(/(rtmps:\/\/[^/:]+)/, '$1:443');
+    }
+    if (!cleanStreamUrl.endsWith('/app')) {
+      cleanStreamUrl = `${cleanStreamUrl.replace(/\/+$/, '')}/app`;
     }
 
     // Encrypt combined payload with stream settings
     const tokenPayload = JSON.stringify({
       accessToken: currentAccessToken,
-      streamUrl: trimmedUrl,
+      streamUrl: cleanStreamUrl,
       streamKey: trimmedKey,
     });
 

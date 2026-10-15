@@ -7,40 +7,61 @@ const IV_LENGTH = 12;
 const CURRENT_VERSION = 1;
 
 /**
- * Derives encryption key from ENCRYPTION_KEY config (or falls back to service role key for backward compat)
- * Uses HKDF for proper key derivation with per-version salt
+ * Derives encryption keys from ENCRYPTION_KEY and SUPABASE_SERVICE_ROLE_KEY
+ * Uses PBKDF2 for proper key derivation with per-version salt
  */
-async function getDerivedKey(version: number = CURRENT_VERSION): Promise<CryptoKey> {
-  const secret = config.ENCRYPTION_KEY || config.SUPABASE_SERVICE_ROLE_KEY;
+async function getDerivedKeys(version: number = CURRENT_VERSION): Promise<CryptoKey[]> {
+  const secrets: string[] = [];
+  if (config.ENCRYPTION_KEY) secrets.push(config.ENCRYPTION_KEY);
+  if (config.SUPABASE_SERVICE_ROLE_KEY && !secrets.includes(config.SUPABASE_SERVICE_ROLE_KEY)) {
+    secrets.push(config.SUPABASE_SERVICE_ROLE_KEY);
+  }
 
-  if (!secret) {
+  if (secrets.length === 0) {
     throw new Error('No encryption secret available');
   }
 
-  // Create versioned salt
+  const keys: CryptoKey[] = [];
   const encoder = new TextEncoder();
   const salt = encoder.encode(`unool-encryption-v${version}`);
 
-  const keyMaterial = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(secret),
-    'PBKDF2',
-    false,
-    ['deriveBits', 'deriveKey']
-  );
+  for (const secret of secrets) {
+    try {
+      const keyMaterial = await crypto.subtle.importKey(
+        'raw',
+        encoder.encode(secret),
+        'PBKDF2',
+        false,
+        ['deriveBits', 'deriveKey']
+      );
 
-  return crypto.subtle.deriveKey(
-    {
-      name: 'PBKDF2',
-      salt,
-      iterations: 100000,
-      hash: 'SHA-256',
-    },
-    keyMaterial,
-    { name: ENCRYPTION_ALGORITHM, length: KEY_LENGTH },
-    false,
-    ['encrypt', 'decrypt']
-  );
+      const key = await crypto.subtle.deriveKey(
+        {
+          name: 'PBKDF2',
+          salt,
+          iterations: 100000,
+          hash: 'SHA-256',
+        },
+        keyMaterial,
+        { name: ENCRYPTION_ALGORITHM, length: KEY_LENGTH },
+        false,
+        ['encrypt', 'decrypt']
+      );
+      keys.push(key);
+    } catch {
+      // Continue to next secret
+    }
+  }
+
+  return keys;
+}
+
+async function getDerivedKey(version: number = CURRENT_VERSION): Promise<CryptoKey> {
+  const keys = await getDerivedKeys(version);
+  if (keys.length === 0) {
+    throw new Error('No encryption key derived');
+  }
+  return keys[0];
 }
 
 /**
@@ -80,40 +101,44 @@ export async function encryptToken(token: string): Promise<string> {
  * Tries current version first, then falls back to previous versions.
  */
 export async function decryptToken(encryptedToken: string): Promise<string> {
+  if (!encryptedToken) {
+    throw new Error('Failed to decrypt token');
+  }
+
   try {
     // Parse version header
     const versionMatch = encryptedToken.match(/^v(\d+):(.+)$/);
     const version = versionMatch ? parseInt(versionMatch[1], 10) : 1;
     const payload = versionMatch ? versionMatch[2] : encryptedToken;
 
-    // Try current version first, then fall back to previous versions
     const versionsToTry = [version];
-    if (version === 1) {
-      // Legacy format (no version header) - try v1
-      versionsToTry.push(...[1]);
-    }
 
     for (const v of versionsToTry) {
-      try {
-        const key = await getDerivedKey(v);
-        const combined = new Uint8Array(
-          atob(payload).split('').map((c) => c.charCodeAt(0))
-        );
+      const candidateKeys = await getDerivedKeys(v);
 
-        const iv = combined.slice(0, IV_LENGTH);
-        const data = combined.slice(IV_LENGTH);
+      for (const key of candidateKeys) {
+        try {
+          const combined = new Uint8Array(
+            atob(payload).split('').map((c) => c.charCodeAt(0))
+          );
 
-        const decrypted = await crypto.subtle.decrypt(
-          { name: ENCRYPTION_ALGORITHM, iv },
-          key,
-          data
-        );
+          if (combined.length < IV_LENGTH) continue;
 
-        const decoder = new TextDecoder();
-        return decoder.decode(decrypted);
-      } catch {
-        // Try next version
-        continue;
+          const iv = combined.slice(0, IV_LENGTH);
+          const data = combined.slice(IV_LENGTH);
+
+          const decrypted = await crypto.subtle.decrypt(
+            { name: ENCRYPTION_ALGORITHM, iv },
+            key,
+            data
+          );
+
+          const decoder = new TextDecoder();
+          return decoder.decode(decrypted);
+        } catch {
+          // Try next key
+          continue;
+        }
       }
     }
 
