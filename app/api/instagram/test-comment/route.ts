@@ -50,14 +50,29 @@ export async function GET(request: NextRequest) {
       }, { status: 500 });
     }
 
-    // 3. Meta Graph API token validity check
+    // 3. Meta Graph API token validity & media check
     let metaProfile: any = null;
     let metaError: string | null = null;
+    let recentMedia: any[] = [];
+    let subscribedApps: any = null;
     try {
       const res = await fetch(`https://graph.instagram.com/v20.0/me?fields=id,username,name&access_token=${accessToken}`);
       const data = await res.json();
       if (res.ok) {
         metaProfile = data;
+
+        // Fetch recent media with comments
+        const mediaRes = await fetch(`https://graph.instagram.com/v20.0/me/media?fields=id,caption,permalink,comments{id,text,from,timestamp}&limit=3&access_token=${accessToken}`);
+        if (mediaRes.ok) {
+          const mediaData = await mediaRes.json();
+          recentMedia = mediaData.data || [];
+        }
+
+        // Check subscribed_apps
+        const subRes = await fetch(`https://graph.instagram.com/v20.0/${conn.platform_user_id}/subscribed_apps?access_token=${accessToken}`);
+        if (subRes.ok) {
+          subscribedApps = await subRes.json();
+        }
       } else {
         metaError = data.error?.message || JSON.stringify(data);
       }
@@ -84,6 +99,8 @@ export async function GET(request: NextRequest) {
       metaApiStatus: metaError ? 'error' : 'ok',
       metaProfile,
       metaError,
+      subscribedApps,
+      recentMedia,
       groqConfigured: !!groqKey,
       automationEnabled: autoConfig?.enabled ?? false,
       autoConfig,
