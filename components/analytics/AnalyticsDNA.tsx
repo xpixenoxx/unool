@@ -1,785 +1,609 @@
-'use client';
+﻿'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import {
-  Zap, Target, TrendingUp, BarChart2, Clock, Calendar,
-  Flame, RefreshCw, Compass, Activity, Eye, Share2,
-  MessageCircle, Heart, BarChart3, Layers,
-  HelpCircle, BookOpen, Type, FileText, ArrowRight, ChevronRight,
+  RefreshCw, TrendingUp, Activity, CheckCircle, AlertCircle,
+  ShieldCheck, ArrowRight, BarChart3, Zap, Globe, Lock, Unlock,
 } from 'lucide-react';
 import { getPlatformConfig } from '@/components/dashboard/PlatformLogos';
 
-/* ── Types ─────────────────────────────────────────────────────────────────── */
-type HookItem = {
-  type: string;
-  count: number;
-  totalInteractions?: number;
-  avgInteractions?: number;
-  avgComments?: number;
-  avgLikes?: number;
-  avgShares?: number;
-  performanceIndex?: number;
-  samples?: string[];
-  topPostSnippet?: string;
-  hasRealData?: boolean;
+type PostVariant = {
+  id: string; platform: string; status: string;
+  engagement?: { likes: number; comments: number; shares: number; views: number; totalInteractions: number; hasRealData: boolean };
 };
-
+type SignalPost = {
+  id: string; content: string; hookType: string | null; wordCount: number | null;
+  hasMedia: boolean; createdAt: string; variants: PostVariant[];
+  engagement?: { likes: number; comments: number; shares: number; views: number; total: number; hasRealData: boolean };
+};
+type HookItem = {
+  type: string; count: number; totalInteractions?: number; avgInteractions?: number;
+  avgComments?: number; avgLikes?: number; avgShares?: number; performanceIndex?: number;
+  samples?: string[]; topPostSnippet?: string; hasRealData?: boolean;
+};
 type ResonanceData = {
-  hasData: boolean;
-  hasRealEngagement?: boolean;
-  totalPosts: number;
-  totalInteractions?: number;
-  avgInteractionsPerPost?: number;
-  totalViews?: number;
-  topHook?: string;
-  hookBreakdown: HookItem[];
+  hasData: boolean; hasRealEngagement?: boolean; totalPosts: number; totalInteractions?: number;
+  avgInteractionsPerPost?: number; totalViews?: number; topHook?: string; hookBreakdown: HookItem[];
   bestDay: { day: number; name: string; count: number; interactions?: number } | null;
   bestHour: { hour: number; label: string; count: number; interactions?: number } | null;
-  dayDistribution?: number[];
-  dayEngagement?: number[];
-  hourDistribution?: number[];
-  hourEngagement?: number[];
-  avgWordCount?: number;
-  mediaRatio?: number;
-  mediaLift?: number;
-  resonanceScore?: number;
+  dayDistribution?: number[]; dayEngagement?: number[];
+  hourDistribution?: number[]; hourEngagement?: number[];
+  avgWordCount?: number; mediaRatio?: number; mediaLift?: number; resonanceScore?: number;
   recommendations?: Array<{ id: string; title: string; desc: string; type: 'hook' | 'timing' | 'format' | 'growth' }>;
   recentPatternRows?: Array<{
-    id?: string;
-    contentSnippet?: string;
-    hookType: string;
-    wordCount: number;
-    dayOfWeek: number;
-    hourOfDay: number;
-    hasMedia: boolean;
-    publishedCount: number;
-    likes?: number;
-    comments?: number;
-    shares?: number;
-    views?: number;
-    interactions?: number;
-    hasRealData?: boolean;
+    id?: string; contentSnippet?: string; hookType: string; wordCount: number;
+    dayOfWeek: number; hourOfDay: number; hasMedia: boolean; publishedCount: number;
+    likes?: number; comments?: number; shares?: number; views?: number; interactions?: number; hasRealData?: boolean;
   }>;
 };
 
-type PostVariant = {
-  id: string;
-  platform: string;
-  status: string;
-  engagement?: { likes: number; comments: number; shares: number; views: number; totalInteractions: number; hasRealData: boolean };
+const HOOK_COLORS: Record<string, string> = {
+  statement: '#B48C48', question: '#3B82F6', statistic: '#10B981',
+  story: '#EC4899', contrarian: '#EF4444', framework: '#8B5CF6', unknown: '#6B7280',
 };
 
-type SignalPost = {
-  id: string;
-  content: string;
-  hookType: string | null;
-  wordCount: number | null;
-  hasMedia: boolean;
-  createdAt: string;
-  variants: PostVariant[];
-  engagement?: { likes: number; comments: number; shares: number; views: number; total: number; hasRealData: boolean };
-};
-
-/* ── Hook metadata ─────────────────────────────────────────────────────────── */
-const HOOK_META: Record<string, { label: string; color: string; accent: string; icon: React.ReactNode }> = {
-  statement:  { label: 'Bold Statement',   color: '#B48C48', accent: 'rgba(180,140,72,0.12)',  icon: <Type className="w-3 h-3" /> },
-  question:   { label: 'Curiosity Q',      color: '#3B82F6', accent: 'rgba(59,130,246,0.12)',  icon: <HelpCircle className="w-3 h-3" /> },
-  statistic:  { label: 'Data Hook',        color: '#10B981', accent: 'rgba(16,185,129,0.12)',  icon: <BarChart3 className="w-3 h-3" /> },
-  story:      { label: 'Personal Story',   color: '#EC4899', accent: 'rgba(236,72,153,0.12)',  icon: <BookOpen className="w-3 h-3" /> },
-  contrarian: { label: 'Contrarian',       color: '#EF4444', accent: 'rgba(239,68,68,0.10)',   icon: <Flame className="w-3 h-3" /> },
-  framework:  { label: 'Framework',        color: '#8B5CF6', accent: 'rgba(139,92,246,0.12)',  icon: <Layers className="w-3 h-3" /> },
-  unknown:    { label: 'Standard',         color: '#6B7280', accent: 'rgba(107,114,128,0.08)', icon: <FileText className="w-3 h-3" /> },
-};
-
-/* ── 3D Resonance Orb (Canvas) ─────────────────────────────────────────────── */
-function ResonanceOrb({ score, hasReal }: { score: number; hasReal: boolean }) {
+// ── CHART 1: Engagement Scatter (Growth tab) ──────────────────────────────
+function EngagementScatter({ posts }: { posts: SignalPost[] }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [hovered, setHovered] = useState<{ x: number; y: number; post: SignalPost } | null>(null);
   const animRef = useRef<number>(0);
-  const t = useRef(0);
+  const progressRef = useRef(0);
+
+  const plotPosts = useMemo(() =>
+    posts.filter(p => p.variants.some(v => v.status === 'published'))
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+      .slice(-40), [posts]);
+
+  const maxInteractions = useMemo(() => Math.max(...plotPosts.map(p => p.engagement?.total || 0), 1), [plotPosts]);
+  const maxViews = useMemo(() => Math.max(...plotPosts.map(p => p.engagement?.views || 0), 1), [plotPosts]);
+
+  const getCoords = useCallback((p: SignalPost, idx: number, W: number, H: number, PAD: number) => ({
+    cx: PAD + (idx / Math.max(plotPosts.length - 1, 1)) * (W - PAD * 2),
+    cy: H - PAD - ((p.engagement?.total || 0) / maxInteractions) * (H - PAD * 2),
+    r: 5 + ((p.engagement?.views || 0) / maxViews) * 12,
+  }), [plotPosts, maxInteractions, maxViews]);
 
   useEffect(() => {
-    const c = canvasRef.current;
-    if (!c) return;
-    const ctx = c.getContext('2d')!;
-    const W = c.width = 200, H = c.height = 200;
-    const cx = W / 2, cy = H / 2, R = 72;
-    const rgb = score >= 80 ? '194,94,56' : score >= 50 ? '196,162,101' : '139,115,85';
-
-    function frame() {
-      t.current += 0.022;
-      ctx.clearRect(0, 0, W, H);
-
-      // Pulse rings
-      for (let i = 3; i >= 1; i--) {
-        const pr = R + 12 * i + 5 * Math.sin(t.current * 0.9 + i);
-        const a = (0.055 - i * 0.012) * (0.5 + 0.5 * Math.sin(t.current * 1.1 + i));
-        ctx.beginPath();
-        ctx.arc(cx, cy, pr, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(${rgb},${a})`;
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
+    const canvas = canvasRef.current;
+    if (!canvas || plotPosts.length === 0) return;
+    const ctx = canvas.getContext('2d')!;
+    canvas.width = canvas.offsetWidth * devicePixelRatio;
+    canvas.height = canvas.offsetHeight * devicePixelRatio;
+    ctx.scale(devicePixelRatio, devicePixelRatio);
+    const LW = canvas.offsetWidth, LH = canvas.offsetHeight, PAD = 36;
+    let t0: number | null = null;
+    function draw(ts: number) {
+      if (!t0) t0 = ts;
+      const prog = Math.min((ts - t0) / 900, 1);
+      const ease = 1 - Math.pow(1 - prog, 3);
+      progressRef.current = ease;
+      ctx.clearRect(0, 0, LW, LH);
+      ctx.strokeStyle = 'rgba(255,255,255,0.04)'; ctx.lineWidth = 1;
+      for (let i = 0; i <= 4; i++) {
+        const y = PAD + (i / 4) * (LH - PAD * 2);
+        ctx.beginPath(); ctx.moveTo(PAD, y); ctx.lineTo(LW - PAD, y); ctx.stroke();
+        const val = Math.round((maxInteractions / 4) * (4 - i));
+        ctx.fillStyle = 'rgba(255,255,255,0.22)';
+        ctx.font = '500 9px Inter,system-ui,sans-serif'; ctx.textAlign = 'right';
+        ctx.fillText(val > 999 ? `${(val/1000).toFixed(1)}k` : String(val), PAD - 4, y + 3);
       }
-
-      // Core gradient
-      const g = ctx.createRadialGradient(cx - 18, cy - 20, 6, cx, cy, R);
-      g.addColorStop(0, `rgba(${rgb},0.95)`);
-      g.addColorStop(0.5, `rgba(${rgb},0.68)`);
-      g.addColorStop(0.8, `rgba(${rgb},0.35)`);
-      g.addColorStop(1, `rgba(${rgb},0.06)`);
-      ctx.beginPath();
-      ctx.arc(cx, cy, R, 0, Math.PI * 2);
-      ctx.fillStyle = g;
-      ctx.fill();
-
-      // Specular
-      const sp = ctx.createRadialGradient(cx - 24, cy - 26, 0, cx - 16, cy - 16, 30);
-      sp.addColorStop(0, 'rgba(255,255,255,0.52)');
-      sp.addColorStop(1, 'rgba(255,255,255,0)');
-      ctx.beginPath();
-      ctx.arc(cx, cy, R, 0, Math.PI * 2);
-      ctx.fillStyle = sp;
-      ctx.fill();
-
-      // Wave fill (score level)
-      const fillLevel = (score / 100) * (R * 2) - R;
-      for (let x = cx - R; x <= cx + R; x += 2.5) {
-        const ang = Math.acos(Math.max(-1, Math.min(1, (x - cx) / R)));
-        const yBot = cy + R * Math.sin(ang);
-        const yFill = cy + fillLevel + 6 * Math.sin((x - cx) * 0.07 + t.current * 2.2);
-        if (yFill < yBot) {
-          ctx.beginPath();
-          ctx.moveTo(x, yFill);
-          ctx.lineTo(x, yBot);
-          ctx.strokeStyle = 'rgba(255,255,255,0.055)';
-          ctx.lineWidth = 2.5;
-          ctx.stroke();
+      if (plotPosts.length >= 3) {
+        const coords = plotPosts.map((p, i) => getCoords(p, i, LW, LH, PAD));
+        const n = coords.length;
+        const sx = coords.reduce((s, c) => s + c.cx, 0), sy = coords.reduce((s, c) => s + c.cy, 0);
+        const sxy = coords.reduce((s, c) => s + c.cx * c.cy, 0), sx2 = coords.reduce((s, c) => s + c.cx * c.cx, 0);
+        const slope = (n * sxy - sx * sy) / (n * sx2 - sx * sx);
+        const inter = (sy - slope * sx) / n;
+        const x1 = PAD, x2 = LW - PAD, y1 = slope * x1 + inter, y2 = slope * x2 + inter;
+        const up = slope < 0;
+        const g = ctx.createLinearGradient(x1, 0, x2, 0);
+        g.addColorStop(0, `rgba(${up ? '16,185,129' : '239,68,68'},0.1)`);
+        g.addColorStop(1, `rgba(${up ? '16,185,129' : '239,68,68'},0.35)`);
+        ctx.strokeStyle = g; ctx.lineWidth = 1.5; ctx.setLineDash([4, 4]);
+        ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); ctx.setLineDash([]);
+        ctx.fillStyle = up ? 'rgba(16,185,129,0.8)' : 'rgba(239,68,68,0.7)';
+        ctx.font = '700 9px Inter,system-ui,sans-serif'; ctx.textAlign = 'left';
+        ctx.fillText(up ? '↑ GROWTH TREND' : '↓ PLATEAU', x2 - 88, y2 - 8);
+      }
+      plotPosts.forEach((post, idx) => {
+        const { cx, cy, r } = getCoords(post, idx, LW, LH, PAD);
+        const animCy = LH - PAD - (LH - PAD - cy) * ease;
+        const color = HOOK_COLORS[post.hookType || 'unknown'] || '#6B7280';
+        if (post.engagement?.hasRealData && (post.engagement?.total || 0) > 0) {
+          const gl = ctx.createRadialGradient(cx, animCy, 0, cx, animCy, r * 2.5);
+          gl.addColorStop(0, `${color}40`); gl.addColorStop(1, `${color}00`);
+          ctx.beginPath(); ctx.arc(cx, animCy, r * 2.5, 0, Math.PI * 2); ctx.fillStyle = gl; ctx.fill();
         }
-      }
-
-      // Score text
-      ctx.fillStyle = '#fff';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.font = 'bold 34px Inter, system-ui, sans-serif';
-      ctx.fillText(`${score}`, cx, cy - 5);
-      ctx.font = '500 10px Inter, system-ui, sans-serif';
-      ctx.fillStyle = 'rgba(255,255,255,0.72)';
-      ctx.fillText('/100', cx, cy + 16);
-      ctx.font = '700 8px Inter, system-ui, sans-serif';
-      ctx.fillStyle = 'rgba(255,255,255,0.5)';
-      ctx.fillText(hasReal ? '● LIVE' : 'BASELINE', cx, cy + 30);
-
-      // Orbit dots
-      for (let i = 0; i < 5; i++) {
-        const a = (i / 5) * Math.PI * 2 + t.current * 0.38;
-        const or = R + 16;
-        const dotA = 0.28 + 0.5 * Math.sin(a + t.current);
-        ctx.beginPath();
-        ctx.arc(cx + or * Math.cos(a), cy + or * Math.sin(a), 2.8, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${rgb},${dotA})`;
-        ctx.fill();
-      }
-
-      animRef.current = requestAnimationFrame(frame);
+        ctx.beginPath(); ctx.arc(cx, animCy, r * ease, 0, Math.PI * 2);
+        ctx.fillStyle = post.engagement?.hasRealData ? color : `${color}55`; ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 1; ctx.stroke();
+      });
+      if (prog < 1) animRef.current = requestAnimationFrame(draw);
     }
-
-    frame();
+    animRef.current = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(animRef.current);
-  }, [score, hasReal]);
+  }, [plotPosts, maxInteractions, maxViews, getCoords]);
 
-  return <canvas ref={canvasRef} style={{ width: 200, height: 200 }} />;
-}
+  const onMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    const c = canvasRef.current;
+    if (!c || progressRef.current < 0.5) { setHovered(null); return; }
+    const r = c.getBoundingClientRect();
+    const mx = e.clientX - r.left, my = e.clientY - r.top;
+    let found: typeof hovered = null;
+    plotPosts.forEach((p, i) => {
+      const { cx, cy, r: pr } = getCoords(p, i, c.offsetWidth, c.offsetHeight, 36);
+      if (Math.hypot(mx - cx, my - cy) < pr + 6) found = { x: cx, y: cy, post: p };
+    });
+    setHovered(found);
+  }, [plotPosts, getCoords]);
 
-/* ── Hook Radar (SVG) ──────────────────────────────────────────────────────── */
-function HookRadar({ hooks }: { hooks: HookItem[] }) {
-  const KEYS = ['statement', 'question', 'statistic', 'story', 'contrarian', 'framework'];
-  const W = 230, H = 230, cx = W / 2, cy = H / 2, R = 85;
-
-  const vals = KEYS.map(k => {
-    const it = hooks.find(h => h.type === k);
-    const p = it?.performanceIndex ?? (it?.count ? 55 : 0);
-    return Math.min(p, 200) / 200;
-  });
-
-  const pts = (r: number) => KEYS.map((_, i) => {
-    const a = (i / KEYS.length) * Math.PI * 2 - Math.PI / 2;
-    return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
-  });
-
-  const dataPts = KEYS.map((_, i) => {
-    const a = (i / KEYS.length) * Math.PI * 2 - Math.PI / 2;
-    return { x: cx + vals[i] * R * Math.cos(a), y: cy + vals[i] * R * Math.sin(a) };
-  });
-
-  const lblPts = pts(R + 22);
-
+  if (!plotPosts.length) return <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.3)', fontSize: 12 }}>Publish posts to see trajectory</div>;
   return (
-    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-      {[0.25, 0.5, 0.75, 1].map(f => (
-        <polygon key={f} points={pts(f * R).map(p => `${p.x},${p.y}`).join(' ')} fill="none" stroke="rgba(61,43,31,0.07)" strokeWidth={1} />
-      ))}
-      {pts(R).map((p, i) => <line key={i} x1={cx} y1={cy} x2={p.x} y2={p.y} stroke="rgba(61,43,31,0.07)" strokeWidth={1} />)}
-      <motion.polygon
-        points={dataPts.map(p => `${p.x},${p.y}`).join(' ')}
-        fill="rgba(196,162,101,0.2)"
-        stroke="#C4A265"
-        strokeWidth={2}
-        strokeLinejoin="round"
-        initial={{ scale: 0.1, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ duration: 0.9, ease: 'easeOut' }}
-        style={{ transformOrigin: `${cx}px ${cy}px` }}
-      />
-      {dataPts.map((p, i) => {
-        const m = HOOK_META[KEYS[i]] || HOOK_META.unknown;
-        return (
-          <motion.circle key={i} cx={p.x} cy={p.y} r={vals[i] > 0 ? 5 : 2.5}
-            fill={vals[i] > 0 ? m.color : '#E8E0D4'} stroke="white" strokeWidth={1.5}
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.25 + i * 0.09, type: 'spring', stiffness: 360 }}
-          />
-        );
-      })}
-      {lblPts.map((p, i) => {
-        const m = HOOK_META[KEYS[i]] || HOOK_META.unknown;
-        const it = hooks.find(h => h.type === KEYS[i]);
-        return (
-          <g key={i}>
-            <text x={p.x} y={p.y - 3} textAnchor="middle" fontSize={8.5} fontWeight={700} fill={it?.count ? m.color : '#A69279'}>
-              {m.label.toUpperCase()}
-            </text>
-            {it?.count ? (
-              <text x={p.x} y={p.y + 9} textAnchor="middle" fontSize={9} fill="#8B7355">{it.count}×</text>
-            ) : null}
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
-
-/* ── 7×24 Heatmap ──────────────────────────────────────────────────────────── */
-function Heatmap({ dayDist, dayEng, hourDist, hourEng, hasReal }: {
-  dayDist: number[]; dayEng: number[];
-  hourDist: number[]; hourEng: number[];
-  hasReal: boolean;
-}) {
-  const DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-  const HOURS = Array.from({ length: 24 }, (_, i) => i);
-  const total = dayDist.reduce((a, b) => a + b, 0) || 1;
-
-  const matrix = Array.from({ length: 7 }, (_, d) =>
-    HOURS.map(h => {
-      const dw = dayDist[d] / total;
-      const hw = (hourDist[h] || 0) / total;
-      return hasReal ? ((dayEng[d] || 0) + (hourEng[h] || 0)) / 2 : dw * hw * 200;
-    })
-  );
-
-  const maxV = Math.max(...matrix.flat(), 0.001);
-  let bd = 0, bh = 0, bv = 0;
-  matrix.forEach((row, d) => row.forEach((v, h) => { if (v > bv) { bv = v; bd = d; bh = h; } }));
-
-  const col = (v: number) => {
-    const t = v / maxV;
-    if (t < 0.001) return 'rgba(240,235,227,0.45)';
-    if (t < 0.3) return `rgba(196,162,101,${0.14 + t * 0.38})`;
-    if (t < 0.7) return `rgba(194,94,56,${0.3 + t * 0.42})`;
-    return `rgba(194,94,56,${0.68 + t * 0.28})`;
-  };
-
-  const fh = (h: number) => h === 0 ? '12a' : h < 12 ? `${h}a` : h === 12 ? '12p' : `${h - 12}p`;
-
-  return (
-    <div>
-      <div style={{ display: 'flex', gap: 4 }}>
-        {/* Day labels */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2.5, paddingTop: 14, paddingRight: 2 }}>
-          {DAYS.map(d => (
-            <div key={d} style={{ height: 13, fontSize: 8.5, color: '#A69279', fontWeight: 600, textAlign: 'right', width: 14, lineHeight: '13px' }}>
-              {d}
-            </div>
-          ))}
-        </div>
-        {/* Grid */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          {/* Hour labels — show every 3 */}
-          <div style={{ display: 'flex', gap: 1.5, marginBottom: 2.5 }}>
-            {HOURS.map(h => (
-              <div key={h} style={{ flex: 1, fontSize: 7.5, color: h % 3 === 0 ? '#A69279' : 'transparent', textAlign: 'center', minWidth: 0 }}>
-                {fh(h)}
-              </div>
-            ))}
-          </div>
-          {/* Cells */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-            {matrix.map((row, d) => (
-              <div key={d} style={{ display: 'flex', gap: 1.5 }}>
-                {row.map((v, h) => {
-                  const isBest = d === bd && h === bh && bv > 0;
-                  return (
-                    <motion.div
-                      key={h}
-                      title={`${DAYS[d]} ${fh(h)}: ${hasReal ? Math.round(v) + ' interactions' : Math.round((v / maxV) * 100) + '% density'}`}
-                      initial={{ opacity: 0, scale: 0.5 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: (d * 24 + h) * 0.0015, duration: 0.2 }}
-                      style={{
-                        flex: 1, height: 13, borderRadius: 2,
-                        backgroundColor: col(v),
-                        border: isBest ? '1px solid rgba(194,94,56,0.7)' : 'none',
-                        boxShadow: isBest ? '0 0 5px rgba(194,94,56,0.45)' : 'none',
-                        minWidth: 0, cursor: 'default',
-                      }}
-                    />
-                  );
-                })}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-      {/* Legend */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={{ fontSize: 8.5, color: '#A69279' }}>Low</span>
-          {[0.08, 0.28, 0.52, 0.78, 1].map(t => (
-            <div key={t} style={{ width: 12, height: 7, borderRadius: 2, backgroundColor: col(t * maxV) }} />
-          ))}
-          <span style={{ fontSize: 8.5, color: '#A69279' }}>High</span>
-        </div>
-        {bv > 0 && (
-          <span style={{ fontSize: 9, color: '#8B7355', fontWeight: 700 }}>
-            ★ {DAYS[bd]} {fh(bh)} — your peak window
-          </span>
-        )}
-      </div>
+    <div style={{ position: 'relative' }}>
+      <canvas ref={canvasRef} onMouseMove={onMove} onMouseLeave={() => setHovered(null)} style={{ width: '100%', height: 200, cursor: 'crosshair', borderRadius: 8 }} />
+      {hovered && (
+        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+          style={{ position: 'absolute', left: Math.min(hovered.x + 10, 200), top: hovered.y - 40, background: 'rgba(15,10,8,0.95)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: '8px 12px', pointerEvents: 'none', zIndex: 10 }}>
+          <p style={{ fontSize: 11, fontWeight: 700, color: 'white', marginBottom: 3 }}>{hovered.post.content.slice(0, 45)}…</p>
+          <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)' }}>{hovered.post.engagement?.total || 0} interactions · {hovered.post.engagement?.views || 0} views</p>
+        </motion.div>
+      )}
     </div>
   );
 }
 
-/* ── Hook Perf Bar ─────────────────────────────────────────────────────────── */
-function HookBar({ item, baseline, isTop, rank }: { item: HookItem; baseline: number; isTop: boolean; rank: number }) {
-  const m = HOOK_META[item.type] || HOOK_META.unknown;
-  const perf = item.performanceIndex ?? (item.avgInteractions && baseline > 0 ? Math.round((item.avgInteractions / baseline) * 100) : 100);
-  const delta = perf - 100;
-  const barW = Math.min(perf, 250) / 250 * 100;
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: -16 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: rank * 0.065, duration: 0.3 }}
-      style={{
-        padding: '10px 12px', borderRadius: 12,
-        border: isTop ? `1px solid ${m.color}35` : '1px solid rgba(232,224,212,0.6)',
-        background: isTop ? m.accent : 'rgba(250,247,242,0.5)',
-        marginBottom: 6,
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-          <span style={{ width: 22, height: 22, borderRadius: 6, backgroundColor: `${m.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: m.color }}>
-            {m.icon}
-          </span>
-          <span style={{ fontSize: 12, fontWeight: 700, color: '#3D2B1F' }}>{m.label}</span>
-          {isTop && (
-            <span style={{ fontSize: 8.5, fontWeight: 800, letterSpacing: '0.04em', padding: '1px 5px', borderRadius: 20, backgroundColor: `${m.color}18`, color: m.color }}>
-              ★ WINNER
-            </span>
-          )}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {(item.avgInteractions || 0) > 0 && (
-            <span style={{ fontSize: 10.5, fontWeight: 700, padding: '1.5px 7px', borderRadius: 20, backgroundColor: 'rgba(249,115,22,0.1)', color: '#F97316' }}>
-              🔥 {item.avgInteractions?.toFixed(0)} avg
-            </span>
-          )}
-          <span style={{
-            fontSize: 10, fontWeight: 700, padding: '1.5px 6px', borderRadius: 20,
-            color: delta > 0 ? '#10B981' : delta < -10 ? '#EF4444' : '#8B7355',
-            backgroundColor: delta > 0 ? 'rgba(16,185,129,0.1)' : delta < -10 ? 'rgba(239,68,68,0.08)' : 'transparent',
-          }}>
-            {delta > 0 ? '+' : ''}{delta}%
-          </span>
-          <span style={{ fontSize: 10, color: '#A69279' }}>{item.count} posts</span>
-        </div>
-      </div>
-      <div style={{ height: 4.5, backgroundColor: 'rgba(240,235,227,0.8)', borderRadius: 3, overflow: 'hidden' }}>
-        <motion.div
-          initial={{ width: 0 }}
-          animate={{ width: `${barW}%` }}
-          transition={{ delay: rank * 0.065 + 0.18, duration: 0.65, ease: 'easeOut' }}
-          style={{ height: '100%', backgroundColor: m.color, borderRadius: 3 }}
-        />
-      </div>
-      {item.topPostSnippet && (
-        <p style={{ fontSize: 10, color: '#8B7355', marginTop: 7, padding: '4px 8px', backgroundColor: 'rgba(255,255,255,0.65)', borderRadius: 6, borderLeft: `2px solid ${m.color}`, fontStyle: 'italic', lineHeight: 1.5 }}>
-          "{item.topPostSnippet.slice(0, 85)}…"
-        </p>
-      )}
-    </motion.div>
-  );
-}
-
-/* ── "Why This Post Won" ───────────────────────────────────────────────────── */
-function WinnerCard({ posts, resonance }: { posts: SignalPost[]; resonance: ResonanceData }) {
-  const top = useMemo(() => {
-    return posts
-      .filter(p => p.engagement?.hasRealData && p.engagement.total > 0)
-      .sort((a, b) => (b.engagement?.total || 0) - (a.engagement?.total || 0))[0] || null;
-  }, [posts]);
-
-  if (!top || !resonance.hasRealEngagement) return null;
-
-  const avg = resonance.avgInteractionsPerPost || 0;
-  const total = top.engagement?.total || 0;
-  const lift = avg > 0 ? Math.round(((total - avg) / avg) * 100) : 0;
-  const hookType = top.hookType || 'statement';
-  const m = HOOK_META[hookType] || HOOK_META.statement;
-  const postWords = top.wordCount || top.content.split(/\s+/).filter(Boolean).length;
-  const avgWords = resonance.avgWordCount || 100;
-  const publishDay = new Date(top.createdAt).getDay();
-  const publishHour = new Date(top.createdAt).getHours();
-
-  const reasons: string[] = [];
-  if (top.hasMedia && (resonance.mediaLift || 0) > 10) reasons.push(`Had media — +${resonance.mediaLift}% lift vs text-only`);
-  if (postWords < avgWords * 0.72) reasons.push(`${Math.round(((avgWords - postWords) / avgWords) * 100)}% shorter than your average`);
-  else if (postWords > avgWords * 1.3) reasons.push(`${Math.round(((postWords - avgWords) / avgWords) * 100)}% longer — deep-dive format`);
-  if (resonance.topHook === hookType) reasons.push(`Used your highest-performing hook: ${m.label}`);
-  if (resonance.bestDay?.day === publishDay) reasons.push(`Posted on your peak day (${resonance.bestDay.name})`);
-  if (resonance.bestHour?.hour === publishHour) reasons.push(`Hit your peak window (${resonance.bestHour.label})`);
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.38 }}
-      style={{
-        borderRadius: 16, border: '1px solid rgba(196,162,101,0.38)',
-        background: 'linear-gradient(135deg, #FFFDF5 0%, #FAF7F2 100%)',
-        padding: '18px 20px',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-        <div style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: 'rgba(194,94,56,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Flame className="w-4 h-4" style={{ color: '#C25E38' }} />
-        </div>
-        <div>
-          <p style={{ fontSize: 10.5, fontWeight: 800, color: '#C25E38', letterSpacing: '0.06em' }}>WHY THIS POST WON</p>
-          <p style={{ fontSize: 9.5, color: '#8B7355' }}>Your top-performing dispatch — decoded by data</p>
-        </div>
-        {lift > 0 && (
-          <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 800, color: '#10B981', backgroundColor: 'rgba(16,185,129,0.1)', padding: '3px 10px', borderRadius: 20 }}>
-            +{lift}% vs avg
-          </span>
-        )}
-      </div>
-
-      <p style={{
-        fontSize: 13, color: '#3D2B1F', lineHeight: 1.55,
-        borderLeft: `3px solid ${m.color}`, paddingLeft: 12, marginBottom: 14,
-        display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden',
-      }}>
-        {top.content}
-      </p>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-        {(top.engagement?.likes || 0) > 0 && <span style={{ fontSize: 11, color: '#EF4444', display: 'flex', alignItems: 'center', gap: 4 }}><Heart className="w-3.5 h-3.5" />{top.engagement!.likes}</span>}
-        {(top.engagement?.comments || 0) > 0 && <span style={{ fontSize: 11, color: '#3B82F6', display: 'flex', alignItems: 'center', gap: 4 }}><MessageCircle className="w-3.5 h-3.5" />{top.engagement!.comments}</span>}
-        {(top.engagement?.shares || 0) > 0 && <span style={{ fontSize: 11, color: '#10B981', display: 'flex', alignItems: 'center', gap: 4 }}><Share2 className="w-3.5 h-3.5" />{top.engagement!.shares}</span>}
-        {(top.engagement?.views || 0) > 0 && <span style={{ fontSize: 11, color: '#8B5CF6', display: 'flex', alignItems: 'center', gap: 4 }}><Eye className="w-3.5 h-3.5" />{top.engagement!.views}</span>}
-      </div>
-
-      {reasons.length > 0 && (
-        <div>
-          <p style={{ fontSize: 9.5, fontWeight: 700, color: '#8B7355', letterSpacing: '0.05em', marginBottom: 7 }}>DECODED PATTERNS</p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            {reasons.map((r, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.25 + i * 0.09 }}
-                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 10px', borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.72)', border: '1px solid rgba(232,224,212,0.75)' }}
-              >
-                <span style={{ width: 16, height: 16, borderRadius: '50%', backgroundColor: 'rgba(196,162,101,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <span style={{ fontSize: 8.5, color: '#C4A265', fontWeight: 800 }}>{i + 1}</span>
-                </span>
-                <span style={{ fontSize: 11, color: '#3D2B1F' }}>{r}</span>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      )}
-    </motion.div>
-  );
-}
-
-/* ── Metric Tile ───────────────────────────────────────────────────────────── */
-function MetricTile({ label, value, suffix = '', subtext, icon, color = '#C4A265', delay = 0 }: {
-  label: string; value: string | number; suffix?: string;
-  subtext?: string; icon: React.ReactNode; color?: string; delay?: number;
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10, scale: 0.97 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ delay, duration: 0.3 }}
-      whileHover={{ y: -3, boxShadow: '0 8px 28px rgba(61,43,31,0.11)' }}
-      style={{ padding: '14px 16px', borderRadius: 14, border: '1px solid rgba(232,224,212,0.8)', background: 'white', cursor: 'default' }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-        <div style={{ width: 28, height: 28, borderRadius: 7, backgroundColor: `${color}14`, display: 'flex', alignItems: 'center', justifyContent: 'center', color }}>
-          {icon}
-        </div>
-      </div>
-      <p style={{ fontSize: 9, fontWeight: 700, color: '#8B7355', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 3 }}>{label}</p>
-      <p style={{ fontSize: 20, fontWeight: 800, color: '#3D2B1F', lineHeight: 1.1 }}>
-        {value}<span style={{ fontSize: 11, fontWeight: 600, color: '#8B7355' }}>{suffix}</span>
-      </p>
-      {subtext && <p style={{ fontSize: 9.5, color: '#A69279', marginTop: 3 }}>{subtext}</p>}
-    </motion.div>
-  );
-}
-
-/* ── Platform Grid ─────────────────────────────────────────────────────────── */
-function PlatformGrid({ posts }: { posts: SignalPost[] }) {
+// ── CHART 2: ROI Waterfall ──────────────────────────────────────────────────
+function ROIWaterfall({ posts }: { posts: SignalPost[] }) {
   const data = useMemo(() => {
     const map: Record<string, { posts: number; interactions: number; likes: number; comments: number; shares: number }> = {};
-    posts.forEach(p => {
-      p.variants.filter(v => v.status === 'published').forEach(v => {
-        if (!map[v.platform]) map[v.platform] = { posts: 0, interactions: 0, likes: 0, comments: 0, shares: 0 };
-        map[v.platform].posts++;
-        if (v.engagement) {
-          map[v.platform].interactions += v.engagement.totalInteractions || 0;
-          map[v.platform].likes += v.engagement.likes || 0;
-          map[v.platform].comments += v.engagement.comments || 0;
-          map[v.platform].shares += v.engagement.shares || 0;
-        }
-      });
-    });
-    return Object.entries(map).sort((a, b) => b[1].interactions - a[1].interactions);
+    posts.forEach(p => p.variants.filter(v => v.status === 'published').forEach(v => {
+      if (!map[v.platform]) map[v.platform] = { posts: 0, interactions: 0, likes: 0, comments: 0, shares: 0 };
+      map[v.platform].posts++;
+      if (v.engagement) { map[v.platform].interactions += v.engagement.totalInteractions || 0; map[v.platform].likes += v.engagement.likes || 0; map[v.platform].comments += v.engagement.comments || 0; map[v.platform].shares += v.engagement.shares || 0; }
+    }));
+    return Object.entries(map).sort((a, b) => b[1].interactions - a[1].interactions).slice(0, 6);
   }, [posts]);
-
-  const maxI = Math.max(...data.map(([, d]) => d.interactions), 1);
-
+  const maxVal = Math.max(...data.map(([, d]) => d.interactions), 1);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {!data.length && <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 12, textAlign: 'center', padding: '24px 0' }}>No published variants yet</p>}
       {data.map(([platform, d], i) => {
-        const cfg = getPlatformConfig(platform);
-        const Logo = cfg.logo;
+        const cfg = getPlatformConfig(platform); const Logo = cfg.logo;
         return (
-          <motion.div
-            key={platform}
-            initial={{ opacity: 0, x: 14 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: i * 0.07 }}
-            style={{ padding: '10px 14px', borderRadius: 12, border: '1px solid rgba(232,224,212,0.7)', background: 'white' }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                <Logo size={18} />
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#3D2B1F' }}>{cfg.name}</span>
-                <span style={{ fontSize: 10, color: '#8B7355' }}>{d.posts} posts</span>
-              </div>
-              {d.interactions > 0 && (
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#F97316' }}>🔥 {d.interactions.toLocaleString()}</span>
-              )}
+          <motion.div key={platform} initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.07 }}
+            style={{ padding: '12px 14px', borderRadius: 12, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Logo size={16} /><span style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.85)' }}>{cfg.name}</span><span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>{d.posts} posts</span></div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>{d.posts > 0 ? Math.round(d.interactions / d.posts) : 0}/post</span><span style={{ fontSize: 11, fontWeight: 700, color: cfg.color || '#C4A265' }}>{d.interactions.toLocaleString()}</span></div>
             </div>
-            <div style={{ height: 4, backgroundColor: 'rgba(240,235,227,0.8)', borderRadius: 2, overflow: 'hidden', marginBottom: 7 }}>
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${(d.interactions / maxI) * 100}%` }}
-                transition={{ delay: i * 0.07 + 0.18, duration: 0.55, ease: 'easeOut' }}
-                style={{ height: '100%', backgroundColor: cfg.color || '#3D2B1F', borderRadius: 2 }}
-              />
+            <div style={{ height: 5, background: 'rgba(255,255,255,0.06)', borderRadius: 3, overflow: 'hidden' }}>
+              <motion.div initial={{ width: 0 }} animate={{ width: `${(d.interactions / maxVal) * 100}%` }} transition={{ delay: i * 0.07 + 0.2, duration: 0.7, ease: 'easeOut' }} style={{ height: '100%', background: `linear-gradient(90deg,${cfg.color || '#C4A265'}88,${cfg.color || '#C4A265'})`, borderRadius: 3 }} />
             </div>
-            {d.interactions > 0 && (
-              <div style={{ display: 'flex', gap: 10 }}>
-                {d.likes > 0 && <span style={{ fontSize: 10, color: '#EF4444' }}>❤ {d.likes}</span>}
-                {d.comments > 0 && <span style={{ fontSize: 10, color: '#3B82F6' }}>💬 {d.comments}</span>}
-                {d.shares > 0 && <span style={{ fontSize: 10, color: '#10B981' }}>↗ {d.shares}</span>}
-              </div>
-            )}
+            {d.interactions > 0 && <div style={{ display: 'flex', gap: 12, marginTop: 6 }}>{d.likes > 0 && <span style={{ fontSize: 10, color: 'rgba(239,68,68,0.8)' }}>❤ {d.likes.toLocaleString()}</span>}{d.comments > 0 && <span style={{ fontSize: 10, color: 'rgba(59,130,246,0.8)' }}>💬 {d.comments.toLocaleString()}</span>}{d.shares > 0 && <span style={{ fontSize: 10, color: 'rgba(16,185,129,0.8)' }}>↗ {d.shares.toLocaleString()}</span>}</div>}
           </motion.div>
         );
       })}
-      {data.length === 0 && (
-        <p style={{ textAlign: 'center', color: '#A69279', fontSize: 12, padding: '24px 0' }}>No published variants yet</p>
+    </div>
+  );
+}
+
+// ── CHART 3: Pulse Clock (Audience tab) ────────────────────────────────────
+function PulseClock({ hourEngagement, hourDistribution, hasReal }: { hourEngagement: number[]; hourDistribution: number[]; hasReal: boolean }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const animRef = useRef<number>(0);
+  const data = useMemo(() => { const raw = hasReal && hourEngagement.some(v => v > 0) ? hourEngagement : hourDistribution; const mx = Math.max(...raw, 1); return raw.map(v => v / mx); }, [hourEngagement, hourDistribution, hasReal]);
+  const peak = useMemo(() => data.indexOf(Math.max(...data)), [data]);
+  useEffect(() => {
+    const canvas = canvasRef.current; if (!canvas) return;
+    const ctx = canvas.getContext('2d')!; const DPR = devicePixelRatio || 1; const S = 220;
+    canvas.width = S * DPR; canvas.height = S * DPR; ctx.scale(DPR, DPR);
+    const cx = S / 2, cy = S / 2; const t0 = Date.now();
+    const fmt = (h: number) => h === 0 ? '12 AM' : h < 12 ? `${h} AM` : h === 12 ? '12 PM' : `${h - 12} PM`;
+    function frame() {
+      const t = (Date.now() - t0) / 1000; const prog = Math.min(t / 0.9, 1); const ease = 1 - Math.pow(1 - prog, 3);
+      ctx.clearRect(0, 0, S, S);
+      const SLICE = (Math.PI * 2) / 24, IN = 55, OUT = 90;
+      data.forEach((val, h) => {
+        const sa = (h / 24) * Math.PI * 2 - Math.PI / 2, ea = sa + SLICE - 0.025;
+        const ar = IN + (OUT - IN) * val * ease, isPeak = h === peak;
+        if (isPeak && ease > 0.5) {
+          const g = ctx.createRadialGradient(cx, cy, IN, cx, cy, OUT + 18);
+          g.addColorStop(0, 'rgba(196,162,101,0)'); g.addColorStop(0.5, `rgba(196,162,101,${0.18*ease})`); g.addColorStop(1, 'rgba(196,162,101,0)');
+          ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, OUT + 18, sa, ea); ctx.closePath(); ctx.fillStyle = g; ctx.fill();
+        }
+        const alpha = val > 0.01 ? 0.12 + val * 0.78 : 0.06;
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, ar, sa, ea); ctx.closePath();
+        ctx.fillStyle = `${isPeak ? 'rgba(196,162,101,' : val > 0.6 ? 'rgba(194,94,56,' : 'rgba(99,130,180,'}${alpha * ease})`; ctx.fill();
+      });
+      const ig = ctx.createRadialGradient(cx, cy, 0, cx, cy, IN);
+      ig.addColorStop(0, 'rgba(30,18,12,1)'); ig.addColorStop(1, 'rgba(22,14,8,1)');
+      ctx.beginPath(); ctx.arc(cx, cy, IN, 0, Math.PI * 2); ctx.fillStyle = ig; ctx.fill();
+      [0, 6, 12, 18].forEach(h => {
+        const a = (h / 24) * Math.PI * 2 - Math.PI / 2;
+        ctx.fillStyle = 'rgba(255,255,255,0.22)'; ctx.font = '600 9px Inter,system-ui,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(h === 0 ? '12a' : h === 6 ? '6a' : h === 12 ? '12p' : '6p', cx + 102 * Math.cos(a), cy + 102 * Math.sin(a));
+      });
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.font = '800 14px Inter,system-ui,sans-serif'; ctx.fillText('PEAK', cx, cy - 8);
+      ctx.fillStyle = 'rgba(196,162,101,0.95)'; ctx.font = '700 12px Inter,system-ui,sans-serif'; ctx.fillText(fmt(peak), cx, cy + 8);
+      if (prog < 1) { const sa = prog * Math.PI * 2 - Math.PI / 2; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + (IN - 8) * Math.cos(sa), cy + (IN - 8) * Math.sin(sa)); ctx.strokeStyle = 'rgba(196,162,101,0.5)'; ctx.lineWidth = 1; ctx.stroke(); }
+      if (prog < 1 || t < 3) animRef.current = requestAnimationFrame(frame);
+    }
+    animRef.current = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(animRef.current);
+  }, [data, peak]);
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+      <canvas ref={canvasRef} style={{ width: 220, height: 220 }} />
+      <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', textAlign: 'center' }}>{hasReal ? 'Colored by live interaction density' : 'Colored by publish frequency'}</p>
+    </div>
+  );
+}
+
+// ── CHART 4: Network Gravity Bubbles ────────────────────────────────────────
+function NetworkBubbles({ posts }: { posts: SignalPost[] }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const animRef = useRef<number>(0);
+  const platforms = useMemo(() => {
+    const map: Record<string, { posts: number; interactions: number; color: string; name: string }> = {};
+    posts.forEach(p => p.variants.filter(v => v.status === 'published').forEach(v => {
+      const cfg = getPlatformConfig(v.platform);
+      if (!map[v.platform]) map[v.platform] = { posts: 0, interactions: 0, color: cfg.color || '#6B7280', name: cfg.name };
+      map[v.platform].posts++;
+      if (v.engagement) map[v.platform].interactions += v.engagement.totalInteractions || 0;
+    }));
+    return Object.entries(map).map(([key, val]) => ({ key, ...val }));
+  }, [posts]);
+  useEffect(() => {
+    const canvas = canvasRef.current; if (!canvas || !platforms.length) return;
+    const ctx = canvas.getContext('2d')!; const DPR = devicePixelRatio || 1;
+    canvas.width = canvas.offsetWidth * DPR; canvas.height = canvas.offsetHeight * DPR; ctx.scale(DPR, DPR);
+    const LW = canvas.offsetWidth, LH = canvas.offsetHeight;
+    const maxI = Math.max(...platforms.map(p => p.interactions), 1);
+    const bubbles = platforms.map((p, i) => {
+      const r = 22 + (p.interactions / maxI) * 38, angle = (i / platforms.length) * Math.PI * 2, orbitR = Math.min(LW, LH) * 0.28;
+      return { ...p, r, x: LW / 2 + orbitR * Math.cos(angle), y: LH / 2 + orbitR * Math.sin(angle), vx: (Math.random() - 0.5) * 0.3, vy: (Math.random() - 0.5) * 0.3, phase: Math.random() * Math.PI * 2 };
+    });
+    const t0 = Date.now();
+    function frame() {
+      const t = (Date.now() - t0) / 1000, entered = Math.min(t / 0.7, 1), ease = 1 - Math.pow(1 - entered, 3);
+      ctx.clearRect(0, 0, LW, LH);
+      for (let i = 0; i < bubbles.length; i++) for (let j = i + 1; j < bubbles.length; j++) {
+        const dist = Math.hypot(bubbles[i].x - bubbles[j].x, bubbles[i].y - bubbles[j].y);
+        if (dist < 160) { ctx.beginPath(); ctx.moveTo(bubbles[i].x, bubbles[i].y); ctx.lineTo(bubbles[j].x, bubbles[j].y); ctx.strokeStyle = `rgba(255,255,255,${(1 - dist / 160) * 0.06 * ease})`; ctx.lineWidth = 1; ctx.stroke(); }
+      }
+      bubbles.forEach((b, i) => {
+        b.x += b.vx + Math.sin(t * 0.5 + b.phase) * 0.3; b.y += b.vy + Math.cos(t * 0.4 + b.phase) * 0.3;
+        const mg = b.r + 8;
+        if (b.x < mg || b.x > LW - mg) b.vx *= -1; if (b.y < mg || b.y > LH - mg) b.vy *= -1;
+        b.x = Math.max(mg, Math.min(LW - mg, b.x)); b.y = Math.max(mg, Math.min(LH - mg, b.y));
+        const ar = b.r * ease, pulse = 1 + 0.04 * Math.sin(t * 1.8 + i);
+        const gl = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, ar * 2 * pulse);
+        gl.addColorStop(0, `${b.color}30`); gl.addColorStop(1, `${b.color}00`);
+        ctx.beginPath(); ctx.arc(b.x, b.y, ar * 2 * pulse, 0, Math.PI * 2); ctx.fillStyle = gl; ctx.fill();
+        const gr = ctx.createRadialGradient(b.x - ar * 0.3, b.y - ar * 0.3, 0, b.x, b.y, ar * pulse);
+        gr.addColorStop(0, `${b.color}DD`); gr.addColorStop(1, `${b.color}66`);
+        ctx.beginPath(); ctx.arc(b.x, b.y, ar * pulse, 0, Math.PI * 2); ctx.fillStyle = gr; ctx.fill();
+        ctx.strokeStyle = `${b.color}44`; ctx.lineWidth = 1.5; ctx.stroke();
+        if (ar > 15) {
+          ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.font = `700 ${Math.max(9, Math.min(11, ar / 3.5))}px Inter,system-ui,sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText(b.name.length > 6 ? b.name.slice(0, 5) : b.name, b.x, b.y - 5);
+          ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.font = '600 8px Inter,system-ui,sans-serif';
+          ctx.fillText(b.interactions > 0 ? b.interactions.toLocaleString() : `${b.posts}p`, b.x, b.y + 7);
+        }
+      });
+      animRef.current = requestAnimationFrame(frame);
+    }
+    animRef.current = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(animRef.current);
+  }, [platforms]);
+  if (!platforms.length) return <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.3)', fontSize: 12 }}>Publish to networks to see gravity map</div>;
+  return <canvas ref={canvasRef} style={{ width: '100%', height: 200, borderRadius: 8 }} />;
+}
+
+// ── CHART 5: Effort x Return Matrix ────────────────────────────────────────
+function EffortReturnMatrix({ posts, avgWordCount }: { posts: SignalPost[]; avgWordCount: number }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [hovered, setHovered] = useState<{ x: number; y: number; post: SignalPost } | null>(null);
+  const plotData = useMemo(() => posts.filter(p => p.variants.some(v => v.status === 'published')).map(p => ({ post: p, words: p.wordCount || p.content.split(/\s+/).filter(Boolean).length, interactions: p.engagement?.total || 0 })).filter(d => d.words > 0), [posts]);
+  const maxW = useMemo(() => Math.max(...plotData.map(d => d.words), 1), [plotData]);
+  const maxI = useMemo(() => Math.max(...plotData.map(d => d.interactions), 1), [plotData]);
+  const midW = avgWordCount || maxW / 2;
+  const midI = useMemo(() => plotData.reduce((s, d) => s + d.interactions, 0) / Math.max(plotData.length, 1), [plotData]);
+  const gc = useCallback((d: { words: number; interactions: number }, W: number, H: number, PAD: number) => ({ cx: PAD + (d.words / maxW) * (W - PAD * 2), cy: H - PAD - (d.interactions / maxI) * (H - PAD * 2) }), [maxW, maxI]);
+  useEffect(() => {
+    const canvas = canvasRef.current; if (!canvas || !plotData.length) return;
+    const ctx = canvas.getContext('2d')!; const DPR = devicePixelRatio || 1;
+    canvas.width = canvas.offsetWidth * DPR; canvas.height = canvas.offsetHeight * DPR; ctx.scale(DPR, DPR);
+    const LW = canvas.offsetWidth, LH = canvas.offsetHeight, PAD = 32;
+    ctx.clearRect(0, 0, LW, LH);
+    const mcx = PAD + (midW / maxW) * (LW - PAD * 2), mcy = LH - PAD - (midI / maxI) * (LH - PAD * 2);
+    ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+    ctx.beginPath(); ctx.moveTo(mcx, PAD); ctx.lineTo(mcx, LH - PAD); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(PAD, mcy); ctx.lineTo(LW - PAD, mcy); ctx.stroke(); ctx.setLineDash([]);
+    [{ x: PAD + 4, y: PAD + 12, text: '✦ QUICK WINS', color: 'rgba(16,185,129,0.5)' }, { x: mcx + 6, y: PAD + 12, text: 'DEEP VALUE', color: 'rgba(196,162,101,0.5)' }, { x: PAD + 4, y: LH - PAD - 6, text: 'WARM UP', color: 'rgba(255,255,255,0.2)' }, { x: mcx + 6, y: LH - PAD - 6, text: 'WASTED EFFORT', color: 'rgba(239,68,68,0.35)' }].forEach(l => { ctx.fillStyle = l.color; ctx.font = '700 8px Inter,system-ui,sans-serif'; ctx.textAlign = 'left'; ctx.fillText(l.text, l.x, l.y); });
+    plotData.forEach(d => {
+      const { cx, cy } = gc(d, LW, LH, PAD); const color = HOOK_COLORS[d.post.hookType || 'unknown'] || '#6B7280';
+      if (d.words < midW && d.interactions > midI) { const gl = ctx.createRadialGradient(cx, cy, 0, cx, cy, 14); gl.addColorStop(0, 'rgba(16,185,129,0.3)'); gl.addColorStop(1, 'rgba(16,185,129,0)'); ctx.beginPath(); ctx.arc(cx, cy, 14, 0, Math.PI * 2); ctx.fillStyle = gl; ctx.fill(); }
+      ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1; ctx.stroke();
+    });
+    ctx.fillStyle = 'rgba(255,255,255,0.22)'; ctx.font = '500 8.5px Inter,system-ui,sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('← Shorter', PAD + 30, LH - 6); ctx.fillText('Longer →', LW - PAD - 30, LH - 6);
+    ctx.save(); ctx.translate(10, LH / 2); ctx.rotate(-Math.PI / 2); ctx.fillText('↑ More engagement', 0, 0); ctx.restore();
+  }, [plotData, midW, midI, maxW, maxI, gc]);
+  const onMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    const c = canvasRef.current; if (!c) { setHovered(null); return; }
+    const r = c.getBoundingClientRect(); const mx = e.clientX - r.left, my = e.clientY - r.top;
+    let found: typeof hovered = null;
+    plotData.forEach(d => { const { cx, cy } = gc(d, c.offsetWidth, c.offsetHeight, 32); if (Math.hypot(mx - cx, my - cy) < 10) found = { x: cx, y: cy, post: d.post }; });
+    setHovered(found);
+  }, [plotData, gc]);
+  if (!plotData.length) return <div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.3)', fontSize: 12 }}>Publish posts to populate matrix</div>;
+  return (
+    <div style={{ position: 'relative' }}>
+      <canvas ref={canvasRef} onMouseMove={onMove} onMouseLeave={() => setHovered(null)} style={{ width: '100%', height: 220, cursor: 'crosshair', borderRadius: 8 }} />
+      {hovered && (
+        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+          style={{ position: 'absolute', left: Math.min(hovered.x + 10, 220), top: hovered.y - 36, background: 'rgba(15,10,8,0.95)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: '7px 11px', pointerEvents: 'none', zIndex: 10 }}>
+          <p style={{ fontSize: 10.5, fontWeight: 700, color: 'white', marginBottom: 2 }}>{hovered.post.content.slice(0, 50)}…</p>
+          <p style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.5)' }}>{hovered.post.wordCount || 0}w · {hovered.post.engagement?.total || 0} interactions</p>
+        </motion.div>
       )}
     </div>
   );
 }
 
-/* ── SVG Sparkline ─────────────────────────────────────────────────────────── */
-function Sparkline({ data, color = '#C4A265', h = 38 }: { data: number[]; color?: string; h?: number }) {
-  if (!data || data.length < 2) return null;
-  const max = Math.max(...data, 1);
-  const W = 300;
-  const pts = data.map((v, i) => ({ x: (i / (data.length - 1)) * W, y: h - (v / max) * (h - 4) - 2 }));
-  const path = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
-  const cid = `sg${color.replace(/[^a-z0-9]/gi, '')}`;
+// ── CHART 6: Day Radial Strip ───────────────────────────────────────────────
+function DayRadialStrip({ dayEngagement, dayDistribution, hasReal }: { dayEngagement: number[]; dayDistribution: number[]; hasReal: boolean }) {
+  const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const data = hasReal && dayEngagement.some(v => v > 0) ? dayEngagement : dayDistribution;
+  const max = Math.max(...data, 1), peak = data.indexOf(Math.max(...data));
   return (
-    <svg width="100%" height={h} viewBox={`0 0 ${W} ${h}`} preserveAspectRatio="none">
-      <defs>
-        <linearGradient id={cid} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.28" />
-          <stop offset="100%" stopColor={color} stopOpacity="0.02" />
-        </linearGradient>
-      </defs>
-      <path d={`${path} L ${W} ${h} L 0 ${h} Z`} fill={`url(#${cid})`} />
-      <motion.path d={path} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
-        initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 1 }}
-        transition={{ duration: 1.1, ease: 'easeInOut' }}
-      />
-    </svg>
+    <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end' }}>
+      {DAYS.map((day, i) => {
+        const pct = data[i] / max, isPeak = i === peak;
+        const color = isPeak ? '#C4A265' : pct > 0.6 ? '#C25E38' : pct > 0.3 ? '#3B82F6' : 'rgba(255,255,255,0.15)';
+        return (
+          <div key={day} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+            <motion.div initial={{ scaleY: 0 }} animate={{ scaleY: 1 }} transition={{ delay: i * 0.07, duration: 0.5, ease: 'easeOut' }}
+              style={{ width: '100%', height: Math.max(Math.round(pct * 80), 4), background: `linear-gradient(180deg,${color},${color}55)`, borderRadius: '4px 4px 2px 2px', boxShadow: isPeak ? `0 0 10px ${color}50` : 'none', transformOrigin: 'bottom' }} />
+            <span style={{ fontSize: 9, fontWeight: isPeak ? 800 : 500, color: isPeak ? '#C4A265' : 'rgba(255,255,255,0.3)' }}>{day}</span>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
-/* ── Main AnalyticsDNA ─────────────────────────────────────────────────────── */
-export function AnalyticsDNA({
-  resonance,
-  posts,
-  onSync,
-  isSyncing = false,
-}: {
-  resonance: ResonanceData | null;
-  posts: SignalPost[];
-  onSync?: () => void;
-  isSyncing?: boolean;
-}) {
-  const [tab, setTab] = useState<'overview' | 'hooks' | 'timing' | 'platforms'>('overview');
+// ── CHART 7: Hook ROI Ranking ───────────────────────────────────────────────
+function HookROIRanking({ hooks, avgInteractions }: { hooks: HookItem[]; avgInteractions: number }) {
+  const LABELS: Record<string, string> = { statement: 'Bold Statement', question: 'Curiosity Q', statistic: 'Data Hook', story: 'Personal Story', contrarian: 'Contrarian', framework: 'Framework', unknown: 'Standard' };
+  const ranked = useMemo(() => [...hooks].filter(h => h.count > 0).sort((a, b) => (b.avgInteractions || 0) - (a.avgInteractions || 0)), [hooks]);
+  const maxAvg = Math.max(...ranked.map(h => h.avgInteractions || 0), 1);
+  if (!ranked.length) return <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 12, padding: '16px 0' }}>No hook data yet</p>;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {ranked.map((h, i) => {
+        const color = HOOK_COLORS[h.type] || '#6B7280', avg = h.avgInteractions || 0;
+        const vsBase = avgInteractions > 0 ? Math.round(((avg - avgInteractions) / avgInteractions) * 100) : 0;
+        return (
+          <motion.div key={h.type} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.06 }}
+            style={{ padding: '12px 14px', borderRadius: 12, background: i === 0 ? `${color}10` : 'rgba(255,255,255,0.03)', border: `1px solid ${i === 0 ? `${color}30` : 'rgba(255,255,255,0.06)'}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 22, height: 22, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', background: `${color}18`, fontSize: 11, fontWeight: 900, color }}>{i + 1}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.8)' }}>{LABELS[h.type] || h.type}</span>
+                {i === 0 && <span style={{ fontSize: 8.5, fontWeight: 800, color, background: `${color}18`, padding: '1px 6px', borderRadius: 10 }}>TOP ROI</span>}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>{h.count} posts</span>
+                <span style={{ fontSize: 10, fontWeight: 700, padding: '1.5px 7px', borderRadius: 20, color: vsBase > 0 ? '#10B981' : vsBase < -10 ? '#EF4444' : 'rgba(255,255,255,0.4)', background: vsBase > 0 ? 'rgba(16,185,129,0.1)' : vsBase < -10 ? 'rgba(239,68,68,0.08)' : 'transparent' }}>{vsBase > 0 ? '+' : ''}{vsBase}% vs avg</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color }}>{avg.toFixed(1)} avg</span>
+              </div>
+            </div>
+            <div style={{ height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden', marginBottom: 6 }}>
+              <motion.div initial={{ width: 0 }} animate={{ width: `${(avg / maxAvg) * 100}%` }} transition={{ delay: i * 0.06 + 0.2, duration: 0.65, ease: 'easeOut' }} style={{ height: '100%', background: `linear-gradient(90deg,${color}88,${color})`, borderRadius: 2 }} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <p style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.3)' }}>Cumulative: <span style={{ color: 'rgba(255,255,255,0.55)', fontWeight: 700 }}>{(avg * h.count).toLocaleString()} interactions</span></p>
+              {h.topPostSnippet && <p style={{ fontSize: 9, color: `${color}80`, fontStyle: 'italic', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>"{h.topPostSnippet.slice(0, 50)}"</p>}
+            </div>
+          </motion.div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── META PERMISSION BOARD ───────────────────────────────────────────────────
+const META_PERMS = [
+  { scope: 'instagram_basic', label: 'Instagram Basic', desc: 'Read profile, media, and bio data', required: true, cat: 'content' },
+  { scope: 'instagram_content_publish', label: 'Content Publish', desc: 'Schedule and publish posts, reels, stories', required: true, cat: 'content' },
+  { scope: 'instagram_manage_comments', label: 'Manage Comments', desc: 'Read, reply, delete post comments', required: true, cat: 'engagement' },
+  { scope: 'instagram_manage_insights', label: 'Manage Insights', desc: 'Reach, impressions, engagement metrics', required: true, cat: 'insights' },
+  { scope: 'pages_messaging', label: 'Pages Messaging', desc: 'Send/receive DMs via Page inbox', required: true, cat: 'messaging' },
+  { scope: 'pages_read_engagement', label: 'Pages Engagement', desc: 'Read likes, comments, page reactions', required: true, cat: 'engagement' },
+  { scope: 'instagram_manage_messages', label: 'Instagram DMs', desc: 'Full Instagram Direct Message access', required: true, cat: 'messaging' },
+  { scope: 'pages_manage_posts', label: 'Manage FB Posts', desc: 'Publish and manage Facebook Page posts', required: false, cat: 'content' },
+  { scope: 'webhooks', label: 'Webhooks', desc: 'Real-time comment and DM notifications', required: true, cat: 'engagement' },
+  { scope: 'pages_show_list', label: 'Pages List', desc: 'Access connected Facebook Pages', required: false, cat: 'content' },
+] as const;
+const CAT_COLORS: Record<string, string> = { content: '#3B82F6', engagement: '#10B981', messaging: '#8B5CF6', insights: '#F59E0B' };
+
+function MetaPermissionBoard({ autoEnabled }: { autoEnabled: boolean }) {
+  const [cat, setCat] = useState<string | null>(null);
+  const perms = cat ? META_PERMS.filter(p => p.cat === cat) : META_PERMS;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+        style={{ padding: '14px 18px', borderRadius: 14, background: autoEnabled ? 'linear-gradient(135deg,rgba(16,185,129,0.12),rgba(16,185,129,0.06))' : 'linear-gradient(135deg,rgba(239,68,68,0.1),rgba(239,68,68,0.05))', border: `1px solid ${autoEnabled ? 'rgba(16,185,129,0.28)' : 'rgba(239,68,68,0.25)'}`, display: 'flex', alignItems: 'center', gap: 12 }}>
+        {autoEnabled ? <CheckCircle size={20} style={{ color: '#10B981', flexShrink: 0 }} /> : <AlertCircle size={20} style={{ color: '#EF4444', flexShrink: 0 }} />}
+        <div>
+          <p style={{ fontSize: 12.5, fontWeight: 800, color: autoEnabled ? '#10B981' : '#EF4444', marginBottom: 2 }}>{autoEnabled ? 'SignalDM Automation Active — Meta Permissions Operational' : 'Meta App Review Required'}</p>
+          <p style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.45)', lineHeight: 1.5 }}>{autoEnabled ? 'Your Instagram account is authorized. Webhook events, comment replies, and DM flows are live.' : 'Connect your Instagram Business account and submit for Meta App Review to unlock comment management and DM automation.'}</p>
+        </div>
+      </motion.div>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {(['content', 'engagement', 'messaging', 'insights'] as const).map(c => (
+          <button key={c} onClick={() => setCat(cat === c ? null : c)}
+            style={{ padding: '4px 12px', borderRadius: 20, fontSize: 10.5, fontWeight: 700, cursor: 'pointer', border: `1px solid ${CAT_COLORS[c]}40`, background: cat === c ? `${CAT_COLORS[c]}22` : 'rgba(255,255,255,0.04)', color: cat === c ? CAT_COLORS[c] : 'rgba(255,255,255,0.45)', transition: 'all 0.15s' }}>
+            {c.charAt(0).toUpperCase() + c.slice(1)}
+          </button>
+        ))}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: 8 }}>
+        {perms.map((perm, i) => {
+          const cc = CAT_COLORS[perm.cat], granted = autoEnabled || perm.scope === 'instagram_basic';
+          return (
+            <motion.div key={perm.scope} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
+              style={{ padding: '11px 13px', borderRadius: 11, background: granted ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.02)', border: `1px solid ${granted ? `${cc}25` : 'rgba(255,255,255,0.07)'}` }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9 }}>
+                <div style={{ width: 26, height: 26, borderRadius: 7, flexShrink: 0, marginTop: 1, background: granted ? `${cc}18` : 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {granted ? <CheckCircle size={13} style={{ color: cc }} /> : perm.required ? <Lock size={13} style={{ color: 'rgba(239,68,68,0.7)' }} /> : <Unlock size={13} style={{ color: 'rgba(255,255,255,0.25)' }} />}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: granted ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.45)' }}>{perm.label}</span>
+                    {perm.required && <span style={{ fontSize: 8.5, fontWeight: 700, color: cc, background: `${cc}18`, padding: '1px 5px', borderRadius: 10 }}>REQUIRED</span>}
+                  </div>
+                  <p style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.3)', lineHeight: 1.45 }}>{perm.desc}</p>
+                  <p style={{ fontSize: 8.5, fontFamily: 'monospace', color: `${cc}70`, marginTop: 3 }}>{perm.scope}</p>
+                </div>
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
+        style={{ padding: '16px 18px', borderRadius: 14, background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.2)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+          <Zap size={15} style={{ color: '#8B5CF6' }} />
+          <p style={{ fontSize: 11, fontWeight: 800, color: '#8B5CF6', letterSpacing: '0.04em' }}>META APP REVIEW — SCREEN RECORDING CHECKLIST</p>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+          {[
+            { step: '1', text: 'Show Instagram Business account connected in Settings → Social Accounts', done: true },
+            { step: '2', text: 'Navigate to Automation → demonstrate comment auto-reply triggering', done: autoEnabled },
+            { step: '3', text: 'Show DM escalation flow: comment triggers → DM sent → lead captured', done: autoEnabled },
+            { step: '4', text: 'Open Analytics → show real engagement metrics pulled from Instagram Graph API', done: true },
+            { step: '5', text: 'Show Webhook subscription status and live event receipt in server logs', done: autoEnabled },
+          ].map(item => (
+            <div key={item.step} style={{ display: 'flex', alignItems: 'flex-start', gap: 9 }}>
+              <div style={{ width: 20, height: 20, borderRadius: '50%', flexShrink: 0, background: item.done ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.06)', border: `1px solid ${item.done ? 'rgba(16,185,129,0.4)' : 'rgba(255,255,255,0.1)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: item.done ? '#10B981' : 'rgba(255,255,255,0.35)' }}>
+                {item.done ? '✓' : item.step}
+              </div>
+              <p style={{ fontSize: 11, color: item.done ? 'rgba(255,255,255,0.65)' : 'rgba(255,255,255,0.35)', lineHeight: 1.5, paddingTop: 2 }}>{item.text}</p>
+            </div>
+          ))}
+        </div>
+        <Link href="/dashboard/automation" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 12, fontSize: 11, fontWeight: 700, color: '#8B5CF6', textDecoration: 'none', padding: '6px 14px', borderRadius: 8, background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.22)' }}>
+          Open Automation Dashboard <ArrowRight size={12} />
+        </Link>
+      </motion.div>
+    </div>
+  );
+}
+
+// ── Animated Counter ────────────────────────────────────────────────────────
+function AnimCount({ value, prefix = '', suffix = '', color = 'white', size = 26 }: { value: number; prefix?: string; suffix?: string; color?: string; size?: number }) {
+  const [d, setD] = useState(0);
+  useEffect(() => { const t0 = Date.now(), tick = () => { const p = Math.min((Date.now() - t0) / 800, 1), e = 1 - Math.pow(1 - p, 3); setD(Math.round(value * e)); if (p < 1) requestAnimationFrame(tick); }; tick(); }, [value]);
+  return <span style={{ fontSize: size, fontWeight: 900, color, lineHeight: 1 }}>{prefix}{d >= 1000 ? `${(d/1000).toFixed(1)}k` : d}{suffix}</span>;
+}
+
+// ── MAIN EXPORT ─────────────────────────────────────────────────────────────
+export function AnalyticsDNA({ resonance, posts, onSync, isSyncing = false }: { resonance: ResonanceData | null; posts: SignalPost[]; onSync?: () => void; isSyncing?: boolean }) {
+  const [tab, setTab] = useState<'growth' | 'audience' | 'roi' | 'meta'>('growth');
+  const [autoEnabled, setAutoEnabled] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch('/api/user/context', { credentials: 'include' });
+        if (!r.ok) return;
+        const { workspace } = await r.json();
+        if (!workspace?.id) return;
+        const cr = await fetch(`/api/instagram/automation?workspaceId=${workspace.id}`, { credentials: 'include' });
+        if (cr.ok) { const cfg = await cr.json(); setAutoEnabled(!!cfg.enabled); }
+      } catch { /* best-effort */ }
+    })();
+  }, []);
 
   if (!resonance || !resonance.hasData || resonance.totalPosts === 0) {
     return (
-      <div style={{ padding: '52px 24px', textAlign: 'center', border: '1px dashed rgba(232,224,212,0.8)', borderRadius: 20, background: 'white' }}>
-        <div style={{ width: 50, height: 50, borderRadius: 14, backgroundColor: 'rgba(196,162,101,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-          <Activity className="w-6 h-6" style={{ color: '#C4A265' }} />
+      <div style={{ padding: '52px 24px', textAlign: 'center', background: 'linear-gradient(135deg,#0F0A08,#1A0F0A)', borderRadius: 20, border: '1px solid rgba(255,255,255,0.07)' }}>
+        <div style={{ width: 52, height: 52, borderRadius: 14, background: 'rgba(196,162,101,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 18px' }}>
+          <Activity size={24} style={{ color: '#C4A265' }} />
         </div>
-        <h3 style={{ fontSize: 16, fontWeight: 800, color: '#3D2B1F', marginBottom: 8 }}>Analytics Engine Warming Up</h3>
-        <p style={{ fontSize: 13, color: '#8B7355', maxWidth: 320, margin: '0 auto 24px', lineHeight: 1.65 }}>
-          Publish your first post from Studio. Every dispatch trains your analytics — hook performance, optimal timing, and live engagement all unlock automatically.
-        </p>
-        <Link href="/dashboard/composer" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 20px', borderRadius: 12, backgroundColor: '#3D2B1F', color: 'white', fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>
-          Open Studio <ArrowRight className="w-4 h-4" />
+        <h3 style={{ fontSize: 18, fontWeight: 800, color: 'white', marginBottom: 8 }}>Analytics Engine Initializing</h3>
+        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', maxWidth: 340, margin: '0 auto 24px', lineHeight: 1.65 }}>Publish your first post. Each dispatch feeds real business intelligence — growth curves, ROI matrix, platform gravity, and Meta compliance proof.</p>
+        <Link href="/dashboard/composer" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 22px', borderRadius: 12, background: '#C4A265', color: '#1A0F0A', fontSize: 13, fontWeight: 800, textDecoration: 'none' }}>
+          Open Studio <ArrowRight size={14} />
         </Link>
       </div>
     );
   }
 
-  const score = resonance.resonanceScore || 0;
-  const tier = score >= 80 ? 'Authority Architect' : score >= 50 ? 'Ascending Catalyst' : 'Emerging Voice';
+  const totalI = resonance.totalInteractions || 0;
+  const avgI = resonance.avgInteractionsPerPost || 0;
+  const hasReal = !!resonance.hasRealEngagement;
   const dayDist = resonance.dayDistribution || new Array(7).fill(0);
   const dayEng = resonance.dayEngagement || new Array(7).fill(0);
   const hourDist = resonance.hourDistribution || new Array(24).fill(0);
   const hourEng = resonance.hourEngagement || new Array(24).fill(0);
-  const avgInteractions = resonance.avgInteractionsPerPost || 0;
-  const topHook = resonance.hookBreakdown[0];
+  const mediaLift = resonance.mediaLift || 0;
   const rows = resonance.recentPatternRows || [];
-  const velocitySeries = rows.slice(0, 30).map(r => r.interactions || 0).reverse();
+  const half = Math.floor(rows.length / 2);
+  const f1 = rows.slice(0, half).reduce((s, r) => s + (r.interactions || 0), 0) / Math.max(half, 1);
+  const f2 = rows.slice(half).reduce((s, r) => s + (r.interactions || 0), 0) / Math.max(half, 1);
+  const mDelta = f1 > 0 ? Math.round(((f2 - f1) / f1) * 100) : 0;
+  const mPos = mDelta >= 0;
 
-  const TABS = [
-    { id: 'overview' as const, label: 'Overview', icon: <Activity className="w-3.5 h-3.5" /> },
-    { id: 'hooks' as const, label: 'Hook DNA', icon: <Zap className="w-3.5 h-3.5" /> },
-    { id: 'timing' as const, label: 'Timing', icon: <Clock className="w-3.5 h-3.5" /> },
-    { id: 'platforms' as const, label: 'Platforms', icon: <Target className="w-3.5 h-3.5" /> },
-  ];
+  const TABS = [{ id: 'growth' as const, label: 'Growth', icon: <TrendingUp size={13} /> }, { id: 'audience' as const, label: 'Audience', icon: <Globe size={13} /> }, { id: 'roi' as const, label: 'Content ROI', icon: <BarChart3 size={13} /> }, { id: 'meta' as const, label: 'Meta Review', icon: <ShieldCheck size={13} /> }];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18, fontFamily: 'Inter,system-ui,sans-serif' }}>
 
-      {/* ── Hero Row ─────────────────────────────────────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.38 }}
-        style={{
-          borderRadius: 20, border: '1px solid rgba(232,224,212,0.8)',
-          background: 'linear-gradient(135deg, #FFFDF7 0%, #FAF4EA 100%)',
-          padding: '22px', display: 'grid',
-          gridTemplateColumns: 'auto 1fr', gap: 22, alignItems: 'center',
-        }}
-      >
-        {/* Orb */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-          <ResonanceOrb score={score} hasReal={!!resonance.hasRealEngagement} />
-          {onSync && (
-            <button
-              onClick={onSync}
-              disabled={isSyncing}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                fontSize: 10.5, fontWeight: 700,
-                color: isSyncing ? '#A69279' : '#3D2B1F',
-                backgroundColor: 'white', border: '1px solid rgba(232,224,212,0.8)',
-                padding: '4px 12px', borderRadius: 20, cursor: isSyncing ? 'default' : 'pointer',
-              }}
-            >
-              <RefreshCw className={`w-3 h-3 ${isSyncing ? 'animate-spin' : ''}`} style={{ color: '#C4A265' }} />
-              {isSyncing ? 'Syncing…' : 'Sync Live'}
-            </button>
-          )}
-        </div>
-
-        {/* Right panel */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* Dark Hero */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}
+        style={{ borderRadius: 20, background: 'linear-gradient(135deg,#0F0A08,#1C1008,#0F0A08)', border: '1px solid rgba(255,255,255,0.07)', padding: '22px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
           <div>
-            <p style={{ fontSize: 10, fontWeight: 800, color: '#8B7355', letterSpacing: '0.07em', marginBottom: 4 }}>CONTENT RESONANCE INDEX</p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 26, fontWeight: 900, color: '#3D2B1F', lineHeight: 1 }}>{tier}</span>
-              {resonance.hasRealEngagement ? (
-                <span style={{ fontSize: 9.5, fontWeight: 700, color: '#10B981', backgroundColor: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.28)', padding: '2px 9px', borderRadius: 20 }}>
-                  ● Live Analytics Active
-                </span>
-              ) : (
-                <span style={{ fontSize: 9.5, fontWeight: 600, color: '#8B7355', backgroundColor: 'rgba(139,115,85,0.1)', padding: '2px 9px', borderRadius: 20 }}>
-                  Algorithmic Baseline
-                </span>
-              )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <p style={{ fontSize: 10, fontWeight: 800, color: 'rgba(196,162,101,0.7)', letterSpacing: '0.12em' }}>BUSINESS INTELLIGENCE</p>
+              {hasReal ? <span style={{ fontSize: 9, fontWeight: 700, color: '#10B981', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)', padding: '1px 8px', borderRadius: 20 }}>● LIVE DATA</span> : <span style={{ fontSize: 9, fontWeight: 600, color: 'rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.05)', padding: '1px 8px', borderRadius: 20 }}>ALGORITHMIC</span>}
             </div>
-            <p style={{ fontSize: 11, color: '#8B7355', marginTop: 6, lineHeight: 1.55 }}>
-              {resonance.hasRealEngagement
-                ? 'Scored from live audience interactions, hook performance, media lift, and multi-network spread.'
-                : 'Scored from hook variety, publishing consistency, delivery rate, and multi-platform coverage.'}
-            </p>
+            <h2 style={{ fontSize: 22, fontWeight: 900, color: 'white', marginTop: 4, lineHeight: 1.1 }}>Analytics Lab</h2>
           </div>
-
-          {/* 4 KPIs */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 7 }}>
-            {[
-              { label: resonance.hasRealEngagement ? 'Reactions' : 'Posts', value: resonance.hasRealEngagement ? (resonance.totalInteractions || 0).toLocaleString() : String(resonance.totalPosts), color: '#C25E38' },
-              { label: resonance.hasRealEngagement ? 'Avg/Post' : 'Avg Words', value: resonance.hasRealEngagement ? `${avgInteractions}` : `${resonance.avgWordCount || 0}w`, color: '#C4A265' },
-              { label: (resonance.mediaLift || 0) > 0 ? 'Media Lift' : 'Media Rate', value: (resonance.mediaLift || 0) > 0 ? `+${resonance.mediaLift}%` : `${resonance.mediaRatio || 0}%`, color: '#10B981' },
-              { label: 'Top Hook', value: topHook?.type || 'statement', color: HOOK_META[topHook?.type || 'statement']?.color || '#C4A265' },
-            ].map((kpi, i) => (
-              <div key={i} style={{ padding: '7px 8px', borderRadius: 9, backgroundColor: 'rgba(255,255,255,0.68)', border: '1px solid rgba(232,224,212,0.55)', textAlign: 'center' }}>
-                <p style={{ fontSize: 8.5, fontWeight: 700, color: '#A69279', letterSpacing: '0.05em', marginBottom: 2 }}>{kpi.label.toUpperCase()}</p>
-                <p style={{ fontSize: 13.5, fontWeight: 800, color: kpi.color, lineHeight: 1, textTransform: 'capitalize' }}>{kpi.value}</p>
-              </div>
-            ))}
-          </div>
+          {onSync && <button onClick={onSync} disabled={isSyncing} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, color: isSyncing ? 'rgba(255,255,255,0.3)' : '#C4A265', background: 'rgba(196,162,101,0.08)', border: '1px solid rgba(196,162,101,0.2)', padding: '6px 14px', borderRadius: 20, cursor: isSyncing ? 'default' : 'pointer' }}>
+            <RefreshCw size={12} />{isSyncing ? 'Syncing…' : 'Sync Live'}
+          </button>}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14 }}>
+          {[
+            { label: 'TOTAL INTERACTIONS', val: <AnimCount value={totalI} color="#C4A265" size={26} />, sub: `across ${resonance.totalPosts} posts` },
+            { label: 'AVG PER POST', val: <AnimCount value={avgI} color="white" size={26} />, sub: hasReal ? 'live from platform' : 'estimated' },
+            { label: 'MOMENTUM', val: <span style={{ fontSize: 26, fontWeight: 900, color: mPos ? '#10B981' : '#EF4444', lineHeight: 1 }}>{mPos ? '+' : ''}{mDelta}%</span>, sub: 'recent vs earlier posts' },
+            { label: 'MEDIA LIFT', val: <AnimCount value={Math.abs(mediaLift)} prefix={mediaLift > 0 ? '+' : ''} suffix="%" color={mediaLift > 0 ? '#10B981' : 'rgba(255,255,255,0.4)'} size={26} />, sub: mediaLift > 0 ? 'posts with visuals' : 'add media to unlock' },
+          ].map((kpi, i) => (
+            <motion.div key={kpi.label} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
+              style={{ padding: '12px', borderRadius: 12, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <p style={{ fontSize: 8.5, fontWeight: 800, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.08em', marginBottom: 6 }}>{kpi.label}</p>
+              {kpi.val}
+              <p style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.35)', marginTop: 4 }}>{kpi.sub}</p>
+            </motion.div>
+          ))}
         </div>
       </motion.div>
 
-      {/* ── Tab Bar ──────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: 4, padding: 4, backgroundColor: 'rgba(240,235,227,0.8)', borderRadius: 14, border: '1px solid rgba(229,223,213,0.75)' }}>
+      {/* Tab Bar */}
+      <div style={{ display: 'flex', gap: 3, padding: 4, background: 'rgba(15,10,8,0.95)', borderRadius: 14, border: '1px solid rgba(255,255,255,0.06)' }}>
         {TABS.map(t => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            style={{
-              flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-              padding: '7px 10px', borderRadius: 10, fontSize: 12, fontWeight: 700,
-              cursor: 'pointer', border: 'none', transition: 'all 0.14s',
-              backgroundColor: tab === t.id ? 'white' : 'transparent',
-              color: tab === t.id ? '#3D2B1F' : '#8B7355',
-              boxShadow: tab === t.id ? '0 1px 5px rgba(61,43,31,0.09)' : 'none',
-            }}
-          >
+          <button key={t.id} onClick={() => setTab(t.id)}
+            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 10px', borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: 'none', transition: 'all 0.15s', background: tab === t.id ? 'rgba(196,162,101,0.14)' : 'transparent', color: tab === t.id ? '#C4A265' : 'rgba(255,255,255,0.35)' }}>
             {t.icon}{t.label}
           </button>
         ))}
@@ -787,241 +611,97 @@ export function AnalyticsDNA({
 
       <AnimatePresence mode="wait">
 
-        {/* ── OVERVIEW ─────────────────────────────────────────────── */}
-        {tab === 'overview' && (
-          <motion.div key="ov" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}
-            style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 9 }}>
-              <MetricTile label="Total Posts" value={resonance.totalPosts} icon={<BarChart2 className="w-4 h-4" />} color="#3D2B1F" />
-              <MetricTile label="Total Interactions" value={(resonance.totalInteractions || 0).toLocaleString()} subtext={resonance.hasRealEngagement ? 'live from platform' : 'sync for real data'} icon={<Flame className="w-4 h-4" />} color="#C25E38" delay={0.05} />
-              <MetricTile label="Peak Day" value={resonance.bestDay?.name || '—'} subtext={resonance.bestDay?.interactions ? `${resonance.bestDay.interactions} interactions` : `${resonance.bestDay?.count || 0} posts`} icon={<Calendar className="w-4 h-4" />} color="#3B82F6" delay={0.1} />
-              <MetricTile label="Peak Window" value={resonance.bestHour?.label || '—'} subtext={resonance.bestHour?.interactions ? `${resonance.bestHour.interactions} interactions` : `${resonance.bestHour?.count || 0} posts`} icon={<Clock className="w-4 h-4" />} color="#8B5CF6" delay={0.15} />
+        {tab === 'growth' && (
+          <motion.div key="growth" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ borderRadius: 16, background: '#0F0A08', border: '1px solid rgba(255,255,255,0.07)', padding: '18px 20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+                <div><p style={{ fontSize: 10, fontWeight: 800, color: 'rgba(196,162,101,0.7)', letterSpacing: '0.07em', marginBottom: 3 }}>ENGAGEMENT TRAJECTORY</p><p style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>Each dot = one post. Size = views. Color = hook type. Dashed = trend.</p></div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>{Object.entries(HOOK_COLORS).slice(0, 4).map(([type, color]) => (<div key={type} style={{ display: 'flex', alignItems: 'center', gap: 4 }}><div style={{ width: 7, height: 7, borderRadius: '50%', background: color }} /><span style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', textTransform: 'capitalize' }}>{type}</span></div>))}</div>
+              </div>
+              <EngagementScatter posts={posts} />
             </div>
-
-            <WinnerCard posts={posts} resonance={resonance} />
-
-            {/* Velocity strip */}
-            {velocitySeries.length >= 3 && (
-              <div style={{ padding: '12px 16px', borderRadius: 12, background: 'rgba(250,247,242,0.8)', border: '1px solid rgba(232,224,212,0.6)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <span style={{ fontSize: 9.5, fontWeight: 700, color: '#8B7355', letterSpacing: '0.05em' }}>POST VELOCITY</span>
-                  <span style={{ fontSize: 9.5, color: '#A69279' }}>Last {velocitySeries.length} dispatches</span>
-                </div>
-                <Sparkline data={velocitySeries} color="#C4A265" h={36} />
-              </div>
-            )}
-
-            {/* Prescriptions */}
-            {(resonance.recommendations?.length || 0) > 0 && (
-              <div style={{ borderRadius: 16, border: '1px solid rgba(232,224,212,0.8)', backgroundColor: 'white', padding: '18px 20px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-                  <Compass className="w-4 h-4" style={{ color: '#C4A265' }} />
-                  <p style={{ fontSize: 10, fontWeight: 800, color: '#8B7355', letterSpacing: '0.06em' }}>ALGORITHMIC PRESCRIPTIONS</p>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 10 }}>
-                  {resonance.recommendations!.map((rec, i) => {
-                    const cols = { hook: '#C4A265', timing: '#3B82F6', format: '#8B5CF6', growth: '#10B981' };
-                    const icons = { hook: <Zap className="w-3 h-3" />, timing: <Clock className="w-3 h-3" />, format: <Layers className="w-3 h-3" />, growth: <TrendingUp className="w-3 h-3" /> };
-                    return (
-                      <motion.div key={rec.id} initial={{ opacity: 0, y: 7 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.09 }}
-                        style={{ padding: '13px', borderRadius: 12, backgroundColor: 'rgba(250,247,242,0.8)', border: '1px solid rgba(232,224,212,0.7)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 7 }}>
-                          <span style={{ color: cols[rec.type] }}>{icons[rec.type]}</span>
-                          <span style={{ fontSize: 11, fontWeight: 800, color: '#3D2B1F' }}>{rec.title}</span>
-                        </div>
-                        <p style={{ fontSize: 10.5, color: '#8B7355', lineHeight: 1.55, marginBottom: 9 }}>{rec.desc}</p>
-                        <Link href="/dashboard/composer" style={{ fontSize: 10.5, fontWeight: 700, color: '#C4A265', display: 'flex', alignItems: 'center', gap: 4, textDecoration: 'none' }}>
-                          Apply in Studio <ChevronRight className="w-3 h-3" />
-                        </Link>
-                      </motion.div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+            <div style={{ borderRadius: 16, background: '#0F0A08', border: '1px solid rgba(255,255,255,0.07)', padding: '18px 20px' }}>
+              <p style={{ fontSize: 10, fontWeight: 800, color: 'rgba(196,162,101,0.7)', letterSpacing: '0.07em', marginBottom: 4 }}>PLATFORM ROI BREAKDOWN</p>
+              <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', marginBottom: 14 }}>Net interactions per network — sorted by total business value delivered</p>
+              <ROIWaterfall posts={posts} />
+            </div>
           </motion.div>
         )}
 
-        {/* ── HOOK DNA ─────────────────────────────────────────────── */}
-        {tab === 'hooks' && (
-          <motion.div key="hooks" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}
-            style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, borderRadius: 16, border: '1px solid rgba(232,224,212,0.8)', backgroundColor: 'white', padding: '20px', alignItems: 'start' }}>
+        {tab === 'audience' && (
+          <motion.div key="audience" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 18, borderRadius: 16, background: '#0F0A08', border: '1px solid rgba(255,255,255,0.07)', padding: '20px' }}>
               <div>
-                <p style={{ fontSize: 10, fontWeight: 800, color: '#8B7355', letterSpacing: '0.06em', marginBottom: 6 }}>ARCHETYPE RADAR</p>
-                <p style={{ fontSize: 11, color: '#A69279', lineHeight: 1.55, marginBottom: 10 }}>Each axis = performance vs your baseline. 100 = average, 150 = 50% above.</p>
-                <HookRadar hooks={resonance.hookBreakdown} />
+                <p style={{ fontSize: 10, fontWeight: 800, color: 'rgba(196,162,101,0.7)', letterSpacing: '0.07em', marginBottom: 10 }}>AUDIENCE PULSE CLOCK</p>
+                <PulseClock hourEngagement={hourEng} hourDistribution={hourDist} hasReal={hasReal} />
               </div>
-              <div>
-                <p style={{ fontSize: 10, fontWeight: 800, color: '#8B7355', letterSpacing: '0.06em', marginBottom: 10 }}>PERFORMANCE BREAKDOWN</p>
-                {['statement', 'question', 'statistic', 'story', 'contrarian', 'framework'].map((key, i) => {
-                  const item = resonance.hookBreakdown.find(h => h.type === key) || { type: key, count: 0, avgInteractions: 0, performanceIndex: 0 };
-                  return (
-                    <HookBar key={key} item={item as HookItem} baseline={avgInteractions} isTop={key === resonance.topHook} rank={i} />
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Top sample snippets per hook */}
-            {resonance.hookBreakdown.filter(h => h.topPostSnippet && h.count > 0).slice(0, 3).map((item, i) => {
-              const m = HOOK_META[item.type] || HOOK_META.unknown;
-              return (
-                <motion.div key={item.type} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.08 }}
-                  style={{ padding: '12px 16px', borderRadius: 12, border: `1px solid ${m.color}22`, backgroundColor: m.accent }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 7 }}>
-                    <span style={{ color: m.color }}>{m.icon}</span>
-                    <span style={{ fontSize: 10.5, fontWeight: 700, color: m.color }}>{m.label.toUpperCase()}</span>
-                    <span style={{ fontSize: 10, color: '#8B7355' }}>— best performing post</span>
-                  </div>
-                  <p style={{ fontSize: 12, color: '#3D2B1F', fontStyle: 'italic', lineHeight: 1.6, borderLeft: `2px solid ${m.color}`, paddingLeft: 10 }}>
-                    "{item.topPostSnippet?.slice(0, 140)}…"
-                  </p>
-                </motion.div>
-              );
-            })}
-          </motion.div>
-        )}
-
-        {/* ── TIMING ───────────────────────────────────────────────── */}
-        {tab === 'timing' && (
-          <motion.div key="timing" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}
-            style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-
-            {/* Heatmap */}
-            <div style={{ borderRadius: 16, border: '1px solid rgba(232,224,212,0.8)', backgroundColor: 'white', padding: '20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                <div>
-                  <p style={{ fontSize: 10, fontWeight: 800, color: '#8B7355', letterSpacing: '0.06em' }}>7×24 ENGAGEMENT HEATMAP</p>
-                  <p style={{ fontSize: 10.5, color: '#A69279', marginTop: 2 }}>
-                    {resonance.hasRealEngagement ? 'Colored by real audience interaction density' : 'Colored by publishing frequency'}
-                  </p>
-                </div>
-              </div>
-              <Heatmap dayDist={dayDist} dayEng={dayEng} hourDist={hourDist} hourEng={hourEng} hasReal={!!resonance.hasRealEngagement} />
-            </div>
-
-            {/* Best day + hour */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              {resonance.bestDay && (
-                <div style={{ padding: '18px', borderRadius: 14, border: '1px solid rgba(59,130,246,0.22)', backgroundColor: 'rgba(59,130,246,0.04)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
-                    <Calendar className="w-4 h-4" style={{ color: '#3B82F6' }} />
-                    <span style={{ fontSize: 9.5, fontWeight: 700, color: '#3B82F6', letterSpacing: '0.05em' }}>PEAK DAY</span>
-                  </div>
-                  <p style={{ fontSize: 27, fontWeight: 900, color: '#3D2B1F' }}>{resonance.bestDay.name}</p>
-                  <p style={{ fontSize: 10.5, color: '#8B7355', marginTop: 5 }}>
-                    {resonance.bestDay.interactions ? `${resonance.bestDay.interactions} total interactions` : `${resonance.bestDay.count} posts published`}
-                  </p>
-                </div>
-              )}
-              {resonance.bestHour && (
-                <div style={{ padding: '18px', borderRadius: 14, border: '1px solid rgba(139,92,246,0.22)', backgroundColor: 'rgba(139,92,246,0.04)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
-                    <Clock className="w-4 h-4" style={{ color: '#8B5CF6' }} />
-                    <span style={{ fontSize: 9.5, fontWeight: 700, color: '#8B5CF6', letterSpacing: '0.05em' }}>PEAK WINDOW</span>
-                  </div>
-                  <p style={{ fontSize: 27, fontWeight: 900, color: '#3D2B1F' }}>{resonance.bestHour.label}</p>
-                  <p style={{ fontSize: 10.5, color: '#8B7355', marginTop: 5 }}>
-                    {resonance.bestHour.interactions ? `${resonance.bestHour.interactions} total interactions` : `${resonance.bestHour.count} posts in this window`}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Word count pacing */}
-            <div style={{ borderRadius: 14, border: '1px solid rgba(232,224,212,0.8)', backgroundColor: 'white', padding: '18px 20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-                <Type className="w-4 h-4" style={{ color: '#C4A265' }} />
-                <p style={{ fontSize: 10, fontWeight: 800, color: '#8B7355', letterSpacing: '0.06em' }}>LENGTH & PACING SPECTRUM</p>
-              </div>
-              {(() => {
-                const buckets = [
-                  { label: 'Micro burst', range: '<50w', min: 0, max: 49, count: 0, color: '#EC4899' },
-                  { label: 'Sweet spot', range: '50–120w', min: 50, max: 120, count: 0, color: '#10B981' },
-                  { label: 'Thought piece', range: '120–250w', min: 121, max: 250, count: 0, color: '#3B82F6' },
-                  { label: 'Deep dive', range: '250w+', min: 251, max: Infinity, count: 0, color: '#8B5CF6' },
-                ];
-                rows.forEach(r => { const b = buckets.find(bk => r.wordCount >= bk.min && r.wordCount <= bk.max); if (b) b.count++; });
-                const maxC = Math.max(...buckets.map(b => b.count), 1);
-                return buckets.map((b, i) => (
-                  <div key={b.label} style={{ marginBottom: 11 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: '#3D2B1F' }}>{b.label}</span>
-                      <span style={{ fontSize: 10.5, color: '#8B7355' }}>{b.range} — {b.count} posts</span>
+              <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                <div><p style={{ fontSize: 10, fontWeight: 800, color: 'rgba(196,162,101,0.7)', letterSpacing: '0.07em', marginBottom: 10 }}>DAY-OF-WEEK ACTIVITY</p><DayRadialStrip dayEngagement={dayEng} dayDistribution={dayDist} hasReal={hasReal} /></div>
+                {resonance.bestDay && resonance.bestHour && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 14 }}>
+                    <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.18)' }}>
+                      <p style={{ fontSize: 9, fontWeight: 700, color: '#3B82F6', letterSpacing: '0.06em', marginBottom: 3 }}>PEAK DAY</p>
+                      <p style={{ fontSize: 20, fontWeight: 900, color: 'white' }}>{resonance.bestDay.name}</p>
+                      <p style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.3)' }}>{resonance.bestDay.interactions ? `${resonance.bestDay.interactions} interactions` : `${resonance.bestDay.count} posts`}</p>
                     </div>
-                    <div style={{ height: 5.5, backgroundColor: 'rgba(240,235,227,0.8)', borderRadius: 3, overflow: 'hidden' }}>
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${(b.count / maxC) * 100}%` }}
-                        transition={{ delay: i * 0.09 + 0.18, duration: 0.55, ease: 'easeOut' }}
-                        style={{ height: '100%', backgroundColor: b.color, borderRadius: 3 }}
-                      />
+                    <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.18)' }}>
+                      <p style={{ fontSize: 9, fontWeight: 700, color: '#8B5CF6', letterSpacing: '0.06em', marginBottom: 3 }}>PEAK WINDOW</p>
+                      <p style={{ fontSize: 20, fontWeight: 900, color: 'white' }}>{resonance.bestHour.label}</p>
+                      <p style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.3)' }}>{resonance.bestHour.interactions ? `${resonance.bestHour.interactions} interactions` : `${resonance.bestHour.count} posts`}</p>
                     </div>
                   </div>
-                ));
-              })()}
+                )}
+              </div>
+            </div>
+            <div style={{ borderRadius: 16, background: '#0F0A08', border: '1px solid rgba(255,255,255,0.07)', padding: '20px' }}>
+              <p style={{ fontSize: 10, fontWeight: 800, color: 'rgba(196,162,101,0.7)', letterSpacing: '0.07em', marginBottom: 4 }}>NETWORK GRAVITY MAP</p>
+              <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', marginBottom: 12 }}>Bubbles sized by total interactions. Lines = cross-network overlap.</p>
+              <NetworkBubbles posts={posts} />
             </div>
           </motion.div>
         )}
 
-        {/* ── PLATFORMS ────────────────────────────────────────────── */}
-        {tab === 'platforms' && (
-          <motion.div key="platforms" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}
-            style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-
-            <div style={{ borderRadius: 16, border: '1px solid rgba(232,224,212,0.8)', backgroundColor: 'white', padding: '20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-                <Target className="w-4 h-4" style={{ color: '#10B981' }} />
-                <p style={{ fontSize: 10, fontWeight: 800, color: '#8B7355', letterSpacing: '0.06em' }}>NETWORK DISTRIBUTION & ENGAGEMENT</p>
+        {tab === 'roi' && (
+          <motion.div key="roi" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ borderRadius: 16, background: '#0F0A08', border: '1px solid rgba(255,255,255,0.07)', padding: '20px' }}>
+              <p style={{ fontSize: 10, fontWeight: 800, color: 'rgba(196,162,101,0.7)', letterSpacing: '0.07em', marginBottom: 4 }}>EFFORT × RETURN MATRIX</p>
+              <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', marginBottom: 12 }}>X = word count (effort), Y = interactions (return). Top-left = highest ROI.</p>
+              <EffortReturnMatrix posts={posts} avgWordCount={resonance.avgWordCount || 100} />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 12 }}>
+                {[{ label: '✦ Quick Wins', desc: 'Short + high engagement. Your goldmine.', color: '#10B981' }, { label: 'Deep Value', desc: 'Long + high engagement. Authority content.', color: '#C4A265' }, { label: 'Warm Up', desc: 'Short + low engagement. Build frequency.', color: 'rgba(255,255,255,0.3)' }, { label: 'Wasted Effort', desc: 'Long + low engagement. Cut or repurpose.', color: '#EF4444' }].map(q => (
+                  <div key={q.label} style={{ padding: '8px 10px', borderRadius: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <p style={{ fontSize: 10.5, fontWeight: 700, color: q.color, marginBottom: 2 }}>{q.label}</p>
+                    <p style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.3)', lineHeight: 1.45 }}>{q.desc}</p>
+                  </div>
+                ))}
               </div>
-              <PlatformGrid posts={posts} />
             </div>
+            <div style={{ borderRadius: 16, background: '#0F0A08', border: '1px solid rgba(255,255,255,0.07)', padding: '20px' }}>
+              <p style={{ fontSize: 10, fontWeight: 800, color: 'rgba(196,162,101,0.7)', letterSpacing: '0.07em', marginBottom: 4 }}>HOOK ROI RANKING</p>
+              <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', marginBottom: 14 }}>Ranked by average interactions per post. Cumulative business value shown.</p>
+              <HookROIRanking hooks={resonance.hookBreakdown} avgInteractions={avgI} />
+            </div>
+          </motion.div>
+        )}
 
-            {/* Media lift card */}
-            <div style={{
-              borderRadius: 14,
-              border: `1px solid ${(resonance.mediaLift || 0) > 0 ? 'rgba(16,185,129,0.28)' : 'rgba(232,224,212,0.8)'}`,
-              backgroundColor: (resonance.mediaLift || 0) > 0 ? 'rgba(16,185,129,0.04)' : 'rgba(250,247,242,0.8)',
-              padding: '18px 20px', display: 'grid', gridTemplateColumns: '1fr auto', gap: 16, alignItems: 'center',
-            }}>
+        {tab === 'meta' && (
+          <motion.div key="meta" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}
+            style={{ borderRadius: 16, background: '#0F0A08', border: '1px solid rgba(255,255,255,0.07)', padding: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+              <ShieldCheck size={18} style={{ color: '#8B5CF6' }} />
               <div>
-                <p style={{ fontSize: 10, fontWeight: 800, color: '#8B7355', letterSpacing: '0.05em', marginBottom: 4 }}>MEDIA MULTIPLIER</p>
-                <p style={{ fontSize: 36, fontWeight: 900, color: (resonance.mediaLift || 0) > 0 ? '#10B981' : '#3D2B1F', lineHeight: 1 }}>
-                  {(resonance.mediaLift || 0) > 0 ? `+${resonance.mediaLift}%` : `${resonance.mediaRatio || 0}%`}
-                </p>
-                <p style={{ fontSize: 11, color: '#8B7355', marginTop: 6, lineHeight: 1.55 }}>
-                  {(resonance.mediaLift || 0) > 0
-                    ? `Posts with media get ${resonance.mediaLift}% more interactions than text-only.`
-                    : `${resonance.mediaRatio || 0}% of posts include visual media. Add visuals to unlock +40-65% engagement.`}
-                </p>
+                <p style={{ fontSize: 10, fontWeight: 800, color: 'rgba(139,92,246,0.8)', letterSpacing: '0.07em' }}>META APP REVIEW</p>
+                <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: 2 }}>Permission status, webhook health, and video recording checklist for Meta approval</p>
               </div>
-              {/* Donut */}
-              <svg width={88} height={88} viewBox="0 0 88 88">
-                <circle cx={44} cy={44} r={34} fill="none" stroke="rgba(240,235,227,0.8)" strokeWidth={12} />
-                <motion.circle
-                  cx={44} cy={44} r={34}
-                  fill="none"
-                  stroke={(resonance.mediaLift || 0) > 0 ? '#10B981' : '#C4A265'}
-                  strokeWidth={12} strokeLinecap="round"
-                  strokeDasharray={`${2 * Math.PI * 34}`}
-                  initial={{ strokeDashoffset: 2 * Math.PI * 34 }}
-                  animate={{ strokeDashoffset: 2 * Math.PI * 34 * (1 - (resonance.mediaRatio || 0) / 100) }}
-                  transition={{ duration: 1, ease: 'easeOut' }}
-                  style={{ transform: 'rotate(-90deg)', transformOrigin: '44px 44px' }}
-                />
-                <text x={44} y={41} textAnchor="middle" fontSize={14} fontWeight={800} fill="#3D2B1F">{resonance.mediaRatio || 0}%</text>
-                <text x={44} y={53} textAnchor="middle" fontSize={7.5} fill="#8B7355">with media</text>
-              </svg>
             </div>
+            <MetaPermissionBoard autoEnabled={autoEnabled} />
           </motion.div>
         )}
 
       </AnimatePresence>
 
-      <p style={{ fontSize: 9.5, color: '#A69279', textAlign: 'center', paddingBottom: 4 }}>
-        Built from your actual publish history. Every dispatch refines your Post DNA.
+      <p style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.18)', textAlign: 'center', paddingBottom: 2 }}>
+        Analytics Lab · Business outcomes layer · Distinct from Post DNA (content pattern analysis)
       </p>
     </div>
   );
