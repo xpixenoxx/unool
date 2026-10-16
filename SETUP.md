@@ -292,21 +292,30 @@ Body: { "workspaceId": "...", "commentText": "Send me the link!" }
 GROQ_API_KEY=gsk_xxx
 ```
 
-### 11.4 Cron Job (Vercel)
+### 11.4 Cron Job (Vercel & External Polling)
 
-The cron job at `/api/cron/instagram-sync` fires every 15 minutes (configured in `vercel.json`).
-On Vercel Pro/Enterprise, crons run automatically. On Hobby plan, use an external service like cron-job.org to call:
+In `vercel.json`, the fallback cron job is scheduled daily at midnight UTC:
+```
+"schedule": "0 0 * * *"
+```
+This is fully compliant with **Vercel Hobby plan** restrictions (which limit crons to at most once per day) and prevents deployment build failures.
+
+> **Note on Polling vs Real-Time:**
+> Real-time Instagram automation relies on **Meta Webhooks** (`/api/webhooks/instagram`), which fire immediately upon incoming comments and DMs. The cron job is solely a fallback safety net to catch any comments that might have been dropped or delayed.
+
+**If you want sub-daily polling (e.g. every 15 minutes) on a free plan without upgrading to Vercel Pro:**
+Use a free external scheduler (like **cron-job.org**, **FastCron**, or **Upstash QStash** which is already integrated in UNOOL) to send an authenticated GET request:
 ```
 GET https://yourdomain.com/api/cron/instagram-sync
+Headers:
+  Authorization: Bearer <CRON_SECRET>
 ```
-every 15 minutes.
 
 To secure the cron endpoint, set:
 ```
 CRON_SECRET=any-random-string
 ```
-Then pass it as `Authorization: Bearer <CRON_SECRET>` in the cron HTTP call.
-If `CRON_SECRET` is not set, the cron endpoint is open (Vercel's own infrastructure calls it anyway).
+When `CRON_SECRET` is set, requests without matching `Bearer <CRON_SECRET>` will receive a `401 Unauthorized` response.
 
 ### 11.5 Run the Instagram Automation Migration
 

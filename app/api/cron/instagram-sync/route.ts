@@ -10,9 +10,11 @@ const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_
 
 /**
  * GET /api/cron/instagram-sync
- * Called by Vercel Cron every 15 minutes (see vercel.json).
+ * Fallback comment polling path when Meta webhooks are delayed or dropped.
+ * Triggered daily via Vercel Cron (compliant with Hobby plan restrictions),
+ * or sub-daily via external cron (cron-job.org / QStash) using CRON_SECRET.
  * Finds all workspaces with Instagram automation enabled and calls the sync
- * route for each. This is the fallback path when Meta webhooks are delayed or dropped.
+ * route for each.
  */
 export async function GET(request: NextRequest) {
   // Vercel Cron sets the Authorization header with CRON_SECRET when configured.
