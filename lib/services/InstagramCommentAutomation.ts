@@ -412,9 +412,9 @@ Return ONLY valid JSON:
           access_token: accessToken,
         });
 
-        // 1a: Try graph.instagram.com/{commentId}/replies
+        // 1a: Try graph.facebook.com/{commentId}/replies first — required for Business API OAuth
         let response = await fetchWithRetry(
-          `https://graph.instagram.com/v20.0/${commentId}/replies`,
+          `https://graph.facebook.com/v20.0/${commentId}/replies`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -422,17 +422,17 @@ Return ONLY valid JSON:
           }
         );
 
-        // 1b: If graph.instagram.com fails, try graph.facebook.com/{commentId}/replies
+        // 1b: Fall back to graph.instagram.com if Facebook endpoint fails
         if (!response.ok) {
-          const igError = await response.text();
-          logger.warn('graph.instagram.com comment reply failed, trying graph.facebook.com', {
+          const fbError = await response.text();
+          logger.warn('graph.facebook.com comment reply failed, trying graph.instagram.com', {
             commentId,
-            error: igError,
+            error: fbError,
             status: response.status,
           });
 
           response = await fetchWithRetry(
-            `https://graph.facebook.com/v20.0/${commentId}/replies`,
+            `https://graph.instagram.com/v20.0/${commentId}/replies`,
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -509,17 +509,16 @@ Return ONLY valid JSON:
     message: string
   ): Promise<{ messageId: string } | null> {
     try {
+      // Instagram Messaging API requires access_token in the body, not Authorization: Bearer
       const response = await fetchWithRetry(
         `https://graph.instagram.com/v20.0/${igUserId}/messages`,
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${accessToken}`,
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             recipient: { id: recipientIgScopedId },
             message: { text: message },
+            access_token: accessToken,
           }),
         }
       );

@@ -225,3 +225,94 @@ Visit: http://localhost:3000
 - `supabase-schema.sql` - Database schema
 - `supabase-rls-fix.sql` - Row Level Security policies
 - `CLAUDE.md` - Project instructions
+
+---
+
+## 11. Instagram Automation (SignalDM) Setup
+
+### 11.1 Instagram OAuth App (Meta Developer Console)
+
+1. Go to https://developers.facebook.com/apps/
+2. Create a **Business** app (not Consumer)
+3. Add the **Instagram** product
+4. Under Instagram → Settings, add your Instagram Business Account
+5. Request these permissions:
+   - `instagram_business_basic`
+   - `instagram_business_manage_messages`
+   - `instagram_business_manage_comments`
+   - `instagram_business_content_publish`
+6. Add redirect URI: `https://yourdomain.com/api/auth/platform/callback`
+7. Fill in .env:
+```
+INSTAGRAM_CLIENT_ID=your-app-id
+INSTAGRAM_CLIENT_SECRET=your-app-secret
+INSTAGRAM_REDIRECT_URI=https://yourdomain.com/api/auth/platform/callback
+```
+
+### 11.2 Instagram Webhook — App-Level Subscription (REQUIRED ONCE)
+
+> [!IMPORTANT]
+> Without this step, Meta will NEVER send webhook events to your server,
+> regardless of how the code is configured. This must be done once per Meta app.
+
+**Step 1:** Set your verify token env var:
+```
+INSTAGRAM_WEBHOOK_VERIFY_TOKEN=any-random-string-you-choose
+META_WEBHOOK_SECRET=your-app-secret-from-meta-dashboard
+```
+
+**Step 2:** In the Meta Developer Console:
+- Go to your app → Webhooks (left sidebar)
+- Click **Add Subscription** → Select object type: **instagram**
+- Callback URL: `https://yourdomain.com/api/webhooks/instagram`
+- Verify Token: the value you set in `INSTAGRAM_WEBHOOK_VERIFY_TOKEN`
+- Subscribe to fields: `comments`, `messages`
+- Click **Verify and Save**
+
+**Step 3:** After a user connects their Instagram account via OAuth, call:
+```
+POST /api/instagram/subscribe
+Body: { "workspaceId": "..." }
+```
+This subscribes the user's individual Instagram account to receive events.
+(This is called automatically during OAuth, but can be re-called manually.)
+
+**Step 4:** Verify it's working using the Meta Webhooks test button or the simulator:
+```
+POST /api/instagram/simulate
+Body: { "workspaceId": "...", "commentText": "Send me the link!" }
+```
+
+### 11.3 Groq API Key (for AI comment classification)
+
+1. Go to https://console.groq.com/
+2. Create an API key
+3. Fill in:
+```
+GROQ_API_KEY=gsk_xxx
+```
+
+### 11.4 Cron Job (Vercel)
+
+The cron job at `/api/cron/instagram-sync` fires every 15 minutes (configured in `vercel.json`).
+On Vercel Pro/Enterprise, crons run automatically. On Hobby plan, use an external service like cron-job.org to call:
+```
+GET https://yourdomain.com/api/cron/instagram-sync
+```
+every 15 minutes.
+
+To secure the cron endpoint, set:
+```
+CRON_SECRET=any-random-string
+```
+Then pass it as `Authorization: Bearer <CRON_SECRET>` in the cron HTTP call.
+If `CRON_SECRET` is not set, the cron endpoint is open (Vercel's own infrastructure calls it anyway).
+
+### 11.5 Run the Instagram Automation Migration
+
+In Supabase SQL Editor, run in order:
+```sql
+-- supabase/migrations/20261006000001_instagram_comment_automation.sql
+-- supabase/migrations/20261014000001_signaldm_v2.sql
+-- supabase/migrations/20261016000001_instagram_flagged_dms.sql
+```

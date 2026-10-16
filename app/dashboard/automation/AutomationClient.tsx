@@ -61,6 +61,7 @@ interface DmLog {
 
 interface FlaggedComment {
   id: string;
+  item_type?: 'comment' | 'dm';
   comment_id: string;
   comment_text: string;
   commenter_username: string;
@@ -1810,8 +1811,11 @@ export default function AutomationClient({
                     <div key={item.id} className={`sdm-flagged-card ${item.priority === 'high' ? 'high-priority' : ''}`}>
                       <div className="sdm-flagged-header">
                         <div style={{ flex: 1 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
                             <span className="sdm-username">@{item.commenter_username || 'unknown'}</span>
+                            <span style={{ fontSize: 11, background: item.item_type === 'dm' ? 'rgba(168,85,247,0.18)' : 'rgba(59,130,246,0.18)', color: item.item_type === 'dm' ? '#c084fc' : '#60a5fa', borderRadius: 10, padding: '2px 7px', fontWeight: 600 }}>
+                              {item.item_type === 'dm' ? '✉️ Escalated DM' : '💬 Flagged Comment'}
+                            </span>
                             <span className="sdm-classification-badge" style={{ background: colors.bg, color: colors.text, fontSize: 11 }}>
                               {CLASSIFICATION_LABELS[item.classification] || item.classification}
                             </span>
@@ -1857,12 +1861,12 @@ export default function AutomationClient({
                             {item.suggested_reply && item.suggested_reply !== 'SKIP' && (
                               <button className="sdm-btn sdm-btn-success" style={{ fontSize: 12 }}
                                 onClick={() => flaggedAction(item.id, 'approve')}>
-                                ✅ Approve & Post
+                                {item.item_type === 'dm' ? '✅ Approve & Send DM' : '✅ Approve & Post'}
                               </button>
                             )}
                             <button className="sdm-btn sdm-btn-secondary" style={{ fontSize: 12 }}
                               onClick={() => setEditMode(prev => ({ ...prev, [item.id]: !prev[item.id] }))}>
-                              ✏️ {isEditMode ? 'Cancel Edit' : 'Edit & Reply'}
+                              ✏️ {isEditMode ? 'Cancel Edit' : (item.item_type === 'dm' ? 'Edit & Send DM' : 'Edit & Reply')}
                             </button>
                             {isEditMode && (
                               <button className="sdm-btn sdm-btn-primary" style={{ fontSize: 12 }}
@@ -1870,7 +1874,7 @@ export default function AutomationClient({
                                   flaggedAction(item.id, 'reply', editReplies[item.id] ?? item.suggested_reply);
                                   setEditMode(prev => ({ ...prev, [item.id]: false }));
                                 }}>
-                                Send Reply
+                                {item.item_type === 'dm' ? 'Send DM' : 'Send Reply'}
                               </button>
                             )}
                             <button className="sdm-btn sdm-btn-danger" style={{ fontSize: 12 }}

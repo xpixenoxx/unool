@@ -74,8 +74,45 @@ export async function POST(request: NextRequest) {
     }
 
     const connection = connections[0];
-    const accessToken = await decryptToken(connection.access_token_encrypted);
+    let accessToken = await decryptToken(connection.access_token_encrypted);
     const brandUsername = (connection.username || '').toLowerCase().trim();
+
+    // ── Token refresh: if token expires within 7 days, refresh proactively ──
+    const connExpiresAt = connection.expires_at ? new Date(connection.expires_at) : null;
+    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+    if (connExpiresAt && (connExpiresAt.getTime() - Date.now() < sevenDaysMs)) {
+      try {
+        const { InstagramAdapter } = await import('@/lib/platforms/InstagramAdapter');
+        const { encryptToken } = await import('@/lib/crypto/encryption');
+        const adapter = new InstagramAdapter();
+        const refreshed = await adapter.refreshAccessToken(accessToken);
+        accessToken = refreshed.accessToken;
+        const newExpiresAt = refreshed.expiresIn
+          ? new Date(Date.now() + refreshed.expiresIn * 1000)
+          : null;
+        await supabase
+          .from('platform_connections')
+          .update({
+            access_token_encrypted: await encryptToken(refreshed.accessToken),
+            refresh_token_encrypted: await encryptToken(refreshed.accessToken),
+            expires_at: newExpiresAt?.toISOString() ?? null,
+            status: 'connected',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', connection.id);
+        logger.info('Instagram token refreshed during sync', { connectionId: connection.id });
+      } catch (refreshErr) {
+        const refreshErrMsg = refreshErr instanceof Error ? refreshErr.message : String(refreshErr);
+        logger.warn('Token refresh failed during sync — using existing token', { connectionId: connection.id, error: refreshErrMsg });
+        if (connExpiresAt && connExpiresAt.getTime() < Date.now()) {
+          await supabase
+            .from('platform_connections')
+            .update({ status: 'expired', updated_at: new Date().toISOString() })
+            .eq('id', connection.id);
+          return NextResponse.json({ ok: false, message: 'Instagram token expired — connection marked expired, please reconnect' });
+        }
+      }
+    }
 
     // 3. Fetch automation config
     const { data: rawConfig } = await supabase
@@ -285,7 +322,40 @@ export async function POST(request: NextRequest) {
         // Optional DM sending for link requests
         if (result.shouldSendDM && automationConfig.linkUrl && commenterIgScopedId) {
           const dmText = result.suggestedDM || `Hey @${commentEvent.username}! Here's the link: ${automationConfig.linkUrl}`;
-          await automation.sendPrivateMessage(accessToken, connection.platform_user_id, commenterIgScopedId, dmText);
+          const dmRes = await automation.sendPrivateMessage(accessToken, connection.platform_user_id, commenterIgScopedId, dmText);
+          if (dmRes) {
+            await supabase
+              .from('instagram_comment_logs')
+              .update({ dm_sent: true })
+              .eq('comment_id', commentId);
+          }
+        }
+
+        // autoHideSpam: hide spam comments if enabled
+        if (
+          result.classification === 'spam' &&
+          automationConfig.autoHideSpam &&
+          commentId &&
+          !commentId.startsWith('test_')
+        ) {
+          try {
+            const hideParams = new URLSearchParams({ hide: 'true', access_token: accessToken });
+            const hideRes = await fetch(
+              `https://graph.facebook.com/v20.0/${commentId}`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: hideParams.toString(),
+              }
+            );
+            if (hideRes.ok) {
+              logger.info('Spam comment hidden during sync', { commentId });
+            } else {
+              logger.warn('Failed to hide spam comment during sync', { commentId, error: await hideRes.text() });
+            }
+          } catch (hideErr) {
+            logger.warn('Error hiding spam comment during sync', { commentId, error: hideErr });
+          }
         }
 
         newCommentsProcessed++;

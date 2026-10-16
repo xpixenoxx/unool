@@ -7,6 +7,8 @@ import { InstagramCommentAutomation } from '@/lib/services/InstagramCommentAutom
 import { logger } from '@/lib/logger';
 import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
 
+export const dynamic = 'force-dynamic';
+
 const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
 
 // POST /api/instagram/flagged/[id]/action
@@ -38,35 +40,58 @@ export async function POST(
     const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
     if (!hasAccess) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-    // Fetch the flagged comment
-    const { data: flagged, error: fetchError } = await supabase
+    // Fetch from flagged comments first
+    const { data: flaggedComment } = await supabase
       .from('instagram_flagged_comments')
       .select('*')
       .eq('id', id)
       .eq('workspace_id', workspaceId)
       .single();
 
-    if (fetchError || !flagged) {
-      return NextResponse.json({ error: 'Flagged comment not found' }, { status: 404 });
+    let flaggedDm: any = null;
+    if (!flaggedComment) {
+      // Check flagged DMs table
+      try {
+        const { data: dmRow } = await supabase
+          .from('instagram_flagged_dms')
+          .select('*')
+          .eq('id', id)
+          .eq('workspace_id', workspaceId)
+          .single();
+        flaggedDm = dmRow;
+      } catch (dmErr) {
+        logger.debug('instagram_flagged_dms query failed', { error: dmErr });
+      }
     }
 
-    if (flagged.status !== 'pending') {
-      return NextResponse.json({ error: `Comment already ${flagged.status}` }, { status: 409 });
+    if (!flaggedComment && !flaggedDm) {
+      return NextResponse.json({ error: 'Flagged item not found' }, { status: 404 });
     }
 
-    const groqApiKey = process.env.GROQ_API_KEY;
+    const item = flaggedComment || flaggedDm;
+    const isDm = !!flaggedDm;
+
+    if (item.status !== 'pending') {
+      return NextResponse.json({ error: `Item already ${item.status}` }, { status: 409 });
+    }
 
     if (action === 'reject') {
-      await supabase
-        .from('instagram_flagged_comments')
-        .update({ status: 'rejected', resolved_at: new Date().toISOString() })
-        .eq('id', id);
-
-      return NextResponse.json({ success: true, status: 'rejected' });
+      if (isDm) {
+        await supabase
+          .from('instagram_flagged_dms')
+          .update({ status: 'dismissed', resolved_at: new Date().toISOString() })
+          .eq('id', id);
+      } else {
+        await supabase
+          .from('instagram_flagged_comments')
+          .update({ status: 'rejected', resolved_at: new Date().toISOString() })
+          .eq('id', id);
+      }
+      return NextResponse.json({ success: true, status: isDm ? 'dismissed' : 'rejected' });
     }
 
     // For approve or reply — need to post to Instagram
-    const replyText = action === 'reply' ? ownerReply : flagged.suggested_reply;
+    const replyText = action === 'reply' ? ownerReply : (isDm ? item.ai_suggested_reply : item.suggested_reply);
 
     if (!replyText || replyText === 'SKIP') {
       return NextResponse.json({ error: 'No reply text provided' }, { status: 400 });
@@ -85,38 +110,67 @@ export async function POST(
       return NextResponse.json({ error: 'No active Instagram connection' }, { status: 400 });
     }
 
+    const connection = connections[0];
     let accessToken: string;
     try {
-      accessToken = await decryptToken(connections[0].access_token_encrypted);
+      accessToken = await decryptToken(connection.access_token_encrypted);
     } catch {
       return NextResponse.json({ error: 'Failed to decrypt access token' }, { status: 500 });
     }
 
-    // Post the reply
+    const groqApiKey = config.GROQ_API_KEY || process.env.GROQ_API_KEY;
     const automation = new InstagramCommentAutomation(groqApiKey || '');
-    const result = await automation.postPublicReply(
-      accessToken,
-      flagged.media_id || '',
-      flagged.comment_id,
-      replyText
-    );
 
-    if (!result) {
-      return NextResponse.json({ error: 'Failed to post reply to Instagram' }, { status: 500 });
+    if (isDm) {
+      // Send DM reply
+      const dmResult = await automation.sendPrivateMessage(
+        accessToken,
+        connection.platform_user_id,
+        item.sender_id,
+        replyText
+      );
+
+      if (!dmResult) {
+        return NextResponse.json({ error: 'Failed to send DM reply to Instagram' }, { status: 500 });
+      }
+
+      await supabase
+        .from('instagram_flagged_dms')
+        .update({
+          status: 'replied',
+          owner_reply: action === 'reply' ? ownerReply : null,
+          resolved_at: new Date().toISOString(),
+        })
+        .eq('id', id);
+
+      logger.info('Flagged DM resolved', { id, action, workspaceId });
+      return NextResponse.json({ success: true, status: 'replied', messageId: dmResult.messageId });
+    } else {
+      // Post comment reply
+      const result = await automation.postPublicReply(
+        accessToken,
+        item.media_id || '',
+        item.comment_id,
+        replyText
+      );
+
+      if (!result) {
+        return NextResponse.json({ error: 'Failed to post reply to Instagram' }, { status: 500 });
+      }
+
+      // Update the flagged comment status
+      await supabase
+        .from('instagram_flagged_comments')
+        .update({
+          status: 'replied',
+          owner_reply: action === 'reply' ? ownerReply : null,
+          resolved_at: new Date().toISOString(),
+        })
+        .eq('id', id);
+
+      logger.info('Flagged comment resolved', { id, action, workspaceId });
+      return NextResponse.json({ success: true, status: 'replied', replyId: result.replyId });
     }
-
-    // Update the flagged comment status
-    await supabase
-      .from('instagram_flagged_comments')
-      .update({
-        status: 'replied',
-        owner_reply: action === 'reply' ? ownerReply : null,
-        resolved_at: new Date().toISOString(),
-      })
-      .eq('id', id);
-
-    logger.info('Flagged comment resolved', { id, action, workspaceId });
-    return NextResponse.json({ success: true, status: 'replied', replyId: result.replyId });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     logger.error('POST /api/instagram/flagged/[id]/action error', { error: err });
