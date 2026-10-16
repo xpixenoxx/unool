@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import { format, addDays, startOfWeek, isToday, startOfDay, endOfWeek, addWeeks } from 'date-fns';
 import { PlatformBrandLogo, type SupportedPlatformType } from '@/components/dashboard/previews/PlatformMobilePreview';
 import { PlatformSVGs } from '@/components/dashboard/PlatformLogos';
+import { ContentGuard } from '@/lib/ai/ContentGuard';
 
 /* ─── Types ─── */
 
@@ -410,11 +411,37 @@ function StoryIntake({
 
   const [storyError, setStoryError] = useState('');
 
+  const guardResult = useMemo(() => {
+    if (!coreStory.trim() || coreStory.trim().length < 15) return null;
+    return ContentGuard.validateInput(coreStory, { route: 'flightplan/client' });
+  }, [coreStory]);
+
+  const isBlocked = guardResult && !guardResult.safe;
+  const activeError = storyError || (isBlocked ? guardResult.violation.message : '');
+
   const handleSubmit = () => {
     if (!coreStory.trim() || coreStory.trim().length < 20) {
       setStoryError('Please write at least 20 characters describing your idea or update.');
       return;
     }
+
+    const guard = ContentGuard.validateInput(coreStory, { route: 'flightplan/client' });
+    if (!guard.safe) {
+      setStoryError(guard.violation.message);
+      toast.error(guard.violation.message);
+      return;
+    }
+
+    const combinedFollowUps = `${whatChanged} ${whatWentWrong} ${oneRealNumber}`.trim();
+    if (combinedFollowUps) {
+      const followUpGuard = ContentGuard.validateSocialInput(combinedFollowUps, { route: 'flightplan/client/followups' });
+      if (!followUpGuard.safe) {
+        setStoryError(followUpGuard.violation.message);
+        toast.error(followUpGuard.violation.message);
+        return;
+      }
+    }
+
     setStoryError('');
     onGenerate({
       coreStory,
@@ -427,7 +454,7 @@ function StoryIntake({
   };
 
   const charCount = coreStory.length;
-  const isReady = charCount >= 20;
+  const isReady = charCount >= 20 && !isBlocked;
 
   return (
     <motion.div
@@ -464,6 +491,7 @@ function StoryIntake({
             value={coreStory}
             onChange={e => {
               setCoreStory(e.target.value);
+              if (storyError) setStoryError('');
               if (!followUpOpen && e.target.value.length > 50) setFollowUpOpen(true);
             }}
             placeholder="e.g. We spent four days debugging a race condition in our webhook ingestion queue. It was dropping 3% of events under heavy traffic. We fixed it by moving to an async worker queue, cutting event loss to zero..."
@@ -471,15 +499,19 @@ function StoryIntake({
             style={{ color: B.text, minHeight: 160, caretColor: B.accent }}
             rows={7}
           />
-          <div className="flex items-center justify-between mt-3 pt-3"
+          <div className="flex items-center justify-between mt-3 pt-3 flex-wrap gap-2"
             style={{ borderTop: `1px solid ${B.border}` }}>
-            <span className="text-xs" style={{ color: charCount >= 20 ? B.textMuted : B.warning }}>
-              {charCount} characters {charCount < 20 ? `— ${20 - charCount} more to go` : '· ready'}
+            <span className="text-xs" style={{ color: isBlocked ? B.danger : (charCount >= 20 ? B.textMuted : B.warning) }}>
+              {isBlocked
+                ? 'Policy violation'
+                : charCount < 20
+                ? `${charCount} characters — ${20 - charCount} more to go`
+                : `${charCount} characters · ready`}
             </span>
-            {storyError && (
-              <p className="text-xs text-red-600 font-medium">{storyError}</p>
+            {activeError && (
+              <p className="text-xs font-medium" style={{ color: B.danger }}>{activeError}</p>
             )}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 ml-auto">
               {isReady && !followUpOpen && (
                 <button
                   onClick={() => setFollowUpOpen(true)}
@@ -490,7 +522,7 @@ function StoryIntake({
                 </button>
               )}
               <div className="w-2 h-2 rounded-full transition-colors"
-                style={{ backgroundColor: isReady ? B.success : B.border }} />
+                style={{ backgroundColor: isBlocked ? B.danger : (isReady ? B.success : B.border) }} />
             </div>
           </div>
         </div>

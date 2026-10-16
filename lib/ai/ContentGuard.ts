@@ -34,58 +34,111 @@ export type GuardResult =
 // `[\s\S]` is used so patterns match across newlines without needing dotAll mode.
 
 const HARD_BLOCKED_PATTERNS: Array<{ pattern: RegExp; code: string; internal: string }> = [
-  // Terrorism / mass violence / extremist incitement
+  // 1. Terrorism, Mass Violence & Violent Extremism Incitement / Celebration
   {
     pattern:
-      /\b(jihad|isis|isil|al[\s-]?qaeda|hamas|hezbollah|boko[\s-]?haram|al[\s-]?shabaab|taliban|daesh|terrorist)\b[\s\S]{0,80}\b(attack|bomb|kill|recruit|pledge|support|join|martyr|behead|slaughter)\b/i,
+      /\b(celebrat(e|ing|ion)|praise|glorif(y|ying|ication)|applaud(ing)?|incit(e|ing|ement)|promot(e|ing)|cheer(ing)?|call\s+for)\b[\s\S]{0,60}\b(mass[\s-]?casualty|extremist\s+attack|terror(ist)?\s+attack|suicide\s+bomb(ing)?|mass\s+shoot(ing)?|massacre|genocide|beheading|car\s+bomb|pipe\s+bomb|violence|slaughter)\b/i,
     code: 'TERRORISM_INCITEMENT',
-    internal: 'Terrorism incitement signal',
+    internal: 'Celebration or incitement of mass violence/terrorist attack',
   },
   {
     pattern:
-      /\b(join|pledge\s+allegiance\s+to|recruit\s+for)\s+(isis|isil|al[\s-]?qaeda|daesh|boko[\s-]?haram)\b/i,
+      /\b(mass[\s-]?casualty|extremist\s+attack|terror(ist)?\s+attack|suicide\s+bomb(ing)?|mass\s+shoot(ing)?|massacre|genocide|beheading)\b[\s\S]{0,60}\b(celebrat(e|ing|ion)|praise|glorif(y|ying|ication)|applaud(ing)?|incit(e|ing|ement)|promot(e|ing)|cheer(ing)?)\b/i,
     code: 'TERRORISM_INCITEMENT',
-    internal: 'Terrorist group recruitment',
+    internal: 'Celebration of mass violence/terrorist attack (reversed phrasing)',
   },
   {
     pattern:
-      /\b(suicide\s?bomb|pipe\s?bomb|ied|improvised\s+explosive|car\s?bomb|mass\s+shooting|school\s+shooting|make\s+a\s+bomb|how\s+to\s+build\s+a\s+bomb|synthesize\s+(sarin|anthrax|ricin))\b/i,
+      /\b(jihad|isis|isil|al[\s-]?qaeda|hamas|hezbollah|boko[\s-]?haram|al[\s-]?shabaab|taliban|daesh|terrorist|violent\s+extremis(t|m)|white\s+supremac(y|ist)|neo[\s-]?nazi)\b[\s\S]{0,80}\b(attack|bomb|kill|recruit|pledge|support|join|martyr|behead|slaughter|celebrate|glory)\b/i,
+    code: 'TERRORISM_INCITEMENT',
+    internal: 'Terrorism incitement or extremist group signal',
+  },
+  {
+    pattern:
+      /\b(join|pledge\s+allegiance\s+to|recruit\s+for|support)\s+(isis|isil|al[\s-]?qaeda|daesh|boko[\s-]?haram|taliban|terrorist\s+(group|organization)|extremist\s+group)\b/i,
+    code: 'TERRORISM_INCITEMENT',
+    internal: 'Terrorist group recruitment/affiliation',
+  },
+  // 2. Weapons of Mass Harm, Mass Casualty & Explosives Instructions
+  {
+    pattern:
+      /\b(mass[\s-]?casualty(\s+(extremist|terrorist|violent))?\s+attack|suicide\s?bomb(ing)?|pipe\s?bomb|ied|improvised\s+explosive|car\s?bomb|mass\s+shooting|school\s+shooting|mass\s+murder|dirty\s+bomb|nerve\s+agent|sarin|ricin|anthrax\s+attack|execute\s+hostages)\b/i,
     code: 'WEAPONS_OF_MASS_HARM',
-    internal: 'Weapons/mass harm content',
+    internal: 'Weapons of mass harm / mass casualty event content',
   },
-  // CSAM / child safety
   {
     pattern:
-      /(\b(child|minor|underage|pedophil(e|ia)|loli|shota)\b[\s\S]{0,40}\b(porn|sex|nude|sexual|exploit|abuse|nsfw)\b|\bcsam\b)/i,
+      /\b(how\s+to\s+(make|build|assemble|synthesize|create)\s+(a\s+)?(bomb|explosive|pipe\s?bomb|ied|molotov|sarin|ricin|anthrax|weapon\s+of\s+mass\s+destruction))\b/i,
+    code: 'WEAPONS_OF_MASS_HARM',
+    internal: 'Bomb or mass harm weapon manufacturing instructions',
+  },
+  // 3. Hate Speech, Genocide & Extermination Calls
+  {
+    pattern:
+      /\b(exterminate|wipe\s+out|kill\s+all|death\s+to\s+all|gas\s+the|lynch|slaughter\s+all)\s+(the\s+)?(jews|blacks|muslims|christians|gays|transgender|lgbtq|immigrants|minorities|infidels)\b/i,
+    code: 'HATE_SPEECH_GENOCIDE',
+    internal: 'Genocidal violence or extermination incitement',
+  },
+  {
+    pattern:
+      /\b(ethnic\s+cleansing|genocide|race\s+war)\b[\s\S]{0,60}\b(support|promote|glory|justify|call\s+for)\b/i,
+    code: 'HATE_SPEECH_GENOCIDE',
+    internal: 'Ethnic cleansing or genocide promotion',
+  },
+  // 4. CSAM / Child Sexual Exploitation & Abuse
+  {
+    pattern:
+      /(\b(child|minor|underage|pedophil(e|ia)|loli|shota|kindergarten|elementary\s+school)\b[\s\S]{0,50}\b(porn|sex|nude|sexual|exploit|abuse|nsfw|erotic|lewd|touching)\b|\bcsam\b|\bchild\s+exploitation\b)/i,
     code: 'CSAM',
-    internal: 'CSAM signal',
+    internal: 'Child sexual exploitation and abuse material (CSAM) signal',
   },
-  // Explicit doxxing instructions
+  // 5. Explicit Doxxing & Non-Consensual Private Data Exposure
   {
     pattern:
-      /\b(find\s+someone'?s?\s+(home\s+)?address|post\s+(their|his|her|someone'?s?)\s+(ssn|social\s+security|passport|home\s+address|phone\s+number)|leak\s+(their|his|her|someone'?s?)\s+(personal|private)\s+info|doxx?\s+(this|that|someone|the|him|her)\b)/i,
+      /\b(find\s+(someone'?s?|their|his|her)\s+(home\s+)?address|post\s+(their|his|her|someone'?s?)\s+(ssn|social\s+security|passport|home\s+address|phone\s+number)|leak\s+(their|his|her|someone'?s?)\s+(personal|private)\s+info|doxx?\s+(this|that|someone|the|him|her)\b|expose\s+(their|his|her)\s+(private|home)\s+address)\b/i,
     code: 'DOXXING',
-    internal: 'Doxxing instruction',
+    internal: 'Explicit doxxing or non-consensual personal data exposure',
   },
-  // Financial fraud / scam blueprints
+  // 6. Financial Fraud, Wire Scams & Scam Blueprints
   {
     pattern:
-      /\b(send\s+(bitcoin|crypto|btc|eth|sol)|wire\s+transfer|paypal\s+me|venmo\s+me|cashapp\s+me)\b[\s\S]{0,80}\b(investment|profit|guaranteed|return|double\s+your|100%\s+profit|get\s+rich)\b/i,
+      /\b(send\s+(bitcoin|crypto|btc|eth|sol|money)|wire\s+transfer|paypal\s+me|venmo\s+me|cashapp\s+me)\b[\s\S]{0,80}\b(investment|profit|guaranteed|return|double\s+your|100%\s+profit|get\s+rich|daily\s+roi)\b/i,
     code: 'FINANCIAL_FRAUD',
-    internal: 'Financial fraud signal',
+    internal: 'Financial fraud / advance fee scam signal',
   },
   {
     pattern:
-      /\b(pump\s+and\s+dump|rug\s+pull|exit\s+scam|ponzi|pyramid\s+scheme)\b[\s\S]{0,80}\b(join|invest|buy|now|airdrop|token)\b/i,
+      /\b(guaranteed\s+(return|profit|roi)|double\s+your\s+(money|crypto|bitcoin))\b[\s\S]{0,60}\b(invest|send|wire|deposit)\b/i,
+    code: 'FINANCIAL_FRAUD',
+    internal: 'Guaranteed return investment scam',
+  },
+  // 7. Crypto Scams, Ponzi & Market Manipulation Schemes
+  {
+    pattern:
+      /\b(pump\s+and\s+dump|rug\s+pull|exit\s+scam|ponzi|pyramid\s+scheme)\b[\s\S]{0,80}\b(join|invest|buy|now|airdrop|token|coin|telegram)\b/i,
     code: 'CRYPTO_FRAUD',
-    internal: 'Crypto fraud signal',
+    internal: 'Crypto fraud or market manipulation scheme',
   },
-  // Explicit self-harm promotion (not prevention)
+  // 8. Self-Harm & Suicide Promotion / Instruction
   {
     pattern:
-      /\b(how\s+to\s+(commit\s+)?suicide|best\s+way\s+to\s+die|methods\s+to\s+kill\s+yourself|how\s+to\s+(hang|slit|overdose|cut)\s+(your|my)self|painless\s+(suicide|way\s+to\s+die))\b/i,
+      /\b(how\s+to\s+(commit\s+)?suicide|best\s+way\s+to\s+die|methods\s+to\s+kill\s+yourself|how\s+to\s+(hang|slit|overdose|cut)\s+(your|my)self|painless\s+(suicide|way\s+to\s+die)|ways\s+to\s+end\s+(your|my)\s+life|tell\s+(me|them|him|her)\s+to\s+kill\s+(them|him|her|your)selves?)\b/i,
     code: 'SELF_HARM_PROMOTION',
-    internal: 'Self-harm promotion',
+    internal: 'Self-harm or suicide instruction/encouragement',
+  },
+  // 9. Cyberattack & Malware Development Instructions
+  {
+    pattern:
+      /\b(how\s+to\s+(hack|infiltrate|breach)\s+(into\s+)?(a\s+)?(website|database|server|account|wifi)|write\s+(a\s+)?(ransomware|keylogger|malware|trojan|spyware)|conduct\s+(a\s+)?ddos\s+attack)\b/i,
+    code: 'CYBERATTACK_INSTRUCTION',
+    internal: 'Cyberattack or malware authoring instructions',
+  },
+  // 10. Prompt Injection & Adversarial Jailbreaking Overrides
+  {
+    pattern:
+      /\b(ignore\s+(all\s+)?(previous|prior)\s+instructions|disregard\s+(all\s+)?safety\s+(rules|guidelines)|reveal\s+your\s+system\s+prompt|print\s+your\s+(initial|system)\s+instructions|DAN\s+mode|jailbreak\s+prompt)\b/i,
+    code: 'PROMPT_INJECTION',
+    internal: 'Adversarial jailbreak or system prompt extraction attempt',
   },
 ];
 
