@@ -19,7 +19,7 @@ import { PlatformBrandLogo, type SupportedPlatformType } from '@/components/dash
 
 /* ─── Types ─── */
 
-type PlatformType = 'linkedin' | 'x' | 'threads' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'mastodon' | 'slack' | 'twitch' | 'telegram' | 'discord' | 'skool' | 'whop' | 'kick' | 'vk' | 'warpcast' | 'mewe' | 'nostr' | 'medium' | 'lemmy' | 'listmonk' | 'hashnode' | 'devto' | 'dribbble' | 'reddit';
+type PlatformType = 'linkedin' | 'x' | 'threads' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'mastodon' | 'slack' | 'twitch' | 'telegram' | 'discord' | 'skool' | 'whop' | 'kick' | 'warpcast' | 'mewe' | 'nostr' | 'medium' | 'lemmy' | 'listmonk' | 'hashnode' | 'devto' | 'dribbble' | 'reddit';
 
 const PLATFORM_CONFIG: Record<PlatformType, { icon: React.ElementType; name: string; maxChars: number; color: string }> = {
   linkedin: { icon: Linkedin, name: 'LinkedIn', maxChars: 3000, color: 'bg-blue-600' },
@@ -38,7 +38,6 @@ const PLATFORM_CONFIG: Record<PlatformType, { icon: React.ElementType; name: str
   skool: { icon: GraduationCap, name: 'Skool', maxChars: 10000, color: 'bg-[#E2AD44]' },
   whop: { icon: Store, name: 'Whop', maxChars: 10000, color: 'bg-[#FF5A00]' },
   kick: { icon: Gamepad2, name: 'Kick', maxChars: 10000, color: 'bg-[#53FC18]' },
-  vk: { icon: Video, name: 'VK', maxChars: 4096, color: 'bg-[#0077FF]' },
   warpcast: { icon: Hash, name: 'Farcaster', maxChars: 320, color: 'bg-[#8A63D2]' },
   mewe: { icon: MessageSquare, name: 'MeWe', maxChars: 4000, color: 'bg-[#2F435E]' },
   nostr: { icon: Zap, name: 'Nostr', maxChars: 65535, color: 'bg-[#9B51E0]' },
@@ -68,7 +67,6 @@ const PLATFORM_META: Record<string, { name: string; color: string; bg: string; i
   telegram:  { name: 'Telegram',  color: '#229ED9', bg: '#E9F5FA', icon: 'tg' },
   twitch:    { name: 'Twitch',    color: '#9146FF', bg: '#F3ECFF', icon: 'tw' },
   kick:      { name: 'Kick',      color: '#53FC18', bg: '#EBFDE7', icon: 'k' },
-  vk:        { name: 'VK',        color: '#0077FF', bg: '#EBF3FE', icon: 'vk' },
   whop:      { name: 'Whop',      color: '#FF5A00', bg: '#FFF0E6', icon: 'w' },
   dribbble:  { name: 'Dribbble',  color: '#EA4C89', bg: '#FDEDF3', icon: 'dr' },
   skool:     { name: 'Skool',     color: '#E2AD44', bg: '#FDF7EB', icon: 'sk' },

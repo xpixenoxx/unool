@@ -31,7 +31,7 @@ import { ListmonkConnectDialog } from './ListmonkConnectDialog';
 import { HashnodeConnectDialog } from './HashnodeConnectDialog';
 import { DevtoConnectDialog } from './DevtoConnectDialog';
 
-const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'dribbble', 'skool', 'whop', 'kick', 'vk', 'warpcast', 'mewe', 'nostr', 'medium', 'lemmy', 'listmonk', 'hashnode', 'devto'] as const;
+const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'dribbble', 'skool', 'whop', 'kick', 'warpcast', 'mewe', 'nostr', 'medium', 'lemmy', 'listmonk', 'hashnode', 'devto'] as const;
 type Platform = typeof SUPPORTED_PLATFORMS[number];
 
 interface PlatformConnection {
@@ -260,16 +260,7 @@ const PLATFORM_CONFIG: Record<
     audience: 'Gamers & viewers',
     available: true,
   },
-  vk: {
-    icon: ExternalLink,
-    name: 'VK (VKontakte)',
-    shortName: 'VK',
-    color: 'bg-[#0077FF]',
-    hoverBorder: 'hover:border-[#0077FF]/30',
-    description: 'Communities & discussions',
-    audience: 'Russian & CIS communities',
-    available: true,
-  },
+
   warpcast: {
     icon: Hash,
     name: 'Farcaster',

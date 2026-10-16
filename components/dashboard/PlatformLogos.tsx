@@ -20,7 +20,6 @@ export type SupportedPlatform =
   | 'discord'
   | 'dribbble'
   | 'kick'
-  | 'vk'
   | 'warpcast'
   | 'farcaster'
   | 'skool'
@@ -178,12 +177,6 @@ export const PlatformSVGs: Record<string, React.FC<{ size?: number; className?: 
     </svg>
   ),
 
-  // 18. VK (VKontakte official monogram)
-  vk: ({ size = 20, className = '' }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="#0077FF" className={`flex-shrink-0 ${className}`}>
-      <path d="M13.162 18.994c.609 0 .858-.406.851-.915-.072-1.785.748-2.38 1.637-1.464 1.155 1.19 1.767 2.379 3.036 2.379h2.32c1.077 0 1.543-.53 1.185-1.503-.545-1.47-2.148-3.136-2.91-4.086-.484-.593-.362-.857 0-1.428.026-.041 2.374-3.323 2.613-4.523.126-.628-.27-.854-.972-.854h-2.52c-.63 0-.89.317-1.074.757-.59 1.41-1.634 3.738-2.227 4.14-.378.257-.549.171-.549-.343V8.45c0-.756-.221-1.096-.85-1.096h-3.955c-.49 0-.783.364-.783.708 0 .717 1.073.882 1.183 2.901v3.292c0 .72-.13.85-.417.85-.765 0-2.628-2.766-3.732-5.926-.264-.748-.528-1.033-1.282-1.033H2.032c-.818 0-.982.386-.982.812 0 .762.977 4.542 4.544 9.541 2.378 3.326 5.727 4.495 7.568 4.495z" />
-    </svg>
-  ),
 
   // 19. Farcaster (Official arch W)
   warpcast: ({ size = 20, className = '' }) => (
@@ -399,12 +392,7 @@ export const PlatformLogos: Record<string, PlatformConfig> = {
     bg: '#53FC18',
     logo: PlatformSVGs.kick,
   },
-  vk: {
-    name: 'VK',
-    color: '#0077FF',
-    bg: '#0077FF',
-    logo: PlatformSVGs.vk,
-  },
+
   warpcast: {
     name: 'Farcaster',
     color: '#8A63D2',

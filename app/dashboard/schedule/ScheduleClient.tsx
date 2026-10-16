@@ -56,7 +56,6 @@ const PLATFORM_META: Record<string, { name: string; color: string; bg: string; i
   telegram:  { name: 'Telegram',  color: '#229ED9', bg: '#E9F5FA' },
   twitch:    { name: 'Twitch',    color: '#9146FF', bg: '#F3ECFF' },
   kick:      { name: 'Kick',      color: '#53FC18', bg: '#EBFDE7' },
-  vk:        { name: 'VK',        color: '#0077FF', bg: '#EBF3FE' },
   whop:      { name: 'Whop',      color: '#FF5A00', bg: '#FFF0E6' },
   dribbble:  { name: 'Dribbble',  color: '#EA4C89', bg: '#FDEDF3' },
   skool:     { name: 'Skool',     color: '#E2AD44', bg: '#FDF7EB' },

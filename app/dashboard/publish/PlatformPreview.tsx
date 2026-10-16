@@ -4,7 +4,7 @@ import React from 'react';
 import { ThumbsUp, Heart, MessageSquare, MessageCircle, Repeat2, Share2, Bookmark, Globe, Camera, Pin, Send } from 'lucide-react';
 import { PlatformMobilePreview, type SupportedPlatformType } from '@/components/dashboard/previews/PlatformMobilePreview';
 
-export type Platform = 'linkedin' | 'x' | 'threads' | 'manual' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'slack' | 'mastodon' | 'twitch' | 'telegram' | 'discord' | 'dribbble' | 'skool' | 'whop' | 'kick' | 'vk' | 'warpcast' | 'mewe' | 'nostr' | 'medium' | 'lemmy' | 'listmonk' | 'hashnode' | 'devto' | 'reddit';
+export type Platform = 'linkedin' | 'x' | 'threads' | 'manual' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'slack' | 'mastodon' | 'twitch' | 'telegram' | 'discord' | 'dribbble' | 'skool' | 'whop' | 'kick' | 'warpcast' | 'mewe' | 'nostr' | 'medium' | 'lemmy' | 'listmonk' | 'hashnode' | 'devto' | 'reddit';
 
 export interface PlatformPreviewProps {
   platform: Platform;
@@ -613,7 +613,6 @@ export function PlatformPreview({ platform, content, mediaUrls, username, displa
       case 'skool': return <PlatformMobilePreview platform="skool" {...mobileProps} />;
       case 'whop': return <PlatformMobilePreview platform="whop" {...mobileProps} />;
       case 'kick': return <PlatformMobilePreview platform="kick" {...mobileProps} />;
-      case 'vk': return <PlatformMobilePreview platform="vk" {...mobileProps} />;
       case 'warpcast': return <PlatformMobilePreview platform="warpcast" {...mobileProps} />;
       case 'mewe': return <PlatformMobilePreview platform="mewe" {...mobileProps} />;
       case 'nostr': return <PlatformMobilePreview platform="nostr" {...mobileProps} />;

@@ -1,4 +1,4 @@
-export type SupportedPlatform = 'linkedin' | 'x' | 'twitter' | 'threads' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'mastodon' | 'slack' | 'twitch' | 'telegram' | 'discord' | 'manual' | 'dribbble' | 'skool' | 'whop' | 'kick' | 'vk' | 'warpcast' | 'mewe' | 'nostr' | 'medium' | 'lemmy' | 'listmonk' | 'hashnode' | 'devto';
+export type SupportedPlatform = 'linkedin' | 'x' | 'twitter' | 'threads' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'mastodon' | 'slack' | 'twitch' | 'telegram' | 'discord' | 'manual' | 'dribbble' | 'skool' | 'whop' | 'kick' | 'warpcast' | 'mewe' | 'nostr' | 'medium' | 'lemmy' | 'listmonk' | 'hashnode' | 'devto';
 
 export interface PlatformLimitConfig {
   maxVideoSizeMB: number;
@@ -27,7 +27,6 @@ export const PLATFORM_LIMITS: Record<SupportedPlatform, PlatformLimitConfig> = {
   skool: { maxVideoSizeMB: 50, maxImageSizeMB: 10 },
   whop: { maxVideoSizeMB: 50, maxImageSizeMB: 10 },
   kick: { maxVideoSizeMB: 5000, maxImageSizeMB: 10, maxDurationSeconds: 43200 },
-  vk: { maxVideoSizeMB: 50, maxImageSizeMB: 10 },
   warpcast: { maxVideoSizeMB: 50, maxImageSizeMB: 10 },
   mewe: { maxVideoSizeMB: 50, maxImageSizeMB: 10 },
   nostr: { maxVideoSizeMB: 50, maxImageSizeMB: 10 },

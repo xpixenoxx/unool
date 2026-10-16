@@ -73,7 +73,6 @@ export const PLATFORM_CONFIG: Record<
   skool:     { icon: GraduationCap, name: 'Skool',       cta: 'View Post',     color: '#FFFFFF', bg: '#E2AD44' },
   whop:      { icon: Store,         name: 'Whop',        cta: 'View Post',     color: '#FFFFFF', bg: '#FF5A00' },
   kick:      { icon: Gamepad2,      name: 'Kick',        cta: 'Watch Stream',  color: '#0A0A0A', bg: '#53FC18' },
-  vk:        { icon: Video,         name: 'VK',          cta: 'View Post',     color: '#FFFFFF', bg: '#0077FF' },
   warpcast:  { icon: Hash,          name: 'Farcaster',    cta: 'View Cast',     color: '#FFFFFF', bg: '#8A63D2' },
   farcaster: { icon: Hash,          name: 'Farcaster',    cta: 'View Cast',     color: '#FFFFFF', bg: '#8A63D2' },
   mewe:      { icon: MessageSquare, name: 'MeWe',        cta: 'View Post',     color: '#FFFFFF', bg: '#2F435E' },

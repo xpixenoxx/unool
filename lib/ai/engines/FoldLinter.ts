@@ -1,4 +1,4 @@
-﻿import { PlatformType } from '@/lib/ai/PostAdapter';
+import { PlatformType } from '@/lib/ai/PostAdapter';
 
 // ─── Fold Linter (ported from ig-caption SKILL.md) ────────────────────────────
 //
@@ -43,7 +43,6 @@ export const PLATFORM_FOLD_SPECS: Partial<Record<PlatformType, PlatformFoldSpec>
   whop:       { foldChars: 300,    foldLabel: 'Post feed preview',             hashtagCap: 0,    hashtagPlacement: 'none',          minKeywords: 0, ctaRequired: true,  maxChars: 10000,  supportsMarkdown: false, lineBreakStyle: 'double' },
   twitch:     { foldChars: 200,    foldLabel: 'Channel description preview',   hashtagCap: 0,    hashtagPlacement: 'none',          minKeywords: 2, ctaRequired: true,  maxChars: 500,    supportsMarkdown: false, lineBreakStyle: 'single' },
   kick:       { foldChars: 200,    foldLabel: 'Channel description preview',   hashtagCap: 0,    hashtagPlacement: 'none',          minKeywords: 1, ctaRequired: true,  maxChars: 10000,  supportsMarkdown: false, lineBreakStyle: 'single' },
-  vk:         { foldChars: 200,    foldLabel: 'Feed truncation',               hashtagCap: 3,    hashtagPlacement: 'end',           minKeywords: 2, ctaRequired: false, maxChars: 4096,   supportsMarkdown: false, lineBreakStyle: 'double' },
   mewe:       { foldChars: 200,    foldLabel: 'Feed truncation',               hashtagCap: 3,    hashtagPlacement: 'end',           minKeywords: 1, ctaRequired: false, maxChars: 4000,   supportsMarkdown: false, lineBreakStyle: 'double' },
   nostr:      { foldChars: 500,    foldLabel: 'Client-dependent preview',      hashtagCap: 3,    hashtagPlacement: 'end',           minKeywords: 1, ctaRequired: false, maxChars: 65535,  supportsMarkdown: true,  lineBreakStyle: 'double' },
   lemmy:      { foldChars: 300,    foldLabel: 'Post feed excerpt',             hashtagCap: 0,    hashtagPlacement: 'none',          minKeywords: 1, ctaRequired: false, maxChars: 10000,  supportsMarkdown: true,  lineBreakStyle: 'double' },

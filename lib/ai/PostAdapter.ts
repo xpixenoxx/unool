@@ -4,7 +4,7 @@ import { Result, ok, err } from '@/lib/shared/Result';
 import { logger } from '@/lib/logger';
 import { ContentGuard } from './ContentGuard';
 
-export const PlatformType = z.enum(['linkedin', 'x', 'threads', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'skool', 'whop', 'kick', 'vk', 'warpcast', 'mewe', 'nostr', 'medium', 'lemmy', 'listmonk', 'hashnode', 'devto', 'dribbble', 'reddit']);
+export const PlatformType = z.enum(['linkedin', 'x', 'threads', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'skool', 'whop', 'kick', 'warpcast', 'mewe', 'nostr', 'medium', 'lemmy', 'listmonk', 'hashnode', 'devto', 'dribbble', 'reddit']);
 export type PlatformType = z.infer<typeof PlatformType>;
 
 export const AdaptedPostSchema = z.object({
@@ -161,14 +161,6 @@ export const PLATFORM_SPECS: Record<PlatformType, { maxChars: number; style: str
     tone: 'High-energy, creator-focused, entertainment-driven.',
     audience: 'Live stream viewers, gaming community.',
     seoFocus: 'Use stream-relevant keywords and event names.',
-  },
-  vk: {
-    maxChars: 4096,
-    style: 'Community-oriented, engaging, well-formatted. Use emojis moderately. Similar to Facebook but for CIS audience.',
-    hashtagStrategy: '1-3 relevant hashtags in Russian or English depending on audience.',
-    tone: 'Friendly, community-driven. Adapt language for CIS audience sensibility.',
-    audience: 'Russian-speaking community. Values authentic, relatable content.',
-    seoFocus: 'Use keywords relevant to the CIS market.',
   },
   warpcast: {
     maxChars: 320,

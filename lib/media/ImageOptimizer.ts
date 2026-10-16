@@ -205,7 +205,7 @@ const PLATFORM_IMAGE_SPECS: Partial<Record<Platform, PlatformImageSpec>> = {
 
   // ─────────────────────────────────────────────────────────────────────
   // Platforms NOT listed here (mastodon, telegram, discord, slack, reddit,
-  // medium, devto, warpcast, nostr, lemmy, mewe, vk, skool, whop, and
+  // medium, devto, warpcast, nostr, lemmy, mewe, skool, whop, and
   // any future platform) automatically use DEFAULT_SPEC.
   // ─────────────────────────────────────────────────────────────────────
 };

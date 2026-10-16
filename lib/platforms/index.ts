@@ -17,7 +17,7 @@ export { dribbbleAdapter, DribbbleAdapter } from './DribbbleAdapter';
 export { skoolAdapter, SkoolAdapter } from './SkoolAdapter';
 export { whopAdapter, WhopAdapter } from './WhopAdapter';
 export { kickAdapter, KickAdapter } from './KickAdapter';
-export { vkAdapter, VKAdapter } from './VKAdapter';
+
 export { warpcastAdapter, WarpcastAdapter } from './WarpcastAdapter';
 export { meweAdapter, MeweAdapter } from './MeweAdapter';
 export { nostrAdapter, NostrAdapter } from './NostrAdapter';
@@ -45,7 +45,7 @@ import { dribbbleAdapter } from './DribbbleAdapter';
 import { skoolAdapter } from './SkoolAdapter';
 import { whopAdapter } from './WhopAdapter';
 import { kickAdapter } from './KickAdapter';
-import { vkAdapter } from './VKAdapter';
+
 import { warpcastAdapter } from './WarpcastAdapter';
 import { meweAdapter } from './MeweAdapter';
 import { nostrAdapter } from './NostrAdapter';
@@ -77,7 +77,7 @@ export const platformAdapters: Record<string, PlatformAdapter> = {
   skool: skoolAdapter,
   whop: whopAdapter,
   kick: kickAdapter,
-  vk: vkAdapter,
+
   warpcast: warpcastAdapter,
   farcaster: warpcastAdapter,
   mewe: meweAdapter,
@@ -94,5 +94,5 @@ export function getPlatformAdapter(platform: string): PlatformAdapter | null {
   return platformAdapters[platform.toLowerCase()] ?? null;
 }
 
-export const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'dribbble', 'skool', 'whop', 'kick', 'vk', 'warpcast', 'mewe', 'nostr', 'medium', 'lemmy', 'listmonk', 'hashnode', 'devto'] as const;
+export const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'dribbble', 'skool', 'whop', 'kick', 'warpcast', 'mewe', 'nostr', 'medium', 'lemmy', 'listmonk', 'hashnode', 'devto'] as const;
 export type SupportedPlatform = typeof SUPPORTED_PLATFORMS[number];

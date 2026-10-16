@@ -57,7 +57,6 @@ export type SupportedPlatformType =
   | 'skool'
   | 'whop'
   | 'kick'
-  | 'vk'
   | 'warpcast'
   | 'mewe'
   | 'nostr'
@@ -125,7 +124,6 @@ export function getPlatformBgColor(platform: SupportedPlatformType): string {
     case 'telegram': return '#0E1621';
     case 'devto': return '#F5F5F5';
     case 'listmonk': return '#F8FAFC';
-    case 'vk': return '#EDEFEF';
     case 'mewe': return '#F2F4F7';
     case 'dribbble':
     case 'pinterest':
@@ -2034,64 +2032,6 @@ function WhopMobile({ content, isEmpty, media, profileName, initials, avatarUrl 
   );
 }
 
-/* ─────────────────────────────────────────────────────────────
-   25. VK (VKontakte)
-   ───────────────────────────────────────────────────────────── */
-function VKMobile({ content, isEmpty, media, profileName, initials, avatarUrl }: MobilePreviewProps) {
-  const [liked, setLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(54);
-
-  return (
-    <div style={{ background: '#EDEFEF', color: '#000000', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
-      <div className="flex items-center justify-between px-3.5 py-2 bg-white border-b border-[#DCE1E6]">
-        <div className="flex items-center gap-1.5">
-          <PlatformBrandLogo platform="vk" size={22} />
-          <span className="font-bold text-sm text-[#0077FF]">VK</span>
-        </div>
-        <Search className="w-4 h-4 text-[#828282]" />
-      </div>
-
-      <div className="bg-white my-2 p-3 border-y border-[#DCE1E6]">
-        <div className="flex items-center gap-2 mb-2">
-          <AvatarCircle initials={initials} avatarUrl={avatarUrl} size={32} bg="#0077FF" />
-          <div>
-            <p className="text-xs font-semibold">{profileName || 'Author'}</p>
-            <p className="text-[10px] text-[#828282]">two minutes ago</p>
-          </div>
-        </div>
-
-        <p className="text-xs leading-relaxed whitespace-pre-wrap break-words" style={{ color: isEmpty ? '#828282' : '#000000', fontStyle: isEmpty ? 'italic' : 'normal' }}>
-          {content || 'Wall post for VKontakte followers...'}
-        </p>
-
-        <MediaArea media={media} />
-
-        <div className="flex items-center justify-between mt-3 text-xs text-[#828282] pt-2 border-t border-[#F0F2F5]">
-          <button
-            type="button"
-            onClick={() => { setLiked(!liked); setLikeCount(c => liked ? c - 1 : c + 1); }}
-            className={`flex items-center gap-1 cursor-pointer ${liked ? 'text-rose-500 font-semibold' : ''}`}
-          >
-            <Heart className={`w-3.5 h-3.5 ${liked ? 'fill-rose-500 text-rose-500' : ''}`} />
-            <span>{likeCount}</span>
-          </button>
-          <div className="flex items-center gap-1">
-            <MessageSquare className="w-3.5 h-3.5" />
-            <span>9</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Share2 className="w-3.5 h-3.5" />
-            <span>14</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Eye className="w-3.5 h-3.5" />
-            <span>640</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 /* ─────────────────────────────────────────────────────────────
    26. MeWe
@@ -2251,8 +2191,6 @@ export function PlatformMobilePreview(props: MobilePreviewProps) {
       return <SkoolMobile {...props} />;
     case 'whop':
       return <WhopMobile {...props} />;
-    case 'vk':
-      return <VKMobile {...props} />;
     case 'mewe':
       return <MeweMobile {...props} />;
     case 'lemmy':
