@@ -29,11 +29,12 @@ export async function GET(request: NextRequest) {
 
     const offset = (page - 1) * limit;
 
-    // Build query
+    // Build query - exclude simulation test artifacts so feed displays real Instagram comments
     let query = supabase
       .from('instagram_comment_logs')
       .select('*', { count: 'exact' })
       .eq('workspace_id', workspaceId)
+      .not('comment_id', 'like', 'test_%')
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -52,11 +53,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch comments' }, { status: 500 });
     }
 
-    // Aggregate stats
+    // Aggregate stats - exclude simulation test artifacts
     const { data: statsData } = await supabase
       .from('instagram_comment_logs')
       .select('classification, auto_replied, dm_sent, flagged_for_review')
-      .eq('workspace_id', workspaceId);
+      .eq('workspace_id', workspaceId)
+      .not('comment_id', 'like', 'test_%');
 
     const stats = {
       total: count || 0,

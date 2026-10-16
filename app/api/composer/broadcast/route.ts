@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
       const { workspaceId } = auth;
 
       const body = await request.json();
-      const { content, profileId, mediaItems, selectedPlatforms } = body;
+      const { content, profileId, mediaItems, selectedPlatforms, studioProfile: clientStudioProfile } = body;
 
       if (!content || typeof content !== 'string' || !content.trim()) {
         return NextResponse.json({ error: 'Content is required' }, { status: 400 });
@@ -50,12 +50,10 @@ export async function POST(request: NextRequest) {
       }
 
       let resolvedProfileId = profileId;
+      const workspaceProfile = await profileRepository.findByWorkspaceId(workspaceId);
 
-      if (!resolvedProfileId) {
-        const workspaceProfile = await profileRepository.findByWorkspaceId(workspaceId);
-        if (workspaceProfile) {
-          resolvedProfileId = workspaceProfile.id;
-        }
+      if (!resolvedProfileId && workspaceProfile) {
+        resolvedProfileId = workspaceProfile.id;
       }
 
       if (!resolvedProfileId) {
@@ -64,6 +62,8 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
+
+      const effectiveStudioProfile = clientStudioProfile || workspaceProfile?.studioProfile || null;
 
       let activePlatforms: PlatformType[] = [];
 
@@ -85,7 +85,15 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      logger.info('Direct broadcast requested', { traceId, workspaceId, contentLength: content.length, activePlatforms });
+      logger.info('Direct broadcast requested', {
+        traceId,
+        workspaceId,
+        contentLength: content.length,
+        activePlatforms,
+        personaRole: effectiveStudioProfile?.role,
+        personaStage: effectiveStudioProfile?.businessStage,
+        personaDomain: effectiveStudioProfile?.businessDomain || effectiveStudioProfile?.doing,
+      });
 
       const rawContent = guard.sanitizedContent;
 

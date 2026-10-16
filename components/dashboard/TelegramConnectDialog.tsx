@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { ExternalLink, Loader2, Send } from 'lucide-react';
+import { ExternalLink, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { PlatformBrandLogo } from '@/components/dashboard/PlatformLogos';
 
 interface TelegramConnectDialogProps {
   open: boolean;
@@ -59,8 +60,8 @@ export function TelegramConnectDialog({
       <DialogContent className="sm:max-w-md bg-white dark:bg-black/95 dark:backdrop-blur-xl border dark:border-white/10 z-[100]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-[#229ED9] text-white">
-              <Send className="w-4 h-4" />
+            <div className="p-1 rounded-lg bg-sky-50 dark:bg-sky-950/40 border border-sky-200/50 flex items-center justify-center">
+              <PlatformBrandLogo platform="telegram" size={18} />
             </div>
             Connect Telegram
           </DialogTitle>

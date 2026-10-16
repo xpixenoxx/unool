@@ -131,13 +131,12 @@ function StepDots({ current, total }: { current: number; total: number }) {
   );
 }
 
-/* ─── Platform badge ──────────────────────────────────────────────────────── */
 function PlatformBadge({ platform, size = 'sm' }: { platform: string; size?: 'sm' | 'md' }) {
-  const meta = PLATFORM_META[platform];
-  if (!meta) return null;
+  const meta = PLATFORM_META[platform] || { name: platform, color: '#3D2B1F', bg: '#EDE7DD' };
+  const iconSize = size === 'sm' ? 12 : 14;
   return (
     <span
-      className="inline-flex items-center gap-1 rounded-full font-medium"
+      className="inline-flex items-center gap-1.5 rounded-full font-medium"
       style={{
         backgroundColor: meta.bg,
         color: meta.color,
@@ -146,7 +145,7 @@ function PlatformBadge({ platform, size = 'sm' }: { platform: string; size?: 'sm
         border: `1px solid ${meta.color}22`,
       }}
     >
-      <span style={{ fontSize: size === 'sm' ? 10 : 12 }}>{meta.icon}</span>
+      <PlatformBrandLogo platform={platform as SupportedPlatformType} size={iconSize} />
       {meta.name}
     </span>
   );
@@ -408,12 +407,16 @@ function ReviewScreen({
     if (expandedPost >= postIdx && expandedPost > 0) setExpandedPost(expandedPost - 1);
   };
 
-  const moveTime = (postIdx: number, delta: number) => {
+  const moveTime = (postIdx: number, deltaMinutes: number) => {
     setEditedArc(prev => {
       const updated = { ...prev };
       updated.weekPosts = [...prev.weekPosts];
       const post = { ...prev.weekPosts[postIdx] };
-      post.scheduledHour = Math.min(20, Math.max(6, post.scheduledHour + delta));
+      const currentTotal = post.scheduledHour * 60 + post.scheduledMinute;
+      let newTotal = currentTotal + deltaMinutes;
+      newTotal = ((newTotal % 1440) + 1440) % 1440;
+      post.scheduledHour = Math.floor(newTotal / 60);
+      post.scheduledMinute = newTotal % 60;
       updated.weekPosts[postIdx] = post;
       return updated;
     });
@@ -536,12 +539,18 @@ function ReviewScreen({
 
                 {/* Actions */}
                 <div className="flex items-center gap-1 flex-shrink-0">
+                  <button onClick={e => { e.stopPropagation(); moveTime(postIdx, -60); }}
+                    className="p-1.5 rounded-lg hover:opacity-70 transition-opacity text-xs font-mono"
+                    style={{ color: B.textMuted }} title="Move 1 hour earlier">-1h</button>
+                  <button onClick={e => { e.stopPropagation(); moveTime(postIdx, 60); }}
+                    className="p-1.5 rounded-lg hover:opacity-70 transition-opacity text-xs font-mono"
+                    style={{ color: B.textMuted }} title="Move 1 hour later">+1h</button>
                   <button onClick={e => { e.stopPropagation(); moveTime(postIdx, -1); }}
                     className="p-1.5 rounded-lg hover:opacity-70 transition-opacity text-xs font-mono"
-                    style={{ color: B.textMuted }}>-1h</button>
+                    style={{ color: B.textMuted }} title="Move 1 minute earlier">-1m</button>
                   <button onClick={e => { e.stopPropagation(); moveTime(postIdx, 1); }}
                     className="p-1.5 rounded-lg hover:opacity-70 transition-opacity text-xs font-mono"
-                    style={{ color: B.textMuted }}>+1h</button>
+                    style={{ color: B.textMuted }} title="Move 1 minute later">+1m</button>
                   <button
                     onClick={e => { e.stopPropagation(); removePost(postIdx); }}
                     className="p-1.5 rounded-lg transition-opacity hover:opacity-70"

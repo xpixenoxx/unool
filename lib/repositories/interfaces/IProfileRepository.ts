@@ -36,6 +36,9 @@ export interface OnboardingAnswers {
 
 export interface StudioProfile {
   role: string;
+  businessStage?: string;
+  businessDomain?: string;
+  workInterests?: string;
   doing: string;
   audience: string;
   tone: string;

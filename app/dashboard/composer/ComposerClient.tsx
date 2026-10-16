@@ -79,7 +79,6 @@ import {
   Menu,
   Phone,
   Share2,
-  Sliders,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { studioToast } from '@/components/dashboard/StudioToast';
@@ -101,40 +100,41 @@ import {
   type SupportedPlatformType,
   PlatformBrandLogo,
 } from '@/components/dashboard/previews/PlatformMobilePreview';
+import { PlatformSVGs } from '@/components/dashboard/PlatformLogos';
 import { HashtagEditor } from '@/components/dashboard/HashtagEditor';
-import { StudioOnboardingModal } from '@/components/dashboard/StudioOnboardingModal';
+import { StudioIdeaGenerator } from '@/components/dashboard/StudioIdeaGenerator';
 
 type PlatformType = SupportedPlatformType;
 
 const PLATFORM_CONFIG: Record<PlatformType, { icon: React.ElementType; name: string; maxChars: number; color: string }> = {
-  linkedin: { icon: Linkedin, name: 'LinkedIn', maxChars: 3000, color: 'bg-blue-600' },
-  x: { icon: Twitter, name: 'X (Twitter)', maxChars: 280, color: 'bg-gray-800 dark:bg-gray-200' },
-  threads: { icon: MessageSquare, name: 'Threads', maxChars: 500, color: 'bg-black dark:bg-white' },
-  facebook: { icon: Facebook, name: 'Facebook', maxChars: 63206, color: 'bg-blue-600' },
-  instagram: { icon: Instagram, name: 'Instagram', maxChars: 2200, color: 'bg-pink-600' },
-  youtube: { icon: Youtube, name: 'YouTube', maxChars: 5000, color: 'bg-red-600' },
-  pinterest: { icon: ImageIcon, name: 'Pinterest', maxChars: 500, color: 'bg-red-600' },
-  bluesky: { icon: Cloud, name: 'Bluesky', maxChars: 300, color: 'bg-blue-400' },
-  mastodon: { icon: Globe, name: 'Mastodon', maxChars: 500, color: 'bg-purple-600' },
-  slack: { icon: Hash, name: 'Slack', maxChars: 40000, color: 'bg-[#4A154B]' },
-  twitch: { icon: Twitch, name: 'Twitch', maxChars: 500, color: 'bg-[#9146FF]' },
-  telegram: { icon: Send, name: 'Telegram', maxChars: 4096, color: 'bg-[#229ED9]' },
-  discord: { icon: Hash, name: 'Discord', maxChars: 2000, color: 'bg-[#5865F2]' },
-  dribbble: { icon: Dribbble, name: 'Dribbble', maxChars: 250, color: 'bg-[#EA4C89]' },
-  skool: { icon: GraduationCap, name: 'Skool', maxChars: 10000, color: 'bg-[#E2AD44]' },
-  whop: { icon: Store, name: 'Whop', maxChars: 10000, color: 'bg-[#FF5A00]' },
-  kick: { icon: Gamepad2, name: 'Kick', maxChars: 10000, color: 'bg-[#53FC18]' },
-  warpcast: { icon: Hash, name: 'Farcaster', maxChars: 320, color: 'bg-[#8A63D2]' },
-  mewe: { icon: MessageSquare, name: 'MeWe', maxChars: 4000, color: 'bg-[#2F435E]' },
-  nostr: { icon: Zap, name: 'Nostr', maxChars: 65535, color: 'bg-[#9B51E0]' },
-  medium: { icon: FileText, name: 'Medium', maxChars: 100000, color: 'bg-black' },
-  lemmy: { icon: Globe, name: 'Lemmy', maxChars: 10000, color: 'bg-[#00BC8C]' },
-  listmonk: { icon: Mail, name: 'Listmonk', maxChars: 100000, color: 'bg-[#0045ff]' },
-  reddit: { icon: Globe, name: 'Reddit', maxChars: 40000, color: 'bg-[#FF4500]' },
-  hashnode: { icon: FileText, name: 'Hashnode', maxChars: 100000, color: 'bg-[#2962FF]' },
-  devto: { icon: FileText, name: 'DEV.to', maxChars: 100000, color: 'bg-[#090909]' },
-  twitter: { icon: Twitter, name: 'X (Twitter)', maxChars: 280, color: 'bg-gray-800 dark:bg-gray-200' },
-  whatsapp: { icon: MessageSquare, name: 'WhatsApp', maxChars: 4096, color: 'bg-green-600' },
+  linkedin: { icon: PlatformSVGs.linkedin, name: 'LinkedIn', maxChars: 3000, color: 'bg-blue-600' },
+  x: { icon: PlatformSVGs.x, name: 'X (Twitter)', maxChars: 280, color: 'bg-gray-800 dark:bg-gray-200' },
+  threads: { icon: PlatformSVGs.threads, name: 'Threads', maxChars: 500, color: 'bg-black dark:bg-white' },
+  facebook: { icon: PlatformSVGs.facebook, name: 'Facebook', maxChars: 63206, color: 'bg-blue-600' },
+  instagram: { icon: PlatformSVGs.instagram, name: 'Instagram', maxChars: 2200, color: 'bg-pink-600' },
+  youtube: { icon: PlatformSVGs.youtube, name: 'YouTube', maxChars: 5000, color: 'bg-red-600' },
+  pinterest: { icon: PlatformSVGs.pinterest, name: 'Pinterest', maxChars: 500, color: 'bg-red-600' },
+  bluesky: { icon: PlatformSVGs.bluesky, name: 'Bluesky', maxChars: 300, color: 'bg-blue-400' },
+  mastodon: { icon: PlatformSVGs.mastodon, name: 'Mastodon', maxChars: 500, color: 'bg-purple-600' },
+  slack: { icon: PlatformSVGs.slack, name: 'Slack', maxChars: 40000, color: 'bg-[#4A154B]' },
+  twitch: { icon: PlatformSVGs.twitch, name: 'Twitch', maxChars: 500, color: 'bg-[#9146FF]' },
+  telegram: { icon: PlatformSVGs.telegram, name: 'Telegram', maxChars: 4096, color: 'bg-[#229ED9]' },
+  discord: { icon: PlatformSVGs.discord, name: 'Discord', maxChars: 2000, color: 'bg-[#5865F2]' },
+  dribbble: { icon: PlatformSVGs.dribbble, name: 'Dribbble', maxChars: 250, color: 'bg-[#EA4C89]' },
+  skool: { icon: PlatformSVGs.skool, name: 'Skool', maxChars: 10000, color: 'bg-[#E2AD44]' },
+  whop: { icon: PlatformSVGs.whop, name: 'Whop', maxChars: 10000, color: 'bg-[#FF5A00]' },
+  kick: { icon: PlatformSVGs.kick, name: 'Kick', maxChars: 10000, color: 'bg-[#53FC18]' },
+  warpcast: { icon: PlatformSVGs.warpcast, name: 'Farcaster', maxChars: 320, color: 'bg-[#8A63D2]' },
+  mewe: { icon: PlatformSVGs.mewe, name: 'MeWe', maxChars: 4000, color: 'bg-[#2F435E]' },
+  nostr: { icon: PlatformSVGs.nostr, name: 'Nostr', maxChars: 65535, color: 'bg-[#9B51E0]' },
+  medium: { icon: PlatformSVGs.medium, name: 'Medium', maxChars: 100000, color: 'bg-black' },
+  lemmy: { icon: PlatformSVGs.lemmy, name: 'Lemmy', maxChars: 10000, color: 'bg-[#00BC8C]' },
+  listmonk: { icon: PlatformSVGs.listmonk, name: 'Listmonk', maxChars: 100000, color: 'bg-[#0045ff]' },
+  reddit: { icon: PlatformSVGs.reddit, name: 'Reddit', maxChars: 40000, color: 'bg-[#FF4500]' },
+  hashnode: { icon: PlatformSVGs.hashnode, name: 'Hashnode', maxChars: 100000, color: 'bg-[#2962FF]' },
+  devto: { icon: PlatformSVGs.devto, name: 'DEV.to', maxChars: 100000, color: 'bg-[#090909]' },
+  twitter: { icon: PlatformSVGs.x, name: 'X (Twitter)', maxChars: 280, color: 'bg-gray-800 dark:bg-gray-200' },
+  whatsapp: { icon: PlatformSVGs.whatsapp, name: 'WhatsApp', maxChars: 4096, color: 'bg-green-600' },
 };
 
 interface PlatformDraft {
@@ -517,18 +517,13 @@ function IPhonePreview({
                 {/* Squircle App Icon */}
                 <div
                   className={cn(
-                    'relative w-9 h-9 rounded-[10px] flex items-center justify-center shadow-sm transition-all duration-200 overflow-hidden',
+                    'relative w-9 h-9 rounded-[10px] flex items-center justify-center transition-all duration-200 overflow-hidden',
                     isActive
-                      ? 'ring-2 ring-[#C4A265] ring-offset-1 shadow-md'
-                      : 'border border-black/5 hover:shadow'
+                      ? 'ring-2 ring-[#C4A265] ring-offset-2 scale-105 shadow-md'
+                      : 'hover:scale-105 hover:shadow-xs'
                   )}
-                  style={{
-                    background: isPlatformDark(p)
-                      ? 'linear-gradient(135deg, #1C1E20 0%, #000000 100%)'
-                      : 'linear-gradient(135deg, #FFFFFF 0%, #F5F5F5 100%)',
-                  }}
                 >
-                  <PlatformBrandLogo platform={p} size={18} />
+                  <PlatformBrandLogo platform={p} size={30} />
 
                   {/* Status Indicator Badge */}
                   {isGenerating && (
@@ -799,7 +794,8 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const [hookScore, setHookScore] = useState<{ score: number; grade: string; suggestion: string | null; slopWords: string[] } | null>(null);
   const [humanizingPlatform, setHumanizingPlatform] = useState<PlatformType | null>(null);
   const [isHumanizingAll, setIsHumanizingAll] = useState(false);
-  const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
+  const [personalizeWithProfile, setPersonalizeWithProfile] = useState(true);
+  const [isIdeaGeneratorOpen, setIsIdeaGeneratorOpen] = useState(false);
   const springConfig: Transition = reducedMotion ? { type: 'tween', duration: 0.01 } : spring.snappy;
 
   // ── Debounced hook scorer ────────────────────────────────────────────────────
@@ -1077,6 +1073,22 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   useEffect(() => {
     loadProfile();
     loadConnections();
+
+    const handleProfileUpdate = (e: any) => {
+      if (e?.detail) {
+        setProfile((prev) => (prev ? { ...prev, studioProfile: e.detail } : null));
+      } else {
+        loadProfile();
+      }
+    };
+
+    window.addEventListener('studio-profile-updated', handleProfileUpdate);
+    window.addEventListener('focus', loadProfile);
+
+    return () => {
+      window.removeEventListener('studio-profile-updated', handleProfileUpdate);
+      window.removeEventListener('focus', loadProfile);
+    };
   }, [loadProfile, loadConnections]);
 
   // ── Fetch SignalDM automation status (non-blocking, best-effort) ─────────────
@@ -1163,7 +1175,8 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           profileId: profile.id, 
           mediaItems: media,
           selectedPlatforms: platformsToUse,
-          onboardingAnswers: profile.onboardingAnswers || undefined
+          disablePersonalization: !personalizeWithProfile,
+          studioProfile: profile.studioProfile || null,
         }),
       });
 
@@ -1506,7 +1519,8 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           content: quickContent, 
           profileId: profile.id, 
           mediaItems: media,
-          selectedPlatforms: platformsToUse
+          selectedPlatforms: platformsToUse,
+          studioProfile: profile.studioProfile || null,
         }),
       });
 
@@ -1595,10 +1609,10 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   disabled={!!warningMsg}
                   onCheckedChange={() => !warningMsg && togglePlatform(platform)} 
                 />
-                <span className={cn('p-1 rounded-md text-white', cfg.color, warningMsg ? 'grayscale' : '')}>
-                  <Icon className="w-3 h-3" />
+                <span className={cn('flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110 drop-shadow-xs', warningMsg ? 'grayscale opacity-50' : '')}>
+                  <PlatformBrandLogo platform={platform} size={22} />
                 </span>
-                {cfg.name}
+                <span className="font-medium text-foreground">{cfg.name}</span>
               </label>
               {warningMsg && (
                 <div className="absolute top-full left-0 mt-1 hidden group-hover:block z-10 w-48 text-xs bg-black text-white p-2 rounded shadow-lg">
@@ -1772,63 +1786,6 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
             </MotionBox>
           )}
 
-          {/* Studio Voice Calibrations Strip */}
-          {profile && !profileLoading && (
-            <MotionBox key="voice-profile" variant="slide-up">
-              <div
-                className="overflow-hidden rounded-2xl border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 shadow-xs px-4 py-3 flex items-center justify-between flex-wrap gap-3"
-                style={{
-                  background: 'linear-gradient(135deg, rgba(196,162,101,0.06) 0%, rgba(255,255,255,0.02) 100%)',
-                }}
-              >
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <div className="w-8 h-8 rounded-xl bg-[#C4A265]/15 text-[#C4A265] border border-[#C4A265]/30 flex items-center justify-center shrink-0">
-                    <Sliders className="w-4 h-4" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                        {profile.studioProfile?.role || profile.onboardingAnswers?.persona || 'Studio Persona'}
-                      </span>
-                      {(profile.studioProfile?.doing || profile.onboardingAnswers?.focus) && (
-                        <span className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate max-w-[200px]">
-                          • {profile.studioProfile?.doing || profile.onboardingAnswers?.focus}
-                        </span>
-                      )}
-                      {(profile.studioProfile?.tone || (Array.isArray(profile.onboardingAnswers?.tone) && profile.onboardingAnswers.tone.length > 0)) && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#C4A265]/10 text-[#C4A265] border border-[#C4A265]/20">
-                          {profile.studioProfile?.tone || profile.onboardingAnswers?.tone?.slice(0, 2).join(' & ')}
-                        </span>
-                      )}
-                      {profile.studioProfile?.style && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#8B7355]/10 text-[#8B7355] dark:text-zinc-400 border border-[#8B7355]/20">
-                          {profile.studioProfile.style}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">
-                      {profile.studioProfile
-                        ? `Audience: ${profile.studioProfile.audience} · ${(profile.studioProfile.interests || []).length} outside-work interests`
-                        : profile.onboardingAnswers
-                        ? `${(profile.onboardingAnswers.extras || []).length} active guardrails calibrating AI adaptations`
-                        : 'Calibrate your voice archetype, target audience, and content style'}
-                    </p>
-                  </div>
-                </div>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsVoiceModalOpen(true)}
-                  className="h-8 text-xs font-semibold px-3 bg-white dark:bg-zinc-800 hover:bg-[#F5EFE2] dark:hover:bg-zinc-700 border-zinc-200 dark:border-zinc-700 text-[#8B7355] dark:text-zinc-200 hover:text-[#3D2B1F] flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-[#C4A265]" />
-                  <span>Edit Studio profile</span>
-                </Button>
-              </div>
-            </MotionBox>
-          )}
           {!profile && !profileLoading && (
             <MotionBox key="no-profile" variant="slide-up">
               <div className="relative group overflow-hidden rounded-2xl border border-[#FDE68A]/60 bg-gradient-to-r from-[#FFFCF0] to-[#FFFDF9] shadow-sm transition-all duration-300 hover:shadow-md hover:border-[#FCD34D]/80"
@@ -1950,14 +1907,28 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         {mode === 'quick' && (
           <MotionBox variant="slide-up" delay={0.05}>
             <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Zap className="h-4 w-4 text-primary" />
-                  Quick Broadcast
-                </CardTitle>
-                <Text size="sm" color="muted">
-                  Publish identical content to all connected platforms instantly — no AI adaptation.
-                </Text>
+              <CardHeader className="pb-3 flex flex-row items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Zap className="h-4 w-4 text-primary" />
+                    Quick Broadcast
+                  </CardTitle>
+                  <Text size="sm" color="muted">
+                    Publish identical content to all connected platforms instantly — no AI adaptation.
+                  </Text>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setIsIdeaGeneratorOpen((prev) => !prev);
+                  }}
+                  className="h-8 text-xs font-semibold px-3 bg-white dark:bg-zinc-800 hover:bg-[#F5EFE2] dark:hover:bg-zinc-700 border-zinc-200 dark:border-zinc-700 text-[#8B7355] dark:text-zinc-200 hover:text-[#3D2B1F] flex items-center gap-1.5 cursor-pointer shrink-0 shadow-2xs"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-[#C4A265]" />
+                  <span>{isIdeaGeneratorOpen ? 'Hide ideas' : 'Generate ideas'}</span>
+                </Button>
               </CardHeader>
               <CardContent 
                 className={cn("space-y-4 transition-colors", isDragging && "bg-muted/50 rounded-lg")}
@@ -1965,6 +1936,49 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
               >
+                {/* Active Studio Persona Banner */}
+                {(profile?.studioProfile || profile?.onboardingAnswers) && (
+                  <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-[#FAF6EE] dark:bg-zinc-800/60 border border-[#E8E0D4] dark:border-zinc-800 text-xs text-[#8B7355] dark:text-zinc-300 transition-colors">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Sparkles className="w-3.5 h-3.5 text-[#C4A265] shrink-0" />
+                      <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                        <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+                          Active Persona:
+                        </span>
+                        <span className="font-medium text-zinc-800 dark:text-zinc-200 truncate">
+                          {profile?.studioProfile?.role || 'Creator'}
+                          {(profile?.studioProfile?.businessDomain || profile?.studioProfile?.doing)
+                            ? ` · ${profile?.studioProfile?.businessDomain || profile?.studioProfile?.doing}`
+                            : ''}
+                          {profile?.studioProfile?.businessStage
+                            ? ` · ${profile?.studioProfile?.businessStage}`
+                            : ''}
+                        </span>
+                      </div>
+                    </div>
+                    <Link
+                      href="/dashboard/settings?tab=persona"
+                      className="text-[11px] font-semibold text-[#8B7355] hover:text-[#3D2B1F] dark:text-zinc-400 dark:hover:text-zinc-200 shrink-0 underline underline-offset-2 ml-2"
+                    >
+                      Edit Persona
+                    </Link>
+                  </div>
+                )}
+
+                {/* Interactive Studio Idea Generator for Quick Broadcast */}
+                <StudioIdeaGenerator
+                  isOpen={isIdeaGeneratorOpen}
+                  onClose={() => setIsIdeaGeneratorOpen(false)}
+                  hasCompletedProfile={Boolean(
+                    (profile?.studioProfile && profile.studioProfile.role) ||
+                    (profile?.onboardingAnswers && (profile.onboardingAnswers as any).persona)
+                  )}
+                  studioProfile={profile?.studioProfile}
+                  onSelectIdea={(idea) => {
+                    const formattedIdea = idea.hook ? `${idea.hook}\n\n${idea.title}` : idea.title;
+                    setQuickContent(formattedIdea);
+                  }}
+                />
                 <PlatformSelector />
                 <Textarea
                   placeholder="What do you want to share? Drag and drop an image here, or type your exact text."
@@ -2061,14 +2075,28 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
             {/* Step 1 */}
             <MotionBox variant="slide-up" delay={0.05}>
               <Card>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold flex-shrink-0">1</span>
-                    <CardTitle className="text-base">Write Your Idea</CardTitle>
+                <CardHeader className="pb-3 flex flex-row items-start justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold flex-shrink-0">1</span>
+                      <CardTitle className="text-base">Write Your Idea</CardTitle>
+                    </div>
+                    <Text size="sm" color="muted">
+                      Describe what you want to share. AI will adapt it perfectly for each platform.
+                    </Text>
                   </div>
-                  <Text size="sm" color="muted">
-                    Describe what you want to share. AI will adapt it perfectly for each platform.
-                  </Text>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setIsIdeaGeneratorOpen((prev) => !prev);
+                    }}
+                    className="h-8 text-xs font-semibold px-3 bg-white dark:bg-zinc-800 hover:bg-[#F5EFE2] dark:hover:bg-zinc-700 border-zinc-200 dark:border-zinc-700 text-[#8B7355] dark:text-zinc-200 hover:text-[#3D2B1F] flex items-center gap-1.5 cursor-pointer shrink-0 shadow-2xs"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-[#C4A265]" />
+                    <span>{isIdeaGeneratorOpen ? 'Hide ideas' : 'Generate ideas'}</span>
+                  </Button>
                 </CardHeader>
                 <CardContent 
                   className={cn("space-y-4 transition-colors", isDragging && "bg-muted/50 rounded-lg")}
@@ -2076,6 +2104,75 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
                 >
+                  {/* Subtle Studio Profile Personalization Indicator & Toggle */}
+                  {(profile?.studioProfile || profile?.onboardingAnswers) && (
+                    <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-[#FAF6EE] dark:bg-zinc-800/60 border border-[#E8E0D4] dark:border-zinc-800 text-xs text-[#8B7355] dark:text-zinc-300 transition-colors">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Sparkles className="w-3.5 h-3.5 text-[#C4A265] shrink-0" />
+                        <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                          <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+                            {personalizeWithProfile ? 'Personalized with' : 'Personalization paused:'}
+                          </span>
+                          <span className="font-medium text-zinc-800 dark:text-zinc-200 truncate">
+                            {profile?.studioProfile?.role || 'Studio profile'}
+                            {(profile?.studioProfile?.businessDomain || profile?.studioProfile?.doing)
+                              ? ` · ${profile?.studioProfile?.businessDomain || profile?.studioProfile?.doing}`
+                              : ''}
+                            {profile?.studioProfile?.businessStage
+                              ? ` · ${profile?.studioProfile?.businessStage}`
+                              : ''}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 shrink-0">
+                        <Link
+                          href="/dashboard/settings?tab=persona"
+                          className="text-[11px] font-semibold text-[#8B7355] hover:text-[#3D2B1F] dark:text-zinc-400 dark:hover:text-zinc-200 underline underline-offset-2"
+                        >
+                          Edit Persona
+                        </Link>
+                        <div className="flex items-center gap-1.5 border-l border-zinc-200 dark:border-zinc-700 pl-3">
+                          <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                            {personalizeWithProfile ? 'Active' : 'Paused'}
+                          </span>
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={personalizeWithProfile}
+                            onClick={() => setPersonalizeWithProfile(prev => !prev)}
+                            className={cn(
+                              "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden",
+                              personalizeWithProfile ? "bg-[#C4A265]" : "bg-zinc-300 dark:bg-zinc-700"
+                            )}
+                          >
+                            <span
+                              className={cn(
+                                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out",
+                                personalizeWithProfile ? "translate-x-4" : "translate-x-0"
+                              )}
+                            />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Interactive Studio Idea Generator */}
+                  <StudioIdeaGenerator
+                    isOpen={isIdeaGeneratorOpen}
+                    onClose={() => setIsIdeaGeneratorOpen(false)}
+                    hasCompletedProfile={Boolean(
+                      (profile?.studioProfile && profile.studioProfile.role) ||
+                      (profile?.onboardingAnswers && (profile.onboardingAnswers as any).persona)
+                    )}
+                    studioProfile={profile?.studioProfile}
+                    onSelectIdea={(idea) => {
+                      const formattedIdea = idea.hook ? `${idea.hook}\n\n${idea.title}` : idea.title;
+                      setSourceContent(formattedIdea);
+                    }}
+                  />
+
                   <PlatformSelector />
                   <Textarea
                     placeholder="e.g. 'Just launched v2 of our product...' (Drag and drop media here to attach it!)"
@@ -2232,8 +2329,8 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                             const Icon = cfg.icon;
                             return (
                               <TabsTrigger key={platform} value={platform} className="flex-1 min-w-[80px] flex items-center justify-center gap-1.5 py-2">
-                                <span className={cn('p-1 rounded-md text-white', cfg.color)}>
-                                  <Icon className="w-3 h-3" />
+                                <span className="flex items-center justify-center flex-shrink-0">
+                                  <PlatformBrandLogo platform={platform} size={18} />
                                 </span>
                                 <span className="hidden sm:inline text-xs font-medium">{cfg.name}</span>
                                 {draft.status === 'generating' && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
@@ -2259,8 +2356,8 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                               >
                                 <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                                   <div className="flex items-center gap-2">
-                                    <span className={cn('p-1.5 rounded-lg text-white', cfg.color)}>
-                                      <cfg.icon className="h-4 w-4" />
+                                    <span className="flex items-center justify-center flex-shrink-0">
+                                      <PlatformBrandLogo platform={platform} size={24} />
                                     </span>
                                     <div>
                                       <p className="text-sm font-semibold leading-tight">{cfg.name}</p>
@@ -2573,32 +2670,6 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <StudioOnboardingModal
-        userId={userId}
-        isOpen={isVoiceModalOpen ? true : undefined}
-        onClose={() => setIsVoiceModalOpen(false)}
-        forceOpen={isVoiceModalOpen}
-        isRetake={isVoiceModalOpen}
-        initialAnswers={profile?.studioProfile || profile?.onboardingAnswers}
-        onComplete={(newProfile) => {
-          setProfile(prev => prev ? {
-            ...prev,
-            studioProfile: newProfile,
-            onboardingAnswers: {
-              persona: newProfile.role,
-              focus: newProfile.doing,
-              audience: [newProfile.audience],
-              tone: [newProfile.tone],
-              custom: {
-                style: newProfile.style,
-                interests: Array.isArray(newProfile.interests) ? newProfile.interests.join(', ') : '',
-              },
-            },
-          } : null);
-          setIsVoiceModalOpen(false);
-        }}
-      />
     </div>
   );
 }

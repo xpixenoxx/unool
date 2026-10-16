@@ -1,8 +1,7 @@
 'use client';
 
-import React from 'react';
 import { ThumbsUp, Heart, MessageSquare, MessageCircle, Repeat2, Share2, Bookmark, Globe, Camera, Pin, Send } from 'lucide-react';
-import { PlatformMobilePreview, type SupportedPlatformType } from '@/components/dashboard/previews/PlatformMobilePreview';
+import { PlatformMobilePreview, PlatformBrandLogo, type SupportedPlatformType } from '@/components/dashboard/previews/PlatformMobilePreview';
 
 export type Platform = 'linkedin' | 'x' | 'threads' | 'manual' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'slack' | 'mastodon' | 'twitch' | 'telegram' | 'discord' | 'dribbble' | 'skool' | 'whop' | 'kick' | 'warpcast' | 'mewe' | 'nostr' | 'medium' | 'lemmy' | 'listmonk' | 'hashnode' | 'devto' | 'reddit';
 
@@ -366,7 +365,8 @@ function ListmonkPreview({ content, mediaUrls, username, displayName }: Omit<Pla
     <div style={{ background: '#ffffff', color: '#1a1a1a', border: '1px solid #e2e8f0', borderRadius: 12, overflow: 'hidden', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       <div style={{ background: '#f8fafc', padding: '12px 16px', borderBottom: '1px solid #e2e8f0' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-          <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: '#0045ff', background: '#eff6ff', padding: '2px 8px', borderRadius: 6 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: '#0045ff', background: '#eff6ff', padding: '2px 8px', borderRadius: 6, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <PlatformBrandLogo platform="listmonk" size={14} />
             Listmonk Campaign
           </span>
           <span style={{ fontSize: 11, color: '#64748b' }}>To: [Subscriber List]</span>
@@ -411,9 +411,7 @@ function HashnodePreview({ content, mediaUrls, username, displayName }: Omit<Pla
       {/* Header bar */}
       <div style={{ background: '#f8fafc', padding: '10px 16px', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 18, height: 18, borderRadius: 4, background: '#2962FF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 10, fontWeight: 800 }}>
-            H
-          </div>
+          <PlatformBrandLogo platform="hashnode" size={20} />
           <span style={{ fontSize: 12, fontWeight: 600, color: '#334155' }}>
             {displayName || username ? `${displayName || username}'s Blog` : 'Hashnode Publication'}
           </span>
@@ -497,9 +495,7 @@ function DevtoPreview({ content, mediaUrls, username, displayName }: Omit<Platfo
       {/* Top dev.to branding header */}
       <div style={{ background: '#ffffff', padding: '10px 16px', borderBottom: '1px solid #f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 26, height: 20, borderRadius: 3, background: '#090909', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 10, fontWeight: 900, letterSpacing: -0.5 }}>
-            DEV
-          </div>
+          <PlatformBrandLogo platform="devto" size={22} />
           <span style={{ fontSize: 12, fontWeight: 600, color: '#171717' }}>
             DEV Community
           </span>

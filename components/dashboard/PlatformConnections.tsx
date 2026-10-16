@@ -6,14 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import {
-  Loader2, Linkedin, Twitter, MessageSquare, Facebook, Instagram,
+  Loader2,
   Phone, CheckCircle, AlertCircle, Unlink2, Link2, Lock, Globe2,
-  ArrowRight, Wifi, WifiOff, RefreshCw, Youtube, Cloud, ExternalLink, Image as ImageIcon,
-  MessageCircle, Hash, Twitch, Send, Dribbble, GraduationCap, Store, Gamepad2, Zap, FileText, Mail, BookOpen, Code2, Radio
+  ArrowRight, Wifi, WifiOff, RefreshCw, ExternalLink, Radio
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { PlatformBrandLogo, PlatformSVGs } from '@/components/dashboard/PlatformLogos';
 import { BlueskyConnectDialog } from './BlueskyConnectDialog';
 import { MastodonConnectDialog } from './MastodonConnectDialog';
 import { SlackConnectDialog } from './SlackConnectDialog';
@@ -64,7 +64,7 @@ const PLATFORM_CONFIG: Record<
   }
 > = {
   linkedin: {
-    icon: Linkedin,
+    icon: PlatformSVGs.linkedin,
     name: 'LinkedIn',
     shortName: 'LinkedIn',
     color: 'bg-[#0A66C2]',
@@ -74,7 +74,7 @@ const PLATFORM_CONFIG: Record<
     available: true,
   },
   x: {
-    icon: Twitter,
+    icon: PlatformSVGs.x,
     name: 'X (Twitter)',
     shortName: 'X',
     color: 'bg-neutral-900 dark:bg-neutral-100',
@@ -84,7 +84,7 @@ const PLATFORM_CONFIG: Record<
     available: true,
   },
   threads: {
-    icon: MessageSquare,
+    icon: PlatformSVGs.threads,
     name: 'Threads',
     shortName: 'Threads',
     color: 'bg-neutral-900 dark:bg-neutral-100',
@@ -94,7 +94,7 @@ const PLATFORM_CONFIG: Record<
     available: true,
   },
   facebook: {
-    icon: Facebook,
+    icon: PlatformSVGs.facebook,
     name: 'Facebook Pages',
     shortName: 'Facebook',
     color: 'bg-[#1877F2]',
@@ -105,7 +105,7 @@ const PLATFORM_CONFIG: Record<
   },
 
   instagram: {
-    icon: Instagram,
+    icon: PlatformSVGs.instagram,
     name: 'Instagram',
     shortName: 'Instagram',
     color: 'bg-gradient-to-br from-[#833AB4] via-[#E1306C] to-[#F77737]',
@@ -115,7 +115,7 @@ const PLATFORM_CONFIG: Record<
     available: true,
   },
   manual: {
-    icon: Link2,
+    icon: PlatformSVGs.manual,
     name: 'Manual / Other',
     shortName: 'Other',
     color: 'bg-neutral-500',
@@ -125,7 +125,7 @@ const PLATFORM_CONFIG: Record<
     available: true,
   },
   youtube: {
-    icon: Youtube,
+    icon: PlatformSVGs.youtube,
     name: 'YouTube',
     shortName: 'YouTube',
     color: 'bg-[#FF0000]',
@@ -135,7 +135,7 @@ const PLATFORM_CONFIG: Record<
     available: true,
   },
   pinterest: {
-    icon: ImageIcon,
+    icon: PlatformSVGs.pinterest,
     name: 'Pinterest',
     shortName: 'Pinterest',
     color: 'bg-[#E60023]',
@@ -145,7 +145,7 @@ const PLATFORM_CONFIG: Record<
     available: true,
   },
   bluesky: {
-    icon: Cloud,
+    icon: PlatformSVGs.bluesky,
     name: 'Bluesky',
     shortName: 'Bluesky',
     color: 'bg-[#0085ff]',
@@ -156,7 +156,7 @@ const PLATFORM_CONFIG: Record<
     customConnect: true, // uses handle + app password, not OAuth
   },
   reddit: {
-    icon: MessageCircle,
+    icon: PlatformSVGs.reddit,
     name: 'Reddit',
     shortName: 'Reddit',
     color: 'bg-[#FF4500]',
@@ -166,7 +166,7 @@ const PLATFORM_CONFIG: Record<
     available: true,
   },
   mastodon: {
-    icon: Globe2,
+    icon: PlatformSVGs.mastodon,
     name: 'Mastodon',
     shortName: 'Mastodon',
     color: 'bg-[#6364FF]',
@@ -177,7 +177,7 @@ const PLATFORM_CONFIG: Record<
     customConnect: true, // uses handle + PAT, not OAuth
   },
   slack: {
-    icon: Hash,
+    icon: PlatformSVGs.slack,
     name: 'Slack',
     shortName: 'Slack',
     color: 'bg-[#4A154B]',
@@ -188,7 +188,7 @@ const PLATFORM_CONFIG: Record<
     customConnect: true, // uses bot token
   },
   twitch: {
-    icon: Twitch,
+    icon: PlatformSVGs.twitch,
     name: 'Twitch',
     shortName: 'Twitch',
     color: 'bg-[#9146FF]',
@@ -199,7 +199,7 @@ const PLATFORM_CONFIG: Record<
     customConnect: true,
   },
   telegram: {
-    icon: Send,
+    icon: PlatformSVGs.telegram,
     name: 'Telegram',
     shortName: 'Telegram',
     color: 'bg-[#229ED9]',
@@ -210,7 +210,7 @@ const PLATFORM_CONFIG: Record<
     customConnect: true,
   },
   discord: {
-    icon: Hash,
+    icon: PlatformSVGs.discord,
     name: 'Discord',
     shortName: 'Discord',
     color: 'bg-[#5865F2]',
@@ -220,7 +220,7 @@ const PLATFORM_CONFIG: Record<
     available: true,
   },
   dribbble: {
-    icon: Dribbble,
+    icon: PlatformSVGs.dribbble,
     name: 'Dribbble',
     shortName: 'Dribbble',
     color: 'bg-[#EA4C89]',
@@ -230,7 +230,7 @@ const PLATFORM_CONFIG: Record<
     available: true,
   },
   skool: {
-    icon: GraduationCap,
+    icon: PlatformSVGs.skool,
     name: 'Skool',
     shortName: 'Skool',
     color: 'bg-[#E2AD44]',
@@ -241,7 +241,7 @@ const PLATFORM_CONFIG: Record<
     customConnect: true,
   },
   whop: {
-    icon: Store,
+    icon: PlatformSVGs.whop,
     name: 'Whop',
     shortName: 'Whop',
     color: 'bg-[#FF5A00]',
@@ -251,7 +251,7 @@ const PLATFORM_CONFIG: Record<
     available: true,
   },
   kick: {
-    icon: Gamepad2,
+    icon: PlatformSVGs.kick,
     name: 'Kick',
     shortName: 'Kick',
     color: 'bg-[#53FC18]',
@@ -262,7 +262,7 @@ const PLATFORM_CONFIG: Record<
   },
 
   warpcast: {
-    icon: Hash,
+    icon: PlatformSVGs.warpcast,
     name: 'Farcaster',
     shortName: 'Farcaster',
     color: 'bg-[#8A63D2]',
@@ -273,7 +273,7 @@ const PLATFORM_CONFIG: Record<
     customConnect: true,
   },
   mewe: {
-    icon: MessageSquare,
+    icon: PlatformSVGs.mewe,
     name: 'MeWe',
     shortName: 'MeWe',
     color: 'bg-[#2F435E]',
@@ -284,7 +284,7 @@ const PLATFORM_CONFIG: Record<
     customConnect: true,
   },
   nostr: {
-    icon: Zap,
+    icon: PlatformSVGs.nostr,
     name: 'Nostr',
     shortName: 'Nostr',
     color: 'bg-[#9B51E0]',
@@ -295,7 +295,7 @@ const PLATFORM_CONFIG: Record<
     customConnect: true,
   },
   medium: {
-    icon: FileText,
+    icon: PlatformSVGs.medium,
     name: 'Medium',
     shortName: 'Medium',
     color: 'bg-black',
@@ -306,7 +306,7 @@ const PLATFORM_CONFIG: Record<
     customConnect: true,
   },
   lemmy: {
-    icon: Globe2,
+    icon: PlatformSVGs.lemmy,
     name: 'Lemmy',
     shortName: 'Lemmy',
     color: 'bg-[#00BC8C]',
@@ -317,7 +317,7 @@ const PLATFORM_CONFIG: Record<
     customConnect: true,
   },
   listmonk: {
-    icon: Mail,
+    icon: PlatformSVGs.listmonk,
     name: 'Listmonk',
     shortName: 'Listmonk',
     color: 'bg-[#0045ff]',
@@ -328,7 +328,7 @@ const PLATFORM_CONFIG: Record<
     customConnect: true,
   },
   hashnode: {
-    icon: BookOpen,
+    icon: PlatformSVGs.hashnode,
     name: 'Hashnode',
     shortName: 'Hashnode',
     color: 'bg-[#2962FF]',
@@ -339,7 +339,7 @@ const PLATFORM_CONFIG: Record<
     customConnect: true,
   },
   devto: {
-    icon: Code2,
+    icon: PlatformSVGs.devto,
     name: 'DEV Community',
     shortName: 'DEV.to',
     color: 'bg-neutral-900 dark:bg-neutral-100',
@@ -776,19 +776,8 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
                 >
                   {/* Platform header */}
                   <div className="flex items-center gap-3 mb-3">
-                    <div
-                      className={cn(
-                        'p-2 rounded-lg text-white flex-shrink-0',
-                        cfg.color
-                      )}
-                    >
-                      <Icon
-                        className={cn(
-                          'w-4 h-4',
-                          platform === 'x' && 'dark:text-neutral-900',
-                          platform === 'threads' && 'dark:text-neutral-900'
-                        )}
-                      />
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 drop-shadow-xs">
+                      <PlatformBrandLogo platform={platform} size={28} />
                     </div>
                     <div className="min-w-0 flex-1">
                       <h4 className="text-sm font-semibold text-foreground truncate">
@@ -927,8 +916,8 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
                       key={platform}
                       className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-border/50 bg-muted/20 text-muted-foreground"
                     >
-                      <div className={cn('p-1 rounded', cfg.color, 'opacity-50')}>
-                        <Icon className="w-3 h-3 text-white" />
+                      <div className="flex items-center justify-center flex-shrink-0">
+                        <PlatformBrandLogo platform={platform} size={18} />
                       </div>
                       <span className="text-xs">{cfg.shortName}</span>
                       <Lock className="h-3 w-3 opacity-40" />

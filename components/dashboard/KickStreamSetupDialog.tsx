@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { ExternalLink, Loader2, Radio, Eye, EyeOff } from 'lucide-react';
+import { ExternalLink, Loader2, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
+import { PlatformBrandLogo } from '@/components/dashboard/PlatformLogos';
 
 interface KickStreamSetupDialogProps {
   open: boolean;
@@ -100,8 +101,8 @@ export function KickStreamSetupDialog({
       <DialogContent className="sm:max-w-md bg-white dark:bg-black/95 dark:backdrop-blur-xl border dark:border-white/10 z-[100]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-[#53FC18] text-black">
-              <Radio className="w-4 h-4" />
+            <div className="p-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/50 flex items-center justify-center">
+              <PlatformBrandLogo platform="kick" size={18} />
             </div>
             Kick Live Stream Setup
           </DialogTitle>

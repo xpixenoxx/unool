@@ -3,6 +3,7 @@ import { generateWithFallback } from './provider';
 import { Result, ok, err } from '@/lib/shared/Result';
 import { logger } from '@/lib/logger';
 import { ContentGuard } from './ContentGuard';
+import { buildStudioContext } from './studioContext';
 
 export const PlatformType = z.enum(['linkedin', 'x', 'threads', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'skool', 'whop', 'kick', 'warpcast', 'mewe', 'nostr', 'medium', 'lemmy', 'listmonk', 'hashnode', 'devto', 'dribbble', 'reddit']);
 export type PlatformType = z.infer<typeof PlatformType>;
@@ -316,6 +317,9 @@ const SEQUENCE_PROMPT = ContentGuard.buildSafePrompt(SEQUENCE_PROMPT_BASE);
 export interface AdaptationContext {
   profileName?: string;
   profileHeadline?: string;
+  studioProfile?: any;
+  studioContext?: string;
+  disablePersonalization?: boolean;
   onboardingPrompt?: string;
   onboardingAnswers?: Record<string, any> | null;
 }
@@ -371,18 +375,34 @@ export function buildOnboardingPrompt(answers?: Record<string, any> | null): str
   return prompt;
 }
 
-export function getPostAdapterSystemPrompt(onboardingPrompt?: string | null): string {
+export function getPostAdapterSystemPrompt(studioContext?: string | null): string {
   let basePrompt = POST_ADAPTER_PROMPT_BASE;
-  if (onboardingPrompt && onboardingPrompt.trim()) {
-    basePrompt = `${POST_ADAPTER_PROMPT_BASE}\n\n${onboardingPrompt.trim()}`;
+  if (studioContext && studioContext.trim()) {
+    basePrompt = `${POST_ADAPTER_PROMPT_BASE}
+
+## Priority & Governance Rules:
+When adapting content, strictly obey this priority hierarchy:
+1. Priority 1 (Highest): The author's current instructions and source idea. If the author's input conflicts with their studio profile (e.g. requesting a different tone, style, or topic today), their immediate request takes absolute precedence.
+2. Priority 2: Platform-specific constraints (character limits, reading patterns, format, and hashtag rules).
+3. Priority 3: The Creator Profile calibrations below (voice tone, archetype, style, audience relevance).
+
+${studioContext.trim()}`;
   }
   return ContentGuard.buildSafePrompt(basePrompt);
 }
 
-export function getSequenceSystemPrompt(onboardingPrompt?: string | null): string {
+export function getSequenceSystemPrompt(studioContext?: string | null): string {
   let basePrompt = SEQUENCE_PROMPT_BASE;
-  if (onboardingPrompt && onboardingPrompt.trim()) {
-    basePrompt = `${SEQUENCE_PROMPT_BASE}\n\n${onboardingPrompt.trim()}`;
+  if (studioContext && studioContext.trim()) {
+    basePrompt = `${SEQUENCE_PROMPT_BASE}
+
+## Priority & Governance Rules:
+When creating a multi-post sequence, strictly obey this priority hierarchy:
+1. Priority 1 (Highest): The author's current instructions and source content. If conflicting with their studio profile, the current instructions take absolute precedence.
+2. Priority 2: Platform-specific sequence rules and narrative arc guidelines.
+3. Priority 3: The Creator Profile calibrations below.
+
+${studioContext.trim()}`;
   }
   return ContentGuard.buildSafePrompt(basePrompt);
 }
@@ -408,8 +428,16 @@ export class PostAdapter {
 
       logger.info('Adapting post for platform', { platform, sourceLength: sourceContent.length });
 
-      const onboardingPrompt = context?.onboardingPrompt || (context?.onboardingAnswers ? buildOnboardingPrompt(context.onboardingAnswers) : undefined);
-      const systemPrompt = getPostAdapterSystemPrompt(onboardingPrompt);
+      const resolvedStudioContext = context?.disablePersonalization
+        ? undefined
+        : context?.studioContext ||
+          (context?.studioProfile
+            ? buildStudioContext(context.studioProfile)
+            : context?.onboardingAnswers
+            ? buildStudioContext(context.onboardingAnswers)
+            : context?.onboardingPrompt || undefined);
+
+      const systemPrompt = getPostAdapterSystemPrompt(resolvedStudioContext);
 
       const prompt = `${systemPrompt}
 
@@ -491,8 +519,16 @@ ${context?.profileName ? `**Author Context:** ${context.profileName}${context.pr
     const results: Record<PlatformType, Result<AdaptedPost, Error>> = {} as any;
     if (platforms.length === 0) return results;
 
-    const onboardingPrompt = context?.onboardingPrompt || (context?.onboardingAnswers ? buildOnboardingPrompt(context.onboardingAnswers) : undefined);
-    const systemPrompt = getPostAdapterSystemPrompt(onboardingPrompt);
+    const resolvedStudioContext = context?.disablePersonalization
+      ? undefined
+      : context?.studioContext ||
+        (context?.studioProfile
+          ? buildStudioContext(context.studioProfile)
+          : context?.onboardingAnswers
+          ? buildStudioContext(context.onboardingAnswers)
+          : context?.onboardingPrompt || undefined);
+
+    const systemPrompt = getPostAdapterSystemPrompt(resolvedStudioContext);
 
     // Filter to known platforms with specs
     const validPlatforms = platforms.filter(p => p in PLATFORM_SPECS);
@@ -623,8 +659,16 @@ ${batch.map(p => `    "${p}": { "content": "...", "characterCount": 100, "hashta
     try {
       logger.info('Generating post sequence', { platform, numberOfPosts, sourceLength: sourceContent.length });
 
-      const onboardingPrompt = context?.onboardingPrompt || (context?.onboardingAnswers ? buildOnboardingPrompt(context.onboardingAnswers) : undefined);
-      const systemPrompt = getSequenceSystemPrompt(onboardingPrompt);
+      const resolvedStudioContext = context?.disablePersonalization
+        ? undefined
+        : context?.studioContext ||
+          (context?.studioProfile
+            ? buildStudioContext(context.studioProfile)
+            : context?.onboardingAnswers
+            ? buildStudioContext(context.onboardingAnswers)
+            : context?.onboardingPrompt || undefined);
+
+      const systemPrompt = getSequenceSystemPrompt(resolvedStudioContext);
 
       const prompt = `${systemPrompt}
 

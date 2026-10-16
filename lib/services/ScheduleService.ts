@@ -267,8 +267,8 @@ export class ScheduleService {
           original: baseScheduledAt.toISOString(),
           arcBeat: arcPost.arcBeat,
         });
-        // Bump to at least 10 minutes in the future
-        baseScheduledAt = new Date(Date.now() + 10 * 60 * 1000);
+        // Bump to at least 5 minutes in the future
+        baseScheduledAt = new Date(Date.now() + 5 * 60 * 1000);
       }
 
       const result = await this.schedulePost({
@@ -365,11 +365,13 @@ export class ScheduleService {
         scheduledAt: newScheduledAt,
       });
       await postRepository.update(postId, {
+        status: 'scheduled',
         scheduledAt: newScheduledAt,
         qstashMessageId: newMessageId,
       });
       for (const variant of variants) {
         await postRepository.updateVariant(variant.id, {
+          status: 'scheduled',
           scheduledAt: newScheduledAt,
           qstashMessageId: null,
         });
@@ -390,11 +392,15 @@ export class ScheduleService {
           autoFirstComment: variant.autoFirstComment ?? undefined,
         });
         await postRepository.updateVariant(variant.id, {
+          status: 'scheduled',
           scheduledAt: newVariantTime,
           qstashMessageId: newMsgId,
         });
       }
-      await postRepository.update(postId, { scheduledAt: newScheduledAt });
+      await postRepository.update(postId, {
+        status: 'scheduled',
+        scheduledAt: newScheduledAt,
+      });
     }
 
     logger.info('Post rescheduled', { postId, newScheduledAt: newScheduledAt.toISOString() });

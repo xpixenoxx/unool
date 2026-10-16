@@ -16,6 +16,7 @@ import { Loader2, Key, Shield, Bell, Palette, Trash2, User, Lock, LogOut, CheckC
 import { TemplateSelector } from '@/components/profile/TemplateSelector';
 import { getSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { StudioOnboardingModal } from '@/components/dashboard/StudioOnboardingModal';
+import { StudioProfile, getRoleConfig } from '@/lib/config/studioOnboarding';
 
 type TabValue = 'account' | 'persona' | 'security' | 'notifications' | 'appearance' | 'danger';
 
@@ -85,69 +86,125 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
   const [mfaEnabled, setMfaEnabled] = useState(false);
   const [togglingMfa, setTogglingMfa] = useState(false);
 
-  // Studio Persona / Onboarding state
-  const [onboardingAnswers, setOnboardingAnswers] = useState<{
-    persona: string;
-    focus: string;
-    audience: string[];
-    tone: string[];
-    extras: string[];
-    custom: Record<string, string>;
-  }>({
-    persona: '',
-    focus: '',
-    audience: [],
-    tone: [],
-    extras: [],
-    custom: {},
+  // Studio Profile state
+  const [studioProfile, setStudioProfile] = useState<StudioProfile>({
+    role: '',
+    businessStage: '',
+    businessDomain: '',
+    workInterests: '',
+    doing: '',
+    audience: '',
+    tone: '',
+    style: '',
+    interests: [],
   });
   const [onboardingCompleted, setOnboardingCompleted] = useState(false);
   const [savingOnboarding, setSavingOnboarding] = useState(false);
   const [showRetakeModal, setShowRetakeModal] = useState(false);
+  const roleConfig = getRoleConfig(studioProfile.role);
 
   const loadOnboardingProfile = async () => {
     try {
-      const res = await fetch('/api/profile/onboarding', { credentials: 'include', cache: 'no-store' });
+      const res = await fetch('/api/studio/profile', { credentials: 'include', cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
-        setOnboardingCompleted(data.onboarding_completed || data.onboardingCompleted || false);
-        if (data.answers || data.onboarding_answers) {
-          const a = data.answers || data.onboarding_answers;
-          setOnboardingAnswers({
-            persona: a.persona || '',
-            focus: a.focus || '',
-            audience: Array.isArray(a.audience) ? a.audience : [],
-            tone: Array.isArray(a.tone) ? a.tone : [],
-            extras: Array.isArray(a.extras) ? a.extras : [],
-            custom: a.custom || {},
+        setOnboardingCompleted(Boolean(data.isCompleted));
+        if (data.profile) {
+          setStudioProfile({
+            role: data.profile.role || '',
+            businessStage: data.profile.businessStage || '',
+            businessDomain: data.profile.businessDomain || data.profile.doing || '',
+            workInterests: data.profile.workInterests || '',
+            doing: data.profile.doing || data.profile.businessDomain || '',
+            audience: data.profile.audience || '',
+            tone: data.profile.tone || '',
+            style: data.profile.style || '',
+            interests: Array.isArray(data.profile.interests) ? data.profile.interests : [],
+            completedAt: data.profile.completedAt,
           });
+          return;
+        }
+      }
+
+      // Fallback check to legacy /api/profile/onboarding
+      const legacyRes = await fetch('/api/profile/onboarding', { credentials: 'include', cache: 'no-store' });
+      if (legacyRes.ok) {
+        const legacyData = await legacyRes.json();
+        if (legacyData.studio_profile || legacyData.studioProfile) {
+          const sp = legacyData.studio_profile || legacyData.studioProfile;
+          setStudioProfile({
+            role: sp.role || '',
+            businessStage: sp.businessStage || '',
+            businessDomain: sp.businessDomain || sp.doing || '',
+            workInterests: sp.workInterests || '',
+            doing: sp.doing || sp.businessDomain || '',
+            audience: sp.audience || '',
+            tone: sp.tone || '',
+            style: sp.style || '',
+            interests: Array.isArray(sp.interests) ? sp.interests : [],
+            completedAt: sp.completedAt,
+          });
+          setOnboardingCompleted(Boolean(legacyData.onboarding_completed || legacyData.onboardingCompleted));
+        } else if (legacyData.answers || legacyData.onboarding_answers) {
+          const a = legacyData.answers || legacyData.onboarding_answers;
+          setStudioProfile({
+            role: a.persona || '',
+            businessStage: '',
+            businessDomain: a.focus || '',
+            workInterests: '',
+            doing: a.focus || '',
+            audience: Array.isArray(a.audience) ? a.audience.join(', ') : a.audience || '',
+            tone: Array.isArray(a.tone) ? a.tone.join(', ') : a.tone || '',
+            style: a.custom?.style || 'Short & punchy',
+            interests: Array.isArray(a.extras) ? a.extras : [],
+          });
+          setOnboardingCompleted(Boolean(legacyData.onboarding_completed || legacyData.onboardingCompleted));
         }
       }
     } catch (e) {
-      console.warn('Failed to load onboarding in settings:', e);
+      console.warn('Failed to load studio profile in settings:', e);
     }
   };
 
   const handleSaveOnboarding = async () => {
     setSavingOnboarding(true);
     try {
-      const res = await fetch('/api/profile/onboarding', {
+      const domain = (studioProfile.businessDomain || studioProfile.doing || '').trim();
+      const payload: StudioProfile = {
+        role: (studioProfile.role.trim() || 'Creator').slice(0, 80),
+        businessStage: (studioProfile.businessStage?.trim() || 'Growing').slice(0, 80),
+        businessDomain: (domain || 'Software/AI').slice(0, 80),
+        workInterests: studioProfile.workInterests?.trim() ? studioProfile.workInterests.trim().slice(0, 120) : undefined,
+        doing: (domain || 'Software/AI').slice(0, 80),
+        audience: (studioProfile.audience.trim() || 'Followers in my niche').slice(0, 80),
+        tone: (studioProfile.tone.trim() || 'Conversational & candid').slice(0, 80),
+        style: (studioProfile.style.trim() || 'Short punchy lines').slice(0, 80),
+        interests: studioProfile.interests.length > 0
+          ? studioProfile.interests.map((i) => i.trim().slice(0, 80)).filter(Boolean)
+          : ['General topics'],
+        completedAt: new Date().toISOString(),
+      };
+
+      const res = await fetch('/api/studio/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
-          onboarding_completed: true,
-          answers: onboardingAnswers,
-        }),
+        body: JSON.stringify(payload),
       });
+
       if (res.ok) {
-        toast.success('Studio Persona updated successfully!');
+        setStudioProfile(payload);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('studio-profile-updated', { detail: payload }));
+        }
+        toast.success('Studio Profile calibrations saved successfully!');
         setOnboardingCompleted(true);
       } else {
-        throw new Error('Failed to save settings');
+        const errData = await res.json().catch(() => null);
+        throw new Error(errData?.error || 'Failed to save settings');
       }
     } catch (e) {
-      toast.error('Failed to update Studio Persona');
+      toast.error(e instanceof Error ? e.message : 'Failed to update Studio Profile');
     } finally {
       setSavingOnboarding(false);
     }
@@ -416,7 +473,7 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
                   <span>Studio Voice Calibrations & Persona</span>
                 </CardTitle>
                 <p className="text-xs text-muted-foreground mt-1">
-                  These strategic calibrations anchor Studio's multi-platform AI adaptations, opening hooks, voice cadence, and guardrails.
+                  These strategic calibrations anchor Studio&apos;s multi-platform AI adaptations, opening hooks, voice cadence, and content ideas.
                 </p>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
@@ -454,40 +511,60 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                   <div className="p-3 rounded-xl bg-white dark:bg-zinc-800/80 border border-zinc-200/60 dark:border-zinc-700">
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase">Archetype</p>
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase">Role</p>
                     <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 truncate">
-                      {onboardingAnswers.persona || 'Not calibrated'}
+                      {studioProfile.role || 'Not calibrated'}
                     </p>
                   </div>
                   <div className="p-3 rounded-xl bg-white dark:bg-zinc-800/80 border border-zinc-200/60 dark:border-zinc-700">
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase">Territory</p>
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase">{roleConfig.stageTitle.replace(/\?$/, '')}</p>
                     <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 truncate">
-                      {onboardingAnswers.focus || 'Not specified'}
+                      {studioProfile.businessStage || 'Growing'}
                     </p>
                   </div>
                   <div className="p-3 rounded-xl bg-white dark:bg-zinc-800/80 border border-zinc-200/60 dark:border-zinc-700">
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase">Target Circles</p>
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase">{roleConfig.domainLabel}</p>
                     <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 truncate">
-                      {onboardingAnswers.audience.length > 0 ? onboardingAnswers.audience.join(', ') : 'Not selected'}
+                      {studioProfile.businessDomain || studioProfile.doing || 'Not specified'}
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-white dark:bg-zinc-800/80 border border-zinc-200/60 dark:border-zinc-700">
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase">{roleConfig.audienceTitle.replace(/\?$/, '')}</p>
+                    <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 truncate">
+                      {studioProfile.audience || 'Not selected'}
                     </p>
                   </div>
                   <div className="p-3 rounded-xl bg-white dark:bg-zinc-800/80 border border-zinc-200/60 dark:border-zinc-700">
                     <p className="text-[10px] font-semibold text-muted-foreground uppercase">Voice Tone</p>
                     <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 truncate">
-                      {onboardingAnswers.tone.length > 0 ? onboardingAnswers.tone.join(', ') : 'Not selected'}
+                      {studioProfile.tone || 'Not selected'}
                     </p>
                   </div>
+                  <div className="p-3 rounded-xl bg-white dark:bg-zinc-800/80 border border-zinc-200/60 dark:border-zinc-700">
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase">Reading Style</p>
+                    <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 truncate">
+                      {studioProfile.style || 'Not selected'}
+                    </p>
+                  </div>
+                  {Boolean(studioProfile.workInterests) && (
+                    <div className="p-3 rounded-xl bg-white dark:bg-zinc-800/80 border border-zinc-200/60 dark:border-zinc-700 sm:col-span-2">
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase">{roleConfig.workInterestsLabel.replace(/\?$/, '')}</p>
+                      <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 truncate">
+                        {studioProfile.workInterests}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
-                {onboardingAnswers.extras && onboardingAnswers.extras.length > 0 && (
+                {studioProfile.interests && studioProfile.interests.length > 0 && (
                   <div className="mt-3 pt-3 border-t border-zinc-200/60 dark:border-zinc-700 flex flex-wrap items-center gap-1.5">
-                    <span className="text-[11px] font-medium text-muted-foreground mr-1">Active Guardrails:</span>
-                    {onboardingAnswers.extras.map((extra) => (
+                    <span className="text-[11px] font-medium text-muted-foreground mr-1">Active Interests:</span>
+                    {studioProfile.interests.map((interest) => (
                       <span
-                        key={extra}
+                        key={interest}
                         className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700"
                       >
-                        {extra}
+                        {interest}
                       </span>
                     ))}
                   </div>
@@ -496,65 +573,165 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
 
               {/* Direct Configuration Form */}
               <div className="grid gap-5 sm:grid-cols-2">
-                {/* Persona */}
+                {/* 1. Primary Hat / Role */}
                 <div>
-                  <Label htmlFor="persona-select">Publishing Archetype</Label>
+                  <Label htmlFor="studio-role-input">Primary Hat / Role</Label>
                   <Input
-                    id="persona-select"
-                    value={onboardingAnswers.persona}
-                    onChange={(e) => setOnboardingAnswers(prev => ({ ...prev, persona: e.target.value }))}
-                    placeholder="e.g. Venture Architect, Growth Operator, Domain Authority..."
+                    id="studio-role-input"
+                    value={studioProfile.role}
+                    onChange={(e) => setStudioProfile((prev) => ({ ...prev, role: e.target.value }))}
+                    placeholder="e.g. Student, Founder, Creator, Influencer, Software engineer..."
                     className="mt-1"
                   />
-                  <p className="text-[11px] text-muted-foreground mt-1">
-                    Your core perspective and identity across publications.
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {['Student', 'Founder', 'Creator', 'Influencer', 'Software engineer', 'Company / Brand'].map((r) => (
+                      <button
+                        key={r}
+                        type="button"
+                        onClick={() => setStudioProfile((prev) => ({ ...prev, role: r }))}
+                        className={`px-2.5 py-1 text-xs rounded-lg border transition-all cursor-pointer ${
+                          studioProfile.role.toLowerCase() === r.toLowerCase()
+                            ? 'bg-[#C4A265] text-white border-[#C4A265] font-semibold shadow-xs'
+                            : 'bg-background hover:bg-muted text-muted-foreground border-border'
+                        }`}
+                      >
+                        {r}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1.5">
+                    Which hat you wear most days. Selecting a role dynamically updates the questions and choices below.
                   </p>
                 </div>
 
-                {/* Focus */}
+                {/* 2. Business Stage */}
                 <div>
-                  <Label htmlFor="focus-input">Domain / Venture Territory</Label>
+                  <Label htmlFor="studio-stage-input">{roleConfig.stageTitle}</Label>
                   <Input
-                    id="focus-input"
-                    value={onboardingAnswers.focus}
-                    onChange={(e) => setOnboardingAnswers(prev => ({ ...prev, focus: e.target.value }))}
-                    placeholder="e.g. Autonomous AI & Agentic Systems, Client Advisory..."
+                    id="studio-stage-input"
+                    value={studioProfile.businessStage || ''}
+                    onChange={(e) => setStudioProfile((prev) => ({ ...prev, businessStage: e.target.value }))}
+                    placeholder={`e.g. ${roleConfig.stageOptions.slice(0, 3).join(', ')}...`}
                     className="mt-1"
                   />
-                  <p className="text-[11px] text-muted-foreground mt-1">
-                    Your core sector, product architecture, or specialized discipline.
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {roleConfig.stageOptions.map((opt) => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => setStudioProfile((prev) => ({ ...prev, businessStage: opt }))}
+                        className={`px-2.5 py-1 text-xs rounded-lg border transition-all cursor-pointer ${
+                          studioProfile.businessStage === opt
+                            ? 'bg-[#3D2B1F] dark:bg-zinc-100 text-white dark:text-zinc-900 border-[#3D2B1F] dark:border-zinc-100 font-semibold shadow-xs'
+                            : 'bg-background hover:bg-muted text-muted-foreground border-border'
+                        }`}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1.5">
+                    Select a stage option or type your own above.
                   </p>
                 </div>
 
-                {/* Audience */}
+                {/* 3. Business Domain */}
                 <div>
-                  <Label htmlFor="audience-input">Target Decision-Making Circles (comma-separated)</Label>
+                  <Label htmlFor="studio-domain-input-settings">{roleConfig.domainTitle}</Label>
                   <Input
-                    id="audience-input"
-                    value={onboardingAnswers.audience.join(', ')}
-                    onChange={(e) => {
-                      const vals = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
-                      setOnboardingAnswers(prev => ({ ...prev, audience: vals }));
-                    }}
-                    placeholder="e.g. Early Adopters & Tech Builders, Angel Investors & VCs"
+                    id="studio-domain-input-settings"
+                    value={studioProfile.businessDomain || studioProfile.doing}
+                    onChange={(e) =>
+                      setStudioProfile((prev) => ({
+                        ...prev,
+                        businessDomain: e.target.value,
+                        doing: e.target.value,
+                      }))
+                    }
+                    placeholder={roleConfig.domainPlaceholder}
                     className="mt-1"
                   />
-                  <p className="text-[11px] text-muted-foreground mt-1">
-                    The circles your writing is strategically engineered to influence.
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {roleConfig.domainChips.map((chip) => (
+                      <button
+                        key={chip}
+                        type="button"
+                        onClick={() =>
+                          setStudioProfile((prev) => ({
+                            ...prev,
+                            businessDomain: chip,
+                            doing: chip,
+                          }))
+                        }
+                        className={`px-2.5 py-1 text-xs rounded-lg border transition-all cursor-pointer ${
+                          (studioProfile.businessDomain || studioProfile.doing) === chip
+                            ? 'bg-[#3D2B1F] dark:bg-zinc-100 text-white dark:text-zinc-900 border-[#3D2B1F] dark:border-zinc-100 font-semibold shadow-xs'
+                            : 'bg-background hover:bg-muted text-muted-foreground border-border'
+                        }`}
+                      >
+                        {chip}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1.5">
+                    {roleConfig.domainLabel}. Pick a chip or type your custom domain.
                   </p>
                 </div>
 
-                {/* Tone */}
+                {/* 4. Work Themes / Topics */}
                 <div>
-                  <Label htmlFor="tone-input">Voice Signature Cadence (comma-separated)</Label>
+                  <Label htmlFor="studio-work-interests-settings">{roleConfig.workInterestsLabel}</Label>
                   <Input
-                    id="tone-input"
-                    value={onboardingAnswers.tone.join(', ')}
-                    onChange={(e) => {
-                      const vals = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
-                      setOnboardingAnswers(prev => ({ ...prev, tone: vals }));
-                    }}
-                    placeholder="e.g. The Pragmatic Operator, The Provocative Contrarian..."
+                    id="studio-work-interests-settings"
+                    value={studioProfile.workInterests || ''}
+                    onChange={(e) => setStudioProfile((prev) => ({ ...prev, workInterests: e.target.value }))}
+                    placeholder={roleConfig.workInterestsPlaceholder}
+                    className="mt-1"
+                  />
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Optional work topics and themes you love discussing in posts.
+                  </p>
+                </div>
+
+                {/* 5. Target Audience */}
+                <div>
+                  <Label htmlFor="studio-audience-input">{roleConfig.audienceTitle}</Label>
+                  <Input
+                    id="studio-audience-input"
+                    value={studioProfile.audience}
+                    onChange={(e) => setStudioProfile((prev) => ({ ...prev, audience: e.target.value }))}
+                    placeholder={`e.g. ${roleConfig.audienceOptions.slice(0, 3).join(', ')}...`}
+                    className="mt-1"
+                  />
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {roleConfig.audienceOptions.map((aud) => (
+                      <button
+                        key={aud}
+                        type="button"
+                        onClick={() => setStudioProfile((prev) => ({ ...prev, audience: aud }))}
+                        className={`px-2.5 py-1 text-xs rounded-lg border transition-all cursor-pointer ${
+                          studioProfile.audience === aud
+                            ? 'bg-[#3D2B1F] dark:bg-zinc-100 text-white dark:text-zinc-900 border-[#3D2B1F] dark:border-zinc-100 font-semibold shadow-xs'
+                            : 'bg-background hover:bg-muted text-muted-foreground border-border'
+                        }`}
+                      >
+                        {aud}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1.5">
+                    Who you are hoping to catch the attention of across publications.
+                  </p>
+                </div>
+
+                {/* 6. Voice Tone */}
+                <div>
+                  <Label htmlFor="studio-tone-input">Voice Tone Cadence</Label>
+                  <Input
+                    id="studio-tone-input"
+                    value={studioProfile.tone}
+                    onChange={(e) => setStudioProfile((prev) => ({ ...prev, tone: e.target.value }))}
+                    placeholder="e.g. Soft & smooth, Rebel, Witty, Calm expert, Storyteller, Straight-talker..."
                     className="mt-1"
                   />
                   <p className="text-[11px] text-muted-foreground mt-1">
@@ -562,42 +739,36 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
                   </p>
                 </div>
 
-                {/* Additional Preferences & Rules */}
-                <div className="sm:col-span-2">
-                  <Label htmlFor="extras-input">Publishing Guardrails & Rules (comma-separated)</Label>
+                {/* 7. Reading Style */}
+                <div>
+                  <Label htmlFor="studio-style-input">Reading & Content Style</Label>
                   <Input
-                    id="extras-input"
-                    value={(onboardingAnswers.extras || []).join(', ')}
-                    onChange={(e) => {
-                      const vals = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
-                      setOnboardingAnswers(prev => ({ ...prev, extras: vals }));
-                    }}
-                    placeholder="e.g. Hook in the opening line, Strictly no corporate buzzwords, High signal-to-noise ratio, Never use emojis..."
+                    id="studio-style-input"
+                    value={studioProfile.style}
+                    onChange={(e) => setStudioProfile((prev) => ({ ...prev, style: e.target.value }))}
+                    placeholder="e.g. Short & punchy, Storytelling, Educational, Bold opinions..."
                     className="mt-1"
                   />
                   <p className="text-[11px] text-muted-foreground mt-1">
-                    Stylistic constraints and structural rules enforced on every AI draft generation.
+                    How your posts should feel to read (Short & punchy, Storytelling, Educational, etc.).
                   </p>
                 </div>
 
-                {/* Additional Notes */}
-                <div className="sm:col-span-2">
-                  <Label htmlFor="extras-text-input">Bespoke Guidelines & Notes</Label>
+                {/* 6. Interests Outside Work */}
+                <div>
+                  <Label htmlFor="studio-interests-input">Interests Outside Work (comma-separated)</Label>
                   <Input
-                    id="extras-text-input"
-                    value={onboardingAnswers.custom?.extras_text || ''}
+                    id="studio-interests-input"
+                    value={studioProfile.interests.join(', ')}
                     onChange={(e) => {
-                      const text = e.target.value;
-                      setOnboardingAnswers(prev => ({
-                        ...prev,
-                        custom: { ...prev.custom, extras_text: text },
-                      }));
+                      const items = e.target.value.split(',').map((s) => s.trim()).filter(Boolean);
+                      setStudioProfile((prev) => ({ ...prev, interests: items }));
                     }}
-                    placeholder="e.g. Frame lessons through real experiments, mention product when sharing workflows, avoid hype words..."
+                    placeholder="e.g. Books, Gaming, Fitness, Travel, Movies, Tech..."
                     className="mt-1"
                   />
                   <p className="text-[11px] text-muted-foreground mt-1">
-                    Additional personalized instructions incorporated into the AI system prompt.
+                    Topics you love outside work that add authentic dimension and fresh angles to your ideas.
                   </p>
                 </div>
               </div>
@@ -629,23 +800,17 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
                 setShowRetakeModal(false);
                 loadOnboardingProfile();
               }}
-              onComplete={(answers: any) => {
-                if (answers) {
-                  setOnboardingAnswers({
-                    persona: answers.role || answers.persona || '',
-                    focus: answers.doing || answers.focus || '',
-                    audience: answers.audience ? (Array.isArray(answers.audience) ? answers.audience : [answers.audience]) : [],
-                    tone: answers.tone ? (Array.isArray(answers.tone) ? answers.tone : [answers.tone]) : [],
-                    extras: Array.isArray(answers.interests) ? answers.interests : (Array.isArray(answers.extras) ? answers.extras : []),
-                    custom: answers.custom || {},
-                  });
+              onComplete={(newProfile: StudioProfile) => {
+                if (newProfile) {
+                  setStudioProfile(newProfile);
+                  setOnboardingCompleted(true);
                 }
                 setShowRetakeModal(false);
                 loadOnboardingProfile();
               }}
               forceOpen={true}
               isRetake={true}
-              initialAnswers={onboardingAnswers}
+              initialAnswers={studioProfile}
               userId={userId}
             />
           )}

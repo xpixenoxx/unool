@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Hash, ExternalLink, Loader2 } from 'lucide-react';
+import { ExternalLink, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { PlatformBrandLogo } from '@/components/dashboard/PlatformLogos';
 
 interface SlackConnectDialogProps {
   open: boolean;
@@ -59,10 +60,8 @@ export function SlackConnectDialog({
       <DialogContent className="sm:max-w-md bg-white dark:bg-black/95 dark:backdrop-blur-xl border dark:border-white/10 z-[100]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-[#4A154B] text-white">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
-                <path d="M5.04 10.42a2.07 2.07 0 11-2.07-2.07h2.07v2.07zm.69 0a2.07 2.07 0 114.14 0v5.22a2.07 2.07 0 11-4.14 0v-5.22zm4.14 5.92a2.07 2.07 0 11-2.07 2.07v-2.07h2.07zm0-.7a2.07 2.07 0 110-4.14h5.22a2.07 2.07 0 110 4.14H9.87zm5.92-4.14a2.07 2.07 0 112.07 2.07h-2.07v-2.07zm-.7 0a2.07 2.07 0 11-4.14 0V6.26a2.07 2.07 0 114.14 0v5.22zm-4.14-5.92a2.07 2.07 0 112.07-2.07v2.07h-2.07zm0 .7a2.07 2.07 0 110 4.14H5.73a2.07 2.07 0 110-4.14h5.22z"/>
-              </svg>
+            <div className="p-1 rounded-lg bg-purple-50 dark:bg-purple-950/40 border border-purple-200/50 flex items-center justify-center">
+              <PlatformBrandLogo platform="slack" size={18} />
             </div>
             Connect Slack
           </DialogTitle>

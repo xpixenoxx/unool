@@ -6,48 +6,54 @@ import {
 } from '../studioOnboarding';
 
 describe('Studio Onboarding Config & Cascading Logic', () => {
-  it('should define exactly 6 ordered questions', () => {
-    expect(STUDIO_ONBOARDING_QUESTIONS).toHaveLength(6);
+  it('should define exactly 7 ordered questions', () => {
+    expect(STUDIO_ONBOARDING_QUESTIONS).toHaveLength(7);
     const keys = STUDIO_ONBOARDING_QUESTIONS.map((q) => q.key);
-    expect(keys).toEqual(['role', 'doing', 'audience', 'tone', 'style', 'interests']);
+    expect(keys).toEqual([
+      'role',
+      'businessStage',
+      'businessDomain',
+      'audience',
+      'tone',
+      'style',
+      'interests',
+    ]);
   });
 
-  it('should dynamically return cascading options and titles for question 2 (doing)', () => {
-    const doingQuestion = STUDIO_ONBOARDING_QUESTIONS[1];
-    expect(doingQuestion.key).toBe('doing');
+  it('should configure question 2 (businessStage) with dynamic stage options', () => {
+    const stageQuestion = STUDIO_ONBOARDING_QUESTIONS[1];
+    expect(stageQuestion.key).toBe('businessStage');
+    const founderTitle = typeof stageQuestion.title === 'function' ? stageQuestion.title({ role: 'Founder' }) : stageQuestion.title;
+    const founderOptions = typeof stageQuestion.options === 'function' ? stageQuestion.options({ role: 'Founder' }) : stageQuestion.options;
+    expect(founderTitle).toBe('Where is your business right now?');
+    expect(founderOptions).toEqual([
+      'Just an idea',
+      'Early stage / startup',
+      'Growing',
+      'Settled',
+      'Expert / established',
+    ]);
+    expect(stageQuestion.allowOther).toBe(true);
+    expect(stageQuestion.multiSelect).toBe(false);
+  });
 
-    const titleFn = doingQuestion.title as (answers: Record<string, any>) => string;
-    const optionsFn = doingQuestion.options as (answers: Record<string, any>) => string[];
-
-    // 1. Student
-    expect(titleFn({ role: 'Student' })).toBe('What are you studying or grinding on?');
-    expect(optionsFn({ role: 'Student' })).toEqual(DOING_BY_ROLE['Student'].options);
-    expect(optionsFn({ role: 'Student' })).toContain('Technical / engineering');
-
-    // 2. Founder
-    expect(titleFn({ role: 'Founder' })).toBe('What does your business actually do?');
-    expect(optionsFn({ role: 'Founder' })).toEqual(DOING_BY_ROLE['Founder'].options);
-    expect(optionsFn({ role: 'Founder' })).toContain('Tech startup');
-
-    // 3. Creator
-    expect(titleFn({ role: 'Creator' })).toBe('What kind of content is your thing?');
-    expect(optionsFn({ role: 'Creator' })).toContain('Horror');
-
-    // 4. Influencer
-    expect(titleFn({ role: 'Influencer' })).toBe('What do people follow you for?');
-    expect(optionsFn({ role: 'Influencer' })).toContain('Fashion');
-
-    // 5. Software engineer
-    expect(titleFn({ role: 'Software engineer' })).toBe('What do you build all day?');
-    expect(optionsFn({ role: 'Software engineer' })).toContain('Frontend');
-
-    // 6. Company / Brand
-    expect(titleFn({ role: 'Company / Brand' })).toBe('What does your company do?');
-    expect(optionsFn({ role: 'Company / Brand' })).toContain('B2B SaaS');
-
-    // Fallback for custom / unknown role
-    expect(titleFn({ role: 'Independent Consultant' })).toBe('What is your primary focus or project?');
-    expect(optionsFn({ role: 'Independent Consultant' })).toEqual([]);
+  it('should configure question 3 (businessDomain) with dynamic quick-pick chips', () => {
+    const domainQuestion = STUDIO_ONBOARDING_QUESTIONS[2];
+    expect(domainQuestion.key).toBe('businessDomain');
+    const founderTitle = typeof domainQuestion.title === 'function' ? domainQuestion.title({ role: 'Founder' }) : domainQuestion.title;
+    const founderOptions = typeof domainQuestion.options === 'function' ? domainQuestion.options({ role: 'Founder' }) : domainQuestion.options;
+    expect(founderTitle).toBe('What does your business actually do?');
+    expect(founderOptions).toEqual([
+      'Software/AI',
+      'Food & dairy',
+      'Fashion & beauty',
+      'Education',
+      'Health & fitness',
+      'Agency/services',
+      'Finance',
+      'Creator/media',
+    ]);
+    expect(domainQuestion.isCustomStep).toBe(true);
   });
 
   it('should mark interests as multiSelect and others as single-select', () => {
@@ -101,10 +107,32 @@ describe('validateStudioProfile Validation Rules', () => {
     expect(result.error).toContain('exceeds maximum length of 80 characters');
   });
 
-  it('rejects invalid interests format or empty interests array', () => {
-    expect(validateStudioProfile({ ...validProfile, interests: 'Cricket' }).valid).toBe(false);
-    expect(validateStudioProfile({ ...validProfile, interests: [] }).valid).toBe(false);
-    expect(validateStudioProfile({ ...validProfile, interests: [''] }).valid).toBe(false);
-    expect(validateStudioProfile({ ...validProfile, interests: ['A'.repeat(81)] }).valid).toBe(false);
+  it('validates profile with businessStage, businessDomain, and workInterests', () => {
+    const stageProfile = {
+      role: 'Founder',
+      businessStage: 'Growing',
+      businessDomain: 'Software/AI',
+      workInterests: 'Scaling teams and distributed databases',
+      audience: 'Engineers',
+      tone: 'Straight-talker',
+      style: 'Short & punchy',
+      interests: ['Books', 'Gaming'],
+    };
+    const res = validateStudioProfile(stageProfile);
+    expect(res.valid).toBe(true);
+  });
+
+  it('rejects businessStage or workInterests exceeding character limits', () => {
+    const invalidStage = {
+      ...validProfile,
+      businessStage: 'A'.repeat(81),
+    };
+    expect(validateStudioProfile(invalidStage).valid).toBe(false);
+
+    const invalidWorkInterests = {
+      ...validProfile,
+      workInterests: 'B'.repeat(121),
+    };
+    expect(validateStudioProfile(invalidWorkInterests).valid).toBe(false);
   });
 });

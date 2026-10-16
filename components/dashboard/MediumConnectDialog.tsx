@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, FileText, ExternalLink } from 'lucide-react';
+import { Loader2, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
+import { PlatformBrandLogo } from '@/components/dashboard/PlatformLogos';
 
 interface MediumConnectDialogProps {
   open: boolean;
@@ -61,8 +62,8 @@ export function MediumConnectDialog({ open, onClose, workspaceId, onSuccess }: M
       <DialogContent className="sm:max-w-md bg-white dark:bg-black/95 dark:backdrop-blur-xl border dark:border-white/10 z-[100]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <div className="p-1.5 rounded-md bg-black text-white">
-              <FileText className="w-5 h-5" />
+            <div className="p-1 rounded-lg bg-neutral-100 dark:bg-neutral-900 border border-border/50 text-foreground flex items-center justify-center">
+              <PlatformBrandLogo platform="medium" size={18} />
             </div>
             Connect Medium
           </DialogTitle>

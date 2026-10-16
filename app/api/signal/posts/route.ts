@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
 import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
+import { extractNormalizedEngagement } from '@/lib/services/analytics/normalize';
+import { syncWorkspaceEngagement } from '@/lib/services/analytics/syncEngagement';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,6 +14,16 @@ export async function GET(request: NextRequest) {
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { workspaceId } = auth;
+  const shouldSync = request.nextUrl.searchParams.get('sync') === 'true';
+
+  // Trigger live engagement sync if requested
+  if (shouldSync) {
+    try {
+      await syncWorkspaceEngagement(workspaceId, { maxPosts: 15, forceRefresh: true });
+    } catch {
+      // Non-blocking sync error
+    }
+  }
 
   // Fetch last 50 posts (published, scheduled, draft, failed with variants)
   const { data: posts, error: postsError } = await admin
@@ -43,34 +55,83 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to fetch variants' }, { status: 500 });
   }
 
-  // Group variants by post_id
+  // Fetch real platform_posts records containing live engagement metrics
+  const variantIds = (variants || []).map((v: any) => v.id);
+  let platformPostsByVariant: Record<string, any[]> = {};
+  if (variantIds.length > 0) {
+    const { data: pPosts } = await admin
+      .from('platform_posts')
+      .select('id, post_variant_id, platform_connection_id, platform_post_id, platform_url, engagement')
+      .in('post_variant_id', variantIds);
+
+    for (const pp of pPosts || []) {
+      if (!platformPostsByVariant[pp.post_variant_id]) platformPostsByVariant[pp.post_variant_id] = [];
+      platformPostsByVariant[pp.post_variant_id].push(pp);
+    }
+  }
+
+  // Group variants by post_id and attach real engagement
   const variantsByPost: Record<string, any[]> = {};
   for (const v of variants || []) {
     if (!variantsByPost[v.post_id]) variantsByPost[v.post_id] = [];
+    const ppList = platformPostsByVariant[v.id] || [];
+    const primaryPp = ppList[0];
+    const normalizedEngagement = extractNormalizedEngagement(primaryPp?.engagement);
+
     variantsByPost[v.post_id].push({
       id: v.id,
       platform: v.platform,
       status: v.status,
-      platformUrl: v.platform_url || null,
-      platformPostId: v.platform_post_id || null,
+      platformUrl: primaryPp?.platform_url || v.platform_url || null,
+      platformPostId: primaryPp?.platform_post_id || v.platform_post_id || null,
       characterCount: v.character_count,
       error: v.error,
       createdAt: v.created_at,
       updatedAt: v.updated_at,
+      engagement: normalizedEngagement,
     });
   }
 
-  const result = posts.map((p: any) => ({
-    id: p.id,
-    content: p.content,
-    status: p.status,
-    hookType: p.hook_type || null,
-    wordCount: p.word_count || null,
-    hasMedia: p.has_media || false,
-    createdAt: p.created_at,
-    publishedAt: p.published_at || null,
-    variants: variantsByPost[p.id] || [],
-  }));
+  const result = posts.map((p: any) => {
+    const pVariants = variantsByPost[p.id] || [];
+    let postLikes = 0;
+    let postComments = 0;
+    let postShares = 0;
+    let postViews = 0;
+    let hasRealData = false;
+
+    for (const v of pVariants) {
+      if (v.engagement) {
+        postLikes += v.engagement.likes || 0;
+        postComments += v.engagement.comments || 0;
+        postShares += v.engagement.shares || 0;
+        postViews += v.engagement.views || 0;
+        if (v.engagement.hasRealData) hasRealData = true;
+      }
+    }
+
+    const totalInteractions = postLikes + postComments + postShares;
+
+    return {
+      id: p.id,
+      content: p.content,
+      status: p.status,
+      hookType: p.hook_type || null,
+      wordCount: p.word_count || null,
+      hasMedia: p.has_media || false,
+      createdAt: p.created_at,
+      publishedAt: p.published_at || null,
+      variants: pVariants,
+      engagement: {
+        likes: postLikes,
+        comments: postComments,
+        shares: postShares,
+        views: postViews,
+        total: totalInteractions,
+        hasRealData,
+      },
+    };
+  });
 
   return NextResponse.json({ posts: result });
 }
@@ -128,4 +189,3 @@ export async function DELETE(request: NextRequest) {
 
   return NextResponse.json({ success: true, message: 'Draft removed successfully' });
 }
-

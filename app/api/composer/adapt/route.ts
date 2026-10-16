@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PostAdapter, PlatformType, AdaptedPost, AdaptationContext, buildOnboardingPrompt } from '@/lib/ai/PostAdapter';
+import { buildStudioContext } from '@/lib/ai/studioContext';
 import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
@@ -50,43 +51,39 @@ export async function POST(request: NextRequest) {
       }
       const safeContent = guard.sanitizedContent;
 
-      // Get profile for context - if not provided, find one for the workspace
-      let profileContext: AdaptationContext = {};
-      let resolvedProfileId = profileId;
-      let targetProfile = null;
-
-      if (!resolvedProfileId) {
-        targetProfile = await profileRepository.findByWorkspaceId(workspaceId);
-        console.log('[DEBUG Composer] findByWorkspaceId result:', { workspaceId, workspaceProfile: targetProfile ? { id: targetProfile.id, name: targetProfile.name } : null });
-        if (targetProfile) {
-          resolvedProfileId = targetProfile.id;
-        }
-      } else {
-        targetProfile = await profileRepository.findById(profileId);
-        if (!targetProfile) {
-          targetProfile = await profileRepository.findByWorkspaceId(workspaceId);
-        }
-      }
+      // Load profile strictly server-side from authenticated workspace
+      const targetProfile = await profileRepository.findByWorkspaceId(workspaceId);
+      const profileContext: AdaptationContext = {};
+      const resolvedProfileId = targetProfile?.id || profileId;
 
       if (targetProfile) {
         profileContext.profileName = targetProfile.name || undefined;
         profileContext.profileHeadline = targetProfile.headline || undefined;
       }
 
-      // Check for onboarding profile (either passed in body or saved on profile)
-      const effectiveAnswers = body.onboardingAnswers || targetProfile?.onboardingAnswers;
-      if (effectiveAnswers) {
-        const onboardingPrompt = buildOnboardingPrompt(effectiveAnswers);
-        if (onboardingPrompt) {
-          profileContext.onboardingPrompt = onboardingPrompt;
-          profileContext.onboardingAnswers = effectiveAnswers;
-          logger.info('Composer generation using user onboarding profile', {
-            workspaceId,
-            persona: effectiveAnswers.persona,
-            focus: effectiveAnswers.focus,
-          });
+      // Check if personalization is toggled off by user
+      const disablePersonalization = Boolean(body.disablePersonalization);
+      let profileApplied = false;
+
+      if (!disablePersonalization) {
+        const effectiveProfile = body.studioProfile || targetProfile?.studioProfile || targetProfile?.onboardingAnswers;
+        if (effectiveProfile) {
+          const studioContext = buildStudioContext(effectiveProfile);
+          if (studioContext) {
+            profileContext.studioProfile = effectiveProfile;
+            profileContext.studioContext = studioContext;
+            profileApplied = true;
+          }
         }
+      } else {
+        profileContext.disablePersonalization = true;
       }
+
+      // Server-side only logging (Zero personal text)
+      logger.info('Composer adaptation studio profile applied', {
+        workspaceId,
+        applied: profileApplied,
+      });
 
       // Ensure we have a valid profile ID
       if (!resolvedProfileId) {

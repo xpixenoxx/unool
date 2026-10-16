@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader2, ExternalLink, ShieldCheck, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
+import { PlatformBrandLogo } from '@/components/dashboard/PlatformLogos';
 
 interface DevtoConnectDialogProps {
   open: boolean;
@@ -76,8 +77,8 @@ export function DevtoConnectDialog({
       <DialogContent className="sm:max-w-lg bg-white dark:bg-black/95 dark:backdrop-blur-xl border dark:border-white/10 z-[100] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2.5 text-lg">
-            <div className="w-8 h-8 rounded-lg bg-black text-white dark:bg-white dark:text-black font-black flex items-center justify-center text-xs tracking-tighter shadow-sm">
-              DEV
+            <div className="w-8 h-8 rounded-lg bg-black text-white dark:bg-white dark:text-black flex items-center justify-center shadow-sm">
+              <PlatformBrandLogo platform="devto" size={20} />
             </div>
             Connect DEV Community (dev.to)
           </DialogTitle>

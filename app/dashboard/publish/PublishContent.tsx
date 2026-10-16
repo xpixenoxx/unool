@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Linkedin, Twitter, MessageSquare, CheckCircle, Edit, Send, AlertCircle, Sparkles, CircleCheckBig, X, ExternalLink, Facebook, Youtube, Instagram, Cloud, MessageCircle, Image as ImageIcon, Send as SendIcon, Twitch, Hash, Dribbble, GraduationCap, Store, Gamepad2, Video, Zap, FileText, Globe, Mail, BookOpen, Code2 } from 'lucide-react';
+import { Loader2, CheckCircle, Edit, Send, AlertCircle, Sparkles, CircleCheckBig, X, ExternalLink, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { Flex, Box, Stack, Text, Display, Divider } from '@/components/ui/layout';
 import { MotionBox, MotionStack, spring, stagger } from '@/components/ui/motion';
@@ -17,6 +17,8 @@ import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 import { type Platform } from './PlatformPreview';
 import { HashtagEditor } from '@/components/dashboard/HashtagEditor';
+import { PlatformBrandLogo } from '@/components/dashboard/previews/PlatformMobilePreview';
+import { PlatformSVGs } from '@/components/dashboard/PlatformLogos';
 
 type DraftStatus = 'draft' | 'published' | 'failed';
 
@@ -58,33 +60,33 @@ interface PlatformDraft {
 }
 
 const PLATFORM_CONFIG: Record<Platform, { icon: React.ElementType; name: string; maxChars: number; color: string }> = {
-  linkedin: { icon: Linkedin, name: 'LinkedIn', maxChars: 3000, color: 'bg-blue-600' },
-  x: { icon: Twitter, name: 'X (Twitter)', maxChars: 280, color: 'bg-gray-800 dark:bg-gray-200' },
-  threads: { icon: MessageSquare, name: 'Threads', maxChars: 500, color: 'bg-black dark:bg-white' },
-  facebook: { icon: Facebook, name: 'Facebook', maxChars: 63206, color: 'bg-blue-600' },
-  instagram: { icon: Instagram, name: 'Instagram', maxChars: 2200, color: 'bg-pink-600' },
-  youtube: { icon: Youtube, name: 'YouTube', maxChars: 5000, color: 'bg-red-600' },
-  pinterest: { icon: ImageIcon, name: 'Pinterest', maxChars: 500, color: 'bg-red-600' },
-  bluesky: { icon: Cloud, name: 'Bluesky', maxChars: 300, color: 'bg-blue-400' },
-  mastodon: { icon: Cloud, name: 'Mastodon', maxChars: 500, color: 'bg-purple-600' },
-  slack: { icon: MessageSquare, name: 'Slack', maxChars: 40000, color: 'bg-[#4A154B]' },
-  twitch: { icon: Twitch, name: 'Twitch', maxChars: 500, color: 'bg-[#9146FF]' },
-  telegram: { icon: Send, name: 'Telegram', maxChars: 4096, color: 'bg-[#229ED9]' },
-  discord: { icon: Hash, name: 'Discord', maxChars: 2000, color: 'bg-[#5865F2]' },
-  dribbble: { icon: Dribbble, name: 'Dribbble', maxChars: 250, color: 'bg-[#EA4C89]' },
-  skool: { icon: GraduationCap, name: 'Skool', maxChars: 10000, color: 'bg-[#E2AD44]' },
-  whop: { icon: Store, name: 'Whop', maxChars: 10000, color: 'bg-[#FF5A00]' },
-  kick: { icon: Gamepad2, name: 'Kick', maxChars: 10000, color: 'bg-[#53FC18]' },
-  warpcast: { icon: Hash, name: 'Farcaster', maxChars: 320, color: 'bg-[#8A63D2]' },
-  mewe: { icon: MessageSquare, name: 'MeWe', maxChars: 4000, color: 'bg-[#2F435E]' },
-  nostr: { icon: Zap, name: 'Nostr', maxChars: 65535, color: 'bg-[#9B51E0]' },
-  medium: { icon: FileText, name: 'Medium', maxChars: 100000, color: 'bg-black' },
-  lemmy: { icon: Globe, name: 'Lemmy', maxChars: 10000, color: 'bg-[#00BC8C]' },
-  listmonk: { icon: Mail, name: 'Listmonk', maxChars: 100000, color: 'bg-[#0045ff]' },
-  hashnode: { icon: BookOpen, name: 'Hashnode', maxChars: 100000, color: 'bg-[#2962FF]' },
-  devto: { icon: Code2, name: 'DEV.to', maxChars: 100000, color: 'bg-neutral-900 dark:bg-neutral-100' },
-  reddit: { icon: Globe, name: 'Reddit', maxChars: 40000, color: 'bg-[#FF4500]' },
-  manual: { icon: SendIcon, name: 'Manual', maxChars: 10000, color: 'bg-gray-500' },
+  linkedin: { icon: PlatformSVGs.linkedin, name: 'LinkedIn', maxChars: 3000, color: 'bg-blue-600' },
+  x: { icon: PlatformSVGs.x, name: 'X (Twitter)', maxChars: 280, color: 'bg-gray-800 dark:bg-gray-200' },
+  threads: { icon: PlatformSVGs.threads, name: 'Threads', maxChars: 500, color: 'bg-black dark:bg-white' },
+  facebook: { icon: PlatformSVGs.facebook, name: 'Facebook', maxChars: 63206, color: 'bg-blue-600' },
+  instagram: { icon: PlatformSVGs.instagram, name: 'Instagram', maxChars: 2200, color: 'bg-pink-600' },
+  youtube: { icon: PlatformSVGs.youtube, name: 'YouTube', maxChars: 5000, color: 'bg-red-600' },
+  pinterest: { icon: PlatformSVGs.pinterest, name: 'Pinterest', maxChars: 500, color: 'bg-red-600' },
+  bluesky: { icon: PlatformSVGs.bluesky, name: 'Bluesky', maxChars: 300, color: 'bg-blue-400' },
+  mastodon: { icon: PlatformSVGs.mastodon, name: 'Mastodon', maxChars: 500, color: 'bg-purple-600' },
+  slack: { icon: PlatformSVGs.slack, name: 'Slack', maxChars: 40000, color: 'bg-[#4A154B]' },
+  twitch: { icon: PlatformSVGs.twitch, name: 'Twitch', maxChars: 500, color: 'bg-[#9146FF]' },
+  telegram: { icon: PlatformSVGs.telegram, name: 'Telegram', maxChars: 4096, color: 'bg-[#229ED9]' },
+  discord: { icon: PlatformSVGs.discord, name: 'Discord', maxChars: 2000, color: 'bg-[#5865F2]' },
+  dribbble: { icon: PlatformSVGs.dribbble, name: 'Dribbble', maxChars: 250, color: 'bg-[#EA4C89]' },
+  skool: { icon: PlatformSVGs.skool, name: 'Skool', maxChars: 10000, color: 'bg-[#E2AD44]' },
+  whop: { icon: PlatformSVGs.whop, name: 'Whop', maxChars: 10000, color: 'bg-[#FF5A00]' },
+  kick: { icon: PlatformSVGs.kick, name: 'Kick', maxChars: 10000, color: 'bg-[#53FC18]' },
+  warpcast: { icon: PlatformSVGs.warpcast, name: 'Farcaster', maxChars: 320, color: 'bg-[#8A63D2]' },
+  mewe: { icon: PlatformSVGs.mewe, name: 'MeWe', maxChars: 4000, color: 'bg-[#2F435E]' },
+  nostr: { icon: PlatformSVGs.nostr, name: 'Nostr', maxChars: 65535, color: 'bg-[#9B51E0]' },
+  manual: { icon: PlatformSVGs.manual, name: 'Manual', maxChars: 10000, color: 'bg-gray-500' },
+  medium: { icon: PlatformSVGs.medium, name: 'Medium', maxChars: 100000, color: 'bg-black' },
+  lemmy: { icon: PlatformSVGs.lemmy, name: 'Lemmy', maxChars: 10000, color: 'bg-[#00BC8C]' },
+  listmonk: { icon: PlatformSVGs.listmonk, name: 'Listmonk', maxChars: 100000, color: 'bg-[#0045ff]' },
+  hashnode: { icon: PlatformSVGs.hashnode, name: 'Hashnode', maxChars: 100000, color: 'bg-[#2962FF]' },
+  devto: { icon: PlatformSVGs.devto, name: 'DEV.to', maxChars: 100000, color: 'bg-neutral-900 dark:bg-neutral-100' },
+  reddit: { icon: PlatformSVGs.reddit, name: 'Reddit', maxChars: 40000, color: 'bg-[#FF4500]' },
 };
 
 function PublishContentInner() {
@@ -364,8 +366,8 @@ function PublishContentInner() {
                   >
                     <Flex between wrap gap={4} className="mb-4">
                       <Flex center gap={3}>
-                        <span className={`p-2 rounded-lg ${config.color} text-white`}>
-                          <Icon className="h-5 w-5" />
+                        <span className="flex items-center justify-center flex-shrink-0 drop-shadow-xs">
+                          <PlatformBrandLogo platform={draft.platform} size={28} />
                         </span>
                         <Box>
                           <Text weight="semibold">{config.name}</Text>
