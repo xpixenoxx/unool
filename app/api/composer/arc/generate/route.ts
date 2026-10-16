@@ -5,6 +5,7 @@ import { generateWeekArc, detectStoryType } from '@/lib/ai/WeekArcGenerator';
 import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseProfileRepository';
 import { SupabasePlatformRepository } from '@/lib/repositories/supabase/SupabasePlatformRepository';
 import { logger } from '@/lib/logger';
+import { ContentGuard } from '@/lib/ai/ContentGuard';
 import type { PlatformType } from '@/lib/ai/PostAdapter';
 
 const profileRepository = new SupabaseProfileRepository();
@@ -30,11 +31,40 @@ export async function POST(request: NextRequest) {
       selectedPlatforms,
     } = body;
 
-    if (!coreStory || typeof coreStory !== 'string' || coreStory.trim().length < 20) {
+    if (!coreStory || typeof coreStory !== 'string') {
       return NextResponse.json(
-        { error: 'Please provide a more detailed story (at least 20 characters)' },
+        { error: 'Core story is required.' },
         { status: 400 }
       );
+    }
+
+    // ─── ContentGuard: validate core story before Week Arc generation ─────────
+    const guard = ContentGuard.validateInput(coreStory, { route: 'composer/arc/generate' });
+    if (!guard.safe) {
+      logger.warn('ContentGuard blocked week arc coreStory input', {
+        code: guard.violation.code,
+        internal: guard.violation.internal,
+        workspaceId,
+      });
+      return NextResponse.json(ContentGuard.blockedResponse(guard.violation), { status: 400 });
+    }
+
+    // ─── ContentGuard: validate followups for safety ─────────────────────────
+    const combinedFollowUps = `${whatChanged} ${whatWentWrong} ${oneRealNumber}`.trim();
+    if (combinedFollowUps) {
+      const followUpGuard = ContentGuard.validateSocialInput(combinedFollowUps, {
+        route: 'composer/arc/generate/followups',
+      });
+      if (!followUpGuard.safe) {
+        logger.warn('ContentGuard blocked week arc followups', {
+          code: followUpGuard.violation.code,
+          internal: followUpGuard.violation.internal,
+          workspaceId,
+        });
+        return NextResponse.json(ContentGuard.blockedResponse(followUpGuard.violation), {
+          status: 400,
+        });
+      }
     }
 
     if (!weekStartDate) {
@@ -82,11 +112,11 @@ export async function POST(request: NextRequest) {
     const userFirstName = profile.name?.split(' ')[0] ?? 'Creator';
 
     const arc = await generateWeekArc({
-      coreStory: coreStory.trim(),
+      coreStory: guard.sanitizedContent,
       followUps: {
-        whatChanged: whatChanged.trim(),
-        whatWentWrong: whatWentWrong.trim(),
-        oneRealNumber: oneRealNumber.trim(),
+        whatChanged: ContentGuard.sanitizeForAI(whatChanged || ''),
+        whatWentWrong: ContentGuard.sanitizeForAI(whatWentWrong || ''),
+        oneRealNumber: ContentGuard.sanitizeForAI(oneRealNumber || ''),
       },
       connectedPlatforms,
       audienceTimezone,

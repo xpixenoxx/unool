@@ -2799,13 +2799,16 @@ function FlightPlanInner({ userId, workspaceId }: { userId: string; workspaceId:
       });
 
       const json = await res.json();
-      if (!res.ok) return;
+      if (!res.ok) {
+        toast.error(json.error || 'Failed to generate week plan. Please check your story input.');
+        return;
+      }
 
       setIsPreviewOnly(!!json.isPreviewOnly);
       setArc(json.arc);
       setView('review');
     } catch {
-      // generation error handled
+      toast.error('An unexpected error occurred while generating your plan.');
     } finally {
       setIsGenerating(false);
     }

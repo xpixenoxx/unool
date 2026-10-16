@@ -3,6 +3,7 @@ import { generateWithFallback } from '@/lib/ai/provider';
 import { logger } from '@/lib/logger';
 import type { StoryType } from '@/lib/repositories/interfaces/IPostRepository';
 import { PlatformType, buildOnboardingPrompt } from '@/lib/ai/PostAdapter';
+import { ContentGuard } from '@/lib/ai/ContentGuard';
 
 // ─── Zod Schema for one post in the arc ────────────────────────────────────
 
@@ -230,11 +231,14 @@ function synthesizeFactGroundedArc(params: {
         }
       }
 
+      const sanitizedContent = ContentGuard.sanitizeOutput(content);
+      const filteredHashtags = ContentGuard.filterHashtags(hashtags, { maxCount: 10 });
+
       return {
         platform,
-        content,
-        characterCount: content.length,
-        hashtags,
+        content: sanitizedContent,
+        characterCount: sanitizedContent.length,
+        hashtags: filteredHashtags,
         firstCommentHint: null,
         autoFirstComment,
         schedulingOffsetMinutes,
@@ -364,7 +368,8 @@ Return a JSON object matching this exact structure:
 Write ONLY the JSON. No markdown code blocks. No explanation.`;
 
   try {
-    const result = await generateWithFallback(prompt, { maxTokens: 6000 }, WeekArcSchema);
+    const safePrompt = ContentGuard.buildSafePrompt(prompt);
+    const result = await generateWithFallback(safePrompt, { maxTokens: 6000 }, WeekArcSchema);
 
     if (result.ok && result.value) {
       // Validate that posts are assigned to valid upcoming days and have all active platforms
@@ -378,18 +383,26 @@ Write ONLY the JSON. No markdown code blocks. No explanation.`;
           scheduledHour = Math.min(23, now.getHours() + 1);
         }
 
-        // Ensure all active platforms are present and enabled
+        // Ensure all active platforms are present, sanitized, and enabled
         const existingPlatforms = new Map(post.platforms.map(p => [p.platform, p]));
         const mergedPlatforms = activePlatforms.map(platform => {
           const existing = existingPlatforms.get(platform);
           if (existing) {
-            return { ...existing, enabled: existing.enabled !== false };
+            const cleanContent = ContentGuard.sanitizeOutput(existing.content);
+            return {
+              ...existing,
+              content: cleanContent,
+              characterCount: cleanContent.length,
+              hashtags: ContentGuard.filterHashtags(existing.hashtags || [], { maxCount: 10 }),
+              enabled: existing.enabled !== false,
+            };
           }
+          const fallbackContent = ContentGuard.sanitizeOutput(post.platforms[0]?.content || coreStory.slice(0, 280));
           return {
             platform,
-            content: post.platforms[0]?.content || coreStory.slice(0, 280),
-            characterCount: (post.platforms[0]?.content || coreStory).length,
-            hashtags: ['#BuildInPublic'],
+            content: fallbackContent,
+            characterCount: fallbackContent.length,
+            hashtags: ContentGuard.filterHashtags(post.platforms[0]?.hashtags || ['#BuildInPublic'], { maxCount: 10 }),
             firstCommentHint: null,
             autoFirstComment: null,
             schedulingOffsetMinutes: platform === 'linkedin' ? 45 : platform === 'threads' || platform === 'instagram' ? 120 : 0,

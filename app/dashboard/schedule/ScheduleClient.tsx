@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { useUserContext } from '@/lib/hooks/use-user-context';
 import { format, addDays, startOfWeek, isToday, isTomorrow } from 'date-fns';
 import { PlatformBrandLogo, type SupportedPlatformType } from '@/components/dashboard/previews/PlatformMobilePreview';
+import { toast } from 'sonner';
 
 /* ─── Design tokens (matches Biscuit theme) ────────────────────────────── */
 const B = {
@@ -1035,13 +1036,16 @@ export default function ScheduleClient({
       });
 
       const json = await res.json();
-      if (!res.ok) return;
+      if (!res.ok) {
+        toast.error(json.error || 'Failed to generate week plan. Please check your story input.');
+        return;
+      }
 
       setIsPreviewOnly(!!json.isPreviewOnly);
       setArc(json.arc);
       setView('review');
     } catch {
-      // generate error
+      toast.error('An unexpected error occurred while generating your plan.');
     } finally {
       setIsGenerating(false);
     }

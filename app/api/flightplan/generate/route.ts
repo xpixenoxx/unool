@@ -197,21 +197,22 @@ export async function POST(request: NextRequest) {
             dayPost.hashtags || [],
             { maxCount: 10 }
           );
+          const sanitizedContent = ContentGuard.sanitizeOutput(dayPost.content);
 
           await postRepository.createVariant({
             postId: post.id,
             platform,
-            adaptedContent: dayPost.content,
+            adaptedContent: sanitizedContent,
             mediaUrls: finalMedia,
-            characterCount: dayPost.characterCount,
+            characterCount: sanitizedContent.length,
             hashtagStrategy: cleanedHashtags,
             firstCommentHint: dayPost.firstCommentHint || undefined,
             status: 'draft',
           });
 
           dayVariants[platform] = {
-            content: dayPost.content,
-            characterCount: dayPost.characterCount,
+            content: sanitizedContent,
+            characterCount: sanitizedContent.length,
             hashtags: cleanedHashtags,
             hookSummary: dayPost.hookSummary,
             angle: dayPost.angle,

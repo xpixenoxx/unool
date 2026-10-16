@@ -4,11 +4,12 @@
  * A single, reusable module that ALL AI generation routes must pass input
  * through before calling any AI model. It enforces:
  *
- * 1. Input quality gates (garbage / noise detection)
+ * 1. Input quality gates (garbage / noise / keyboard mashing / entropy detection)
  * 2. Blocked content categories (terrorism, CSAM, violence, etc.)
  * 3. Legal compliance signals (doxxing, fraud, impersonation)
- * 4. Platform-appropriate content enforcement
- * 5. Smart hashtag output sanitization
+ * 4. Output sanitization (SSN, credit cards, control characters, private-use unicode)
+ * 5. Smart hashtag filtering (60+ generic filler tags blacklisted, deduplication, length gates)
+ * 6. Safety prompt prefix (injected into every system prompt)
  *
  * Design principle: Fail loudly for dangerous content, fail gracefully for
  * quality issues (guide the user to improve input rather than block them).
@@ -19,7 +20,7 @@
 export type GuardViolation = {
   code: string;
   level: 'blocked' | 'warn';
-  message: string; // User-facing (professional, helpful)
+  message: string; // User-facing (professional, helpful guidance)
   internal?: string; // For logging only — not sent to client
 };
 
@@ -29,79 +30,92 @@ export type GuardResult =
 
 // ─── BLOCKED PATTERNS ────────────────────────────────────────────────────────
 // These cause immediate hard-block with HTTP 400. Never exposed verbatim to AI.
+// Note: Regexes intentionally do NOT use the `/g` flag to avoid stateful lastIndex issues.
+// `[\s\S]` is used so patterns match across newlines without needing dotAll mode.
 
 const HARD_BLOCKED_PATTERNS: Array<{ pattern: RegExp; code: string; internal: string }> = [
   // Terrorism / mass violence / extremist incitement
   {
     pattern:
-      /\b(jihad|isis|isil|al[\s-]?qaeda|hamas|hezbollah|boko haram|al[\s-]?shabaab|taliban|daesh)\b.*\b(attack|bomb|kill|recruit|pledge|support|join|martyr)\b/gi,
+      /\b(jihad|isis|isil|al[\s-]?qaeda|hamas|hezbollah|boko[\s-]?haram|al[\s-]?shabaab|taliban|daesh|terrorist)\b[\s\S]{0,80}\b(attack|bomb|kill|recruit|pledge|support|join|martyr|behead|slaughter)\b/i,
     code: 'TERRORISM_INCITEMENT',
     internal: 'Terrorism incitement signal',
   },
   {
     pattern:
-      /\b(suicide\s?bomb|pipe\s?bomb|ied|improvised explosive|car bomb|mass shooting|school shooting)\b/gi,
+      /\b(join|pledge\s+allegiance\s+to|recruit\s+for)\s+(isis|isil|al[\s-]?qaeda|daesh|boko[\s-]?haram)\b/i,
+    code: 'TERRORISM_INCITEMENT',
+    internal: 'Terrorist group recruitment',
+  },
+  {
+    pattern:
+      /\b(suicide\s?bomb|pipe\s?bomb|ied|improvised\s+explosive|car\s?bomb|mass\s+shooting|school\s+shooting|make\s+a\s+bomb|how\s+to\s+build\s+a\s+bomb|synthesize\s+(sarin|anthrax|ricin))\b/i,
     code: 'WEAPONS_OF_MASS_HARM',
     internal: 'Weapons/mass harm content',
   },
   // CSAM / child safety
   {
-    pattern: /\b(child\s?porn|cp\s?content|loli|shota|underage\s?sex|minor\s?nude)\b/gi,
+    pattern:
+      /(\b(child|minor|underage|pedophil(e|ia)|loli|shota)\b[\s\S]{0,40}\b(porn|sex|nude|sexual|exploit|abuse|nsfw)\b|\bcsam\b)/i,
     code: 'CSAM',
     internal: 'CSAM signal',
   },
   // Explicit doxxing instructions
   {
     pattern:
-      /\b(find\s+someone'?s?\s+(home\s+)?address|post\s+(their|his|her)\s+(ssn|social security|passport)|leak\s+(their|his|her)\s+(personal|private)\s+info)\b/gi,
+      /\b(find\s+someone'?s?\s+(home\s+)?address|post\s+(their|his|her|someone'?s?)\s+(ssn|social\s+security|passport|home\s+address|phone\s+number)|leak\s+(their|his|her|someone'?s?)\s+(personal|private)\s+info|doxx?\s+(this|that|someone|the|him|her)\b)/i,
     code: 'DOXXING',
     internal: 'Doxxing instruction',
   },
   // Financial fraud / scam blueprints
   {
     pattern:
-      /\b(send\s+bitcoin|wire\s+transfer|paypal\s+me|venmo\s+me)\b.*\b(investment|profit|guaranteed|return|double\s+your)\b/gi,
+      /\b(send\s+(bitcoin|crypto|btc|eth|sol)|wire\s+transfer|paypal\s+me|venmo\s+me|cashapp\s+me)\b[\s\S]{0,80}\b(investment|profit|guaranteed|return|double\s+your|100%\s+profit|get\s+rich)\b/i,
     code: 'FINANCIAL_FRAUD',
     internal: 'Financial fraud signal',
   },
   {
     pattern:
-      /\b(pump\s+and\s+dump|rug\s+pull|exit\s+scam|ponzi|pyramid\s+scheme)\b.*\b(join|invest|buy|now)\b/gi,
+      /\b(pump\s+and\s+dump|rug\s+pull|exit\s+scam|ponzi|pyramid\s+scheme)\b[\s\S]{0,80}\b(join|invest|buy|now|airdrop|token)\b/i,
     code: 'CRYPTO_FRAUD',
     internal: 'Crypto fraud signal',
   },
   // Explicit self-harm promotion (not prevention)
   {
     pattern:
-      /\b(how\s+to\s+(commit\s+)?suicide|best\s+way\s+to\s+die|methods\s+to\s+kill\s+yourself)\b/gi,
+      /\b(how\s+to\s+(commit\s+)?suicide|best\s+way\s+to\s+die|methods\s+to\s+kill\s+yourself|how\s+to\s+(hang|slit|overdose|cut)\s+(your|my)self|painless\s+(suicide|way\s+to\s+die))\b/i,
     code: 'SELF_HARM_PROMOTION',
     internal: 'Self-harm promotion',
   },
 ];
 
 // ─── QUALITY GATES ───────────────────────────────────────────────────────────
-// These return helpful warnings. AI call is still allowed after sanitization.
 
 const MIN_CONTENT_LENGTH = 15; // Characters
 const MAX_CONTENT_LENGTH = 50_000; // Characters
 const MIN_MEANINGFUL_WORD_COUNT = 4;
 
+// QWERTY keyboard walk patterns (home-row, top-row, bottom-row walks)
+const KEYBOARD_WALK_PATTERN =
+  /(qwerty|wertyu|ertyui|rtyuio|tyuiop|asdfgh|sdfghj|dfghjk|fghjkl|zxcvbn|xcvbnm|poiuyt|oiuytr|iuytre|uytrew|ytrewq|lkjhgf|kjhgfd|jhgfds|hgfdsa|mnbvcx|nbvcxz)/i;
+
 // Patterns that signal pure garbage input
 const GARBAGE_SIGNALS: RegExp[] = [
   /^[^a-z0-9\s]{3,}$/i, // Pure symbol strings
-  /^(.)\1{8,}$/, // Repeated single char (aaaaaaa)
+  /^(.)\1{4,}$/, // Repeated single char (aaaaa)
   /^[\d\s\W]{5,}$/, // Only numbers + symbols
 ];
 
 // Patterns that AI should NEVER reproduce in output
 const OUTPUT_BLOCK_PATTERNS: Array<{ pattern: RegExp; replacement: string }> = [
-  // Remove SSN / credit card patterns
+  // Remove SSN patterns
   {
     pattern: /\b\d{3}-\d{2}-\d{4}\b/g,
     replacement: '[SSN removed]',
   },
+  // Remove major credit card patterns (Visa, Mastercard, Amex, Discover)
   {
-    pattern: /\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13})\b/g,
+    pattern: /\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|6(?:011|5[0-9]{2})[0-9]{12})\b/g,
     replacement: '[card number removed]',
   },
 ];
@@ -139,22 +153,56 @@ export const SAFETY_SYSTEM_PREFIX = `CRITICAL SAFETY RULES — You MUST follow t
 
 // ─── HASHTAG QUALITY RULES ───────────────────────────────────────────────────
 
-// Generic filler hashtags that provide zero discovery value
+// Generic filler hashtags that provide zero discovery value (60+ curated tags)
 const GENERIC_HASHTAG_BLACKLIST = new Set([
-  'motivation', 'success', 'business', 'entrepreneur', 'hustle', 'grind',
-  'marketing', 'growth', 'mindset', 'goals', 'lifestyle', 'inspiration',
-  'work', 'team', 'life', 'love', 'happy', 'fun', 'instagood', 'instadaily',
-  'follow', 'like', 'share', 'comment', 'viral', 'trending', 'content',
-  'digital', 'online', 'social', 'socialmedia', 'brand', 'tips', 'advice',
-  'help', 'ideas', 'news', 'blog', 'post', 'daily', 'new', 'best', 'top',
-  'cool', 'awesome', 'great', 'amazing', 'wow', 'nice', 'good', 'photo',
-  'video', 'pic', 'image', 'tag', 'hashtag', 'photooftheday', 'tbt',
-  'repost', 'explore', 'discover', 'check', 'click', 'link', 'bio',
+  // Motivational filler
+  'motivation', 'motivational', 'success', 'hustle', 'grind', 'grindset',
+  'mindset', 'goals', 'lifestyle', 'inspiration', 'inspirational', 'blessed',
+  'growth', 'entrepreneur', 'entrepreneurship', 'wealth', 'rich', 'money',
+  'millionaire', 'billionaire', 'startupgrind',
+  // Social engagement filler
+  'viral', 'trending', 'trendingnow', 'explore', 'explorepage', 'fyp',
+  'foryou', 'foryoupage', 'follow', 'followme', 'followforfollow', 'f4f',
+  'like', 'likes', 'likeforlike', 'l4l', 'likeforlikes', 'share', 'comment',
+  'repost', 'tag', 'hashtag', 'popular', 'influencer',
+  // Photo / vibe filler
+  'instagood', 'instadaily', 'instamood', 'instapic', 'photooftheday',
+  'picoftheday', 'pic', 'photo', 'image', 'video', 'tbt', 'throwback',
+  'throwbackthursday', 'flashbackfriday', 'vibes', 'goodvibes', 'mood',
+  'love', 'happy', 'fun', 'life', 'daily', 'selfie', 'nofilter', 'ootd',
+  // Generic business / marketing filler
+  'business', 'marketing', 'content', 'digital', 'online', 'social',
+  'socialmedia', 'brand', 'branding', 'work', 'team', 'news', 'blog',
+  'post', 'tips', 'advice', 'help', 'ideas', 'new', 'best', 'top',
+  // Generic praise / empty qualifiers
+  'cool', 'awesome', 'great', 'amazing', 'wow', 'nice', 'good', 'status',
+  'quote', 'quotes', 'fitness', 'gym', 'fit', 'weekend', 'sundayfunday',
+  'mondaymotivation', 'tuesdaythoughts', 'wednesdaywisdom', 'fridayvibes',
+  // Call to action filler
+  'check', 'click', 'link', 'bio', 'linkinbio', 'dm',
 ]);
 
 // ─── MAIN GUARD CLASS ─────────────────────────────────────────────────────────
 
 export class ContentGuard {
+  /**
+   * Calculate Shannon entropy (bits per character) of a string.
+   */
+  static calculateEntropy(str: string): number {
+    if (!str || str.length === 0) return 0;
+    const counts: Record<string, number> = {};
+    for (const char of str) {
+      counts[char] = (counts[char] || 0) + 1;
+    }
+    let entropy = 0;
+    const len = str.length;
+    for (const char in counts) {
+      const p = counts[char] / len;
+      entropy -= p * Math.log2(p);
+    }
+    return entropy;
+  }
+
   /**
    * Primary entry point. Call this BEFORE any AI model invocation.
    * Returns GuardResult — check `.safe` before proceeding.
@@ -186,8 +234,8 @@ export class ContentGuard {
     }
 
     // 2. Word count gate — catches pure emoji/symbol spam
-    const wordCount = content.split(/\s+/).filter(w => /[a-z0-9]/i.test(w)).length;
-    if (wordCount < MIN_MEANINGFUL_WORD_COUNT) {
+    const words = content.split(/\s+/).filter(w => /[a-z0-9]/i.test(w));
+    if (words.length < MIN_MEANINGFUL_WORD_COUNT) {
       return {
         safe: false,
         violation: {
@@ -199,7 +247,21 @@ export class ContentGuard {
       };
     }
 
-    // 3. Garbage / noise detection
+    // 3. Pure symbols / numbers check (must have at least 5 letters)
+    const letters = content.replace(/[^a-zA-Z]/g, '');
+    if (letters.length < 5) {
+      return {
+        safe: false,
+        violation: {
+          code: 'NOISE_INPUT',
+          level: 'blocked',
+          message:
+            "This doesn't look like readable content. Please enter a real topic, idea, or draft text.",
+        },
+      };
+    }
+
+    // 4. Garbage / noise patterns
     for (const garbagePattern of GARBAGE_SIGNALS) {
       if (garbagePattern.test(content)) {
         return {
@@ -214,10 +276,22 @@ export class ContentGuard {
       }
     }
 
-    // 4. Hard-blocked content check (terrorism, CSAM, etc.)
+    // 5. Repeated character runs (e.g. "aaaaa", "zzzzz", "11111")
+    if (/(.)\1{4,}/.test(content)) {
+      return {
+        safe: false,
+        violation: {
+          code: 'REPETITIVE_INPUT',
+          level: 'blocked',
+          message:
+            'This content contains excessively repeated characters. Please enter a real topic or draft message.',
+        },
+      };
+    }
+
+    // 6. Hard-blocked content check (terrorism, CSAM, doxxing, fraud, self-harm)
     for (const { pattern, code, internal } of HARD_BLOCKED_PATTERNS) {
       if (pattern.test(content)) {
-        pattern.lastIndex = 0;
         return {
           safe: false,
           violation: {
@@ -229,20 +303,85 @@ export class ContentGuard {
           },
         };
       }
-      pattern.lastIndex = 0;
     }
 
-    // 5. Entropy / repetition check (catches keyboard mashing like "asdfghjkl")
-    const strippedContent = content.replace(/\s/g, '');
-    const uniqueChars = new Set(strippedContent.toLowerCase()).size;
-    if (strippedContent.length > 20 && uniqueChars / strippedContent.length < 0.08) {
+    // 7. Keyboard mashing & QWERTY walk checks (e.g. "asdfghjkl", "qwerty")
+    const lowerLetters = letters.toLowerCase();
+    const vowelCount = (lowerLetters.match(/[aeiouy]/g) || []).length;
+    const vowelRatio = vowelCount / lowerLetters.length;
+
+    if (KEYBOARD_WALK_PATTERN.test(content)) {
+      if (vowelRatio < 0.25 || lowerLetters.length < 25) {
+        return {
+          safe: false,
+          violation: {
+            code: 'KEYBOARD_MASH_INPUT',
+            level: 'blocked',
+            message:
+              'This content appears to be keyboard mashing. Please enter a meaningful topic or idea for the AI.',
+          },
+        };
+      }
+    }
+
+    // 8. Consonant gibberish & unpronounceable token check
+    if (lowerLetters.length >= 15 && vowelRatio < 0.12) {
       return {
         safe: false,
         violation: {
-          code: 'LOW_ENTROPY_CONTENT',
+          code: 'GIBBERISH_INPUT',
           level: 'blocked',
           message:
-            'This content appears to be random or highly repetitive characters. Please enter a meaningful topic or draft.',
+            'This text does not appear to contain readable words. Please enter a real topic or draft message.',
+        },
+      };
+    }
+
+    const hasUnpronounceableCluster = words.some(w => {
+      const clean = w.replace(/[^a-z]/gi, '');
+      return clean.length >= 7 && /[bcdfghjklmnpqrstvwxz]{6,}/i.test(clean);
+    });
+    if (hasUnpronounceableCluster && vowelRatio < 0.25) {
+      return {
+        safe: false,
+        violation: {
+          code: 'GIBBERISH_INPUT',
+          level: 'blocked',
+          message:
+            'This text does not appear to contain readable words. Please enter a real topic or draft message.',
+        },
+      };
+    }
+
+    // 9. Shannon entropy / character repetition check
+    const strippedContent = content.replace(/\s/g, '').toLowerCase();
+    if (strippedContent.length >= 20) {
+      const entropy = ContentGuard.calculateEntropy(strippedContent);
+      const uniqueChars = new Set(strippedContent).size;
+      if (entropy < 2.2 || uniqueChars / strippedContent.length < 0.10) {
+        return {
+          safe: false,
+          violation: {
+            code: 'LOW_ENTROPY_CONTENT',
+            level: 'blocked',
+            message:
+              'This content appears to be random or highly repetitive characters. Please enter a meaningful topic or draft.',
+          },
+        };
+      }
+    }
+
+    // 10. Repetitive word loop spam (e.g. "test test test test")
+    const normalizedWords = words.map(w => w.toLowerCase());
+    const uniqueWords = new Set(normalizedWords);
+    if (normalizedWords.length >= 4 && uniqueWords.size <= 2 && (uniqueWords.size / normalizedWords.length) <= 0.25) {
+      return {
+        safe: false,
+        violation: {
+          code: 'REPETITIVE_WORD_INPUT',
+          level: 'blocked',
+          message:
+            'This content is repeating the same word. Please provide more detail about what you want to share.',
         },
       };
     }
@@ -292,7 +431,6 @@ export class ContentGuard {
     // Hard-blocked safety checks still apply
     for (const { pattern, code, internal } of HARD_BLOCKED_PATTERNS) {
       if (pattern.test(content)) {
-        pattern.lastIndex = 0;
         return {
           safe: false,
           violation: {
@@ -304,7 +442,6 @@ export class ContentGuard {
           },
         };
       }
-      pattern.lastIndex = 0;
     }
 
     // Safe — return sanitized version (no AI quality filters applied)
@@ -346,7 +483,6 @@ export class ContentGuard {
     // Hard-blocked content check (terrorism, CSAM, doxxing, fraud, self-harm)
     for (const { pattern, code, internal } of HARD_BLOCKED_PATTERNS) {
       if (pattern.test(content)) {
-        pattern.lastIndex = 0;
         return {
           safe: false,
           violation: {
@@ -358,7 +494,6 @@ export class ContentGuard {
           },
         };
       }
-      pattern.lastIndex = 0;
     }
 
     return {
@@ -370,6 +505,7 @@ export class ContentGuard {
 
   /** Alias for validateSocialInput */
   static validateComment = ContentGuard.validateSocialInput;
+
   /**
    * Sanitize content before sending to AI.
    * Removes injection attempts, control characters, Unicode watermarks.
@@ -390,12 +526,20 @@ export class ContentGuard {
 
   /**
    * Sanitize AI-generated OUTPUT before returning to client.
+   * Strips SSNs, credit cards, control characters, and Unicode watermarks.
    */
   static sanitizeOutput(content: string): string {
-    let sanitized = content;
+    if (!content || typeof content !== 'string') return '';
+    let sanitized = content
+      // Strip null bytes and dangerous control characters (keep newlines/tabs)
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+      // Strip Unicode private-use area characters (AI watermark injection)
+      .replace(/[\uE000-\uF8FF]/g, '')
+      // Normalize multiple blank lines to max 2
+      .replace(/\n{3,}/g, '\n\n');
+
     for (const { pattern, replacement } of OUTPUT_BLOCK_PATTERNS) {
       sanitized = sanitized.replace(pattern, replacement);
-      pattern.lastIndex = 0;
     }
     return sanitized.trim();
   }
