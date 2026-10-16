@@ -16,6 +16,7 @@ import { formatDistanceToNow, format } from 'date-fns';
 import { toast } from 'sonner';
 
 import { PlatformLogos, getPlatformConfig } from '@/components/dashboard/PlatformLogos';
+import { AnalyticsDNA } from '@/components/analytics/AnalyticsDNA';
 
 /* ── Types ─────────────────────────────────────────────────────────────────── */
 type PostVariant = {
@@ -225,7 +226,7 @@ export function SignalClient() {
   const [posts, setPosts] = useState<SignalPost[]>([]);
   const [resonance, setResonance] = useState<ResonanceData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'feed' | 'dna'>('feed');
+  const [tab, setTab] = useState<'feed' | 'dna' | 'analytics'>('feed');
   const [profileSubdomain, setProfileSubdomain] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'active' | 'draft' | 'failed'>('all');
@@ -490,6 +491,20 @@ export function SignalClient() {
           >
             <Zap className="w-3.5 h-3.5 text-[#C4A265]" />
             <span>Post DNA</span>
+          </button>
+          <button
+            onClick={() => setTab('analytics')}
+            className={`px-4 py-1.5 text-sm font-semibold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+              tab === 'analytics'
+                ? 'bg-white text-[#3D2B1F] shadow-sm'
+                : 'text-[#8B7355] hover:text-[#3D2B1F]'
+            }`}
+          >
+            <BarChart2 className="w-3.5 h-3.5 text-[#C4A265]" />
+            <span>Analytics</span>
+            {resonance?.hasRealEngagement && (
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            )}
           </button>
           <Link
             href="/dashboard/schedule"
@@ -761,6 +776,24 @@ export function SignalClient() {
             )}
 
             <DNAView
+              resonance={resonance}
+              posts={posts}
+              onSync={syncLiveEngagement}
+              isSyncing={isSyncing}
+            />
+          </motion.div>
+        )}
+
+        {/* ── Analytics Tab ──────────────────────────────────────────────── */}
+        {tab === 'analytics' && (
+          <motion.div
+            key="analytics"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.18 }}
+          >
+            <AnalyticsDNA
               resonance={resonance}
               posts={posts}
               onSync={syncLiveEngagement}
