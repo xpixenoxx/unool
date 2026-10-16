@@ -557,14 +557,27 @@ Return ONLY valid JSON:
         access_token: accessToken,
       });
 
-      const response = await fetchWithRetry(
-        `https://graph.instagram.com/v20.0/${igUserId}/subscribed_apps`,
+      // Try graph.facebook.com first (standard for Business / Page-linked accounts)
+      let response = await fetchWithRetry(
+        `https://graph.facebook.com/v20.0/${igUserId}/subscribed_apps`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: params.toString(),
         }
       );
+
+      // Fall back to graph.instagram.com if facebook endpoint returns error
+      if (!response.ok) {
+        response = await fetchWithRetry(
+          `https://graph.instagram.com/v20.0/${igUserId}/subscribed_apps`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: params.toString(),
+          }
+        );
+      }
 
       if (!response.ok) {
         const errorText = await response.text();
