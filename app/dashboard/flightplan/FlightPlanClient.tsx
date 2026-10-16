@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback, useMemo, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -162,76 +164,128 @@ const B = {
   border: '#E8E0D4',
 };
 
-/* ─── Instagram-Style Story Progress Bar ─── */
+/* ─── Scroll-Driven Story Progress Bar ─── */
 function InstagramStoryBar({
   posts,
   currentIndex,
   onSelectIndex,
-  isPaused,
-  onTogglePause,
-  durationMs = 5500,
 }: {
   posts: ArcPost[];
   currentIndex: number;
   onSelectIndex: (idx: number) => void;
-  isPaused: boolean;
-  onTogglePause: () => void;
+  isPaused?: boolean;
+  onTogglePause?: () => void;
   durationMs?: number;
 }) {
-  const [progress, setProgress] = useState(0);
+  const [scrollProgress, setScrollProgress] = useState(0);
+
+  // Track page scroll and map progress across the post items
+  useEffect(() => {
+    let ticking = false;
+
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          if (posts.length === 0) return;
+
+          const firstEl = document.getElementById('arc-post-0');
+          const lastEl = document.getElementById(`arc-post-${posts.length - 1}`);
+
+          if (firstEl && lastEl) {
+            const headerOffset = 140;
+            const firstRect = firstEl.getBoundingClientRect();
+            const lastRect = lastEl.getBoundingClientRect();
+
+            // When first post top reaches headerOffset, scroll progress starts at 0%
+            const startY = firstRect.top + window.scrollY - headerOffset;
+            // When last post bottom reaches lower portion of viewport, scroll progress reaches 100%
+            const endY = lastRect.bottom + window.scrollY - (window.innerHeight * 0.7);
+
+            const totalRange = Math.max(100, endY - startY);
+            const currentScrolled = window.scrollY - startY;
+            const pct = Math.max(0, Math.min(100, (currentScrolled / totalRange) * 100));
+
+            setScrollProgress(pct);
+
+            // Determine which post is currently in the viewport
+            const viewportCenter = window.innerHeight * 0.4;
+            for (let i = 0; i < posts.length; i++) {
+              const el = document.getElementById(`arc-post-${i}`);
+              if (el) {
+                const r = el.getBoundingClientRect();
+                if (r.top <= viewportCenter && r.bottom >= viewportCenter) {
+                  onSelectIndex(i);
+                  break;
+                }
+              }
+            }
+          } else {
+            const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+            if (scrollHeight > 0) {
+              setScrollProgress(Math.max(0, Math.min(100, (window.scrollY / scrollHeight) * 100)));
+            }
+          }
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleScroll);
+    };
+  }, [posts.length, onSelectIndex]);
+
+  const scrollToPost = (idx: number) => {
+    const targetIdx = Math.max(0, Math.min(posts.length - 1, idx));
+    const el = document.getElementById(`arc-post-${targetIdx}`);
+    if (el) {
+      const headerOffset = 130;
+      const y = el.getBoundingClientRect().top + window.scrollY - headerOffset;
+      window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+    }
+    onSelectIndex(targetIdx);
+  };
+
   const activePost = posts[currentIndex] || posts[0];
 
-  useEffect(() => {
-    setProgress(0);
-  }, [currentIndex]);
-
-  useEffect(() => {
-    if (isPaused || posts.length <= 1) return;
-
-    const intervalTime = 40;
-    const step = (intervalTime / durationMs) * 100;
-
-    const timer = setInterval(() => {
-      setProgress(prev => {
-        if (prev + step >= 100) {
-          onSelectIndex((currentIndex + 1) % posts.length);
-          return 0;
-        }
-        return prev + step;
-      });
-    }, intervalTime);
-
-    return () => clearInterval(timer);
-  }, [currentIndex, isPaused, posts.length, durationMs, onSelectIndex]);
-
   return (
-    <div
-      className="flex-1 space-y-1.5 py-0.5"
-      onMouseEnter={() => !isPaused && onTogglePause()}
-      onMouseLeave={() => isPaused && onTogglePause()}
-    >
+    <div className="flex-1 space-y-1.5 py-0.5">
       {/* Segment lines */}
       <div className="flex items-center gap-1.5 w-full">
         {posts.map((p, idx) => {
-          const isPast = idx < currentIndex;
-          const isCurrent = idx === currentIndex;
-          const fillWidth = isPast ? 100 : isCurrent ? progress : 0;
+          const segmentStart = (idx / posts.length) * 100;
+          const segmentEnd = ((idx + 1) / posts.length) * 100;
+          const segmentRange = segmentEnd - segmentStart;
+
+          let fillWidth = 0;
+          if (scrollProgress <= segmentStart) {
+            fillWidth = 0;
+          } else if (scrollProgress >= segmentEnd) {
+            fillWidth = 100;
+          } else {
+            fillWidth = Math.max(0, Math.min(100, ((scrollProgress - segmentStart) / segmentRange) * 100));
+          }
 
           return (
             <button
               key={idx}
               type="button"
-              onClick={() => onSelectIndex(idx)}
+              onClick={() => scrollToPost(idx)}
               className="flex-1 h-1.5 sm:h-2 rounded-full overflow-hidden transition-all hover:h-2.5 focus:outline-none cursor-pointer group relative"
               style={{ backgroundColor: `${B.accent}30` }}
-              title={`Story ${idx + 1}: ${p.dayLabel} — ${p.arcBeat}`}
+              title={`Scroll to Story ${idx + 1}: ${p.dayLabel} — ${p.arcBeat}`}
             >
               <div
                 className="h-full rounded-full"
                 style={{
                   width: `${fillWidth}%`,
                   backgroundColor: B.accent,
-                  transition: isCurrent && !isPaused ? 'width 40ms linear' : 'width 200ms ease',
+                  transition: 'width 60ms ease-out',
                 }}
               />
             </button>
@@ -239,11 +293,14 @@ function InstagramStoryBar({
         })}
       </div>
 
-      {/* Info & Micro controls */}
+      {/* Info & Navigation controls */}
       {activePost && (
         <div className="flex items-center justify-between text-xs" style={{ color: B.textMuted }}>
           <div className="flex items-center gap-2">
-            <span className="font-semibold px-2 py-0.5 rounded-md text-[11px]" style={{ backgroundColor: B.accentBg, color: B.accentDark }}>
+            <span
+              className="font-semibold px-2 py-0.5 rounded-md text-[11px]"
+              style={{ backgroundColor: B.accentBg, color: B.accentDark }}
+            >
               Story {currentIndex + 1} of {posts.length}
             </span>
             <span className="font-medium text-[11px] truncate max-w-[200px] sm:max-w-sm" style={{ color: B.text }}>
@@ -256,9 +313,10 @@ function InstagramStoryBar({
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                onSelectIndex((currentIndex - 1 + posts.length) % posts.length);
+                scrollToPost(currentIndex - 1);
               }}
-              className="p-1 rounded-md hover:bg-black/5 transition-colors"
+              disabled={currentIndex <= 0}
+              className="p-1 rounded-md hover:bg-black/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               title="Previous story"
             >
               <ChevronLeft className="w-3.5 h-3.5" />
@@ -267,29 +325,14 @@ function InstagramStoryBar({
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                onTogglePause();
+                scrollToPost(currentIndex + 1);
               }}
-              className="p-1 rounded-md hover:bg-black/5 transition-colors"
-              title={isPaused ? "Resume auto-advance" : "Pause auto-advance"}
-            >
-              {isPaused ? <PlayCircle className="w-3.5 h-3.5" style={{ color: B.accent }} /> : <PauseCircle className="w-3.5 h-3.5" />}
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelectIndex((currentIndex + 1) % posts.length);
-              }}
-              className="p-1 rounded-md hover:bg-black/5 transition-colors"
+              disabled={currentIndex >= posts.length - 1}
+              className="p-1 rounded-md hover:bg-black/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               title="Next story"
             >
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
-            {isPaused && (
-              <span className="text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 uppercase">
-                Paused
-              </span>
-            )}
           </div>
         </div>
       )}
@@ -638,43 +681,22 @@ function ReviewScreen({
   const [isUploadingImage, setIsUploadingImage] = useState<Record<number, boolean>>({});
   const [isDraggingPost, setIsDraggingPost] = useState<Record<number, boolean>>({});
 
-  // Sync expanded card and scroll into view when activeStoryIndex changes from story bar
-  useEffect(() => {
-    if (activeStoryIndex !== undefined && activeStoryIndex >= 0) {
-      setExpandedPost(activeStoryIndex);
-      const el = document.getElementById(`arc-post-${activeStoryIndex}`);
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }
-    }
-  }, [activeStoryIndex]);
 
-  // Track scroll position so scrolling through posts syncs the top story line
-  useEffect(() => {
-    let ticking = false;
-    const handleScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          const posts = editedArc.weekPosts;
-          const viewportCenter = window.innerHeight * 0.35;
-          for (let i = 0; i < posts.length; i++) {
-            const el = document.getElementById(`arc-post-${i}`);
-            if (el) {
-              const rect = el.getBoundingClientRect();
-              if (rect.top <= viewportCenter && rect.bottom >= viewportCenter) {
-                onStoryIndexChange?.(i);
-                break;
-              }
-            }
-          }
-          ticking = false;
-        });
-        ticking = true;
-      }
+
+  // Helper: compute safe upcoming slot (rounds to next 5-min increment, at least minMinutesAhead in the future)
+  const getSafeUpcomingSlot = (minMinutesAhead = 5) => {
+    const target = new Date(Date.now() + minMinutesAhead * 60 * 1000);
+    const rem = target.getMinutes() % 5;
+    if (rem !== 0) {
+      target.setMinutes(target.getMinutes() + (5 - rem));
+    }
+    target.setSeconds(0, 0);
+    return {
+      hour: target.getHours(),
+      minute: target.getMinutes(),
+      targetDate: target,
     };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [editedArc.weekPosts, onStoryIndexChange]);
+  };
 
   // Auto-adjust past times on initial mount if target week is current week
   useEffect(() => {
@@ -693,19 +715,23 @@ function ReviewScreen({
         if (postDateTime.getTime() <= now.getTime()) {
           hasChanges = true;
           adjustedCount++;
+          const safe = getSafeUpcomingSlot(5);
           if (targetDay.getTime() < startOfDay(now).getTime()) {
-            // Day has already passed (e.g. yesterday Monday): shift to today or next future day
-            const todayDay = (now.getDay() + 6) % 7; // Monday = 0
-            const safeHour = Math.min(23, now.getHours() + 1);
+            // Day has already passed (e.g. yesterday Monday): shift to today
+            const todayDay = (safe.targetDate.getDay() + 6) % 7; // Monday = 0
             return {
               ...p,
               day: todayDay,
-              dayLabel: format(now, 'EEEE'),
-              scheduledHour: safeHour,
+              dayLabel: format(safe.targetDate, 'EEEE'),
+              scheduledHour: safe.hour,
+              scheduledMinute: safe.minute,
             };
           } else {
-            const safeHour = Math.min(23, now.getHours() + 1);
-            return { ...p, scheduledHour: safeHour };
+            return {
+              ...p,
+              scheduledHour: safe.hour,
+              scheduledMinute: safe.minute,
+            };
           }
         }
         return p;
@@ -766,7 +792,7 @@ function ReviewScreen({
     }));
   };
 
-  const moveTime = (postIdx: number, delta: number) => {
+  const moveTime = (postIdx: number, deltaMinutes: number) => {
     const now = new Date();
     const monday = weekStartDate ? new Date(weekStartDate) : startOfWeek(now, { weekStartsOn: 1 });
     const targetDay = addDays(monday, editedArc.weekPosts[postIdx].day);
@@ -776,16 +802,26 @@ function ReviewScreen({
       updated.weekPosts = [...prev.weekPosts];
       const post = { ...prev.weekPosts[postIdx] };
 
-      // 24-hour cycle: 0 to 23
-      const newHour = (post.scheduledHour + delta + 24) % 24;
-      const postDateTime = new Date(targetDay);
-      postDateTime.setHours(newHour, post.scheduledMinute, 0, 0);
+      // Calculate total minutes in day: 0 to 1439
+      const currentTotalMinutes = post.scheduledHour * 60 + post.scheduledMinute;
+      let newTotalMinutes = currentTotalMinutes + deltaMinutes;
 
-      if (postDateTime.getTime() <= now.getTime()) {
+      // Wrap around 24 hours: (0..1439)
+      newTotalMinutes = ((newTotalMinutes % 1440) + 1440) % 1440;
+
+      const newHour = Math.floor(newTotalMinutes / 60);
+      const newMinute = newTotalMinutes % 60;
+
+      const postDateTime = new Date(targetDay);
+      postDateTime.setHours(newHour, newMinute, 0, 0);
+
+      // Do not allow moving into the past for today's post
+      if (isToday(targetDay) && postDateTime.getTime() <= now.getTime()) {
         return prev;
       }
 
       post.scheduledHour = newHour;
+      post.scheduledMinute = newMinute;
       updated.weekPosts[postIdx] = post;
       return updated;
     });
@@ -795,18 +831,83 @@ function ReviewScreen({
     const now = new Date();
     const monday = weekStartDate ? new Date(weekStartDate) : startOfWeek(now, { weekStartsOn: 1 });
     const targetDay = addDays(monday, editedArc.weekPosts[postIdx].day);
-    const postDateTime = new Date(targetDay);
-    postDateTime.setHours(hour, editedArc.weekPosts[postIdx].scheduledMinute, 0, 0);
+    const post = editedArc.weekPosts[postIdx];
+    let newMinute = post.scheduledMinute;
 
-    if (postDateTime.getTime() <= now.getTime()) {
+    if (isToday(targetDay) && hour === now.getHours()) {
+      // If current minute in this hour has passed, bump to next 1-minute slot
+      if (newMinute <= now.getMinutes()) {
+        newMinute = Math.min(59, now.getMinutes() + 1);
+      }
+    }
+
+    setEditedArc(prev => {
+      const updated = { ...prev };
+      updated.weekPosts = [...prev.weekPosts];
+      updated.weekPosts[postIdx] = {
+        ...post,
+        scheduledHour: Math.min(23, Math.max(0, hour)),
+        scheduledMinute: newMinute,
+      };
+      return updated;
+    });
+  };
+
+  const setPostMinute = (postIdx: number, minute: number) => {
+    const now = new Date();
+    const monday = weekStartDate ? new Date(weekStartDate) : startOfWeek(now, { weekStartsOn: 1 });
+    const targetDay = addDays(monday, editedArc.weekPosts[postIdx].day);
+    const post = editedArc.weekPosts[postIdx];
+
+    if (isToday(targetDay) && post.scheduledHour === now.getHours() && minute <= now.getMinutes()) {
       return;
     }
 
     setEditedArc(prev => {
       const updated = { ...prev };
       updated.weekPosts = [...prev.weekPosts];
-      const post = { ...prev.weekPosts[postIdx], scheduledHour: Math.min(23, Math.max(0, hour)) };
-      updated.weekPosts[postIdx] = post;
+      updated.weekPosts[postIdx] = {
+        ...post,
+        scheduledMinute: Math.min(59, Math.max(0, minute)),
+      };
+      return updated;
+    });
+  };
+
+  const setPostToQuickTime = (postIdx: number, minutesFromNow: number) => {
+    const now = new Date();
+    const monday = weekStartDate ? new Date(weekStartDate) : startOfWeek(now, { weekStartsOn: 1 });
+    const target = new Date(Date.now() + minutesFromNow * 60 * 1000);
+
+    // Round up to nearest 5 minutes
+    const rem = target.getMinutes() % 5;
+    if (rem !== 0) {
+      target.setMinutes(target.getMinutes() + (5 - rem));
+    }
+    target.setSeconds(0, 0);
+
+    setEditedArc(prev => {
+      const updated = { ...prev };
+      updated.weekPosts = [...prev.weekPosts];
+      const currentPost = prev.weekPosts[postIdx];
+      const targetDay = addDays(monday, currentPost.day);
+
+      let postDay = currentPost.day;
+      let dayLabel = currentPost.dayLabel;
+
+      if (targetDay.getTime() < startOfDay(now).getTime() || isToday(targetDay)) {
+        const todayDay = (target.getDay() + 6) % 7;
+        postDay = todayDay;
+        dayLabel = format(target, 'EEEE');
+      }
+
+      updated.weekPosts[postIdx] = {
+        ...currentPost,
+        day: postDay,
+        dayLabel,
+        scheduledHour: target.getHours(),
+        scheduledMinute: target.getMinutes(),
+      };
       return updated;
     });
   };
@@ -902,16 +1003,22 @@ function ReviewScreen({
 
       if (postDateTime.getTime() <= now.getTime()) {
         hasPastPost = true;
+        const safe = getSafeUpcomingSlot(5);
         if (targetDay.getTime() < startOfDay(now).getTime()) {
-          const todayDay = (now.getDay() + 6) % 7;
+          const todayDay = (safe.targetDate.getDay() + 6) % 7;
           return {
             ...p,
             day: todayDay,
-            dayLabel: format(now, 'EEEE'),
-            scheduledHour: Math.min(23, now.getHours() + 1),
+            dayLabel: format(safe.targetDate, 'EEEE'),
+            scheduledHour: safe.hour,
+            scheduledMinute: safe.minute,
           };
         } else {
-          return { ...p, scheduledHour: Math.min(23, now.getHours() + 1) };
+          return {
+            ...p,
+            scheduledHour: safe.hour,
+            scheduledMinute: safe.minute,
+          };
         }
       }
       return p;
@@ -1026,6 +1133,8 @@ function ReviewScreen({
             const postDateTime = new Date(targetDay);
             postDateTime.setHours(post.scheduledHour, post.scheduledMinute, 0, 0);
             const isPastTime = postDateTime.getTime() <= now.getTime();
+            const baseMinutes = Array.from({ length: 60 }, (_, m) => m);
+            const minuteOptions = Array.from(new Set([...baseMinutes, post.scheduledMinute])).sort((a, b) => a - b);
 
             const isExpanded = expandedPost === postIdx;
             const currentPlatformIdx = activePlatformTab[postIdx] ?? 0;
@@ -1129,7 +1238,7 @@ function ReviewScreen({
                   {/* Actions */}
                   <div className="flex items-center gap-1 flex-shrink-0">
                     <button
-                      onClick={e => { e.stopPropagation(); moveTime(postIdx, -1); }}
+                      onClick={e => { e.stopPropagation(); moveTime(postIdx, -60); }}
                       className="p-1.5 rounded-lg hover:opacity-70 transition-opacity text-xs font-mono"
                       style={{ color: B.textMuted }}
                       title="Move 1 hour earlier"
@@ -1137,12 +1246,28 @@ function ReviewScreen({
                       -1h
                     </button>
                     <button
-                      onClick={e => { e.stopPropagation(); moveTime(postIdx, 1); }}
+                      onClick={e => { e.stopPropagation(); moveTime(postIdx, 60); }}
                       className="p-1.5 rounded-lg hover:opacity-70 transition-opacity text-xs font-mono"
                       style={{ color: B.textMuted }}
                       title="Move 1 hour later"
                     >
                       +1h
+                    </button>
+                    <button
+                      onClick={e => { e.stopPropagation(); moveTime(postIdx, -1); }}
+                      className="p-1.5 rounded-lg hover:opacity-70 transition-opacity text-xs font-mono"
+                      style={{ color: B.textMuted }}
+                      title="Move 1 minute earlier"
+                    >
+                      -1m
+                    </button>
+                    <button
+                      onClick={e => { e.stopPropagation(); moveTime(postIdx, 1); }}
+                      className="p-1.5 rounded-lg hover:opacity-70 transition-opacity text-xs font-mono"
+                      style={{ color: B.textMuted }}
+                      title="Move 1 minute later"
+                    >
+                      +1m
                     </button>
                     <button
                       onClick={e => { e.stopPropagation(); removePost(postIdx); }}
@@ -1172,35 +1297,109 @@ function ReviewScreen({
                     >
                       <div className="px-5 pb-5 space-y-4 border-t" style={{ borderColor: B.border }}>
 
-                        {/* 24-Hour Time Selector & Past Alert */}
+                        {/* Time Selector, Quick Presets & Past Alert */}
                         <div className="flex items-center justify-between flex-wrap gap-2 pt-3">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <Clock className="w-4 h-4" style={{ color: B.accent }} />
-                            <span className="text-xs font-semibold" style={{ color: B.text }}>Schedule Hour (24h):</span>
-                            <select
-                              value={post.scheduledHour}
-                              onChange={e => setPostHour(postIdx, parseInt(e.target.value, 10))}
-                              className="text-xs font-mono font-medium px-2 py-1 rounded-lg border bg-transparent"
-                              style={{ borderColor: B.border, color: B.text }}
-                            >
-                              {Array.from({ length: 24 }, (_, h) => {
-                                const isPastH = isTodayPost && h <= now.getHours();
-                                return (
-                                  <option key={h} value={h} disabled={isPastH}>
-                                    {h.toString().padStart(2, '0')}:00 {isPastH ? '(passed)' : ''}
-                                  </option>
-                                );
-                              })}
-                            </select>
+                            <span className="text-xs font-semibold" style={{ color: B.text }}>Schedule Time:</span>
+
+                            {/* Dual Hour : Minute selectors */}
+                            <div className="flex items-center gap-1">
+                              <select
+                                value={post.scheduledHour}
+                                onChange={e => setPostHour(postIdx, parseInt(e.target.value, 10))}
+                                className="text-xs font-mono font-medium px-2 py-1 rounded-lg border bg-transparent cursor-pointer"
+                                style={{ borderColor: B.border, color: B.text }}
+                                aria-label="Schedule hour"
+                              >
+                                {Array.from({ length: 24 }, (_, h) => {
+                                  const isPastH = isTodayPost && (h < now.getHours() || (h === now.getHours() && now.getMinutes() >= 59));
+                                  return (
+                                    <option key={h} value={h} disabled={isPastH} className="bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100">
+                                      {h.toString().padStart(2, '0')}:00 {isPastH ? '(passed)' : ''}
+                                    </option>
+                                  );
+                                })}
+                              </select>
+                              <span className="text-xs font-bold font-mono" style={{ color: B.textMuted }}>:</span>
+                              <select
+                                value={post.scheduledMinute}
+                                onChange={e => setPostMinute(postIdx, parseInt(e.target.value, 10))}
+                                className="text-xs font-mono font-medium px-2 py-1 rounded-lg border bg-transparent cursor-pointer"
+                                style={{ borderColor: B.border, color: B.text }}
+                                aria-label="Schedule minute"
+                              >
+                                {minuteOptions.map(m => {
+                                  const isPastM = isTodayPost && post.scheduledHour === now.getHours() && m <= now.getMinutes();
+                                  return (
+                                    <option key={m} value={m} disabled={isPastM} className="bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100">
+                                      {m.toString().padStart(2, '0')} {isPastM ? '(passed)' : ''}
+                                    </option>
+                                  );
+                                })}
+                              </select>
+                            </div>
+
+                            {/* Quick Presets */}
+                            <div className="flex items-center gap-1 flex-wrap">
+                              <button
+                                type="button"
+                                onClick={() => setPostToQuickTime(postIdx, 5)}
+                                className="text-[11px] font-semibold px-2 py-1 rounded-md border transition-all hover:opacity-85 active:scale-95 cursor-pointer flex items-center gap-1 shadow-xs"
+                                style={{ borderColor: `${B.accent}50`, color: B.accent, backgroundColor: `${B.accent}14` }}
+                                title="Schedule 5 minutes from current time"
+                              >
+                                <Zap className="w-3 h-3 text-amber-500 fill-amber-500" />
+                                In 5 mins
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setPostToQuickTime(postIdx, 15)}
+                                className="text-[11px] font-medium px-2 py-1 rounded-md border transition-all hover:opacity-85 active:scale-95 cursor-pointer"
+                                style={{ borderColor: B.border, color: B.textMuted, backgroundColor: B.bg }}
+                                title="Schedule 15 minutes from current time"
+                              >
+                                +15m
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setPostToQuickTime(postIdx, 30)}
+                                className="text-[11px] font-medium px-2 py-1 rounded-md border transition-all hover:opacity-85 active:scale-95 cursor-pointer"
+                                style={{ borderColor: B.border, color: B.textMuted, backgroundColor: B.bg }}
+                                title="Schedule 30 minutes from current time"
+                              >
+                                +30m
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setPostToQuickTime(postIdx, 60)}
+                                className="text-[11px] font-medium px-2 py-1 rounded-md border transition-all hover:opacity-85 active:scale-95 cursor-pointer"
+                                style={{ borderColor: B.border, color: B.textMuted, backgroundColor: B.bg }}
+                                title="Schedule 1 hour from current time"
+                              >
+                                +1h
+                              </button>
+                            </div>
                           </div>
 
                           {isPastTime && (
-                            <button
-                              onClick={() => setPostHour(postIdx, Math.min(23, now.getHours() + 1))}
-                              className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200 transition-colors"
-                            >
-                              Set to next upcoming hour ({Math.min(23, now.getHours() + 1)}:00)
-                            </button>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <button
+                                type="button"
+                                onClick={() => setPostToQuickTime(postIdx, 5)}
+                                className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/20 transition-colors flex items-center gap-1 cursor-pointer"
+                              >
+                                <Zap className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                                Reschedule to in 5 mins
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setPostToQuickTime(postIdx, 60)}
+                                className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200 transition-colors cursor-pointer"
+                              >
+                                Next hour
+                              </button>
+                            </div>
                           )}
                         </div>
 
@@ -1523,8 +1722,15 @@ function ScheduledPostModal({
         const pad = (n: number) => String(n).padStart(2, '0');
         const localFormatted = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
         setRescheduleTime(localFormatted);
+        setShowRescheduleInput(false);
+      } else {
+        const d = new Date(Date.now() + 10 * 60 * 1000);
+        d.setMinutes(Math.ceil(d.getMinutes() / 5) * 5, 0, 0);
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const localFormatted = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        setRescheduleTime(localFormatted);
+        setShowRescheduleInput(true);
       }
-      setShowRescheduleInput(false);
     }
   }, [post]);
 
@@ -1669,6 +1875,7 @@ function ScheduledPostModal({
     const endOfNextWeek = endOfWeek(addWeeks(new Date(), 1), { weekStartsOn: 1 });
     if (targetDate.getTime() > endOfNextWeek.getTime()) return;
 
+    const isFirstSchedule = !post.scheduledAt;
     setIsRescheduling(true);
     try {
       const res = await fetch(`/api/composer/schedule/${post.postId}`, {
@@ -1676,12 +1883,18 @@ function ScheduledPostModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ newScheduledAt: targetDate.toISOString() }),
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        toast.error(errJson.error || 'Failed to schedule post');
+        return;
+      }
       post.scheduledAt = targetDate.toISOString();
+      post.status = 'scheduled';
       setShowRescheduleInput(false);
+      toast.success(isFirstSchedule ? 'Post scheduled successfully!' : 'Post rescheduled successfully!');
       onUpdated();
     } catch {
-      // reschedule error handled
+      toast.error('Failed to schedule post');
     } finally {
       setIsRescheduling(false);
     }
@@ -1740,23 +1953,23 @@ function ScheduledPostModal({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-bold text-base" style={{ color: B.text }}>
-                  Scheduled Post
+                  {post.scheduledAt ? 'Scheduled Post' : 'Review & Schedule Post'}
                 </h3>
                 <span
                   className="text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider"
                   style={{
-                    backgroundColor: post.status === 'scheduled' ? B.infoBg : B.successBg,
-                    color: post.status === 'scheduled' ? B.info : B.success,
+                    backgroundColor: post.status === 'scheduled' ? B.infoBg : post.status === 'published' ? B.successBg : '#fef3c7',
+                    color: post.status === 'scheduled' ? B.info : post.status === 'published' ? B.success : '#b45309',
                   }}
                 >
-                  {post.status}
+                  {post.status || 'draft'}
                 </span>
               </div>
               <p className="text-xs flex items-center gap-1.5 mt-0.5" style={{ color: B.textMuted }}>
                 <Clock className="w-3.5 h-3.5" />
                 {post.scheduledAt
                   ? format(new Date(post.scheduledAt), 'EEEE, MMM d, yyyy • h:mm a')
-                  : 'Not scheduled'}
+                  : 'Ready to review and schedule'}
               </p>
             </div>
           </div>
@@ -1779,17 +1992,17 @@ function ScheduledPostModal({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-xs font-semibold" style={{ color: B.text }}>
                 <Clock className="w-4 h-4" style={{ color: B.accent }} />
-                <span>Scheduled Time:</span>
+                <span>{post.scheduledAt ? 'Scheduled Time:' : 'Choose Schedule Time:'}</span>
                 <span className="font-mono font-normal">
-                  {post.scheduledAt ? format(new Date(post.scheduledAt), 'MMM d, yyyy @ h:mm a') : '--'}
+                  {post.scheduledAt ? format(new Date(post.scheduledAt), 'MMM d, yyyy @ h:mm a') : 'Not scheduled yet'}
                 </span>
               </div>
               <button
                 onClick={() => setShowRescheduleInput(prev => !prev)}
-                className="text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors hover:opacity-80"
+                className="text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors hover:opacity-80 cursor-pointer"
                 style={{ backgroundColor: B.card, border: `1px solid ${B.border}`, color: B.accentDark }}
               >
-                {showRescheduleInput ? 'Cancel' : 'Change Time'}
+                {showRescheduleInput ? 'Cancel' : (post.scheduledAt ? 'Change Time' : 'Set Schedule')}
               </button>
             </div>
 
@@ -1807,11 +2020,11 @@ function ScheduledPostModal({
                 <button
                   onClick={handleReschedule}
                   disabled={isRescheduling}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white transition-opacity disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white transition-opacity disabled:opacity-50 cursor-pointer"
                   style={{ backgroundColor: B.accent }}
                 >
                   {isRescheduling && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  Reschedule
+                  {post.scheduledAt ? 'Reschedule' : 'Schedule Post'}
                 </button>
               </div>
             )}
@@ -2121,10 +2334,12 @@ function ScheduledPostModal({
 /* ─── Step 3: Week Canvas ─── */
 function WeekCanvas({
   workspaceId,
+  targetPostId,
   onNewArc,
   onPostCountChange,
 }: {
   workspaceId: string;
+  targetPostId?: string | null;
   onNewArc: () => void;
   onPostCountChange?: (count: number) => void;
 }) {
@@ -2134,6 +2349,7 @@ function WeekCanvas({
   const [isHolding, setIsHolding] = useState(false);
   const [holdActive, setHoldActive] = useState(false);
   const [selectedPost, setSelectedPost] = useState<CanvasPost | null>(null);
+  const [hasOpenedTargetPost, setHasOpenedTargetPost] = useState(false);
 
   const weekStart = useMemo(() => {
     const monday = startOfWeek(new Date(), { weekStartsOn: 1 });
@@ -2163,6 +2379,73 @@ function WeekCanvas({
   }, [weekStart, onPostCountChange]);
 
   useEffect(() => { loadCanvas(); }, [loadCanvas]);
+
+  // If targetPostId is present in URL, find or fetch it and auto-open it in ScheduledPostModal
+  useEffect(() => {
+    if (!targetPostId || hasOpenedTargetPost) return;
+
+    // Check if post is already present in loaded week posts
+    const existing = posts.find(p => p.postId === targetPostId);
+    if (existing) {
+      setSelectedPost(existing);
+      setHasOpenedTargetPost(true);
+      return;
+    }
+
+    // Otherwise fetch post directly from /api/publish/[postId]
+    let isCancelled = false;
+    async function fetchTargetPost() {
+      try {
+        const res = await fetch(`/api/publish/${targetPostId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (isCancelled || !data?.post) return;
+
+        const p = data.post;
+        const variants = data.variants || [];
+
+        const targetCanvasPost: CanvasPost = {
+          postId: p.id,
+          content: p.content,
+          status: p.status,
+          scheduledAt: p.scheduledAt || null,
+          scheduleStrategy: p.scheduleStrategy || 'simultaneous',
+          arcId: p.arcId || null,
+          platforms: variants.map((v: any) => ({
+            variantId: v.id,
+            platform: v.platform,
+            content: v.adaptedContent || v.content || '',
+            status: v.status,
+            scheduledAt: v.scheduledAt || null,
+            autoFirstComment: v.autoFirstComment || null,
+            firstCommentHint: v.firstCommentHint || null,
+            mediaUrls: v.mediaUrls || [],
+            hashtags: v.hashtagStrategy || [],
+            error: v.error,
+          })),
+        };
+
+        if (targetCanvasPost.scheduledAt) {
+          const postDate = new Date(targetCanvasPost.scheduledAt);
+          const currentMonday = startOfWeek(new Date(), { weekStartsOn: 1 });
+          const postMonday = startOfWeek(postDate, { weekStartsOn: 1 });
+          const diffDays = Math.round((postMonday.getTime() - currentMonday.getTime()) / (1000 * 60 * 60 * 24));
+          const offset = Math.round(diffDays / 7);
+          if (offset >= 0 && offset <= 1) {
+            setWeekOffset(offset);
+          }
+        }
+
+        setSelectedPost(targetCanvasPost);
+        setHasOpenedTargetPost(true);
+      } catch {
+        // silent
+      }
+    }
+
+    fetchTargetPost();
+    return () => { isCancelled = true; };
+  }, [targetPostId, posts, hasOpenedTargetPost]);
 
   const handleCancel = async (postId: string) => {
     const res = await fetch(`/api/composer/schedule/${postId}`, { method: 'DELETE' });
@@ -2455,6 +2738,8 @@ function WeekCanvas({
 
 /* ─── Main FlightPlanClient ─── */
 function FlightPlanInner({ userId, workspaceId }: { userId: string; workspaceId: string }) {
+  const searchParams = useSearchParams();
+  const targetPostId = searchParams?.get('postId') || null;
   const [view, setView] = useState<ViewMode>('canvas');
   const [arc, setArc] = useState<WeekArc | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -2664,16 +2949,13 @@ function FlightPlanInner({ userId, workspaceId }: { userId: string; workspaceId:
 
       {view === 'review' && arc && (
         <div
-          className="flex items-start sm:items-center justify-between gap-4 p-3 rounded-2xl border"
-          style={{ backgroundColor: B.card, borderColor: B.border }}
+          className="sticky top-3 z-30 flex items-start sm:items-center justify-between gap-4 p-3 rounded-2xl border backdrop-blur-md shadow-sm"
+          style={{ backgroundColor: `${B.card}F5`, borderColor: B.border }}
         >
           <InstagramStoryBar
             posts={arc.weekPosts.filter(p => !p.deleted)}
             currentIndex={activeStoryIndex}
             onSelectIndex={setActiveStoryIndex}
-            isPaused={isStoryPaused}
-            onTogglePause={() => setIsStoryPaused(p => !p)}
-            durationMs={5500}
           />
           <button
             onClick={() => { setView('canvas'); setArc(null); }}
@@ -2714,6 +2996,7 @@ function FlightPlanInner({ userId, workspaceId }: { userId: string; workspaceId:
           <WeekCanvas
             key="canvas"
             workspaceId={workspaceId}
+            targetPostId={targetPostId}
             onNewArc={() => setView('story')}
             onPostCountChange={setPostCount}
           />

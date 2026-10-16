@@ -1072,9 +1072,9 @@ function PostCard({
         {isDraft ? (
           <div className="flex items-center gap-2 ml-auto">
             <Link
-              href={`/dashboard/publish?postId=${post.id}`}
+              href={`/dashboard/flightplan?postId=${post.id}`}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-gray-900 text-white hover:bg-black transition-colors shadow-xs cursor-pointer"
-              title="Review, edit, and publish this draft"
+              title="Review, edit, and schedule in Flight Plan"
             >
               <Pencil className="w-3.5 h-3.5" />
               <span>Review & edit</span>
