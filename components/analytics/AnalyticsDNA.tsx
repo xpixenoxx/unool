@@ -423,7 +423,7 @@ export function AnalyticsDNA({ resonance, posts, onSync, isSyncing = false }: { 
 
   if (!resonance || !resonance.hasData || resonance.totalPosts === 0) {
     return (
-      <div style={{ padding: '52px 24px', textAlign: 'center', background: CARD, borderRadius: 20, border: 1px solid , boxShadow: '0 1px 6px rgba(61,43,31,0.06)' }}>
+      <div style={{ padding: '52px 24px', textAlign: 'center', background: CARD, borderRadius: 20, border: `1px solid ${BORDER}`, boxShadow: '0 1px 6px rgba(61,43,31,0.06)' }}>
         <div style={{ width: 52, height: 52, borderRadius: 14, background: GOLD_BG, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
           <Activity size={24} style={{ color: GOLD }} />
         </div>
@@ -461,12 +461,12 @@ export function AnalyticsDNA({ resonance, posts, onSync, isSyncing = false }: { 
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, fontFamily: 'Inter,system-ui,sans-serif' }}>
 
       <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.26 }}
-        style={{ borderRadius: 18, background: CARD, border: 1px solid , padding: '20px 22px', boxShadow: '0 1px 6px rgba(61,43,31,0.06)' }}>
+        style={{ borderRadius: 18, background: CARD, border: `1px solid ${BORDER}`, padding: '20px 22px', boxShadow: '0 1px 6px rgba(61,43,31,0.06)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
               <p style={{ fontSize: 10, fontWeight: 800, color: GOLD, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Analytics Lab</p>
-              {hasReal ? <span style={{ fontSize: 9, fontWeight: 700, color: '#15803d', background: '#F0FDF4', border: '1px solid #BBF7D0', padding: '1px 8px', borderRadius: 20 }}>Live Data</span> : <span style={{ fontSize: 9, fontWeight: 600, color: TEXT_MUTED, background: BG, border: 1px solid , padding: '1px 8px', borderRadius: 20 }}>Algorithmic</span>}
+              {hasReal ? <span style={{ fontSize: 9, fontWeight: 700, color: '#15803d', background: '#F0FDF4', border: '1px solid #BBF7D0', padding: '1px 8px', borderRadius: 20 }}>Live Data</span> : <span style={{ fontSize: 9, fontWeight: 600, color: TEXT_MUTED, background: BG, border: `1px solid ${BORDER}`, padding: '1px 8px', borderRadius: 20 }}>Algorithmic</span>}
               <InfoTip text={hasReal ? 'Live engagement pulled directly from Instagram and LinkedIn APIs — every number is real.' : 'Connect Instagram Business and LinkedIn to unlock real-time sync. Currently showing pattern estimates.'} />
             </div>
             <h2 style={{ fontSize: 22, fontWeight: 900, color: TEXT_PRIMARY, lineHeight: 1.1 }}>Business Intelligence</h2>
@@ -474,21 +474,21 @@ export function AnalyticsDNA({ resonance, posts, onSync, isSyncing = false }: { 
           {onSync && <button onClick={onSync} disabled={isSyncing} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, color: isSyncing ? TEXT_MUTED : TEXT_PRIMARY, background: GOLD_BG, border: '1px solid #E8C98B', padding: '7px 16px', borderRadius: 20, cursor: isSyncing ? 'default' : 'pointer', transition: 'all 0.15s' }}><RefreshCw size={12} />{isSyncing ? 'Syncing...' : 'Sync Live'}</button>}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
-          <KPICard label="Total Interactions" accent val={<AnimCount value={totalI} color={GOLD} size={26} />} sub={cross  posts} tip="Total likes + comments + shares across all platforms for all published posts." />
+          <KPICard label="Total Interactions" accent val={<AnimCount value={totalI} color={GOLD} size={26} />} sub={`across ${resonance.totalPosts} posts`} tip="Total likes + comments + shares across all platforms for all published posts." />
           <KPICard label="Avg Per Post" val={<AnimCount value={Math.round(avgI)} color={TEXT_PRIMARY} size={26} />} sub={hasReal ? 'live from platform' : 'estimated'} tip="Average engagement per published post. Higher = stronger content-market fit with your audience." />
           <KPICard label="Momentum" val={<span style={{ fontSize: 26, fontWeight: 900, color: mDelta >= 0 ? '#15803d' : '#be123c', lineHeight: 1 }}>{mDelta >= 0 ? '+' : ''}{mDelta}%</span>} sub="recent vs earlier posts" tip="Compares your recent posts avg interactions against your older posts. Positive = your content is improving." />
           <KPICard label="Media Lift" val={<AnimCount value={Math.abs(mediaLift)} prefix={mediaLift > 0 ? '+' : ''} suffix="%" color={mediaLift > 0 ? '#15803d' : TEXT_MUTED} size={26} />} sub={mediaLift > 0 ? 'visuals beat text-only' : 'add media to unlock'} tip="How much more engagement posts with images or video get vs text-only. Calculated from your actual published content." />
         </div>
       </motion.div>
 
-      <div style={{ display: 'flex', gap: 2, padding: 4, background: '#F0EBE3', borderRadius: 14, border: 1px solid  }}>
+      <div style={{ display: 'flex', gap: 2, padding: 4, background: '#F0EBE3', borderRadius: 14, border: `1px solid ${BORDER}` }}>
         {TABS.map(t => (<button key={t.id} onClick={() => setTab(t.id)} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 10px', borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: 'none', transition: 'all 0.15s', background: tab === t.id ? '#FFFFFF' : 'transparent', color: tab === t.id ? TEXT_PRIMARY : TEXT_MUTED, boxShadow: tab === t.id ? '0 1px 4px rgba(61,43,31,0.08)' : 'none' }}>{t.icon}{t.label}</button>))}
       </div>
 
       <AnimatePresence mode="wait">
         {tab === 'growth' && (
           <motion.div key="growth" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.15 }} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div style={{ borderRadius: 16, background: CARD, border: 1px solid , padding: '18px 20px', boxShadow: '0 1px 4px rgba(61,43,31,0.05)' }}>
+            <div style={{ borderRadius: 16, background: CARD, border: `1px solid ${BORDER}`, padding: '18px 20px', boxShadow: '0 1px 4px rgba(61,43,31,0.05)' }}>
               <SectionHeader label="Engagement Trajectory" tip="Each dot = one published post. Size = views. Color = hook type. Dashed trend line (green = growing, red = plateau). Hover any dot for details." sub="Timeline left to right — see how your engagement evolves post by post." />
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 10 }}>
                 {Object.entries(HOOK_COLORS).slice(0, 5).map(([type, color]) => (<div key={type} style={{ display: 'flex', alignItems: 'center', gap: 4 }}><div style={{ width: 7, height: 7, borderRadius: '50%', background: color }} /><span style={{ fontSize: 10, color: TEXT_MUTED, textTransform: 'capitalize' }}>{type}</span></div>))}
@@ -496,7 +496,7 @@ export function AnalyticsDNA({ resonance, posts, onSync, isSyncing = false }: { 
               <EngagementScatter posts={posts} />
             </div>
             {resonance.recommendations && resonance.recommendations.length > 0 && (
-              <div style={{ borderRadius: 16, background: CARD, border: 1px solid , padding: '18px 20px', boxShadow: '0 1px 4px rgba(61,43,31,0.05)' }}>
+              <div style={{ borderRadius: 16, background: CARD, border: `1px solid ${BORDER}`, padding: '18px 20px', boxShadow: '0 1px 4px rgba(61,43,31,0.05)' }}>
                 <SectionHeader label="AI Prescriptions" tip="Built from your actual post patterns, hook performance, and real engagement signals — not generic advice." sub="Specific actions to improve your next post." />
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {resonance.recommendations.map((rec, i) => {
@@ -504,12 +504,12 @@ export function AnalyticsDNA({ resonance, posts, onSync, isSyncing = false }: { 
                     const c = tc[rec.type] || GOLD;
                     return (
                       <motion.div key={rec.id} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.08 }}
-                        style={{ display: 'flex', gap: 12, padding: '12px 14px', borderRadius: 12, background: BG, border: 1px solid  }}>
-                        <div style={{ width: 28, height: 28, borderRadius: 8, background: ${c}14, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}><Zap size={13} style={{ color: c }} /></div>
+                        style={{ display: 'flex', gap: 12, padding: '12px 14px', borderRadius: 12, background: BG, border: `1px solid ${BORDER}` }}>
+                        <div style={{ width: 28, height: 28, borderRadius: 8, background: `${c}14`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}><Zap size={13} style={{ color: c }} /></div>
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
                             <p style={{ fontSize: 12, fontWeight: 800, color: TEXT_PRIMARY }}>{rec.title}</p>
-                            <span style={{ fontSize: 9, fontWeight: 700, color: c, background: ${c}12, padding: '1px 6px', borderRadius: 10, textTransform: 'uppercase' }}>{rec.type}</span>
+                            <span style={{ fontSize: 9, fontWeight: 700, color: c, background: `${c}12`, padding: '1px 6px', borderRadius: 10, textTransform: 'uppercase' }}>{rec.type}</span>
                           </div>
                           <p style={{ fontSize: 11.5, color: TEXT_MED, lineHeight: 1.6 }}>{rec.desc}</p>
                         </div>
@@ -524,25 +524,25 @@ export function AnalyticsDNA({ resonance, posts, onSync, isSyncing = false }: { 
 
         {tab === 'audience' && (
           <motion.div key="audience" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.15 }} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div style={{ borderRadius: 16, background: CARD, border: 1px solid , padding: '18px 20px', boxShadow: '0 1px 4px rgba(61,43,31,0.05)' }}>
+            <div style={{ borderRadius: 16, background: CARD, border: `1px solid ${BORDER}`, padding: '18px 20px', boxShadow: '0 1px 4px rgba(61,43,31,0.05)' }}>
               <SectionHeader label="24-Hour Activity Window" tip="Bars show engagement density per 3-hour slot. Taller = more activity at that hour. Schedule your best content at peak windows." sub="When your audience engages most — schedule flagship posts here." />
               <HourBars hourEngagement={hourEng} hourDistribution={hourDist} hasReal={hasReal} />
-              {resonance.bestHour && (<div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, padding: '8px 12px', borderRadius: 10, background: GOLD_BG, border: '1px solid #E8C98B' }}><Award size={13} style={{ color: GOLD }} /><p style={{ fontSize: 11.5, color: TEXT_PRIMARY, fontWeight: 700 }}>Peak window: <span style={{ color: GOLD }}>{resonance.bestHour.label}</span>{resonance.bestHour.interactions ?  ·  interactions : ''}</p></div>)}
+              {resonance.bestHour && (<div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, padding: '8px 12px', borderRadius: 10, background: GOLD_BG, border: '1px solid #E8C98B' }}><Award size={13} style={{ color: GOLD }} /><p style={{ fontSize: 11.5, color: TEXT_PRIMARY, fontWeight: 700 }}>Peak window: <span style={{ color: GOLD }}>{resonance.bestHour.label}</span>{resonance.bestHour.interactions ? ` · ${resonance.bestHour.interactions.toLocaleString()} interactions` : ''}</p></div>)}
             </div>
-            <div style={{ borderRadius: 16, background: CARD, border: 1px solid , padding: '18px 20px', boxShadow: '0 1px 4px rgba(61,43,31,0.05)' }}>
+            <div style={{ borderRadius: 16, background: CARD, border: `1px solid ${BORDER}`, padding: '18px 20px', boxShadow: '0 1px 4px rgba(61,43,31,0.05)' }}>
               <SectionHeader label="Day-of-Week Performance" tip="Your engagement split by weekday. Gold bars = your strongest days. Schedule high-effort content on these days." sub="Your audience is most active on highlighted days." />
               <DayBars dayEngagement={dayEng} dayDistribution={dayDist} hasReal={hasReal} />
-              {resonance.bestDay && (<div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, padding: '8px 12px', borderRadius: 10, background: GOLD_BG, border: '1px solid #E8C98B' }}><Target size={13} style={{ color: GOLD }} /><p style={{ fontSize: 11.5, color: TEXT_PRIMARY, fontWeight: 700 }}>Peak day: <span style={{ color: GOLD }}>{resonance.bestDay.name}</span>{resonance.bestDay.interactions ?  ·  total interactions : ''}</p></div>)}
+              {resonance.bestDay && (<div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, padding: '8px 12px', borderRadius: 10, background: GOLD_BG, border: '1px solid #E8C98B' }}><Target size={13} style={{ color: GOLD }} /><p style={{ fontSize: 11.5, color: TEXT_PRIMARY, fontWeight: 700 }}>Peak day: <span style={{ color: GOLD }}>{resonance.bestDay.name}</span>{resonance.bestDay.interactions ? ` · ${resonance.bestDay.interactions.toLocaleString()} total interactions` : ''}</p></div>)}
             </div>
-            <div style={{ borderRadius: 16, background: CARD, border: 1px solid , padding: '18px 20px', boxShadow: '0 1px 4px rgba(61,43,31,0.05)' }}>
+            <div style={{ borderRadius: 16, background: CARD, border: `1px solid ${BORDER}`, padding: '18px 20px', boxShadow: '0 1px 4px rgba(61,43,31,0.05)' }}>
               <SectionHeader label="Media vs Text-Only" tip="Compare engagement between posts with images/video vs pure text. Media Lift = how much more interactions you get when adding a visual." />
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
                 {[
-                  { label: 'Media Ratio', val: ${resonance.mediaRatio || 0}%, sub: 'posts include media', tip: 'Percentage of your published posts that include an image, video, or carousel.' },
-                  { label: 'Media Lift', val: mediaLift > 0 ? +% : mediaLift < 0 ? ${mediaLift}% : 'n/a', sub: 'vs text-only posts', tip: 'How much more engagement posts with media get vs text-only. Positive = visuals help you win.' },
+                  { label: 'Media Ratio', val: `${resonance.mediaRatio || 0}%`, sub: 'posts include media', tip: 'Percentage of your published posts that include an image, video, or carousel.' },
+                  { label: 'Media Lift', val: mediaLift > 0 ? `+${mediaLift}%` : mediaLift < 0 ? `${mediaLift}%` : 'n/a', sub: 'vs text-only posts', tip: 'How much more engagement posts with media get vs text-only. Positive = visuals help you win.' },
                   { label: 'Avg Word Count', val: String(resonance.avgWordCount || 0), sub: 'words per post', tip: 'Average words across all published posts. Identifies whether you lean short-punchy or long-form.' },
                 ].map(item => (
-                  <div key={item.label} style={{ padding: '12px 14px', borderRadius: 12, background: BG, border: 1px solid  }}>
+                  <div key={item.label} style={{ padding: '12px 14px', borderRadius: 12, background: BG, border: `1px solid ${BORDER}` }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
                       <p style={{ fontSize: 9, fontWeight: 700, color: TEXT_MUTED, letterSpacing: '0.07em', textTransform: 'uppercase' }}>{item.label}</p>
                       <InfoTip text={item.tip} />
@@ -558,19 +558,19 @@ export function AnalyticsDNA({ resonance, posts, onSync, isSyncing = false }: { 
 
         {tab === 'roi' && (
           <motion.div key="roi" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.15 }} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div style={{ borderRadius: 16, background: CARD, border: 1px solid , padding: '18px 20px', boxShadow: '0 1px 4px rgba(61,43,31,0.05)' }}>
+            <div style={{ borderRadius: 16, background: CARD, border: `1px solid ${BORDER}`, padding: '18px 20px', boxShadow: '0 1px 4px rgba(61,43,31,0.05)' }}>
               <SectionHeader label="Effort x Return Matrix" tip="X-axis = word count (writing effort). Y-axis = interactions (engagement return). Top-left = Quick Wins (short + high engagement). Bottom-right = Wasted Effort. Hover any dot." sub="Find your highest ROI content format — where to put your energy." />
               <EffortMatrix posts={posts} avgWordCount={resonance.avgWordCount || 100} />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 12 }}>
                 {[{ label: 'Quick Wins', desc: 'Short + high engagement. Your goldmine.', color: '#15803d', bg: '#F0FDF4' }, { label: 'Deep Value', desc: 'Long + high engagement. Authority content.', color: '#92400e', bg: '#FFFBEB' }, { label: 'Warm Up', desc: 'Short + low engagement. Build frequency.', color: TEXT_MUTED, bg: BG }, { label: 'Wasted Effort', desc: 'Long + low engagement. Cut or repurpose.', color: '#be123c', bg: '#FFF1F2' }].map(q => (
-                  <div key={q.label} style={{ padding: '9px 11px', borderRadius: 10, background: q.bg, border: 1px solid  }}>
+                  <div key={q.label} style={{ padding: '9px 11px', borderRadius: 10, background: q.bg, border: `1px solid ${BORDER}` }}>
                     <p style={{ fontSize: 11, fontWeight: 700, color: q.color, marginBottom: 2 }}>{q.label}</p>
                     <p style={{ fontSize: 10, color: TEXT_MUTED, lineHeight: 1.45 }}>{q.desc}</p>
                   </div>
                 ))}
               </div>
             </div>
-            <div style={{ borderRadius: 16, background: CARD, border: 1px solid , padding: '18px 20px', boxShadow: '0 1px 4px rgba(61,43,31,0.05)' }}>
+            <div style={{ borderRadius: 16, background: CARD, border: `1px solid ${BORDER}`, padding: '18px 20px', boxShadow: '0 1px 4px rgba(61,43,31,0.05)' }}>
               <SectionHeader label="Hook ROI Ranking" tip="Each hook type ranked by average interactions per post. Green badge = above your channel average. Top-performing post snippet shown per hook." sub="Use your top hook more — it is your proven signal." />
               <HookRanking hooks={resonance.hookBreakdown} avgInteractions={avgI} />
             </div>
