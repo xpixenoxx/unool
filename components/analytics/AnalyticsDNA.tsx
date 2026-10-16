@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -93,13 +93,13 @@ function AnimCount({ value, prefix = '', suffix = '', size = 28, color = TEXT_PR
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [value]);
-  return <span style={{ fontSize: size, fontWeight: 900, color, lineHeight: 1 }}>{prefix}{d >= 1000 ? ${String((d / 1000).toFixed(1))}k : d}{suffix}</span>;
+  return <span style={{ fontSize: size, fontWeight: 900, color, lineHeight: 1 }}>{prefix}{d >= 1000 ? `${(d / 1000).toFixed(1)}k` : d}{suffix}</span>;
 }
 
 function KPICard({ label, val, sub, tip, accent = false }: { label: string; val: React.ReactNode; sub: string; tip: string; accent?: boolean }) {
   return (
     <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-      style={{ padding: '14px 16px', borderRadius: 14, background: accent ? GOLD_BG : CARD, border: 1px solid , boxShadow: '0 1px 4px rgba(61,43,31,0.06)' }}>
+      style={{ padding: '14px 16px', borderRadius: 14, background: accent ? GOLD_BG : CARD, border: `1px solid ${accent ? '#E8C98B' : BORDER}`, boxShadow: '0 1px 4px rgba(61,43,31,0.06)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 7 }}>
         <p style={{ fontSize: 9.5, fontWeight: 800, color: accent ? '#9A7235' : TEXT_MUTED, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{label}</p>
         <InfoTip text={tip} />
@@ -136,7 +136,7 @@ function EngagementScatter({ posts }: { posts: SignalPost[] }) {
         ctx.beginPath(); ctx.moveTo(PAD, y); ctx.lineTo(LW - PAD, y); ctx.stroke();
         const val = Math.round((mxI / 4) * (4 - i));
         ctx.fillStyle = TEXT_MUTED; ctx.font = '500 9px Inter,system-ui'; ctx.textAlign = 'right';
-        ctx.fillText(val > 999 ? ${String((val / 1000).toFixed(1))}k : String(val), PAD - 6, y + 3);
+        ctx.fillText(val > 999 ? `${(val / 1000).toFixed(1)}k` : String(val), PAD - 6, y + 3);
       }
       if (pp.length >= 3) {
         const coords = pp.map((p, i) => gc(p, i, LW, LH, PAD));
@@ -155,7 +155,7 @@ function EngagementScatter({ posts }: { posts: SignalPost[] }) {
         const animCy = LH - PAD - (LH - PAD - cy) * ease;
         const color = HOOK_COLORS[post.hookType || 'unknown'] || '#9CA3AF';
         ctx.beginPath(); ctx.arc(cx, animCy, r * ease, 0, Math.PI * 2);
-        ctx.fillStyle = post.engagement?.hasRealData ? ${color}CC : ${color}55; ctx.fill();
+        ctx.fillStyle = post.engagement?.hasRealData ? `${color}CC` : `${color}55`; ctx.fill();
         ctx.strokeStyle = color; ctx.lineWidth = 1.2;
         ctx.beginPath(); ctx.arc(cx, animCy, r * ease, 0, Math.PI * 2); ctx.stroke();
       });
@@ -182,7 +182,7 @@ function EngagementScatter({ posts }: { posts: SignalPost[] }) {
     <div style={{ position: 'relative' }}>
       <canvas ref={canvasRef} style={{ width: '100%', height: 200, display: 'block', cursor: 'crosshair', borderRadius: 8, background: BG }} onMouseMove={onMM} onMouseLeave={() => setHov(null)} />
       {hov && (
-        <div style={{ position: 'fixed', top: hov.y - 10, left: hov.x + 14, zIndex: 9999, background: CARD, border: 1px solid , borderRadius: 10, padding: '8px 12px', boxShadow: '0 4px 20px rgba(61,43,31,0.14)', fontSize: 11, pointerEvents: 'none', maxWidth: 200 }}>
+        <div style={{ position: 'fixed', top: hov.y - 10, left: hov.x + 14, zIndex: 9999, background: CARD, border: `1px solid ${BORDER}`, borderRadius: 10, padding: '8px 12px', boxShadow: '0 4px 20px rgba(61,43,31,0.14)', fontSize: 11, pointerEvents: 'none', maxWidth: 200 }}>
           <p style={{ fontWeight: 700, color: TEXT_PRIMARY, marginBottom: 2, textTransform: 'capitalize' }}>{hov.post.hookType || 'statement'} hook</p>
           <p style={{ color: TEXT_MED, marginBottom: 4 }}>{hov.post.content.slice(0, 55)}...</p>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -202,7 +202,7 @@ function HourBars({ hourEngagement, hourDistribution, hasReal }: { hourEngagemen
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 88 }}>
-        {data.map((val, i) => { const pct = (val / max) * 100; return (<div key={i} style={{ flex: 1, display: 'flex', alignItems: 'flex-end', height: '100%' }}><motion.div initial={{ height: 0 }} animate={{ height: ${pct}% }} transition={{ delay: i * 0.018, duration: 0.45, ease: 'easeOut' }} style={{ width: '100%', minHeight: val > 0 ? 2 : 0, background: pct > 60 ? GOLD : ${GOLD}44, borderRadius: '3px 3px 0 0' }} /></div>); })}
+        {data.map((val, i) => { const pct = (val / max) * 100; return (<div key={i} style={{ flex: 1, display: 'flex', alignItems: 'flex-end', height: '100%' }}><motion.div initial={{ height: 0 }} animate={{ height: `${pct}%` }} transition={{ delay: i * 0.018, duration: 0.45, ease: 'easeOut' }} style={{ width: '100%', minHeight: val > 0 ? 2 : 0, background: pct > 60 ? GOLD : `${GOLD}44`, borderRadius: '3px 3px 0 0' }} /></div>); })}
       </div>
       <div style={{ height: 1, background: BORDER, marginBottom: 5 }} />
       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -218,7 +218,7 @@ function DayBars({ dayEngagement, dayDistribution, hasReal }: { dayEngagement: n
   const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 6 }}>
-      {data.map((val, i) => { const pct = val / max; const isTop = pct > 0.7; return (<div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}><div style={{ height: 64, width: '100%', display: 'flex', alignItems: 'flex-end' }}><motion.div initial={{ height: 0 }} animate={{ height: ${pct * 100}% }} transition={{ delay: i * 0.06, duration: 0.5, ease: 'easeOut' }} style={{ width: '100%', minHeight: val > 0 ? 3 : 0, background: isTop ? linear-gradient(180deg,,#D4A855) : ${GOLD}38, borderRadius: '4px 4px 0 0' }} /></div><span style={{ fontSize: 9.5, fontWeight: isTop ? 800 : 500, color: isTop ? TEXT_PRIMARY : TEXT_MUTED }}>{DAYS[i]}</span></div>); })}
+      {data.map((val, i) => { const pct = val / max; const isTop = pct > 0.7; return (<div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}><div style={{ height: 64, width: '100%', display: 'flex', alignItems: 'flex-end' }}><motion.div initial={{ height: 0 }} animate={{ height: `${pct * 100}%` }} transition={{ delay: i * 0.06, duration: 0.5, ease: 'easeOut' }} style={{ width: '100%', minHeight: val > 0 ? 3 : 0, background: isTop ? `linear-gradient(180deg,${GOLD},#D4A855)` : `${GOLD}38`, borderRadius: '4px 4px 0 0' }} /></div><span style={{ fontSize: 9.5, fontWeight: isTop ? 800 : 500, color: isTop ? TEXT_PRIMARY : TEXT_MUTED }}>{DAYS[i]}</span></div>); })}
     </div>
   );
 }
@@ -247,13 +247,13 @@ function PlatformBreakdown({ posts }: { posts: SignalPost[] }) {
           <motion.div key={row.platform} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.06 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                <div style={{ width: 30, height: 30, borderRadius: 9, background: ${color}14, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><span style={{ fontSize: 12, fontWeight: 800, color }}>{row.platform[0].toUpperCase()}</span></div>
+                <div style={{ width: 30, height: 30, borderRadius: 9, background: `${color}14`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><span style={{ fontSize: 12, fontWeight: 800, color }}>{row.platform[0].toUpperCase()}</span></div>
                 <div><p style={{ fontSize: 12, fontWeight: 700, color: TEXT_PRIMARY, textTransform: 'capitalize' }}>{row.platform}</p><p style={{ fontSize: 10, color: TEXT_MUTED }}>{row.posts} posts{row.hasReal ? ' · live' : ''}</p></div>
               </div>
               <div style={{ textAlign: 'right' }}><p style={{ fontSize: 15, fontWeight: 900, color: TEXT_PRIMARY }}>{row.interactions.toLocaleString()}</p><p style={{ fontSize: 10, color: TEXT_MUTED }}>{row.views.toLocaleString()} views</p></div>
             </div>
             <div style={{ height: 5, background: BORDER, borderRadius: 4, overflow: 'hidden' }}>
-              <motion.div initial={{ width: 0 }} animate={{ width: ${(row.interactions / maxI) * 100}% }} transition={{ delay: i * 0.06 + 0.2, duration: 0.55, ease: 'easeOut' }} style={{ height: '100%', background: linear-gradient(90deg,88,), borderRadius: 4 }} />
+              <motion.div initial={{ width: 0 }} animate={{ width: `${(row.interactions / maxI) * 100}%` }} transition={{ delay: i * 0.06 + 0.2, duration: 0.55, ease: 'easeOut' }} style={{ height: '100%', background: `linear-gradient(90deg,${color}88,${color})`, borderRadius: 4 }} />
             </div>
           </motion.div>
         );
@@ -306,7 +306,7 @@ function EffortMatrix({ posts, avgWordCount }: { posts: SignalPost[]; avgWordCou
   return (
     <div style={{ position: 'relative' }}>
       <canvas ref={canvasRef} style={{ width: '100%', height: 200, display: 'block', cursor: 'crosshair', borderRadius: 8 }} onMouseMove={onMM} onMouseLeave={() => setHov(null)} />
-      {hov && (<div style={{ position: 'fixed', top: hov.y - 8, left: hov.x + 14, zIndex: 9999, background: CARD, border: 1px solid , borderRadius: 10, padding: '8px 12px', boxShadow: '0 4px 20px rgba(61,43,31,0.14)', fontSize: 11, pointerEvents: 'none', maxWidth: 200 }}><p style={{ fontWeight: 700, color: TEXT_PRIMARY, marginBottom: 3 }}>{hov.snippet}...</p><p style={{ color: TEXT_MED }}>{hov.wc} words / {hov.int} interactions</p></div>)}
+      {hov && (<div style={{ position: 'fixed', top: hov.y - 8, left: hov.x + 14, zIndex: 9999, background: CARD, border: `1px solid ${BORDER}`, borderRadius: 10, padding: '8px 12px', boxShadow: '0 4px 20px rgba(61,43,31,0.14)', fontSize: 11, pointerEvents: 'none', maxWidth: 200 }}><p style={{ fontWeight: 700, color: TEXT_PRIMARY, marginBottom: 3 }}>{hov.snippet}...</p><p style={{ color: TEXT_MED }}>{hov.wc} words / {hov.int} interactions</p></div>)}
     </div>
   );
 }
@@ -328,12 +328,12 @@ function HookRanking({ hooks, avgInteractions }: { hooks: HookItem[]; avgInterac
                 <span style={{ fontSize: 10, color: TEXT_MUTED }}>{h.count} posts</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, color: vsBase > 0 ? '#15803d' : vsBase < -10 ? '#be123c' : TEXT_MUTED, background: vsBase > 0 ? '#F0FDF4' : vsBase < -10 ? '#FFF1F2' : BG, border: 1px solid  }}>{vsBase > 0 ? '+' : ''}{vsBase}% vs avg</span>
+                <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, color: vsBase > 0 ? '#15803d' : vsBase < -10 ? '#be123c' : TEXT_MUTED, background: vsBase > 0 ? '#F0FDF4' : vsBase < -10 ? '#FFF1F2' : BG, border: `1px solid ${vsBase > 0 ? '#BBF7D0' : vsBase < -10 ? '#FECDD3' : BORDER}` }}>{vsBase > 0 ? '+' : ''}{vsBase}% vs avg</span>
                 <span style={{ fontSize: 14, fontWeight: 900, color: TEXT_PRIMARY, minWidth: 36, textAlign: 'right' }}>{avg.toFixed(1)}</span>
               </div>
             </div>
             <div style={{ height: 5, background: BORDER, borderRadius: 4, overflow: 'hidden' }}>
-              <motion.div initial={{ width: 0 }} animate={{ width: ${(avg / maxAvg) * 100}% }} transition={{ delay: i * 0.07 + 0.15, duration: 0.6, ease: 'easeOut' }} style={{ height: '100%', background: linear-gradient(90deg,88,), borderRadius: 4 }} />
+              <motion.div initial={{ width: 0 }} animate={{ width: `${(avg / maxAvg) * 100}%` }} transition={{ delay: i * 0.07 + 0.15, duration: 0.6, ease: 'easeOut' }} style={{ height: '100%', background: `linear-gradient(90deg,${color}88,${color})`, borderRadius: 4 }} />
             </div>
             {h.topPostSnippet && <p style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 3, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>"{h.topPostSnippet.slice(0, 64)}"</p>}
           </motion.div>
@@ -366,9 +366,9 @@ function PlatformIntelligence({ posts }: { posts: SignalPost[] }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         {platforms.map((p, pi) => (
           <motion.div key={p.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: pi * 0.08 }}
-            style={{ padding: 16, borderRadius: 14, background: CARD, border: 1px solid , boxShadow: '0 1px 4px rgba(61,43,31,0.05)' }}>
+            style={{ padding: 16, borderRadius: 14, background: CARD, border: `1px solid ${BORDER}`, boxShadow: '0 1px 4px rgba(61,43,31,0.05)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 14 }}>
-              <div style={{ width: 34, height: 34, borderRadius: 10, background: ${p.color}12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: 34, height: 34, borderRadius: 10, background: `${p.color}12`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <span style={{ fontSize: 15, fontWeight: 900, color: p.color }}>{p.label[0]}</span>
               </div>
               <div style={{ flex: 1 }}><p style={{ fontSize: 13, fontWeight: 800, color: TEXT_PRIMARY }}>{p.label}</p><p style={{ fontSize: 10, color: TEXT_MUTED }}>{p.posts} posts published</p></div>
@@ -376,7 +376,7 @@ function PlatformIntelligence({ posts }: { posts: SignalPost[] }) {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               {[{ label: 'Total Interactions', val: p.int.toLocaleString() }, { label: 'Avg Per Post', val: p.avg }, { label: 'Total Views', val: p.views.toLocaleString() }, { label: 'Best Hook', val: p.hook, cap: true }].map(item => (
-                <div key={item.label} style={{ padding: '9px 10px', borderRadius: 10, background: BG, border: 1px solid  }}>
+                <div key={item.label} style={{ padding: '9px 10px', borderRadius: 10, background: BG, border: `1px solid ${BORDER}` }}>
                   <p style={{ fontSize: 8.5, fontWeight: 700, color: TEXT_MUTED, letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 4 }}>{item.label}</p>
                   <p style={{ fontSize: 16, fontWeight: 900, color: TEXT_PRIMARY, textTransform: item.cap ? 'capitalize' : 'none' }}>{item.val}</p>
                 </div>
@@ -386,7 +386,7 @@ function PlatformIntelligence({ posts }: { posts: SignalPost[] }) {
           </motion.div>
         ))}
       </div>
-      <div style={{ padding: '16px 18px', borderRadius: 14, background: CARD, border: 1px solid  }}>
+      <div style={{ padding: '16px 18px', borderRadius: 14, background: CARD, border: `1px solid ${BORDER}` }}>
         <SectionHeader label="All Platforms — Interaction Breakdown" tip="Total interactions per platform across all published posts, ranked by business value." />
         <PlatformBreakdown posts={posts} />
       </div>
@@ -399,7 +399,7 @@ function PlatformIntelligence({ posts }: { posts: SignalPost[] }) {
           <div style={{ flex: 1 }}>
             <p style={{ fontSize: 11, fontWeight: 800, color: '#9B1C3E', letterSpacing: '0.04em', marginBottom: 2 }}>INSTAGRAM GRAPH API STATUS</p>
             <p style={{ fontSize: 10.5, color: '#C0516B', lineHeight: 1.55 }}>
-              {igPosts.length > 0 && igInt > 0 ? Live engagement active.  posts,  interactions synced. : igPosts.length > 0 ? ${igPosts.length} IG posts found. Connect Business account to sync live engagement. : 'Connect your Instagram Business account to enable real-time comment sync and live analytics.'}
+              {igPosts.length > 0 && igInt > 0 ? `Live engagement active. ${igPosts.length} posts, ${igInt.toLocaleString()} interactions synced.` : igPosts.length > 0 ? `${igPosts.length} IG posts found. Connect Business account to sync live engagement.` : 'Connect your Instagram Business account to enable real-time comment sync and live analytics.'}
             </p>
           </div>
           <InfoTip text="Instagram Graph API requires a Business or Creator account. Unool syncs likes, comments, reach, and impressions once connected. Comment automation requires instagram_manage_comments approval from Meta App Review." />
