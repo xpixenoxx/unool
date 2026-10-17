@@ -549,6 +549,113 @@ Return ONLY valid JSON:
   }
 
   /**
+   * Checks if an Instagram user (IGSID) follows the business account.
+   * Queries Meta's `is_user_follow_business` field on the user node.
+   */
+  async checkUserFollowsBusiness(
+    accessToken: string,
+    recipientIgScopedId: string
+  ): Promise<boolean> {
+    try {
+      // 1. Try graph.instagram.com first
+      let res = await fetch(
+        `https://graph.instagram.com/v20.0/${recipientIgScopedId}?fields=name,username,is_user_follow_business&access_token=${accessToken}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        logger.info('Follow verification result from graph.instagram.com', {
+          recipientIgScopedId,
+          isFollowing: data.is_user_follow_business,
+        });
+        return !!data.is_user_follow_business;
+      }
+
+      // 2. Fall back to graph.facebook.com
+      res = await fetch(
+        `https://graph.facebook.com/v20.0/${recipientIgScopedId}?fields=name,username,is_user_follow_business&access_token=${accessToken}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        logger.info('Follow verification result from graph.facebook.com', {
+          recipientIgScopedId,
+          isFollowing: data.is_user_follow_business,
+        });
+        return !!data.is_user_follow_business;
+      }
+
+      const errText = await res.text();
+      logger.warn('Could not query is_user_follow_business from Meta', { recipientIgScopedId, error: errText });
+      return false;
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      logger.warn('Error verifying follow status via Meta Graph API', { recipientIgScopedId, error: errorMsg });
+      return false;
+    }
+  }
+
+  /**
+   * Sends an interactive DM with Instagram Quick Reply buttons.
+   */
+  async sendQuickReplyMessage(
+    accessToken: string,
+    igUserId: string,
+    recipientIgScopedId: string,
+    text: string,
+    quickReplies: Array<{ title: string; payload: string }>
+  ): Promise<{ messageId: string } | null> {
+    try {
+      const payload = {
+        recipient: { id: recipientIgScopedId },
+        message: {
+          text,
+          quick_replies: quickReplies.map(qr => ({
+            content_type: 'text',
+            title: qr.title,
+            payload: qr.payload,
+          })),
+        },
+        access_token: accessToken,
+      };
+
+      // Try graph.facebook.com first
+      let response = await fetchWithRetry(
+        `https://graph.facebook.com/v20.0/${igUserId}/messages`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      // Fall back to graph.instagram.com
+      if (!response.ok) {
+        response = await fetchWithRetry(
+          `https://graph.instagram.com/v20.0/${igUserId}/messages`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          }
+        );
+      }
+
+      if (response.ok) {
+        const data = await response.json();
+        logger.info('Instagram Quick Reply DM sent successfully', { recipientIgScopedId, messageId: data.message_id });
+        return { messageId: data.message_id || 'sent' };
+      }
+
+      const errText = await response.text();
+      logger.warn('Quick reply API call failed, falling back to plain text DM', { error: errText });
+      return await this.sendPrivateMessage(accessToken, igUserId, recipientIgScopedId, text);
+    } catch (err) {
+      const errorObj = err instanceof Error ? err : new Error(String(err));
+      logger.error('Error sending quick reply DM', { error: errorObj });
+      return await this.sendPrivateMessage(accessToken, igUserId, recipientIgScopedId, text);
+    }
+  }
+
+  /**
    * Sends a private DM reply to a specific comment using Meta's Private Replies API.
    *
    * This is the CORRECT way to DM someone who left a public comment but has
