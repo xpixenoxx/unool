@@ -280,6 +280,17 @@ function synthesizeFactGroundedArc(params: {
     };
   });
 
+  // Final safety check: ensure none of the synthesized content contains policy violations
+  for (const post of weekPosts) {
+    for (const pf of post.platforms) {
+      const pfGuard = ContentGuard.validateSocialInput(pf.content, { route: 'weekarc/synthesize/post' });
+      if (!pfGuard.safe) {
+        logger.warn('ContentGuard blocked synthesized post in synthesizeFactGroundedArc', { code: pfGuard.violation.code });
+        return null;
+      }
+    }
+  }
+
   const titleSnippet = storyClean.split('.')[0]?.slice(0, 45) || 'Weekly Momentum Arc';
 
   return {
@@ -486,10 +497,23 @@ Write ONLY the JSON. No markdown code blocks. No explanation.`;
       };
     }
 
+    if (!result.ok) {
+      const errMsg = result.error.message.toLowerCase();
+      if (/safety|harm|violation|policy|content_filter|moderation|refusal|prohibited|toxic|hate|terror|unacceptable|forbidden/i.test(errMsg)) {
+        logger.warn('AI refused week arc generation due to safety policy, aborting without fallback');
+        return null;
+      }
+    }
+
     logger.warn('AI provider generation was not successful — using fact-grounded synthesis fallback', {
       error: !result.ok ? result.error.message : 'no value',
     });
   } catch (err) {
+    const errMsg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+    if (/safety|harm|violation|policy|content_filter|moderation|refusal|prohibited|toxic|hate|terror|unacceptable|forbidden/i.test(errMsg)) {
+      logger.warn('AI generation threw safety policy exception, aborting without fallback');
+      return null;
+    }
     logger.error('generateWithFallback exception caught in generateWeekArc', {
       error: err instanceof Error ? err : new Error(String(err)),
     });

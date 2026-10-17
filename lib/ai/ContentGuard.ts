@@ -28,69 +28,94 @@ export type GuardResult =
   | { safe: true; sanitizedContent: string; warnings: GuardViolation[] }
   | { safe: false; violation: GuardViolation };
 
-// ─── BLOCKED PATTERNS ────────────────────────────────────────────────────────
-// These cause immediate hard-block with HTTP 400. Never exposed verbatim to AI.
-// Note: Regexes intentionally do NOT use the `/g` flag to avoid stateful lastIndex issues.
-// `[\s\S]` is used so patterns match across newlines without needing dotAll mode.
-
-const HARD_BLOCKED_PATTERNS: Array<{ pattern: RegExp; code: string; internal: string }> = [
-  // 1. Terrorism, Mass Violence & Violent Extremism Incitement / Celebration
+// ─── BLOCKED PATTERNS ────────────────────────────────────────────────────────const HARD_BLOCKED_PATTERNS: Array<{ pattern: RegExp; code: string; internal: string }> = [
+  // 1. Terrorism, Mass Violence & Violent Extremism Incitement / Celebration / Organization Mentions
   {
     pattern:
-      /\b(celebrat(e|ing|ion)|praise|glorif(y|ying|ication)|applaud(ing)?|incit(e|ing|ement)|promot(e|ing)|cheer(ing)?|call\s+for)\b[\s\S]{0,60}\b(mass[\s-]?casualty|extremist\s+attack|terror(ist)?\s+attack|suicide\s+bomb(ing)?|mass\s+shoot(ing)?|massacre|genocide|beheading|car\s+bomb|pipe\s+bomb|violence|slaughter)\b/i,
+      /\b(terror(ist|ism)?|extremis(t|m)?)\s+(org(anization)?|group|cell|network|outfit|militia|faction|wing)s?\b/i,
+    code: 'TERRORISM_INCITEMENT',
+    internal: 'Direct mention of terrorist organization or extremist group',
+  },
+  {
+    pattern:
+      /\b(join(ing|s)?|recruit(ing|ment|s)?|pledg(e|ing|es)?|support(ing|s)?|fund(ing|s)?|sponsor(ing|s)?|affiliat(e|ed|ion|es)?|allegiance|encourage(s|d|ment|ing)?(\s+[\w\s]{0,25})?\s+to\s+join)\b[\s\S]{0,60}\b(terror(ist|ism)|violent\s+extremis(t|m)|isis|isil|al[\s-]?qaeda|hamas|hezbollah|boko[\s-]?haram|al[\s-]?shabaab|taliban|daesh|jihad(ist)?)\b/i,
+    code: 'TERRORISM_INCITEMENT',
+    internal: 'Joining, recruiting for, encouraging or supporting terrorist/extremist group',
+  },
+  {
+    pattern:
+      /\b(terror(ist|ism)|violent\s+extremis(t|m)|isis|isil|al[\s-]?qaeda|hamas|hezbollah|boko[\s-]?haram|al[\s-]?shabaab|taliban|daesh|jihad(ist)?)\b[\s\S]{0,60}\b(join(ing|s)?|recruit(ing|ment|s)?|pledg(e|ing|es)?|support(ing|s)?|fund(ing|s)?|sponsor(ing|s)?|affiliat(e|ed|ion|es)?|allegiance)\b/i,
+    code: 'TERRORISM_INCITEMENT',
+    internal: 'Terrorist/extremist group affiliation or recruitment (reversed phrasing)',
+  },
+  {
+    pattern:
+      /\b(celebrat(e|es|ing|ed|ion)|praise(s|d|ing)?|glorif(y|ies|ying|ied|ication)|applaud(s|ed|ing)?|incit(e|es|ing|ed|ement)|promot(e|es|ing|ed)|cheer(s|ed|ing)?|encourage(s|d|ing|ment)?|call(s|ing|ed)?\s+for|advocat(e|es|ing|ed))\b[\s\S]{0,60}\b(mass[\s-]?casualt(y|ies)|extremist\s+attacks?|terror(ist)?\s+attacks?|suicide\s+bomb(ing)?s?|mass\s+shoot(ing)?s?|massacres?|genocides?|beheadings?|car\s+bombs?|pipe\s+bombs?|violences?|slaughters?)\b/i,
     code: 'TERRORISM_INCITEMENT',
     internal: 'Celebration or incitement of mass violence/terrorist attack',
   },
   {
     pattern:
-      /\b(mass[\s-]?casualty|extremist\s+attack|terror(ist)?\s+attack|suicide\s+bomb(ing)?|mass\s+shoot(ing)?|massacre|genocide|beheading)\b[\s\S]{0,60}\b(celebrat(e|ing|ion)|praise|glorif(y|ying|ication)|applaud(ing)?|incit(e|ing|ement)|promot(e|ing)|cheer(ing)?)\b/i,
+      /\b(mass[\s-]?casualt(y|ies)|extremist\s+attacks?|terror(ist)?\s+attacks?|suicide\s+bomb(ing)?s?|mass\s+shoot(ing)?s?|massacres?|genocides?|beheadings?)\b[\s\S]{0,60}\b(celebrat(e|es|ing|ed|ion)|praise(s|d|ing)?|glorif(y|ies|ying|ied|ication)|applaud(s|ed|ing)?|incit(e|es|ing|ed|ement)|promot(e|es|ing|ed)|cheer(s|ed|ing)?|encourage(s|d|ing|ment)?)\b/i,
     code: 'TERRORISM_INCITEMENT',
     internal: 'Celebration of mass violence/terrorist attack (reversed phrasing)',
   },
   {
     pattern:
-      /\b(jihad|isis|isil|al[\s-]?qaeda|hamas|hezbollah|boko[\s-]?haram|al[\s-]?shabaab|taliban|daesh|terrorist|violent\s+extremis(t|m)|white\s+supremac(y|ist)|neo[\s-]?nazi)\b[\s\S]{0,80}\b(attack|bomb|kill|recruit|pledge|support|join|martyr|behead|slaughter|celebrate|glory)\b/i,
+      /\b(jihad(ist)?|isis|isil|al[\s-]?qaeda|hamas|hezbollah|boko[\s-]?haram|al[\s-]?shabaab|taliban|daesh|terror(ist|ism)?|violent\s+extremis(t|m)|white\s+supremac(y|ist)|neo[\s-]?nazi)\b[\s\S]{0,80}\b(attacks?|bomb(s|ing|ed)?|kill(s|ing|ed)?|recruit(s|ing|ed|ment)?|pledg(e|ing|es)?|support(s|ing|ed)?|join(s|ing|ed)?|martyrs?|behead(s|ing|ed|ings)?|slaughter(s|ing|ed)?|celebrat(e|es|ing|ed|ion)?|glorif(y|ies|ying|ied|ication)?)\b/i,
     code: 'TERRORISM_INCITEMENT',
     internal: 'Terrorism incitement or extremist group signal',
   },
   {
     pattern:
-      /\b(join|pledge\s+allegiance\s+to|recruit\s+for|support)\s+(isis|isil|al[\s-]?qaeda|daesh|boko[\s-]?haram|taliban|terrorist\s+(group|organization)|extremist\s+group)\b/i,
+      /\b(attacks?|bomb(s|ing|ed)?|kill(s|ing|ed)?|recruit(s|ing|ed|ment)?|pledg(e|ing|es)?|support(s|ing|ed)?|join(s|ing|ed)?|martyrs?|behead(s|ing|ed|ings)?|slaughter(s|ing|ed)?|celebrat(e|es|ing|ed|ion)?|glorif(y|ies|ying|ied|ication)?)\b[\s\S]{0,80}\b(jihad(ist)?|isis|isil|al[\s-]?qaeda|hamas|hezbollah|boko[\s-]?haram|al[\s-]?shabaab|taliban|daesh|terror(ist|ism)?|violent\s+extremis(t|m)|white\s+supremac(y|ist)|neo[\s-]?nazi)\b/i,
     code: 'TERRORISM_INCITEMENT',
-    internal: 'Terrorist group recruitment/affiliation',
+    internal: 'Terrorism incitement or extremist group signal (reversed phrasing)',
+  },
+  {
+    pattern:
+      /\b(carry\s+out|conduct|launch|commit(ting)?|stage|staging|plan(ning)?)\s+(an?\s+)?(terror(ist)?\s+)?(attacks?|bomb(ing)?s?|strikes?|massacres?|shootings?|ambush(es)?)\b/i,
+    code: 'TERRORISM_INCITEMENT',
+    internal: 'Carrying out attacks/bombings/massacres',
   },
   // 2. Weapons of Mass Harm, Mass Casualty & Explosives Instructions
   {
     pattern:
-      /\b(mass[\s-]?casualty(\s+(extremist|terrorist|violent))?\s+attack|suicide\s?bomb(ing)?|pipe\s?bomb|ied|improvised\s+explosive|car\s?bomb|mass\s+shooting|school\s+shooting|mass\s+murder|dirty\s+bomb|nerve\s+agent|sarin|ricin|anthrax\s+attack|execute\s+hostages)\b/i,
+      /\b(mass[\s-]?casualt(y|ies)(\s+(extremist|terrorist|violent))?\s+attacks?|suicide\s?bomb(ing|er|s)?|pipe\s?bombs?|ieds?|improvised\s+explosives?|car\s?bombs?|mass\s+shootings?|school\s+shootings?|mass\s+murders?|dirty\s+bombs?|nerve\s+agents?|sarin|ricin|anthrax\s+attacks?|(execute|executing|killing|take|taking)\s+hostages?)\b/i,
     code: 'WEAPONS_OF_MASS_HARM',
     internal: 'Weapons of mass harm / mass casualty event content',
   },
   {
     pattern:
-      /\b(how\s+to\s+(make|build|assemble|synthesize|create)\s+(a\s+)?(bomb|explosive|pipe\s?bomb|ied|molotov|sarin|ricin|anthrax|weapon\s+of\s+mass\s+destruction))\b/i,
+      /\b(how\s+to\s+(make|build|assemble|synthesize|create|detonate|construct)\s+(an?\s+)?(bomb|explosive|pipe\s?bomb|ied|molotov|sarin|ricin|anthrax|weapon\s+of\s+mass\s+destruction))\b/i,
     code: 'WEAPONS_OF_MASS_HARM',
     internal: 'Bomb or mass harm weapon manufacturing instructions',
   },
   // 3. Hate Speech, Genocide & Extermination Calls
   {
     pattern:
-      /\b(exterminate|wipe\s+out|kill\s+all|death\s+to\s+all|gas\s+the|lynch|slaughter\s+all)\s+(the\s+)?(jews|blacks|muslims|christians|gays|transgender|lgbtq|immigrants|minorities|infidels)\b/i,
+      /\b(exterminate|wipe\s+out|kill\s+all|death\s+to\s+all|death\s+to|gas\s+the|lynch|slaughter\s+all)\b[\s\S]{0,30}\b(jews|blacks|muslims|christians|gays|transgender|lgbtq|immigrants|minorities|infidels|refugees)\b/i,
     code: 'HATE_SPEECH_GENOCIDE',
     internal: 'Genocidal violence or extermination incitement',
   },
   {
     pattern:
-      /\b(ethnic\s+cleansing|genocide|race\s+war)\b[\s\S]{0,60}\b(support|promote|glory|justify|call\s+for)\b/i,
+      /\b(ethnic\s+cleansing|genocide|race\s+war)\b[\s\S]{0,60}\b(support|promote|glory|justify|call\s+for|incite)\b/i,
     code: 'HATE_SPEECH_GENOCIDE',
     internal: 'Ethnic cleansing or genocide promotion',
   },
   // 4. CSAM / Child Sexual Exploitation & Abuse
   {
     pattern:
-      /(\b(child|minor|underage|pedophil(e|ia)|loli|shota|kindergarten|elementary\s+school)\b[\s\S]{0,50}\b(porn|sex|nude|sexual|exploit|abuse|nsfw|erotic|lewd|touching)\b|\bcsam\b|\bchild\s+exploitation\b)/i,
+      /(\b(child|children|minor|minors|underage|pedophil(e|ia|iac)|loli|shota|kindergarten|elementary\s+school)\b[\s\S]{0,50}\b(porn(ography)?|sex|nude|nudes|sexual|exploit(ation)?|abuse|nsfw|erotic|lewd|touching)\b|\bcsam\b|\bchild\s+exploitation\b)/i,
     code: 'CSAM',
     internal: 'Child sexual exploitation and abuse material (CSAM) signal',
+  },
+  {
+    pattern:
+      /\b(porn(ography)?|sex|nude|nudes|sexual|exploit(ation)?|abuse|nsfw|erotic|lewd)\b[\s\S]{0,50}\b(child|children|minor|minors|underage|pedophil(e|ia)|elementary\s+school)\b/i,
+    code: 'CSAM',
+    internal: 'Child sexual exploitation and abuse material (reversed phrasing)',
   },
   // 5. Explicit Doxxing & Non-Consensual Private Data Exposure
   {
@@ -122,14 +147,14 @@ const HARD_BLOCKED_PATTERNS: Array<{ pattern: RegExp; code: string; internal: st
   // 8. Self-Harm & Suicide Promotion / Instruction
   {
     pattern:
-      /\b(how\s+to\s+(commit\s+)?suicide|best\s+way\s+to\s+die|methods\s+to\s+kill\s+yourself|how\s+to\s+(hang|slit|overdose|cut)\s+(your|my)self|painless\s+(suicide|way\s+to\s+die)|ways\s+to\s+end\s+(your|my)\s+life|tell\s+(me|them|him|her)\s+to\s+kill\s+(them|him|her|your)selves?)\b/i,
+      /\b(how\s+to\s+(commit\s+)?suicide|best\s+way\s+to\s+die|methods\s+to\s+kill\s+yourself|how\s+to\s+(hang|slit|overdose|cut)\s+(your|my)self|painless\s+(suicide|way\s+to\s+die)|ways\s+to\s+end\s+(your|my)\s+life|tell\s+(me|them|him|her)\s+to\s+kill\s+(them|him|her|your)selves?|(encourage|promote|glorify|instruct)\b[\s\S]{0,30}\b(suicide|self[\s-]?harm))\b/i,
     code: 'SELF_HARM_PROMOTION',
     internal: 'Self-harm or suicide instruction/encouragement',
   },
   // 9. Cyberattack & Malware Development Instructions
   {
     pattern:
-      /\b(how\s+to\s+(hack|infiltrate|breach)\s+(into\s+)?(a\s+)?(website|database|server|account|wifi)|write\s+(a\s+)?(ransomware|keylogger|malware|trojan|spyware)|conduct\s+(a\s+)?ddos\s+attack)\b/i,
+      /\b(how\s+to\s+(hack|infiltrate|breach)\s+(into\s+)?(a\s+)?(website|database|server|account|wifi)|(write|build|create|develop|code)\s+(a\s+)?(ransomware|keylogger|malware|trojan|spyware|botnet|rootkit)|conduct\s+(a\s+)?ddos\s+attacks?)\b/i,
     code: 'CYBERATTACK_INSTRUCTION',
     internal: 'Cyberattack or malware authoring instructions',
   },
