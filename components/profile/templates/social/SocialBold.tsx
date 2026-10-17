@@ -12,6 +12,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { spring } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { Heart, MessageCircle, Share2, ChevronRight, MoreHorizontal, Star, Zap, TrendingUp } from 'lucide-react';
+import { renderSocialOrIcon } from '@/components/profile/SocialBrandIcons';
 
 export function SocialBoldTemplate({ profile, accentColor, isPreview }: TemplateProps) {
   const reducedMotion = useReducedMotion();
@@ -296,7 +297,7 @@ export function SocialBoldTemplate({ profile, accentColor, isPreview }: Template
                               boxShadow: `0 8px 24px -4px ${accent}40`,
                             }}
                           >
-                            {link.icon || link.label.charAt(0).toUpperCase()}
+                            {renderSocialOrIcon(link, 'w-6 h-6 fill-current')}
                           </motion.div>
                           <Flex column gap={1} flex={1} className="min-w-0">
                             <motion.span

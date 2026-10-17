@@ -12,6 +12,7 @@ import { MagneticCard, OrbitalBackground, MorphingBlob, ParallaxLayers, TiltCard
 import { spring, slideUp, staggerContainer, staggerItem } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { Play, Image, MessageSquare, Heart, Share2, ExternalLink } from 'lucide-react';
+import { renderSocialOrIcon } from '@/components/profile/SocialBrandIcons';
 
 interface MediaItem {
   id: string;
@@ -658,7 +659,7 @@ function CreativeLinkButton({
             fontFamily: 'var(--font-syne)',
           }}
         >
-          {link.icon || link.label.charAt(0).toUpperCase()}
+          {renderSocialOrIcon(link, 'w-6 h-6 fill-current')}
         </motion.div>
 
         <Flex column gap={1.5} flex={1} className="min-w-0">

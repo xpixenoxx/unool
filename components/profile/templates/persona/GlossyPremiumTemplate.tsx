@@ -12,6 +12,7 @@ import { MagneticCard, TiltCard } from '@/components/ui/3d';
 import { spring } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { ExternalLink, Sparkles, Star, Diamond, Gem, Sun, Zap, Crown, Shield } from 'lucide-react';
+import { renderSocialOrIcon } from '@/components/profile/SocialBrandIcons';
 
 export function GlossyPremiumTemplate({
   profile,
@@ -353,7 +354,7 @@ export function GlossyPremiumTemplate({
                           `,
                         }}
                       >
-                        {link.icon || link.label.charAt(0).toUpperCase()}
+                        {renderSocialOrIcon(link, 'w-6 h-6 fill-current')}
                       </motion.div>
 
                       <Flex column gap={2} flex={1} className="min-w-0">
@@ -477,7 +478,7 @@ export function GlossyPremiumTemplate({
                           boxShadow: `0 4px 16px -4px ${accent}50`,
                         }}
                       >
-                        {link.icon || link.label.charAt(0).toUpperCase()}
+                        {renderSocialOrIcon(link, 'w-5 h-5 fill-current')}
                       </motion.div>
 
                       <Flex column gap={1.5} flex={1} className="min-w-0">

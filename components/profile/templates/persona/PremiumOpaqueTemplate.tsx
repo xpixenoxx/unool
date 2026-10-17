@@ -12,6 +12,7 @@ import { MagneticCard, TiltCard } from '@/components/ui/3d';
 import { spring } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { ExternalLink, ChevronRight, Sparkles, Award, Star, Lock, Crown, Shield, Globe, TrendingUp } from 'lucide-react';
+import { renderSocialOrIcon } from '@/components/profile/SocialBrandIcons';
 
 export function PremiumOpaqueTemplate({
   profile,
@@ -333,7 +334,7 @@ export function PremiumOpaqueTemplate({
                           boxShadow: `0 4px 16px -4px ${accent}`,
                         }}
                       >
-                        {link.icon || link.label.charAt(0).toUpperCase()}
+                        {renderSocialOrIcon(link, 'w-6 h-6 fill-current')}
                       </motion.div>
 
                       <Flex column gap={1.5} flex={1} className="min-w-0">

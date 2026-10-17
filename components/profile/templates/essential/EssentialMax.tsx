@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { spring, slideUp, fadeIn } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { renderSocialOrIcon } from '@/components/profile/SocialBrandIcons';
 
 export function EssentialMaxTemplate({ profile, accentColor, isPreview, onLinkClick }: TemplateProps) {
   const reducedMotion = useReducedMotion();
@@ -463,7 +464,7 @@ function MaxLinkButton({
             boxShadow: `0 16px 60px -20px ${accent}`,
           }}
         >
-          {link.icon || link.label.charAt(0).toUpperCase()}
+          {renderSocialOrIcon(link, 'w-8 h-8 fill-current')}
         </motion.div>
 
         <Flex column gap={4} flex={1} className="min-w-0">

@@ -12,6 +12,7 @@ import { TiltCard, MagneticCard, PerspectiveFlip } from '@/components/ui/3d';
 import { spring, slideUp, staggerContainer, staggerItem } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { ChevronLeft, ChevronRight, Star, Quote } from 'lucide-react';
+import { renderSocialOrIcon } from '@/components/profile/SocialBrandIcons';
 
 interface Testimonial {
   id: string;
@@ -393,7 +394,7 @@ export function FounderTemplate({
                               boxShadow: `0 4px 16px -4px ${accent}`,
                             }}
                           >
-                            {link.icon || link.label.charAt(0).toUpperCase()}
+                            {renderSocialOrIcon(link, 'w-5 h-5 fill-current')}
                           </motion.div>
 
                           <Flex column gap={1.5} flex={1} className="min-w-0">
@@ -727,7 +728,7 @@ export function FounderTemplate({
                             boxShadow: `0 4px 16px -4px ${accent}`,
                           }}
                         >
-                          {link.icon || link.label.charAt(0).toUpperCase()}
+                          {renderSocialOrIcon(link, 'w-5 h-5 fill-current')}
                         </motion.div>
                         <Flex column gap={1} flex={1} className="min-w-0">
                           <Text weight="medium" className="truncate group-hover:text-primary transition-colors" style={{ fontFamily: 'var(--font-sans)', fontSize: '0.9375rem' }}>

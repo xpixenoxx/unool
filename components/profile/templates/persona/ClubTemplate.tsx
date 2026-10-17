@@ -120,6 +120,15 @@ export const CLUB_BRAND_ICONS: Record<string, React.ComponentType<{ className?: 
       <path d="M12 0a12 12 0 0 0-3.39.49 11.9 11.9 0 0 0-7.85 7.85A12 12 0 0 0 0 12a12 12 0 0 0 .76 4.22 11.94 11.94 0 0 0 7.02 7.02A12 12 0 0 0 12 24a12 12 0 0 0 4.22-.76 11.94 11.94 0 0 0 7.02-7.02A12 12 0 0 0 24 12a12 12 0 0 0-.76-4.22 11.94 11.94 0 0 0-7.02-7.02A12 12 0 0 0 12 0zm3.93 17.14h-2.31v-4.11H10.38v4.11H8.07V6.86h2.31v4.17h3.24V6.86h2.31v10.28z" />
     </svg>
   ),
+  leetcode: ({ className = 'w-4 h-4' }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M13.483 0a1.374 1.374 0 0 0-.961.438L7.116 6.226l-3.854 4.126a5.266 5.266 0 0 0-1.209 2.104 5.35 5.35 0 0 0-.125.513 5.527 5.527 0 0 0 .062 2.362 5.83 5.83 0 0 0 .349 1.017 5.938 5.938 0 0 0 1.271 1.818l4.277 4.193.039.038c2.248 2.165 5.852 2.133 8.063-.074l2.396-2.392c.54-.54.54-1.414.003-1.955a1.378 1.378 0 0 0-1.951-.003l-2.396 2.392a3.021 3.021 0 0 1-4.205.038l-.02-.019-4.276-4.193c-.652-.64-.972-1.469-.948-2.263a2.68 2.68 0 0 1 .066-.523 2.545 2.545 0 0 1 .619-1.164L9.13 8.114c1.058-1.134 3.204-1.27 4.43-.278l3.501 2.831c.593.48 1.461.387 1.94-.207a1.384 1.384 0 0 0-.207-1.943l-3.5-2.831c-.8-.647-1.766-1.045-2.774-1.202l2.015-2.158A1.384 1.384 0 0 0 13.483 0zm-2.866 12.815a1.38 1.38 0 0 0-1.38 1.382 1.38 1.38 0 0 0 1.38 1.382H20.79a1.38 1.38 0 0 0 1.38-1.382 1.38 1.38 0 0 0-1.38-1.382z"
+      />
+    </svg>
+  ),
   linkedin: ({ className = 'w-4 h-4' }) => (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
       <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 8.76a1.67 1.67 0 1 0 0-3.34 1.67 1.67 0 0 0 0 3.34M7.86 18.5V10.13H5.07V18.5h2.79z" />
@@ -281,6 +290,7 @@ export function normalizeSocialPlatformKey(label?: string, href?: string, explic
   // 2. Normalized label check
   if (label) {
     const l = label.toLowerCase().trim();
+    if (l === 'leetcode' || l.includes('leetcode')) return 'leetcode';
     if (l === 'github' || l.includes('github')) return 'github';
     if (l === 'hackerrank' || l.includes('hackerrank') || l.includes('hacker rank')) return 'hackerrank';
     if (l === 'linkedin' || l.includes('linkedin')) return 'linkedin';
@@ -316,6 +326,7 @@ export function normalizeSocialPlatformKey(label?: string, href?: string, explic
       const urlStr = href.startsWith('http://') || href.startsWith('https://') || href.startsWith('mailto:') ? href : `https://${href}`;
       if (urlStr.startsWith('mailto:')) return 'email';
       const hostname = new URL(urlStr).hostname.toLowerCase();
+      if (hostname.includes('leetcode.com')) return 'leetcode';
       if (hostname.includes('github.com')) return 'github';
       if (hostname.includes('hackerrank.com')) return 'hackerrank';
       if (hostname.includes('linkedin.com')) return 'linkedin';

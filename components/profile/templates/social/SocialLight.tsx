@@ -12,6 +12,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { spring } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { ChevronRight, Github, Linkedin, Twitter, Zap, Heart, MessageCircle, Share2, Users, Star } from 'lucide-react';
+import { renderSocialOrIcon } from '@/components/profile/SocialBrandIcons';
 
 export function SocialLightTemplate({ profile, accentColor, isPreview }: TemplateProps) {
   const reducedMotion = useReducedMotion();
@@ -232,7 +233,7 @@ export function SocialLightTemplate({ profile, accentColor, isPreview }: Templat
                           fontFamily: 'var(--font-geist)',
                         }}
                       >
-                        {link.icon || link.label.charAt(0).toUpperCase()}
+                        {renderSocialOrIcon(link, 'w-5 h-5 fill-current')}
                       </motion.div>
                       <Flex column gap={0.5} flex={1} className="min-w-0">
                         <motion.span

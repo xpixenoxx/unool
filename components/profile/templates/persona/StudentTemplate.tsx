@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { spring, slideUp } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { ExternalLink, ChevronRight, Award, Github, Star, Users, Code, BookOpen } from 'lucide-react';
+import { renderSocialOrIcon } from '@/components/profile/SocialBrandIcons';
 
 export function StudentTemplate({
   profile,
@@ -198,7 +199,7 @@ export function StudentTemplate({
                         boxShadow: `0 2px 8px -2px ${accent}`,
                       }}
                     >
-                      {link.icon || link.label.charAt(0).toUpperCase()}
+                      {renderSocialOrIcon(link, 'w-5 h-5 fill-current')}
                     </motion.div>
 
                     {/* Label + URL */}

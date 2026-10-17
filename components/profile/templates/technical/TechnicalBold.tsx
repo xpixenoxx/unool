@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { spring } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { SocialIcon } from '@/components/profile/SocialBrandIcons';
 
 export function TechnicalBoldTemplate({ profile, accentColor, isPreview }: TemplateProps) {
   const reducedMotion = useReducedMotion();
@@ -277,6 +278,7 @@ export function TechnicalBoldTemplate({ profile, accentColor, isPreview }: Templ
                         >
                           ▸
                         </motion.span>
+                        <SocialIcon label={link.label} url={link.url} icon={link.icon || undefined} className="w-4 h-4 fill-current shrink-0" style={{ color: accent }} />
                         <motion.span
                           initial={reducedMotion ? {} : { opacity: 0, x: -5 }}
                           animate={{ opacity: 1, x: 0 }}

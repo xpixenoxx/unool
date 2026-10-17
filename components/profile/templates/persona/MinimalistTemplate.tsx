@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { spring, slideUp } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { ExternalLink, ChevronRight } from 'lucide-react';
+import { renderSocialOrIcon } from '@/components/profile/SocialBrandIcons';
 
 export function MinimalistTemplate({
   profile,
@@ -193,7 +194,7 @@ export function MinimalistTemplate({
                         boxShadow: `0 2px 8px -2px ${accent}`,
                       }}
                     >
-                      {link.icon || link.label.charAt(0).toUpperCase()}
+                      {renderSocialOrIcon(link, 'w-4 h-4 fill-current')}
                     </motion.div>
 
                     {/* Label - ALWAYS VISIBLE */}

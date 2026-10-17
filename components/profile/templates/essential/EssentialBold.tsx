@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { spring, slideUp, fadeIn } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { renderSocialOrIcon } from '@/components/profile/SocialBrandIcons';
 
 export function EssentialBoldTemplate({ profile, accentColor, isPreview, onLinkClick }: TemplateProps) {
   const reducedMotion = useReducedMotion();
@@ -424,7 +425,7 @@ function BoldLinkButton({
             boxShadow: `0 12px 48px -12px ${accent}`,
           }}
         >
-          {link.icon || link.label.charAt(0).toUpperCase()}
+          {renderSocialOrIcon(link, 'w-7 h-7 fill-current')}
         </motion.div>
 
         <Flex column gap={3} flex={1} className="min-w-0">

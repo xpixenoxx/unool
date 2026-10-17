@@ -13,6 +13,7 @@ import { spring } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { FileCode, FileText, Settings, Layers, Code, BarChart3 } from 'lucide-react';
+import { renderSocialOrIcon } from '@/components/profile/SocialBrandIcons';
 
 const terminalBg = 'oklch(0.05 0.02 240)';
 const terminalSidebarBg = 'oklch(0.07 0.02 240)';
@@ -372,7 +373,7 @@ export function TechnicalMaxTemplate({ profile, accentColor, isPreview }: Templa
                                   fontSize: '0.875rem',
                                 }}
                               >
-                                {link.icon || link.label.charAt(0).toUpperCase()}
+                                {renderSocialOrIcon(link, 'w-4 h-4 fill-current')}
                               </motion.div>
                               <Flex column gap={0.5} flex={1} className="min-w-0">
                                 <Text weight="medium" className="truncate" style={{ fontFamily: 'var(--font-geist-mono)' }}>

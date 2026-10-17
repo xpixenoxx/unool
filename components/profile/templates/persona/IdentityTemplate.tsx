@@ -8,6 +8,7 @@ import { Menu, BadgeCheck, ArrowRight, Bookmark, Send, Sparkles, Quote, Github, 
 import { OpenToBadges } from '@/components/profile/OpenToBadges';
 import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
 import { ClubTemplate } from './ClubTemplate';
+import { SocialIcon, getSocialSvgPath, renderSocialOrIcon } from '@/components/profile/SocialBrandIcons';
 export { ClubTemplate };
 
 // --- 01 INDIVIDUAL --- //
@@ -181,7 +182,7 @@ function LoverTemplate({ profile, accentColor }: any) {
               <a key={i} href={link.url} target="_blank" rel="noreferrer" className="clay-card p-3.5 flex items-center justify-between no-underline block active:scale-95 transition">
                 <div className="flex items-center gap-3">
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${i % 3 === 0 ? 'bg-[#F6EDE8] text-[#2A1710]' : i % 3 === 1 ? 'bg-[#FAF0E6] text-[#8C4F35]' : 'bg-[#FCECE9] text-[#CF5628]'}`}>
-                    <span className="font-bold text-lg font-serif">{link.label.charAt(0).toUpperCase()}</span>
+                    <SocialIcon label={link.label} url={link.url} icon={link.icon} className="w-5 h-5 fill-current" />
                   </div>
                   <div>
                     <h4 className="text-xs font-bold text-[#2A1710]">{link.label}</h4>
@@ -415,20 +416,32 @@ function LoneTemplate({ profile }: any) {
                 let textSecondary = 'text-[#9296A0]';
                 let arrowBg = 'bg-white/10 text-white border border-white/5';
                 
-                if (link.icon?.toLowerCase() === 'linkedin') {
+                const platformKey = normalizeSocialPlatform(link.label, link.url, link.icon);
+                
+                let glassBg = 'linear-gradient(rgba(22, 25, 34, 0.7), rgba(22, 25, 34, 0.8)), url("https://images.unsplash.com/photo-1549880338-65dd4bc83f06?q=80&w=600&auto=format&fit=crop")';
+                let iconBgStyle = 'bg-[#08090C] text-[#F4EFE7] border border-white/10';
+                let textPrimary = 'text-[#F4EFE7]';
+                let textSecondary = 'text-[#9296A0]';
+                let arrowBg = 'bg-white/10 text-white border border-white/5';
+                
+                if (platformKey === 'linkedin') {
                   glassBg = 'linear-gradient(rgba(18, 61, 255, 0.2), rgba(10, 20, 50, 0.7)), url("https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=600&auto=format&fit=crop")'; 
                   iconBgStyle = 'bg-[#123DFF] text-white shadow-[0_0_15px_rgba(18,61,255,0.4)]';
                   arrowBg = 'bg-[#123DFF]/20 text-[#123DFF] border border-[#123DFF]/30';
-                } else if (link.icon?.toLowerCase() === 'instagram') {
+                } else if (platformKey === 'instagram') {
                   glassBg = 'linear-gradient(rgba(244, 239, 231, 0.75), rgba(220, 200, 180, 0.85)), url("https://images.unsplash.com/photo-1508610048659-a06b669e3321?q=80&w=600&auto=format&fit=crop")'; 
                   iconBgStyle = 'bg-gradient-to-tr from-[#f09433] via-[#dc2743] to-[#bc1888] text-white shadow-[0_0_15px_rgba(220,39,67,0.3)]';
                   arrowBg = 'bg-black/10 text-black border border-black/10';
                   textPrimary = 'text-[#2A1710]';
                   textSecondary = 'text-[#2A1710]/70';
-                } else if (link.icon?.toLowerCase() === 'github') {
+                } else if (platformKey === 'github') {
                   glassBg = 'linear-gradient(rgba(16, 27, 58, 0.5), rgba(10, 15, 30, 0.7)), url("https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?q=80&w=600&auto=format&fit=crop")'; 
                   iconBgStyle = 'bg-[#111318] text-[#F4EFE7] border border-white/15 shadow-[0_0_10px_rgba(0,0,0,0.5)]';
                   arrowBg = 'bg-[#111318]/50 text-white border border-white/10';
+                } else if (platformKey === 'leetcode') {
+                  glassBg = 'linear-gradient(rgba(30, 25, 15, 0.6), rgba(15, 12, 8, 0.8)), url("https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&w=600&auto=format&fit=crop")'; 
+                  iconBgStyle = 'bg-[#FFA116] text-[#1A1A1A] shadow-[0_0_15px_rgba(255,161,22,0.4)]';
+                  arrowBg = 'bg-[#FFA116]/20 text-[#FFA116] border border-[#FFA116]/30';
                 }
                 
                 return (
@@ -456,7 +469,7 @@ function LoneTemplate({ profile }: any) {
                       style={{ transform: 'skewX(20deg)' }}
                     >
                       <div className={`w-[50px] h-[50px] rounded-[16px] flex items-center justify-center shrink-0 backdrop-blur-md ${iconBgStyle}`}>
-                        <IconComponent size={20} className={link.icon !== 'linkedin' && link.icon !== 'instagram' ? 'fill-current' : ''} />
+                        <SocialIcon label={link.label} url={link.url} icon={link.icon} className="w-5 h-5 fill-current" />
                       </div>
                       
                       <div className={`flex-1 flex flex-col justify-center`}>
@@ -551,8 +564,11 @@ function EnergyTemplate({ profile, accentColor }: any) {
         <div className="w-full md:w-1/3 space-y-3">
           {profile.links?.map((link: any, i: number) => (
             <a key={i} href={link.url} className="group block relative w-full overflow-hidden bg-[#111] p-6 transition-all hover:pl-8 rounded-sm" style={{ borderLeft: `8px solid ${accent}`}}>
-              <div className="relative z-10 flex justify-between uppercase text-xl md:text-2xl tracking-wider">
-                <span>{link.label}</span>
+              <div className="relative z-10 flex items-center justify-between uppercase text-xl md:text-2xl tracking-wider">
+                <span className="flex items-center gap-3">
+                  <SocialIcon label={link.label} url={link.url} icon={link.icon} className="w-6 h-6 fill-current shrink-0" />
+                  <span>{link.label}</span>
+                </span>
                 <span className="opacity-0 group-hover:opacity-100 transition-opacity">►</span>
               </div>
             </a>
@@ -610,32 +626,8 @@ function RebellionTemplate({ profile, accentColor }: any) {
     return 'Visit';
   };
 
-  const getLinkIcon = (label: string) => {
-    const l = label?.toLowerCase() || '';
-    if (l.includes('youtube')) return (
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-        <path d="M21.582 6.186a2.67 2.67 0 00-1.879-1.884C18.04 3.853 12 3.853 12 3.853s-6.04 0-7.703.449A2.67 2.67 0 002.418 6.186C2 7.854 2 11.97 2 11.97s0 4.116.418 5.784a2.67 2.67 0 001.879 1.884c1.663.45 7.703.45 7.703.45s6.04 0 7.703-.45a2.67 2.67 0 001.879-1.884c.418-1.668.418-5.784.418-5.784s0-4.116-.418-5.784zM9.99 15.263V8.677l5.968 3.296-5.968 3.29z"/>
-      </svg>
-    );
-    if (l.includes('github') || l.includes('gitlab')) return (
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-        <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.379.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.161 22 16.418 22 12c0-5.523-4.477-10-10-10z"/>
-      </svg>
-    );
-    if (l.includes('instagram')) return (
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-        <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/>
-      </svg>
-    );
-    if (l.includes('hackerrank')) return (
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-        <path d="M12.016 19.349v.001c-1.394 0-2.731-.384-3.957-1.139L5.342 16.5l.006-2.585c-.015-1.424-.4-2.793-1.121-3.921-.715-1.119-1.745-2.022-3-2.646L2.6 6.368l1.411-.814c1.157-.668 1.954-1.879 2.115-3.21l.192-1.59 1.625.006C9.176.775 10.518 1.155 11.751 1.889l2.775 1.674c1.15.694 1.948 1.933 2.1 3.284l.006 1.637 1.414.814c1.235.711 2.052 1.996 2.176 3.42l.003 1.625-1.638-.008c-1.419 0-2.784-.424-3.916-1.22l-2.744-1.642-1.419.814c-1.156.664-1.956 1.868-2.122 3.19l-.014 2.585-1.416.822zm-3.056-2.612a8.683 8.683 0 003.056.551v-4.571l1.414.814c1.173.675 2.571 1.053 3.993 1.085l.012-3.153c-1.338-.135-2.628-.616-3.791-1.417l-1.395-1.042V6.666a8.706 8.706 0 00-3.056-.554v4.614l-1.424-.82a8.706 8.706 0 00-3.942-1.1l-.012 3.16c1.336.126 2.624.598 3.792 1.394l1.353 1.05v2.327zm6.758 1.077a9.122 9.122 0 00-3.702-4.148 9.126 9.126 0 00-6.16-1.127 9.125 9.125 0 004.161-3.69 9.125 9.125 0 001.129-6.16 9.125 9.125 0 003.701 4.147 9.125 9.125 0 006.161 1.127 9.127 9.127 0 00-4.16 3.69 9.126 9.126 0 00-1.13 6.161z"/>
-      </svg>
-    );
-    if (l.includes('twitter') || l.includes('x.com')) return '𝕏';
-    if (l.includes('linkedin')) return 'in';
-    if (l.includes('discord')) return '◎';
-    return '↗';
+  const getLinkIcon = (label: string, url?: string) => {
+    return <SocialIcon label={label} url={url} className="w-5 h-5 fill-current" />;
   };
 
   const customStyles = `
@@ -1347,7 +1339,7 @@ function RebellionTemplate({ profile, accentColor }: any) {
                   onMouseLeave={() => setHovered(null)}
                 >
                   <div className="reb-link-icon-wrap">
-                    {getLinkIcon(link.label || link.platform)}
+                    {getLinkIcon(link.label || link.platform, link.url)}
                   </div>
                   <div className="reb-link-title">{link.label || link.platform}</div>
                   <div className="reb-link-sub">{getLinkSubtitle(link.label || link.platform)}</div>
@@ -1944,8 +1936,11 @@ function VisionTemplate({ profile }: any) {
               {profile.links && profile.links.length > 0 && (
                 <div className="vision-links">
                   {profile.links.map((link: any, i: number) => (
-                    <a key={i} href={link.url} target="_blank" rel="noreferrer" className="vision-link">
-                      <span>{link.label}</span>
+                    <a key={i} href={link.url} target="_blank" rel="noreferrer" className="vision-link flex items-center justify-between">
+                      <span className="flex items-center gap-2.5">
+                        <SocialIcon label={link.label} url={link.url} icon={link.icon} className="w-4 h-4 fill-current shrink-0" />
+                        <span>{link.label}</span>
+                      </span>
                       <span className="vision-link-arrow">↗</span>
                     </a>
                   ))}
@@ -2264,7 +2259,7 @@ function HumanTemplate({ profile, accentColor }: any) {
                      style={{ backgroundColor: style.bg, color: style.text }}>
                     <div className="flex items-center gap-4 md:gap-5">
                       <div className="w-12 h-12 md:w-14 md:h-14 bg-white/60 rounded-xl md:rounded-2xl flex items-center justify-center shrink-0 shadow-sm text-[#1B1D1B]">
-                        {getIcon(link.icon || link.label)}
+                        <SocialIcon label={link.label} url={link.url} icon={link.icon} className="w-5 h-5 fill-current" />
                       </div>
                       <div className="flex flex-col overflow-hidden">
                         <span className="font-sans font-bold text-base md:text-lg tracking-tight">{link.label}</span>
@@ -2367,7 +2362,10 @@ function HumanTemplate({ profile, accentColor }: any) {
                 <div className="mt-12 pt-12 border-t border-[#1B1D1B]/10 flex flex-col gap-5">
                   <span className="text-[10px] uppercase tracking-[0.2em] font-bold opacity-40">Links</span>
                   {profile.links.map((l: any, i: number) => (
-                    <a key={i} href={l.url} target="_blank" rel="noreferrer" className="font-sans font-bold text-lg hover:text-[#BE5B42] transition-colors">{l.label}</a>
+                    <a key={i} href={l.url} target="_blank" rel="noreferrer" className="font-sans font-bold text-lg hover:text-[#BE5B42] transition-colors flex items-center gap-3">
+                      <SocialIcon label={l.label} url={l.url} icon={l.icon} className="w-5 h-5 fill-current shrink-0" />
+                      <span>{l.label}</span>
+                    </a>
                   ))}
                 </div>
               )}
@@ -2409,6 +2407,7 @@ function StudioTemplate({ profile }: any) {
         if (k === 'dribbble') return `https://dribbble.com/${v}`;
         if (k === 'behance') return `https://behance.net/${v}`;
         if (k === 'youtube') return `https://youtube.com/@${v}`;
+        if (k === 'leetcode') return `https://leetcode.com/u/${v}`;
         return v;
       };
       return { label: key.charAt(0).toUpperCase() + key.slice(1), url: getUrl(key, val) };
@@ -3153,9 +3152,14 @@ function MachineTemplate({ profile, accentColor }: any) {
           <div className="m-deck-wrapper">
             {profile.links?.map((link: any, i: number) => (
               <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="m-link-card">
-                <div className="m-link-info">
-                  <span className="m-link-title">{link.label}</span>
-                  <span className="m-link-sub">SYS.MOD // {i.toString().padStart(2, '0')}</span>
+                <div className="m-link-info flex items-center gap-3">
+                  <div className="w-8 h-8 rounded bg-white/5 border border-white/10 flex items-center justify-center shrink-0 text-white">
+                    <SocialIcon label={link.label} url={link.url} icon={link.icon} className="w-4 h-4 fill-current" />
+                  </div>
+                  <div>
+                    <span className="m-link-title">{link.label}</span>
+                    <span className="m-link-sub">SYS.MOD // {i.toString().padStart(2, '0')}</span>
+                  </div>
                 </div>
                 <div className="m-link-arrow">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -3282,7 +3286,7 @@ function BuilderTemplate({ profile }: any) {
                   <span className="text-[#87958A] w-32 shrink-0 group-hover:text-[#A85C4A] transition-colors pt-1">NETWORK</span>
                   <div className="flex gap-4 flex-wrap">
                      {links.map((link: any, i: number) => {
-                        const icon = getAestheteSocialIcon(link.label || link.title);
+                        const icon = getAestheteSocialIcon(link.label || link.title, link.url, link.icon);
                         return (
                           <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-[#342632] border border-[#292226]/30 px-4 py-2 hover:border-[#A85C4A] hover:text-[#A85C4A] transition-colors text-[#F3EEE6]">
                              <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">{icon}</svg>
@@ -3390,14 +3394,8 @@ function VisionaryTemplate({ profile, onLinkClick }: any) {
 
   const currentYear = new Date().getFullYear();
 
-  const getPlatformIcon = (platform: string) => {
-    const p = (platform || '').toLowerCase().replace(/\s+/g, '');
-    if (p.includes('linkedin')) return <svg viewBox="0 0 24 24" fill="currentColor" className="w-[19px] h-[19px] block"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 8.76a1.67 1.67 0 1 0 0-3.34 1.67 1.67 0 0 0 0 3.34M7.86 18.5V10.13H5.07V18.5h2.79z" /></svg>;
-    if (p.includes('insta')) return <svg viewBox="0 0 24 24" fill="currentColor" className="w-[19px] h-[19px] block"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" /></svg>;
-    if (p.includes('x') || p.includes('twitter')) return <svg viewBox="0 0 24 24" fill="currentColor" className="w-[19px] h-[19px] block"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>;
-    if (p.includes('github')) return <svg viewBox="0 0 24 24" fill="currentColor" className="w-[19px] h-[19px] block"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.379.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.161 22 16.418 22 12c0-5.523-4.477-10-10-10z"/></svg>;
-    if (p.includes('hackerrank')) return <svg viewBox="0 0 24 24" fill="currentColor" className="w-[19px] h-[19px] block"><path d="M12 1.47l-9.12 5.26v10.53L12 22.53l9.12-5.26V6.73L12 1.47zm5.55 13.9l-2.07 1.2v-3.76l-3.48-2.01v4.02l-2.07 1.2v-6.42l5.55-3.2v3.76l3.48 2.01v-4.02l2.07-1.2v6.42zM12 14.81l-3.48-2.01 3.48-2.01 3.48 2.01L12 14.81z"/></svg>;
-    return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[19px] h-[19px] block"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>;
+  const getPlatformIcon = (platform: string, url?: string, icon?: string) => {
+    return <SocialIcon label={platform} url={url} icon={icon} className="w-[19px] h-[19px] block fill-current" />;
   };
 
   return (
@@ -3657,7 +3655,7 @@ function VisionaryTemplate({ profile, onLinkClick }: any) {
                     </div>
                     
                     <div className="w-[44px] h-[44px] shrink-0 rounded-full border border-[#2C2825]/10 flex items-center justify-center text-[#2C2825] bg-white shadow-sm">
-                      {getPlatformIcon(link.icon || link.platform || link.label || '')}
+                      {getPlatformIcon(link.label || link.platform || '', link.url, link.icon)}
                     </div>
                     
                     <div className="flex-1 flex flex-col justify-center min-w-0">
@@ -3788,7 +3786,7 @@ function HustlerTemplate({ profile }: any) {
             <h3 className="text-[10px] text-[#D64924] uppercase tracking-widest font-bold mb-8">Network & Nodes</h3>
             <div className="flex flex-wrap gap-4">
                {validLinks.length > 0 ? validLinks.map((l: any, i: number) => {
-                  const icon = getAestheteSocialIcon(l.label || l.title);
+                  const icon = getAestheteSocialIcon(l.label || l.title, l.url, l.icon);
                   return (
                     <a key={i} href={l.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 border-2 border-[#EAE8E3] px-6 py-4 bg-[#292724] text-[#EAE8E3] hover:bg-[#EAE8E3] hover:text-[#292724] hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_#D64924] transition-all">
                        <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current">{icon}</svg>
@@ -3877,19 +3875,8 @@ function HustlerTemplate({ profile }: any) {
 
 // --- 05 INFLUENCER --- //
 
-const getAestheteSocialIcon = (label: string) => {
-  const l = label.toLowerCase();
-  if (l.includes('github')) return <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" fill="currentColor"/>;
-  if (l.includes('linkedin')) return <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" fill="currentColor"/>;
-  if (l.includes('instagram')) return <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z" fill="currentColor"/>;
-  if (l.includes('twitter') || l.includes('x.com')) return <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z" fill="currentColor"/>;
-  if (l.includes('youtube')) return <path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.5 12 3.5 12 3.5s-7.505 0-9.377.55a3.016 3.016 0 00-2.122 2.136C0 8.07 0 12 0 12s0 3.93.501 5.814a3.016 3.016 0 002.122 2.136c1.871.55 9.377.55 9.377.55s7.505 0 9.377-.55a3.016 3.016 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" fill="currentColor"/>;
-  if (l.includes('hacker rank') || l.includes('hackerrank')) return <path d="M11.953 2c-5.523 0-10 4.477-10 10s4.477 10 10 10 10-4.477 10-10-4.477-10-10-10zm4.863 14.595h-1.787v-4.072h-6.15v4.072H7.092V7.452h1.787v4.072h6.15V7.452h1.787v9.143z" fill="currentColor"/>;
-  if (l.includes('dribbble')) return <path d="M12 24C5.385 24 0 18.615 0 12S5.385 0 12 0s12 5.385 12 12-5.385 12-12 12zm10.12-11.834c-.116-.296-2.585-6.398-7.98-7.653.076.172.148.35.216.533 2.128 5.728 1.405 10.575 1.156 11.932 2.656-1.536 5.568-3.087 6.608-4.812zm-3.616 7.64c.265-1.56 1.144-6.903-1.636-12.724-3.136.216-6.42.985-9.356 2.37.16 2.062 1.055 6.782 4.148 10.66 2.21 2.766 5.253 4.542 5.922 4.908.384-.814.7-1.666.922-2.564v-.004V19.8zm-9.043 2.06c-3.167-3.95-4.145-9.255-4.145-9.255 3.398-1.514 7.034-2.27 10.37-2.316-.065-.183-.133-.362-.206-.538-2.378-5.748-5.3-7.55-5.594-7.72-4.996 1.83-8.156 6.557-8.156 11.97 0 2.94 1.066 5.632 2.82 7.747 1.4-1.593 3.4-3.87 4.912-5.642v.006.012l.006-.008z" fill="currentColor"/>;
-  if (l.includes('behance')) return <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm-1.895 15.696H6.182V8.305h3.923c1.375 0 2.477.195 3.307.585.83.39 1.245 1.045 1.245 1.965 0 .59-.2 1.077-.6 1.46-.4.384-1.004.664-1.81.84.974.12 1.693.425 2.158.915.465.49.697 1.155.697 1.995 0 .91-.453 1.636-1.36 2.175-.907.54-2.122.81-3.645.81zm9.055-.915c-.48.6-1.125 1.05-1.935 1.35-.81.3-1.69.45-2.64.45-1.28 0-2.34-.275-3.18-.825-.84-.55-1.47-1.3-1.89-2.25-.42-.95-.63-2.025-.63-3.225 0-1.21.215-2.29.645-3.24.43-.95 1.06-1.685 1.89-2.205.83-.52 1.805-.78 2.925-.78 1.1 0 2.03.245 2.79.735.76.49 1.33 1.18 1.71 2.07.38.89.57 1.935.57 3.135 0 .15-.01.35-.03.6h-6.75c.03.95.34 1.71.93 2.28.59.57 1.33.855 2.22.855.77 0 1.42-.195 1.95-.585.53-.39.92-.885 1.17-1.485h1.725c-.23.82-.62 1.52-1.17 2.12zm-8.815-4.83h2.385c.61 0 1.09-.12 1.44-.36.35-.24.525-.615.525-1.125 0-.49-.17-.85-.51-1.08-.34-.23-.84-.345-1.5-.345H10.34v2.91zm0 3.735h2.52c.76 0 1.33-.14 1.71-.42.38-.28.57-.7.57-1.26 0-.57-.2-1.01-.6-1.32-.4-.31-1.05-.465-1.95-.465H10.34v3.465zm4.86-5.805h3.9v-1.11h-3.9v1.11zm.33 1.965h4.155c-.06-.71-.3-1.26-.72-1.65-.42-.39-.98-.585-1.68-.585-.66 0-1.205.195-1.635.585-.43.39-.715.94-.855 1.65z" fill="currentColor"/>;
-  if (l.includes('medium')) return <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm-4.32 16.486c-2.316 0-4.194-2.008-4.194-4.486 0-2.477 1.878-4.485 4.194-4.485 2.315 0 4.193 2.008 4.193 4.485 0 2.478-1.878 4.486-4.193 4.486zm7.25-1.157c-.89 0-1.613-1.49-1.613-3.329 0-1.838.723-3.328 1.613-3.328.89 0 1.612 1.49 1.612 3.328 0 1.839-.722 3.329-1.612 3.329zm2.42-1.183c-.313 0-.568-1.205-.568-2.693 0-1.488.255-2.693.568-2.693.314 0 .568 1.205.568 2.693 0 1.488-.254 2.693-.568 2.693z" fill="currentColor"/>;
-  if (l.includes('spotify')) return <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.517 17.31c-.218.356-.684.472-1.04.254-2.85-1.74-6.438-2.134-10.666-1.168-.403.092-.81-.16-.902-.563-.093-.404.16-.81.564-.903 4.622-1.057 8.583-.616 11.79 1.343.355.218.47.684.254 1.037zm1.48-3.308c-.276.45-.86.592-1.31.316-3.265-2.007-8.243-2.613-12.015-1.432-.51.156-1.043-.13-1.198-.638-.155-.51.13-1.044.638-1.2 4.34-1.357 9.84-.678 13.57 1.615.45.276.592.86.315 1.338zm.135-3.447c-3.92-2.327-10.387-2.54-14.15-1.403-.61.184-1.256-.16-1.44-.77-.184-.61.16-1.256.77-1.44 4.316-1.3 11.455-1.05 16.002 1.65.548.326.728 1.036.402 1.584-.326.548-1.036.728-1.584.403z" fill="currentColor"/>;
-  return <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" fill="none" stroke="currentColor"/>;
+const getAestheteSocialIcon = (label?: string, url?: string, icon?: string) => {
+  return getSocialSvgPath(label, url, icon);
 };
 
 function AestheteTemplate({ profile }: any) {
@@ -4089,7 +4076,7 @@ function AestheteTemplate({ profile }: any) {
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 rounded-full bg-[#292826]/5 flex items-center justify-center text-[#292826]/40 group-hover:bg-[#A39686] group-hover:text-[#F5F3EF] transition-colors duration-500">
                           <svg className="w-4 h-4" viewBox="0 0 24 24">
-                            {getAestheteSocialIcon(link.label)}
+                            {getAestheteSocialIcon(link.label, link.url, link.icon)}
                           </svg>
                         </div>
                         <span className="link-item font-inter text-base md:text-lg text-[#292826] tracking-wide">
@@ -4267,7 +4254,7 @@ function CreatorTemplate({ profile, accentColor }: any) {
                   style={{ clipPath: 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)' }}
                 >
                   <svg className="w-5 h-5 text-slate-700 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
-                     {getAestheteSocialIcon(link.label)}
+                     {getAestheteSocialIcon(link.label, link.url, link.icon)}
                   </svg>
                 </div>
                 <span className="text-lg md:text-xl font-bold uppercase tracking-wide group-hover:text-slate-900 text-slate-700 transition-colors">{link.label}</span>
@@ -4391,17 +4378,8 @@ function VoiceTemplate({ profile }: any) {
   let sectionCounter = 1;
   const getSectionNumber = () => `0${sectionCounter++}`;
 
-  const getSocialIcon = (url: string, label: string) => {
-    const s = ((url || '') + ' ' + (label || '')).toLowerCase();
-    if (s.includes('github')) return <Github className="w-5 h-5" />;
-    if (s.includes('linkedin')) return <Linkedin className="w-5 h-5" />;
-    if (s.includes('instagram')) return <Instagram className="w-5 h-5" />;
-    if (s.includes('twitter') || s.includes('x.com')) return <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.008 4.07H5.078z"/></svg>;
-    if (s.includes('hackerrank') || s.includes('hacker rank')) return <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor"><path d="M12 0L22.392 6v12L12 24 1.608 18V6L12 0zm0 2.155L3.473 7.077v9.846L12 21.845l8.527-4.922V7.077L12 2.155zm4.845 6.945v5.8h-2.9v-2.317H10.05v2.317H7.15v-5.8h2.9v2.316h4.005v-2.316h2.89z"/></svg>;
-    if (s.includes('youtube')) return <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>;
-    if (s.includes('figma')) return <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor"><path d="M8 12.5a4 4 0 1 0 8 0 4 4 0 1 0-8 0zM8 4.5a4 4 0 1 0 8 0 4 4 0 1 0-8 0zM8 20.5a4 4 0 1 0 8 0 4 4 0 1 0-8 0z"/></svg>;
-    if (s.includes('dribbble')) return <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor"><path d="M12 24C5.385 24 0 18.615 0 12S5.385 0 12 0s12 5.385 12 12-5.385 12-12 12zm10.12-10.358c-.177-.043-3.647-.852-7.442-.236.815 2.296 1.34 4.568 1.55 5.503 2.502-1.282 4.38-3.674 5.253-6.52-.118-.01-.235-.018-.36-.027v-.004zM12.923 21.94c-1.378-5.383-4.52-9.75-4.838-10.18l-.134.128c-1.127 1.077-3.792 3.32-8.318 4.225.962 3.493 3.654 6.223 7.026 7.218 1.066-1.503 2.05-3.326 2.872-5.412 1.395.918 2.895 1.637 4.417 2.148-.258.82-.558 1.62-.88 2.378-.052-.008-.105-.015-.147-.024zm-2.023-11.758c.28-.42.593-.865.925-1.334C8.944 7.6 6.002 6.84 4.673 6.64c-.958 2.213-1.166 4.7-.63 7.042 3.86-1.072 6.02-2.99 6.857-3.882zM16.924 3.7c-2.484.772-5.83 2.658-8.583 6.07 3.326 4.14 6.136 8.01 7.234 11.23C20.67 18.3 23 13.972 23 9.07c0-2.417-.92-4.63-2.435-6.3-1.002.324-2.583.743-4.14.93z" /></svg>;
-    return <LinkIcon className="w-5 h-5" />;
+  const getSocialIcon = (url: string, label: string, icon?: string | null) => {
+    return <SocialIcon label={label} url={url} icon={icon} className="w-5 h-5 fill-current" />;
   };
 
   return (
@@ -4560,7 +4538,7 @@ function VoiceTemplate({ profile }: any) {
                   <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="paper-card px-6 py-4 md:px-8 md:py-6 flex items-center justify-between group">
                     <div className="flex items-center gap-4 md:gap-6 z-10 relative">
                       <div className="w-12 h-12 rounded-full bg-[#C6D4CB] text-[#DF5B4C] flex items-center justify-center group-hover:bg-[#DF5B4C] group-hover:text-white transition-colors shrink-0 shadow-inner">
-                          {getSocialIcon(link.url, link.label)}
+                          {getSocialIcon(link.url, link.label, link.icon)}
                       </div>
                       <div>
                         <h3 className="font-bold text-[#1C2B21] text-base md:text-lg group-hover:text-[#DF5B4C] transition-colors">{link.label}</h3>

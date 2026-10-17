@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { spring, fadeIn, slideUp } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { renderSocialOrIcon } from '@/components/profile/SocialBrandIcons';
 
 export function EssentialMinimalTemplate({ profile, accentColor, isPreview, onLinkClick }: TemplateProps) {
   const reducedMotion = useReducedMotion();
@@ -203,7 +204,7 @@ export function EssentialMinimalTemplate({ profile, accentColor, isPreview, onLi
                             boxShadow: `0 4px 16px -4px ${accent}`,
                           }}
                         >
-                          {link.icon || link.label.charAt(0).toUpperCase()}
+                          {renderSocialOrIcon(link, 'w-6 h-6 fill-current')}
                         </motion.div>
 
                         <Flex column gap={1.5} flex={1} className="min-w-0">

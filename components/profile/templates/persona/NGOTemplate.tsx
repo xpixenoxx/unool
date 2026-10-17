@@ -12,6 +12,7 @@ import { TiltCard } from '@/components/ui/3d';
 import { spring, slideUp } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { Heart, Users, Target, TrendingUp, Award, Share2, ExternalLink, Globe, BookOpen, Leaf, Shield, Zap, Star } from 'lucide-react';
+import { renderSocialOrIcon } from '@/components/profile/SocialBrandIcons';
 
 export function NGOTemplate({
   profile,
@@ -293,7 +294,7 @@ export function NGOTemplate({
                         boxShadow: `0 4px 16px -4px ${accent}`,
                       }}
                     >
-                      {link.icon || link.label.charAt(0).toUpperCase()}
+                      {renderSocialOrIcon(link, 'w-6 h-6 fill-current')}
                     </motion.div>
 
                     {/* Label + URL */}
@@ -373,7 +374,7 @@ export function NGOTemplate({
                         boxShadow: `0 2px 8px -2px ${accent}`,
                       }}
                     >
-                      {link.icon || link.label.charAt(0).toUpperCase()}
+                      {renderSocialOrIcon(link, 'w-5 h-5 fill-current')}
                     </motion.div>
 
                     {/* Label + URL */}

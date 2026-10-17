@@ -13,6 +13,7 @@ import { spring } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { Button } from '@/components/ui/button';
 import { Users, ExternalLink } from 'lucide-react';
+import { renderSocialOrIcon } from '@/components/profile/SocialBrandIcons';
 
 export function SocialMaxTemplate({ profile, accentColor, isPreview }: TemplateProps) {
   const reducedMotion = useReducedMotion();
@@ -325,7 +326,7 @@ export function SocialMaxTemplate({ profile, accentColor, isPreview }: TemplateP
                             fontFamily: 'var(--font-geist)',
                           }}
                         >
-                          {link.icon || link.label.charAt(0).toUpperCase()}
+                          {renderSocialOrIcon(link, 'w-4 h-4 fill-current')}
                         </motion.div>
                         <Flex column gap={0.5} flex={1} className="min-w-0">
                           <motion.span

@@ -12,6 +12,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { spring } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { Star, Sparkles, Zap, Target } from 'lucide-react';
+import { renderSocialOrIcon } from '@/components/profile/SocialBrandIcons';
 
 export function CreativeBoldTemplate({ profile, accentColor, isPreview }: TemplateProps) {
   const reducedMotion = useReducedMotion();
@@ -517,7 +518,7 @@ function CreativeBoldLinkButton({
             fontFamily: 'var(--font-syne)',
           }}
         >
-          {link.icon || link.label.charAt(0).toUpperCase()}
+          {renderSocialOrIcon(link, 'w-6 h-6 fill-current')}
         </motion.div>
 
         <Flex column gap={1.5} flex={1} className="min-w-0">

@@ -12,6 +12,7 @@ import { TiltCard, OrbitalParticles } from '@/components/ui/3d';
 import { spring, slideUp } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { ChevronRight, Terminal, Github, Star, GitFork, FileCode, Folder, Monitor, Keyboard, ExternalLink, Router } from 'lucide-react';
+import { renderSocialOrIcon } from '@/components/profile/SocialBrandIcons';
 
 interface RepoData {
   name: string;
@@ -710,7 +711,7 @@ export function DeveloperTemplate({
                         boxShadow: `0 2px 8px -2px ${accent}`,
                       }}
                     >
-                      {link.icon || link.label.charAt(0).toUpperCase()}
+                      {renderSocialOrIcon(link, 'w-5 h-5 fill-current')}
                     </motion.div>
 
                     {/* Label + URL - ALWAYS VISIBLE */}

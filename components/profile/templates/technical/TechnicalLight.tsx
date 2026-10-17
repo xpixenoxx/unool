@@ -11,6 +11,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { spring } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { SocialIcon } from '@/components/profile/SocialBrandIcons';
 
 const terminalBg = 'oklch(0.08 0.02 240)';
 const terminalBorder = 'oklch(0.2 0.02 240)';
@@ -230,6 +231,7 @@ export function TechnicalLightTemplate({ profile, accentColor, isPreview }: Temp
                         >
                           ▸
                         </motion.span>
+                        <SocialIcon label={link.label} url={link.url} icon={link.icon || undefined} className="w-4 h-4 fill-current shrink-0" style={{ color: accent }} />
                         <motion.span
                           initial={reducedMotion ? {} : { opacity: 0, x: -5 }}
                           animate={{ opacity: 1, x: 0 }}

@@ -13,6 +13,7 @@ import { spring, slideUp, fadeIn } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { Progress } from '@/components/ui/progress';
 import { ChevronLeft, ChevronRight, Star, TrendingUp, Users, Target, Zap, MousePointer, Link2, Award, Eye, ArrowRight } from 'lucide-react';
+import { renderSocialOrIcon } from '@/components/profile/SocialBrandIcons';
 
 export function ProfessionalMaxTemplate({ profile, accentColor, isPreview, onLinkClick }: TemplateProps) {
   const reducedMotion = useReducedMotion();
@@ -445,7 +446,7 @@ export function ProfessionalMaxTemplate({ profile, accentColor, isPreview, onLin
                                       boxShadow: `0 4px 16px -4px ${accent}`,
                                     }}
                                   >
-                                    {link.icon || link.label.charAt(0).toUpperCase()}
+                                    {renderSocialOrIcon(link, 'w-5 h-5 fill-current')}
                                   </motion.div>
                                   <Flex column gap={1.5} className="min-w-0">
                                     <motion.span
