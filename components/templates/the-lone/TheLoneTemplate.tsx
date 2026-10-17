@@ -175,13 +175,16 @@ export const TheLoneTemplate = ({ profile, onLinkClick }: TemplateProps) => {
 
         {/* Bottom Actions */}
         <div className="flex gap-3 mt-4 mb-4">
-          <button className="flex-1 transform -skew-x-12 bg-[#2C3480] text-white overflow-hidden shadow-lg shadow-[#2C3480]/20 hover:bg-[#2C3480]/90 transition-colors">
+          <a
+            href={profile?.email ? `mailto:${profile.email}` : '#'}
+            className="flex-1 transform -skew-x-12 bg-[#2C3480] text-white overflow-hidden shadow-lg shadow-[#2C3480]/20 hover:bg-[#2C3480]/90 transition-colors block"
+          >
             <div className="transform skew-x-12 p-4 flex items-center justify-between px-6">
               <Send size={18} />
               <span className="font-medium text-sm">Get in Touch</span>
               <ArrowRight size={16} />
             </div>
-          </button>
+          </a>
           
           <button className="flex-1 transform -skew-x-12 bg-[#FFFFFF]/5 border border-[#FFFFFF]/20 text-[#FFFFFF] overflow-hidden hover:bg-[#FFFFFF]/10 transition-colors backdrop-blur-sm">
             <div className="transform skew-x-12 p-4 flex items-center justify-center gap-3">

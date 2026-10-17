@@ -3,6 +3,8 @@ import { getCurrentAuth } from '@/lib/auth/server';
 import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseProfileRepository';
 import { logger } from '@/lib/logger';
 
+import { supabaseAdmin } from '@/lib/supabase/admin';
+
 const profileRepository = new SupabaseProfileRepository();
 
 export async function GET(request: NextRequest) {
@@ -19,9 +21,28 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ profile: null });
     }
 
+    // Retrieve the user's email from their login credentials
+    let userEmail: string | undefined = undefined;
+    try {
+      const { data: userRecord } = await supabaseAdmin
+        .from('users')
+        .select('email')
+        .eq('id', auth.userId)
+        .single();
+      userEmail = userRecord?.email;
+
+      if (!userEmail) {
+        const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(auth.userId);
+        userEmail = authUser?.user?.email;
+      }
+    } catch {
+      // Non-blocking fallback
+    }
+
     // Normalize field names for templates
     const normalizedProfile = {
       ...profile,
+      email: userEmail || (profile as any).email || null,
       proofs: profile.proofPoints || [],
       onboarding_completed: profile.onboardingCompleted ?? false,
       onboardingCompleted: profile.onboardingCompleted ?? false,

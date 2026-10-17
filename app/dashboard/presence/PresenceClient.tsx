@@ -73,6 +73,7 @@ interface Profile {
   role: string;
   company: string;
   avatarUrl?: string;
+  email?: string;
   links: ProfileLink[];
   proofPoints: ProofPoint[];
   theme: ProfileTheme;
@@ -802,6 +803,7 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
                     headline: profile.headline || 'Your awesome headline',
                     bio: profile.bio || 'This is a live preview of how your profile will look.',
                     subdomain: claimedSubdomain || 'preview',
+                    email: profile.email || '',
                     links: profile.links?.map((l, i) => ({ id: `l${i}`, label: l.label || 'Link', url: l.url, isVisible: true })) || [],
                     proofs: profile.proofPoints?.map((p, i) => ({ id: `p${i}`, title: p.type || 'Metric', value: p.value || '100', icon: undefined })) || [],
                   }}

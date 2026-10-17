@@ -203,9 +203,18 @@ function LoverTemplate({ profile, accentColor }: any) {
 
         {/* Quick Action Bar */}
         <div className="flex items-center gap-2">
-          <button onClick={copyEmail} className="clay-btn-accent flex-1 text-xs font-bold flex items-center justify-center gap-1.5 shadow-md">
+          <a
+            href={profile.email ? `mailto:${profile.email}` : '#'}
+            onClick={(e) => {
+              if (!profile.email) {
+                e.preventDefault();
+                showToast('No contact email available');
+              }
+            }}
+            className="clay-btn-accent flex-1 text-xs font-bold flex items-center justify-center gap-1.5 shadow-md"
+          >
             <span>✉️</span> Get in Touch
-          </button>
+          </a>
           <button onClick={downloadVCard} className="clay-card px-4 py-2.5 text-xs font-bold text-[#2A1710] flex items-center justify-center gap-1.5 shrink-0">
             <span>💾</span> Save Contact
           </button>
@@ -477,8 +486,9 @@ function LoneTemplate({ profile }: any) {
 
         {/* Bottom Actions */}
         <div className="flex gap-4 mt-8 mb-6">
-          <button 
-            className="flex-[1.2] rounded-[20px] text-white overflow-hidden shadow-[0_12px_25px_rgba(18,61,255,0.4),inset_0_1px_0_rgba(255,255,255,0.3)] hover:opacity-90 transition-opacity relative"
+          <a 
+            href={profile?.email ? `mailto:${profile.email}` : '#'}
+            className="flex-[1.2] rounded-[20px] text-white overflow-hidden shadow-[0_12px_25px_rgba(18,61,255,0.4),inset_0_1px_0_rgba(255,255,255,0.3)] hover:opacity-90 transition-opacity relative block"
             style={{ 
               transform: 'skewX(-20deg)',
               background: 'linear-gradient(135deg, rgba(30, 80, 255, 0.95), rgba(10, 40, 200, 0.95))',
@@ -492,7 +502,7 @@ function LoneTemplate({ profile }: any) {
               <span className="font-semibold text-[13px] tracking-wide">Get in Touch</span>
               <ArrowRight size={16} />
             </div>
-          </button>
+          </a>
           
           <button 
             className="flex-1 rounded-[20px] text-[#F4EFE7] overflow-hidden shadow-[0_8px_20px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] hover:bg-white/5 transition-colors relative"
@@ -547,6 +557,16 @@ function EnergyTemplate({ profile, accentColor }: any) {
               </div>
             </a>
           ))}
+          <a
+            href={profile.email ? `mailto:${profile.email}` : '#'}
+            className="group block relative w-full overflow-hidden p-6 transition-all hover:pl-8 rounded-sm text-black font-black"
+            style={{ backgroundColor: accent, borderLeft: '8px solid white' }}
+          >
+            <div className="relative z-10 flex justify-between uppercase text-xl md:text-2xl tracking-wider">
+              <span>Get in Touch</span>
+              <span className="group-hover:translate-x-1 transition-transform">✉</span>
+            </div>
+          </a>
           <RecentActivitySection
             activity={profile.recentActivity}
             variant="energy"
@@ -1382,10 +1402,8 @@ function RebellionTemplate({ profile, accentColor }: any) {
                 <a
                   className="reb-cta-btn"
                   href={profile.email ? `mailto:${profile.email}` : (profile.links?.[0]?.url || '#')}
-                  target={profile.email ? undefined : '_blank'}
-                  rel={profile.email ? undefined : 'noopener noreferrer'}
                 >
-                  Work with {profile.name?.split(' ')[0] || 'Us'}
+                  Get in Touch — Work with {profile.name?.split(' ')[0] || 'Us'}
                   <span className="reb-cta-btn-icon">→</span>
                 </a>
                 {profile.links?.[0] && profile.email && (
@@ -1862,6 +1880,15 @@ function VisionTemplate({ profile }: any) {
               <div className="vision-role">{profile.headline}</div>
               <p className="vision-bio">{profile.bio}</p>
 
+              {/* Get in Touch CTA */}
+              <a 
+                href={profile.email ? `mailto:${profile.email}` : '#'}
+                className="vision-conversation-btn"
+                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '16px' }}
+              >
+                <span>✉</span> Get in Touch
+              </a>
+
               {/* Conversation Button */}
               {(profile.theme as any)?.conversationUrl && (
                 <a 
@@ -2278,13 +2305,19 @@ function HumanTemplate({ profile, accentColor }: any) {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 md:gap-6 w-full md:w-auto mx-auto md:ml-auto md:mr-8 z-10">
-            <button 
-              onClick={handleContact} 
+            <a 
+              href={profile.email ? `mailto:${profile.email}` : '#'}
+              onClick={(e) => {
+                if (!profile.email) {
+                  e.preventDefault();
+                  showToast('Contact email not available.');
+                }
+              }} 
               className="w-full sm:w-auto px-8 py-4 md:py-5 rounded-full border border-[#1B1D1B]/30 text-[#1B1D1B] font-sans font-bold flex items-center justify-center gap-3 hover:bg-white/10 hover:border-[#1B1D1B] transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1B1D1B]"
             >
               <Send size={20} strokeWidth={2} />
               Get in touch
-            </button>
+            </a>
             <button 
               onClick={downloadVCard} 
               className="w-full sm:w-auto px-8 py-4 md:py-5 rounded-full bg-[#123040] text-[#F4EDDC] font-sans font-bold flex items-center justify-center gap-3 hover:bg-[#1a4358] hover:-translate-y-1 transition-all shadow-2xl focus:outline-none focus:ring-2 focus:ring-[#1B1D1B]"
@@ -2721,12 +2754,10 @@ function StudioTemplate({ profile }: any) {
             </h2>
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-6">
-              {contactEmail && (
-                <a href={`mailto:${contactEmail}`} className="inline-flex items-center justify-center gap-3 bg-[#2C2E2A] text-[#F5F4F0] px-8 py-5 text-xs font-bold uppercase tracking-widest hover:bg-[#1A1A1A] transition-colors group rounded-sm w-full sm:w-auto">
-                  WRITE TO {profile.name ? profile.name.toUpperCase() : 'ME'}
-                  <span className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform">↗</span>
-                </a>
-              )}
+              <a href={contactEmail ? `mailto:${contactEmail}` : '#'} className="inline-flex items-center justify-center gap-3 bg-[#2C2E2A] text-[#F5F4F0] px-8 py-5 text-xs font-bold uppercase tracking-widest hover:bg-[#1A1A1A] transition-colors group rounded-sm w-full sm:w-auto">
+                GET IN TOUCH — WRITE TO {profile.name ? profile.name.toUpperCase() : 'ME'}
+                <span className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform">↗</span>
+              </a>
               
               <button onClick={generateVCard} className="inline-flex items-center justify-center px-6 py-5 border border-[#F5F4F0]/30 text-[#F5F4F0] hover:bg-[#F5F4F0]/10 text-xs font-bold uppercase tracking-widest transition-colors rounded-sm w-full sm:w-auto">
                 + SAVE CONTACT
@@ -3060,6 +3091,15 @@ function MachineTemplate({ profile, accentColor }: any) {
             </div>
           )}
 
+          {/* Get in Touch CTA */}
+          <a 
+            href={profile.email ? `mailto:${profile.email}` : '#'}
+            className="m-conversation-btn"
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '16px' }}
+          >
+            <span>✉</span> Get in Touch
+          </a>
+
           {/* Conversation Button */}
           {(profile.theme as any)?.conversationUrl && (
             <a 
@@ -3307,8 +3347,8 @@ function BuilderTemplate({ profile }: any) {
              <p className="text-xs text-[#F3EEE6]/80 mb-10 max-w-md uppercase tracking-widest font-bold relative z-10">
                Begin sequence transfer.
              </p>
-             <a href={email ? `mailto:${email}` : '#contact'} className="bg-[#342632] text-[#C5A86A] px-8 py-4 text-[12px] uppercase tracking-[0.2em] font-bold flex items-center gap-4 hover:bg-[#292226] transition-colors relative z-10 shadow-[4px_4px_0px_rgba(41,34,38,1)] border border-[#292226]">
-                ESTABLISH CONNECTION <span className="text-[#F3EEE6]">↗</span>
+             <a href={email ? `mailto:${email}` : '#'} className="bg-[#342632] text-[#C5A86A] px-8 py-4 text-[12px] uppercase tracking-[0.2em] font-bold flex items-center gap-4 hover:bg-[#292226] transition-colors relative z-10 shadow-[4px_4px_0px_rgba(41,34,38,1)] border border-[#292226]">
+                GET IN TOUCH <span className="text-[#F3EEE6]">↗</span>
              </a>
           </section>
           
@@ -3345,8 +3385,8 @@ function VisionaryTemplate({ profile, onLinkClick }: any) {
   ];
 
   const imageUrl = profile?.avatarUrl;
-  const email = profile?.email || "aria@example.com";
-  const contactLink = email.includes('@') ? `mailto:${email}` : email;
+  const email = profile?.email || "";
+  const contactLink = email.includes('@') ? `mailto:${email}` : '#';
 
   const currentYear = new Date().getFullYear();
 
@@ -3503,7 +3543,7 @@ function VisionaryTemplate({ profile, onLinkClick }: any) {
               </div>
               <div className="flex flex-col py-2 text-left">
                 <span className="text-[8px] tracking-[0.2em] text-[#8B958A] uppercase font-bold">PRIMARY SIGNAL</span>
-                <span className="text-[11px] font-bold text-[#2C2825]">Start a conversation</span>
+                <span className="text-[11px] font-bold text-[#2C2825]">Get in Touch</span>
               </div>
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#8B958A] ml-2 group-hover:translate-x-1 transition-transform"><polyline points="9 18 15 12 9 6"></polyline></svg>
             </a>
@@ -4045,6 +4085,17 @@ function AestheteTemplate({ profile }: any) {
             autoScroll={profile.autoScroll}
           />
 
+          {/* Get in Touch CTA */}
+          <div className="px-8 md:px-10 lg:px-14 my-6">
+            <a 
+              href={profile.email ? `mailto:${profile.email}` : '#'} 
+              className="inline-flex items-center gap-3 px-8 py-4 bg-[#292826] text-[#F5F3EF] font-inter text-[10px] tracking-[0.2em] uppercase font-bold hover:bg-[#A39686] transition-colors duration-300 rounded-sm"
+            >
+              <span>Get in Touch</span>
+              <span className="text-xs">↗</span>
+            </a>
+          </div>
+
           {/* Footer */}
           <div className="p-8 md:p-10 lg:p-14 pt-0 mt-8">
              <div className="w-full h-px bg-[#292826]/10 mb-5" />
@@ -4201,6 +4252,18 @@ function CreatorTemplate({ profile, accentColor }: any) {
             </a>
           ))}
         </div>
+
+        {/* Get in Touch CTA */}
+        <div className="w-full my-4">
+          <a 
+            href={profile.email ? `mailto:${profile.email}` : '#'} 
+            className="inline-flex items-center justify-between w-full p-4 px-6 text-white font-bold tracking-wider uppercase text-base transition-all hover:brightness-110 shadow-lg"
+            style={{ background: `linear-gradient(135deg, ${accent}, #111)`, clipPath: chamferedShape }}
+          >
+            <span className="flex items-center gap-2"><span>✉</span> Get in Touch</span>
+            <span>→</span>
+          </a>
+        </div>
       </div>
     </div>
   );
@@ -4352,7 +4415,7 @@ function VoiceTemplate({ profile }: any) {
                 </p>
               )}
               <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
-                <a href={`mailto:${profile.email || 'hello@example.com'}`} className="btn-primary w-full sm:w-auto justify-center px-6 py-3 rounded-full font-semibold text-sm tracking-wide flex items-center gap-2 group">
+                <a href={profile.email ? `mailto:${profile.email}` : '#'} className="btn-primary w-full sm:w-auto justify-center px-6 py-3 rounded-full font-semibold text-sm tracking-wide flex items-center gap-2 group">
                   Get in touch
                   <ArrowRight className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" />
                 </a>

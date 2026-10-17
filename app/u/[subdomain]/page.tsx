@@ -15,6 +15,7 @@ interface Profile {
   role: string | null;
   company: string | null;
   avatarUrl: string | null;
+  email?: string | null;
   links: any[];
   proofPoints: any[];
   proofs?: any[];
@@ -233,6 +234,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ subdom
     role: profile.role || '',
     company: profile.company || '',
     avatarUrl: profile.avatarUrl || '',
+    email: profile.email || '',
     links: (profile.links || []).map((link: any, i: number) => ({
       id: link.id || `link-${i}`,
       label: link.label || link.title || link.url || 'Link',

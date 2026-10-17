@@ -635,9 +635,8 @@ export function ClubTemplate({
     if (clubData.email) {
       return `mailto:${clubData.email}?subject=Collaboration%20Inquiry%20via%20The%20Club`;
     }
-    const safeUser = (clubData.nameLineOne || 'profile').toLowerCase();
-    return `mailto:${safeUser}@unool.me?subject=Inquiry%20via%20The%20Club`;
-  }, [clubData.email, clubData.nameLineOne]);
+    return '#';
+  }, [clubData.email]);
 
   return (
     <div className="club-template-root min-h-screen w-full bg-[var(--ivory)] text-[var(--ink)] py-8 md:py-16 px-3 md:px-6 md:px-8 flex justify-center items-start selection:bg-[var(--wine)] selection:text-[var(--paper)]">

@@ -231,6 +231,7 @@ export function TemplateGallery({
     role: profileData?.role || '',
     company: profileData?.company || '',
     avatarUrl: profileData?.avatarUrl || '',
+    email: profileData?.email || '',
     links: profileData?.links || [],
     proofs: profileData?.proofs || [],
     openTo: profileData?.openTo || [],

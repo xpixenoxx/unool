@@ -88,8 +88,30 @@ export async function GET(
       // Non-critical — fail silently so the profile always loads
     }
 
+    // Retrieve the profile owner's login email
+    let userEmail: string | undefined = undefined;
+    if (profile.userId) {
+      try {
+        const { supabaseAdmin } = await import('@/lib/supabase/admin');
+        const { data: userRecord } = await supabaseAdmin
+          .from('users')
+          .select('email')
+          .eq('id', profile.userId)
+          .single();
+        userEmail = userRecord?.email;
+
+        if (!userEmail) {
+          const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(profile.userId);
+          userEmail = authUser?.user?.email;
+        }
+      } catch {
+        // Non-blocking fallback
+      }
+    }
+
     return NextResponse.json({
       ...profile,
+      email: userEmail || (profile as any).email || null,
       links: profile.links || [],
       proofs: profile.proofPoints || [],
       openTo: profile.openTo || [],
