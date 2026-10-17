@@ -158,47 +158,146 @@ export async function POST(request: NextRequest) {
 
     const automation = new InstagramCommentAutomation(groqApiKey);
 
+    // ── Step-by-step diagnostic log ──────────────────────────────────────
+    const diagnostics: Array<{ step: string; status: string; detail?: string }> = [];
+
+    // Step 0: Connection info
+    diagnostics.push({
+      step: 'connection',
+      status: 'ok',
+      detail: `username=${connection.username}, platformUserId=${connection.platform_user_id}, expiresAt=${connection.expires_at || 'none'}`,
+    });
+
+    // Verify token is valid by calling /me
+    let metaProfile: any = null;
+    try {
+      const profileRes = await fetch(
+        `https://graph.instagram.com/v20.0/me?fields=id,username,name,account_type&access_token=${accessToken}`
+      );
+      if (profileRes.ok) {
+        metaProfile = await profileRes.json();
+        diagnostics.push({
+          step: 'token_check',
+          status: 'ok',
+          detail: `id=${metaProfile.id}, username=${metaProfile.username}, account_type=${metaProfile.account_type || 'unknown'}`,
+        });
+      } else {
+        const errText = await profileRes.text();
+        diagnostics.push({
+          step: 'token_check',
+          status: 'error',
+          detail: `HTTP ${profileRes.status}: ${errText.substring(0, 300)}`,
+        });
+        // Token is bad — return immediately with diagnostics
+        return NextResponse.json({
+          ok: false,
+          message: 'Instagram access token is invalid or expired. Please reconnect Instagram in Settings.',
+          diagnostics,
+        });
+      }
+    } catch (e: any) {
+      diagnostics.push({ step: 'token_check', status: 'error', detail: e.message });
+      return NextResponse.json({ ok: false, message: 'Network error checking token', diagnostics });
+    }
+
+    // Check webhook subscriptions
+    try {
+      const subRes = await fetch(
+        `https://graph.instagram.com/v20.0/${connection.platform_user_id}/subscribed_apps?access_token=${accessToken}`
+      );
+      if (subRes.ok) {
+        const subData = await subRes.json();
+        const fields = subData.data?.[0]?.subscribed_fields || [];
+        diagnostics.push({
+          step: 'webhook_subscription',
+          status: fields.length > 0 ? 'ok' : 'warning',
+          detail: fields.length > 0 ? `subscribed_fields: ${fields.join(', ')}` : 'No webhook subscriptions found — subscribing now...',
+        });
+      } else {
+        diagnostics.push({ step: 'webhook_subscription', status: 'warning', detail: 'Could not query subscribed_apps' });
+      }
+    } catch {
+      diagnostics.push({ step: 'webhook_subscription', status: 'warning', detail: 'Network error checking subscriptions' });
+    }
+
     // Proactively ensure the Instagram account is subscribed to comments & messages webhooks
     if (connection.platform_user_id) {
       InstagramCommentAutomation.subscribeAccountToWebhook(accessToken, connection.platform_user_id)
         .catch((subErr) => logger.warn('Background webhook subscribe failed in sync', { error: subErr }));
     }
 
-    // 4. Fetch recent media from Instagram with robust multi-endpoint fallbacks
-    let mediaItems: Array<{ id: string; caption?: string }> = [];
-    const fetchLimit = 25;
+    // 4. Fetch recent media from Instagram with robust multi-endpoint fallbacks and pagination
+    let mediaItems: Array<{ id: string; caption?: string; timestamp?: string; comments_count?: number }> = [];
+    const fetchLimit = 100;
+    let mediaSource = '';
 
     // Endpoint A: graph.instagram.com/v20.0/me/media
     try {
-      const mediaRes = await fetch(
-        `https://graph.instagram.com/v20.0/me/media?fields=id,caption,timestamp&limit=${fetchLimit}&access_token=${accessToken}`
-      );
-      if (mediaRes.ok) {
-        const mediaData = await mediaRes.json();
-        mediaItems = mediaData.data || [];
-      } else {
-        const errText = await mediaRes.text();
-        logger.warn('Sync: me/media on graph.instagram.com failed', { status: mediaRes.status, error: errText });
+      let nextUrl: string | null = `https://graph.instagram.com/v20.0/me/media?fields=id,caption,timestamp,comments_count,media_type&limit=${fetchLimit}&access_token=${accessToken}`;
+      let pageCount = 0;
+      while (nextUrl && pageCount < 3) {
+        pageCount++;
+        const mediaRes: Response = await fetch(nextUrl);
+        if (mediaRes.ok) {
+          const mediaData: any = await mediaRes.json();
+          const items = mediaData.data || [];
+          mediaItems = mediaItems.concat(items);
+          if (mediaItems.length > 0 && !mediaSource) mediaSource = 'graph.instagram.com/me/media';
+          nextUrl = mediaData.paging?.next || null;
+        } else {
+          const errText = await mediaRes.text();
+          diagnostics.push({
+            step: 'fetch_media_A',
+            status: 'error',
+            detail: `HTTP ${mediaRes.status}: ${errText.substring(0, 200)}`,
+          });
+          break;
+        }
+      }
+      if (mediaItems.length > 0) {
+        diagnostics.push({
+          step: 'fetch_media_A',
+          status: 'ok',
+          detail: `graph.instagram.com/me/media → ${mediaItems.length} posts retrieved across ${pageCount} page(s)`,
+        });
       }
     } catch (e: any) {
-      logger.warn('Sync: network error fetching me/media on graph.instagram.com', { error: e.message });
+      diagnostics.push({ step: 'fetch_media_A', status: 'error', detail: e.message });
     }
 
     // Endpoint B: graph.facebook.com/v20.0/{platform_user_id}/media
     if (mediaItems.length === 0 && connection.platform_user_id) {
       try {
-        const fbRes = await fetch(
-          `https://graph.facebook.com/v20.0/${connection.platform_user_id}/media?fields=id,caption,timestamp&limit=${fetchLimit}&access_token=${accessToken}`
-        );
-        if (fbRes.ok) {
-          const fbData = await fbRes.json();
-          mediaItems = fbData.data || [];
-        } else {
-          const fbErr = await fbRes.text();
-          logger.warn('Sync: user/media on graph.facebook.com failed', { status: fbRes.status, error: fbErr });
+        let nextUrl: string | null = `https://graph.facebook.com/v20.0/${connection.platform_user_id}/media?fields=id,caption,timestamp,comments_count,media_type&limit=${fetchLimit}&access_token=${accessToken}`;
+        let pageCount = 0;
+        while (nextUrl && pageCount < 3) {
+          pageCount++;
+          const fbRes: Response = await fetch(nextUrl);
+          if (fbRes.ok) {
+            const fbData: any = await fbRes.json();
+            const items = fbData.data || [];
+            mediaItems = mediaItems.concat(items);
+            if (mediaItems.length > 0 && !mediaSource) mediaSource = 'graph.facebook.com/{id}/media';
+            nextUrl = fbData.paging?.next || null;
+          } else {
+            const fbErr = await fbRes.text();
+            diagnostics.push({
+              step: 'fetch_media_B',
+              status: 'error',
+              detail: `HTTP ${fbRes.status}: ${fbErr.substring(0, 200)}`,
+            });
+            break;
+          }
+        }
+        if (mediaItems.length > 0) {
+          diagnostics.push({
+            step: 'fetch_media_B',
+            status: 'ok',
+            detail: `graph.facebook.com/${connection.platform_user_id}/media → ${mediaItems.length} posts retrieved`,
+          });
         }
       } catch (e: any) {
-        logger.warn('Sync: network error on graph.facebook.com user/media', { error: e.message });
+        diagnostics.push({ step: 'fetch_media_B', status: 'error', detail: e.message });
       }
     }
 
@@ -206,14 +305,27 @@ export async function POST(request: NextRequest) {
     if (mediaItems.length === 0 && connection.platform_user_id) {
       try {
         const igUserRes = await fetch(
-          `https://graph.instagram.com/v20.0/${connection.platform_user_id}/media?fields=id,caption,timestamp&limit=${fetchLimit}&access_token=${accessToken}`
+          `https://graph.instagram.com/v20.0/${connection.platform_user_id}/media?fields=id,caption,timestamp,comments_count,media_type&limit=${fetchLimit}&access_token=${accessToken}`
         );
         if (igUserRes.ok) {
           const igUserData = await igUserRes.json();
           mediaItems = igUserData.data || [];
+          if (mediaItems.length > 0) mediaSource = 'graph.instagram.com/{id}/media';
+          diagnostics.push({
+            step: 'fetch_media_C',
+            status: mediaItems.length > 0 ? 'ok' : 'empty',
+            detail: `graph.instagram.com/${connection.platform_user_id}/media → ${mediaItems.length} posts`,
+          });
+        } else {
+          const igErr = await igUserRes.text();
+          diagnostics.push({
+            step: 'fetch_media_C',
+            status: 'error',
+            detail: `HTTP ${igUserRes.status}: ${igErr.substring(0, 200)}`,
+          });
         }
       } catch (e: any) {
-        logger.warn('Sync: network error on graph.instagram.com user/media', { error: e.message });
+        diagnostics.push({ step: 'fetch_media_C', status: 'error', detail: e.message });
       }
     }
 
@@ -221,16 +333,37 @@ export async function POST(request: NextRequest) {
     if (mediaItems.length === 0) {
       try {
         const fbMeRes = await fetch(
-          `https://graph.facebook.com/v20.0/me/media?fields=id,caption,timestamp&limit=${fetchLimit}&access_token=${accessToken}`
+          `https://graph.facebook.com/v20.0/me/media?fields=id,caption,timestamp,comments_count,media_type&limit=${fetchLimit}&access_token=${accessToken}`
         );
         if (fbMeRes.ok) {
           const fbMeData = await fbMeRes.json();
           mediaItems = fbMeData.data || [];
+          if (mediaItems.length > 0) mediaSource = 'graph.facebook.com/me/media';
+          diagnostics.push({
+            step: 'fetch_media_D',
+            status: mediaItems.length > 0 ? 'ok' : 'empty',
+            detail: `graph.facebook.com/me/media → ${mediaItems.length} posts`,
+          });
+        } else {
+          const fbMeErr = await fbMeRes.text();
+          diagnostics.push({
+            step: 'fetch_media_D',
+            status: 'error',
+            detail: `HTTP ${fbMeRes.status}: ${fbMeErr.substring(0, 200)}`,
+          });
         }
       } catch (e: any) {
-        logger.warn('Sync: network error on graph.facebook.com me/media', { error: e.message });
+        diagnostics.push({ step: 'fetch_media_D', status: 'error', detail: e.message });
       }
     }
+
+    diagnostics.push({
+      step: 'media_summary',
+      status: mediaItems.length > 0 ? 'ok' : 'error',
+      detail: mediaItems.length > 0
+        ? `Found ${mediaItems.length} posts via ${mediaSource}`
+        : 'ALL media endpoints returned 0 posts — token may lack instagram_business_basic scope or account is not Professional',
+    });
 
     let totalCommentsExamined = 0;
     let newCommentsProcessed = 0;
@@ -244,56 +377,50 @@ export async function POST(request: NextRequest) {
       let rawComments: any[] = [];
 
       // Query comments on the media
-      // Note: In Meta Graph API v20+, the correct field is `username` directly on the comment.
-      // Requesting `from{id,username}` causes Graph API to return (#100) Tried accessing nonexistent field (from).
+      // In Meta Graph API v20+:
+      // - Standard fields on InstagramComment are: id, text, username, timestamp, replies
+      // - Requesting `from` or `parent_id` on the comment node causes Error #100 (nonexistent field).
+      // - Replies are retrieved via the `replies{id,text,username,timestamp}` edge.
       try {
-        // Attempt 1: Standard Instagram Graph API (username, timestamp, parent_id)
+        // Attempt 1: graph.facebook.com with comments + nested replies
         let commentsRes = await fetch(
-          `https://graph.instagram.com/v20.0/${media.id}/comments?fields=id,text,username,timestamp,parent_id&access_token=${accessToken}`
+          `https://graph.facebook.com/v20.0/${media.id}/comments?fields=id,text,username,timestamp,replies{id,text,username,timestamp}&access_token=${accessToken}`
         );
 
         if (commentsRes.ok) {
           const cData = await commentsRes.json();
-          rawComments = cData.data || [];
+          const items = cData.data || [];
+          for (const item of items) {
+            rawComments.push(item);
+            if (item.replies?.data && Array.isArray(item.replies.data)) {
+              for (const reply of item.replies.data) {
+                rawComments.push({ ...reply, parent_id: item.id });
+              }
+            }
+          }
         } else {
-          const cErr = await commentsRes.text();
-          logger.warn('Comments query on graph.instagram.com returned error', {
-            mediaId: media.id,
-            status: commentsRes.status,
-            error: cErr,
-          });
-        }
-
-        // Attempt 2: If empty or failed on graph.instagram.com, try graph.facebook.com
-        if (rawComments.length === 0) {
-          const fbRes = await fetch(
-            `https://graph.facebook.com/v20.0/${media.id}/comments?fields=id,text,username,timestamp,parent_id&access_token=${accessToken}`
+          // Attempt 2: Minimal fields on graph.facebook.com if replies edge fails
+          const minimalFbRes = await fetch(
+            `https://graph.facebook.com/v20.0/${media.id}/comments?fields=id,text,username,timestamp&access_token=${accessToken}`
           );
-          if (fbRes.ok) {
-            const fbData = await fbRes.json();
-            rawComments = fbData.data || [];
-          }
-        }
-
-        // Attempt 3: Fallback query without parent_id in case older Graph API object
-        if (rawComments.length === 0) {
-          const minimalRes = await fetch(
-            `https://graph.instagram.com/v20.0/${media.id}/comments?fields=id,text,username,timestamp&access_token=${accessToken}`
-          );
-          if (minimalRes.ok) {
-            const minData = await minimalRes.json();
-            rawComments = minData.data || [];
-          }
-        }
-
-        // Attempt 4: Legacy fallback with from{id,username} for Page-backed comments
-        if (rawComments.length === 0) {
-          const legacyRes = await fetch(
-            `https://graph.facebook.com/v20.0/${media.id}/comments?fields=id,text,from{id,username},timestamp,parent_id&access_token=${accessToken}`
-          );
-          if (legacyRes.ok) {
-            const legData = await legacyRes.json();
-            rawComments = legData.data || [];
+          if (minimalFbRes.ok) {
+            const minFbData = await minimalFbRes.json();
+            rawComments = minFbData.data || [];
+          } else {
+            // Attempt 3: graph.instagram.com with clean fields
+            const igRes = await fetch(
+              `https://graph.instagram.com/v20.0/${media.id}/comments?fields=id,text,username,timestamp&access_token=${accessToken}`
+            );
+            if (igRes.ok) {
+              const igData = await igRes.json();
+              rawComments = igData.data || [];
+            } else {
+              const fbErrText = await minimalFbRes.text().catch(() => '');
+              logger.debug('No comments or error fetching comments for media during sync', {
+                mediaId: media.id,
+                error: fbErrText.substring(0, 150),
+              });
+            }
           }
         }
       } catch (err: any) {
@@ -316,8 +443,8 @@ export async function POST(request: NextRequest) {
         // Skip comments made by brand account itself
         if (brandUsername && commenterUsername && commenterUsername === brandUsername) continue;
 
-        // Skip reply-to-reply comments
-        if (item.parent_id) continue;
+        // Skip reply-to-reply comments only if thread chaining is disabled
+        if (item.parent_id && !automationConfig.threadChainingEnabled) continue;
 
         // Check deduplication guard in database
         const { data: existing } = await supabase
@@ -477,6 +604,7 @@ export async function POST(request: NextRequest) {
       newCommentsProcessed,
       repliesPosted,
       processedComments,
+      diagnostics,
     });
   } catch (error: any) {
     logger.error('Error during Instagram comments sync', { error });

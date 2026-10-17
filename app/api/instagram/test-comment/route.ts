@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
         metaProfile = data;
 
         // Fetch recent media with comments
-        const mediaRes = await fetch(`https://graph.instagram.com/v20.0/me/media?fields=id,caption,permalink,comments{id,text,from,timestamp}&limit=3&access_token=${accessToken}`);
+        const mediaRes = await fetch(`https://graph.instagram.com/v20.0/me/media?fields=id,caption,permalink,comments{id,text,username,timestamp}&limit=10&access_token=${accessToken}`);
         if (mediaRes.ok) {
           const mediaData = await mediaRes.json();
           recentMedia = mediaData.data || [];
