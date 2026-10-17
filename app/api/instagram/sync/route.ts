@@ -158,18 +158,78 @@ export async function POST(request: NextRequest) {
 
     const automation = new InstagramCommentAutomation(groqApiKey);
 
-    // 4. Fetch recent media from Instagram
+    // Proactively ensure the Instagram account is subscribed to comments & messages webhooks
+    if (connection.platform_user_id) {
+      InstagramCommentAutomation.subscribeAccountToWebhook(accessToken, connection.platform_user_id)
+        .catch((subErr) => logger.warn('Background webhook subscribe failed in sync', { error: subErr }));
+    }
+
+    // 4. Fetch recent media from Instagram with robust multi-endpoint fallbacks
     let mediaItems: Array<{ id: string; caption?: string }> = [];
+    const fetchLimit = 25;
+
+    // Endpoint A: graph.instagram.com/v20.0/me/media
     try {
       const mediaRes = await fetch(
-        `https://graph.instagram.com/v20.0/me/media?fields=id,caption,timestamp&limit=5&access_token=${accessToken}`
+        `https://graph.instagram.com/v20.0/me/media?fields=id,caption,timestamp&limit=${fetchLimit}&access_token=${accessToken}`
       );
       if (mediaRes.ok) {
         const mediaData = await mediaRes.json();
         mediaItems = mediaData.data || [];
+      } else {
+        const errText = await mediaRes.text();
+        logger.warn('Sync: me/media on graph.instagram.com failed', { status: mediaRes.status, error: errText });
       }
     } catch (e: any) {
-      logger.error('Failed to fetch recent Instagram media for sync', { error: e.message });
+      logger.warn('Sync: network error fetching me/media on graph.instagram.com', { error: e.message });
+    }
+
+    // Endpoint B: graph.facebook.com/v20.0/{platform_user_id}/media
+    if (mediaItems.length === 0 && connection.platform_user_id) {
+      try {
+        const fbRes = await fetch(
+          `https://graph.facebook.com/v20.0/${connection.platform_user_id}/media?fields=id,caption,timestamp&limit=${fetchLimit}&access_token=${accessToken}`
+        );
+        if (fbRes.ok) {
+          const fbData = await fbRes.json();
+          mediaItems = fbData.data || [];
+        } else {
+          const fbErr = await fbRes.text();
+          logger.warn('Sync: user/media on graph.facebook.com failed', { status: fbRes.status, error: fbErr });
+        }
+      } catch (e: any) {
+        logger.warn('Sync: network error on graph.facebook.com user/media', { error: e.message });
+      }
+    }
+
+    // Endpoint C: graph.instagram.com/v20.0/{platform_user_id}/media
+    if (mediaItems.length === 0 && connection.platform_user_id) {
+      try {
+        const igUserRes = await fetch(
+          `https://graph.instagram.com/v20.0/${connection.platform_user_id}/media?fields=id,caption,timestamp&limit=${fetchLimit}&access_token=${accessToken}`
+        );
+        if (igUserRes.ok) {
+          const igUserData = await igUserRes.json();
+          mediaItems = igUserData.data || [];
+        }
+      } catch (e: any) {
+        logger.warn('Sync: network error on graph.instagram.com user/media', { error: e.message });
+      }
+    }
+
+    // Endpoint D: graph.facebook.com/v20.0/me/media
+    if (mediaItems.length === 0) {
+      try {
+        const fbMeRes = await fetch(
+          `https://graph.facebook.com/v20.0/me/media?fields=id,caption,timestamp&limit=${fetchLimit}&access_token=${accessToken}`
+        );
+        if (fbMeRes.ok) {
+          const fbMeData = await fbMeRes.json();
+          mediaItems = fbMeData.data || [];
+        }
+      } catch (e: any) {
+        logger.warn('Sync: network error on graph.facebook.com me/media', { error: e.message });
+      }
     }
 
     let totalCommentsExamined = 0;
@@ -184,24 +244,56 @@ export async function POST(request: NextRequest) {
       let rawComments: any[] = [];
 
       // Query comments on the media
+      // Note: In Meta Graph API v20+, the correct field is `username` directly on the comment.
+      // Requesting `from{id,username}` causes Graph API to return (#100) Tried accessing nonexistent field (from).
       try {
+        // Attempt 1: Standard Instagram Graph API (username, timestamp, parent_id)
         let commentsRes = await fetch(
-          `https://graph.instagram.com/v20.0/${media.id}/comments?fields=id,text,from{id,username},timestamp,parent_id&access_token=${accessToken}`
+          `https://graph.instagram.com/v20.0/${media.id}/comments?fields=id,text,username,timestamp,parent_id&access_token=${accessToken}`
         );
 
         if (commentsRes.ok) {
           const cData = await commentsRes.json();
           rawComments = cData.data || [];
+        } else {
+          const cErr = await commentsRes.text();
+          logger.warn('Comments query on graph.instagram.com returned error', {
+            mediaId: media.id,
+            status: commentsRes.status,
+            error: cErr,
+          });
         }
 
-        // If graph.instagram.com returns empty, try graph.facebook.com
+        // Attempt 2: If empty or failed on graph.instagram.com, try graph.facebook.com
         if (rawComments.length === 0) {
           const fbRes = await fetch(
-            `https://graph.facebook.com/v20.0/${media.id}/comments?fields=id,text,from{id,username},timestamp,parent_id&access_token=${accessToken}`
+            `https://graph.facebook.com/v20.0/${media.id}/comments?fields=id,text,username,timestamp,parent_id&access_token=${accessToken}`
           );
           if (fbRes.ok) {
             const fbData = await fbRes.json();
             rawComments = fbData.data || [];
+          }
+        }
+
+        // Attempt 3: Fallback query without parent_id in case older Graph API object
+        if (rawComments.length === 0) {
+          const minimalRes = await fetch(
+            `https://graph.instagram.com/v20.0/${media.id}/comments?fields=id,text,username,timestamp&access_token=${accessToken}`
+          );
+          if (minimalRes.ok) {
+            const minData = await minimalRes.json();
+            rawComments = minData.data || [];
+          }
+        }
+
+        // Attempt 4: Legacy fallback with from{id,username} for Page-backed comments
+        if (rawComments.length === 0) {
+          const legacyRes = await fetch(
+            `https://graph.facebook.com/v20.0/${media.id}/comments?fields=id,text,from{id,username},timestamp,parent_id&access_token=${accessToken}`
+          );
+          if (legacyRes.ok) {
+            const legData = await legacyRes.json();
+            rawComments = legData.data || [];
           }
         }
       } catch (err: any) {
@@ -213,15 +305,16 @@ export async function POST(request: NextRequest) {
 
       for (const item of rawComments) {
         const commentId = item.id;
-        const commentText = item.text || '';
-        const commenterUsername = (item.from?.username || '').toLowerCase().trim();
-        const commenterIgScopedId = item.from?.id;
+        const commentText = item.text || item.message || '';
+        const rawUsername = item.username || item.from?.username || item.user?.username || '';
+        const commenterUsername = rawUsername.toLowerCase().trim();
+        const commenterIgScopedId = item.from?.id || item.user?.id || item.user_id;
 
         // Skip if empty or already processed
         if (!commentId || !commentText) continue;
 
         // Skip comments made by brand account itself
-        if (brandUsername && commenterUsername === brandUsername) continue;
+        if (brandUsername && commenterUsername && commenterUsername === brandUsername) continue;
 
         // Skip reply-to-reply comments
         if (item.parent_id) continue;
@@ -245,7 +338,7 @@ export async function POST(request: NextRequest) {
             comment_id: commentId,
             media_id: media.id,
             comment_text: commentText,
-            commenter_username: item.from?.username || commenterUsername,
+            commenter_username: rawUsername || commenterUsername || 'instagram_user',
             classification: 'harmful',
             confidence: 1,
             suggested_reply: 'SKIP',
@@ -263,8 +356,8 @@ export async function POST(request: NextRequest) {
           commentId,
           mediaId: media.id,
           text: commentText,
-          username: item.from?.username || commenterUsername,
-          timestamp: item.timestamp || new Date().toISOString(),
+          username: rawUsername || commenterUsername || 'instagram_user',
+          timestamp: item.timestamp || item.created_time || new Date().toISOString(),
         };
 
         const result: ClassifiedComment = await automation.classifyAndGenerateReply(
@@ -306,7 +399,7 @@ export async function POST(request: NextRequest) {
           comment_id: commentId,
           media_id: media.id,
           comment_text: commentText,
-          commenter_username: item.from?.username || commenterUsername,
+          commenter_username: rawUsername || commenterUsername || 'instagram_user',
           classification: result.classification,
           confidence: result.confidence,
           suggested_reply: finalReply,

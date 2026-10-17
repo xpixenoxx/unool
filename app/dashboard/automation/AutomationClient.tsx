@@ -891,8 +891,12 @@ export default function AutomationClient({
       if (data.ok) {
         if (data.newCommentsProcessed > 0) {
           showToast(`Synced ${data.newCommentsProcessed} comment${data.newCommentsProcessed > 1 ? 's' : ''} (${data.repliesPosted} auto-replied)!`, 'success');
+        } else if (data.totalCommentsExamined > 0) {
+          showToast(`Checked ${data.totalCommentsExamined} comments across ${data.mediaCount || 0} posts — all already processed.`, 'success');
+        } else if (data.mediaCount === 0) {
+          showToast('No Instagram posts found for this account. Ensure account has published posts.', 'error');
         } else {
-          showToast('Comments up to date. No new comments found on Instagram.', 'success');
+          showToast(`Checked ${data.mediaCount} post${data.mediaCount > 1 ? 's' : ''}. No new comments found on Instagram.`, 'success');
         }
       } else {
         showToast(data.message || data.error || 'Failed to sync comments', 'error');

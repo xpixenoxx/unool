@@ -305,12 +305,12 @@ async function getOrRefreshAccessToken(connection: any): Promise<string | null> 
 
 async function processCommentEvent(igUserId: string, value: Record<string, unknown>): Promise<void> {
   const commentEvent: CommentEvent = {
-    commentId: value.id as string,
-    mediaId: (value.media as any)?.id as string || value.media_id as string || '',
-    text: value.text as string || '',
-    username: (value.from as any)?.username as string || '',
-    timestamp: value.created_time as string || new Date().toISOString(),
-    parentId: value.parent_id as string || undefined,
+    commentId: (value.id || value.comment_id) as string,
+    mediaId: ((value.media as any)?.id || value.media_id || value.post_id || '') as string,
+    text: (value.text || value.message || '') as string,
+    username: ((value.from as any)?.username || (value.from as any)?.name || value.username || '') as string,
+    timestamp: (value.created_time || value.timestamp) as string || new Date().toISOString(),
+    parentId: (value.parent_id || (value as any).parentId) as string || undefined,
   };
 
   // Anti-loop guard: skip reply-to-reply comments
