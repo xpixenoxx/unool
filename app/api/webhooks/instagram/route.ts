@@ -313,11 +313,8 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
     parentId: (value.parent_id || (value as any).parentId) as string || undefined,
   };
 
-  // Anti-loop guard: skip reply-to-reply comments
-  if (commentEvent.parentId) {
-    logger.debug('Skipping reply-to-reply comment', { commentId: commentEvent.commentId });
-    return;
-  }
+  // Note: Self-reply guard below prevents loops when the brand account replies.
+  // Replies from external commenters are permitted so threaded interactions are processed.
 
   if (!commentEvent.text || !commentEvent.commentId) {
     logger.debug('Skipping empty comment event', { value });

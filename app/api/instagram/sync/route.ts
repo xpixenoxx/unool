@@ -394,45 +394,49 @@ export async function POST(request: NextRequest) {
         rawComments = [...media.comments.data];
       }
 
-      // Source 2: If none from bulk, query media node with comments field on graph.instagram.com
+      // Source 2: Multi-pattern queries across both Graph domains and field variations
       if (rawComments.length === 0) {
-        try {
-          const igNodeRes = await fetch(
-            `https://graph.instagram.com/v20.0/${media.id}?fields=id,comments{id,text,username,timestamp}&access_token=${accessToken}`
-          );
-          if (igNodeRes.ok) {
-            const igNodeData = await igNodeRes.json();
-            if (igNodeData.comments?.data) {
-              rawComments = igNodeData.comments.data;
+        const queryCandidates = [
+          // Pattern A: Standard Instagram Graph API with from{id,username}
+          `https://graph.instagram.com/v20.0/${media.id}/comments?fields=id,text,timestamp,from{id,username},replies{id,text,timestamp,from{id,username}}&access_token=${accessToken}`,
+          // Pattern B: graph.facebook.com with from{id,username}
+          `https://graph.facebook.com/v20.0/${media.id}/comments?fields=id,text,timestamp,from{id,username},replies{id,text,timestamp,from{id,username}}&access_token=${accessToken}`,
+          // Pattern C: graph.instagram.com with root username
+          `https://graph.instagram.com/v20.0/${media.id}/comments?fields=id,text,timestamp,username&access_token=${accessToken}`,
+          // Pattern D: graph.facebook.com with root username
+          `https://graph.facebook.com/v20.0/${media.id}/comments?fields=id,text,timestamp,username&access_token=${accessToken}`,
+          // Pattern E: Minimal id,text on graph.instagram.com (guaranteed fields)
+          `https://graph.instagram.com/v20.0/${media.id}/comments?fields=id,text,timestamp&access_token=${accessToken}`,
+          // Pattern F: Pure parameterless call on graph.instagram.com (cannot fail on nonexistent fields)
+          `https://graph.instagram.com/v20.0/${media.id}/comments?access_token=${accessToken}`,
+          // Pattern G: Pure parameterless call on graph.facebook.com
+          `https://graph.facebook.com/v20.0/${media.id}/comments?access_token=${accessToken}`,
+          // Pattern H: Media node expansion with comments
+          `https://graph.instagram.com/v20.0/${media.id}?fields=id,comments{id,text,timestamp,from{id,username}}&access_token=${accessToken}`,
+          // Pattern I: Versionless fallback
+          `https://graph.instagram.com/${media.id}/comments?access_token=${accessToken}`,
+        ];
+
+        for (const endpoint of queryCandidates) {
+          try {
+            const res = await fetch(endpoint);
+            if (res.ok) {
+              const resData = await res.json();
+              const items = resData.data || resData.comments?.data || [];
+              if (Array.isArray(items) && items.length > 0) {
+                for (const item of items) {
+                  rawComments.push(item);
+                  if (item.replies?.data && Array.isArray(item.replies.data)) {
+                    for (const reply of item.replies.data) {
+                      rawComments.push({ ...reply, parent_id: item.id });
+                    }
+                  }
+                }
+                break; // Successfully obtained comments, stop trying other endpoints for this post
+              }
             }
-          }
-        } catch {}
-      }
-
-      // Source 3: Query /{media.id}/comments edge on graph.instagram.com
-      if (rawComments.length === 0) {
-        try {
-          const igCommentsRes = await fetch(
-            `https://graph.instagram.com/v20.0/${media.id}/comments?fields=id,text,username,timestamp&access_token=${accessToken}`
-          );
-          if (igCommentsRes.ok) {
-            const igCData = await igCommentsRes.json();
-            rawComments = igCData.data || [];
-          }
-        } catch {}
-      }
-
-      // Source 4: Query /{media.id}/comments on graph.facebook.com (for Facebook-backed tokens)
-      if (rawComments.length === 0) {
-        try {
-          const fbRes = await fetch(
-            `https://graph.facebook.com/v20.0/${media.id}/comments?fields=id,text,username,timestamp&access_token=${accessToken}`
-          );
-          if (fbRes.ok) {
-            const fbData = await fbRes.json();
-            rawComments = fbData.data || [];
-          }
-        } catch {}
+          } catch {}
+        }
       }
 
       totalCommentsExamined += rawComments.length;
@@ -440,8 +444,22 @@ export async function POST(request: NextRequest) {
       for (const item of rawComments) {
         const commentId = item.id;
         const commentText = item.text || item.message || '';
-        const rawUsername = item.username || item.from?.username || item.user?.username || '';
-        const commenterUsername = rawUsername.toLowerCase().trim();
+        let rawUsername = item.from?.username || item.username || item.user?.username || '';
+
+        // If username was not populated, try best-effort comment node lookup
+        if (!rawUsername && commentId) {
+          try {
+            const cRes = await fetch(
+              `https://graph.instagram.com/v20.0/${commentId}?fields=from{id,username},username&access_token=${accessToken}`
+            );
+            if (cRes.ok) {
+              const cData = await cRes.json();
+              rawUsername = cData.from?.username || cData.username || '';
+            }
+          } catch {}
+        }
+
+        const commenterUsername = (rawUsername || 'instagram_user').toLowerCase().trim();
         const commenterIgScopedId = item.from?.id || item.user?.id || item.user_id;
 
         // Skip if empty or already processed
