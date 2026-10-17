@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useUserContext } from '@/lib/hooks/use-user-context';
+import LinkedInAutomationClient from './LinkedInAutomationClient';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -977,6 +978,71 @@ const LIGHT_PREMIUM_CSS = `
   @keyframes unSpin {
     to { transform: rotate(360deg); }
   }
+
+  /* ── Top Platform Navigation (Matching User Reference Image) ── */
+  .un-platform-bar {
+    background: #FFFDF9;
+    border-bottom: 1.5px solid #E8E0D4;
+    padding: 0 32px;
+  }
+  .un-platform-bar-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 40px;
+  }
+  .un-platform-tab {
+    position: relative;
+    background: transparent;
+    border: none;
+    padding: 16px 2px 14px 2px;
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 15px;
+    font-weight: 500;
+    color: #71717A;
+    cursor: pointer;
+    transition: color 0.15s ease;
+    border-bottom: 2.5px solid transparent;
+    margin-bottom: -1.5px;
+    white-space: nowrap;
+    letter-spacing: -0.01em;
+    outline: none;
+  }
+  .un-platform-tab:hover {
+    color: #18181B;
+  }
+  .un-platform-tab.active {
+    color: #18181B;
+    font-weight: 700;
+    border-bottom: 2.5px solid #18181B;
+  }
+  .un-pill-btn {
+    padding: 5px 12px;
+    border-radius: 18px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid #E5DFD5;
+    background: #FFFDF9;
+    color: #8B7355;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .un-pill-btn:hover {
+    color: #3D2B1F;
+    border-color: #C4A265;
+  }
+  .un-pill-btn.active {
+    background: #3D2B1F;
+    color: #FAF7F2;
+    border-color: #3D2B1F;
+  }
+  .un-toast-success {
+    border-color: #10B981;
+  }
+  .un-toast-error {
+    border-color: #EF4444;
+  }
 `;
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -991,6 +1057,27 @@ export default function AutomationClient({
   const userCtx = useUserContext();
   const workspaceId = initialWorkspaceId || userCtx?.workspace?.id || null;
   const userId = initialUserId || userCtx?.user?.id || '';
+
+  const [platform, setPlatform] = useState<'instagram' | 'linkedin'>('instagram');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const p = params.get('platform');
+      if (p === 'linkedin' || p === 'instagram') {
+        setPlatform(p);
+      }
+    }
+  }, []);
+
+  const handlePlatformChange = (p: 'instagram' | 'linkedin') => {
+    setPlatform(p);
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('platform', p);
+      window.history.replaceState({}, '', url.toString());
+    }
+  };
 
   const [activeTab, setActiveTab] = useState<'control' | 'simulator' | 'feed' | 'inbox' | 'dms'>('control');
   const [config, setConfig] = useState<AutomationConfig | null>(null);
@@ -1312,24 +1399,43 @@ export default function AutomationClient({
     );
   }
 
-  if (loading || !config) {
-    return (
-      <>
-        <style>{LIGHT_PREMIUM_CSS}</style>
-        <div className="un-root" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-          <div style={{ textAlign: 'center' }}>
-            <div className="un-spinner" />
-            <p style={{ color: '#8B7355', fontSize: 13.5, fontWeight: 600 }}>Calibrating SignalDM Engine...</p>
-          </div>
-        </div>
-      </>
-    );
-  }
-
   return (
     <>
       <style>{LIGHT_PREMIUM_CSS}</style>
       <div className="un-root">
+
+        {/* ── Top Platform Navigation (Instagram vs LinkedIn) matching reference design ── */}
+        <div className="un-platform-bar">
+          <div className="un-platform-bar-inner">
+            <button
+              type="button"
+              className={`un-platform-tab ${platform === 'instagram' ? 'active' : ''}`}
+              onClick={() => handlePlatformChange('instagram')}
+            >
+              Instagram
+            </button>
+            <button
+              type="button"
+              className={`un-platform-tab ${platform === 'linkedin' ? 'active' : ''}`}
+              onClick={() => handlePlatformChange('linkedin')}
+            >
+              LinkedIn
+            </button>
+          </div>
+        </div>
+
+        {platform === 'linkedin' ? (
+          <LinkedInAutomationClient workspaceId={workspaceId} userId={userId} />
+        ) : (
+          (loading || !config) ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+              <div style={{ textAlign: 'center' }}>
+                <div className="un-spinner" />
+                <p style={{ color: '#8B7355', fontSize: 13.5, fontWeight: 600 }}>Calibrating SignalDM Engine...</p>
+              </div>
+            </div>
+          ) : (
+            <>
 
         {/* ── Editorial Header ── */}
         <div className="un-header">
@@ -2356,6 +2462,9 @@ export default function AutomationClient({
           )}
 
         </div>
+            </>
+          )
+        )}
 
         {/* ── Luxury Slide-In Notification Toast ── */}
         {toast && (

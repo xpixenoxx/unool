@@ -5,8 +5,8 @@ import AutomationClient from './AutomationClient';
 import { Loader2 } from 'lucide-react';
 
 export const metadata = {
-  title: 'SignalDM — Instagram Automation | UNOOL',
-  description: 'AI-powered comment and DM automation for Instagram. Classify intent, auto-reply, and convert followers to leads.',
+  title: 'Automation — Instagram & LinkedIn | UNOOL',
+  description: 'AI-powered comment and DM automation for Instagram and LinkedIn. Classify intent, auto-reply, and convert audience to leads.',
 };
 
 export default async function AutomationPage() {
