@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { TemplateProps } from '@/components/profile/templates/types';
 import { getTemplateById } from '@/components/profile/templates/registry';
 import { motion } from 'framer-motion';
@@ -3893,9 +3893,32 @@ const getAestheteSocialIcon = (label: string) => {
 };
 
 function AestheteTemplate({ profile }: any) {
-  const [hasScrolled, setHasScrolled] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [showScrollHint, setShowScrollHint] = useState(false);
+
   const firstName = profile.name?.split(' ')[0] || "Aesthete";
   const lastName = profile.name?.split(' ').slice(1).join(' ') || "";
+
+  const checkScroll = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const hasMore = el.scrollHeight - el.clientHeight > 40;
+    const isAtTop = el.scrollTop < 30;
+    setShowScrollHint(hasMore && isAtTop);
+  }, []);
+
+  useEffect(() => {
+    checkScroll();
+    window.addEventListener('resize', checkScroll);
+    return () => window.removeEventListener('resize', checkScroll);
+  }, [checkScroll]);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    const hasMore = el.scrollHeight - el.clientHeight > 40;
+    const isAtTop = el.scrollTop < 30;
+    setShowScrollHint(hasMore && isAtTop);
+  };
   
   return (
     <div className="w-full min-h-screen bg-[#EAE7E0] flex items-center justify-center p-0 md:p-8 overflow-hidden font-sans">
@@ -3909,12 +3932,22 @@ function AestheteTemplate({ profile }: any) {
           font-family: 'Inter', sans-serif;
         }
         
-        .no-scrollbar::-webkit-scrollbar {
-          display: none;
+        .editorial-scroll::-webkit-scrollbar {
+          width: 5px;
         }
-        .no-scrollbar {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
+        .editorial-scroll::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .editorial-scroll::-webkit-scrollbar-thumb {
+          background: rgba(41, 40, 38, 0.15);
+          border-radius: 4px;
+        }
+        .editorial-scroll::-webkit-scrollbar-thumb:hover {
+          background: rgba(41, 40, 38, 0.35);
+        }
+        .editorial-scroll {
+          scrollbar-width: thin;
+          scrollbar-color: rgba(41, 40, 38, 0.15) transparent;
         }
         
         .editorial-image {
@@ -3975,26 +4008,19 @@ function AestheteTemplate({ profile }: any) {
           </div>
         </div>
 
-        {/* Right Column: Content */}
-        <div className="w-full md:w-[50%] h-auto md:h-full flex flex-col bg-[#F5F3EF] z-10 relative text-[#292826]">
-          
+        {/* Right Column: Viewport & Unified Scroll Container */}
+        <div className="w-full md:w-[50%] h-auto md:h-full relative flex flex-col bg-[#F5F3EF]">
           <div 
-            className="flex-1 overflow-y-auto no-scrollbar p-8 md:p-10 lg:p-14 flex flex-col relative"
-            onScroll={(e) => {
-              if (e.currentTarget.scrollTop > 10) {
-                setHasScrolled(true);
-              } else {
-                setHasScrolled(false);
-              }
-            }}
+            ref={scrollContainerRef}
+            onScroll={handleScroll}
+            className="w-full h-full overflow-y-auto editorial-scroll flex flex-col text-[#292826] p-8 md:p-10 lg:p-14"
           >
-            
             {/* Title Section */}
             <div className="mb-10">
               <span className="inline-block px-3 py-1 mb-4 rounded-full border border-[#A39686]/30 text-[#A39686] font-inter text-[9px] tracking-[0.2em] uppercase">
                 {profile.role || 'Digital Creator'}
               </span>
-              <h1 className="font-bodoni text-6xl lg:text-8xl text-[#292826] leading-[0.85] tracking-tight uppercase">
+              <h1 className="font-bodoni text-5xl sm:text-6xl lg:text-7xl text-[#292826] leading-[0.9] tracking-tight uppercase break-words">
                 {firstName} <br />
                 <span className="italic normal-case text-[#A39686] font-medium">{lastName}</span>
               </h1>
@@ -4034,77 +4060,80 @@ function AestheteTemplate({ profile }: any) {
               </div>
             )}
 
-            {/* Link Directory */}
-            <div className="mt-auto pt-8">
-              <div className="flex items-center gap-3 mb-6">
-                <span className="font-inter text-[9px] tracking-[0.2em] uppercase text-[#292826]/40">Featured Directories</span>
-                <div className="flex-1 h-px bg-[#292826]/10" />
-              </div>
+            {/* Recent Social Activity */}
+            <div className="mb-10">
+              <RecentActivitySection
+                activity={profile.recentActivity}
+                variant="aesthete"
+                autoScroll={profile.autoScroll}
+              />
+            </div>
 
-              <div className="flex flex-col gap-4">
-                {profile.links?.map((link: any, i: number) => (
-                  <a 
-                    key={i} 
-                    href={link.url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="link-item-wrapper group flex items-center justify-between cursor-pointer py-1"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-full bg-[#292826]/5 flex items-center justify-center text-[#292826]/40 group-hover:bg-[#A39686] group-hover:text-[#F5F3EF] transition-colors duration-500">
-                        <svg className="w-4 h-4" viewBox="0 0 24 24">
-                          {getAestheteSocialIcon(link.label)}
+            {/* Link Directory */}
+            {profile.links && profile.links.length > 0 && (
+              <div className="mb-10 pt-4">
+                <div className="flex items-center gap-3 mb-6">
+                  <span className="font-inter text-[9px] tracking-[0.2em] uppercase text-[#292826]/40">Featured Directories</span>
+                  <div className="flex-1 h-px bg-[#292826]/10" />
+                </div>
+
+                <div className="flex flex-col gap-4">
+                  {profile.links.map((link: any, i: number) => (
+                    <a 
+                      key={i} 
+                      href={link.url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="link-item-wrapper group flex items-center justify-between cursor-pointer py-1"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-full bg-[#292826]/5 flex items-center justify-center text-[#292826]/40 group-hover:bg-[#A39686] group-hover:text-[#F5F3EF] transition-colors duration-500">
+                          <svg className="w-4 h-4" viewBox="0 0 24 24">
+                            {getAestheteSocialIcon(link.label)}
+                          </svg>
+                        </div>
+                        <span className="link-item font-inter text-base md:text-lg text-[#292826] tracking-wide">
+                          {link.label}
+                        </span>
+                      </div>
+                      <div className="text-[#292826]/20 group-hover:text-[#A39686] transition-colors duration-500">
+                        <svg className="w-5 h-5 transform group-hover:translate-x-1 transition-transform duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                         </svg>
                       </div>
-                      <span className="link-item font-inter text-base md:text-lg text-[#292826] tracking-wide">
-                        {link.label}
-                      </span>
-                    </div>
-                    <div className="text-[#292826]/20 group-hover:text-[#A39686] transition-colors duration-500">
-                      <svg className="w-5 h-5 transform group-hover:translate-x-1 transition-transform duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                      </svg>
-                    </div>
-                  </a>
-                ))}
+                    </a>
+                  ))}
+                </div>
               </div>
+            )}
+
+            {/* Get in Touch CTA */}
+            <div className="my-8">
+              <a 
+                href={profile.email ? `mailto:${profile.email}` : '#'} 
+                className="inline-flex items-center justify-center gap-3 px-8 py-4 bg-[#292826] text-[#F5F3EF] font-inter text-[11px] tracking-[0.2em] uppercase font-bold hover:bg-[#A39686] transition-colors duration-300 rounded-sm w-full sm:w-auto"
+              >
+                <span>Get in Touch</span>
+                <span className="text-sm">↗</span>
+              </a>
+            </div>
+
+            {/* Footer */}
+            <div className="pt-8 mt-auto border-t border-[#292826]/10">
+               <div className="flex justify-between items-center text-[#292826]/40 font-inter text-[9px] tracking-[0.2em] uppercase">
+                  <span>© {new Date().getFullYear()}</span>
+                  <span>The Aesthete</span>
+               </div>
             </div>
           </div>
-          
-          {/* Scroll Indicator */}
-          <div className={`hidden md:flex absolute bottom-[15%] right-8 flex-col items-center gap-3 transition-opacity duration-1000 pointer-events-none z-50 ${hasScrolled ? 'opacity-0' : 'opacity-40'}`}>
+
+          {/* Floating Scroll Indicator - fixed to right column viewport, only visible when more content exists below AND user is at the top */}
+          <div className={`hidden md:flex absolute bottom-8 right-8 flex-col items-center gap-3 transition-opacity duration-500 pointer-events-none z-50 ${showScrollHint ? 'opacity-40' : 'opacity-0'}`}>
              <span className="font-inter text-[8px] tracking-[0.3em] uppercase text-[#292826] rotate-90 mb-6">Scroll</span>
              <svg className="w-4 h-4 text-[#292826] animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
              </svg>
           </div>
-          
-          <RecentActivitySection
-            activity={profile.recentActivity}
-            variant="aesthete"
-            autoScroll={profile.autoScroll}
-          />
-
-          {/* Get in Touch CTA */}
-          <div className="px-8 md:px-10 lg:px-14 my-6">
-            <a 
-              href={profile.email ? `mailto:${profile.email}` : '#'} 
-              className="inline-flex items-center gap-3 px-8 py-4 bg-[#292826] text-[#F5F3EF] font-inter text-[10px] tracking-[0.2em] uppercase font-bold hover:bg-[#A39686] transition-colors duration-300 rounded-sm"
-            >
-              <span>Get in Touch</span>
-              <span className="text-xs">↗</span>
-            </a>
-          </div>
-
-          {/* Footer */}
-          <div className="p-8 md:p-10 lg:p-14 pt-0 mt-8">
-             <div className="w-full h-px bg-[#292826]/10 mb-5" />
-             <div className="flex justify-between items-center text-[#292826]/40 font-inter text-[9px] tracking-[0.2em] uppercase">
-                <span>© {new Date().getFullYear()}</span>
-                <span>The Aesthete</span>
-             </div>
-          </div>
-
         </div>
       </div>
     </div>
