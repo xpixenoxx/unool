@@ -8,7 +8,7 @@ import { Menu, BadgeCheck, ArrowRight, Bookmark, Send, Sparkles, Quote, Github, 
 import { OpenToBadges } from '@/components/profile/OpenToBadges';
 import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
 import { ClubTemplate } from './ClubTemplate';
-import { SocialIcon, getSocialSvgPath, renderSocialOrIcon } from '@/components/profile/SocialBrandIcons';
+import { SocialIcon, getSocialSvgPath, renderSocialOrIcon, normalizeSocialPlatform } from '@/components/profile/SocialBrandIcons';
 export { ClubTemplate };
 
 // --- 01 INDIVIDUAL --- //
@@ -409,13 +409,6 @@ function LoneTemplate({ profile }: any) {
             <div className="flex flex-col gap-4">
               {links.filter((l: any) => l.isVisible !== false).map((link: any, i: number) => {
                 const IconComponent = getIconComponent(link.icon);
-                
-                let glassBg = 'linear-gradient(rgba(22, 25, 34, 0.7), rgba(22, 25, 34, 0.8)), url("https://images.unsplash.com/photo-1549880338-65dd4bc83f06?q=80&w=600&auto=format&fit=crop")';
-                let iconBgStyle = 'bg-[#08090C] text-[#F4EFE7] border border-white/10';
-                let textPrimary = 'text-[#F4EFE7]';
-                let textSecondary = 'text-[#9296A0]';
-                let arrowBg = 'bg-white/10 text-white border border-white/5';
-                
                 const platformKey = normalizeSocialPlatform(link.label, link.url, link.icon);
                 
                 let glassBg = 'linear-gradient(rgba(22, 25, 34, 0.7), rgba(22, 25, 34, 0.8)), url("https://images.unsplash.com/photo-1549880338-65dd4bc83f06?q=80&w=600&auto=format&fit=crop")';

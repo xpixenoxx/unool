@@ -1,103 +1,6 @@
+'use client';
+
 import * as React from 'react';
-
-/**
- * Normalizes any link (checking explicit icon, label, and URL hostname/path)
- * to a standardized social brand key.
- */
-export function normalizeSocialPlatform(label?: string, url?: string, explicitIcon?: string): string {
-  // 1. Explicit icon check
-  if (explicitIcon) {
-    const iconKey = explicitIcon.toLowerCase().trim();
-    if (BRAND_SVGS[iconKey]) return iconKey;
-    if (iconKey === 'twitter') return 'x';
-    if (iconKey === 'x.com') return 'x';
-    if (iconKey === 'mail') return 'email';
-    if (iconKey === 'substack') return 'substack';
-    if (iconKey === 'web' || iconKey === 'site') return 'website';
-  }
-
-  // 2. Combined string check (label + url + explicitIcon)
-  const combined = `${explicitIcon || ''} ${label || ''} ${url || ''}`.toLowerCase();
-
-  // Coding & Developer
-  if (combined.includes('leetcode')) return 'leetcode';
-  if (combined.includes('hackerrank') || combined.includes('hacker rank')) return 'hackerrank';
-  if (combined.includes('codechef')) return 'codechef';
-  if (combined.includes('geeksforgeeks') || combined.includes('gfg')) return 'geeksforgeeks';
-  if (combined.includes('github')) return 'github';
-  if (combined.includes('gitlab')) return 'gitlab';
-  if (combined.includes('bitbucket')) return 'bitbucket';
-  if (combined.includes('stackoverflow') || combined.includes('stack overflow')) return 'stackoverflow';
-  if (combined.includes('codepen')) return 'codepen';
-  if (combined.includes('dev.to') || combined.includes('devto')) return 'devto';
-  if (combined.includes('kaggle')) return 'kaggle';
-
-  // Major Social & Community
-  if (combined.includes('linkedin')) return 'linkedin';
-  if (combined.includes('instagram') || combined.includes('insta')) return 'instagram';
-  if (combined.includes('youtube') || combined.includes('youtu.be')) return 'youtube';
-  if (combined.includes('twitter') || combined.includes('x.com') || (label && /^x$/i.test(label.trim()))) return 'x';
-  if (combined.includes('threads')) return 'threads';
-  if (combined.includes('tiktok')) return 'tiktok';
-  if (combined.includes('facebook') || combined.includes('fb.com')) return 'facebook';
-  if (combined.includes('discord') || combined.includes('discord.gg')) return 'discord';
-  if (combined.includes('twitch')) return 'twitch';
-  if (combined.includes('reddit')) return 'reddit';
-  if (combined.includes('pinterest')) return 'pinterest';
-  if (combined.includes('telegram') || combined.includes('t.me')) return 'telegram';
-  if (combined.includes('whatsapp') || combined.includes('wa.me')) return 'whatsapp';
-
-  // Design & Media
-  if (combined.includes('dribbble')) return 'dribbble';
-  if (combined.includes('behance')) return 'behance';
-  if (combined.includes('figma')) return 'figma';
-  if (combined.includes('medium')) return 'medium';
-  if (combined.includes('substack') || combined.includes('newsletter')) return 'substack';
-  if (combined.includes('spotify')) return 'spotify';
-  if (combined.includes('producthunt') || combined.includes('product hunt')) return 'producthunt';
-  if (combined.includes('notion')) return 'notion';
-
-  // Communication & Web
-  if (combined.includes('mailto:') || combined.includes('email') || combined.includes('mail')) return 'email';
-  if (combined.includes('website') || combined.includes('portfolio') || combined.includes('personal site') || combined.includes('homepage')) return 'website';
-
-  // Domain parsing fallback
-  if (url) {
-    try {
-      const parsed = new URL(url.startsWith('http') || url.startsWith('mailto:') ? url : `https://${url}`);
-      const host = parsed.hostname.toLowerCase();
-      if (host.includes('leetcode.com')) return 'leetcode';
-      if (host.includes('github.com')) return 'github';
-      if (host.includes('linkedin.com')) return 'linkedin';
-      if (host.includes('x.com') || host.includes('twitter.com')) return 'x';
-      if (host.includes('instagram.com')) return 'instagram';
-      if (host.includes('youtube.com') || host.includes('youtu.be')) return 'youtube';
-      if (host.includes('hackerrank.com')) return 'hackerrank';
-      if (host.includes('codechef.com')) return 'codechef';
-      if (host.includes('discord.com') || host.includes('discord.gg')) return 'discord';
-      if (host.includes('twitch.tv')) return 'twitch';
-      if (host.includes('tiktok.com')) return 'tiktok';
-      if (host.includes('facebook.com') || host.includes('fb.com')) return 'facebook';
-      if (host.includes('reddit.com')) return 'reddit';
-      if (host.includes('dribbble.com')) return 'dribbble';
-      if (host.includes('behance.net')) return 'behance';
-      if (host.includes('figma.com')) return 'figma';
-      if (host.includes('medium.com')) return 'medium';
-      if (host.includes('spotify.com')) return 'spotify';
-      if (host.includes('telegram.org') || host.includes('t.me')) return 'telegram';
-      if (host.includes('whatsapp.com') || host.includes('wa.me')) return 'whatsapp';
-      if (host.includes('gitlab.com')) return 'gitlab';
-      if (host.includes('stackoverflow.com')) return 'stackoverflow';
-      if (host.includes('substack.com')) return 'substack';
-      if (host.includes('producthunt.com')) return 'producthunt';
-      if (host.includes('notion.so') || host.includes('notion.site')) return 'notion';
-    } catch {
-      // not a standard URL
-    }
-  }
-
-  return 'generic';
-}
 
 /**
  * SVG Path Registry: All 24x24 viewBox standard brand paths
@@ -387,6 +290,105 @@ export const BRAND_SVGS: Record<string, React.ReactNode> = {
     />
   ),
 };
+
+/**
+ * Normalizes any link (checking explicit icon, label, and URL hostname/path)
+ * to a standardized social brand key.
+ */
+export function normalizeSocialPlatform(label?: string, url?: string, explicitIcon?: string): string {
+  // 1. Explicit icon check
+  if (explicitIcon) {
+    const iconKey = explicitIcon.toLowerCase().trim();
+    if (BRAND_SVGS[iconKey]) return iconKey;
+    if (iconKey === 'twitter') return 'x';
+    if (iconKey === 'x.com') return 'x';
+    if (iconKey === 'mail') return 'email';
+    if (iconKey === 'substack') return 'substack';
+    if (iconKey === 'web' || iconKey === 'site') return 'website';
+  }
+
+  // 2. Combined string check (label + url + explicitIcon)
+  const combined = `${explicitIcon || ''} ${label || ''} ${url || ''}`.toLowerCase();
+
+  // Coding & Developer
+  if (combined.includes('leetcode')) return 'leetcode';
+  if (combined.includes('hackerrank') || combined.includes('hacker rank')) return 'hackerrank';
+  if (combined.includes('codechef')) return 'codechef';
+  if (combined.includes('geeksforgeeks') || combined.includes('gfg')) return 'geeksforgeeks';
+  if (combined.includes('github')) return 'github';
+  if (combined.includes('gitlab')) return 'gitlab';
+  if (combined.includes('bitbucket')) return 'bitbucket';
+  if (combined.includes('stackoverflow') || combined.includes('stack overflow')) return 'stackoverflow';
+  if (combined.includes('codepen')) return 'codepen';
+  if (combined.includes('dev.to') || combined.includes('devto')) return 'devto';
+  if (combined.includes('kaggle')) return 'kaggle';
+
+  // Major Social & Community
+  if (combined.includes('linkedin')) return 'linkedin';
+  if (combined.includes('instagram') || combined.includes('insta')) return 'instagram';
+  if (combined.includes('youtube') || combined.includes('youtu.be')) return 'youtube';
+  if (combined.includes('twitter') || combined.includes('x.com') || (label && /^x$/i.test(label.trim()))) return 'x';
+  if (combined.includes('threads')) return 'threads';
+  if (combined.includes('tiktok')) return 'tiktok';
+  if (combined.includes('facebook') || combined.includes('fb.com')) return 'facebook';
+  if (combined.includes('discord') || combined.includes('discord.gg')) return 'discord';
+  if (combined.includes('twitch')) return 'twitch';
+  if (combined.includes('reddit')) return 'reddit';
+  if (combined.includes('pinterest')) return 'pinterest';
+  if (combined.includes('telegram') || combined.includes('t.me')) return 'telegram';
+  if (combined.includes('whatsapp') || combined.includes('wa.me')) return 'whatsapp';
+
+  // Design & Media
+  if (combined.includes('dribbble')) return 'dribbble';
+  if (combined.includes('behance')) return 'behance';
+  if (combined.includes('figma')) return 'figma';
+  if (combined.includes('medium')) return 'medium';
+  if (combined.includes('substack') || combined.includes('newsletter')) return 'substack';
+  if (combined.includes('spotify')) return 'spotify';
+  if (combined.includes('producthunt') || combined.includes('product hunt')) return 'producthunt';
+  if (combined.includes('notion')) return 'notion';
+
+  // Communication & Web
+  if (combined.includes('mailto:') || combined.includes('email') || combined.includes('mail')) return 'email';
+  if (combined.includes('website') || combined.includes('portfolio') || combined.includes('personal site') || combined.includes('homepage')) return 'website';
+
+  // Domain parsing fallback
+  if (url) {
+    try {
+      const parsed = new URL(url.startsWith('http') || url.startsWith('mailto:') ? url : `https://${url}`);
+      const host = parsed.hostname.toLowerCase();
+      if (host.includes('leetcode.com')) return 'leetcode';
+      if (host.includes('github.com')) return 'github';
+      if (host.includes('linkedin.com')) return 'linkedin';
+      if (host.includes('x.com') || host.includes('twitter.com')) return 'x';
+      if (host.includes('instagram.com')) return 'instagram';
+      if (host.includes('youtube.com') || host.includes('youtu.be')) return 'youtube';
+      if (host.includes('hackerrank.com')) return 'hackerrank';
+      if (host.includes('codechef.com')) return 'codechef';
+      if (host.includes('discord.com') || host.includes('discord.gg')) return 'discord';
+      if (host.includes('twitch.tv')) return 'twitch';
+      if (host.includes('tiktok.com')) return 'tiktok';
+      if (host.includes('facebook.com') || host.includes('fb.com')) return 'facebook';
+      if (host.includes('reddit.com')) return 'reddit';
+      if (host.includes('dribbble.com')) return 'dribbble';
+      if (host.includes('behance.net')) return 'behance';
+      if (host.includes('figma.com')) return 'figma';
+      if (host.includes('medium.com')) return 'medium';
+      if (host.includes('spotify.com')) return 'spotify';
+      if (host.includes('telegram.org') || host.includes('t.me')) return 'telegram';
+      if (host.includes('whatsapp.com') || host.includes('wa.me')) return 'whatsapp';
+      if (host.includes('gitlab.com')) return 'gitlab';
+      if (host.includes('stackoverflow.com')) return 'stackoverflow';
+      if (host.includes('substack.com')) return 'substack';
+      if (host.includes('producthunt.com')) return 'producthunt';
+      if (host.includes('notion.so') || host.includes('notion.site')) return 'notion';
+    } catch {
+      // not a standard URL
+    }
+  }
+
+  return 'generic';
+}
 
 /**
  * Returns the inner SVG path element(s) for a given platform.
