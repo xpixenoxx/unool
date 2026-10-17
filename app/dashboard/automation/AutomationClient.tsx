@@ -92,235 +92,891 @@ interface SimulateResult {
   reason?: string;
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+// ─── Semantic Style Tokens (Light Premium Biscuit & Champagne) ───────────────
 
-const CLASSIFICATION_COLORS: Record<string, { bg: string; text: string; dot: string; border: string }> = {
-  positive:        { bg: 'rgba(16,185,129,0.10)', text: '#10b981', dot: '#10b981', border: 'rgba(16,185,129,0.25)' },
-  question:        { bg: 'rgba(59,130,246,0.10)', text: '#3b82f6', dot: '#3b82f6', border: 'rgba(59,130,246,0.25)' },
-  link_request:    { bg: 'rgba(139,92,246,0.10)', text: '#8b5cf6', dot: '#8b5cf6', border: 'rgba(139,92,246,0.25)' },
-  purchase_intent: { bg: 'rgba(245,158,11,0.10)', text: '#f59e0b', dot: '#f59e0b', border: 'rgba(245,158,11,0.25)' },
-  negative:        { bg: 'rgba(239,68,68,0.10)',  text: '#ef4444', dot: '#ef4444', border: 'rgba(239,68,68,0.25)'  },
-  spam:            { bg: 'rgba(107,114,128,0.10)', text: '#9ca3af', dot: '#9ca3af', border: 'rgba(107,114,128,0.2)' },
-  harmful:         { bg: 'rgba(220,38,38,0.14)',  text: '#dc2626', dot: '#dc2626', border: 'rgba(220,38,38,0.3)'   },
-  unrelated:       { bg: 'rgba(75,85,99,0.08)',   text: '#6b7280', dot: '#6b7280', border: 'rgba(75,85,99,0.2)'   },
-  support:         { bg: 'rgba(234,179,8,0.10)',  text: '#eab308', dot: '#eab308', border: 'rgba(234,179,8,0.25)' },
+const CLASSIFICATION_STYLES: Record<string, { bg: string; text: string; dot: string; border: string; label: string }> = {
+  positive:        { bg: '#ECFDF5', text: '#047857', dot: '#10B981', border: '#A7F3D0', label: 'Positive / Praise' },
+  question:        { bg: '#EFF6FF', text: '#1D4ED8', dot: '#3B82F6', border: '#BFDBFE', label: 'Audience Question' },
+  link_request:    { bg: '#F5F3FF', text: '#6D28D9', dot: '#8B5CF6', border: '#DDD6FE', label: 'Resource / Link Ask' },
+  purchase_intent: { bg: '#FEF3C7', text: '#B45309', dot: '#F59E0B', border: '#FDE68A', label: 'High Intent / Buyer' },
+  negative:        { bg: '#FEF2F2', text: '#B91C1C', dot: '#EF4444', border: '#FECACA', label: 'Negative Sentiment' },
+  spam:            { bg: '#F1F5F9', text: '#475569', dot: '#94A3B8', border: '#CBD5E1', label: 'Spam / Automated' },
+  harmful:         { bg: '#FFF1F2', text: '#BE123C', dot: '#F43F5E', border: '#FECDD3', label: 'Harmful / Moderation' },
+  unrelated:       { bg: '#F8FAFC', text: '#64748B', dot: '#94A3B8', border: '#E2E8F0', label: 'General Conversation' },
+  support:         { bg: '#FFFBEB', text: '#92400E', dot: '#D97706', border: '#FDE68A', label: 'Support Request' },
 };
 
-const CLASSIFICATION_LABELS: Record<string, string> = {
-  positive: 'Positive', question: 'Question', link_request: 'Link Request',
-  purchase_intent: 'Purchase Intent', negative: 'Negative', spam: 'Spam',
-  harmful: 'Harmful', unrelated: 'Unrelated', support: 'Support',
-};
-
-const LEAD_SCORE_LABELS = ['Not a lead', 'Warm', 'Hot', 'Ready to buy'];
-const LEAD_SCORE_COLORS = ['#6b7280', '#3b82f6', '#f59e0b', '#10b981'];
-
-const TOGGLE_COLORS: Record<string, string> = {
-  autoReplyPositive: 'color-green', autoReplyQuestions: 'color-blue',
-  autoReplyLinkRequests: 'color-purple', autoReplyPurchaseIntent: 'color-amber',
-  flagNegative: 'color-red', flagSpam: 'color-rose', threadChainingEnabled: 'color-purple',
+const LEAD_SCORES: Record<number, { label: string; text: string; bg: string; border: string }> = {
+  0: { label: 'Casual Viewer', text: '#64748B', bg: '#F1F5F9', border: '#CBD5E1' },
+  1: { label: 'Engaged Prospect', text: '#1D4ED8', bg: '#EFF6FF', border: '#BFDBFE' },
+  2: { label: 'Hot Lead', text: '#B45309', bg: '#FEF3C7', border: '#FDE68A' },
+  3: { label: 'Ready to Transact', text: '#047857', bg: '#ECFDF5', border: '#A7F3D0' },
 };
 
 const COMMENT_PRESETS = [
-  { label: 'Link Request', text: 'Where can I get this template? Can you send me the link?', caption: 'New workflow template just dropped for engineering teams.' },
-  { label: 'Purchase Intent', text: 'How much does this cost? I need this now!', caption: 'Pricing and packages for our enterprise automation suite.' },
-  { label: 'Positive Praise', text: 'This workflow completely changed how our team operates!', caption: 'How we scaled our async communication.' },
-  { label: 'Feature Question', text: 'Does this integrate with Slack and Supabase out of the box?', caption: 'Deep dive into our modern stack architecture.' },
-  { label: 'Complaint', text: "Your tool charged my card twice and support hasn't responded!", caption: 'Product update.' },
-  { label: 'Spam Bot', text: 'Invest in Bitcoin now and make 500% ROI in 24 hours! DM me!', caption: 'Weekly newsletter.' },
+  { label: 'Resource Link Request', text: 'Where can I get this template? Can you send me the download link?', caption: 'New enterprise workflow template just launched for engineering teams.' },
+  { label: 'Commercial Intent', text: 'How much does this cost per seat? I need this implemented by next week!', caption: 'Pricing, packages, and SLA tiers for our automation engine.' },
+  { label: 'Genuine Praise', text: 'This system completely transformed our creator workflow. Incredible build!', caption: 'Behind the scenes of how we scaled async publishing.' },
+  { label: 'Technical Inquiry', text: 'Does this support Supabase webhooks and multi-account dispatch?', caption: 'Architecture breakdown of our high-concurrency event system.' },
+  { label: 'Customer Complaint', text: 'Payment went through but my access key was not delivered. Need help ASAP.', caption: 'Weekly platform changelog and status note.' },
+  { label: 'Spam Comment', text: 'Earn $5000 a day using this secret trading bot! Send DM to start.', caption: 'Community announcements and upcoming live sessions.' },
 ];
 
 const DM_PRESETS = [
-  { label: 'Price Inquiry', text: 'Hey, how much is your course and is there a payment plan?' },
-  { label: 'Resource Ask', text: 'Hi! Could you send over the spreadsheet you mentioned in your story?' },
-  { label: 'Partnership', text: 'We love your content! Would you be open to a brand collab next month?' },
-  { label: 'Angry Issue', text: 'I bought the template 3 days ago and the download link is broken. Fix this.' },
+  { label: 'Pricing & Access', text: 'Hello! Could you share the current pricing tiers and if you offer team onboarding?' },
+  { label: 'Story Resource Ask', text: 'Hey! Dropping in from your story—can you send the automation cheatsheet link?' },
+  { label: 'Partnership Offer', text: 'Hi team, love the software. Would you be open to an integration partner call?' },
+  { label: 'Escalation Issue', text: 'My webhook stopped receiving Instagram events 2 hours ago. Can someone review this?' },
 ];
 
-// ─── CSS ──────────────────────────────────────────────────────────────────────
+// ─── Custom Stylesheet: Light Luxury Biscuit System ──────────────────────────
 
-const CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+const LIGHT_PREMIUM_CSS = `
+  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&display=swap');
 
-  .sdm-root{min-height:calc(100vh - 100px);background:#080810;color:#e2e0ed;font-family:'Inter',sans-serif;border-radius:20px;border:1px solid rgba(255,255,255,0.07);box-shadow:0 8px 48px rgba(0,0,0,0.4);overflow:hidden;position:relative;}
-  .sdm-header{padding:26px 32px 0;background:linear-gradient(180deg,rgba(124,58,237,0.07) 0%,transparent 100%);border-bottom:1px solid rgba(255,255,255,0.055);position:relative;}
-  .sdm-header::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(124,58,237,0.6),rgba(219,39,119,0.35),transparent);}
-  .sdm-header-inner{max-width:1300px;margin:0 auto;}
-  .sdm-title-row{display:flex;align-items:center;gap:14px;margin-bottom:8px;justify-content:space-between;}
-  .sdm-logo-mark{width:42px;height:42px;background:linear-gradient(135deg,#7c3aed 0%,#db2777 100%);border-radius:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 0 0 1px rgba(255,255,255,0.08),0 4px 20px rgba(124,58,237,0.45);}
-  .sdm-title{font-size:22px;font-weight:800;color:#fff;letter-spacing:-0.6px;line-height:1;}
-  .sdm-subtitle{font-size:12px;color:rgba(255,255,255,0.35);margin-top:3px;}
-  .sdm-tabs{display:flex;gap:2px;margin-top:20px;}
-  .sdm-tab{padding:9px 18px;font-size:13px;font-weight:500;color:rgba(255,255,255,0.38);border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;transition:all 0.22s;display:flex;align-items:center;gap:7px;white-space:nowrap;position:relative;font-family:'Inter',sans-serif;}
-  .sdm-tab:hover{color:rgba(255,255,255,0.7);}
-  .sdm-tab.active{color:#fff;border-bottom-color:#7c3aed;}
-  .sdm-tab.active::after{content:'';position:absolute;bottom:-1px;left:18px;right:18px;height:2px;background:linear-gradient(90deg,#7c3aed,#db2777);border-radius:2px 2px 0 0;filter:blur(2px);}
-  .sdm-tab-badge{background:rgba(124,58,237,0.25);color:#a78bfa;border-radius:20px;padding:1px 7px;font-size:10.5px;font-weight:700;border:1px solid rgba(124,58,237,0.3);}
-  .sdm-body{max-width:1300px;margin:0 auto;padding:28px 32px;}
+  .un-root {
+    min-height: calc(100vh - 80px);
+    background: #F7F3ED;
+    color: #3D2B1F;
+    font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+    padding-bottom: 60px;
+  }
 
-  /* MASTER TOGGLE */
-  .sdm-master-toggle{display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,rgba(17,16,28,0.9) 0%,rgba(30,20,50,0.7) 100%);border:1px solid rgba(255,255,255,0.07);border-radius:18px;padding:20px 24px;margin-bottom:24px;transition:all 0.4s ease;}
-  .sdm-master-toggle.active{border-color:rgba(124,58,237,0.35);box-shadow:0 0 40px rgba(124,58,237,0.1),inset 0 0 40px rgba(124,58,237,0.04);}
-  .sdm-master-pulse{width:10px;height:10px;border-radius:50%;background:#6b7280;transition:all 0.4s ease;flex-shrink:0;}
-  .sdm-master-toggle.active .sdm-master-pulse{background:#10b981;box-shadow:0 0 0 3px rgba(16,185,129,0.2),0 0 12px rgba(16,185,129,0.4);animation:sdm-pulse 2s ease-in-out infinite;}
-  @keyframes sdm-pulse{0%,100%{box-shadow:0 0 0 3px rgba(16,185,129,0.2),0 0 12px rgba(16,185,129,0.4);}50%{box-shadow:0 0 0 6px rgba(16,185,129,0.08),0 0 20px rgba(16,185,129,0.3);}}
-  .sdm-toggle-info h3{font-size:14.5px;font-weight:700;color:#f3f4f6;margin:0 0 3px;}
-  .sdm-toggle-info p{font-size:12px;color:rgba(255,255,255,0.38);margin:0;}
+  .un-editorial-font {
+    font-family: 'Newsreader', Georgia, serif;
+  }
 
-  /* POWER TOGGLE (master) */
-  .sdm-power-toggle{position:relative;width:64px;height:34px;cursor:pointer;flex-shrink:0;}
-  .sdm-power-toggle input{display:none;}
-  .sdm-power-track{position:absolute;inset:0;background:rgba(255,255,255,0.07);border-radius:17px;border:1.5px solid rgba(255,255,255,0.1);transition:all 0.35s;}
-  .sdm-power-toggle input:checked + .sdm-power-track{background:linear-gradient(135deg,#7c3aed,#9d4edd);border-color:rgba(124,58,237,0.8);box-shadow:0 0 0 3px rgba(124,58,237,0.2),0 0 20px rgba(124,58,237,0.4);}
-  .sdm-power-thumb{position:absolute;top:4px;left:4px;width:24px;height:24px;background:#fff;border-radius:50%;transition:all 0.35s cubic-bezier(.34,1.56,.64,1);box-shadow:0 2px 8px rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;}
-  .sdm-power-toggle input:checked ~ .sdm-power-thumb{transform:translateX(30px);}
+  /* ── Header ── */
+  .un-header {
+    background: #FFFDF9;
+    border-bottom: 1px solid #E8E0D4;
+    padding: 28px 32px 0;
+    box-shadow: 0 1px 3px rgba(61,43,31,0.03);
+  }
+  .un-header-max {
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+  .un-top-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin-bottom: 22px;
+  }
+  .un-logo-jewel {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #3D2B1F 0%, #1A120D 100%);
+    border: 1px solid #C4A265;
+    box-shadow: 0 4px 14px rgba(61,43,31,0.18), inset 0 1px 1px rgba(255,255,255,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #FAF7F2;
+    flex-shrink: 0;
+  }
+  .un-title {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: #3D2B1F;
+    line-height: 1.15;
+  }
+  .un-subtitle {
+    font-size: 13px;
+    color: #8B7355;
+    margin-top: 3px;
+    font-weight: 500;
+  }
 
-  /* PILL TOGGLE (comment rows) */
-  .sdm-pill-toggle{position:relative;width:38px;height:21px;cursor:pointer;flex-shrink:0;}
-  .sdm-pill-toggle input{display:none;}
-  .sdm-pill-track{position:absolute;inset:0;border-radius:11px;background:rgba(255,255,255,0.07);border:1.5px solid rgba(255,255,255,0.09);transition:all 0.28s;}
-  .sdm-pill-thumb{position:absolute;top:3px;left:3px;width:13px;height:13px;border-radius:50%;background:rgba(255,255,255,0.5);transition:all 0.28s cubic-bezier(.34,1.56,.64,1);box-shadow:0 1px 4px rgba(0,0,0,0.4);}
-  .sdm-pill-toggle input:checked ~ .sdm-pill-thumb{transform:translateX(17px);background:#fff;}
-  .sdm-pill-toggle.color-green input:checked + .sdm-pill-track{background:rgba(16,185,129,0.25);border-color:rgba(16,185,129,0.5);box-shadow:0 0 10px rgba(16,185,129,0.2);}
-  .sdm-pill-toggle.color-green input:checked ~ .sdm-pill-thumb{background:#10b981;}
-  .sdm-pill-toggle.color-blue input:checked + .sdm-pill-track{background:rgba(59,130,246,0.25);border-color:rgba(59,130,246,0.5);box-shadow:0 0 10px rgba(59,130,246,0.2);}
-  .sdm-pill-toggle.color-blue input:checked ~ .sdm-pill-thumb{background:#3b82f6;}
-  .sdm-pill-toggle.color-purple input:checked + .sdm-pill-track{background:rgba(139,92,246,0.25);border-color:rgba(139,92,246,0.5);box-shadow:0 0 10px rgba(139,92,246,0.2);}
-  .sdm-pill-toggle.color-purple input:checked ~ .sdm-pill-thumb{background:#8b5cf6;}
-  .sdm-pill-toggle.color-amber input:checked + .sdm-pill-track{background:rgba(245,158,11,0.25);border-color:rgba(245,158,11,0.5);box-shadow:0 0 10px rgba(245,158,11,0.2);}
-  .sdm-pill-toggle.color-amber input:checked ~ .sdm-pill-thumb{background:#f59e0b;}
-  .sdm-pill-toggle.color-red input:checked + .sdm-pill-track{background:rgba(239,68,68,0.22);border-color:rgba(239,68,68,0.5);box-shadow:0 0 10px rgba(239,68,68,0.18);}
-  .sdm-pill-toggle.color-red input:checked ~ .sdm-pill-thumb{background:#ef4444;}
-  .sdm-pill-toggle.color-rose input:checked + .sdm-pill-track{background:rgba(244,63,94,0.22);border-color:rgba(244,63,94,0.5);box-shadow:0 0 10px rgba(244,63,94,0.18);}
-  .sdm-pill-toggle.color-rose input:checked ~ .sdm-pill-thumb{background:#f43f5e;}
+  /* ── Tabs Navigation ── */
+  .un-tabs-bar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: #F0EBE3;
+    padding: 4px;
+    border-radius: 12px;
+    border: 1px solid #E5DFD5;
+    width: fit-content;
+    margin-bottom: -1px;
+    overflow-x: auto;
+  }
+  .un-tab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 9px;
+    border: none;
+    background: transparent;
+    color: #8B7355;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    white-space: nowrap;
+    text-decoration: none;
+  }
+  .un-tab-btn:hover {
+    color: #3D2B1F;
+    background: rgba(255,255,255,0.4);
+  }
+  .un-tab-btn.active {
+    background: #FFFDF9;
+    color: #3D2B1F;
+    box-shadow: 0 2px 6px rgba(61,43,31,0.06), 0 1px 2px rgba(61,43,31,0.04);
+  }
+  .un-tab-badge {
+    background: #F5EFE2;
+    color: #8B7355;
+    padding: 1px 7px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    border: 1px solid #E8E0D4;
+  }
+  .un-tab-btn.active .un-tab-badge {
+    background: #3D2B1F;
+    color: #FAF7F2;
+    border-color: #3D2B1F;
+  }
 
-  /* SEGMENTED TOGGLE (DM section) */
-  .sdm-seg-toggle{position:relative;width:44px;height:24px;cursor:pointer;flex-shrink:0;}
-  .sdm-seg-toggle input{display:none;}
-  .sdm-seg-track{position:absolute;inset:0;border-radius:7px;background:rgba(255,255,255,0.06);border:1.5px solid rgba(255,255,255,0.1);transition:all 0.3s;overflow:hidden;}
-  .sdm-seg-track::before{content:'';position:absolute;top:0;left:0;width:50%;height:100%;background:rgba(255,255,255,0.06);border-right:1px solid rgba(255,255,255,0.1);transition:all 0.3s;}
-  .sdm-seg-toggle input:checked + .sdm-seg-track{background:rgba(139,92,246,0.18);border-color:rgba(139,92,246,0.45);}
-  .sdm-seg-toggle input:checked + .sdm-seg-track::before{left:50%;background:rgba(139,92,246,0.3);border-right:none;border-left:1px solid rgba(139,92,246,0.3);}
-  .sdm-seg-thumb{position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:4px;background:rgba(255,255,255,0.7);transition:all 0.3s cubic-bezier(.4,0,.2,1);box-shadow:0 1px 4px rgba(0,0,0,0.3);}
-  .sdm-seg-toggle input:checked ~ .sdm-seg-thumb{transform:translateX(20px);background:#a78bfa;box-shadow:0 0 8px rgba(167,139,250,0.5);}
+  /* ── Body Container ── */
+  .un-body {
+    max-width: 1280px;
+    margin: 28px auto 0;
+    padding: 0 32px;
+  }
+  @media(max-width: 768px) {
+    .un-header { padding: 20px 16px 0; }
+    .un-body { padding: 0 16px; margin-top: 20px; }
+  }
 
-  /* CARDS */
-  .sdm-card{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.055);border-radius:16px;padding:20px 22px;margin-bottom:14px;transition:border-color 0.2s;}
-  .sdm-card:hover{border-color:rgba(255,255,255,0.09);}
-  .sdm-card.section-comment{border-top:2px solid rgba(59,130,246,0.3);}
-  .sdm-card.section-brand{border-top:2px solid rgba(139,92,246,0.3);}
-  .sdm-card.section-dm{border-top:2px solid rgba(16,185,129,0.3);}
-  .sdm-card.section-rate{border-top:2px solid rgba(245,158,11,0.3);}
-  .sdm-card.section-feed{border-top:2px solid rgba(139,92,246,0.3);}
-  .sdm-card.section-sim{border-top:2px solid rgba(16,185,129,0.3);}
-  .sdm-card-title{font-size:11px;font-weight:700;color:rgba(255,255,255,0.38);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:16px;display:flex;align-items:center;gap:8px;}
-  .sdm-card-title-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
-  .sdm-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
-  @media(max-width:900px){.sdm-grid-2{grid-template-columns:1fr;}.sdm-body{padding:20px 16px;}.sdm-header{padding:20px 16px 0;}}
+  /* ── Cards Architecture ── */
+  .un-card {
+    background: #FFFDF9;
+    border: 1px solid #E8E0D4;
+    border-radius: 18px;
+    box-shadow: 0 1px 3px rgba(61,43,31,0.03), 0 8px 24px rgba(61,43,31,0.03);
+    padding: 24px;
+    margin-bottom: 20px;
+    transition: border-color 0.25s, box-shadow 0.25s;
+    position: relative;
+  }
+  .un-card:hover {
+    border-color: #D9CEBF;
+  }
+  .un-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #F0EBE3;
+  }
+  .un-card-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #3D2B1F;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    letter-spacing: -0.01em;
+  }
+  .un-card-title-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
 
-  /* FORM */
-  .sdm-field{margin-bottom:14px;}
-  .sdm-label{display:block;font-size:11.5px;font-weight:600;color:rgba(255,255,255,0.45);margin-bottom:6px;}
-  .sdm-input{width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:10px;padding:10px 13px;font-size:13px;color:#f3f4f6;font-family:'Inter',sans-serif;transition:all 0.2s;box-sizing:border-box;outline:none;}
-  .sdm-input::placeholder{color:rgba(255,255,255,0.2);}
-  .sdm-input:focus{border-color:rgba(124,58,237,0.5);background:rgba(255,255,255,0.05);box-shadow:0 0 0 3px rgba(124,58,237,0.1);}
-  .sdm-textarea{min-height:90px;resize:vertical;line-height:1.65;}
-  .sdm-toggle-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid rgba(255,255,255,0.04);}
-  .sdm-toggle-row:last-child{border-bottom:none;}
-  .sdm-toggle-row-label{font-size:13px;color:#d1d5db;font-weight:500;}
-  .sdm-toggle-row-desc{font-size:11.5px;color:rgba(255,255,255,0.3);margin-top:2px;}
-  .sdm-slider-row{display:flex;align-items:center;gap:12px;margin-bottom:10px;}
-  .sdm-slider{flex:1;-webkit-appearance:none;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;outline:none;cursor:pointer;}
-  .sdm-slider::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;background:#7c3aed;border-radius:50%;cursor:pointer;box-shadow:0 0 0 3px rgba(124,58,237,0.2),0 2px 8px rgba(124,58,237,0.5);}
-  .sdm-slider-value{font-size:12.5px;font-weight:700;color:#a78bfa;min-width:48px;text-align:right;}
+  /* ── MASTER POWER SWITCH (The Horology Mechanical Design) ── */
+  .un-master-hero {
+    background: linear-gradient(135deg, #FFFDF9 0%, #FAF6EE 100%);
+    border: 1.5px solid #E2D7C8;
+    border-radius: 20px;
+    padding: 24px 28px;
+    box-shadow: 0 4px 16px rgba(61,43,31,0.04), 0 12px 36px rgba(61,43,31,0.03);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .un-master-hero::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, #C4A265, #D4B87A, transparent);
+  }
+  .un-hero-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .un-hero-status-live {
+    background: #ECFDF5;
+    color: #047857;
+    border: 1px solid #A7F3D0;
+  }
+  .un-hero-status-idle {
+    background: #F1F5F9;
+    color: #64748B;
+    border: 1px solid #CBD5E1;
+  }
+  .un-pulse-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #10B981;
+    box-shadow: 0 0 0 2px rgba(16,185,129,0.25);
+    animation: unPulse 1.8s ease-in-out infinite;
+  }
+  @keyframes unPulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.3); opacity: 0.6; }
+  }
 
-  /* BUTTONS */
-  .sdm-btn{padding:9px 18px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all 0.2s;display:inline-flex;align-items:center;gap:7px;font-family:'Inter',sans-serif;}
-  .sdm-btn-primary{background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;box-shadow:0 4px 16px rgba(124,58,237,0.3),0 0 0 1px rgba(124,58,237,0.5);}
-  .sdm-btn-primary:hover{box-shadow:0 6px 24px rgba(124,58,237,0.45),0 0 0 1px rgba(124,58,237,0.6);transform:translateY(-1px);}
-  .sdm-btn-primary:active{transform:translateY(0);}
-  .sdm-btn-primary:disabled{opacity:0.45;cursor:not-allowed;transform:none;box-shadow:none;}
-  .sdm-btn-secondary{background:rgba(255,255,255,0.06);color:#d1d5db;border:1px solid rgba(255,255,255,0.1);}
-  .sdm-btn-secondary:hover{background:rgba(255,255,255,0.09);}
-  .sdm-btn-danger{background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);}
-  .sdm-btn-danger:hover{background:rgba(239,68,68,0.18);}
-  .sdm-btn-success{background:rgba(16,185,129,0.1);color:#10b981;border:1px solid rgba(16,185,129,0.25);}
-  .sdm-btn-success:hover{background:rgba(16,185,129,0.18);}
-  .sdm-save-bar{display:flex;justify-content:flex-end;gap:10px;margin-top:10px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.05);}
+  /* Master Switch Input & Tactile Housing */
+  .un-master-switch {
+    position: relative;
+    width: 72px;
+    height: 38px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .un-master-switch input {
+    display: none;
+  }
+  .un-master-track {
+    position: absolute;
+    inset: 0;
+    background: #EBE5DB;
+    border-radius: 20px;
+    border: 1.5px solid #D9CEBF;
+    box-shadow: inset 0 2px 5px rgba(61,43,31,0.08);
+    transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .un-master-switch input:checked + .un-master-track {
+    background: linear-gradient(135deg, #3D2B1F 0%, #2A1D15 100%);
+    border-color: #C4A265;
+    box-shadow: 0 0 0 3px rgba(196,162,101,0.2), inset 0 2px 6px rgba(0,0,0,0.4);
+  }
+  .un-master-thumb {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: 30px;
+    height: 30px;
+    background: linear-gradient(180deg, #FFFFFF 0%, #F5EFE6 100%);
+    border-radius: 50%;
+    border: 1px solid #D9CEBF;
+    box-shadow: 0 2px 8px rgba(61,43,31,0.15), 0 1px 2px rgba(61,43,31,0.1);
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .un-master-switch input:checked ~ .un-master-thumb {
+    transform: translateX(34px);
+    background: linear-gradient(180deg, #FFFDF9 0%, #FAF5EB 100%);
+    border-color: #C4A265;
+    box-shadow: 0 3px 10px rgba(61,43,31,0.25), 0 0 0 1px #C4A265;
+  }
 
-  /* SIMULATOR */
-  .sdm-sim-layout{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start;}
-  @media(max-width:900px){.sdm-sim-layout{grid-template-columns:1fr;}}
-  .sdm-sim-result{background:rgba(16,185,129,0.04);border:1px solid rgba(16,185,129,0.12);border-radius:16px;padding:20px;position:relative;overflow:hidden;}
-  .sdm-sim-result::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(16,185,129,0.4),transparent);}
-  .sdm-type-pills{display:flex;gap:6px;margin-bottom:16px;}
-  .sdm-type-pill{padding:6px 14px;border-radius:20px;font-size:12.5px;font-weight:600;cursor:pointer;border:1.5px solid rgba(255,255,255,0.1);background:transparent;color:rgba(255,255,255,0.4);transition:all 0.2s;font-family:'Inter',sans-serif;display:flex;align-items:center;gap:6px;}
-  .sdm-type-pill:hover{color:rgba(255,255,255,0.7);}
-  .sdm-type-pill.active{background:rgba(124,58,237,0.2);border-color:rgba(124,58,237,0.5);color:#c4b5fd;box-shadow:0 0 12px rgba(124,58,237,0.15);}
-  .sdm-classification-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid transparent;}
-  .sdm-confidence-bar-wrap{height:3px;background:rgba(255,255,255,0.07);border-radius:2px;overflow:hidden;margin-top:10px;}
-  .sdm-confidence-bar{height:100%;background:linear-gradient(90deg,#7c3aed,#10b981);border-radius:2px;transition:width 0.6s ease;}
-  .sdm-result-section{margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.05);}
-  .sdm-result-section-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.3);margin-bottom:7px;}
-  .sdm-result-reply{font-size:13px;color:#e5e7eb;line-height:1.65;background:rgba(255,255,255,0.04);border-radius:10px;padding:11px 13px;border:1px solid rgba(255,255,255,0.06);}
-  .sdm-action-flags{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px;}
-  .sdm-flag{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:11.5px;font-weight:600;}
-  .sdm-flag-yes{background:rgba(16,185,129,0.12);color:#10b981;border:1px solid rgba(16,185,129,0.25);}
-  .sdm-flag-no{background:rgba(107,114,128,0.1);color:#6b7280;border:1px solid rgba(107,114,128,0.15);}
-  .sdm-flag-warn{background:rgba(245,158,11,0.12);color:#f59e0b;border:1px solid rgba(245,158,11,0.25);}
-  .sdm-presets-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
-  .sdm-preset-chip{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);border-radius:20px;padding:4px 11px;font-size:11.5px;color:rgba(255,255,255,0.55);cursor:pointer;transition:all 0.18s;font-family:'Inter',sans-serif;}
-  .sdm-preset-chip:hover{background:rgba(124,58,237,0.14);border-color:rgba(124,58,237,0.35);color:#c4b5fd;}
+  /* ── BESPOKE TOGGLE DESIGN 2: Tactile Capsule Rocker (Comment Rows) ── */
+  .un-capsule-toggle {
+    position: relative;
+    width: 46px;
+    height: 25px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .un-capsule-toggle input {
+    display: none;
+  }
+  .un-capsule-track {
+    position: absolute;
+    inset: 0;
+    border-radius: 14px;
+    background: #EFE9DF;
+    border: 1.5px solid #DDD3C5;
+    box-shadow: inset 0 1px 3px rgba(61,43,31,0.06);
+    transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .un-capsule-thumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 17px;
+    height: 17px;
+    border-radius: 50%;
+    background: #FFFFFF;
+    border: 1px solid #D0C5B5;
+    box-shadow: 0 1px 4px rgba(61,43,31,0.15);
+    transition: all 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .un-capsule-thumb::after {
+    content: '';
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #A69279;
+    opacity: 0.6;
+    transition: all 0.2s;
+  }
+  .un-capsule-toggle input:checked ~ .un-capsule-thumb {
+    transform: translateX(21px);
+    background: #FFFFFF;
+    box-shadow: 0 2px 6px rgba(61,43,31,0.2);
+  }
 
-  /* TABLE */
-  .sdm-table{width:100%;border-collapse:collapse;}
-  .sdm-table th{text-align:left;font-size:10.5px;font-weight:700;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:0.08em;padding:10px 13px;border-bottom:1px solid rgba(255,255,255,0.06);white-space:nowrap;}
-  .sdm-table td{padding:11px 13px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:13px;vertical-align:top;}
-  .sdm-table tr:last-child td{border-bottom:none;}
-  .sdm-table tbody tr{transition:background 0.15s;}
-  .sdm-table tbody tr:hover td{background:rgba(255,255,255,0.02);}
-  .sdm-username{font-weight:700;color:#a78bfa;font-size:12.5px;}
+  /* Semantic Color Variants for Capsule Rocker */
+  .un-capsule-toggle.color-emerald input:checked + .un-capsule-track {
+    background: #ECFDF5;
+    border-color: #10B981;
+    box-shadow: 0 0 0 2px rgba(16,185,129,0.15), inset 0 1px 2px rgba(16,185,129,0.1);
+  }
+  .un-capsule-toggle.color-emerald input:checked ~ .un-capsule-thumb {
+    border-color: #10B981;
+  }
+  .un-capsule-toggle.color-emerald input:checked ~ .un-capsule-thumb::after {
+    background: #10B981;
+    opacity: 1;
+  }
 
-  /* STATS */
-  .sdm-stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px;}
-  @media(max-width:768px){.sdm-stats-row{grid-template-columns:1fr 1fr;}}
-  .sdm-stat-card{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:16px;text-align:center;transition:all 0.2s;cursor:default;}
-  .sdm-stat-card:hover{border-color:rgba(124,58,237,0.2);transform:translateY(-1px);}
-  .sdm-stat-value{font-size:28px;font-weight:800;color:#a78bfa;line-height:1;margin-bottom:6px;letter-spacing:-1px;}
-  .sdm-stat-label{font-size:11px;color:rgba(255,255,255,0.35);font-weight:600;text-transform:uppercase;letter-spacing:0.06em;}
+  .un-capsule-toggle.color-sapphire input:checked + .un-capsule-track {
+    background: #EFF6FF;
+    border-color: #3B82F6;
+    box-shadow: 0 0 0 2px rgba(59,130,246,0.15), inset 0 1px 2px rgba(59,130,246,0.1);
+  }
+  .un-capsule-toggle.color-sapphire input:checked ~ .un-capsule-thumb {
+    border-color: #3B82F6;
+  }
+  .un-capsule-toggle.color-sapphire input:checked ~ .un-capsule-thumb::after {
+    background: #3B82F6;
+    opacity: 1;
+  }
 
-  /* FILTER TABS */
-  .sdm-filter-tabs{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:16px;}
-  .sdm-filter-tab{padding:5px 13px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid rgba(255,255,255,0.08);background:transparent;color:rgba(255,255,255,0.38);transition:all 0.18s;font-family:'Inter',sans-serif;display:flex;align-items:center;gap:5px;}
-  .sdm-filter-tab.active{background:rgba(124,58,237,0.18);border-color:rgba(124,58,237,0.4);color:#c4b5fd;}
-  .sdm-filter-tab:hover{color:rgba(255,255,255,0.7);border-color:rgba(255,255,255,0.15);}
+  .un-capsule-toggle.color-amethyst input:checked + .un-capsule-track {
+    background: #F5F3FF;
+    border-color: #8B5CF6;
+    box-shadow: 0 0 0 2px rgba(139,92,246,0.15), inset 0 1px 2px rgba(139,92,246,0.1);
+  }
+  .un-capsule-toggle.color-amethyst input:checked ~ .un-capsule-thumb {
+    border-color: #8B5CF6;
+  }
+  .un-capsule-toggle.color-amethyst input:checked ~ .un-capsule-thumb::after {
+    background: #8B5CF6;
+    opacity: 1;
+  }
 
-  /* FLAGGED */
-  .sdm-flagged-card{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.065);border-radius:15px;padding:18px 20px;margin-bottom:10px;transition:all 0.2s;}
-  .sdm-flagged-card:hover{border-color:rgba(124,58,237,0.22);transform:translateY(-1px);}
-  .sdm-flagged-card.high-priority{border-color:rgba(245,158,11,0.25);background:rgba(245,158,11,0.03);}
-  .sdm-flagged-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px;}
-  .sdm-flagged-comment{font-size:13.5px;color:#f3f4f6;line-height:1.55;flex:1;font-style:italic;}
-  .sdm-reply-preview{background:rgba(124,58,237,0.06);border:1px solid rgba(124,58,237,0.15);border-radius:10px;padding:11px 13px;font-size:13px;color:#d1d5db;line-height:1.6;margin-bottom:10px;}
-  .sdm-flagged-actions{display:flex;gap:7px;flex-wrap:wrap;}
+  .un-capsule-toggle.color-amber input:checked + .un-capsule-track {
+    background: #FEF3C7;
+    border-color: #F59E0B;
+    box-shadow: 0 0 0 2px rgba(245,158,11,0.15), inset 0 1px 2px rgba(245,158,11,0.1);
+  }
+  .un-capsule-toggle.color-amber input:checked ~ .un-capsule-thumb {
+    border-color: #F59E0B;
+  }
+  .un-capsule-toggle.color-amber input:checked ~ .un-capsule-thumb::after {
+    background: #F59E0B;
+    opacity: 1;
+  }
 
-  /* MISC */
-  .sdm-ig-connected{display:flex;align-items:center;gap:6px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);border-radius:20px;padding:5px 12px;font-size:12px;color:#34d399;}
-  .sdm-ig-dot{width:6px;height:6px;border-radius:50%;background:#10b981;animation:sdm-pulse 2s ease-in-out infinite;}
-  .sdm-toast{position:fixed;bottom:24px;right:24px;background:rgba(12,12,20,0.96);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:14px 18px;font-size:13px;color:#f3f4f6;display:flex;align-items:center;gap:10px;z-index:9999;box-shadow:0 12px 40px rgba(0,0,0,0.6);animation:sdm-toast-in 0.3s cubic-bezier(.34,1.56,.64,1);max-width:340px;backdrop-filter:blur(20px);}
-  @keyframes sdm-toast-in{from{opacity:0;transform:translateY(12px) scale(0.95);}to{opacity:1;transform:translateY(0) scale(1);}}
-  .sdm-empty{text-align:center;padding:56px 20px;color:rgba(255,255,255,0.25);}
-  .sdm-empty p{font-size:13.5px;margin:8px 0 0;}
-  .sdm-spinner{width:30px;height:30px;border:2.5px solid rgba(124,58,237,0.15);border-top-color:#7c3aed;border-radius:50%;animation:sdm-spin 0.75s linear infinite;margin:0 auto 14px;}
-  @keyframes sdm-spin{to{transform:rotate(360deg);}}
-  .sdm-tab-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
-  .sdm-tab-heading h2{font-size:17px;font-weight:700;color:#f3f4f6;margin:0 0 4px;letter-spacing:-0.3px;}
-  .sdm-tab-heading p{font-size:12.5px;color:rgba(255,255,255,0.35);margin:0;}
-  .sdm-warning-banner{background:linear-gradient(135deg,rgba(239,68,68,0.08) 0%,rgba(245,158,11,0.05) 100%);border:1px solid rgba(239,68,68,0.2);border-radius:14px;padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
-  .sdm-info-banner{background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.18);border-radius:12px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;gap:12px;}
-  .sdm-no-workspace{text-align:center;padding:80px 20px;}
-  .sdm-pagination{display:flex;align-items:center;justify-content:space-between;margin-top:14px;font-size:12.5px;color:rgba(255,255,255,0.3);}
-  .sdm-pagination-btns{display:flex;gap:8px;}
+  .un-capsule-toggle.color-coral input:checked + .un-capsule-track {
+    background: #FEF2F2;
+    border-color: #EF4444;
+    box-shadow: 0 0 0 2px rgba(239,68,68,0.15), inset 0 1px 2px rgba(239,68,68,0.1);
+  }
+  .un-capsule-toggle.color-coral input:checked ~ .un-capsule-thumb {
+    border-color: #EF4444;
+  }
+  .un-capsule-toggle.color-coral input:checked ~ .un-capsule-thumb::after {
+    background: #EF4444;
+    opacity: 1;
+  }
+
+  .un-capsule-toggle.color-gold input:checked + .un-capsule-track {
+    background: #FBF6EE;
+    border-color: #C4A265;
+    box-shadow: 0 0 0 2px rgba(196,162,101,0.2), inset 0 1px 2px rgba(196,162,101,0.1);
+  }
+  .un-capsule-toggle.color-gold input:checked ~ .un-capsule-thumb {
+    border-color: #C4A265;
+  }
+  .un-capsule-toggle.color-gold input:checked ~ .un-capsule-thumb::after {
+    background: #C4A265;
+    opacity: 1;
+  }
+
+  /* ── BESPOKE TOGGLE DESIGN 3: Studio Channel Slider (DM & Escalations) ── */
+  .un-channel-switch {
+    position: relative;
+    width: 52px;
+    height: 26px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .un-channel-switch input {
+    display: none;
+  }
+  .un-channel-track {
+    position: absolute;
+    inset: 0;
+    border-radius: 8px;
+    background: #EAE3D6;
+    border: 1.5px solid #D5C9B8;
+    box-shadow: inset 0 1px 3px rgba(61,43,31,0.08);
+    transition: all 0.25s;
+    overflow: hidden;
+  }
+  .un-channel-track::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 8px;
+    right: 8px;
+    height: 2px;
+    background: #D0C3B0;
+    transform: translateY(-50%);
+  }
+  .un-channel-switch input:checked + .un-channel-track {
+    background: #F5EFE2;
+    border-color: #C4A265;
+  }
+  .un-channel-switch input:checked + .un-channel-track::after {
+    background: #C4A265;
+  }
+  .un-channel-thumb {
+    position: absolute;
+    top: 2px;
+    left: 3px;
+    width: 22px;
+    height: 20px;
+    border-radius: 6px;
+    background: linear-gradient(180deg, #FFFFFF 0%, #F5EFE6 100%);
+    border: 1.5px solid #C4A265;
+    box-shadow: 0 2px 5px rgba(61,43,31,0.12);
+    transition: all 0.25s cubic-bezier(0.2, 0.9, 0.3, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .un-channel-thumb-ridges {
+    display: flex;
+    gap: 2px;
+  }
+  .un-channel-thumb-ridges span {
+    width: 1.5px;
+    height: 8px;
+    background: #C4A265;
+    border-radius: 1px;
+  }
+  .un-channel-switch input:checked ~ .un-channel-thumb {
+    transform: translateX(24px);
+    background: #3D2B1F;
+    border-color: #3D2B1F;
+  }
+  .un-channel-switch input:checked ~ .un-channel-thumb .un-channel-thumb-ridges span {
+    background: #D4B87A;
+  }
+
+  /* ── Form Inputs & Controls ── */
+  .un-input {
+    width: 100%;
+    background: #FFFDF9;
+    border: 1.5px solid #E8E0D4;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 13.5px;
+    color: #3D2B1F;
+    font-family: inherit;
+    transition: all 0.2s;
+    outline: none;
+    box-sizing: border-box;
+  }
+  .un-input::placeholder {
+    color: #A69279;
+  }
+  .un-input:focus {
+    border-color: #C4A265;
+    background: #FFFFFF;
+    box-shadow: 0 0 0 3px rgba(196,162,101,0.15);
+  }
+  .un-textarea {
+    min-height: 90px;
+    resize: vertical;
+    line-height: 1.6;
+  }
+  .un-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    color: #5D4330;
+    margin-bottom: 6px;
+    letter-spacing: -0.01em;
+  }
+  .un-field {
+    margin-bottom: 16px;
+  }
+
+  /* ── Rows & Lists ── */
+  .un-rule-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 13px 0;
+    border-bottom: 1px solid #F5EFE6;
+  }
+  .un-rule-row:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+  .un-rule-name {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #3D2B1F;
+  }
+  .un-rule-desc {
+    font-size: 12px;
+    color: #8B7355;
+    margin-top: 2px;
+  }
+
+  /* ── Sliders ── */
+  .un-slider-container {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .un-slider {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 4px;
+    background: #E5DFD5;
+    border-radius: 3px;
+    outline: none;
+    cursor: pointer;
+  }
+  .un-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #3D2B1F;
+    border: 2px solid #C4A265;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(61,43,31,0.25);
+    transition: transform 0.15s;
+  }
+  .un-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+  }
+  .un-slider-pill {
+    font-size: 13px;
+    font-weight: 700;
+    color: #3D2B1F;
+    background: #F5EFE2;
+    padding: 3px 10px;
+    border-radius: 8px;
+    border: 1px solid #E8E0D4;
+    min-width: 52px;
+    text-align: center;
+  }
+
+  /* ── Buttons ── */
+  .un-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 11px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    font-family: inherit;
+  }
+  .un-btn-primary {
+    background: #3D2B1F;
+    color: #FAF7F2;
+    box-shadow: 0 2px 6px rgba(61,43,31,0.15);
+  }
+  .un-btn-primary:hover {
+    background: #2A1D15;
+    box-shadow: 0 4px 12px rgba(61,43,31,0.2);
+    transform: translateY(-1px);
+  }
+  .un-btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+  .un-btn-gold {
+    background: linear-gradient(135deg, #C4A265 0%, #B48C48 100%);
+    color: #FFFFFF;
+    box-shadow: 0 2px 8px rgba(196,162,101,0.25);
+  }
+  .un-btn-gold:hover {
+    background: linear-gradient(135deg, #D4B87A 0%, #C4A265 100%);
+    transform: translateY(-1px);
+  }
+  .un-btn-secondary {
+    background: #FFFDF9;
+    color: #3D2B1F;
+    border: 1.5px solid #E8E0D4;
+  }
+  .un-btn-secondary:hover {
+    background: #F7F3ED;
+    border-color: #D9CEBF;
+  }
+  .un-btn-danger {
+    background: #FEF2F2;
+    color: #DC2626;
+    border: 1px solid #FECACA;
+  }
+  .un-btn-danger:hover {
+    background: #FEE2E2;
+  }
+  .un-btn-success {
+    background: #ECFDF5;
+    color: #047857;
+    border: 1px solid #A7F3D0;
+  }
+  .un-btn-success:hover {
+    background: #D1FAE5;
+  }
+
+  /* ── 2-Column Responsive Layout ── */
+  .un-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  @media(max-width: 960px) {
+    .un-grid-2 { grid-template-columns: 1fr; }
+  }
+
+  /* ── Simulator Lab ── */
+  .un-sim-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .un-sim-tab {
+    padding: 7px 15px;
+    border-radius: 9px;
+    font-size: 12.5px;
+    font-weight: 600;
+    border: 1.5px solid #E8E0D4;
+    background: #FFFDF9;
+    color: #8B7355;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .un-sim-tab.active {
+    background: #3D2B1F;
+    color: #FAF7F2;
+    border-color: #3D2B1F;
+  }
+  .un-chip-preset {
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 11.5px;
+    font-weight: 500;
+    background: #F5EFE2;
+    border: 1px solid #E8E0D4;
+    color: #5D4330;
+    cursor: pointer;
+    transition: all 0.18s;
+  }
+  .un-chip-preset:hover {
+    background: #3D2B1F;
+    color: #FAF7F2;
+    border-color: #3D2B1F;
+  }
+  .un-result-card {
+    background: #FFFFFF;
+    border: 1.5px solid #E5DFD5;
+    border-radius: 16px;
+    padding: 22px;
+    box-shadow: 0 4px 16px rgba(61,43,31,0.04);
+  }
+
+  /* ── KPI Stat Tiles ── */
+  .un-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 22px;
+  }
+  @media(max-width: 800px) {
+    .un-stat-grid { grid-template-columns: 1fr 1fr; }
+  }
+  .un-stat-tile {
+    background: #FFFDF9;
+    border: 1px solid #E8E0D4;
+    border-radius: 14px;
+    padding: 18px;
+    box-shadow: 0 1px 3px rgba(61,43,31,0.03);
+  }
+  .un-stat-num {
+    font-size: 28px;
+    font-weight: 700;
+    color: #3D2B1F;
+    line-height: 1;
+    margin-bottom: 5px;
+  }
+  .un-stat-label {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #8B7355;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* ── Ledger Table ── */
+  .un-table-card {
+    background: #FFFDF9;
+    border: 1px solid #E8E0D4;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(61,43,31,0.03);
+  }
+  .un-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .un-table th {
+    text-align: left;
+    background: #F7F3ED;
+    padding: 12px 16px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #8B7355;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    border-bottom: 1px solid #E8E0D4;
+  }
+  .un-table td {
+    padding: 13px 16px;
+    border-bottom: 1px solid #F5EFE6;
+    color: #3D2B1F;
+    vertical-align: middle;
+  }
+  .un-table tbody tr:hover td {
+    background: #FAF7F2;
+  }
+  .un-table tr:last-child td {
+    border-bottom: none;
+  }
+
+  /* ── Filter Pills ── */
+  .un-filter-pills {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .un-filter-pill {
+    padding: 5px 12px;
+    border-radius: 18px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid #E5DFD5;
+    background: #FFFDF9;
+    color: #8B7355;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .un-filter-pill:hover {
+    color: #3D2B1F;
+    border-color: #C4A265;
+  }
+  .un-filter-pill.active {
+    background: #3D2B1F;
+    color: #FAF7F2;
+    border-color: #3D2B1F;
+  }
+
+  /* ── Flagged Triage Card ── */
+  .un-triage-card {
+    background: #FFFDF9;
+    border: 1.5px solid #E8E0D4;
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 14px;
+    box-shadow: 0 2px 6px rgba(61,43,31,0.03);
+    transition: all 0.2s;
+  }
+  .un-triage-card.priority-high {
+    border-color: #F59E0B;
+    background: #FFFDF5;
+  }
+
+  /* ── Toast ── */
+  .un-toast {
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    background: #3D2B1F;
+    color: #FAF7F2;
+    border: 1.5px solid #C4A265;
+    border-radius: 14px;
+    padding: 14px 20px;
+    font-size: 13.5px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 9999;
+    box-shadow: 0 10px 30px rgba(61,43,31,0.25);
+    animation: unToastIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    max-width: 380px;
+  }
+  @keyframes unToastIn {
+    from { opacity: 0; transform: translateY(16px) scale(0.96); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  /* ── Loading Spinner ── */
+  .un-spinner {
+    width: 26px;
+    height: 26px;
+    border: 2.5px solid #E8E0D4;
+    border-top-color: #C4A265;
+    border-radius: 50%;
+    animation: unSpin 0.7s linear infinite;
+    margin: 0 auto 12px;
+  }
+  @keyframes unSpin {
+    to { transform: rotate(360deg); }
+  }
 `;
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -375,17 +1031,21 @@ export default function AutomationClient({
     if (!workspaceId) return;
     setSyncingComments(true);
     try {
-      const res = await fetch('/api/instagram/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceId }) });
+      const res = await fetch('/api/instagram/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workspaceId }),
+      });
       const data = await res.json();
       if (data.ok) {
         if (data.newCommentsProcessed > 0) {
           showToast(`Synced ${data.newCommentsProcessed} comment${data.newCommentsProcessed > 1 ? 's' : ''} (${data.repliesPosted} auto-replied)!`, 'success');
         } else if (data.totalCommentsExamined > 0) {
-          showToast(`Checked ${data.totalCommentsExamined} comments across ${data.mediaCount || 0} posts — all already processed.`, 'success');
+          showToast(`Audited ${data.totalCommentsExamined} comments across ${data.mediaCount || 0} posts — all up to date.`, 'success');
         } else if (data.mediaCount === 0) {
           showToast('No Instagram posts found for this account. Ensure account has published posts.', 'error');
         } else {
-          showToast(`Checked ${data.mediaCount} post${data.mediaCount > 1 ? 's' : ''}. No new comments found on Instagram.`, 'success');
+          showToast(`Audited ${data.mediaCount} post${data.mediaCount > 1 ? 's' : ''}. No new comments found.`, 'success');
         }
       } else {
         showToast(data.message || data.error || 'Failed to sync comments', 'error');
@@ -402,21 +1062,37 @@ export default function AutomationClient({
     if (!workspaceId) return;
     setSyncingWebhook(true);
     try {
-      const res = await fetch('/api/instagram/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceId }) });
+      const res = await fetch('/api/instagram/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workspaceId }),
+      });
       const data = await res.json();
-      if (res.ok && data.success) { showToast('Webhook synced with Meta Graph API'); }
-      else { showToast(data.error || 'Failed to sync webhook', 'error'); }
-    } catch { showToast('Network error', 'error'); }
-    finally { setSyncingWebhook(false); }
+      if (res.ok && data.success) {
+        showToast('Meta Graph API webhooks synchronized successfully');
+      } else {
+        showToast(data.error || 'Failed to sync webhook with Meta API', 'error');
+      }
+    } catch {
+      showToast('Network error connecting to webhook endpoint', 'error');
+    } finally {
+      setSyncingWebhook(false);
+    }
   };
 
   useEffect(() => {
-    fetch('/api/platform/connections', { credentials: 'include' }).then(r => r.ok ? r.json() : null).then(data => { if (data?.instagram) setIgConnection(data.instagram); }).catch(() => {});
+    fetch('/api/platform/connections', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.instagram) setIgConnection(data.instagram); })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
     if (!workspaceId) { setLoading(false); return; }
-    fetch(`/api/instagram/automation?workspaceId=${workspaceId}`).then(r => r.json()).then(data => { setConfig(data); setLoading(false); }).catch(() => { setLoading(false); showToast('Failed to load config', 'error'); });
+    fetch(`/api/instagram/automation?workspaceId=${workspaceId}`)
+      .then(r => r.json())
+      .then(data => { setConfig(data); setLoading(false); })
+      .catch(() => { setLoading(false); showToast('Failed to load automation config', 'error'); });
   }, [workspaceId]);
 
   const loadComments = useCallback(async () => {
@@ -425,8 +1101,11 @@ export default function AutomationClient({
     try {
       const res = await fetch(`/api/instagram/comments?workspaceId=${workspaceId}&page=${commentPage}&limit=25&classification=${commentFilter}`);
       const data = await res.json();
-      setComments(data.comments || []); setCommentStats(data.stats || null);
-    } finally { setFeedLoading(false); }
+      setComments(data.comments || []);
+      setCommentStats(data.stats || null);
+    } finally {
+      setFeedLoading(false);
+    }
   }, [workspaceId, commentPage, commentFilter]);
 
   const loadFlagged = useCallback(async () => {
@@ -435,8 +1114,11 @@ export default function AutomationClient({
     try {
       const res = await fetch(`/api/instagram/flagged?workspaceId=${workspaceId}&status=${statusFilter}`);
       const data = await res.json();
-      setFlagged(data.flagged || []); setPendingCount(data.statusCounts?.pending || 0);
-    } finally { setInboxLoading(false); }
+      setFlagged(data.flagged || []);
+      setPendingCount(data.statusCounts?.pending || 0);
+    } finally {
+      setInboxLoading(false);
+    }
   }, [workspaceId, statusFilter]);
 
   const loadDms = useCallback(async () => {
@@ -445,8 +1127,11 @@ export default function AutomationClient({
     try {
       const res = await fetch(`/api/instagram/dms?workspaceId=${workspaceId}`);
       const data = await res.json();
-      setDms(data.dms || []); setDmStats(data.stats || null);
-    } finally { setDmsLoading(false); }
+      setDms(data.dms || []);
+      setDmStats(data.stats || null);
+    } finally {
+      setDmsLoading(false);
+    }
   }, [workspaceId]);
 
   useEffect(() => { if (activeTab === 'feed') loadComments(); }, [activeTab, loadComments]);
@@ -466,304 +1151,756 @@ export default function AutomationClient({
           .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'instagram_dm_logs', filter: `workspace_id=eq.${workspaceId}` }, () => { loadDms(); })
           .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'instagram_flagged_dms', filter: `workspace_id=eq.${workspaceId}` }, () => { loadFlagged(); })
           .subscribe((status: string) => { if (status === 'SUBSCRIBED') console.log('[SignalDM] Realtime connected'); });
-      } catch (err) { console.warn('[SignalDM] Realtime failed', err); }
+      } catch (err) {
+        console.warn('[SignalDM] Realtime subscription notice', err);
+      }
     })();
-    return () => { if (channel) { import('@/lib/supabase/browser').then(({ getSupabaseBrowserClient }) => { getSupabaseBrowserClient().removeChannel(channel!); }).catch(() => {}); } };
+    return () => {
+      if (channel) {
+        import('@/lib/supabase/browser').then(({ getSupabaseBrowserClient }) => {
+          getSupabaseBrowserClient().removeChannel(channel!);
+        }).catch(() => {});
+      }
+    };
   }, [workspaceId, loadComments, loadFlagged, loadDms]);
 
   const saveConfig = async () => {
     if (!workspaceId || !config) return;
     setSaving(true);
     try {
-      const res = await fetch('/api/instagram/automation', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceId, ...config }) });
-      if (res.ok) showToast('Settings saved'); else showToast('Failed to save', 'error');
-    } finally { setSaving(false); }
+      const res = await fetch('/api/instagram/automation', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workspaceId, ...config }),
+      });
+      if (res.ok) showToast('Automation settings saved successfully');
+      else showToast('Failed to save configuration', 'error');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const runSimulator = async () => {
     if (!workspaceId) return;
     const inputText = simType === 'comment' ? simComment : simDmText;
     if (!inputText.trim()) return;
-    setSimLoading(true); setSimResult(null);
+    setSimLoading(true);
+    setSimResult(null);
     try {
-      const res = await fetch('/api/instagram/simulate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceId, commentText: simType === 'comment' ? simComment : undefined, postCaption: simType === 'comment' ? simCaption : undefined, isDmSimulation: simType === 'dm', dmText: simType === 'dm' ? simDmText : undefined }) });
-      const data = await res.json(); setSimResult(data);
-    } finally { setSimLoading(false); }
+      const res = await fetch('/api/instagram/simulate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workspaceId,
+          commentText: simType === 'comment' ? simComment : undefined,
+          postCaption: simType === 'comment' ? simCaption : undefined,
+          isDmSimulation: simType === 'dm',
+          dmText: simType === 'dm' ? simDmText : undefined,
+        }),
+      });
+      const data = await res.json();
+      setSimResult(data);
+    } finally {
+      setSimLoading(false);
+    }
   };
 
   const flaggedAction = async (id: string, action: 'approve' | 'reject' | 'reply', ownerReply?: string) => {
     if (!workspaceId) return;
     try {
-      const res = await fetch(`/api/instagram/flagged/${id}/action`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceId, action, ownerReply }) });
-      if (res.ok) { showToast(action === 'reject' ? 'Dismissed' : 'Reply posted'); loadFlagged(); }
-      else { const err = await res.json(); showToast(err.error || 'Action failed', 'error'); }
-    } catch { showToast('Network error', 'error'); }
+      const res = await fetch(`/api/instagram/flagged/${id}/action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workspaceId, action, ownerReply }),
+      });
+      if (res.ok) {
+        showToast(action === 'reject' ? 'Dismissed item' : 'Response dispatched');
+        loadFlagged();
+      } else {
+        const err = await res.json();
+        showToast(err.error || 'Action failed', 'error');
+      }
+    } catch {
+      showToast('Network error', 'error');
+    }
   };
 
-  const updateConfig = (patch: Partial<AutomationConfig>) => { setConfig(prev => prev ? { ...prev, ...patch } : prev); };
+  const updateConfig = (patch: Partial<AutomationConfig>) => {
+    setConfig(prev => prev ? { ...prev, ...patch } : prev);
+  };
 
-  // SVG helpers
-  const IcoRefresh = () => <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M2 8a6 6 0 116 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/><path d="M2 12V8h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>;
-  const IcoCheck = () => <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M2 8.5l4 4 8-8" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>;
-  const IcoSpin = () => <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ animation: 'sdm-spin 0.75s linear infinite' }}><circle cx="8" cy="8" r="6" stroke="rgba(255,255,255,0.3)" strokeWidth="2"/><path d="M8 2a6 6 0 016 6" stroke="white" strokeWidth="2" strokeLinecap="round"/></svg>;
-  const IcoArrow = () => <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M3 7h8M7 3l4 4-4 4" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>;
-  const IcoGrid = () => <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><rect x="9" y="1" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><rect x="1" y="9" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><rect x="9" y="9" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.4"/></svg>;
-  const IcoPlay = () => <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 3l10 5-10 5V3z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/></svg>;
-  const IcoMsg = () => <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M14 2H2a1 1 0 00-1 1v8a1 1 0 001 1h3l3 3 3-3h3a1 1 0 001-1V3a1 1 0 00-1-1z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/></svg>;
-  const IcoStar = () => <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M8 1L10 6h5L11 9l2 5-5-3-5 3 2-5L1 6h5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></svg>;
-  const IcoMail = () => <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.4"/><path d="M1 5l7 5 7-5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>;
-  const IcoSignal = () => <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="3" stroke="white" strokeWidth="1.8"/><path d="M5 17a8 8 0 0112 0" stroke="white" strokeWidth="1.8" strokeLinecap="round" opacity="0.7"/><path d="M2 20a12 12 0 0118 0" stroke="white" strokeWidth="1.8" strokeLinecap="round" opacity="0.4"/><path d="M8 6a5 5 0 016 0" stroke="white" strokeWidth="1.8" strokeLinecap="round" opacity="0.7"/><path d="M5.5 3.5a9 9 0 0111 0" stroke="white" strokeWidth="1.8" strokeLinecap="round" opacity="0.4"/></svg>;
-  const IcoWarn = () => <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="8" stroke="#f59e0b" strokeWidth="1.4"/><path d="M9 5v4M9 12v1" stroke="#f59e0b" strokeWidth="1.6" strokeLinecap="round"/></svg>;
+  // ─── SVG Icons ──────────────────────────────────────────────────────────────
+  const SvgSignal = () => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+      <path d="M12 18a6 6 0 100-12 6 6 0 000 12z" stroke="#C4A265" strokeWidth="2" />
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" stroke="#C4A265" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+  const SvgGrid = () => (
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+      <rect x="2" y="2" width="5" height="5" rx="1.5" stroke="currentColor" strokeWidth="1.6" />
+      <rect x="9" y="2" width="5" height="5" rx="1.5" stroke="currentColor" strokeWidth="1.6" />
+      <rect x="2" y="9" width="5" height="5" rx="1.5" stroke="currentColor" strokeWidth="1.6" />
+      <rect x="9" y="9" width="5" height="5" rx="1.5" stroke="currentColor" strokeWidth="1.6" />
+    </svg>
+  );
+  const SvgPlay = () => (
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+      <path d="M4 3l9 5-9 5V3z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    </svg>
+  );
+  const SvgMessage = () => (
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+      <path d="M14 2.5H2A1.5 1.5 0 00.5 4v7A1.5 1.5 0 002 12.5h3v2.5l3.5-2.5H14a1.5 1.5 0 001.5-1.5V4A1.5 1.5 0 0014 2.5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+    </svg>
+  );
+  const SvgStar = () => (
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+      <path d="M8 1.5l2.2 4.5 4.8.7-3.5 3.4.8 4.9L8 12.7 3.7 15l.8-4.9-3.5-3.4 4.8-.7L8 1.5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+    </svg>
+  );
+  const SvgMail = () => (
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+      <rect x="1.5" y="3" width="13" height="10" rx="2" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M2 4.5l6 4.5 6-4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+  const SvgRefresh = () => (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <path d="M2 8a6 6 0 116 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M2 12V8h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+  const SvgCheck = () => (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <path d="M2.5 8.5l4 4 7-8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
 
   if (!workspaceId && userCtx?.loading) {
-    return (<><style>{CSS}</style><div className="sdm-root" style={{ display:'flex',alignItems:'center',justifyContent:'center',minHeight:'60vh' }}><div style={{ textAlign:'center' }}><div className="sdm-spinner" /><p style={{ color:'rgba(255,255,255,0.35)',fontSize:13 }}>Connecting workspace...</p></div></div></>);
+    return (
+      <>
+        <style>{LIGHT_PREMIUM_CSS}</style>
+        <div className="un-root" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+          <div style={{ textAlign: 'center' }}>
+            <div className="un-spinner" />
+            <p style={{ color: '#8B7355', fontSize: 13, fontWeight: 500 }}>Connecting workspace session...</p>
+          </div>
+        </div>
+      </>
+    );
   }
 
   if (!workspaceId) {
-    return (<><style>{CSS}</style><div className="sdm-root"><div className="sdm-no-workspace"><svg width="48" height="48" viewBox="0 0 48 48" fill="none" style={{ margin:'0 auto 18px',display:'block' }}><circle cx="24" cy="24" r="22" stroke="rgba(124,58,237,0.3)" strokeWidth="1.5"/><path d="M24 14v10l6 6" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg><h2 style={{ color:'#a78bfa',marginBottom:8,fontSize:20,fontWeight:700 }}>No workspace found</h2><p style={{ color:'rgba(255,255,255,0.35)',marginBottom:20,fontSize:13 }}>Create or join a workspace to access SignalDM.</p><a href="/dashboard" style={{ display:'inline-block',padding:'9px 22px',borderRadius:10,background:'linear-gradient(135deg,#7c3aed,#6d28d9)',color:'#fff',fontSize:13,fontWeight:600,textDecoration:'none' }}>Go to Overview</a></div></div></>);
+    return (
+      <>
+        <style>{LIGHT_PREMIUM_CSS}</style>
+        <div className="un-root">
+          <div style={{ textAlign: 'center', padding: '90px 20px' }}>
+            <div className="un-logo-jewel" style={{ margin: '0 auto 20px', width: 52, height: 52 }}><SvgSignal /></div>
+            <h2 className="un-editorial-font" style={{ fontSize: 24, fontWeight: 700, color: '#3D2B1F', marginBottom: 8 }}>Workspace Required</h2>
+            <p style={{ color: '#8B7355', fontSize: 13.5, marginBottom: 24, maxWidth: 360, margin: '0 auto 24px' }}>Please select or connect an active workspace to launch SignalDM automation.</p>
+            <a href="/dashboard" className="un-btn un-btn-primary">Return to Overview</a>
+          </div>
+        </div>
+      </>
+    );
   }
 
   if (loading || !config) {
-    return (<><style>{CSS}</style><div className="sdm-root" style={{ display:'flex',alignItems:'center',justifyContent:'center',minHeight:'60vh' }}><div style={{ textAlign:'center' }}><div className="sdm-spinner" /><p style={{ color:'rgba(255,255,255,0.35)',fontSize:13 }}>Loading SignalDM...</p></div></div></>);
+    return (
+      <>
+        <style>{LIGHT_PREMIUM_CSS}</style>
+        <div className="un-root" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+          <div style={{ textAlign: 'center' }}>
+            <div className="un-spinner" />
+            <p style={{ color: '#8B7355', fontSize: 13.5, fontWeight: 600 }}>Calibrating SignalDM Engine...</p>
+          </div>
+        </div>
+      </>
+    );
   }
 
   return (
     <>
-      <style>{CSS}</style>
-      <div className="sdm-root">
+      <style>{LIGHT_PREMIUM_CSS}</style>
+      <div className="un-root">
 
-        {/* HEADER */}
-        <div className="sdm-header">
-          <div className="sdm-header-inner">
-            <div className="sdm-title-row">
-              <div style={{ display:'flex',alignItems:'center',gap:13 }}>
-                <div className="sdm-logo-mark"><IcoSignal /></div>
+        {/* ── Editorial Header ── */}
+        <div className="un-header">
+          <div className="un-header-max">
+            <div className="un-top-row">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div className="un-logo-jewel"><SvgSignal /></div>
                 <div>
-                  <div className="sdm-title">SignalDM</div>
-                  <div className="sdm-subtitle">Instagram Comment &amp; DM Automation Engine</div>
+                  <div className="un-title un-editorial-font">SignalDM</div>
+                  <div className="un-subtitle">Autonomous Instagram Inbound Engagement &amp; Routing Engine</div>
                 </div>
               </div>
-              {igConnection && (
-                <div style={{ display:'flex',alignItems:'center',gap:8 }}>
-                  {igConnection.status === 'connected' ? (
-                    <>
-                      <div className="sdm-ig-connected"><span className="sdm-ig-dot" /><span style={{ fontWeight:600 }}>@{igConnection.username || 'instagram'}</span><span style={{ color:'rgba(255,255,255,0.35)',fontSize:11 }}>connected</span></div>
-                      <button onClick={syncWebhook} disabled={syncingWebhook} style={{ background:'rgba(124,58,237,0.12)',border:'1px solid rgba(124,58,237,0.28)',borderRadius:20,padding:'5px 13px',fontSize:11.5,color:'#c4b5fd',cursor:syncingWebhook?'not-allowed':'pointer',display:'flex',alignItems:'center',gap:5,transition:'all 0.2s',fontFamily:'Inter,sans-serif',fontWeight:600 }}>
-                        <IcoRefresh />{syncingWebhook ? 'Syncing...' : 'Sync Webhook'}
-                      </button>
-                    </>
-                  ) : (
-                    <a href={`/api/auth/platform/connect?platform=instagram&workspaceId=${workspaceId || ''}`} style={{ display:'flex',alignItems:'center',gap:6,background:'rgba(239,68,68,0.1)',border:'1px solid rgba(239,68,68,0.28)',borderRadius:20,padding:'5px 13px',fontSize:12,color:'#f87171',textDecoration:'none',fontWeight:600 }}>
-                      <span style={{ width:6,height:6,borderRadius:'50%',background:'#ef4444',display:'inline-block' }} />Not Connected — Connect
-                    </a>
-                  )}
-                </div>
-              )}
+
+              {/* Status Jewel & Connection Actions */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                {igConnection?.status === 'connected' ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '6px 14px', borderRadius: 20, background: '#ECFDF5', border: '1px solid #A7F3D0', fontSize: 12.5, fontWeight: 600, color: '#047857' }}>
+                      <span className="un-pulse-dot" />
+                      <span>@{igConnection.username || 'instagram'}</span>
+                      <span style={{ color: '#059669', opacity: 0.7, fontSize: 11 }}>Active API</span>
+                    </div>
+                    <button onClick={syncWebhook} disabled={syncingWebhook} className="un-btn un-btn-secondary" style={{ padding: '6px 13px', fontSize: 12 }}>
+                      <SvgRefresh />
+                      <span>{syncingWebhook ? 'Syncing API...' : 'Sync Webhook'}</span>
+                    </button>
+                  </div>
+                ) : (
+                  <a href={`/api/auth/platform/connect?platform=instagram&workspaceId=${workspaceId || ''}`} className="un-btn un-btn-gold" style={{ fontSize: 12.5, padding: '7px 15px' }}>
+                    Connect Instagram Account
+                  </a>
+                )}
+              </div>
             </div>
-            <div className="sdm-tabs">
+
+            {/* Tab Navigation */}
+            <div className="un-tabs-bar">
               {[
-                { id:'control',   label:'Control Panel',  icon:<IcoGrid /> },
-                { id:'simulator', label:'Live Simulator', icon:<IcoPlay /> },
-                { id:'feed',      label:'Comment Feed',   icon:<IcoMsg />,  badge:commentStats?.total },
-                { id:'inbox',     label:'Flagged Inbox',  icon:<IcoStar />, badge:pendingCount||undefined },
-                { id:'dms',       label:'DM Feed',        icon:<IcoMail />, badge:dmStats?.total },
+                { id: 'control',   label: 'Engine Controls', icon: <SvgGrid /> },
+                { id: 'simulator', label: 'Intent Lab',       icon: <SvgPlay /> },
+                { id: 'feed',      label: 'Dispatch Ledger',  icon: <SvgMessage />, badge: commentStats?.total },
+                { id: 'inbox',     label: 'Triage Queue',    icon: <SvgStar />,    badge: pendingCount || undefined },
+                { id: 'dms',       label: 'DM Concierge',    icon: <SvgMail />,    badge: dmStats?.total },
               ].map(tab => (
-                <button key={tab.id} className={`sdm-tab ${activeTab===tab.id?'active':''}`} onClick={() => setActiveTab(tab.id as any)}>
-                  {tab.icon}{tab.label}{tab.badge ? <span className="sdm-tab-badge">{tab.badge}</span> : null}
+                <button
+                  key={tab.id}
+                  className={`un-tab-btn ${activeTab === tab.id ? 'active' : ''}`}
+                  onClick={() => setActiveTab(tab.id as any)}
+                >
+                  {tab.icon}
+                  <span>{tab.label}</span>
+                  {tab.badge ? <span className="un-tab-badge">{tab.badge}</span> : null}
                 </button>
               ))}
             </div>
           </div>
         </div>
 
-        <div className="sdm-body">
+        {/* ── Main Workspace Body ── */}
+        <div className="un-body">
 
-          {/* CONTROL PANEL */}
+          {/* ════ TAB 1: ENGINE CONTROLS ════ */}
           {activeTab === 'control' && (
             <div>
+              {/* Instagram Offline Alert */}
               {igConnection && igConnection.status !== 'connected' && (
-                <div className="sdm-warning-banner">
-                  <div style={{ display:'flex',alignItems:'center',gap:12 }}>
-                    <svg width="26" height="26" viewBox="0 0 26 26" fill="none" style={{ flexShrink:0 }}><circle cx="13" cy="13" r="11.5" stroke="#ef4444" strokeWidth="1.5"/><path d="M13 8v6M13 17v1.5" stroke="#ef4444" strokeWidth="2" strokeLinecap="round"/></svg>
-                    <div>
-                      <div style={{ color:'#f87171',fontWeight:700,fontSize:13 }}>{igConnection.status==='expired'?'Instagram connection expired':'Instagram not connected'}</div>
-                      <div style={{ color:'rgba(255,255,255,0.38)',fontSize:12,marginTop:2 }}>Connect your Instagram Creator or Business account to enable automation.</div>
-                    </div>
+                <div style={{ background: '#FEF2F2', border: '1.5px solid #FECACA', borderRadius: 16, padding: '16px 22px', marginBottom: 22, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+                  <div>
+                    <div style={{ color: '#B91C1C', fontWeight: 700, fontSize: 14 }}>Instagram Account Not Linked</div>
+                    <div style={{ color: '#7F1D1D', fontSize: 12.5, marginTop: 2 }}>Connect an Instagram Professional or Creator account to enable real-time webhooks and comment parsing.</div>
                   </div>
-                  <a href={`/api/auth/platform/connect?platform=instagram&workspaceId=${workspaceId||''}`} style={{ background:'linear-gradient(135deg,#e1306c,#c13584)',color:'#fff',padding:'8px 18px',borderRadius:10,fontSize:12.5,fontWeight:700,textDecoration:'none',whiteSpace:'nowrap' }}>Connect Instagram</a>
+                  <a href={`/api/auth/platform/connect?platform=instagram&workspaceId=${workspaceId || ''}`} className="un-btn un-btn-primary" style={{ fontSize: 12.5 }}>Connect Account</a>
                 </div>
               )}
 
-              {/* MASTER POWER TOGGLE */}
-              <div className={`sdm-master-toggle ${config.enabled?'active':''}`}>
-                <div style={{ display:'flex',alignItems:'center',gap:14 }}>
-                  <span className="sdm-master-pulse" />
-                  <div className="sdm-toggle-info">
-                    <h3>SignalDM Automation — {config.enabled?'LIVE':'PAUSED'}</h3>
-                    <p>{config.enabled?'Processing comments in real-time. Replies fire after jitter delay.':'Enable to start auto-handling comments. All settings are saved.'}</p>
+              {/* Master Power Command Hero */}
+              <div className="un-master-hero">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <h3 className="un-editorial-font" style={{ fontSize: 20, fontWeight: 700, color: '#3D2B1F', margin: 0 }}>
+                        Autonomous Engine Dispatcher
+                      </h3>
+                      <span className={`un-hero-status-pill ${config.enabled ? 'un-hero-status-live' : 'un-hero-status-idle'}`}>
+                        {config.enabled && <span className="un-pulse-dot" />}
+                        {config.enabled ? 'Real-Time Active' : 'Standby Mode'}
+                      </span>
+                    </div>
+                    <p style={{ fontSize: 13, color: '#8B7355', margin: '4px 0 0', fontWeight: 500 }}>
+                      {config.enabled
+                        ? 'Inbound comments and DMs are parsed through natural language intent filters. Replies are dispatched with randomized human jitter.'
+                        : 'Automation is currently paused. Received interactions will be recorded in the ledger without dispatching automated responses.'}
+                    </p>
                   </div>
                 </div>
-                <label className="sdm-power-toggle">
-                  <input type="checkbox" checked={config.enabled} onChange={e => updateConfig({ enabled:e.target.checked })} />
-                  <div className="sdm-power-track" />
-                  <div className="sdm-power-thumb">
-                    <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M6 1v4M3 3.2A4 4 0 106 10a4 4 0 001.5-.3" stroke={config.enabled?'#7c3aed':'#9ca3af'} strokeWidth="1.5" strokeLinecap="round"/></svg>
+
+                {/* The Horology Master Switch */}
+                <label className="un-master-switch" title={config.enabled ? 'Click to pause automation' : 'Click to activate automation'}>
+                  <input
+                    type="checkbox"
+                    checked={config.enabled}
+                    onChange={e => updateConfig({ enabled: e.target.checked })}
+                  />
+                  <div className="un-master-track" />
+                  <div className="un-master-thumb">
+                    <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+                      <path d="M7 1v5M3.5 3.5A5 5 0 1010.5 3.5" stroke={config.enabled ? '#C4A265' : '#A69279'} strokeWidth="2" strokeLinecap="round" />
+                    </svg>
                   </div>
                 </label>
               </div>
 
-              <div className="sdm-grid-2">
+              {/* 2-Column Rules Architecture */}
+              <div className="un-grid-2">
+                {/* Column 1: Comment Trigger Rules */}
                 <div>
-                  {/* Comment Automation — PILL toggles */}
-                  <div className="sdm-card section-comment">
-                    <div className="sdm-card-title"><span className="sdm-card-title-dot" style={{ background:'#3b82f6' }} /><IcoMsg />Comment Automation</div>
+                  <div className="un-card">
+                    <div className="un-card-header">
+                      <div className="un-card-title">
+                        <div className="un-card-title-icon" style={{ background: '#EFF6FF', color: '#2563EB' }}><SvgMessage /></div>
+                        <span>Comment Intent Recognition Protocols</span>
+                      </div>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#8B7355', background: '#F5EFE2', padding: '2px 8px', borderRadius: 6 }}>Bespoke Rocker Controls</span>
+                    </div>
+
                     {[
-                      { key:'autoReplyPositive',      label:'Auto-reply positive comments',  desc:'Compliments, praise, emoji reactions' },
-                      { key:'autoReplyQuestions',     label:'Auto-reply questions',           desc:'Genuine questions about your content' },
-                      { key:'autoReplyLinkRequests',  label:'Auto-reply link requests',       desc:'DM + public reply for link asks' },
-                      { key:'autoReplyPurchaseIntent',label:'Auto-reply purchase intent',     desc:'Price inquiries, buying signals' },
-                      { key:'flagNegative',           label:'Flag negative comments',         desc:'Route to inbox for human review' },
-                      { key:'flagSpam',               label:'Flag spam',                      desc:'Auto-detect bots and spam patterns' },
-                      { key:'threadChainingEnabled',  label:'Thread chaining',                desc:'Replies end with a conversation hook' },
-                    ].map(({ key,label,desc }) => (
-                      <div className="sdm-toggle-row" key={key}>
-                        <div><div className="sdm-toggle-row-label">{label}</div><div className="sdm-toggle-row-desc">{desc}</div></div>
-                        <label className={`sdm-pill-toggle ${TOGGLE_COLORS[key]||'color-purple'}`}>
-                          <input type="checkbox" checked={!!(config as any)[key]} onChange={e => updateConfig({ [key]:e.target.checked } as any)} />
-                          <div className="sdm-pill-track" />
-                          <div className="sdm-pill-thumb" />
+                      { key: 'autoReplyPositive',      color: 'color-emerald',  label: 'Praise & Community Delight',  desc: 'Warm acknowledgments for testimonials, applause, and appreciation' },
+                      { key: 'autoReplyQuestions',     color: 'color-sapphire', label: 'Direct Knowledge Queries',     desc: 'Context-aware factual replies to product & technical questions' },
+                      { key: 'autoReplyLinkRequests',  color: 'color-amethyst', label: 'Resource Link Dispatch',       desc: 'Public response + private DM delivery for resource requests' },
+                      { key: 'autoReplyPurchaseIntent',color: 'color-amber',    label: 'Buyer & Commercial Intent',    desc: 'High-priority routing for pricing asks and purchase signals' },
+                      { key: 'flagNegative',           color: 'color-coral',    label: 'Flag Negative Sentiment',      desc: 'Route dissatisfied remarks directly to human triage inbox' },
+                      { key: 'flagSpam',               color: 'color-coral',    label: 'Filter Spam & Crypto Bots',    desc: 'Auto-quarantine repetitive scams, bots, and malicious links' },
+                      { key: 'threadChainingEnabled',  color: 'color-gold',     label: 'Thread Continuity Chaining',   desc: 'Conclude replies with conversation hooks to boost algorithmic reach' },
+                    ].map(({ key, color, label, desc }) => (
+                      <div className="un-rule-row" key={key}>
+                        <div style={{ paddingRight: 16 }}>
+                          <div className="un-rule-name">{label}</div>
+                          <div className="un-rule-desc">{desc}</div>
+                        </div>
+                        <label className={`un-capsule-toggle ${color}`}>
+                          <input
+                            type="checkbox"
+                            checked={!!(config as any)[key]}
+                            onChange={e => updateConfig({ [key]: e.target.checked } as any)}
+                          />
+                          <div className="un-capsule-track" />
+                          <div className="un-capsule-thumb" />
                         </label>
                       </div>
                     ))}
                   </div>
 
-                  {/* Rate Limiting */}
-                  <div className="sdm-card section-rate">
-                    <div className="sdm-card-title"><span className="sdm-card-title-dot" style={{ background:'#f59e0b' }} /><svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.4"/><path d="M8 4.5V8l2.5 2.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>Rate Limiting &amp; Jitter</div>
-                    <div style={{ marginBottom:18 }}>
-                      <div className="sdm-label">Max replies per hour</div>
-                      <div className="sdm-slider-row"><input type="range" className="sdm-slider" min={5} max={60} value={config.maxRepliesPerHour} onChange={e => updateConfig({ maxRepliesPerHour:parseInt(e.target.value) })} /><div className="sdm-slider-value">{config.maxRepliesPerHour}/hr</div></div>
-                    </div>
-                    <div>
-                      <div className="sdm-label">Reply delay range (jitter)</div>
-                      <div style={{ display:'flex',gap:10,alignItems:'center' }}>
-                        <input type="range" className="sdm-slider" min={5} max={60} value={config.jitterMinSeconds} onChange={e => updateConfig({ jitterMinSeconds:parseInt(e.target.value) })} />
-                        <span className="sdm-slider-value">{config.jitterMinSeconds}s</span>
-                        <span style={{ color:'rgba(255,255,255,0.2)',fontSize:13,fontWeight:700 }}>–</span>
-                        <input type="range" className="sdm-slider" min={60} max={300} value={config.jitterMaxSeconds} onChange={e => updateConfig({ jitterMaxSeconds:parseInt(e.target.value) })} />
-                        <span className="sdm-slider-value">{config.jitterMaxSeconds}s</span>
+                  {/* Rate Limiting & Natural Jitter */}
+                  <div className="un-card">
+                    <div className="un-card-header">
+                      <div className="un-card-title">
+                        <div className="un-card-title-icon" style={{ background: '#FEF3C7', color: '#D97706' }}>
+                          <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.6"/><path d="M8 4.5V8l2.5 2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
+                        </div>
+                        <span>Delivery Rate Safeguards &amp; Natural Jitter</span>
                       </div>
-                      <div style={{ fontSize:11,color:'rgba(255,255,255,0.25)',marginTop:7 }}>Poisson-distributed delay mimics organic human response timing</div>
+                    </div>
+
+                    <div className="un-field">
+                      <label className="un-label">Maximum Hourly Response Velocity</label>
+                      <div className="un-slider-container">
+                        <input
+                          type="range"
+                          className="un-slider"
+                          min={5}
+                          max={60}
+                          value={config.maxRepliesPerHour}
+                          onChange={e => updateConfig({ maxRepliesPerHour: parseInt(e.target.value) })}
+                        />
+                        <span className="un-slider-pill">{config.maxRepliesPerHour} / hr</span>
+                      </div>
+                    </div>
+
+                    <div className="un-field" style={{ marginBottom: 4 }}>
+                      <label className="un-label">Human Timing Variance (Poisson Latency)</label>
+                      <div className="un-slider-container">
+                        <input
+                          type="range"
+                          className="un-slider"
+                          min={5}
+                          max={60}
+                          value={config.jitterMinSeconds}
+                          onChange={e => updateConfig({ jitterMinSeconds: parseInt(e.target.value) })}
+                        />
+                        <span className="un-slider-pill">{config.jitterMinSeconds}s</span>
+                        <span style={{ color: '#A69279', fontWeight: 700 }}>–</span>
+                        <input
+                          type="range"
+                          className="un-slider"
+                          min={60}
+                          max={300}
+                          value={config.jitterMaxSeconds}
+                          onChange={e => updateConfig({ jitterMaxSeconds: parseInt(e.target.value) })}
+                        />
+                        <span className="un-slider-pill">{config.jitterMaxSeconds}s</span>
+                      </div>
+                      <div style={{ fontSize: 12, color: '#8B7355', marginTop: 8 }}>
+                        Introduces randomized delay between detection and posting, preserving natural creator timing profiles.
+                      </div>
                     </div>
                   </div>
                 </div>
 
+                {/* Column 2: Brand Voice & DM Operations */}
                 <div>
-                  {/* Brand Voice */}
-                  <div className="sdm-card section-brand">
-                    <div className="sdm-card-title"><span className="sdm-card-title-dot" style={{ background:'#8b5cf6' }} /><svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.4"/><path d="M5.5 10.5s1-1.5 2.5-1.5 2.5 1.5 2.5 1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="6" cy="7" r="1" fill="currentColor"/><circle cx="10" cy="7" r="1" fill="currentColor"/></svg>Brand Voice</div>
-                    <div className="sdm-field"><label className="sdm-label">Link URL (sent via DM for link requests)</label><input type="url" className="sdm-input" placeholder="https://your-link.com/resource" value={config.linkUrl||''} onChange={e => updateConfig({ linkUrl:e.target.value||null })} /></div>
-                    <div className="sdm-field"><label className="sdm-label">Brand Persona</label><textarea className="sdm-input sdm-textarea" placeholder={"Witty, direct, lowercase aesthetic. Never formal. Like a founder who's been building for years."} value={config.brandPersona||''} onChange={e => updateConfig({ brandPersona:e.target.value||null })} /></div>
-                    <div className="sdm-field"><label className="sdm-label">Custom Instructions</label><textarea className="sdm-input sdm-textarea" placeholder="Never mention competitor X. Always reference the course. Use first names when possible." value={config.customInstructions||''} onChange={e => updateConfig({ customInstructions:e.target.value||null })} /></div>
+                  {/* Brand Voice Studio */}
+                  <div className="un-card">
+                    <div className="un-card-header">
+                      <div className="un-card-title">
+                        <div className="un-card-title-icon" style={{ background: '#F5F3FF', color: '#7C3AED' }}>
+                          <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M12 2l2 2-9 9H3v-2l9-9z" stroke="currentColor" strokeWidth="1.5"/></svg>
+                        </div>
+                        <span>Brand Voice &amp; Resource Delivery</span>
+                      </div>
+                    </div>
+
+                    <div className="un-field">
+                      <label className="un-label">Canonical Resource Link (Dispatched for link requests)</label>
+                      <input
+                        type="url"
+                        className="un-input"
+                        placeholder="https://yourbrand.com/blueprint"
+                        value={config.linkUrl || ''}
+                        onChange={e => updateConfig({ linkUrl: e.target.value || null })}
+                      />
+                    </div>
+
+                    <div className="un-field">
+                      <label className="un-label">Brand Editorial Persona</label>
+                      <textarea
+                        className="un-input un-textarea"
+                        placeholder="Warm, thoughtful founder tone. Authoritative yet conversational. Never robotic or sycophantic. Reflects high standards."
+                        value={config.brandPersona || ''}
+                        onChange={e => updateConfig({ brandPersona: e.target.value || null })}
+                      />
+                    </div>
+
+                    <div className="un-field">
+                      <label className="un-label">Boundary Instructions &amp; Prohibitions</label>
+                      <textarea
+                        className="un-input un-textarea"
+                        placeholder="Never mention competitor platforms. Keep replies under 2 sentences. Direct technical queries to our documentation."
+                        value={config.customInstructions || ''}
+                        onChange={e => updateConfig({ customInstructions: e.target.value || null })}
+                      />
+                    </div>
                   </div>
 
-                  {/* DM Automation — SEGMENTED toggles */}
-                  <div className="sdm-card section-dm">
-                    <div className="sdm-card-title"><span className="sdm-card-title-dot" style={{ background:'#10b981' }} /><IcoMail />Inbound DM Automation</div>
-                    <div className="sdm-toggle-row">
-                      <div><div className="sdm-toggle-row-label">Enable DM Auto-Reply</div><div className="sdm-toggle-row-desc">Auto-respond to incoming DMs</div></div>
-                      <label className="sdm-seg-toggle"><input type="checkbox" checked={config.dmAutoReplyEnabled} onChange={e => updateConfig({ dmAutoReplyEnabled:e.target.checked })} /><div className="sdm-seg-track" /><div className="sdm-seg-thumb" /></label>
+                  {/* Inbound Direct Messaging Concierge */}
+                  <div className="un-card">
+                    <div className="un-card-header">
+                      <div className="un-card-title">
+                        <div className="un-card-title-icon" style={{ background: '#ECFDF5', color: '#047857' }}><SvgMail /></div>
+                        <span>Inbound Direct Messaging (DM) Protocols</span>
+                      </div>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#8B7355', background: '#F5EFE2', padding: '2px 8px', borderRadius: 6 }}>Channel Switches</span>
                     </div>
-                    <div className="sdm-toggle-row">
-                      <div><div className="sdm-toggle-row-label">Escalation Alerts</div><div className="sdm-toggle-row-desc">Flag complex DMs for human follow-up</div></div>
-                      <label className="sdm-seg-toggle"><input type="checkbox" checked={config.dmEscalationEnabled} onChange={e => updateConfig({ dmEscalationEnabled:e.target.checked })} /><div className="sdm-seg-track" /><div className="sdm-seg-thumb" /></label>
+
+                    <div className="un-rule-row">
+                      <div>
+                        <div className="un-rule-name">Autonomous DM Auto-Responder</div>
+                        <div className="un-rule-desc">Instantly address inbound private messages based on knowledge base</div>
+                      </div>
+                      <label className="un-channel-switch">
+                        <input
+                          type="checkbox"
+                          checked={config.dmAutoReplyEnabled}
+                          onChange={e => updateConfig({ dmAutoReplyEnabled: e.target.checked })}
+                        />
+                        <div className="un-channel-track" />
+                        <div className="un-channel-thumb">
+                          <div className="un-channel-thumb-ridges"><span /><span /><span /></div>
+                        </div>
+                      </label>
                     </div>
-                    <div className="sdm-field" style={{ marginTop:14 }}>
-                      <label className="sdm-label">Max DM replies per hour</label>
-                      <div className="sdm-slider-row"><input type="range" className="sdm-slider" min={5} max={50} value={config.dmMaxRepliesPerHour} onChange={e => updateConfig({ dmMaxRepliesPerHour:parseInt(e.target.value) })} /><div className="sdm-slider-value">{config.dmMaxRepliesPerHour}/hr</div></div>
+
+                    <div className="un-rule-row">
+                      <div>
+                        <div className="un-rule-name">Human Escalation Routing</div>
+                        <div className="un-rule-desc">Flag nuanced or high-stakes inquiries for direct owner reply</div>
+                      </div>
+                      <label className="un-channel-switch">
+                        <input
+                          type="checkbox"
+                          checked={config.dmEscalationEnabled}
+                          onChange={e => updateConfig({ dmEscalationEnabled: e.target.checked })}
+                        />
+                        <div className="un-channel-track" />
+                        <div className="un-channel-thumb">
+                          <div className="un-channel-thumb-ridges"><span /><span /><span /></div>
+                        </div>
+                      </label>
                     </div>
-                    <div className="sdm-field"><label className="sdm-label">Welcome Message (first DM from a user)</label><textarea className="sdm-input sdm-textarea" placeholder="Hey! Thanks for reaching out. How can I help you today?" value={config.dmWelcomeMessage||''} onChange={e => updateConfig({ dmWelcomeMessage:e.target.value||null })} /></div>
-                    <div className="sdm-field"><label className="sdm-label">Knowledge Base (what to answer DMs with)</label><textarea className="sdm-input sdm-textarea" style={{ minHeight:100 }} placeholder={"FAQ and product info:\n- Course costs $497\n- Includes lifetime access\n- Next cohort starts Nov 1st"} value={config.dmKnowledgeBase||''} onChange={e => updateConfig({ dmKnowledgeBase:e.target.value||null })} /></div>
+
+                    <div className="un-field" style={{ marginTop: 14 }}>
+                      <label className="un-label">Hourly DM Reply Ceiling</label>
+                      <div className="un-slider-container">
+                        <input
+                          type="range"
+                          className="un-slider"
+                          min={5}
+                          max={50}
+                          value={config.dmMaxRepliesPerHour}
+                          onChange={e => updateConfig({ dmMaxRepliesPerHour: parseInt(e.target.value) })}
+                        />
+                        <span className="un-slider-pill">{config.dmMaxRepliesPerHour} / hr</span>
+                      </div>
+                    </div>
+
+                    <div className="un-field">
+                      <label className="un-label">First-Contact Welcome Greeting</label>
+                      <textarea
+                        className="un-input un-textarea"
+                        placeholder="Hello! Thanks for reaching out. What can our team assist you with today?"
+                        value={config.dmWelcomeMessage || ''}
+                        onChange={e => updateConfig({ dmWelcomeMessage: e.target.value || null })}
+                      />
+                    </div>
+
+                    <div className="un-field">
+                      <label className="un-label">DM Knowledge Repository (FAQ &amp; Product Truths)</label>
+                      <textarea
+                        className="un-input un-textarea"
+                        style={{ minHeight: 110 }}
+                        placeholder={"Product FAQs:\n- Enterprise package includes 1-on-1 team onboarding\n- Next cohort enrollment opens on the 1st\n- Refund policy: 14-day complete satisfaction guarantee"}
+                        value={config.dmKnowledgeBase || ''}
+                        onChange={e => updateConfig({ dmKnowledgeBase: e.target.value || null })}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div className="sdm-save-bar">
-                <button className="sdm-btn sdm-btn-primary" onClick={saveConfig} disabled={saving} style={{ minWidth:130,justifyContent:'center' }}>
-                  {saving ? <><IcoSpin />Saving...</> : <><IcoCheck />Save Settings</>}
+              {/* Persistent Save Station */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10, paddingTop: 18, borderTop: '1px solid #E8E0D4' }}>
+                <button className="un-btn un-btn-primary" onClick={saveConfig} disabled={saving} style={{ minWidth: 150 }}>
+                  {saving ? (
+                    <span>Saving Changes...</span>
+                  ) : (
+                    <>
+                      <SvgCheck />
+                      <span>Save Automation Rules</span>
+                    </>
+                  )}
                 </button>
               </div>
             </div>
           )}
 
-          {/* SIMULATOR */}
+          {/* ════ TAB 2: LIVE SIMULATOR ════ */}
           {activeTab === 'simulator' && (
             <div>
-              <div className="sdm-tab-heading"><div><h2>Live Simulator</h2><p>Test how SignalDM handles any comment or DM before going live — nothing is posted.</p></div></div>
-              <div className="sdm-sim-layout">
-                <div className="sdm-card section-sim">
-                  <div className="sdm-type-pills">
-                    <button className={`sdm-type-pill ${simType==='comment'?'active':''}`} onClick={() => { setSimType('comment'); setSimResult(null); }}><IcoMsg />Comment</button>
-                    <button className={`sdm-type-pill ${simType==='dm'?'active':''}`} onClick={() => { setSimType('dm'); setSimResult(null); }}><IcoMail />Inbound DM</button>
+              <div style={{ marginBottom: 22 }}>
+                <h2 className="un-editorial-font" style={{ fontSize: 24, fontWeight: 700, color: '#3D2B1F', margin: 0 }}>
+                  Intent Laboratory &amp; Sandbox
+                </h2>
+                <p style={{ color: '#8B7355', fontSize: 13.5, margin: '4px 0 0' }}>
+                  Simulate incoming audience interactions through your active rules and voice prompt without dispatching anything to Meta.
+                </p>
+              </div>
+
+              <div className="un-grid-2">
+                {/* Left Bench: Input Form */}
+                <div className="un-card">
+                  <div className="un-sim-tabs">
+                    <button
+                      className={`un-sim-tab ${simType === 'comment' ? 'active' : ''}`}
+                      onClick={() => { setSimType('comment'); setSimResult(null); }}
+                    >
+                      <SvgMessage />
+                      <span>Public Comment</span>
+                    </button>
+                    <button
+                      className={`un-sim-tab ${simType === 'dm' ? 'active' : ''}`}
+                      onClick={() => { setSimType('dm'); setSimResult(null); }}
+                    >
+                      <SvgMail />
+                      <span>Inbound DM</span>
+                    </button>
                   </div>
-                  <div style={{ marginBottom:14 }}>
-                    <div style={{ fontSize:10.5,color:'rgba(255,255,255,0.3)',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:8 }}>Quick test scenarios</div>
-                    <div className="sdm-presets-row">
-                      {(simType==='comment' ? COMMENT_PRESETS : DM_PRESETS).map(preset => (
-                        <button key={preset.label} type="button" className="sdm-preset-chip" onClick={() => { if (simType==='comment') { setSimComment(preset.text); if ('caption' in preset && typeof preset.caption==='string') setSimCaption(preset.caption); } else { setSimDmText(preset.text); } }}>{preset.label}</button>
+
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ fontSize: 11.5, fontWeight: 700, color: '#8B7355', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+                      Quick Archetype Scenarios
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {(simType === 'comment' ? COMMENT_PRESETS : DM_PRESETS).map(preset => (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          className="un-chip-preset"
+                          onClick={() => {
+                            if (simType === 'comment') {
+                              setSimComment(preset.text);
+                              if ('caption' in preset && typeof preset.caption === 'string') setSimCaption(preset.caption);
+                            } else {
+                              setSimDmText(preset.text);
+                            }
+                          }}
+                        >
+                          {preset.label}
+                        </button>
                       ))}
                     </div>
                   </div>
-                  {simType==='comment' ? (
+
+                  {simType === 'comment' ? (
                     <>
-                      <div className="sdm-field"><label className="sdm-label">Test Comment Text</label><textarea className="sdm-input sdm-textarea" placeholder={'Try: "Where can I get this template?"\nOr: "This changed how our team works"\nOr: "Price gouging tbh"'} value={simComment} onChange={e => setSimComment(e.target.value)} /></div>
-                      <div className="sdm-field"><label className="sdm-label">Post Caption (optional context)</label><textarea className="sdm-input sdm-textarea" placeholder="5 things I learned building a SaaS from $0 to $10k MRR..." value={simCaption} onChange={e => setSimCaption(e.target.value)} /></div>
+                      <div className="un-field">
+                        <label className="un-label">Test Comment Text</label>
+                        <textarea
+                          className="un-input un-textarea"
+                          placeholder="e.g. Could you send the link to this workflow? Need to share with my co-founder."
+                          value={simComment}
+                          onChange={e => setSimComment(e.target.value)}
+                        />
+                      </div>
+                      <div className="un-field">
+                        <label className="un-label">Post Caption Context (Optional)</label>
+                        <textarea
+                          className="un-input un-textarea"
+                          placeholder="5 lessons learned scaling async workflows..."
+                          value={simCaption}
+                          onChange={e => setSimCaption(e.target.value)}
+                        />
+                      </div>
                     </>
                   ) : (
-                    <div className="sdm-field"><label className="sdm-label">Inbound DM Text</label><textarea className="sdm-input sdm-textarea" placeholder={'Try: "Hey, how much does the course cost?"\nOr: "Can you send more info?"\nOr: "Is this still available?"'} value={simDmText} onChange={e => setSimDmText(e.target.value)} /></div>
-                  )}
-                  <button className="sdm-btn sdm-btn-primary" onClick={runSimulator} disabled={simLoading||!(simType==='comment'?simComment:simDmText).trim()} style={{ width:'100%',justifyContent:'center',marginTop:4 }}>
-                    {simLoading ? <><IcoSpin />Analyzing...</> : <><IcoArrow />Run Simulation</>}
-                  </button>
-                </div>
-                <div>
-                  {!simResult && !simLoading && (
-                    <div className="sdm-sim-result" style={{ textAlign:'center',padding:'52px 20px' }}>
-                      <svg width="44" height="44" viewBox="0 0 44 44" fill="none" style={{ margin:'0 auto 14px',display:'block' }}><circle cx="22" cy="22" r="20" stroke="rgba(16,185,129,0.3)" strokeWidth="1.5" strokeDasharray="5 4"/><path d="M16 22h12M22 16v12" stroke="rgba(16,185,129,0.5)" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                      <p style={{ color:'rgba(255,255,255,0.3)',fontSize:13 }}>Run a simulation to see how SignalDM would respond</p>
+                    <div className="un-field">
+                      <label className="un-label">Inbound Direct Message</label>
+                      <textarea
+                        className="un-input un-textarea"
+                        placeholder="e.g. Hi there! How much does your enterprise coaching tier cost?"
+                        value={simDmText}
+                        onChange={e => setSimDmText(e.target.value)}
+                      />
                     </div>
                   )}
-                  {simLoading && (
-                    <div className="sdm-sim-result" style={{ textAlign:'center',padding:'52px 20px' }}><div className="sdm-spinner" /><p style={{ color:'rgba(255,255,255,0.35)',fontSize:13 }}>Classifying intent...</p></div>
+
+                  <button
+                    className="un-btn un-btn-primary"
+                    onClick={runSimulator}
+                    disabled={simLoading || !(simType === 'comment' ? simComment : simDmText).trim()}
+                    style={{ width: '100%', marginTop: 6 }}
+                  >
+                    {simLoading ? (
+                      <span>Classifying Intent &amp; Composing...</span>
+                    ) : (
+                      <>
+                        <SvgPlay />
+                        <span>Run Decision Engine</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* Right Bench: Simulation Diagnostics */}
+                <div>
+                  {!simResult && !simLoading && (
+                    <div className="un-card" style={{ textAlign: 'center', padding: '64px 24px' }}>
+                      <div className="un-logo-jewel" style={{ margin: '0 auto 16px', width: 44, height: 44, opacity: 0.7 }}><SvgPlay /></div>
+                      <h4 className="un-editorial-font" style={{ fontSize: 18, fontWeight: 700, color: '#3D2B1F', marginBottom: 6 }}>Ready for Execution</h4>
+                      <p style={{ color: '#8B7355', fontSize: 13, maxWidth: 300, margin: '0 auto' }}>
+                        Select a preset or enter sample text to evaluate classification certainty, lead score, and draft responses.
+                      </p>
+                    </div>
                   )}
+
+                  {simLoading && (
+                    <div className="un-card" style={{ textAlign: 'center', padding: '64px 24px' }}>
+                      <div className="un-spinner" />
+                      <p style={{ color: '#3D2B1F', fontSize: 13.5, fontWeight: 600 }}>Analyzing semantic intent...</p>
+                    </div>
+                  )}
+
                   {simResult && !simLoading && (
-                    <div className="sdm-sim-result">
+                    <div className="un-result-card">
                       {simResult.blocked ? (
                         <div>
-                          <div style={{ color:'#ef4444',fontWeight:700,marginBottom:8,display:'flex',alignItems:'center',gap:8 }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#ef4444" strokeWidth="1.5"/><path d="M5 5l6 6M11 5l-6 6" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round"/></svg>Content Blocked</div>
-                          <p style={{ color:'rgba(255,255,255,0.4)',fontSize:13 }}>{simResult.reason}</p>
+                          <div style={{ color: '#DC2626', fontWeight: 700, fontSize: 14, marginBottom: 6 }}>Interaction Filtered by Safeguards</div>
+                          <p style={{ color: '#8B7355', fontSize: 13 }}>{simResult.reason}</p>
                         </div>
                       ) : (
                         <>
-                          <div style={{ display:'flex',alignItems:'center',gap:12,marginBottom:10 }}>
-                            {(() => { const cls=simResult.classification; const colors=CLASSIFICATION_COLORS[cls]||CLASSIFICATION_COLORS['unrelated']; return (<span className="sdm-classification-badge" style={{ background:colors.bg,color:colors.text,borderColor:colors.border }}><span style={{ width:6,height:6,borderRadius:'50%',background:colors.dot,display:'inline-block' }} />{CLASSIFICATION_LABELS[cls]||cls}</span>); })()}
-                            <span style={{ fontSize:12,color:'rgba(255,255,255,0.35)' }}>{Math.round(simResult.confidence*100)}% confidence</span>
+                          {/* Classification Jewel & Confidence */}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 10 }}>
+                            {(() => {
+                              const style = CLASSIFICATION_STYLES[simResult.classification] || CLASSIFICATION_STYLES['unrelated'];
+                              return (
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '5px 12px', borderRadius: 20, background: style.bg, border: `1px solid ${style.border}`, color: style.text, fontSize: 12.5, fontWeight: 700 }}>
+                                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: style.dot }} />
+                                  <span>{style.label}</span>
+                                </span>
+                              );
+                            })()}
+                            <span style={{ fontSize: 12.5, fontWeight: 600, color: '#8B7355' }}>
+                              {Math.round(simResult.confidence * 100)}% Confidence
+                            </span>
                           </div>
-                          <div className="sdm-confidence-bar-wrap"><div className="sdm-confidence-bar" style={{ width:`${simResult.confidence*100}%` }} /></div>
-                          <div style={{ marginTop:12,display:'flex',alignItems:'center',gap:8 }}>
-                            <span style={{ fontSize:11.5,color:'rgba(255,255,255,0.35)' }}>Lead score:</span>
-                            <span style={{ fontWeight:700,color:LEAD_SCORE_COLORS[simResult.leadScore]||'#6b7280',fontSize:13 }}>{LEAD_SCORE_LABELS[simResult.leadScore]||'Unknown'}</span>
+
+                          {/* Confidence Progress Bar */}
+                          <div style={{ height: 5, background: '#EFE9DF', borderRadius: 3, overflow: 'hidden', marginBottom: 16 }}>
+                            <div style={{ height: '100%', width: `${Math.round(simResult.confidence * 100)}%`, background: 'linear-gradient(90deg, #C4A265, #059669)', borderRadius: 3 }} />
                           </div>
-                          <div className="sdm-action-flags">
-                            <span className={`sdm-flag ${simResult.wouldAutoReply?'sdm-flag-yes':'sdm-flag-no'}`}>{simResult.wouldAutoReply?'✓':'✗'} Auto-reply</span>
-                            {simResult.wouldSendDM!==undefined && <span className={`sdm-flag ${simResult.wouldSendDM?'sdm-flag-yes':'sdm-flag-no'}`}>{simResult.wouldSendDM?'✓':'✗'} Send DM</span>}
-                            {simResult.wouldFlag && <span className="sdm-flag sdm-flag-warn">Flag for review</span>}
-                            {simResult.wouldEscalate && <span className="sdm-flag sdm-flag-warn">Escalate</span>}
+
+                          {/* Lead Qualification Pill */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 10, background: '#F7F3ED', border: '1px solid #E8E0D4', marginBottom: 16 }}>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: '#8B7355' }}>Lead Classification:</span>
+                            {(() => {
+                              const score = LEAD_SCORES[simResult.leadScore] || LEAD_SCORES[0];
+                              return (
+                                <span style={{ fontSize: 12, fontWeight: 700, color: score.text, background: score.bg, border: `1px solid ${score.border}`, padding: '2px 9px', borderRadius: 14 }}>
+                                  {score.label}
+                                </span>
+                              );
+                            })()}
                           </div>
-                          {simResult.suggestedReply && <div className="sdm-result-section"><div className="sdm-result-section-label">Public Reply</div><div className="sdm-result-reply">{simResult.suggestedReply}</div></div>}
-                          {simResult.suggestedDM && <div className="sdm-result-section"><div className="sdm-result-section-label">DM Message</div><div className="sdm-result-reply">{simResult.suggestedDM}</div></div>}
-                          {simResult.threadHook && <div className="sdm-result-section"><div className="sdm-result-section-label">Thread Hook</div><div style={{ fontSize:13,color:'#a78bfa',fontStyle:'italic' }}>{simResult.threadHook}</div></div>}
-                          <div className="sdm-result-section"><div className="sdm-result-section-label">Reasoning</div><div style={{ fontSize:12.5,color:'rgba(255,255,255,0.35)',lineHeight:1.6 }}>{simResult.reasoning}</div></div>
+
+                          {/* Action Badges */}
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+                            <span style={{ fontSize: 11.5, fontWeight: 600, padding: '3px 10px', borderRadius: 14, background: simResult.wouldAutoReply ? '#ECFDF5' : '#F1F5F9', color: simResult.wouldAutoReply ? '#047857' : '#64748B', border: `1px solid ${simResult.wouldAutoReply ? '#A7F3D0' : '#CBD5E1'}` }}>
+                              {simResult.wouldAutoReply ? '✓ Public Reply Triggered' : '— No Public Reply'}
+                            </span>
+                            {simResult.wouldSendDM !== undefined && (
+                              <span style={{ fontSize: 11.5, fontWeight: 600, padding: '3px 10px', borderRadius: 14, background: simResult.wouldSendDM ? '#F5F3FF' : '#F1F5F9', color: simResult.wouldSendDM ? '#6D28D9' : '#64748B', border: `1px solid ${simResult.wouldSendDM ? '#DDD6FE' : '#CBD5E1'}` }}>
+                                {simResult.wouldSendDM ? '✓ Private DM Triggered' : '— No DM Triggered'}
+                              </span>
+                            )}
+                            {simResult.wouldFlag && (
+                              <span style={{ fontSize: 11.5, fontWeight: 600, padding: '3px 10px', borderRadius: 14, background: '#FEF2F2', color: '#B91C1C', border: '1px solid #FECACA' }}>
+                                ⚠ Flagged for Human Review
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Response Previews */}
+                          {simResult.suggestedReply && (
+                            <div style={{ marginBottom: 14 }}>
+                              <div style={{ fontSize: 11, fontWeight: 700, color: '#8B7355', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Generated Public Comment</div>
+                              <div style={{ background: '#FAF7F2', border: '1px solid #E8E0D4', borderRadius: 10, padding: '12px 14px', fontSize: 13, color: '#3D2B1F', lineHeight: 1.6 }}>
+                                {simResult.suggestedReply}
+                              </div>
+                            </div>
+                          )}
+
+                          {simResult.suggestedDM && (
+                            <div style={{ marginBottom: 14 }}>
+                              <div style={{ fontSize: 11, fontWeight: 700, color: '#8B7355', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Generated Private DM</div>
+                              <div style={{ background: '#FAF7F2', border: '1px solid #E8E0D4', borderRadius: 10, padding: '12px 14px', fontSize: 13, color: '#3D2B1F', lineHeight: 1.6 }}>
+                                {simResult.suggestedDM}
+                              </div>
+                            </div>
+                          )}
+
+                          {simResult.threadHook && (
+                            <div style={{ marginBottom: 14 }}>
+                              <div style={{ fontSize: 11, fontWeight: 700, color: '#C4A265', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Appended Thread Hook</div>
+                              <div style={{ fontSize: 12.5, color: '#8B7355', fontStyle: 'italic' }}>
+                                "{simResult.threadHook}"
+                              </div>
+                            </div>
+                          )}
+
+                          {simResult.reasoning && (
+                            <div style={{ borderTop: '1px solid #EFE9DF', paddingTop: 12, marginTop: 14 }}>
+                              <div style={{ fontSize: 11, fontWeight: 700, color: '#8B7355', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Decision Rationale</div>
+                              <div style={{ fontSize: 12, color: '#8B7355', lineHeight: 1.6 }}>
+                                {simResult.reasoning}
+                              </div>
+                            </div>
+                          )}
                         </>
                       )}
                     </div>
@@ -773,65 +1910,164 @@ export default function AutomationClient({
             </div>
           )}
 
-          {/* COMMENT FEED */}
+          {/* ════ TAB 3: COMMENT FEED ════ */}
           {activeTab === 'feed' && (
             <div>
+              {/* Stat Tiles */}
               {commentStats && (
-                <div className="sdm-stats-row">
-                  {[{ label:'Total Processed',value:commentStats.total,color:'#a78bfa' },{ label:'Auto-Replied',value:commentStats.autoReplied,color:'#10b981' },{ label:'DMs Sent',value:commentStats.dmsSent,color:'#3b82f6' },{ label:'Flagged',value:commentStats.flagged,color:'#f59e0b' }].map(s => (
-                    <div className="sdm-stat-card" key={s.label}><div className="sdm-stat-value" style={{ color:s.color }}>{s.value}</div><div className="sdm-stat-label">{s.label}</div></div>
-                  ))}
+                <div className="un-stat-grid">
+                  <div className="un-stat-tile">
+                    <div className="un-stat-num un-editorial-font">{commentStats.total}</div>
+                    <div className="un-stat-label">Total Audited</div>
+                  </div>
+                  <div className="un-stat-tile">
+                    <div className="un-stat-num un-editorial-font" style={{ color: '#047857' }}>{commentStats.autoReplied}</div>
+                    <div className="un-stat-label">Automated Replies</div>
+                  </div>
+                  <div className="un-stat-tile">
+                    <div className="un-stat-num un-editorial-font" style={{ color: '#1D4ED8' }}>{commentStats.dmsSent}</div>
+                    <div className="un-stat-label">Direct Messages</div>
+                  </div>
+                  <div className="un-stat-tile">
+                    <div className="un-stat-num un-editorial-font" style={{ color: '#B45309' }}>{commentStats.flagged}</div>
+                    <div className="un-stat-label">Human Review Queue</div>
+                  </div>
                 </div>
               )}
-              <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,flexWrap:'wrap',marginBottom:16 }}>
-                <div className="sdm-filter-tabs" style={{ marginBottom:0 }}>
-                  {['all','positive','question','link_request','purchase_intent','negative','spam','harmful'].map(f => (
-                    <button key={f} className={`sdm-filter-tab ${commentFilter===f?'active':''}`} onClick={() => { setCommentFilter(f); setCommentPage(1); }}>{f==='all'?'All':CLASSIFICATION_LABELS[f]||f}</button>
+
+              {/* Filter Controls & Search */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', marginBottom: 18 }}>
+                <div className="un-filter-pills">
+                  {['all', 'positive', 'question', 'link_request', 'purchase_intent', 'negative', 'spam', 'harmful'].map(f => (
+                    <button
+                      key={f}
+                      className={`un-filter-pill ${commentFilter === f ? 'active' : ''}`}
+                      onClick={() => { setCommentFilter(f); setCommentPage(1); }}
+                    >
+                      {f === 'all' ? 'All Interactions' : CLASSIFICATION_STYLES[f]?.label || f}
+                    </button>
                   ))}
                 </div>
-                <div style={{ display:'flex',gap:8,alignItems:'center' }}>
-                  <input type="text" className="sdm-input" placeholder="Search comments or @user..." value={commentSearch} onChange={e => setCommentSearch(e.target.value)} style={{ width:210,padding:'7px 12px',fontSize:12.5 }} />
-                  <button className="sdm-btn sdm-btn-secondary" onClick={syncLiveComments} disabled={syncingComments||feedLoading} style={{ padding:'7px 13px',fontSize:12 }}>
-                    <IcoRefresh />{syncingComments?'Syncing...':'Sync'}
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input
+                    type="text"
+                    className="un-input"
+                    placeholder="Search comments or @user..."
+                    value={commentSearch}
+                    onChange={e => setCommentSearch(e.target.value)}
+                    style={{ width: 220, padding: '8px 12px', fontSize: 12.5 }}
+                  />
+                  <button
+                    className="un-btn un-btn-secondary"
+                    onClick={syncLiveComments}
+                    disabled={syncingComments || feedLoading}
+                    style={{ padding: '8px 14px', fontSize: 12 }}
+                  >
+                    <SvgRefresh />
+                    <span>{syncingComments ? 'Syncing...' : 'Audit Posts'}</span>
                   </button>
                 </div>
               </div>
-              {feedLoading ? (<div style={{ textAlign:'center',padding:'48px 0' }}><div className="sdm-spinner" /></div>)
-              : comments.length===0 ? (
-                <div className="sdm-empty"><svg width="40" height="40" viewBox="0 0 40 40" fill="none" style={{ margin:'0 auto 14px',display:'block' }}><circle cx="20" cy="20" r="18" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4 3"/><path d="M14 20h12M20 14v12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.5"/></svg><p>No comments yet. Click Sync or wait for comments via webhook.</p></div>
+
+              {/* Table Ledger */}
+              {feedLoading ? (
+                <div style={{ textAlign: 'center', padding: '60px 0' }}>
+                  <div className="un-spinner" />
+                  <p style={{ color: '#8B7355', fontSize: 13 }}>Loading interaction ledger...</p>
+                </div>
+              ) : comments.length === 0 ? (
+                <div className="un-card" style={{ textAlign: 'center', padding: '64px 20px' }}>
+                  <div className="un-logo-jewel" style={{ margin: '0 auto 16px', width: 44, height: 44, opacity: 0.7 }}><SvgMessage /></div>
+                  <h4 className="un-editorial-font" style={{ fontSize: 18, fontWeight: 700, color: '#3D2B1F', marginBottom: 4 }}>No Comments Recorded Yet</h4>
+                  <p style={{ color: '#8B7355', fontSize: 13 }}>Click Audit Posts to scan recent Instagram media or wait for real-time webhooks.</p>
+                </div>
               ) : (
                 <>
-                  <div className="sdm-card section-feed" style={{ padding:0,overflow:'hidden' }}>
-                    <table className="sdm-table">
-                      <thead><tr><th>User</th><th>Comment</th><th>Classification</th><th>Reply</th><th>Lead</th><th>Status</th><th>Time</th></tr></thead>
+                  <div className="un-table-card">
+                    <table className="un-table">
+                      <thead>
+                        <tr>
+                          <th>Account</th>
+                          <th>Inbound Comment</th>
+                          <th>Classification</th>
+                          <th>Public Response</th>
+                          <th>Lead Tier</th>
+                          <th>Outcome</th>
+                          <th>Timestamp</th>
+                        </tr>
+                      </thead>
                       <tbody>
-                        {comments.filter(c => { if (!commentSearch.trim()) return true; const q=commentSearch.toLowerCase(); return ((c.commenter_username&&c.commenter_username.toLowerCase().includes(q))||(c.comment_text&&c.comment_text.toLowerCase().includes(q))||(c.suggested_reply&&c.suggested_reply.toLowerCase().includes(q))); }).map(c => {
-                          const colors=CLASSIFICATION_COLORS[c.classification]||CLASSIFICATION_COLORS['unrelated'];
+                        {comments.filter(c => {
+                          if (!commentSearch.trim()) return true;
+                          const q = commentSearch.toLowerCase();
+                          return (
+                            (c.commenter_username && c.commenter_username.toLowerCase().includes(q)) ||
+                            (c.comment_text && c.comment_text.toLowerCase().includes(q)) ||
+                            (c.suggested_reply && c.suggested_reply.toLowerCase().includes(q))
+                          );
+                        }).map(c => {
+                          const style = CLASSIFICATION_STYLES[c.classification] || CLASSIFICATION_STYLES['unrelated'];
+                          const lead = LEAD_SCORES[c.lead_score] || LEAD_SCORES[0];
                           return (
                             <tr key={c.id}>
-                              <td><span className="sdm-username">@{c.commenter_username||'—'}</span></td>
-                              <td style={{ maxWidth:200,color:'#d1d5db' }}>{c.comment_text}</td>
-                              <td><span className="sdm-classification-badge" style={{ background:colors.bg,color:colors.text,borderColor:colors.border,fontSize:11 }}>{CLASSIFICATION_LABELS[c.classification]||c.classification}</span></td>
-                              <td style={{ maxWidth:200,color:'rgba(255,255,255,0.38)',fontSize:12 }}>{c.suggested_reply||'—'}</td>
-                              <td><span style={{ color:LEAD_SCORE_COLORS[c.lead_score]||'#6b7280',fontWeight:700,fontSize:12 }}>{c.lead_score>0?LEAD_SCORE_LABELS[c.lead_score]:'—'}</span></td>
-                              <td><div style={{ display:'flex',gap:4,flexWrap:'wrap' }}>
-                                {c.auto_replied&&<span style={{ fontSize:10,background:'rgba(16,185,129,0.14)',color:'#10b981',borderRadius:10,padding:'2px 7px',fontWeight:700 }}>replied</span>}
-                                {c.dm_sent&&<span style={{ fontSize:10,background:'rgba(139,92,246,0.14)',color:'#8b5cf6',borderRadius:10,padding:'2px 7px',fontWeight:700 }}>dm sent</span>}
-                                {!c.auto_replied&&!c.dm_sent&&<span style={{ fontSize:10,background:'rgba(107,114,128,0.12)',color:'#9ca3af',borderRadius:10,padding:'2px 7px' }}>{c.classification==='harmful'||c.classification==='spam'?'filtered':'logged'}</span>}
-                              </div></td>
-                              <td style={{ color:'rgba(255,255,255,0.28)',fontSize:11,whiteSpace:'nowrap' }}>{new Date(c.created_at).toLocaleString(undefined,{ month:'short',day:'numeric',hour:'2-digit',minute:'2-digit' })}</td>
+                              <td>
+                                <span style={{ fontWeight: 700, color: '#3D2B1F', fontSize: 12.5 }}>
+                                  @{c.commenter_username || 'anonymous'}
+                                </span>
+                              </td>
+                              <td style={{ maxWidth: 220, color: '#5D4330', lineHeight: 1.5 }}>
+                                {c.comment_text}
+                              </td>
+                              <td>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 9px', borderRadius: 14, background: style.bg, border: `1px solid ${style.border}`, color: style.text, fontSize: 11, fontWeight: 700 }}>
+                                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: style.dot }} />
+                                  <span>{style.label}</span>
+                                </span>
+                              </td>
+                              <td style={{ maxWidth: 220, color: '#8B7355', fontSize: 12 }}>
+                                {c.suggested_reply || '—'}
+                              </td>
+                              <td>
+                                <span style={{ fontSize: 11, fontWeight: 700, color: lead.text, background: lead.bg, border: `1px solid ${lead.border}`, padding: '2px 8px', borderRadius: 10 }}>
+                                  {lead.label}
+                                </span>
+                              </td>
+                              <td>
+                                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                                  {c.auto_replied && (
+                                    <span style={{ fontSize: 10.5, fontWeight: 700, background: '#ECFDF5', color: '#047857', border: '1px solid #A7F3D0', padding: '2px 7px', borderRadius: 8 }}>
+                                      Replied
+                                    </span>
+                                  )}
+                                  {c.dm_sent && (
+                                    <span style={{ fontSize: 10.5, fontWeight: 700, background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE', padding: '2px 7px', borderRadius: 8 }}>
+                                      DM Sent
+                                    </span>
+                                  )}
+                                  {!c.auto_replied && !c.dm_sent && (
+                                    <span style={{ fontSize: 10.5, fontWeight: 600, background: '#F1F5F9', color: '#64748B', border: '1px solid #CBD5E1', padding: '2px 7px', borderRadius: 8 }}>
+                                      {c.classification === 'harmful' || c.classification === 'spam' ? 'Quarantined' : 'Logged'}
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td style={{ color: '#A69279', fontSize: 11, whiteSpace: 'nowrap' }}>
+                                {new Date(c.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                              </td>
                             </tr>
                           );
                         })}
                       </tbody>
                     </table>
                   </div>
-                  {commentStats&&commentStats.total>25&&(
-                    <div className="sdm-pagination">
-                      <span>Page {commentPage} of {Math.ceil(commentStats.total/25)} — {commentStats.total} total</span>
-                      <div className="sdm-pagination-btns">
-                        <button className="sdm-btn sdm-btn-secondary" disabled={commentPage<=1} onClick={() => setCommentPage(p => Math.max(1,p-1))} style={{ padding:'5px 13px',fontSize:12 }}>← Prev</button>
-                        <button className="sdm-btn sdm-btn-secondary" disabled={commentPage>=Math.ceil(commentStats.total/25)} onClick={() => setCommentPage(p => p+1)} style={{ padding:'5px 13px',fontSize:12 }}>Next →</button>
+
+                  {commentStats && commentStats.total > 25 && (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, fontSize: 12.5, color: '#8B7355' }}>
+                      <span>Showing page {commentPage} of {Math.ceil(commentStats.total / 25)} ({commentStats.total} total logged)</span>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button className="un-btn un-btn-secondary" disabled={commentPage <= 1} onClick={() => setCommentPage(p => Math.max(1, p - 1))} style={{ padding: '6px 14px', fontSize: 12 }}>Previous</button>
+                        <button className="un-btn un-btn-secondary" disabled={commentPage >= Math.ceil(commentStats.total / 25)} onClick={() => setCommentPage(p => p + 1)} style={{ padding: '6px 14px', fontSize: 12 }}>Next</button>
                       </div>
                     </div>
                   )}
@@ -840,104 +2076,274 @@ export default function AutomationClient({
             </div>
           )}
 
-          {/* FLAGGED INBOX */}
+          {/* ════ TAB 4: FLAGGED INBOX ════ */}
           {activeTab === 'inbox' && (
             <div>
-              <div className="sdm-tab-heading">
-                <div><h2>Flagged Inbox</h2><p>Comments and DMs that need your personal touch. Hot leads shown first.</p></div>
-                <button className="sdm-btn sdm-btn-secondary" onClick={loadFlagged}><IcoRefresh />Refresh</button>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+                <div>
+                  <h2 className="un-editorial-font" style={{ fontSize: 24, fontWeight: 700, color: '#3D2B1F', margin: 0 }}>
+                    Human Triage Queue
+                  </h2>
+                  <p style={{ color: '#8B7355', fontSize: 13.5, margin: '4px 0 0' }}>
+                    Interactions flagged for personal creator follow-up. High commercial priority items appear first.
+                  </p>
+                </div>
+                <button className="un-btn un-btn-secondary" onClick={loadFlagged} style={{ fontSize: 12.5 }}>
+                  <SvgRefresh />
+                  <span>Refresh Queue</span>
+                </button>
               </div>
-              <div className="sdm-filter-tabs">
-                {['pending','approved','replied','rejected','all'].map(s => (
-                  <button key={s} className={`sdm-filter-tab ${statusFilter===s?'active':''}`} onClick={() => setStatusFilter(s)}>
-                    {s.charAt(0).toUpperCase()+s.slice(1)}
-                    {s==='pending'&&pendingCount>0&&<span style={{ background:'#f59e0b',color:'#000',borderRadius:10,padding:'0 6px',fontSize:10,fontWeight:800 }}>{pendingCount}</span>}
+
+              <div className="un-filter-pills" style={{ marginBottom: 18 }}>
+                {['pending', 'approved', 'replied', 'rejected', 'all'].map(s => (
+                  <button
+                    key={s}
+                    className={`un-filter-pill ${statusFilter === s ? 'active' : ''}`}
+                    onClick={() => setStatusFilter(s)}
+                  >
+                    {s.charAt(0).toUpperCase() + s.slice(1)}
+                    {s === 'pending' && pendingCount > 0 && (
+                      <span style={{ marginLeft: 6, background: '#D97706', color: '#FFF', borderRadius: 10, padding: '1px 6px', fontSize: 10, fontWeight: 800 }}>
+                        {pendingCount}
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
-              {inboxLoading ? (<div style={{ textAlign:'center',padding:'48px 0' }}><div className="sdm-spinner" /></div>)
-              : flagged.length===0 ? (
-                <div className="sdm-empty"><svg width="40" height="40" viewBox="0 0 40 40" fill="none" style={{ margin:'0 auto 14px',display:'block' }}><circle cx="20" cy="20" r="18" stroke="rgba(16,185,129,0.35)" strokeWidth="1.5"/><path d="M13 20l5 5 9-10" stroke="rgba(16,185,129,0.6)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg><p>Inbox clear — no flagged items.</p></div>
-              ) : flagged.map(item => {
-                const colors=CLASSIFICATION_COLORS[item.classification]||CLASSIFICATION_COLORS['unrelated'];
-                const isEditMode=editMode[item.id];
-                return (
-                  <div key={item.id} className={`sdm-flagged-card ${item.priority==='high'?'high-priority':''}`}>
-                    <div className="sdm-flagged-header">
-                      <div style={{ flex:1 }}>
-                        <div style={{ display:'flex',alignItems:'center',gap:7,marginBottom:7,flexWrap:'wrap' }}>
-                          <span className="sdm-username">@{item.commenter_username||'unknown'}</span>
-                          <span style={{ fontSize:11,background:item.item_type==='dm'?'rgba(139,92,246,0.16)':'rgba(59,130,246,0.16)',color:item.item_type==='dm'?'#c084fc':'#60a5fa',borderRadius:10,padding:'2px 8px',fontWeight:700 }}>{item.item_type==='dm'?'Escalated DM':'Flagged Comment'}</span>
-                          <span className="sdm-classification-badge" style={{ background:colors.bg,color:colors.text,borderColor:colors.border,fontSize:11 }}>{CLASSIFICATION_LABELS[item.classification]||item.classification}</span>
-                          {item.lead_score>=2&&<span style={{ fontSize:11,background:'rgba(245,158,11,0.15)',color:'#f59e0b',borderRadius:10,padding:'2px 8px',fontWeight:700 }}>{LEAD_SCORE_LABELS[item.lead_score]}</span>}
-                          {item.priority==='high'&&<span style={{ fontSize:10,background:'rgba(245,158,11,0.18)',color:'#f59e0b',borderRadius:10,padding:'2px 7px',fontWeight:800,letterSpacing:'0.03em' }}>HIGH PRIORITY</span>}
-                        </div>
-                        <div className="sdm-flagged-comment">"{item.comment_text}"</div>
-                        {item.reasoning&&<div style={{ fontSize:12,color:'rgba(255,255,255,0.28)',marginTop:5 }}>Note: {item.reasoning}</div>}
-                      </div>
-                      <div style={{ fontSize:11,color:'rgba(255,255,255,0.25)',whiteSpace:'nowrap',flexShrink:0 }}>{new Date(item.created_at).toLocaleString(undefined,{ month:'short',day:'numeric',hour:'2-digit',minute:'2-digit' })}</div>
-                    </div>
-                    {item.status==='pending'&&(
-                      <>
-                        {item.suggested_reply&&item.suggested_reply!=='SKIP'&&(
-                          <div>
-                            <div style={{ fontSize:11,color:'rgba(255,255,255,0.3)',marginBottom:6 }}>Suggested reply{isEditMode?' (editing)':''}:</div>
-                            {isEditMode ? <textarea className="sdm-input sdm-textarea" value={editReplies[item.id]??item.suggested_reply} onChange={e => setEditReplies(prev => ({ ...prev,[item.id]:e.target.value }))} style={{ minHeight:80 }} /> : <div className="sdm-reply-preview">{editReplies[item.id]??item.suggested_reply}</div>}
+
+              {inboxLoading ? (
+                <div style={{ textAlign: 'center', padding: '60px 0' }}>
+                  <div className="un-spinner" />
+                  <p style={{ color: '#8B7355', fontSize: 13 }}>Loading review queue...</p>
+                </div>
+              ) : flagged.length === 0 ? (
+                <div className="un-card" style={{ textAlign: 'center', padding: '64px 20px' }}>
+                  <div className="un-logo-jewel" style={{ margin: '0 auto 16px', width: 44, height: 44 }}><SvgCheck /></div>
+                  <h4 className="un-editorial-font" style={{ fontSize: 18, fontWeight: 700, color: '#3D2B1F', marginBottom: 4 }}>Triage Queue Clear</h4>
+                  <p style={{ color: '#8B7355', fontSize: 13 }}>All pending items have been resolved or approved.</p>
+                </div>
+              ) : (
+                flagged.map(item => {
+                  const style = CLASSIFICATION_STYLES[item.classification] || CLASSIFICATION_STYLES['unrelated'];
+                  const isEdit = editMode[item.id];
+                  return (
+                    <div key={item.id} className={`un-triage-card ${item.priority === 'high' ? 'priority-high' : ''}`}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14, marginBottom: 12 }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+                            <span style={{ fontWeight: 700, color: '#3D2B1F', fontSize: 13 }}>@{item.commenter_username || 'unknown'}</span>
+                            <span style={{ fontSize: 11, background: item.item_type === 'dm' ? '#F5F3FF' : '#EFF6FF', color: item.item_type === 'dm' ? '#6D28D9' : '#1D4ED8', border: `1px solid ${item.item_type === 'dm' ? '#DDD6FE' : '#BFDBFE'}`, borderRadius: 10, padding: '1px 7px', fontWeight: 700 }}>
+                              {item.item_type === 'dm' ? 'Escalated Direct Message' : 'Flagged Comment'}
+                            </span>
+                            <span style={{ fontSize: 11, background: style.bg, color: style.text, border: `1px solid ${style.border}`, borderRadius: 10, padding: '1px 7px', fontWeight: 700 }}>
+                              {style.label}
+                            </span>
+                            {item.lead_score >= 2 && (
+                              <span style={{ fontSize: 11, background: '#FEF3C7', color: '#B45309', border: '1px solid #FDE68A', borderRadius: 10, padding: '1px 7px', fontWeight: 800 }}>
+                                High Commercial Intent
+                              </span>
+                            )}
+                            {item.priority === 'high' && (
+                              <span style={{ fontSize: 10, background: '#DC2626', color: '#FFF', borderRadius: 6, padding: '2px 6px', fontWeight: 800 }}>
+                                PRIORITY
+                              </span>
+                            )}
                           </div>
-                        )}
-                        <div className="sdm-flagged-actions">
-                          {item.suggested_reply&&item.suggested_reply!=='SKIP'&&<button className="sdm-btn sdm-btn-success" style={{ fontSize:12 }} onClick={() => flaggedAction(item.id,'approve')}>{item.item_type==='dm'?'Approve & Send DM':'Approve & Post'}</button>}
-                          <button className="sdm-btn sdm-btn-secondary" style={{ fontSize:12 }} onClick={() => setEditMode(prev => ({ ...prev,[item.id]:!prev[item.id] }))}>{isEditMode?'Cancel':(item.item_type==='dm'?'Edit & Send DM':'Edit & Reply')}</button>
-                          {isEditMode&&<button className="sdm-btn sdm-btn-primary" style={{ fontSize:12 }} onClick={() => { flaggedAction(item.id,'reply',editReplies[item.id]??item.suggested_reply); setEditMode(prev => ({ ...prev,[item.id]:false })); }}>{item.item_type==='dm'?'Send DM':'Send Reply'}</button>}
-                          <button className="sdm-btn sdm-btn-danger" style={{ fontSize:12 }} onClick={() => flaggedAction(item.id,'reject')}>Dismiss</button>
+                          <div style={{ fontSize: 14, color: '#3D2B1F', fontStyle: 'italic', lineHeight: 1.5, marginBottom: 6 }}>
+                            "{item.comment_text}"
+                          </div>
+                          {item.reasoning && (
+                            <div style={{ fontSize: 12, color: '#8B7355' }}>
+                              Flag Rationale: {item.reasoning}
+                            </div>
+                          )}
                         </div>
-                      </>
-                    )}
-                    {item.status!=='pending'&&<div style={{ fontSize:12.5,color:'rgba(255,255,255,0.3)' }}>Status: <span style={{ textTransform:'capitalize' }}>{item.status}</span>{item.owner_reply&&<div style={{ marginTop:4 }}>Your reply: "{item.owner_reply}"</div>}</div>}
-                  </div>
-                );
-              })}
+                        <div style={{ fontSize: 11, color: '#A69279', whiteSpace: 'nowrap' }}>
+                          {new Date(item.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </div>
+
+                      {item.status === 'pending' && (
+                        <>
+                          {item.suggested_reply && item.suggested_reply !== 'SKIP' && (
+                            <div style={{ marginBottom: 12 }}>
+                              <div style={{ fontSize: 11, fontWeight: 700, color: '#8B7355', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
+                                Suggested Draft {isEdit ? '(Editing)' : ''}:
+                              </div>
+                              {isEdit ? (
+                                <textarea
+                                  className="un-input un-textarea"
+                                  value={editReplies[item.id] ?? item.suggested_reply}
+                                  onChange={e => setEditReplies(prev => ({ ...prev, [item.id]: e.target.value }))}
+                                  style={{ minHeight: 70 }}
+                                />
+                              ) : (
+                                <div style={{ background: '#FAF7F2', border: '1px solid #E8E0D4', borderRadius: 9, padding: '10px 14px', fontSize: 13, color: '#3D2B1F' }}>
+                                  {editReplies[item.id] ?? item.suggested_reply}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                            {item.suggested_reply && item.suggested_reply !== 'SKIP' && (
+                              <button
+                                className="un-btn un-btn-success"
+                                style={{ fontSize: 12, padding: '6px 14px' }}
+                                onClick={() => flaggedAction(item.id, 'approve')}
+                              >
+                                {item.item_type === 'dm' ? 'Approve & Send DM' : 'Approve & Post Reply'}
+                              </button>
+                            )}
+                            <button
+                              className="un-btn un-btn-secondary"
+                              style={{ fontSize: 12, padding: '6px 14px' }}
+                              onClick={() => setEditMode(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
+                            >
+                              {isEdit ? 'Cancel' : 'Edit Custom Draft'}
+                            </button>
+                            {isEdit && (
+                              <button
+                                className="un-btn un-btn-primary"
+                                style={{ fontSize: 12, padding: '6px 14px' }}
+                                onClick={() => {
+                                  flaggedAction(item.id, 'reply', editReplies[item.id] ?? item.suggested_reply);
+                                  setEditMode(prev => ({ ...prev, [item.id]: false }));
+                                }}
+                              >
+                                Dispatch Custom Reply
+                              </button>
+                            )}
+                            <button
+                              className="un-btn un-btn-danger"
+                              style={{ fontSize: 12, padding: '6px 14px' }}
+                              onClick={() => flaggedAction(item.id, 'reject')}
+                            >
+                              Dismiss Item
+                            </button>
+                          </div>
+                        </>
+                      )}
+
+                      {item.status !== 'pending' && (
+                        <div style={{ fontSize: 12.5, color: '#8B7355', borderTop: '1px solid #F0EBE3', paddingTop: 8, marginTop: 8 }}>
+                          Resolution: <strong style={{ textTransform: 'capitalize', color: '#3D2B1F' }}>{item.status}</strong>
+                          {item.owner_reply && <div style={{ marginTop: 3 }}>Dispatched reply: "{item.owner_reply}"</div>}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
             </div>
           )}
 
-          {/* DM FEED */}
+          {/* ════ TAB 5: DM CONCIERGE FEED ════ */}
           {activeTab === 'dms' && (
             <div>
-              {dmStats&&(
-                <div className="sdm-stats-row">
-                  {[{ label:'Total DMs',value:dmStats.total,color:'#a78bfa' },{ label:'Auto-Replied',value:dmStats.autoReplied,color:'#10b981' },{ label:'Escalated',value:dmStats.escalated,color:'#f59e0b' },{ label:'Hot Leads',value:dmStats.hotLeads,color:'#ef4444' }].map(s => (
-                    <div className="sdm-stat-card" key={s.label}><div className="sdm-stat-value" style={{ color:s.color }}>{s.value}</div><div className="sdm-stat-label">{s.label}</div></div>
-                  ))}
+              {dmStats && (
+                <div className="un-stat-grid">
+                  <div className="un-stat-tile">
+                    <div className="un-stat-num un-editorial-font">{dmStats.total}</div>
+                    <div className="un-stat-label">Inbound Direct Messages</div>
+                  </div>
+                  <div className="un-stat-tile">
+                    <div className="un-stat-num un-editorial-font" style={{ color: '#047857' }}>{dmStats.autoReplied}</div>
+                    <div className="un-stat-label">Auto-Responded</div>
+                  </div>
+                  <div className="un-stat-tile">
+                    <div className="un-stat-num un-editorial-font" style={{ color: '#B45309' }}>{dmStats.escalated}</div>
+                    <div className="un-stat-label">Escalated to Owner</div>
+                  </div>
+                  <div className="un-stat-tile">
+                    <div className="un-stat-num un-editorial-font" style={{ color: '#1D4ED8' }}>{dmStats.hotLeads}</div>
+                    <div className="un-stat-label">High-Value Opportunities</div>
+                  </div>
                 </div>
               )}
-              {!config.dmAutoReplyEnabled&&(
-                <div className="sdm-info-banner">
-                  <IcoWarn /><div style={{ flex:1 }}><div style={{ color:'#f59e0b',fontWeight:700,fontSize:13 }}>DM Auto-Reply is disabled</div><div style={{ color:'rgba(255,255,255,0.35)',fontSize:12 }}>Enable it in Control Panel → DM Automation settings</div></div>
-                  <button className="sdm-btn sdm-btn-secondary" style={{ fontSize:12 }} onClick={() => setActiveTab('control')}>Open Settings</button>
+
+              {!config.dmAutoReplyEnabled && (
+                <div style={{ background: '#FFFBEB', border: '1.5px solid #FDE68A', borderRadius: 16, padding: '16px 20px', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
+                  <div>
+                    <div style={{ color: '#92400E', fontWeight: 700, fontSize: 13.5 }}>Direct Message Auto-Responder is in Standby</div>
+                    <div style={{ color: '#B45309', fontSize: 12.5, marginTop: 2 }}>Enable inbound DM automation in the Engine Controls tab to begin responding automatically.</div>
+                  </div>
+                  <button className="un-btn un-btn-primary" onClick={() => setActiveTab('control')} style={{ fontSize: 12 }}>
+                    Open Engine Controls
+                  </button>
                 </div>
               )}
-              {dmsLoading ? (<div style={{ textAlign:'center',padding:'48px 0' }}><div className="sdm-spinner" /></div>)
-              : dms.length===0 ? (
-                <div className="sdm-empty"><svg width="40" height="40" viewBox="0 0 40 40" fill="none" style={{ margin:'0 auto 14px',display:'block' }}><circle cx="20" cy="20" r="18" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4 3"/><path d="M14 20h12M20 14v12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.5"/></svg><p>No DMs processed yet. Enable DM auto-reply and wait for messages.</p></div>
+
+              {dmsLoading ? (
+                <div style={{ textAlign: 'center', padding: '60px 0' }}>
+                  <div className="un-spinner" />
+                  <p style={{ color: '#8B7355', fontSize: 13 }}>Loading DM history...</p>
+                </div>
+              ) : dms.length === 0 ? (
+                <div className="un-card" style={{ textAlign: 'center', padding: '64px 20px' }}>
+                  <div className="un-logo-jewel" style={{ margin: '0 auto 16px', width: 44, height: 44, opacity: 0.7 }}><SvgMail /></div>
+                  <h4 className="un-editorial-font" style={{ fontSize: 18, fontWeight: 700, color: '#3D2B1F', marginBottom: 4 }}>No Direct Messages Processed</h4>
+                  <p style={{ color: '#8B7355', fontSize: 13 }}>Inbound Instagram direct messages will be recorded and triaged here in real time.</p>
+                </div>
               ) : (
-                <div className="sdm-card section-dm" style={{ padding:0,overflow:'hidden' }}>
-                  <table className="sdm-table">
-                    <thead><tr><th>Sender</th><th>Message</th><th>Classification</th><th>Reply</th><th>Lead</th><th>Status</th><th>Time</th></tr></thead>
+                <div className="un-table-card">
+                  <table className="un-table">
+                    <thead>
+                      <tr>
+                        <th>Sender Account</th>
+                        <th>Inbound Message</th>
+                        <th>Classification</th>
+                        <th>Dispatched Reply</th>
+                        <th>Lead Tier</th>
+                        <th>Outcome</th>
+                        <th>Timestamp</th>
+                      </tr>
+                    </thead>
                     <tbody>
                       {dms.map(dm => {
-                        const colors=CLASSIFICATION_COLORS[dm.classification]||CLASSIFICATION_COLORS['unrelated'];
+                        const style = CLASSIFICATION_STYLES[dm.classification] || CLASSIFICATION_STYLES['unrelated'];
+                        const lead = LEAD_SCORES[dm.lead_score] || LEAD_SCORES[0];
                         return (
                           <tr key={dm.id}>
-                            <td><span className="sdm-username">@{dm.sender_username||dm.sender_id}</span></td>
-                            <td style={{ maxWidth:200,color:'#d1d5db' }}>{dm.message_text}</td>
-                            <td><span className="sdm-classification-badge" style={{ background:colors.bg,color:colors.text,borderColor:colors.border,fontSize:11 }}>{CLASSIFICATION_LABELS[dm.classification]||dm.classification}</span></td>
-                            <td style={{ maxWidth:200,color:'rgba(255,255,255,0.38)',fontSize:12 }}>{dm.ai_reply||'—'}</td>
-                            <td><span style={{ color:LEAD_SCORE_COLORS[dm.lead_score]||'#6b7280',fontWeight:700,fontSize:12 }}>{dm.lead_score>0?LEAD_SCORE_LABELS[dm.lead_score]:'—'}</span></td>
-                            <td><div style={{ display:'flex',gap:4,flexWrap:'wrap' }}>
-                              {dm.auto_replied&&<span style={{ fontSize:10,background:'rgba(16,185,129,0.14)',color:'#10b981',borderRadius:10,padding:'2px 7px',fontWeight:700 }}>replied</span>}
-                              {dm.escalated&&<span style={{ fontSize:10,background:'rgba(245,158,11,0.14)',color:'#f59e0b',borderRadius:10,padding:'2px 7px',fontWeight:700 }}>escalated</span>}
-                            </div></td>
-                            <td style={{ color:'rgba(255,255,255,0.28)',fontSize:11,whiteSpace:'nowrap' }}>{new Date(dm.created_at).toLocaleString(undefined,{ month:'short',day:'numeric',hour:'2-digit',minute:'2-digit' })}</td>
+                            <td>
+                              <span style={{ fontWeight: 700, color: '#3D2B1F', fontSize: 12.5 }}>
+                                @{dm.sender_username || dm.sender_id}
+                              </span>
+                            </td>
+                            <td style={{ maxWidth: 220, color: '#5D4330', lineHeight: 1.5 }}>
+                              {dm.message_text}
+                            </td>
+                            <td>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 9px', borderRadius: 14, background: style.bg, border: `1px solid ${style.border}`, color: style.text, fontSize: 11, fontWeight: 700 }}>
+                                <span style={{ width: 5, height: 5, borderRadius: '50%', background: style.dot }} />
+                                <span>{style.label}</span>
+                              </span>
+                            </td>
+                            <td style={{ maxWidth: 220, color: '#8B7355', fontSize: 12 }}>
+                              {dm.ai_reply || '—'}
+                            </td>
+                            <td>
+                              <span style={{ fontSize: 11, fontWeight: 700, color: lead.text, background: lead.bg, border: `1px solid ${lead.border}`, padding: '2px 8px', borderRadius: 10 }}>
+                                {lead.label}
+                              </span>
+                            </td>
+                            <td>
+                              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                                {dm.auto_replied && (
+                                  <span style={{ fontSize: 10.5, fontWeight: 700, background: '#ECFDF5', color: '#047857', border: '1px solid #A7F3D0', padding: '2px 7px', borderRadius: 8 }}>
+                                    Replied
+                                  </span>
+                                )}
+                                {dm.escalated && (
+                                  <span style={{ fontSize: 10.5, fontWeight: 700, background: '#FEF3C7', color: '#B45309', border: '1px solid #FDE68A', padding: '2px 7px', borderRadius: 8 }}>
+                                    Escalated
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td style={{ color: '#A69279', fontSize: 11, whiteSpace: 'nowrap' }}>
+                              {new Date(dm.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </td>
                           </tr>
                         );
                       })}
@@ -950,13 +2356,18 @@ export default function AutomationClient({
 
         </div>
 
-        {/* TOAST */}
-        {toast&&(
-          <div className="sdm-toast" style={{ borderColor:toast.type==='error'?'rgba(239,68,68,0.3)':'rgba(16,185,129,0.3)' }}>
-            {toast.type==='error' ? <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#ef4444" strokeWidth="1.5"/><path d="M5 5l6 6M11 5l-6 6" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round"/></svg> : <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#10b981" strokeWidth="1.5"/><path d="M5 8l2.5 2.5 4-4" stroke="#10b981" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-            {toast.message}
+        {/* ── Luxury Slide-In Notification Toast ── */}
+        {toast && (
+          <div className="un-toast">
+            {toast.type === 'error' ? (
+              <svg width="18" height="18" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#EF4444" strokeWidth="2"/><path d="M5 5l6 6M11 5l-6 6" stroke="#EF4444" strokeWidth="2" strokeLinecap="round"/></svg>
+            ) : (
+              <svg width="18" height="18" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#10B981" strokeWidth="2"/><path d="M5 8l2.5 2.5 4-4" stroke="#10B981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            )}
+            <span>{toast.message}</span>
           </div>
         )}
+
       </div>
     </>
   );
