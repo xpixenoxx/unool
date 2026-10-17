@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { generateWithFallback } from '@/lib/ai/provider';
 import { logger } from '@/lib/logger';
 import type { StoryType } from '@/lib/repositories/interfaces/IPostRepository';
-import { PlatformType, buildOnboardingPrompt } from '@/lib/ai/PostAdapter';
+import { PlatformType, buildOnboardingPrompt, PLATFORM_SPECS } from '@/lib/ai/PostAdapter';
 import { ContentGuard } from '@/lib/ai/ContentGuard';
 
 // ─── Zod Schema for one post in the arc ────────────────────────────────────
@@ -162,14 +162,31 @@ function synthesizeFactGroundedArc(params: {
   audienceTimezone: string;
   userFirstName: string;
   weekStartDate?: string;
-}): WeekArc {
+}): WeekArc | null {
   const { coreStory, followUps, connectedPlatforms, weekStartDate } = params;
+
+  // Enforce ContentGuard quality & safety rules: never synthesize un-generatable content
+  const guard = ContentGuard.validateInput(coreStory, { route: 'weekarc/synthesize' });
+  if (!guard.safe) {
+    logger.warn('ContentGuard blocked synthesizeFactGroundedArc coreStory', { code: guard.violation.code });
+    return null;
+  }
+
+  const combinedFollowUps = `${followUps.whatChanged || ''} ${followUps.whatWentWrong || ''} ${followUps.oneRealNumber || ''}`.trim();
+  if (combinedFollowUps) {
+    const followUpGuard = ContentGuard.validateSocialInput(combinedFollowUps, { route: 'weekarc/synthesize/followups' });
+    if (!followUpGuard.safe) {
+      logger.warn('ContentGuard blocked synthesizeFactGroundedArc followups', { code: followUpGuard.violation.code });
+      return null;
+    }
+  }
+
   const detectedType = detectStoryType(coreStory);
   const arcBeats = ARC_BEATS[detectedType];
   const upcomingDays = getUpcomingDaysForArc(weekStartDate);
   const now = new Date();
 
-  const storyClean = coreStory.trim();
+  const storyClean = guard.sanitizedContent;
   const num = followUps.oneRealNumber.trim();
   const changed = followUps.whatChanged.trim();
   const mistake = followUps.whatWentWrong.trim();
@@ -231,8 +248,14 @@ function synthesizeFactGroundedArc(params: {
         }
       }
 
-      const sanitizedContent = ContentGuard.sanitizeOutput(content);
+      let sanitizedContent = ContentGuard.sanitizeOutput(content);
       const filteredHashtags = ContentGuard.filterHashtags(hashtags, { maxCount: 10 });
+      const spec = PLATFORM_SPECS[platform];
+      if (spec?.maxChars && sanitizedContent.length > spec.maxChars) {
+        const trimmed = sanitizedContent.slice(0, spec.maxChars - 3);
+        const lastSpace = trimmed.lastIndexOf(' ');
+        sanitizedContent = (lastSpace > spec.maxChars * 0.8 ? trimmed.slice(0, lastSpace) : trimmed) + '...';
+      }
 
       return {
         platform,
@@ -280,6 +303,24 @@ export async function generateWeekArc(params: {
   onboardingAnswers?: Record<string, any> | null;
 }): Promise<WeekArc | null> {
   const { coreStory, followUps, connectedPlatforms, audienceTimezone, userFirstName, weekStartDate } = params;
+
+  // 1. ContentGuard validation before generation: do not process unsafe/noise content
+  const guard = ContentGuard.validateInput(coreStory, { route: 'weekarc/generate' });
+  if (!guard.safe) {
+    logger.warn('ContentGuard blocked week arc coreStory in generateWeekArc', { code: guard.violation.code });
+    return null;
+  }
+
+  // 2. Validate followUps
+  const combinedFollowUps = `${followUps.whatChanged || ''} ${followUps.whatWentWrong || ''} ${followUps.oneRealNumber || ''}`.trim();
+  if (combinedFollowUps) {
+    const followUpGuard = ContentGuard.validateSocialInput(combinedFollowUps, { route: 'weekarc/generate/followups' });
+    if (!followUpGuard.safe) {
+      logger.warn('ContentGuard blocked week arc followups in generateWeekArc', { code: followUpGuard.violation.code });
+      return null;
+    }
+  }
+
   const onboardingPrompt = params.onboardingPrompt || (params.onboardingAnswers ? buildOnboardingPrompt(params.onboardingAnswers) : undefined);
   const detectedType = detectStoryType(coreStory);
   const arcBeats = ARC_BEATS[detectedType];
@@ -295,7 +336,7 @@ export async function generateWeekArc(params: {
     .join('\n');
 
   const fullStory = [
-    `Core story: ${coreStory}`,
+    `Core story: ${guard.sanitizedContent}`,
     followUps.whatChanged ? `What changed: ${followUps.whatChanged}` : '',
     followUps.whatWentWrong ? `What went wrong: ${followUps.whatWentWrong}` : '',
     followUps.oneRealNumber ? `Real number: ${followUps.oneRealNumber}` : '',
@@ -372,6 +413,15 @@ Write ONLY the JSON. No markdown code blocks. No explanation.`;
     const result = await generateWithFallback(safePrompt, { maxTokens: 6000 }, WeekArcSchema);
 
     if (result.ok && result.value) {
+      // Check if AI refused to generate content (returned empty posts per Rule 4)
+      const hasRealContent = result.value.weekPosts.some(p =>
+        p.platforms.some(pl => pl.content && pl.content.trim().length > 0)
+      );
+      if (!hasRealContent) {
+        logger.warn('AI refused week arc generation due to safety/policy constraints');
+        return null;
+      }
+
       // Validate that posts are assigned to valid upcoming days and have all active platforms
       const validUpcomingDayNumbers = new Set(upcomingDays.map(d => d.day));
       const processedPosts = result.value.weekPosts.map((post, idx) => {
@@ -386,9 +436,15 @@ Write ONLY the JSON. No markdown code blocks. No explanation.`;
         // Ensure all active platforms are present, sanitized, and enabled
         const existingPlatforms = new Map(post.platforms.map(p => [p.platform, p]));
         const mergedPlatforms = activePlatforms.map(platform => {
+          const spec = PLATFORM_SPECS[platform];
           const existing = existingPlatforms.get(platform);
           if (existing) {
-            const cleanContent = ContentGuard.sanitizeOutput(existing.content);
+            let cleanContent = ContentGuard.sanitizeOutput(existing.content);
+            if (spec?.maxChars && cleanContent.length > spec.maxChars) {
+              const trimmed = cleanContent.slice(0, spec.maxChars - 3);
+              const lastSpace = trimmed.lastIndexOf(' ');
+              cleanContent = (lastSpace > spec.maxChars * 0.8 ? trimmed.slice(0, lastSpace) : trimmed) + '...';
+            }
             return {
               ...existing,
               content: cleanContent,
@@ -397,7 +453,12 @@ Write ONLY the JSON. No markdown code blocks. No explanation.`;
               enabled: existing.enabled !== false,
             };
           }
-          const fallbackContent = ContentGuard.sanitizeOutput(post.platforms[0]?.content || coreStory.slice(0, 280));
+          let fallbackContent = ContentGuard.sanitizeOutput(post.platforms[0]?.content || coreStory.slice(0, 280));
+          if (spec?.maxChars && fallbackContent.length > spec.maxChars) {
+            const trimmed = fallbackContent.slice(0, spec.maxChars - 3);
+            const lastSpace = trimmed.lastIndexOf(' ');
+            fallbackContent = (lastSpace > spec.maxChars * 0.8 ? trimmed.slice(0, lastSpace) : trimmed) + '...';
+          }
           return {
             platform,
             content: fallbackContent,
@@ -435,5 +496,8 @@ Write ONLY the JSON. No markdown code blocks. No explanation.`;
   }
 
   // Graceful deterministic fallback: synthesize fact-grounded week arc directly from user facts
-  return synthesizeFactGroundedArc(params);
+  return synthesizeFactGroundedArc({
+    ...params,
+    coreStory: guard.sanitizedContent,
+  });
 }

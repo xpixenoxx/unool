@@ -655,9 +655,20 @@ ${batch.map(p => `    "${p}": { "content": "...", "characterCount": 100, "hashta
   ): Promise<Result<PostSequence, Error>> {
     const startTime = Date.now();
     const spec = PLATFORM_SPECS[platform];
+    if (!spec) {
+      return err(new Error(`Platform ${platform} is not supported for sequence generation`));
+    }
+
+    // Validate input with ContentGuard before generation
+    const guard = ContentGuard.validateInput(sourceContent, { route: 'postadapter/sequence' });
+    if (!guard.safe) {
+      logger.warn('ContentGuard blocked sequence generation input', { code: guard.violation.code, platform });
+      return err(new Error(guard.violation.message));
+    }
+    const safeContent = guard.sanitizedContent;
 
     try {
-      logger.info('Generating post sequence', { platform, numberOfPosts, sourceLength: sourceContent.length });
+      logger.info('Generating post sequence', { platform, numberOfPosts, sourceLength: safeContent.length });
 
       const resolvedStudioContext = context?.disablePersonalization
         ? undefined
@@ -681,7 +692,7 @@ ${batch.map(p => `    "${p}": { "content": "...", "characterCount": 100, "hashta
 - SEO focus: ${spec.seoFocus}
 
 **Source Content (the full idea to break into ${numberOfPosts} posts):**
-${sourceContent}
+${safeContent}
 
 ${context?.profileName ? `**Author Context:** ${context.profileName}${context.profileHeadline ? ` — ${context.profileHeadline}` : ''}` : ''}
 
@@ -717,16 +728,23 @@ Each post must:
 
       // Sanitize & validate each post in the sequence
       for (const post of sequence.posts) {
+        if (!post.content || !post.content.trim()) {
+          return err(new Error('AI refused generation or produced empty post content due to safety constraints'));
+        }
         post.content = ContentGuard.sanitizeOutput(post.content);
         post.hashtags = ContentGuard.filterHashtags(post.hashtags, { maxCount: 10 });
-        if (post.characterCount > spec.maxChars * 1.1) {
-          logger.warn('Sequence post exceeds platform limit', {
+        if (spec.maxChars && post.content.length > spec.maxChars) {
+          logger.warn('Sequence post exceeds platform limit, clamping', {
             platform,
             dayIndex: post.dayIndex,
-            count: post.characterCount,
+            count: post.content.length,
             limit: spec.maxChars,
           });
+          const trimmed = post.content.slice(0, spec.maxChars - 3);
+          const lastSpace = trimmed.lastIndexOf(' ');
+          post.content = (lastSpace > spec.maxChars * 0.8 ? trimmed.slice(0, lastSpace) : trimmed) + '...';
         }
+        post.characterCount = post.content.length;
       }
 
       logger.info('Sequence generation completed', {
@@ -754,10 +772,11 @@ Each post must:
     numberOfPosts: number,
     context?: AdaptationContext
   ): Promise<Record<PlatformType, Result<PostSequence, Error>>> {
+    const validPlatforms = platforms.filter(p => p in PLATFORM_SPECS);
     const results = await Promise.all(
-      platforms.map(platform => this.generateSequence(sourceContent, platform, numberOfPosts, context))
+      validPlatforms.map(platform => this.generateSequence(sourceContent, platform, numberOfPosts, context))
     );
 
-    return Object.fromEntries(results.map((r, i) => [platforms[i], r])) as Record<PlatformType, Result<PostSequence, Error>>;
+    return Object.fromEntries(results.map((r, i) => [validPlatforms[i], r])) as Record<PlatformType, Result<PostSequence, Error>>;
   }
 }

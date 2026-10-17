@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
 import { SupabasePostRepository } from '@/lib/repositories/supabase/SupabasePostRepository';
 import { logger } from '@/lib/logger';
+import { ContentGuard } from '@/lib/ai/ContentGuard';
+import { PlatformType, PLATFORM_SPECS } from '@/lib/ai/PostAdapter';
 
 const postRepository = new SupabasePostRepository();
 
@@ -42,11 +44,22 @@ export async function PATCH(
 
     const updateData: Record<string, any> = {};
     if (content !== undefined) {
-      updateData.adaptedContent = content;
-      updateData.characterCount = content.length;
+      const validation = ContentGuard.validateForBroadcast(content, { route: 'publish/variants' });
+      if (!validation.safe) {
+        return NextResponse.json(ContentGuard.blockedResponse(validation.violation), { status: 400 });
+      }
+
+      let sanitized = ContentGuard.sanitizeOutput(validation.sanitizedContent);
+      const spec = PLATFORM_SPECS[variant.platform as PlatformType];
+      if (spec?.maxChars && sanitized.length > spec.maxChars) {
+        sanitized = sanitized.slice(0, spec.maxChars);
+      }
+
+      updateData.adaptedContent = sanitized;
+      updateData.characterCount = sanitized.length;
     }
     if (hashtags !== undefined) {
-      updateData.hashtagStrategy = hashtags;
+      updateData.hashtagStrategy = ContentGuard.filterHashtags(Array.isArray(hashtags) ? hashtags : []);
     }
     if (body.mediaUrls !== undefined) {
       updateData.mediaUrls = body.mediaUrls;

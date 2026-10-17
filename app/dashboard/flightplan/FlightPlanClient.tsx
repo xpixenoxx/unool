@@ -13,13 +13,15 @@ import {
   Youtube, Cloud, Image as ImageIcon, Hash, Twitch, Dribbble,
   GraduationCap, Store, Gamepad2, Video, Zap, FileText, Globe, Mail,
   BookOpen, Code2, RotateCcw, ArrowRight, Info,
-  PauseCircle, PlayCircle, Radio, Clock, Edit3, Check
+  PauseCircle, PlayCircle, Radio, Clock, Edit3, Check,
+  AlertTriangle, ArrowUpRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, addDays, startOfWeek, isToday, startOfDay, endOfWeek, addWeeks } from 'date-fns';
 import { PlatformBrandLogo, type SupportedPlatformType } from '@/components/dashboard/previews/PlatformMobilePreview';
 import { PlatformSVGs } from '@/components/dashboard/PlatformLogos';
 import { ContentGuard } from '@/lib/ai/ContentGuard';
+import { studioToast } from '@/components/dashboard/StudioToast';
 
 /* ─── Types ─── */
 
@@ -428,7 +430,7 @@ function StoryIntake({
     const guard = ContentGuard.validateInput(coreStory, { route: 'flightplan/client' });
     if (!guard.safe) {
       setStoryError(guard.violation.message);
-      toast.error(guard.violation.message);
+      studioToast.generationFailed(guard.violation.message, { knowMoreUrl: '/terms' });
       return;
     }
 
@@ -437,7 +439,7 @@ function StoryIntake({
       const followUpGuard = ContentGuard.validateSocialInput(combinedFollowUps, { route: 'flightplan/client/followups' });
       if (!followUpGuard.safe) {
         setStoryError(followUpGuard.violation.message);
-        toast.error(followUpGuard.violation.message);
+        studioToast.generationFailed(followUpGuard.violation.message, { knowMoreUrl: '/terms' });
         return;
       }
     }
@@ -527,6 +529,56 @@ function StoryIntake({
           </div>
         </div>
       </div>
+
+      {/* Bespoke Ungeneratable Content Policy Alert Banner with Know More Symbol */}
+      {isBlocked && guardResult && (
+        <div
+          role="alert"
+          className="rounded-2xl p-4 border flex items-start justify-between gap-3 text-xs backdrop-blur-sm"
+          style={{
+            backgroundColor: '#FFFDFB',
+            borderColor: '#F2DEDE',
+            boxShadow: '0 8px 24px -4px rgba(184, 84, 80, 0.12)',
+          }}
+        >
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 bg-[#FBEDED] border border-[#F2D0CE] text-[#B85450] mt-0.5">
+              <AlertTriangle className="w-4 h-4 text-[#D9383A]" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-[#FDE8E8] text-[#9E2A2B]">
+                  Generation Notice
+                </span>
+                <span className="text-[11px] font-semibold text-[#8C2A25]">
+                  Policy Restriction
+                </span>
+              </div>
+              <p className="text-xs font-semibold leading-snug text-[#2D2319]">
+                {guardResult.violation.message}
+              </p>
+              <p className="text-[11px] text-[#8B7355] mt-0.5">
+                Content cannot be generated or scheduled if it violates safety standards or quality criteria.
+              </p>
+            </div>
+          </div>
+          <a
+            href="/terms"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-[#FAF7F2] bg-[#2D2319] hover:bg-[#3D2B1F] transition-all flex-shrink-0 shadow-2xs group"
+            title="Review terms of service and content criteria"
+          >
+            <svg viewBox="0 0 16 16" fill="none" className="w-3.5 h-3.5 text-[#C4A265]" stroke="currentColor" strokeWidth="1.75">
+              <circle cx="8" cy="8" r="7" stroke="currentColor" strokeOpacity="0.8" />
+              <line x1="8" y1="7.5" x2="8" y2="11.5" stroke="currentColor" strokeLinecap="round" />
+              <circle cx="8" cy="4.5" r="0.85" fill="currentColor" stroke="none" />
+            </svg>
+            <span>Know more</span>
+            <ArrowUpRight className="w-3 h-3 opacity-70 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+          </a>
+        </div>
+      )}
 
       {/* Follow-up questions */}
       <AnimatePresence>
@@ -1013,14 +1065,35 @@ function ReviewScreen({
     const now = new Date();
     const monday = weekStartDate ? new Date(weekStartDate) : startOfWeek(now, { weekStartsOn: 1 });
 
-    // Validate that every active post has at least one platform selected
+    // Validate that every active post has at least one platform selected, and all post contents comply with ContentGuard and limits
     for (let i = 0; i < editedArc.weekPosts.length; i++) {
       const p = editedArc.weekPosts[i];
       if (p.deleted) continue;
       const enabledPlatforms = p.platforms.filter(pf => pf.enabled !== false);
       if (enabledPlatforms.length === 0) {
         setExpandedPost(i);
+        studioToast.error(`Post for ${p.dayLabel} must have at least one active platform.`);
         return;
+      }
+      for (const pf of enabledPlatforms) {
+        const guard = ContentGuard.validateSocialInput(pf.content, { route: 'flightplan/approval' });
+        if (!guard.safe) {
+          setExpandedPost(i);
+          studioToast.generationFailed(
+            `Post on ${p.dayLabel} (${PLATFORM_CONFIG[pf.platform as PlatformType]?.name || pf.platform}): ${guard.violation.message}`,
+            { platforms: [pf.platform], knowMoreUrl: '/terms' }
+          );
+          return;
+        }
+        const cfg = PLATFORM_CONFIG[pf.platform as PlatformType];
+        if (cfg && pf.characterCount > cfg.maxChars) {
+          setExpandedPost(i);
+          studioToast.generationFailed(
+            `Post on ${p.dayLabel} for ${cfg.name} exceeds the character limit (${pf.characterCount}/${cfg.maxChars}).`,
+            { platforms: [pf.platform], knowMoreUrl: '/terms' }
+          );
+          return;
+        }
       }
     }
 
@@ -1171,6 +1244,10 @@ function ReviewScreen({
             const currentPlatformDraft = post.platforms[currentPlatformIdx];
             const config = PLATFORM_CONFIG[currentPlatformDraft?.platform as PlatformType];
             const isOverLimit = currentPlatformDraft && config && currentPlatformDraft.characterCount > config.maxChars;
+            const platformGuardResult = currentPlatformDraft?.content
+              ? ContentGuard.validateSocialInput(currentPlatformDraft.content, { route: 'flightplan/review' })
+              : null;
+            const isPlatformBlocked = platformGuardResult && !platformGuardResult.safe;
             const postImages = post.imageUrls || (post.imageUrl ? [post.imageUrl] : []);
 
             return (
@@ -1588,6 +1665,57 @@ function ReviewScreen({
                               style={{ borderColor: B.border, background: B.bg }}
                             />
 
+                            {/* Alert Banner for Unacceptable / Ungeneratable Content or Over Limit */}
+                            {(isPlatformBlocked || isOverLimit) && (
+                              <div
+                                role="alert"
+                                className="rounded-xl p-3 border flex items-start justify-between gap-3 text-xs"
+                                style={{
+                                  backgroundColor: '#FFFDFB',
+                                  borderColor: '#F2DEDE',
+                                  boxShadow: '0 4px 14px -2px rgba(184, 84, 80, 0.1)',
+                                }}
+                              >
+                                <div className="flex items-start gap-2.5">
+                                  <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 bg-[#FBEDED] border border-[#F2D0CE] text-[#B85450] mt-0.5">
+                                    <AlertTriangle className="w-3.5 h-3.5 text-[#D9383A]" />
+                                  </div>
+                                  <div>
+                                    <div className="flex items-center gap-1.5 mb-0.5">
+                                      <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#FDE8E8] text-[#9E2A2B]">
+                                        {isPlatformBlocked ? 'Safety Violation' : 'Character Cap'}
+                                      </span>
+                                    </div>
+                                    <p className="text-xs font-semibold leading-snug text-[#2D2319]">
+                                      {isPlatformBlocked
+                                        ? platformGuardResult.violation.message
+                                        : `Content exceeds ${PLATFORM_CONFIG[currentPlatformDraft.platform as PlatformType]?.name || currentPlatformDraft.platform}'s character limit (${currentPlatformDraft.characterCount}/${config?.maxChars}).`}
+                                    </p>
+                                    <p className="text-[11px] text-[#8B7355] mt-0.5">
+                                      {isPlatformBlocked
+                                        ? 'This content cannot be scheduled under our acceptable use policies.'
+                                        : 'Please shorten your text before approving the flight plan.'}
+                                    </p>
+                                  </div>
+                                </div>
+                                <a
+                                  href="/terms"
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-[#FAF7F2] bg-[#2D2319] hover:bg-[#3D2B1F] transition-all flex-shrink-0 shadow-2xs group"
+                                  title="Review terms of service and content criteria"
+                                >
+                                  <svg viewBox="0 0 16 16" fill="none" className="w-3 h-3 text-[#C4A265]" stroke="currentColor" strokeWidth="1.75">
+                                    <circle cx="8" cy="8" r="7" stroke="currentColor" strokeOpacity="0.8" />
+                                    <line x1="8" y1="7.5" x2="8" y2="11.5" stroke="currentColor" strokeLinecap="round" />
+                                    <circle cx="8" cy="4.5" r="0.85" fill="currentColor" stroke="none" />
+                                  </svg>
+                                  <span>Know more</span>
+                                  <ArrowUpRight className="w-2.5 h-2.5 opacity-70 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                                </a>
+                              </div>
+                            )}
+
                             {/* Stats bar */}
                             <div className="flex items-center justify-between flex-wrap gap-2">
                               <div className="flex items-center gap-3 text-xs" style={{ color: B.textMuted }}>
@@ -1793,6 +1921,14 @@ function ScheduledPostModal({
     icon: '•',
   };
 
+  const modalVariantConfig = PLATFORM_CONFIG[currentVariant.platform as PlatformType];
+  const modalGuardResult = useMemo(() => {
+    if (!currentContent) return null;
+    return ContentGuard.validateSocialInput(currentContent, { route: 'flightplan/modal' });
+  }, [currentContent]);
+  const isModalContentBlocked = modalGuardResult && !modalGuardResult.safe;
+  const isModalOverLimit = modalVariantConfig && currentContent.length > modalVariantConfig.maxChars;
+
   const handleUploadModalMedia = async (files: FileList | File[]) => {
     const fileArray = Array.from(files);
     if (fileArray.length === 0) return;
@@ -1866,6 +2002,27 @@ function ScheduledPostModal({
       return;
     }
 
+    // Check ContentGuard on each changed variant before saving
+    for (const v of variantsWithChanges) {
+      const c = editedContent[v.variantId] ?? v.content;
+      const guard = ContentGuard.validateSocialInput(c, { route: 'flightplan/modal' });
+      if (!guard.safe) {
+        studioToast.generationFailed(guard.violation.message, {
+          platforms: [v.platform],
+          knowMoreUrl: '/terms',
+        });
+        return;
+      }
+      const cfg = PLATFORM_CONFIG[v.platform as PlatformType];
+      if (cfg && c.length > cfg.maxChars) {
+        studioToast.generationFailed(`Content for ${cfg.name} exceeds the character limit of ${cfg.maxChars}.`, {
+          platforms: [v.platform],
+          knowMoreUrl: '/terms',
+        });
+        return;
+      }
+    }
+
     setIsSaving(true);
     try {
       for (const v of variantsWithChanges) {
@@ -1883,16 +2040,23 @@ function ScheduledPostModal({
         });
         const data = await res.json();
         if (!res.ok) {
-          throw new Error(data.error || `Failed to update ${v.platform}`);
+          studioToast.generationFailed(data.error || `Failed to update ${v.platform}`, {
+            platforms: [v.platform],
+            knowMoreUrl: '/terms',
+          });
+          return;
         }
         v.content = c;
         v.hashtags = t;
         v.mediaUrls = m;
       }
 
+      studioToast.success('Post variants updated successfully!');
       onUpdated();
     } catch {
-      // handle save error
+      studioToast.generationFailed('Failed to save changes to post variants.', {
+        knowMoreUrl: '/terms',
+      });
     } finally {
       setIsSaving(false);
     }
@@ -1915,16 +2079,16 @@ function ScheduledPostModal({
       });
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
-        toast.error(errJson.error || 'Failed to schedule post');
+        studioToast.error(errJson.error || 'Failed to schedule post');
         return;
       }
       post.scheduledAt = targetDate.toISOString();
       post.status = 'scheduled';
       setShowRescheduleInput(false);
-      toast.success(isFirstSchedule ? 'Post scheduled successfully!' : 'Post rescheduled successfully!');
+      studioToast.success(isFirstSchedule ? 'Post scheduled successfully!' : 'Post rescheduled successfully!');
       onUpdated();
     } catch {
-      toast.error('Failed to schedule post');
+      studioToast.error('Failed to schedule post');
     } finally {
       setIsRescheduling(false);
     }
@@ -2118,6 +2282,57 @@ function ScheduledPostModal({
               }}
               placeholder={`Write content for ${platformMeta.name}...`}
             />
+
+            {/* Modal Alert Banner for Safety Violation or Character Limit */}
+            {(isModalContentBlocked || isModalOverLimit) && (
+              <div
+                role="alert"
+                className="rounded-xl p-3 border flex items-start justify-between gap-3 text-xs"
+                style={{
+                  backgroundColor: '#FFFDFB',
+                  borderColor: '#F2DEDE',
+                  boxShadow: '0 4px 14px -2px rgba(184, 84, 80, 0.1)',
+                }}
+              >
+                <div className="flex items-start gap-2.5">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 bg-[#FBEDED] border border-[#F2D0CE] text-[#B85450] mt-0.5">
+                    <AlertTriangle className="w-3.5 h-3.5 text-[#D9383A]" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#FDE8E8] text-[#9E2A2B]">
+                        {isModalContentBlocked ? 'Safety Violation' : 'Character Cap'}
+                      </span>
+                    </div>
+                    <p className="text-xs font-semibold leading-snug text-[#2D2319]">
+                      {isModalContentBlocked
+                        ? modalGuardResult.violation.message
+                        : `Content exceeds ${platformMeta.name}'s character limit (${currentContent.length}/${modalVariantConfig?.maxChars}).`}
+                    </p>
+                    <p className="text-[11px] text-[#8B7355] mt-0.5">
+                      {isModalContentBlocked
+                        ? 'This draft cannot be saved or scheduled under our acceptable use policies.'
+                        : 'Please shorten your text before saving.'}
+                    </p>
+                  </div>
+                </div>
+                <a
+                  href="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-[#FAF7F2] bg-[#2D2319] hover:bg-[#3D2B1F] transition-all flex-shrink-0 shadow-2xs group"
+                  title="Review terms of service and content criteria"
+                >
+                  <svg viewBox="0 0 16 16" fill="none" className="w-3 h-3 text-[#C4A265]" stroke="currentColor" strokeWidth="1.75">
+                    <circle cx="8" cy="8" r="7" stroke="currentColor" strokeOpacity="0.8" />
+                    <line x1="8" y1="7.5" x2="8" y2="11.5" stroke="currentColor" strokeLinecap="round" />
+                    <circle cx="8" cy="4.5" r="0.85" fill="currentColor" stroke="none" />
+                  </svg>
+                  <span>Know more</span>
+                  <ArrowUpRight className="w-2.5 h-2.5 opacity-70 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                </a>
+              </div>
+            )}
           </div>
 
           {/* Hashtags Section */}
@@ -2832,7 +3047,9 @@ function FlightPlanInner({ userId, workspaceId }: { userId: string; workspaceId:
 
       const json = await res.json();
       if (!res.ok) {
-        toast.error(json.error || 'Failed to generate week plan. Please check your story input.');
+        studioToast.generationFailed(json.error || 'Failed to generate week plan. Please check your story input.', {
+          knowMoreUrl: '/terms',
+        });
         return;
       }
 
@@ -2840,7 +3057,9 @@ function FlightPlanInner({ userId, workspaceId }: { userId: string; workspaceId:
       setArc(json.arc);
       setView('review');
     } catch {
-      toast.error('An unexpected error occurred while generating your plan.');
+      studioToast.generationFailed('An unexpected error occurred while generating your plan.', {
+        knowMoreUrl: '/terms',
+      });
     } finally {
       setIsGenerating(false);
     }
@@ -2893,12 +3112,21 @@ function FlightPlanInner({ userId, workspaceId }: { userId: string; workspaceId:
         }),
       });
 
-      if (!res.ok) return;
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        studioToast.generationFailed(json.error || 'Failed to schedule flight plan.', {
+          knowMoreUrl: '/terms',
+        });
+        return;
+      }
 
+      studioToast.success('Flight Plan approved and scheduled successfully!');
       setView('canvas');
       setArc(null);
     } catch {
-      // schedule error handled
+      studioToast.generationFailed('Failed to schedule flight plan. Please try again.', {
+        knowMoreUrl: '/terms',
+      });
     } finally {
       setIsScheduling(false);
     }

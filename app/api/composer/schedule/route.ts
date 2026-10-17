@@ -5,7 +5,8 @@ import { scheduleService } from '@/lib/services/ScheduleService';
 import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseProfileRepository';
 import { logger } from '@/lib/logger';
 import type { ScheduleStrategy } from '@/lib/repositories/interfaces/IPostRepository';
-import type { PlatformType } from '@/lib/ai/PostAdapter';
+import { PlatformType, PLATFORM_SPECS } from '@/lib/ai/PostAdapter';
+import { ContentGuard } from '@/lib/ai/ContentGuard';
 
 const profileRepository = new SupabaseProfileRepository();
 
@@ -57,10 +58,17 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Invalid weekStartDate' }, { status: 400 });
       }
 
-      // Validate all post times are within 7 days
+      // Validate all post times are within 7 days and guard post content
       for (const post of posts) {
         if (typeof post.day !== 'number' || post.day < 0 || post.day > 6) {
           return NextResponse.json({ error: `Invalid day value: ${post.day}` }, { status: 400 });
+        }
+        for (const pf of (post.platforms ?? [])) {
+          if (!pf.content) continue;
+          const validation = ContentGuard.validateForBroadcast(pf.content, { route: 'composer/schedule/arc' });
+          if (!validation.safe) {
+            return NextResponse.json(ContentGuard.blockedResponse(validation.violation), { status: 400 });
+          }
         }
       }
 
@@ -77,15 +85,25 @@ export async function POST(request: NextRequest) {
           scheduledHour: p.scheduledHour ?? 9,
           scheduledMinute: p.scheduledMinute ?? 0,
           strategy: (p.strategy ?? 'cascading') as ScheduleStrategy,
-          platforms: (p.platforms ?? []).map((pf: any) => ({
-            platform: pf.platform as PlatformType,
-            content: pf.content,
-            hashtags: pf.hashtags ?? [],
-            firstCommentHint: pf.firstCommentHint,
-            autoFirstComment: pf.autoFirstComment,
-            mediaUrls: pf.mediaUrls ?? (p.imageUrls ? p.imageUrls.map((u: string) => ({ url: u, type: 'image' })) : (p.imageUrl ? [{ url: p.imageUrl, type: 'image' }] : [])),
-            schedulingOffsetMinutes: pf.schedulingOffsetMinutes ?? 0,
-          })),
+          platforms: (p.platforms ?? []).map((pf: any) => {
+            const rawContent = pf.content || '';
+            const validation = ContentGuard.validateForBroadcast(rawContent, { route: 'composer/schedule/arc' });
+            let sanitized = ContentGuard.sanitizeOutput(validation.safe ? validation.sanitizedContent : rawContent);
+            const spec = PLATFORM_SPECS[pf.platform as PlatformType];
+            const maxChars = spec?.maxChars ?? 3000;
+            if (sanitized.length > maxChars) {
+              sanitized = sanitized.slice(0, maxChars);
+            }
+            return {
+              platform: pf.platform as PlatformType,
+              content: sanitized,
+              hashtags: ContentGuard.filterHashtags(pf.hashtags ?? []),
+              firstCommentHint: pf.firstCommentHint,
+              autoFirstComment: pf.autoFirstComment,
+              mediaUrls: pf.mediaUrls ?? (p.imageUrls ? p.imageUrls.map((u: string) => ({ url: u, type: 'image' })) : (p.imageUrl ? [{ url: p.imageUrl, type: 'image' }] : [])),
+              schedulingOffsetMinutes: pf.schedulingOffsetMinutes ?? 0,
+            };
+          }),
           arcBeat: p.arcBeat ?? '',
         })),
       });
@@ -126,20 +144,38 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'scheduledAt must be in the future' }, { status: 400 });
     }
 
+    for (const p of (singlePost.platforms ?? [])) {
+      if (!p.content) continue;
+      const validation = ContentGuard.validateForBroadcast(p.content, { route: 'composer/schedule/single' });
+      if (!validation.safe) {
+        return NextResponse.json(ContentGuard.blockedResponse(validation.violation), { status: 400 });
+      }
+    }
+
     const result = await scheduleService.schedulePost({
       workspaceId,
       profileId: profile.id,
       baseScheduledAt: scheduledAt,
       strategy: (singlePost.strategy ?? 'simultaneous') as ScheduleStrategy,
-      platforms: (singlePost.platforms ?? []).map((p: any) => ({
-        platform: p.platform as PlatformType,
-        content: p.content,
-        hashtags: p.hashtags ?? [],
-        firstCommentHint: p.firstCommentHint,
-        autoFirstComment: p.autoFirstComment,
-        mediaUrls: p.mediaUrls,
-        schedulingOffsetMinutes: p.schedulingOffsetMinutes ?? 0,
-      })),
+      platforms: (singlePost.platforms ?? []).map((p: any) => {
+        const rawContent = p.content || '';
+        const validation = ContentGuard.validateForBroadcast(rawContent, { route: 'composer/schedule/single' });
+        let sanitized = ContentGuard.sanitizeOutput(validation.safe ? validation.sanitizedContent : rawContent);
+        const spec = PLATFORM_SPECS[p.platform as PlatformType];
+        const maxChars = spec?.maxChars ?? 3000;
+        if (sanitized.length > maxChars) {
+          sanitized = sanitized.slice(0, maxChars);
+        }
+        return {
+          platform: p.platform as PlatformType,
+          content: sanitized,
+          hashtags: ContentGuard.filterHashtags(p.hashtags ?? []),
+          firstCommentHint: p.firstCommentHint,
+          autoFirstComment: p.autoFirstComment,
+          mediaUrls: p.mediaUrls,
+          schedulingOffsetMinutes: p.schedulingOffsetMinutes ?? 0,
+        };
+      }),
     });
 
     return NextResponse.json({

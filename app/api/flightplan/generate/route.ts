@@ -105,9 +105,13 @@ export async function POST(request: NextRequest) {
           .map(c => c.platform as PlatformType);
       }
 
+      // Strip platforms that have no AI adaptation spec (e.g. 'manual') to avoid crashes
+      const { PLATFORM_SPECS } = await import('@/lib/ai/PostAdapter');
+      activePlatforms = activePlatforms.filter(p => p in PLATFORM_SPECS);
+
       if (activePlatforms.length === 0) {
         return NextResponse.json(
-          { error: 'No active platform connections found' },
+          { error: 'None of the connected platforms support AI sequence generation' },
           { status: 400 }
         );
       }
@@ -125,15 +129,23 @@ export async function POST(request: NextRequest) {
       );
 
       // Check for failures
+      const failedPlatforms: string[] = [];
+      const successfulPlatforms: PlatformType[] = [];
       for (const platform of activePlatforms) {
         const result = sequenceResults[platform];
-        if (!result.ok) {
-          logger.error('Flight Plan generation failed for platform', { platform, error: result.error });
-          return NextResponse.json(
-            { error: `Failed to generate for ${platform}: ${result.error}` },
-            { status: 500 }
-          );
+        if (!result || !result.ok) {
+          logger.error('Flight Plan generation failed for platform', { platform, error: result?.error });
+          failedPlatforms.push(platform);
+        } else {
+          successfulPlatforms.push(platform);
         }
+      }
+
+      if (successfulPlatforms.length === 0) {
+        return NextResponse.json(
+          { error: `Failed to generate for all platforms: ${failedPlatforms.join(', ')}`, code: 'GENERATION_FAILED' },
+          { status: 400 }
+        );
       }
 
       // Create posts in the database — one post per day
@@ -197,7 +209,13 @@ export async function POST(request: NextRequest) {
             dayPost.hashtags || [],
             { maxCount: 10 }
           );
-          const sanitizedContent = ContentGuard.sanitizeOutput(dayPost.content);
+          let sanitizedContent = ContentGuard.sanitizeOutput(dayPost.content);
+          const spec = PLATFORM_SPECS[platform];
+          if (spec?.maxChars && sanitizedContent.length > spec.maxChars) {
+            const trimmed = sanitizedContent.slice(0, spec.maxChars - 3);
+            const lastSpace = trimmed.lastIndexOf(' ');
+            sanitizedContent = (lastSpace > spec.maxChars * 0.8 ? trimmed.slice(0, lastSpace) : trimmed) + '...';
+          }
 
           await postRepository.createVariant({
             postId: post.id,

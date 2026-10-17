@@ -126,10 +126,13 @@ export async function POST(request: NextRequest) {
     });
 
     if (!arc) {
-      logger.error('Arc generation failed', { workspaceId });
+      logger.error('Arc generation failed or was blocked by safety policy', { workspaceId });
       return NextResponse.json(
-        { error: 'Failed to generate week plan. Please try again.' },
-        { status: 500 }
+        {
+          error: 'This content cannot be processed into a week plan — it appears to violate our content safety guidelines or quality standards.',
+          code: 'CONTENT_UNGENERATABLE',
+        },
+        { status: 400 }
       );
     }
 
