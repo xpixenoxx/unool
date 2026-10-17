@@ -501,6 +501,11 @@ Return ONLY valid JSON:
   /**
    * Sends a private DM to a user (commenter or inbound DM sender).
    * Uses the Instagram Messaging API.
+   *
+   * For inbound DMs (user already in conversation), this works directly.
+   * For comment-triggered DMs, this may fail if the user hasn't messaged
+   * the account before (24-hour window rule). In that case, the caller
+   * should use sendPrivateReplyToComment() instead.
    */
   async sendPrivateMessage(
     accessToken: string,
@@ -525,7 +530,7 @@ Return ONLY valid JSON:
 
       if (!response.ok) {
         const errorText = await response.text();
-        logger.error('Failed to send Instagram DM', {
+        logger.error('Failed to send Instagram DM via Messaging API', {
           recipientIgScopedId,
           error: new Error(errorText),
           status: response.status,
@@ -534,13 +539,121 @@ Return ONLY valid JSON:
       }
 
       const data = await response.json();
-      logger.info('Instagram DM sent', { recipientIgScopedId, messageId: data.message_id });
+      logger.info('Instagram DM sent via Messaging API', { recipientIgScopedId, messageId: data.message_id });
       return { messageId: data.message_id };
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       logger.error('Error sending Instagram DM', { recipientIgScopedId, error: err });
       return null;
     }
+  }
+
+  /**
+   * Sends a private DM reply to a specific comment using Meta's Private Replies API.
+   *
+   * This is the CORRECT way to DM someone who left a public comment but has
+   * never messaged the brand's account. The standard messaging endpoint
+   * (/{igUserId}/messages) requires the recipient to be inside the 24-hour
+   * conversation window, which doesn't exist for random commenters.
+   *
+   * Meta Private Replies API: POST /{comment_id}/private_replies
+   * - Works for comments made within the last 7 days.
+   * - Only one private reply per comment is allowed by Meta.
+   * - Requires `instagram_business_manage_messages` permission.
+   */
+  async sendPrivateReplyToComment(
+    accessToken: string,
+    commentId: string,
+    message: string
+  ): Promise<{ messageId: string } | null> {
+    if (!commentId || commentId.startsWith('test_')) {
+      logger.debug('Skipping private reply for test/empty comment ID', { commentId });
+      return null;
+    }
+
+    try {
+      // Try graph.facebook.com first (standard for Business API)
+      let response = await fetchWithRetry(
+        `https://graph.facebook.com/v20.0/${commentId}/private_replies`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            message,
+            access_token: accessToken,
+          }).toString(),
+        }
+      );
+
+      // Fall back to graph.instagram.com
+      if (!response.ok) {
+        const fbErr = await response.text();
+        logger.warn('Private reply via graph.facebook.com failed, trying graph.instagram.com', {
+          commentId,
+          error: fbErr,
+          status: response.status,
+        });
+
+        response = await fetchWithRetry(
+          `https://graph.instagram.com/v20.0/${commentId}/private_replies`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+              message,
+              access_token: accessToken,
+            }).toString(),
+          }
+        );
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        logger.error('Failed to send private reply to comment', {
+          commentId,
+          error: new Error(errorText),
+          status: response.status,
+        });
+        return null;
+      }
+
+      const data = await response.json();
+      const messageId = data.id || data.message_id || 'sent';
+      logger.info('Private reply sent to comment', { commentId, messageId });
+      return { messageId };
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Error sending private reply to comment', { commentId, error: err });
+      return null;
+    }
+  }
+
+  /**
+   * Smart DM dispatcher: attempts the Private Replies API first (for comment-
+   * triggered DMs), then falls back to the standard Messaging API.
+   *
+   * This is the method callers should use for comment-triggered DMs to ensure
+   * DMs get delivered regardless of the 24-hour messaging window.
+   */
+  async sendDmForComment(
+    accessToken: string,
+    igUserId: string,
+    commentId: string,
+    recipientIgScopedId: string | undefined,
+    message: string
+  ): Promise<{ messageId: string } | null> {
+    // 1. Try Private Replies API first (works for any commenter within 7 days)
+    const privateResult = await this.sendPrivateReplyToComment(accessToken, commentId, message);
+    if (privateResult) return privateResult;
+
+    // 2. Fall back to standard Messaging API (works if user is in 24h window)
+    if (recipientIgScopedId) {
+      const msgResult = await this.sendPrivateMessage(accessToken, igUserId, recipientIgScopedId, message);
+      if (msgResult) return msgResult;
+    }
+
+    logger.warn('All DM delivery methods failed for comment', { commentId, recipientIgScopedId });
+    return null;
   }
 
   /**

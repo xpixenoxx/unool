@@ -557,17 +557,21 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
 
     // ── Send DM for link_request / purchase_intent ──────────────────────
     if (result.shouldSendDM && automationConfig.linkUrl) {
-      const commenterIgScopedId = (value.from as any)?.id as string;
-      if (commenterIgScopedId) {
-        const dmText = result.suggestedDM ||
-          `Hey @${commentEvent.username}! Here's the link you asked for: ${automationConfig.linkUrl}`;
-        const dmRes = await automation.sendPrivateMessage(accessToken, connection.platform_user_id, commenterIgScopedId, dmText);
-        if (dmRes) {
-          await supabase
-            .from('instagram_comment_logs')
-            .update({ dm_sent: true })
-            .eq('comment_id', commentEvent.commentId);
-        }
+      const commenterIgScopedId = (value.from as any)?.id as string | undefined;
+      const dmText = result.suggestedDM ||
+        `Hey @${commentEvent.username}! Here's the link you asked for: ${automationConfig.linkUrl}`;
+      const dmRes = await automation.sendDmForComment(
+        accessToken,
+        connection.platform_user_id,
+        commentEvent.commentId,
+        commenterIgScopedId,
+        dmText
+      );
+      if (dmRes) {
+        await supabase
+          .from('instagram_comment_logs')
+          .update({ dm_sent: true })
+          .eq('comment_id', commentEvent.commentId);
       }
     }
   }

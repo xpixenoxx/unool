@@ -319,10 +319,16 @@ export async function POST(request: NextRequest) {
           thread_hook: result.threadHook,
         }, { onConflict: 'comment_id', ignoreDuplicates: true });
 
-        // Optional DM sending for link requests
-        if (result.shouldSendDM && automationConfig.linkUrl && commenterIgScopedId) {
+        // Optional DM sending for link requests — uses Private Replies API
+        if (result.shouldSendDM && automationConfig.linkUrl) {
           const dmText = result.suggestedDM || `Hey @${commentEvent.username}! Here's the link: ${automationConfig.linkUrl}`;
-          const dmRes = await automation.sendPrivateMessage(accessToken, connection.platform_user_id, commenterIgScopedId, dmText);
+          const dmRes = await automation.sendDmForComment(
+            accessToken,
+            connection.platform_user_id,
+            commentId,
+            commenterIgScopedId,
+            dmText
+          );
           if (dmRes) {
             await supabase
               .from('instagram_comment_logs')

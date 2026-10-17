@@ -988,6 +988,91 @@ export default function AutomationClient({
   useEffect(() => { if (activeTab === 'inbox') loadFlagged(); }, [activeTab, loadFlagged]);
   useEffect(() => { if (activeTab === 'dms') loadDms(); }, [activeTab, loadDms]);
 
+  // ── Supabase Realtime: live updates without manual refresh ─────────────
+  useEffect(() => {
+    if (!workspaceId) return;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let channel: any = null;
+
+    (async () => {
+      try {
+        const { getSupabaseBrowserClient } = await import('@/lib/supabase/browser');
+        const supabase = getSupabaseBrowserClient();
+
+        channel = supabase
+          .channel(`signaldm-live-${workspaceId}`)
+          // New comment logged → refresh feed tab
+          .on(
+            'postgres_changes' as any,
+            {
+              event: '*',
+              schema: 'public',
+              table: 'instagram_comment_logs',
+              filter: `workspace_id=eq.${workspaceId}`,
+            },
+            () => {
+              loadComments();
+            }
+          )
+          // Flagged comment inserted or updated → refresh inbox tab + badge count
+          .on(
+            'postgres_changes' as any,
+            {
+              event: '*',
+              schema: 'public',
+              table: 'instagram_flagged_comments',
+              filter: `workspace_id=eq.${workspaceId}`,
+            },
+            () => {
+              loadFlagged();
+            }
+          )
+          // Inbound DM logged → refresh DMs tab
+          .on(
+            'postgres_changes' as any,
+            {
+              event: '*',
+              schema: 'public',
+              table: 'instagram_dm_logs',
+              filter: `workspace_id=eq.${workspaceId}`,
+            },
+            () => {
+              loadDms();
+            }
+          )
+          // Flagged DM inserted → refresh inbox tab
+          .on(
+            'postgres_changes' as any,
+            {
+              event: '*',
+              schema: 'public',
+              table: 'instagram_flagged_dms',
+              filter: `workspace_id=eq.${workspaceId}`,
+            },
+            () => {
+              loadFlagged();
+            }
+          )
+          .subscribe((status: string) => {
+            if (status === 'SUBSCRIBED') {
+              console.log('[SignalDM] Realtime connected — live updates active');
+            }
+          });
+      } catch (err) {
+        console.warn('[SignalDM] Realtime subscription failed — falling back to manual refresh', err);
+      }
+    })();
+
+    return () => {
+      if (channel) {
+        import('@/lib/supabase/browser').then(({ getSupabaseBrowserClient }) => {
+          getSupabaseBrowserClient().removeChannel(channel!);
+        }).catch(() => {});
+      }
+    };
+  }, [workspaceId, loadComments, loadFlagged, loadDms]);
+
   const saveConfig = async () => {
     if (!workspaceId || !config) return;
     setSaving(true);
