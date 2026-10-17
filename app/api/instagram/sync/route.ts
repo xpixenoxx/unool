@@ -437,6 +437,24 @@ export async function POST(request: NextRequest) {
             }
           } catch {}
         }
+
+        if ((media.comments_count || 0) > 0 && rawComments.length === 0 && diagnostics.filter(d => d.step.startsWith('withheld_sample')).length < 2) {
+          try {
+            const sampleRes = await fetch(`https://graph.instagram.com/v20.0/${media.id}/comments?fields=id,text,timestamp,username&access_token=${accessToken}`);
+            const sampleBody = await sampleRes.text();
+            diagnostics.push({
+              step: `withheld_sample_${media.id}`,
+              status: sampleRes.ok ? 'meta_empty_data' : 'meta_api_error',
+              detail: `HTTP ${sampleRes.status}: ${sampleBody.substring(0, 200)} (Instagram reports comments_count=${media.comments_count})`,
+            });
+          } catch (e: any) {
+            diagnostics.push({
+              step: `withheld_sample_${media.id}`,
+              status: 'fetch_error',
+              detail: e.message,
+            });
+          }
+        }
       }
 
       totalCommentsExamined += rawComments.length;

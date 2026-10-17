@@ -1085,7 +1085,10 @@ export default function AutomationClient({
   useEffect(() => {
     fetch('/api/platform/connections', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data?.instagram) setIgConnection(data.instagram); })
+      .then(data => {
+        const ig = data?.connections?.instagram || data?.instagram;
+        if (ig) setIgConnection(ig);
+      })
       .catch(() => {});
   }, []);
 
@@ -1354,11 +1357,7 @@ export default function AutomationClient({
                       <span>{syncingWebhook ? 'Syncing API...' : 'Sync Webhook'}</span>
                     </button>
                   </div>
-                ) : (
-                  <a href={`/api/auth/platform/connect?platform=instagram&workspaceId=${workspaceId || ''}`} className="un-btn un-btn-gold" style={{ fontSize: 12.5, padding: '7px 15px' }}>
-                    Connect Instagram Account
-                  </a>
-                )}
+                ) : null}
               </div>
             </div>
 
