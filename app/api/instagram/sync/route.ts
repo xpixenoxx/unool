@@ -227,13 +227,13 @@ export async function POST(request: NextRequest) {
     }
 
     // 4. Fetch recent media from Instagram with robust multi-endpoint fallbacks and pagination
-    let mediaItems: Array<{ id: string; caption?: string; timestamp?: string; comments_count?: number }> = [];
+    let mediaItems: Array<{ id: string; caption?: string; timestamp?: string; comments_count?: number; comments?: { data?: any[] } }> = [];
     const fetchLimit = 100;
     let mediaSource = '';
 
-    // Endpoint A: graph.instagram.com/v20.0/me/media
+    // Endpoint A: graph.instagram.com/v20.0/me/media (request comments directly in bulk)
     try {
-      let nextUrl: string | null = `https://graph.instagram.com/v20.0/me/media?fields=id,caption,timestamp,comments_count,media_type&limit=${fetchLimit}&access_token=${accessToken}`;
+      let nextUrl: string | null = `https://graph.instagram.com/v20.0/me/media?fields=id,caption,timestamp,comments_count,media_type,comments{id,text,username,timestamp}&limit=${fetchLimit}&access_token=${accessToken}`;
       let pageCount = 0;
       while (nextUrl && pageCount < 3) {
         pageCount++;
@@ -245,13 +245,24 @@ export async function POST(request: NextRequest) {
           if (mediaItems.length > 0 && !mediaSource) mediaSource = 'graph.instagram.com/me/media';
           nextUrl = mediaData.paging?.next || null;
         } else {
-          const errText = await mediaRes.text();
-          diagnostics.push({
-            step: 'fetch_media_A',
-            status: 'error',
-            detail: `HTTP ${mediaRes.status}: ${errText.substring(0, 200)}`,
-          });
-          break;
+          // If bulk comments edge fails, try without comments field
+          const fallbackRes: Response = await fetch(
+            `https://graph.instagram.com/v20.0/me/media?fields=id,caption,timestamp,comments_count,media_type&limit=${fetchLimit}&access_token=${accessToken}`
+          );
+          if (fallbackRes.ok) {
+            const fbData: any = await fallbackRes.json();
+            mediaItems = mediaItems.concat(fbData.data || []);
+            if (mediaItems.length > 0 && !mediaSource) mediaSource = 'graph.instagram.com/me/media';
+            nextUrl = fbData.paging?.next || null;
+          } else {
+            const errText = await mediaRes.text();
+            diagnostics.push({
+              step: 'fetch_media_A',
+              status: 'error',
+              detail: `HTTP ${mediaRes.status}: ${errText.substring(0, 200)}`,
+            });
+            break;
+          }
         }
       }
       if (mediaItems.length > 0) {
@@ -268,7 +279,7 @@ export async function POST(request: NextRequest) {
     // Endpoint B: graph.facebook.com/v20.0/{platform_user_id}/media
     if (mediaItems.length === 0 && connection.platform_user_id) {
       try {
-        let nextUrl: string | null = `https://graph.facebook.com/v20.0/${connection.platform_user_id}/media?fields=id,caption,timestamp,comments_count,media_type&limit=${fetchLimit}&access_token=${accessToken}`;
+        let nextUrl: string | null = `https://graph.facebook.com/v20.0/${connection.platform_user_id}/media?fields=id,caption,timestamp,comments_count,media_type,comments{id,text,username,timestamp}&limit=${fetchLimit}&access_token=${accessToken}`;
         let pageCount = 0;
         while (nextUrl && pageCount < 3) {
           pageCount++;
@@ -357,11 +368,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const postsWithCommentsCount = mediaItems.filter(m => (m.comments_count || 0) > 0).length;
+
     diagnostics.push({
       step: 'media_summary',
       status: mediaItems.length > 0 ? 'ok' : 'error',
       detail: mediaItems.length > 0
-        ? `Found ${mediaItems.length} posts via ${mediaSource}`
+        ? `Found ${mediaItems.length} posts via ${mediaSource}. Posts with comments_count > 0: ${postsWithCommentsCount}`
         : 'ALL media endpoints returned 0 posts — token may lack instagram_business_basic scope or account is not Professional',
     });
 
@@ -376,56 +389,50 @@ export async function POST(request: NextRequest) {
     for (const media of mediaItems) {
       let rawComments: any[] = [];
 
-      // Query comments on the media
-      // In Meta Graph API v20+:
-      // - Standard fields on InstagramComment are: id, text, username, timestamp, replies
-      // - Requesting `from` or `parent_id` on the comment node causes Error #100 (nonexistent field).
-      // - Replies are retrieved via the `replies{id,text,username,timestamp}` edge.
-      try {
-        // Attempt 1: graph.facebook.com with comments + nested replies
-        let commentsRes = await fetch(
-          `https://graph.facebook.com/v20.0/${media.id}/comments?fields=id,text,username,timestamp,replies{id,text,username,timestamp}&access_token=${accessToken}`
-        );
+      // Source 1: Check if comments were already retrieved in bulk me/media call
+      if (media.comments?.data && Array.isArray(media.comments.data) && media.comments.data.length > 0) {
+        rawComments = [...media.comments.data];
+      }
 
-        if (commentsRes.ok) {
-          const cData = await commentsRes.json();
-          const items = cData.data || [];
-          for (const item of items) {
-            rawComments.push(item);
-            if (item.replies?.data && Array.isArray(item.replies.data)) {
-              for (const reply of item.replies.data) {
-                rawComments.push({ ...reply, parent_id: item.id });
-              }
+      // Source 2: If none from bulk, query media node with comments field on graph.instagram.com
+      if (rawComments.length === 0) {
+        try {
+          const igNodeRes = await fetch(
+            `https://graph.instagram.com/v20.0/${media.id}?fields=id,comments{id,text,username,timestamp}&access_token=${accessToken}`
+          );
+          if (igNodeRes.ok) {
+            const igNodeData = await igNodeRes.json();
+            if (igNodeData.comments?.data) {
+              rawComments = igNodeData.comments.data;
             }
           }
-        } else {
-          // Attempt 2: Minimal fields on graph.facebook.com if replies edge fails
-          const minimalFbRes = await fetch(
+        } catch {}
+      }
+
+      // Source 3: Query /{media.id}/comments edge on graph.instagram.com
+      if (rawComments.length === 0) {
+        try {
+          const igCommentsRes = await fetch(
+            `https://graph.instagram.com/v20.0/${media.id}/comments?fields=id,text,username,timestamp&access_token=${accessToken}`
+          );
+          if (igCommentsRes.ok) {
+            const igCData = await igCommentsRes.json();
+            rawComments = igCData.data || [];
+          }
+        } catch {}
+      }
+
+      // Source 4: Query /{media.id}/comments on graph.facebook.com (for Facebook-backed tokens)
+      if (rawComments.length === 0) {
+        try {
+          const fbRes = await fetch(
             `https://graph.facebook.com/v20.0/${media.id}/comments?fields=id,text,username,timestamp&access_token=${accessToken}`
           );
-          if (minimalFbRes.ok) {
-            const minFbData = await minimalFbRes.json();
-            rawComments = minFbData.data || [];
-          } else {
-            // Attempt 3: graph.instagram.com with clean fields
-            const igRes = await fetch(
-              `https://graph.instagram.com/v20.0/${media.id}/comments?fields=id,text,username,timestamp&access_token=${accessToken}`
-            );
-            if (igRes.ok) {
-              const igData = await igRes.json();
-              rawComments = igData.data || [];
-            } else {
-              const fbErrText = await minimalFbRes.text().catch(() => '');
-              logger.debug('No comments or error fetching comments for media during sync', {
-                mediaId: media.id,
-                error: fbErrText.substring(0, 150),
-              });
-            }
+          if (fbRes.ok) {
+            const fbData = await fbRes.json();
+            rawComments = fbData.data || [];
           }
-        }
-      } catch (err: any) {
-        logger.warn('Failed to fetch comments for media during sync', { mediaId: media.id, error: err.message });
-        continue;
+        } catch {}
       }
 
       totalCommentsExamined += rawComments.length;
@@ -596,10 +603,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    diagnostics.push({
+      step: 'comments_summary',
+      status: totalCommentsExamined > 0 ? 'ok' : (postsWithCommentsCount > 0 ? 'warning' : 'empty'),
+      detail: totalCommentsExamined > 0
+        ? `Found and examined ${totalCommentsExamined} comments across ${mediaItems.length} posts.`
+        : (postsWithCommentsCount > 0
+            ? `Instagram reports ${postsWithCommentsCount} post(s) have comments, but Meta Graph API withheld them. If your Meta App is in Development Mode, the commenter must be an added Tester in Meta Developer Portal (developers.facebook.com).`
+            : `All ${mediaItems.length} posts have 0 comments according to Instagram.`),
+    });
+
     return NextResponse.json({
       ok: true,
       workspaceId,
       mediaCount: mediaItems.length,
+      postsWithCommentsCount,
       totalCommentsExamined,
       newCommentsProcessed,
       repliesPosted,

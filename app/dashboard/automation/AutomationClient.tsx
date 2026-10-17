@@ -1044,8 +1044,10 @@ export default function AutomationClient({
           showToast(`Audited ${data.totalCommentsExamined} comments across ${data.mediaCount || 0} posts — all up to date.`, 'success');
         } else if (data.mediaCount === 0) {
           showToast('No Instagram posts found for this account. Ensure account has published posts.', 'error');
+        } else if (data.postsWithCommentsCount > 0) {
+          showToast(`Audited ${data.mediaCount} posts (${data.postsWithCommentsCount} with comments). Meta withheld them — ensure tester is added in Meta Developer Portal.`, 'error');
         } else {
-          showToast(`Audited ${data.mediaCount} post${data.mediaCount > 1 ? 's' : ''}. No new comments found.`, 'success');
+          showToast(`Audited ${data.mediaCount} post${data.mediaCount > 1 ? 's' : ''}. No comments found on Instagram.`, 'success');
         }
       } else {
         showToast(data.message || data.error || 'Failed to sync comments', 'error');
