@@ -31,8 +31,8 @@ import { ListmonkConnectDialog } from './ListmonkConnectDialog';
 import { HashnodeConnectDialog } from './HashnodeConnectDialog';
 import { DevtoConnectDialog } from './DevtoConnectDialog';
 
-const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'dribbble', 'skool', 'whop', 'kick', 'warpcast', 'mewe', 'nostr', 'medium', 'lemmy', 'listmonk', 'hashnode', 'devto'] as const;
-type Platform = typeof SUPPORTED_PLATFORMS[number];
+export const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'dribbble', 'skool', 'whop', 'kick', 'warpcast', 'mewe', 'nostr', 'medium', 'lemmy', 'listmonk', 'hashnode', 'devto'] as const;
+export type Platform = typeof SUPPORTED_PLATFORMS[number];
 
 interface PlatformConnection {
   platform: Platform;
@@ -49,7 +49,7 @@ interface PlatformConnectionsProps {
 
 /* ─── Platform display config ──────────────────────────────── */
 
-const PLATFORM_CONFIG: Record<
+export const PLATFORM_CONFIG: Record<
   Platform,
   {
     icon: React.ElementType;

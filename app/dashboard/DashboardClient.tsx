@@ -11,7 +11,7 @@ import {
   CalendarDays, Wifi, WifiOff, ArrowUpRight, MoreHorizontal
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { PlatformConnections } from '@/components/dashboard/PlatformConnections';
+import { PlatformConnections, SUPPORTED_PLATFORMS, PLATFORM_CONFIG } from '@/components/dashboard/PlatformConnections';
 import { BlueskyConnectDialog } from '@/components/dashboard/BlueskyConnectDialog';
 import { PlatformBrandLogo, type SupportedPlatformType } from '@/components/dashboard/previews/PlatformMobilePreview';
 import { cn } from '@/lib/utils';
@@ -373,96 +373,100 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
 
           {/* Platform badges */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {[
-              { id: 'linkedin' as SupportedPlatformType, name: 'LinkedIn', color: '#0A66C2', connected: data.connections['linkedin']?.status === 'connected' },
-              { id: 'x' as SupportedPlatformType, name: 'X (Twitter)', color: '#1A1A1A', connected: data.connections['x']?.status === 'connected' },
-              { id: 'threads' as SupportedPlatformType, name: 'Threads', color: '#000000', connected: data.connections['threads']?.status === 'connected' },
-              { id: 'instagram' as SupportedPlatformType, name: 'Instagram', color: '#E1306C', connected: data.connections['instagram']?.status === 'connected' },
-              { id: 'facebook' as SupportedPlatformType, name: 'Facebook', color: '#1877F2', connected: data.connections['facebook']?.status === 'connected' },
-              { id: 'youtube' as SupportedPlatformType, name: 'YouTube', color: '#FF0000', connected: data.connections['youtube']?.status === 'connected' },
-              { id: 'pinterest' as SupportedPlatformType, name: 'Pinterest', color: '#E60023', connected: data.connections['pinterest']?.status === 'connected' },
-              { id: 'bluesky' as SupportedPlatformType, name: 'Bluesky', color: '#0085ff', connected: data.connections['bluesky']?.status === 'connected' },
-            ]
-            // Sort: connected platforms first, preserving their relative order
-            .sort((a, b) => (a.connected === b.connected ? 0 : a.connected ? -1 : 1))
-            .map((platform) => {
-              const isLinkedinAnalytics = platform.id === 'linkedin' && platform.connected;
-              return (
-              <div
-                key={platform.name}
-                onClick={() => {
-                  if (isLinkedinAnalytics) {
-                    window.location.href = '/analytics/linkedin';
-                  }
-                }}
-                className={cn(
-                  "flex items-center gap-3 p-3 rounded-xl transition-all",
-                  isLinkedinAnalytics && "cursor-pointer hover:scale-[1.02] shadow-sm group"
-                )}
-                style={{
-                  backgroundColor: platform.connected ? B.cardAlt : B.bg,
-                  border: `1px solid ${platform.connected ? B.border : B.borderLight}`,
-                }}
-              >
+            {SUPPORTED_PLATFORMS
+              // Map to platform objects with connection status and config
+              .map((platformId) => {
+                const config = PLATFORM_CONFIG[platformId];
+                const connected = data.connections[platformId]?.status === 'connected';
+                return {
+                  id: platformId as SupportedPlatformType,
+                  name: config.name,
+                  color: config.color,
+                  connected,
+                };
+              })
+              // Sort: connected platforms first, preserving their relative order
+              .sort((a, b) => (a.connected === b.connected ? 0 : a.connected ? -1 : 1))
+              // Limit to exactly 8 platforms for the dashboard grid
+              .slice(0, 8)
+              .map((platform) => {
+                const isLinkedinAnalytics = platform.id === 'linkedin' && platform.connected;
+                return (
                 <div
-                  className="h-10 w-10 rounded-xl flex items-center justify-center shadow-xs flex-shrink-0"
+                  key={platform.name}
+                  onClick={() => {
+                    if (isLinkedinAnalytics) {
+                      window.location.href = '/analytics/linkedin';
+                    }
+                  }}
+                  className={cn(
+                    "flex items-center gap-3 p-3 rounded-xl transition-all",
+                    isLinkedinAnalytics && "cursor-pointer hover:scale-[1.02] shadow-sm group"
+                  )}
                   style={{
-                    backgroundColor: platform.connected ? '#FFFFFF' : B.borderLight,
-                    border: '1px solid rgba(0,0,0,0.06)',
+                    backgroundColor: platform.connected ? B.cardAlt : B.bg,
+                    border: `1px solid ${platform.connected ? B.border : B.borderLight}`,
                   }}
                 >
-                  <PlatformBrandLogo platform={platform.id} size={28} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium" style={{ color: B.text }}>
-                    {platform.name}
-                  </p>
-                  <p className="text-xs" style={{ color: platform.connected ? B.success : B.textLight }}>
-                    {platform.connected ? '● Connected' : '○ Not connected'}
-                  </p>
-                </div>
-                {!platform.connected && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (platform.id === 'bluesky') {
-                        setBlueskyDialogOpen(true);
-                      } else {
-                        window.location.href = `/api/auth/platform/connect?platform=${platform.id}&workspaceId=${data.workspaceId}`;
-                      }
+                  <div
+                    className="h-10 w-10 rounded-xl flex items-center justify-center shadow-xs flex-shrink-0"
+                    style={{
+                      backgroundColor: platform.connected ? '#FFFFFF' : B.borderLight,
+                      border: '1px solid rgba(0,0,0,0.06)',
                     }}
-                    className="text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
-                    style={{ backgroundColor: B.accentBg, color: B.accent }}
                   >
-                    Connect
-                  </button>
-                )}
-                {platform.connected && (
-                  <button
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      if (!confirm(`Disconnect ${platform.name}? You can reconnect anytime.`)) return;
-                      try {
-                        const res = await fetch(`/api/platform/connections/${platform.id}`, {
-                          method: 'DELETE',
-                        });
-                        if (res.ok) {
-                          window.location.reload();
+                    <PlatformBrandLogo platform={platform.id} size={28} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium" style={{ color: B.text }}>
+                      {platform.name}
+                    </p>
+                    <p className="text-xs" style={{ color: platform.connected ? B.success : B.textLight }}>
+                      {platform.connected ? '● Connected' : '○ Not connected'}
+                    </p>
+                  </div>
+                  {!platform.connected && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (platform.id === 'bluesky') {
+                          setBlueskyDialogOpen(true);
                         } else {
+                          window.location.href = `/api/auth/platform/connect?platform=${platform.id}&workspaceId=${data.workspaceId}`;
+                        }
+                      }}
+                      className="text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
+                      style={{ backgroundColor: B.accentBg, color: B.accent }}
+                    >
+                      Connect
+                    </button>
+                  )}
+                  {platform.connected && (
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        if (!confirm(`Disconnect ${platform.name}? You can reconnect anytime.`)) return;
+                        try {
+                          const res = await fetch(`/api/platform/connections/${platform.id}`, {
+                            method: 'DELETE',
+                          });
+                          if (res.ok) {
+                            window.location.reload();
+                          } else {
+                            alert('Failed to disconnect');
+                          }
+                        } catch (e) {
                           alert('Failed to disconnect');
                         }
-                      } catch (e) {
-                        alert('Failed to disconnect');
-                      }
-                    }}
-                    className="text-xs font-medium px-3 py-1.5 rounded-lg transition-colors border hover:bg-black/5"
-                    style={{ borderColor: B.border, color: B.textMuted }}
-                  >
-                    Disconnect
-                  </button>
-                )}
-              </div>
-            )})}
+                      }}
+                      className="text-xs font-medium px-3 py-1.5 rounded-lg transition-colors border hover:bg-black/5"
+                      style={{ borderColor: B.border, color: B.textMuted }}
+                    >
+                      Disconnect
+                    </button>
+                  )}
+                </div>
+              )})}
           </div>
 
           <Dialog>
