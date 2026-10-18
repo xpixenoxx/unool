@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ProfilePreview } from '@/components/profile/ProfilePreview';
+import BrandMaterialsPageView from './[slug]/BrandMaterialsPageView';
 
 interface Profile {
   id: string;
@@ -77,6 +78,30 @@ export default function PublicProfilePage({ params }: { params: Promise<{ subdom
 
   const shouldScrollToActivity = searchParams.get('activity') === '1' || hasActivityHash;
   const targetPage = searchParams.get('page');
+  const itemParam = searchParams.get('item') || searchParams.get('file') || searchParams.get('product') || searchParams.get('material');
+  const [showcaseData, setShowcaseData] = useState<any>(null);
+
+  // If a ?item=... or ?product=... query string is provided on root subdomain, load showcase
+  useEffect(() => {
+    let cancelled = false;
+    async function loadShowcase() {
+      if (!itemParam) return;
+      const { subdomain } = await params;
+      try {
+        const res = await fetch(`/api/brand-materials?subdomain=${subdomain}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (!cancelled && data.page) {
+            setShowcaseData(data);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load showcase item:', err);
+      }
+    }
+    loadShowcase();
+    return () => { cancelled = true; };
+  }, [itemParam, params]);
 
   // If a ?page=... query string is provided on root subdomain, smoothly route to the subpage
   useEffect(() => {
@@ -280,6 +305,19 @@ export default function PublicProfilePage({ params }: { params: Promise<{ subdom
       image: null,
     },
   };
+
+  // If viewing a specific showcase item on the root subdomain (e.g. ?item=crocheting_ball)
+  if (itemParam && showcaseData?.page) {
+    return (
+      <BrandMaterialsPageView
+        subdomain={showcaseData.subdomain || profile.subdomain}
+        pageData={showcaseData.page}
+        profile={showcaseData.profile || { name: profile.name, subdomain: profile.subdomain, avatarUrl: profile.avatarUrl }}
+        liveTemplate={showcaseData.liveTemplate || profile.theme?.template}
+        searchParams={{ item: itemParam }}
+      />
+    );
+  }
 
   return (
     <ProfilePreview

@@ -1068,6 +1068,10 @@ export default function AutomationClient({
       if (p === 'linkedin' || p === 'instagram') {
         setPlatform(p);
       }
+      const t = params.get('tab');
+      if (t && ['control', 'materials', 'simulator', 'feed', 'inbox', 'dms'].includes(t)) {
+        setActiveTab(t as any);
+      }
     }
   }, []);
 
@@ -1076,6 +1080,15 @@ export default function AutomationClient({
     if (typeof window !== 'undefined') {
       const url = new URL(window.location.href);
       url.searchParams.set('platform', p);
+      window.history.replaceState({}, '', url.toString());
+    }
+  };
+
+  const handleTabChange = (tabId: 'control' | 'materials' | 'simulator' | 'feed' | 'inbox' | 'dms') => {
+    setActiveTab(tabId);
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', tabId);
       window.history.replaceState({}, '', url.toString());
     }
   };
@@ -1504,7 +1517,7 @@ export default function AutomationClient({
                 <button
                   key={tab.id}
                   className={`un-tab-btn ${activeTab === tab.id ? 'active' : ''}`}
-                  onClick={() => setActiveTab(tab.id as any)}
+                  onClick={() => handleTabChange(tab.id as any)}
                 >
                   {tab.icon}
                   <span>{tab.label}</span>

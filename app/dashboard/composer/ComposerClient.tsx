@@ -103,6 +103,7 @@ import {
 import { PlatformSVGs } from '@/components/dashboard/PlatformLogos';
 import { HashtagEditor } from '@/components/dashboard/HashtagEditor';
 import { StudioIdeaGenerator } from '@/components/dashboard/StudioIdeaGenerator';
+import PostBrandMaterialsCard from '@/components/dashboard/PostBrandMaterialsCard';
 
 type PlatformType = SupportedPlatformType;
 
@@ -796,6 +797,8 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const [isHumanizingAll, setIsHumanizingAll] = useState(false);
   const [personalizeWithProfile, setPersonalizeWithProfile] = useState(true);
   const [isIdeaGeneratorOpen, setIsIdeaGeneratorOpen] = useState(false);
+  const [attachedBrandSlug, setAttachedBrandSlug] = useState<string | null>(null);
+  const [attachedBrandUrl, setAttachedBrandUrl] = useState<string | null>(null);
   const springConfig: Transition = reducedMotion ? { type: 'tween', duration: 0.01 } : spring.snappy;
 
   // ── Debounced hook scorer ────────────────────────────────────────────────────
@@ -2063,6 +2066,24 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                       </div>
                     )}
                   </div>
+
+                  {/* Brand Materials Page for this Post */}
+                  <div className="pt-2">
+                    <PostBrandMaterialsCard
+                      workspaceId={workspaceId}
+                      subdomain={profile?.subdomain || (user as any)?.subdomain || 'user'}
+                      postContent={quickContent}
+                      attachedSlug={attachedBrandSlug}
+                      onAttachPage={(slug, url) => {
+                        setAttachedBrandSlug(slug);
+                        setAttachedBrandUrl(url);
+                      }}
+                      onInsertLinkIntoDraft={(url) => {
+                        setQuickContent(prev => prev ? `${prev}\n\n${url}` : url);
+                        toast.success('Brand page link added to post draft!');
+                      }}
+                    />
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -2296,6 +2317,24 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                         </div>
                       )}
                     </div>
+                  </div>
+
+                  {/* Brand Materials Page for this Post */}
+                  <div className="pt-2">
+                    <PostBrandMaterialsCard
+                      workspaceId={workspaceId}
+                      subdomain={profile?.subdomain || (user as any)?.subdomain || 'user'}
+                      postContent={sourceContent}
+                      attachedSlug={attachedBrandSlug}
+                      onAttachPage={(slug, url) => {
+                        setAttachedBrandSlug(slug);
+                        setAttachedBrandUrl(url);
+                      }}
+                      onInsertLinkIntoDraft={(url) => {
+                        setSourceContent(prev => prev ? `${prev}\n\n${url}` : url);
+                        toast.success('Brand page link added to post draft!');
+                      }}
+                    />
                   </div>
                 </CardContent>
               </Card>
