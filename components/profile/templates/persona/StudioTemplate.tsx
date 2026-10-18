@@ -754,7 +754,7 @@ function StudioAtmosphereCanvas({
       }
     };
 
-    canvas.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('resize', resize);
     resize();
 
@@ -802,7 +802,7 @@ function StudioAtmosphereCanvas({
     animationRef.current = requestAnimationFrame(animate);
 
     return () => {
-      canvas.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('resize', resize);
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
@@ -1151,10 +1151,10 @@ function TopNav({
       initial={{ y: -100, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
-      className="fixed top-0 left-0 right-0 z-50 px-6 md:px-8 lg:px-12"
+      className="sticky top-0 left-0 right-0 z-50 px-4 sm:px-6 md:px-8 bg-[rgba(6,16,14,0.85)] backdrop-blur-xl border-b border-[var(--studio-border-subtle)]"
       style={{ height: '72px' }}
     >
-      <div className="max-w-[1600px] mx-auto flex items-center justify-between h-full">
+      <div className="max-w-[1040px] mx-auto flex items-center justify-between h-[72px]">
         {/* Left: Studio Monogram + Location */}
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-3">
@@ -1226,8 +1226,8 @@ function TopNav({
 
 function IdentityCore({ profile, socialLinks, openToIntents }: { profile: PublicProfile; socialLinks: SocialLink[]; openToIntents: string[] }) {
   return (
-    <section className="relative pt-28 pb-12 px-6 md:px-8 lg:px-12" style={{ minHeight: 'calc(100vh - 72px)' }}>
-      <div className="max-w-[1600px] mx-auto">
+    <section className="relative w-full pt-4 md:pt-6">
+      <div className="w-full">
         <div className="grid lg:grid-cols-12 gap-8 lg:gap-12 items-start">
           {/* Left Column: Identity */}
           <div className="lg:col-span-7 space-y-8">
@@ -1354,40 +1354,27 @@ function IdentityCore({ profile, socialLinks, openToIntents }: { profile: Public
                 </div>
               )}
 
-              {/* Quick Proof Points — Vertical Stack */}
-              <div className="space-y-3 glass-card p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="font-ui text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--text-dim)' }}>
-                    METRICS
+              {/* Studio Practice Details */}
+              <div className="glass-card p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="font-ui text-xs font-bold uppercase tracking-widest" style={{ color: "var(--text-dim)" }}>
+                    STUDIO PRACTICE
                   </span>
-                  <span className="font-mono text-xs" style={{ color: 'var(--text-dim)' }}>
-                    {getProofPoints(profile).length}
-                  </span>
+                  <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: "var(--accent-citrine)" }} />
                 </div>
-                <div className="space-y-3">
-                  {getProofPoints(profile).slice(0, 4).map((proof, i) => (
-                    <motion.div
-                      key={proof.id}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.4, delay: 0.5 + i * 0.08 }}
-                      className="group relative flex items-center justify-between p-3 glass-card-subtle rounded-xl overflow-hidden"
-                      style={{ borderColor: 'var(--studio-border-subtle)' }}
-                    >
-                      <div className="text-center">
-                        <div className="font-editorial text-2xl font-bold" style={{ color: 'var(--accent-gold)' }}>
-                          {proof.value}
-                        </div>
-                        <div className="font-ui text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-                          {proof.title}
-                        </div>
-                      </div>
-                      <span className="font-mono text-xs font-medium shrink-0" style={{ color: 'var(--text-dim)' }}>
-                        {String(i + 1).padStart(2, '0')}
-                      </span>
-                      <div className="absolute bottom-0 left-0 right-0 h-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ background: 'var(--accent-gold)' }} />
-                    </motion.div>
-                  ))}
+                <div className="space-y-2.5 text-xs font-ui" style={{ color: "var(--text-secondary)" }}>
+                  <div className="flex justify-between py-1.5 border-b" style={{ borderColor: "var(--studio-border-subtle)" }}>
+                    <span style={{ color: "var(--text-muted)" }}>Focus</span>
+                    <span className="font-medium text-right">{profile.role || "Brand & Experience Systems"}</span>
+                  </div>
+                  <div className="flex justify-between py-1.5 border-b" style={{ borderColor: "var(--studio-border-subtle)" }}>
+                    <span style={{ color: "var(--text-muted)" }}>Location</span>
+                    <span className="font-medium text-right">{profile.company || "Worldwide / Remote Atelier"}</span>
+                  </div>
+                  <div className="flex justify-between py-1.5" style={{ borderColor: "var(--studio-border-subtle)" }}>
+                    <span style={{ color: "var(--text-muted)" }}>Commissions</span>
+                    <span className="font-medium text-right" style={{ color: "var(--accent-citrine)" }}>Available for Select Works</span>
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -1499,8 +1486,8 @@ function ProofPointsGrid({ profile }: { profile: PublicProfile }) {
   if (proofs.length === 0) return null;
 
   return (
-    <section className="px-6 md:px-8 lg:px-12 pb-8" style={{ borderTop: '1px solid var(--studio-border-subtle)' }}>
-      <div className="max-w-[1600px] mx-auto">
+    <section className="w-full pt-4" style={{ borderTop: '1px solid var(--studio-border-subtle)' }}>
+      <div className="w-full">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
             <div className="w-12 h-px" style={{ background: 'var(--accent-gold)' }} />
@@ -1763,8 +1750,8 @@ function PortfolioSection({ profile, accentColor }: { profile: PublicProfile; ac
   if (workLinks.length === 0) return null;
 
   return (
-    <section className="px-6 md:px-8 lg:px-12 pb-8" style={{ borderTop: '1px solid var(--studio-border-subtle)' }}>
-      <div className="max-w-[1600px] mx-auto">
+    <section className="w-full pt-4" style={{ borderTop: '1px solid var(--studio-border-subtle)' }}>
+      <div className="w-full">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
             <div className="w-12 h-px" style={{ background: 'var(--accent-citrine)' }} />
@@ -1858,8 +1845,8 @@ function ActionDock({ profile, onCopyEmail, onDownloadVCard }: { profile: Public
   const email = emailLink?.url.replace('mailto:', '') || '';
 
   return (
-    <section className="px-6 md:px-8 lg:px-12 pb-8" style={{ borderTop: '1px solid var(--studio-border-subtle)' }}>
-      <div className="max-w-[1600px] mx-auto">
+    <section className="w-full pt-4" style={{ borderTop: '1px solid var(--studio-border-subtle)' }}>
+      <div className="w-full">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
             <div className="w-12 h-px" style={{ background: 'var(--accent-citrine)' }} />
@@ -1917,8 +1904,8 @@ function ActionDock({ profile, onCopyEmail, onDownloadVCard }: { profile: Public
 
 function ColophonFooter({ profile }: { profile: PublicProfile }) {
   return (
-    <footer className="relative px-6 md:px-8 lg:px-12 py-8" style={{ borderTop: '1px solid var(--studio-border-subtle)' }}>
-      <div className="max-w-[1600px] mx-auto">
+    <footer className="w-full pt-8 pb-4" style={{ borderTop: '1px solid var(--studio-border-subtle)' }}>
+      <div className="w-full">
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-8 h-px" style={{ background: 'var(--accent-gold)' }} />
@@ -2070,36 +2057,46 @@ export function StudioTemplate({ profile, accentColor: propAccentColor }: Templa
         />
 
         {/* Main Content — Zero Scroll Cockpit on Desktop */}
-        <main className="lg:h-[calc(100vh-72px)] lg:max-h-[calc(100vh-72px)] lg:overflow-hidden lg:grid lg:grid-rows-[auto_1fr_auto] overflow-y-auto">
-          <div className="lg:overflow-y-auto lg:pr-2 lg:scrollbar-hide">
-            {/* Identity Core */}
-            <IdentityCore
-              profile={profile}
-              socialLinks={socialLinks}
-              openToIntents={openToIntents}
-            />
+        <main className="w-full max-w-[1040px] mx-auto px-4 sm:px-6 md:px-8 py-8 md:py-12 flex flex-col gap-12 md:gap-16 relative z-10">
+          {/* Identity Core */}
+          <IdentityCore
+            profile={profile}
+            socialLinks={socialLinks}
+            openToIntents={openToIntents}
+          />
 
-            {/* Proof Points Grid */}
-            <ProofPointsGrid profile={profile} />
+          {/* Proof Points Grid (Single prominent section) */}
+          <ProofPointsGrid profile={profile} />
 
-            {/* Portfolio / Featured Works */}
-            <PortfolioSection profile={profile} accentColor={accentColor} />
+          {/* Portfolio / Featured Works */}
+          <PortfolioSection profile={profile} accentColor={accentColor} />
 
-            {/* Action & Conversion Dock */}
-            <ActionDock
-              profile={profile}
-              onCopyEmail={handleCopyEmail}
-              onDownloadVCard={handleDownloadVCard}
-            />
-
-            {/* Recent Activity Section */}
+          {/* Recent Transmissions / Activity Section */}
+          <section className="w-full pt-4" style={{ borderTop: '1px solid var(--studio-border-subtle)' }}>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-px" style={{ background: 'var(--accent-citrine)' }} />
+                <span className="font-ui text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--text-dim)' }}>
+                  RECENT TRANSMISSIONS
+                </span>
+              </div>
+              <span className="font-mono text-xs" style={{ color: 'var(--accent-citrine)' }}>LIVE FEED</span>
+            </div>
             <RecentActivitySection
               activity={recentActivity}
               variant="studio"
               isDark={true}
               accentColor={accentColor}
+              autoScroll={(profile as any)?.autoScroll}
             />
-          </div>
+          </section>
+
+          {/* Action & Conversion Dock (Single clean contact card) */}
+          <ActionDock
+            profile={profile}
+            onCopyEmail={handleCopyEmail}
+            onDownloadVCard={handleDownloadVCard}
+          />
 
           {/* Colophon Footer */}
           <ColophonFooter profile={profile} />
