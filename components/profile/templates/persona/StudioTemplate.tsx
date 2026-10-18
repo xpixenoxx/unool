@@ -1236,7 +1236,7 @@ function IdentityCore({ profile, socialLinks, openToIntents }: { profile: Public
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
-              className="inline-flex items-center gap-2 glass-card-subtle px-4 py-1.5 rounded-full"
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[rgba(13,30,26,0.65)] backdrop-blur-md border border-[var(--accent-gold-subtle)] shadow-sm"
               style={{ borderColor: 'var(--accent-gold)' }}
             >
               <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--accent-citrine)' }} />
@@ -1252,7 +1252,13 @@ function IdentityCore({ profile, socialLinks, openToIntents }: { profile: Public
               transition={{ duration: 0.8, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
             >
               <h1 className="font-editorial font-semibold leading-[1.02] tracking-tight text-balance"
-                style={{ fontSize: 'clamp(3rem, 7vw, 7rem)', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+                style={{
+    fontSize: 'clamp(2.75rem, 6.5vw, 5.5rem)',
+    background: 'linear-gradient(135deg, #FFFFFF 0%, #E6C875 100%)',
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+    letterSpacing: '-0.025em',
+  }}>
                 {profile.name}
               </h1>
             </motion.div>
@@ -1294,16 +1300,7 @@ function IdentityCore({ profile, socialLinks, openToIntents }: { profile: Public
               </motion.div>
             )}
 
-            {/* OpenToBadges */}
-            {openToIntents.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.7 }}
-              >
-                <OpenToBadges intents={openToIntents} darkMode={true} className="gap-2" />
-              </motion.div>
-            )}
+            {/* OpenToBadges rendered globally at bottom by IdentityTemplate router */}
 
             {/* Social Brand Ecosystem — Horizontal Scroll Rail */}
             {socialLinks.length > 0 && (
@@ -1335,45 +1332,81 @@ function IdentityCore({ profile, socialLinks, openToIntents }: { profile: Public
               transition={{ duration: 0.8, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
               className="sticky top-28"
             >
-              {profile.avatarUrl && (
-                <div className="relative aspect-[4/5] rounded-2xl overflow-hidden mb-6"
-                  style={{
-                    boxShadow: 'var(--shadow-xl), 0 0 0 1px var(--glass-border-bright)',
-                    border: '1px solid var(--glass-border)',
-                  }}>
-                  <img
-                    src={profile.avatarUrl}
-                    alt={`${profile.name} — Studio Portrait`}
-                    className="w-full h-full object-cover transition-transform duration-1000 hover:scale-105"
-                  />
-                  {/* Corner Accents */}
-                  <div className="absolute top-0 left-0 w-24 h-24 border-t-2 border-l-2" style={{ borderColor: 'var(--accent-gold)' }} />
-                  <div className="absolute bottom-0 right-0 w-24 h-24 border-b-2 border-r-2" style={{ borderColor: 'var(--accent-citrine)' }} />
-                  <div className="absolute top-0 right-0 w-16 h-16 border-t-2 border-r-2" style={{ borderColor: 'var(--accent-gold)', opacity: 0.3 }} />
-                  <div className="absolute bottom-0 left-0 w-16 h-16 border-b-2 border-l-2" style={{ borderColor: 'var(--accent-citrine)', opacity: 0.3 }} />
+              {profile.avatarUrl ? (
+                <div className="relative aspect-[4/5] max-w-[280px] sm:max-w-[320px] mx-auto lg:ml-auto rounded-2xl overflow-hidden mb-6 p-1.5 glass-card-elevated border border-[var(--glass-border-bright)] shadow-[0_20px_50px_rgba(0,0,0,0.6)] group">
+                  <div className="relative w-full h-full rounded-xl overflow-hidden bg-[var(--studio-basalt)]">
+                    <img
+                      src={profile.avatarUrl}
+                      alt={`${profile.name} — Studio Portrait`}
+                      className="w-full h-full object-cover contrast-[1.03] brightness-[0.98] transition-transform duration-700 ease-out group-hover:scale-105"
+                    />
+                    {/* Atmospheric vignette overlays to blend portrait image seamlessly */}
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[var(--studio-void)] via-transparent to-transparent opacity-60" />
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[var(--studio-void)]/40 via-transparent to-transparent opacity-40" />
+
+                    {/* Monogram Seal Badge */}
+                    <div className="absolute bottom-3 left-3 px-2.5 py-1 rounded-md bg-[rgba(6,16,14,0.85)] backdrop-blur-md border border-[rgba(230,200,117,0.3)] flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--accent-citrine)' }} />
+                      <span className="font-mono text-[10px] font-bold tracking-widest uppercase text-[var(--accent-gold)]">
+                        ATELIER // {profile.name ? profile.name.slice(0, 2).toUpperCase() : 'TC'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Metallic Corner Brackets */}
+                  <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 rounded-tl-xl pointer-events-none" style={{ borderColor: 'var(--accent-gold)' }} />
+                  <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 rounded-br-xl pointer-events-none" style={{ borderColor: 'var(--accent-citrine)' }} />
+                </div>
+              ) : (
+                <div className="relative aspect-[4/5] max-w-[280px] sm:max-w-[320px] mx-auto lg:ml-auto rounded-2xl overflow-hidden mb-6 p-1.5 glass-card-elevated border border-[var(--glass-border-bright)] shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
+                  <div className="relative w-full h-full rounded-xl overflow-hidden bg-[var(--studio-basalt)] flex flex-col items-center justify-center p-8 text-center border border-[var(--studio-border)]">
+                    <div className="w-20 h-20 rounded-2xl flex items-center justify-center mb-4 bg-gradient-to-br from-[var(--accent-gold-subtle)] to-transparent border border-[var(--accent-gold)] shadow-[0_0_30px_var(--accent-gold-glow)]">
+                      <span className="font-editorial text-3xl font-bold text-[var(--accent-gold)]">
+                        {profile.name ? profile.name.charAt(0).toUpperCase() : 'S'}
+                      </span>
+                    </div>
+                    <span className="font-mono text-[10px] tracking-[0.25em] uppercase text-[var(--text-muted)]">
+                      CREATIVE ATELIER
+                    </span>
+                    <span className="font-editorial text-sm italic text-[var(--text-secondary)] mt-1">
+                      {profile.role || 'Design & Direction'}
+                    </span>
+                  </div>
                 </div>
               )}
 
               {/* Studio Practice Details */}
-              <div className="glass-card p-5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="font-ui text-xs font-bold uppercase tracking-widest" style={{ color: "var(--text-dim)" }}>
-                    STUDIO PRACTICE
+              <div className="glass-card-elevated p-6 space-y-4 border border-[var(--glass-border-bright)] rounded-2xl max-w-[280px] sm:max-w-[320px] mx-auto lg:ml-auto shadow-md">
+                <div className="flex items-center justify-between pb-3 border-b border-[var(--studio-border-subtle)]">
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-[var(--accent-citrine)]" />
+                    <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--accent-gold)]">
+                      ATELIER DOSSIER
+                    </span>
+                  </div>
+                  <span className="font-mono text-[9px] uppercase tracking-widest text-[var(--text-dim)]">
+                    EST. {new Date().getFullYear()}
                   </span>
-                  <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: "var(--accent-citrine)" }} />
                 </div>
-                <div className="space-y-2.5 text-xs font-ui" style={{ color: "var(--text-secondary)" }}>
-                  <div className="flex justify-between py-1.5 border-b" style={{ borderColor: "var(--studio-border-subtle)" }}>
-                    <span style={{ color: "var(--text-muted)" }}>Focus</span>
-                    <span className="font-medium text-right">{profile.role || "Brand & Experience Systems"}</span>
+                <div className="space-y-3 text-xs font-ui">
+                  <div className="flex justify-between items-baseline gap-2">
+                    <span className="font-mono text-[10px] uppercase text-[var(--text-dim)]">Discipline</span>
+                    <span className="font-medium text-right text-[var(--text-secondary)] truncate">
+                      {profile.role || "Brand & Digital Direction"}
+                    </span>
                   </div>
-                  <div className="flex justify-between py-1.5 border-b" style={{ borderColor: "var(--studio-border-subtle)" }}>
-                    <span style={{ color: "var(--text-muted)" }}>Location</span>
-                    <span className="font-medium text-right">{profile.company || "Worldwide / Remote Atelier"}</span>
+                  <div className="flex justify-between items-baseline gap-2">
+                    <span className="font-mono text-[10px] uppercase text-[var(--text-dim)]">Practice</span>
+                    <span className="font-medium text-right text-[var(--text-secondary)] truncate">
+                      {profile.company || "Independent Studio"}
+                    </span>
                   </div>
-                  <div className="flex justify-between py-1.5" style={{ borderColor: "var(--studio-border-subtle)" }}>
-                    <span style={{ color: "var(--text-muted)" }}>Commissions</span>
-                    <span className="font-medium text-right" style={{ color: "var(--accent-citrine)" }}>Available for Select Works</span>
+                  <div className="flex justify-between items-baseline gap-2 pt-1 border-t border-[var(--studio-border-subtle)]">
+                    <span className="font-mono text-[10px] uppercase text-[var(--text-dim)]">Commissions</span>
+                    <span className="font-semibold text-right text-[var(--accent-citrine)] flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-citrine)] animate-ping" />
+                      Accepting Select Briefs
+                    </span>
                   </div>
                 </div>
               </div>
@@ -1439,26 +1472,20 @@ function SocialRail({ links }: { links: SocialLink[] }) {
             href={link.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 px-4 py-3 glass-card-interactive shrink-0 snap-start"
+            className="group flex items-center justify-between gap-3 px-3.5 py-2.5 glass-card-interactive shrink-0 snap-start rounded-xl border border-[var(--glass-border)] hover:border-[var(--accent-gold)] bg-[var(--glass-bg)] transition-all duration-300 shadow-sm"
             style={{
               minWidth: '130px',
               borderColor: 'transparent',
             }}
             aria-label={link.label}
           >
-            <span className="flex items-center justify-center w-10 h-10 rounded-xl shrink-0 group-hover:scale-110 transition-transform duration-300"
-              style={{ background: 'var(--accent-gold-subtle)', color: 'var(--accent-gold)' }}>
-              {link.brandSvg ? (
-                <span className="w-5 h-5" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {link.brandSvg}
-                </span>
-              ) : (
-                <SocialIcon label={link.label} url={link.url} icon={link.icon ?? undefined} className="w-5 h-5 fill-current" />
-              )}
+            <span className="flex items-center justify-center w-8 h-8 rounded-lg shrink-0 bg-[rgba(230,200,117,0.12)] border border-[rgba(230,200,117,0.25)] text-[var(--accent-gold)] group-hover:bg-[rgba(230,200,117,0.22)] group-hover:border-[var(--accent-gold)] transition-all duration-300">
+              <SocialIcon label={link.label} url={link.url} icon={link.icon ?? undefined} className="w-4 h-4 fill-current" />
             </span>
             <span className="font-ui text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
               {link.label}
             </span>
+            <span className="text-[10px] text-[var(--text-dim)] group-hover:text-[var(--accent-gold)] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all">↗</span>
           </a>
         ))}
 
@@ -1755,8 +1782,8 @@ function PortfolioSection({ profile, accentColor }: { profile: PublicProfile; ac
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
             <div className="w-12 h-px" style={{ background: 'var(--accent-citrine)' }} />
-            <span className="font-ui text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--text-dim)' }}>
-              FEATURED WORKS
+            <span className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-[var(--accent-citrine)]">
+              03 // SELECTED ENGAGEMENTS
             </span>
           </div>
           <span className="font-mono text-xs" style={{ color: 'var(--text-dim)' }}>
@@ -1850,8 +1877,8 @@ function ActionDock({ profile, onCopyEmail, onDownloadVCard }: { profile: Public
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
             <div className="w-12 h-px" style={{ background: 'var(--accent-citrine)' }} />
-            <span className="font-ui text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--text-dim)' }}>
-              ENGAGEMENT
+            <span className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-[var(--accent-gold)]">
+              05 // INITIATE COLLABORATION
             </span>
           </div>
         </div>
