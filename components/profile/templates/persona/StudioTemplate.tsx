@@ -1,1591 +1,1860 @@
 'use client';
 
-import React, {
-  useEffect,
-  useRef,
-  useState,
-  useMemo,
-  useCallback,
-} from 'react';
-import type { TemplateProps, PublicProfile, ProfileLink, ProfileProof } from '@/components/profile/templates/types';
-import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Mail,
+  Phone,
+  MapPin,
+  Globe,
+  Linkedin,
+  Github,
+  Instagram,
+  Twitter,
+  Dribbble,
+  Youtube,
+  MessageSquare,
+  Globe as GlobeIcon,
+  ExternalLink,
+  ChevronRight,
+  ChevronLeft,
+  X,
+  Check,
+  Clock,
+  Zap,
+  Star,
+  Award,
+  Users,
+  Briefcase,
+  Heart,
+  Download,
+  Copy,
+  Loader2,
+  Quote,
+} from 'lucide-react';
+import { SocialIcon, normalizeSocialPlatform, BRAND_SVGS } from '@/components/profile/SocialBrandIcons';
 
-// ============================================================
-// 00 — TYPE DEFINITIONS (Internal shape for Studio)
-// ============================================================
-export interface StudioMetric {
-  index?: string;
-  value: string;
-  label: string;
-}
+/* ────────────────────────── Type Definitions ────────────────────────── */
 
-export interface StudioSocial {
-  platform: string;
-  label: string;
-  sublabel?: string;
-  url: string;
-  icon?: string;
-}
-
-export interface StudioProject {
-  id: string;
-  title: string;
-  subtitle?: string;
-  description?: string;
-  image?: string | null;
-  tags?: string[];
-  link?: string;
-  liveUrl?: string;
-  caseStudyUrl?: string;
-}
-
-export interface StudioProfileData {
-  // Identity
-  nameLineOne: string;
-  nameLineTwo?: string;
-  role?: string | null;
-  category?: string | null;
+interface PublicProfile {
+  name?: string;
+  headline?: string;
   bio?: string;
-  location?: string | null;
-  availability?: string | null;
-  established?: string | number | null;
-  edition?: string;
-  initial?: string;
-  monogram?: string;
-  portraitImage?: string | null;
-  portraitAlt?: string;
-  email?: string | null;
-  ctaLabel?: string;
-  // Visual
-  accentColor?: string;
-  // Metrics
-  metrics: StudioMetric[];
-  // Socials
-  socials: StudioSocial[];
-  // Projects (for drawer)
-  projects: StudioProject[];
-  // Footer
-  footerStatement?: string;
-}
-
-// ============================================================
-// 01 — DEFAULT DATA (fallback when profile is empty)
-// ============================================================
-export const DEFAULT_STUDIO_DATA: StudioProfileData = {
-  nameLineOne: 'Studio',
-  nameLineTwo: 'Noir',
-  role: 'CREATIVE DIRECTOR / FOUNDER',
-  category: 'BRAND & DIGITAL STUDIO',
-  bio: 'We craft distinctive identities, digital experiences, and brand systems for ambitious ventures.',
-  location: null,
-  availability: 'Open for commissions',
-  established: '2020',
-  edition: '04',
-  monogram: 'SN',
-  initial: 'S',
-  portraitImage: null,
-  portraitAlt: 'Studio Noir wordmark',
-  email: 'hello@studionoir.co',
-  ctaLabel: 'START A PROJECT',
-  accentColor: '#0A84FF',
-  metrics: [
-    { index: '01', value: '47', label: 'PROJECTS SHIPPED' },
-    { index: '02', value: '12', label: 'TEAM MEMBERS' },
-    { index: '03', value: '8', label: 'INDUSTRIES' },
-  ],
-  socials: [
-    {
-      platform: 'instagram',
-      label: 'INSTAGRAM',
-      sublabel: 'SOCIAL / 01',
-      url: 'https://instagram.com',
-      icon: 'instagram',
-    },
-    {
-      platform: 'linkedin',
-      label: 'LINKEDIN',
-      sublabel: 'SOCIAL / 02',
-      url: 'https://linkedin.com',
-      icon: 'linkedin',
-    },
-    {
-      platform: 'twitter',
-      label: 'X',
-      sublabel: 'SOCIAL / 03',
-      url: 'https://x.com',
-      icon: 'x',
-    },
-    {
-      platform: 'behance',
-      label: 'BEHANCE',
-      sublabel: 'SOCIAL / 04',
-      url: 'https://behance.net',
-      icon: 'behance',
-    },
-    {
-      platform: 'dribbble',
-      label: 'DRIBBBLE',
-      sublabel: 'SOCIAL / 05',
-      url: 'https://dribbble.com',
-      icon: 'dribbble',
-    },
-    {
-      platform: 'email',
-      label: 'EMAIL',
-      sublabel: 'SOCIAL / 06',
-      url: 'mailto:hello@studionoir.co',
-      icon: 'email',
-    },
-  ],
-  projects: [
-    {
-      id: 'proj-1',
-      title: 'AURA WELLNESS',
-      subtitle: 'Brand Identity & Digital Experience',
-      description:
-        'Complete brand overhaul for a premium wellness startup. New identity system, packaging design, and a performant e-commerce experience that increased conversion by 34%.',
-      image: null,
-      tags: ['Branding', 'Web Design', 'E-commerce', 'Art Direction'],
-      link: '#',
-      liveUrl: 'https://aurawellness.example.com',
-      caseStudyUrl: '#',
-    },
-    {
-      id: 'proj-2',
-      title: 'MONOLITH ARCHITECTS',
-      subtitle: 'Visual Identity & Motion System',
-      description:
-        'Architectural practice identity built on structural minimalism. Dynamic logo system, environmental graphics, and motion principles for presentations.',
-      image: null,
-      tags: ['Branding', 'Motion', 'Environmental', 'Typography'],
-      link: '#',
-      liveUrl: 'https://monolith.example.com',
-      caseStudyUrl: '#',
-    },
-    {
-      id: 'proj-3',
-      title: 'KINETIC VENTURES',
-      subtitle: 'Fund Brand & Portfolio Platform',
-      description:
-        'Venture capital fund brand with a data-driven portfolio platform. Real-time portfolio tracking, founder network visualization, and LP reporting tools.',
-      image: null,
-      tags: ['Branding', 'Product Design', 'Data Viz', 'Web App'],
-      link: '#',
-      liveUrl: 'https://kinetic.example.com',
-      caseStudyUrl: '#',
-    },
-  ],
-  footerStatement: 'CRAFTED WITH INTENTION · EST. 2020',
-};
-
-// ============================================================
-// 02 — BRAND SVG ICON REGISTRY (matches ClubTemplate pattern)
-// ============================================================
-export const STUDIO_BRAND_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-  instagram: ({ className = 'w-4 h-4' }) => (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
-    </svg>
-  ),
-  linkedin: ({ className = 'w-4 h-4' }) => (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 8.76a1.67 1.67 0 1 0 0-3.34 1.67 1.67 0 0 0 0 3.34M7.86 18.5V10.13H5.07V18.5h2.79z" />
-    </svg>
-  ),
-  x: ({ className = 'w-4 h-4' }) => (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-    </svg>
-  ),
-  twitter: ({ className = 'w-4 h-4' }) => (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-    </svg>
-  ),
-  behance: ({ className = 'w-4 h-4' }) => (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M22 7h-7v2h7V7zm1.726 10c-.442 1.297-2.029 3-4.976 3-3.401 0-5.75-2.292-5.75-6 0-3.52 2.366-6 5.625-6 3.424 0 5.248 2.388 4.938 5.75h-7.85c.088 1.636 1.037 2.656 2.537 2.656 1.487 0 2.195-.898 2.476-1.406H23.726zM15.713 12h5.188c-.088-1.25-.841-2.25-2.525-2.25-1.57 0-2.451.957-2.663 2.25zM8.307 10.828c.954-.44 1.443-1.277 1.443-2.316 0-2.297-1.889-3.512-4.664-3.512H0v14h5.457c3.12 0 4.993-1.488 4.993-3.898 0-1.742-1.002-3.578-2.143-4.274zM2.871 7.4h2.158c1.336 0 2.08.57 2.08 1.602 0 .977-.732 1.59-2.08 1.59H2.871V7.4zm2.348 9.2H2.871v-3.793h2.387c1.551 0 2.398.715 2.398 1.898 0 1.258-.887 1.895-2.437 1.895z" />
-    </svg>
-  ),
-  dribbble: ({ className = 'w-4 h-4' }) => (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path fillRule="evenodd" clipRule="evenodd" d="M12 24C5.385 24 0 18.615 0 12S5.385 0 12 0s12 5.385 12 12-5.385 12-12 12zm10.118-10.424c-.389-.12-2.787-.84-5.617-.384.887 2.438 1.247 4.5 1.343 5.111 2.508-1.127 4.274-3.515 4.274-6.327v-.4zm-5.785 6.012c-.12-.768-.504-2.892-1.428-5.351-.048.012-.096.024-.144.036-6.192 1.944-8.411 5.832-8.543 6.072 1.584 1.092 3.492 1.74 5.556 1.74 1.668 0 3.228-.432 4.559-1.497zm-11.231-.768c.24-.396 2.64-4.2 8.687-6.036.192-.06.384-.108.576-.156-.372-.828-.78-1.644-1.224-2.436-5.064 1.524-9.924 1.524-10.428 1.524-.012.216-.012.432-.012.66 0 2.508.972 4.8 2.401 6.444zm-3.085-8.496c.72-.012 4.968-.072 9.84-1.464-1.572-2.796-3.276-5.184-3.528-5.532-3.132 1.344-5.4 4.176-6.312 7zm8.136-7.8c.264.36 1.956 2.724 3.516 5.484 2.928-.792 5.568-.78 5.868-.768A9.974 9.974 0 0012 2.016c-.66 0-1.308.06-1.86.108zm10.74 6.372c-.444-.012-3.216-.024-6.3 1.008.384.744.732 1.512 1.056 2.292 2.724-.396 5.088.192 5.376.264.084-.696.12-1.392.12-2.1 0-.504-.072-1-.252-1.464z" />
-    </svg>
-  ),
-  email: ({ className = 'w-4 h-4' }) => (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect width="20" height="16" x="2" y="4" rx="2" />
-      <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
-    </svg>
-  ),
-  website: ({ className = 'w-4 h-4' }) => (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="10" />
-      <line x1="2" y1="12" x2="22" y2="12" />
-      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-    </svg>
-  ),
-  github: ({ className = 'w-4 h-4' }) => (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
-    </svg>
-  ),
-  generic: ({ className = 'w-4 h-4' }) => (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-    </svg>
-  ),
-};
-
-// ============================================================
-// 03 — SOCIAL ICON HELPERS (same pattern as ClubTemplate)
-// ============================================================
-export function normalizeStudioSocialPlatformKey(
-  label?: string,
-  href?: string,
-  explicitIcon?: string
-): string {
-  if (explicitIcon) {
-    const norm = explicitIcon.toLowerCase().trim();
-    if (STUDIO_BRAND_ICONS[norm]) return norm;
-    if (norm === 'twitter') return 'x';
-    if (norm === 'substack') return 'newsletter';
-    if (norm === 'mail') return 'email';
-    if (norm === 'web' || norm === 'site') return 'website';
-  }
-
-  if (label) {
-    const l = label.toLowerCase().trim();
-    if (l === 'instagram' || l.includes('instagram') || l.includes('insta')) return 'instagram';
-    if (l === 'linkedin' || l.includes('linkedin')) return 'linkedin';
-    if (l === 'x' || l === 'twitter' || l.includes('twitter') || l.includes('x.com')) return 'x';
-    if (l === 'behance' || l.includes('behance')) return 'behance';
-    if (l === 'dribbble' || l.includes('dribbble')) return 'dribbble';
-    if (l === 'github' || l.includes('github')) return 'github';
-    if (l === 'email' || l === 'mail' || l.includes('email') || l.includes('contact')) return 'email';
-    if (l === 'website' || l === 'web' || l === 'portfolio') return 'website';
-  }
-
-  if (href) {
-    try {
-      const urlStr = href.startsWith('http://') || href.startsWith('https://') || href.startsWith('mailto:')
-        ? href
-        : `https://${href}`;
-      if (urlStr.startsWith('mailto:')) return 'email';
-      const hostname = new URL(urlStr).hostname.toLowerCase();
-      if (hostname.includes('instagram.com')) return 'instagram';
-      if (hostname.includes('linkedin.com')) return 'linkedin';
-      if (hostname.includes('x.com') || hostname.includes('twitter.com')) return 'x';
-      if (hostname.includes('behance.net')) return 'behance';
-      if (hostname.includes('dribbble.com')) return 'dribbble';
-      if (hostname.includes('github.com')) return 'github';
-      if (hostname.includes('substack.com')) return 'newsletter';
-    } catch {
-      // ignore
-    }
-  }
-
-  return 'generic';
-}
-
-export function renderStudioSocialIcon(platformKey: string, className = 'w-4 h-4') {
-  const IconComponent = STUDIO_BRAND_ICONS[platformKey] || STUDIO_BRAND_ICONS['generic'];
-  return <IconComponent className={className} />;
-}
-
-// ============================================================
-// 04 — DATA ADAPTER (PublicProfile → StudioProfileData)
-// ============================================================
-export function adaptPublicProfileToStudio(
-  profile?: PublicProfile | null,
-  directData?: Partial<StudioProfileData>
-): StudioProfileData {
-  const rawName = (directData?.nameLineOne
-    ? `${directData.nameLineOne} ${directData.nameLineTwo || ''}`
-    : profile?.name || ''
-  ).trim();
-  const nameParts = rawName ? rawName.split(/\s+/) : ['Studio', 'Noir'];
-  const nameLineOne = directData?.nameLineOne || nameParts[0] || 'Studio';
-  const nameLineTwo =
-    directData?.nameLineTwo !== undefined
-      ? directData.nameLineTwo
-      : nameParts.slice(1).join(' ') || '';
-
-  const initial = directData?.initial || (nameLineOne ? nameLineOne.charAt(0).toUpperCase() : 'S');
-  const monogram =
-    directData?.monogram ||
-    (nameLineOne.charAt(0) + (nameLineTwo ? nameLineTwo.charAt(0) : '')).toUpperCase() ||
-    'SN';
-
-  // Role resolution
-  const role = directData?.role !== undefined ? directData.role : profile?.role || profile?.headline || null;
-
-  // Category kicker: NEVER promote company name to category
-  let category: string | null = null;
-  if (directData?.category) {
-    category = directData.category;
-  } else if ((profile as any)?.category) {
-    const cat = (profile as any).category;
-    const comp = profile?.company || (profile as any)?.employer || (profile as any)?.organization;
-    if (!comp || cat.trim().toLowerCase() !== comp.trim().toLowerCase()) {
-      category = cat;
-    } else if (role) {
-      category = role;
-    }
-  } else if (role) {
-    category = role;
-  }
-
-  const bio = directData?.bio !== undefined ? directData.bio : profile?.bio || '';
-
-  const location = directData?.location !== undefined
-    ? directData.location
-    : (profile as any)?.location || null;
-
-  const availability = directData?.availability !== undefined
-    ? directData.availability
-    : (profile as any)?.availability || null;
-
-  const established = directData?.established !== undefined
-    ? directData.established
-    : (profile as any)?.established || null;
-
-  const edition = directData?.edition || '01';
-
-  // Social links extraction
-  const socialList: StudioSocial[] = [];
-
-  if (directData?.socials && directData.socials.length > 0) {
-    directData.socials.forEach((s, idx) => {
-      if (s && s.url) {
-        const resolvedPlatform = normalizeStudioSocialPlatformKey(s.label, s.url, s.icon);
-        socialList.push({
-          platform: resolvedPlatform,
-          label: (s.label || 'LINK').toUpperCase(),
-          sublabel: s.sublabel || `SOCIAL / 0${idx + 1}`,
-          url: s.url,
-          icon: s.icon || resolvedPlatform,
-        });
-      }
-    });
-  } else {
-    const rawLinks = profile?.links || [];
-    const links = (rawLinks || []).filter((l: ProfileLink) => l && l.url && l.isVisible !== false);
-
-    if (links.length > 0) {
-      links.slice(0, 6).forEach((link, idx) => {
-        const resolvedPlatform = normalizeStudioSocialPlatformKey(link.label, link.url, link.icon || undefined);
-        socialList.push({
-          platform: resolvedPlatform,
-          label: (link.label || 'LINK').toUpperCase(),
-          sublabel: `SOCIAL / 0${idx + 1}`,
-          url: link.url,
-          icon: link.icon || resolvedPlatform,
-        });
-      });
-    } else if (profile?.socialHandles && Object.keys(profile.socialHandles).length > 0) {
-      const keys = Object.keys(profile.socialHandles);
-      keys.slice(0, 6).forEach((key, idx) => {
-        const val = profile.socialHandles![key];
-        if (!val) return;
-        let url = val;
-        if (!val.startsWith('http://') && !val.startsWith('https://') && !val.startsWith('mailto:')) {
-          if (key.toLowerCase() === 'instagram') url = `https://instagram.com/${val.replace('@', '')}`;
-          else if (key.toLowerCase() === 'github') url = `https://github.com/${val.replace('@', '')}`;
-          else if (key.toLowerCase() === 'linkedin') url = `https://linkedin.com/in/${val}`;
-          else if (key.toLowerCase() === 'youtube') url = `https://youtube.com/@${val}`;
-          else if (key.toLowerCase() === 'twitter' || key.toLowerCase() === 'x') url = `https://x.com/${val.replace('@', '')}`;
-          else if (key.toLowerCase() === 'behance') url = `https://behance.net/${val}`;
-          else if (key.toLowerCase() === 'dribbble') url = `https://dribbble.com/${val}`;
-          else url = `https://${val}`;
-        }
-        const resolvedPlatform = normalizeStudioSocialPlatformKey(key, url, key);
-        socialList.push({
-          platform: resolvedPlatform,
-          label: key.toUpperCase(),
-          sublabel: `SOCIAL / 0${idx + 1}`,
-          url,
-          icon: resolvedPlatform,
-        });
-      });
-    }
-  }
-
-  // Metrics extraction
-  const rawMetrics = directData?.metrics || profile?.proofs || (profile as any)?.proofPoints || (profile as any)?.proof_points || [];
-  const metricList: StudioMetric[] = [];
-
-  if (Array.isArray(rawMetrics) && rawMetrics.length > 0) {
-    rawMetrics.slice(0, 3).forEach((item: any, idx: number) => {
-      const val = (item.value || item.stat || item.count || item.number || '').toString().trim();
-      let lbl = '';
-      const candidates = [item.label, item.title, item.name, item.description];
-      for (const c of candidates) {
-        if (typeof c === 'string' && c.trim().length > 0) {
-          const trimmed = c.trim();
-          if (!/^metric\s*0?\d+$/i.test(trimmed) && !/^proof\s*0?\d+$/i.test(trimmed)) {
-            lbl = trimmed;
-            break;
-          }
-        }
-      }
-      if (!lbl) {
-        const defaultLabels = ['PROJECTS SHIPPED', 'TEAM MEMBERS', 'INDUSTRIES'];
-        lbl = defaultLabels[idx] || `SIGNAL 0${idx + 1}`;
-      }
-      if (val || lbl) {
-        metricList.push({
-          index: `0${idx + 1}`,
-          value: val || '—',
-          label: lbl.toUpperCase(),
-        });
-      }
-    });
-  }
-
-  // Email & CTA
-  const email = directData?.email !== undefined
-    ? directData.email
-    : (profile as any)?.email || profile?.socialHandles?.email || null;
-
-  const firstName = (nameLineOne || '').toUpperCase();
-  const ctaLabel = directData?.ctaLabel || (firstName && firstName !== 'THE' ? `WORK WITH ${firstName}` : 'START A PROJECT');
-
-  // Projects extraction
-  const rawProjects = directData?.projects || (profile as any)?.projects || [];
-  const projectList: StudioProject[] = Array.isArray(rawProjects)
-    ? rawProjects.map((p: any, i: number) => ({
-        id: p.id || `proj-${i}`,
-        title: p.title || p.name || `Project ${i + 1}`,
-        subtitle: p.subtitle || p.tagline || '',
-        description: p.description || p.body || '',
-        image: p.image || p.thumbnail || p.coverImage || null,
-        tags: p.tags || p.categories || [],
-        link: p.link || p.url || '#',
-        liveUrl: p.liveUrl || p.demoUrl || p.url,
-        caseStudyUrl: p.caseStudyUrl || p.caseStudy || p.studyUrl,
-      }))
-    : [];
-
-  return {
-    nameLineOne,
-    nameLineTwo,
-    role: role ? role.toUpperCase() : null,
-    category: category ? category.toUpperCase() : null,
-    bio,
-    location,
-    availability,
-    established,
-    edition,
-    initial,
-    monogram,
-    portraitImage: directData?.portraitImage !== undefined ? directData.portraitImage : profile?.avatarUrl || null,
-    portraitAlt: directData?.portraitAlt || `Editorial portrait of ${nameLineOne} ${nameLineTwo}`,
-    email,
-    ctaLabel,
-    accentColor: directData?.accentColor || (profile as any)?.theme?.accentColor || '#0A84FF',
-    metrics: metricList,
-    socials: socialList,
-    projects: projectList,
-    footerStatement: directData?.footerStatement || 'CRAFTED WITH INTENTION · EST. 2020',
+  avatarUrl?: string;
+  location?: string;
+  availability?: string;
+  email?: string;
+  phone?: string;
+  website?: string;
+  subdomain?: string;
+  timezone?: string;
+  proofs?: Array<{ title: string; value: string; label?: string }>;
+  proofPoints?: Array<{ title: string; value: string; label?: string }>;
+  proof_points?: Array<{ title: string; value: string; label?: string }>;
+  links?: Array<{ label: string; url: string; icon?: string }>;
+  socialHandles?: Record<string, string>;
+  projects?: Array<{
+    id: string;
+    title: string;
+    description?: string;
+    imageUrl?: string;
+    url?: string;
+    category?: string;
+    year?: string;
+    tags?: string[];
+    metrics?: Array<{ label: string; value: string }>;
+  }>;
+  expertise?: string[];
+  experience?: Array<{ year: string; company: string; role?: string }>;
+  focus?: string;
+  interests?: string[];
+  recentActivity?: any;
+  autoScroll?: boolean;
+  metadata?: {
+    statement?: string;
+    statementSub?: string;
   };
+  theme?: {
+    accentColor?: string;
+  };
+  openTo?: string[];
 }
 
-// ============================================================
-// 05 — ICON COMPONENTS
-// ============================================================
-function ArrowUpRightIcon({ className = 'w-3.5 h-3.5' }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <line x1="4" y1="12" x2="12" y2="4" />
-      <polyline points="5 4 12 4 12 11" />
-    </svg>
-  );
+interface TemplateProps {
+  profile: PublicProfile;
+  onLinkClick?: (url: string) => void;
 }
 
-function ArrowRightIcon({ className = 'w-3.5 h-3.5' }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <line x1="4" y1="8" x2="12" y2="8" />
-      <polyline points="8 4 12 8 8 12" />
-    </svg>
-  );
-}
-
-function ChevronRightIcon({ className = 'w-4 h-4' }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <polyline points="5 12 11 8 5 4" />
-    </svg>
-  );
-}
-
-function CheckIcon({ className = 'w-4 h-4' }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <polyline points="3 8 6 11 13 4" />
-    </svg>
-  );
-}
-
-function ExternalLinkIcon({ className = 'w-3.5 h-3.5' }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <line x1="4" y1="12" x2="12" y2="4" />
-      <polyline points="5 4 12 4 12 11" />
-    </svg>
-  );
-}
-
-function ClockIcon({ className = 'w-3.5 h-3.5' }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="8" cy="8" r="7" />
-      <path d="M8 4v4l2 2" />
-    </svg>
-  );
-}
-
-function MapPinIcon({ className = 'w-3.5 h-3.5' }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M8 14c-3 0-4-2-4-4s1-4 4-4 4 2 4 4-1 4-4 4z" />
-      <circle cx="8" cy="8" r="2" />
-    </svg>
-  );
-}
-
-function MailIcon({ className = 'w-3.5 h-3.5' }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="2" y="3" width="12" height="10" rx="1.5" />
-      <path d="M3 3l5 3.5 5-3.5" />
-    </svg>
-  );
-}
-
-function DownloadIcon({ className = 'w-3.5 h-3.5' }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M8 3v10M4 11l4 4 4-4" />
-    </svg>
-  );
-}
-
-function CopyIcon({ className = 'w-3.5 h-3.5' }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="7" y="2" width="7" height="10" rx="1" />
-      <rect x="2" y="7" width="7" height="7" rx="1" />
-    </svg>
-  );
-}
-
-function CalendarIcon({ className = 'w-3.5 h-3.5' }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="2" y="4" width="12" height="10" rx="2" />
-      <path d="M6 4v-2M10 4v-2M2 9h12" />
-    </svg>
-  );
-}
-
-function UsersIcon({ className = 'w-3.5 h-3.5' }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M10 14c2 0 3-1.5 3-3s-1-3-3-3-3 1.5-3 3 1 3 3 3z" />
-      <path d="M5 14c0-1.5 1-2.5 2-3" />
-      <path d="M14 14c-1.5 0-2.5-1-3-2" />
-      <circle cx="13" cy="5" r="2" />
-      <circle cx="7" cy="5" r="2" />
-    </svg>
-  );
-}
-
-function BriefcaseIcon({ className = 'w-3.5 h-3.5' }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="2" y="5" width="12" height="9" rx="1" />
-      <path d="M4 5V3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" />
-    </svg>
-  );
-}
-
-function GlobeIcon({ className = 'w-3.5 h-3.5' }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="8" cy="8" r="7" />
-      <line x1="8" y1="1" x2="8" y2="15" />
-      <path d="M1 8a7 7 0 0 1 14 0" />
-    </svg>
-  );
-}
-
-function XIcon({ className = 'w-4 h-4' }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <line x1="4" y1="4" x2="12" y2="12" />
-      <line x1="12" y1="4" x2="4" y2="12" />
-    </svg>
-  );
-}
-
-// ============================================================
-// 06 — TOAST SYSTEM (copy email, vCard saved, etc.)
-// ============================================================
-interface Toast {
-  id: string;
-  message: string;
-  type: 'success' | 'info';
-}
-
-function ToastStack({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id: string) => void }) {
-  if (toasts.length === 0) return null;
-
-  return (
-    <div
-      className="fixed top-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none"
-      role="region"
-      aria-live="polite"
-      aria-label="Notifications"
-    >
-      {toasts.map((toast) => (
-        <div
-          key={toast.id}
-          className={`
-            pointer-events-auto flex items-center gap-2 px-3 py-2 rounded-[8px] text-xs font-medium
-            shadow-[0_8px_24px_rgba(0,0,0,0.15)] backdrop-blur-md border
-            animate-in fade-in slide-in-from-right-4 duration-200 ease-out
-            ${toast.type === 'success'
-              ? 'bg-white border-[var(--ink)]/15 text-[var(--ink)]'
-              : 'bg-[var(--ink)] border-[var(--ink)]/15 text-white'}
-          `}
-          role="alert"
-        >
-          {toast.type === 'success' ? (
-            <CheckIcon className="w-4 h-4 shrink-0 text-[var(--wine)]" />
-          ) : (
-            <CopyIcon className="w-4 h-4 shrink-0" />
-          )}
-          <span>{toast.message}</span>
-          <button
-            onClick={() => onDismiss(toast.id)}
-            className="ml-1 p-0.5 hover:bg-black/5 rounded transition-colors"
-            aria-label="Dismiss"
-          >
-            <XIcon className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ============================================================
-// 07 — PROJECT DRAWER (slides from right)
-// ============================================================
 interface ProjectDrawerProps {
-  project: StudioProject | null;
+  project: NonNullable<TemplateProps['profile']['projects']>[0];
   isOpen: boolean;
   onClose: () => void;
   accentColor: string;
 }
 
-function ProjectDrawer({ project, isOpen, onClose, accentColor }: ProjectDrawerProps) {
-  if (!project || !isOpen) return null;
+interface SocialLink {
+  label: string;
+  url: string;
+  icon?: string;
+  platform: string;
+  brandSvg?: React.ReactNode;
+}
 
-  const handleKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Escape') onClose();
-  };
+interface ProofPoint {
+  title: string;
+  value: string;
+  label?: string;
+}
 
+/* ────────────────────────── Design Tokens (CSS-in-JS) ────────────────────────── */
+
+const STUDIO_STYLES = `
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+  :root {
+    /* Premium Warm Stone Palette */
+    --studio-cream: #FDFBF7;
+    --studio-warm-white: #FAF8F3;
+    --studio-stone-50: #F5F2EB;
+    --studio-stone-100: #EDE8DF;
+    --studio-stone-200: #DCD5C7;
+    --studio-stone-300: #C4B8A4;
+    --studio-stone-400: #A89982;
+    --studio-stone-500: #8B7D68;
+    --studio-stone-600: #6E6352;
+    --studio-stone-700: #544C3F;
+    --studio-stone-800: #3D372E;
+    --studio-stone-900: #2A261F;
+    --studio-stone-950: #161410;
+
+    /* Accent: Burnt Sienna / Terracotta - sophisticated, warm, premium */
+    --studio-accent: #C45D3E;
+    --studio-accent-light: #E87D5A;
+    --studio-accent-dark: #9B472F;
+    --studio-accent-glow: rgba(196, 93, 62, 0.35);
+    --studio-accent-subtle: rgba(196, 93, 62, 0.08);
+
+    /* Secondary: Sage Green for balance */
+    --studio-sage: #7A8A6E;
+    --studio-sage-light: #9AB08F;
+    --studio-sage-subtle: rgba(122, 138, 110, 0.1);
+
+    /* Gold highlight for premium touches */
+    --studio-gold: #C8A86E;
+    --studio-gold-light: #E0C490;
+    --studio-gold-subtle: rgba(200, 168, 110, 0.15);
+
+    /* Spacing Scale */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
+    --space-6: 32px;
+    --space-7: 48px;
+    --space-8: 64px;
+    --space-9: 96px;
+    --space-10: 128px;
+
+    /* Typography Scale */
+    --text-xs: 0.7rem;
+    --text-sm: 0.8125rem;
+    --text-base: 0.9375rem;
+    --text-lg: 1.125rem;
+    --text-xl: 1.375rem;
+    --text-2xl: 1.75rem;
+    --text-3xl: 2.25rem;
+    --text-4xl: 3rem;
+    --text-5xl: 4rem;
+    --text-6xl: 5.5rem;
+    --text-7xl: 7rem;
+
+    /* Radius */
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 16px;
+    --radius-xl: 24px;
+    --radius-2xl: 32px;
+    --radius-full: 9999px;
+
+    /* Shadows */
+    --shadow-xs: 0 1px 2px rgba(22, 20, 16, 0.03);
+    --shadow-sm: 0 2px 8px rgba(22, 20, 16, 0.05);
+    --shadow-md: 0 8px 24px rgba(22, 20, 16, 0.07);
+    --shadow-lg: 0 16px 48px rgba(22, 20, 16, 0.09);
+    --shadow-xl: 0 24px 64px rgba(22, 20, 16, 0.12);
+    --shadow-glow: 0 0 60px var(--studio-accent-glow);
+    --shadow-gold: 0 0 40px var(--studio-gold-subtle);
+
+    /* Glassmorphism */
+    --glass-bg: rgba(250, 248, 243, 0.72);
+    --glass-border: rgba(196, 93, 62, 0.12);
+    --glass-shadow: 0 8px 32px rgba(22, 20, 16, 0.06);
+    --glass-blur: saturate(180%) blur(20px);
+
+    /* Transitions */
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --duration-fast: 150ms;
+    --duration-base: 250ms;
+    --duration-slow: 400ms;
+    --duration-slower: 600ms;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --studio-cream: #1A1814;
+      --studio-warm-white: #1F1C17;
+      --studio-stone-50: #26221C;
+      --studio-stone-100: #2E2922;
+      --studio-stone-200: #3D372E;
+      --studio-stone-300: #544C3F;
+      --studio-stone-400: #6E6352;
+      --studio-stone-500: #8B7D68;
+      --studio-stone-600: #A89982;
+      --studio-stone-700: #C4B8A4;
+      --studio-stone-800: #DCD5C7;
+      --studio-stone-900: #EDE8DF;
+      --studio-stone-950: #FAF8F3;
+
+      --glass-bg: rgba(26, 24, 20, 0.8);
+      --glass-border: rgba(200, 168, 110, 0.18);
+      --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  .studio-template {
+    font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--studio-cream);
+    color: var(--studio-stone-900);
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  .studio-template::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    background:
+      radial-gradient(ellipse 80% 50% at 20% 10%, var(--studio-accent-subtle) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 80% 90%, var(--studio-sage-subtle) 0%, transparent 55%),
+      radial-gradient(ellipse 40% 30% at 50% 50%, var(--studio-gold-subtle) 0%, transparent 70%),
+      linear-gradient(180deg, var(--studio-cream) 0%, var(--studio-stone-50) 100%);
+    pointer-events: none;
+  }
+
+  .studio-template::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background-image:
+      radial-gradient(circle at 1px 1px, var(--studio-stone-200) 0.5px, transparent 0.5px),
+      radial-gradient(circle at 1px 1px, var(--studio-stone-300) 0.3px, transparent 0.3px);
+    background-size: 60px 60px, 120px 120px;
+    opacity: 0.15;
+    pointer-events: none;
+  }
+
+  .font-editorial { font-family: 'Playfair Display', Georgia, serif; }
+  .font-ui { font-family: 'Space Grotesk', sans-serif; }
+  .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+  /* Glass Card */
+  .glass-card {
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--glass-shadow);
+    transition: all var(--duration-base) var(--ease-out);
+  }
+
+  .glass-card:hover {
+    border-color: var(--studio-accent);
+    box-shadow: var(--shadow-md), 0 0 0 1px var(--studio-accent);
+    transform: translateY(-2px);
+  }
+
+  .glass-card-elevated {
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-2xl);
+    box-shadow: var(--shadow-lg);
+  }
+
+  /* Buttons */
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-6);
+    background: var(--studio-accent);
+    color: var(--studio-cream);
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: var(--text-sm);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border-radius: var(--radius-full);
+    border: none;
+    cursor: pointer;
+    transition: all var(--duration-base) var(--ease-out);
+    box-shadow: var(--shadow-sm), 0 0 0 1px rgba(196, 93, 62, 0.2);
+  }
+
+  .btn-primary:hover {
+    background: var(--studio-accent-light);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md), var(--shadow-glow);
+  }
+
+  .btn-primary:active {
+    transform: translateY(0);
+  }
+
+  .btn-primary:focus-visible {
+    outline: 2px solid var(--studio-accent);
+    outline-offset: 3px;
+  }
+
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-6);
+    background: transparent;
+    color: var(--studio-stone-700);
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 500;
+    font-size: var(--text-sm);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--studio-stone-300);
+    cursor: pointer;
+    transition: all var(--duration-base) var(--ease-out);
+  }
+
+  .btn-secondary:hover {
+    background: var(--studio-stone-100);
+    border-color: var(--studio-accent);
+    color: var(--studio-accent);
+  }
+
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-4);
+    background: transparent;
+    color: var(--studio-stone-600);
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 500;
+    font-size: var(--text-xs);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border-radius: var(--radius-md);
+    border: none;
+    cursor: pointer;
+    transition: all var(--duration-fast) var(--ease-out);
+  }
+
+  .btn-ghost:hover {
+    background: var(--studio-accent-subtle);
+    color: var(--studio-accent);
+  }
+
+  /* Input / Textarea */
+  .studio-input {
+    width: 100%;
+    padding: var(--space-3) var(--space-4);
+    background: var(--studio-warm-white);
+    border: 1px solid var(--studio-stone-200);
+    border-radius: var(--radius-md);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: var(--text-base);
+    color: var(--studio-stone-900);
+    transition: all var(--duration-fast) var(--ease-out);
+  }
+
+  .studio-input:focus {
+    outline: none;
+    border-color: var(--studio-accent);
+    box-shadow: 0 0 0 3px var(--studio-accent-subtle);
+  }
+
+  .studio-input::placeholder {
+    color: var(--studio-stone-400);
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--studio-stone-300); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--studio-accent); }
+
+  /* Selection */
+  ::selection { background: var(--studio-accent); color: var(--studio-cream); }
+
+  /* Focus visible */
+  :focus-visible {
+    outline: 2px solid var(--studio-accent);
+    outline-offset: 2px;
+  }
+
+  /* Utility */
+  .text-balance { text-wrap: balance; }
+  .text-pretty { text-wrap: pretty; }
+`;
+
+/* ────────────────────────── Utility Functions ────────────────────────── */
+
+const formatTimezone = (tz?: string) => {
+  if (!tz) return 'UTC';
+  try {
+    return new Date().toLocaleTimeString('en-US', {
+      timeZone: tz,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+  } catch {
+    return 'UTC';
+  }
+};
+
+const getTimezoneAbbr = (tz?: string) => {
+  if (!tz) return 'UTC';
+  try {
+    return new Date().toLocaleTimeString('en-US', {
+      timeZone: tz,
+      timeZoneName: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).split(' ').pop() || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+};
+
+const generateVCard = (profile: PublicProfile) => {
+  const nameParts = profile.name?.split(' ') || [];
+  const firstName = nameParts[0] || '';
+  const lastName = nameParts.slice(1).join(' ') || '';
+
+  let vcard = 'BEGIN:VCARD\nVERSION:3.0\n';
+  if (profile.name) vcard += `FN:${profile.name}\n`;
+  if (firstName || lastName) vcard += `N:${lastName};${firstName};;;\n`;
+  if (profile.headline) vcard += `TITLE:${profile.headline}\n`;
+  if (profile.email) vcard += `EMAIL;TYPE=WORK:${profile.email}\n`;
+  if (profile.phone) vcard += `TEL;TYPE=WORK,VOICE:${profile.phone}\n`;
+  if (profile.location) vcard += `ADR;TYPE=WORK:;;${profile.location};;;;\n`;
+  if (profile.website) vcard += `URL:${profile.website}\n`;
+  if (profile.subdomain) vcard += `URL:https://${profile.subdomain}.unool.com\n`;
+  vcard += 'END:VCARD';
+  return vcard;
+};
+
+const downloadVCard = (profile: PublicProfile) => {
+  const vcard = generateVCard(profile);
+  const blob = new Blob([vcard], { type: 'text/vcard;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  const fileName = `${(profile.name || 'contact').replace(/\s+/g, '_')}.vcf`;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
+
+const copyToClipboard = async (text: string, label: string) => {
+  try {
+    await navigator.clipboard.writeText(text);
+    return { success: true, message: `Copied ${label}` };
+  } catch {
+    return { success: false, message: 'Failed to copy' };
+  }
+};
+
+const normalizeSocialLinks = (profile: PublicProfile): SocialLink[] => {
+  const links: SocialLink[] = [];
+
+  // Explicit links
+  if (profile.links?.length) {
+    profile.links.forEach((link) => {
+      const platform = normalizeSocialPlatform(link.label, link.url, link.icon);
+      // Generate a readable label from the platform
+      const label = link.label || platform.charAt(0).toUpperCase() + platform.slice(1);
+      links.push({
+        label,
+        url: link.url,
+        icon: link.icon,
+        platform,
+        brandSvg: BRAND_SVGS[platform as keyof typeof BRAND_SVGS],
+      });
+    });
+  }
+
+  // Social handles
+  if (profile.socialHandles) {
+    Object.entries(profile.socialHandles).forEach(([key, val]) => {
+      if (!val) return;
+      const platform = normalizeSocialPlatform(key, val);
+      // Avoid duplicates
+      if (!links.some(l => l.platform === platform)) {
+        const label = key.charAt(0).toUpperCase() + key.slice(1);
+        links.push({
+          label,
+          url: val,
+          icon: key,
+          platform,
+          brandSvg: BRAND_SVGS[platform as keyof typeof BRAND_SVGS],
+        });
+      }
+    });
+  }
+
+  // Email
+  if (profile.email && !links.some(l => l.platform === 'email')) {
+    links.push({
+      label: 'Email',
+      url: `mailto:${profile.email}`,
+      platform: 'email',
+      brandSvg: BRAND_SVGS.email,
+    });
+  }
+
+  // Phone
+  if (profile.phone && !links.some(l => l.platform === 'phone')) {
+    links.push({
+      label: 'Phone',
+      url: `tel:${profile.phone}`,
+      platform: 'phone',
+      brandSvg: BRAND_SVGS.phone,
+    });
+  }
+
+  // Website
+  if (profile.website && !links.some(l => l.platform === 'website')) {
+    links.push({
+      label: 'Website',
+      url: profile.website,
+      platform: 'website',
+      brandSvg: BRAND_SVGS.website,
+    });
+  }
+
+  return links;
+};
+
+const getProofPoints = (profile: PublicProfile): ProofPoint[] => {
+  const proofs = profile.proofs || profile.proofPoints || profile.proof_points || [];
+  return proofs
+    .filter((p): p is ProofPoint => !!p && !!(p.value || p.title || p.label))
+    .map((p) => ({
+      title: p.title || p.label || 'Metric',
+      value: p.value || '',
+    }));
+};
+
+/* ────────────────────────── Toast System ────────────────────────── */
+
+interface Toast {
+  id: string;
+  message: string;
+  type: 'success' | 'error' | 'info';
+}
+
+function ToastStack() {
+  const [toasts, setToasts] = useState<Toast[]>([]);
+
+  const showToast = useCallback((message: string, type: Toast['type'] = 'success') => {
+    const id = Math.random().toString(36).slice(2);
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 3000);
+  }, []);
+
+  // Expose globally for components that need it
   useEffect(() => {
-    document.addEventListener('keydown', handleKeyDown);
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = '';
-    };
-  }, [onClose]);
-
-  const prefersReducedMotion = useMemo(
-    () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
-    []
-  );
+    (window as any).__studioToast = showToast;
+    return () => { delete (window as any).__studioToast; };
+  }, [showToast]);
 
   return (
     <div
-      className="fixed inset-0 z-[90] flex items-center justify-end"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="drawer-title"
-      onClick={onClose}
+      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-3 pointer-events-none"
+      aria-live="polite"
+      aria-atomic="true"
     >
-      {/* Backdrop */}
-      <motion.div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: prefersReducedMotion ? 0 : 0.2 }}
-        onClick={(e) => e.stopPropagation()}
-      />
-
-      {/* Drawer Panel */}
-      <motion.aside
-        className="w-full max-w-[480px] h-full bg-white border-l border-[var(--ink)]/10 overflow-y-auto"
-        initial={{ x: '100%' }}
-        animate={{ x: 0 }}
-        exit={{ x: '100%' }}
-        transition={{ type: 'spring', damping: 30, stiffness: 300, duration: prefersReducedMotion ? 0 : 0.4 }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="sticky top-0 z-10 flex items-center justify-between p-4 md:p-6 border-b border-[var(--ink)]/10 bg-white/95 backdrop-blur-sm">
-          <h2 id="drawer-title" className="font-club-serif text-[20px] md:text-[24px] font-medium text-[var(--ink)]">
-            {project.title}
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-1 rounded-full hover:bg-[var(--ink)]/5 transition-colors"
-            aria-label="Close project drawer"
-          >
-            <XIcon className="w-5 h-5 text-[var(--ink)]/60" />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="p-4 md:p-6 space-y-6">
-          {project.subtitle && (
-            <p className="text-[14px] md:text-[16px] text-[var(--ink)]/60 font-medium">
-              {project.subtitle}
-            </p>
-          )}
-
-          {project.description && (
-            <p className="text-[15px] md:text-[17px] leading-[1.7] text-[var(--ink)]/75 font-normal">
-              {project.description}
-            </p>
-          )}
-
-          {project.tags && project.tags.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {project.tags.map((tag, i) => (
-                <span
-                  key={i}
-                  className="px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.1em] rounded-full"
-                  style={{
-                    backgroundColor: `${accentColor}15`,
-                    color: accentColor,
-                    border: `1px solid ${accentColor}40`,
-                  }}
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* Action Buttons */}
-          <div className="pt-2 border-t border-[var(--ink)]/10 flex flex-col gap-3">
-            {project.liveUrl && (
-              <a
-                href={project.liveUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 px-4 py-3 rounded-[8px] font-semibold text-[13px] uppercase tracking-[0.1em] transition-all"
-                style={{
-                  backgroundColor: accentColor,
-                  color: '#fff',
-                }}
-              >
-                <GlobeIcon className="w-4 h-4" />
-                View Live Site
-              </a>
-            )}
-            {project.caseStudyUrl && (
-              <a
-                href={project.caseStudyUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 px-4 py-3 rounded-[8px] font-semibold text-[13px] uppercase tracking-[0.1em] transition-all border border-[var(--ink)]/20 text-[var(--ink)] hover:bg-[var(--ink)]/5"
-              >
-                <ExternalLinkIcon className="w-4 h-4" />
-                Read Case Study
-              </a>
-            )}
-            {project.link && !project.liveUrl && !project.caseStudyUrl && (
-              <a
-                href={project.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 px-4 py-3 rounded-[8px] font-semibold text-[13px] uppercase tracking-[0.1em] transition-all border border-[var(--ink)]/20 text-[var(--ink)] hover:bg-[var(--ink)]/5"
-              >
-                <ExternalLinkIcon className="w-4 h-4" />
-                View Project
-              </a>
-            )}
-          </div>
-        </div>
-      </motion.aside>
+      {toasts.map((toast) => (
+        <motion.div
+          key={toast.id}
+          initial={{ opacity: 0, y: 20, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -20, scale: 0.95 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+          className="pointer-events-auto glass-card px-5 py-3.5 flex items-center gap-3 min-w-[240px] max-w-[90vw]"
+          style={{
+            borderLeftColor: toast.type === 'success' ? 'var(--studio-sage)' :
+              toast.type === 'error' ? 'var(--studio-accent)' : 'var(--studio-gold)',
+            borderLeftWidth: '4px',
+          }}
+        >
+          {toast.type === 'success' && <Check className="w-5 h-5 text-[var(--studio-sage)]" />}
+          {toast.type === 'error' && <X className="w-5 h-5 text-[var(--studio-accent)]" />}
+          {toast.type === 'info' && <Zap className="w-5 h-5 text-[var(--studio-gold)]" />}
+          <span className="font-ui text-sm font-medium">{toast.message}</span>
+        </motion.div>
+      ))}
     </div>
   );
 }
 
-// Need to import motion for ProjectDrawer
-import { motion } from 'framer-motion';
+/* ────────────────────────── Live Clock ────────────────────────── */
 
-// ============================================================
-// 08 — AVAILABILITY PILL COMPONENT
-// ============================================================
-interface AvailabilityPillProps {
-  status: 'open' | 'busy' | 'closed' | null;
-  label?: string;
-  accentColor: string;
-}
+function LiveClock({ timezone }: { timezone?: string }) {
+  const [time, setTime] = useState(() => formatTimezone(timezone));
+  const [abbr, setAbbr] = useState(() => getTimezoneAbbr(timezone));
 
-function AvailabilityPill({ status, label, accentColor }: AvailabilityPillProps) {
-  if (!status) return null;
-
-  const statusConfig = {
-    open: { dotColor: '#10B981', bgColor: '#10B98115', borderColor: '#10B98140', defaultLabel: 'Open for work' },
-    busy: { dotColor: '#F59E0B', bgColor: '#F59E0B15', borderColor: '#F59E0B40', defaultLabel: 'Busy' },
-    closed: { dotColor: '#EF4444', bgColor: '#EF444415', borderColor: '#EF444440', defaultLabel: 'Not accepting work' },
-  };
-
-  const config = statusConfig[status];
+  useEffect(() => {
+    const update = () => {
+      setTime(formatTimezone(timezone));
+      setAbbr(getTimezoneAbbr(timezone));
+    };
+    update();
+    const interval = setInterval(update, 30000); // Update every 30s
+    return () => clearInterval(interval);
+  }, [timezone]);
 
   return (
-    <div
-      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full"
-      style={{
-        backgroundColor: config.bgColor,
-        border: `1px solid ${config.borderColor}`,
-      }}
-      title={label || config.defaultLabel}
-    >
-      <span
-        className="w-1.5 h-1.5 rounded-full animate-pulse"
-        style={{ backgroundColor: config.dotColor }}
-        aria-hidden="true"
-      />
-      <span className="text-[10px] font-semibold uppercase tracking-[0.15em]" style={{ color: config.dotColor }}>
-        {label || config.defaultLabel}
+    <div className="flex items-center gap-2 font-mono text-xs tabular-nums" style={{ color: 'var(--studio-stone-600)' }}>
+      <Clock className="w-3.5 h-3.5" style={{ color: 'var(--studio-accent)' }} aria-hidden="true" />
+      <span aria-live="off">{time}</span>
+      <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider"
+        style={{ background: 'var(--studio-accent-subtle)', color: 'var(--studio-accent)' }}>
+        {abbr}
       </span>
     </div>
   );
 }
 
-// ============================================================
-// 09 — LIVE CLOCK COMPONENT
-// ============================================================
-function LiveClock({ timezone = 'local', accentColor }: { timezone?: string; accentColor: string }) {
-  const [time, setTime] = useState(() => new Date());
+/* ────────────────────────── Availability Pill ────────────────────────── */
 
-  useEffect(() => {
-    const updateTime = () => setTime(new Date());
-    // Update at the start of each minute
-    const now = new Date();
-    const msToNextMinute = 60000 - (now.getSeconds() * 1000 + now.getMilliseconds());
-    const timeout = setTimeout(() => {
-      updateTime();
-      const interval = setInterval(updateTime, 60000);
-      return () => clearInterval(interval);
-    }, msToNextMinute);
-    return () => clearTimeout(timeout);
-  }, []);
+function AvailabilityPill({ availability }: { availability?: string }) {
+  if (!availability) return null;
 
-  const formattedTime = useMemo(() => {
-    if (timezone === 'local' || !timezone) {
-      return time.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
-    }
-    try {
-      return time.toLocaleTimeString(undefined, {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-        timeZone: timezone,
-      });
-    } catch {
-      return time.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
-    }
-  }, [time, timezone]);
+  const statuses = {
+    'open for work': { label: 'Open for work', icon: Zap, color: 'var(--studio-sage)', bg: 'var(--studio-sage-subtle)', pulse: true },
+    'booked': { label: 'Booked', icon: Clock, color: 'var(--studio-accent)', bg: 'var(--studio-accent-subtle)', pulse: false },
+    'on retainer': { label: 'On retainer', icon: Star, color: 'var(--studio-gold)', bg: 'var(--studio-gold-subtle)', pulse: false },
+    'available': { label: 'Available', icon: Zap, color: 'var(--studio-sage)', bg: 'var(--studio-sage-subtle)', pulse: true },
+    'busy': { label: 'Busy', icon: Clock, color: 'var(--studio-accent)', bg: 'var(--studio-accent-subtle)', pulse: false },
+  };
+
+  const normalized = availability.toLowerCase().trim();
+  const config = statuses[normalized as keyof typeof statuses] || {
+    label: availability,
+    icon: Clock,
+    color: 'var(--studio-stone-500)',
+    bg: 'var(--studio-stone-100)',
+    pulse: false,
+  };
 
   return (
-    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--ink)]/5 border border-[var(--ink)]/10">
-      <ClockIcon className="w-3.5 h-3.5 text-[var(--ink)]/50" />
-      <span className="font-mono text-[11px] font-medium tabular-nums text-[var(--ink)]">{formattedTime}</span>
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.3, duration: 0.4 }}
+      className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full"
+      style={{ background: config.bg }}
+    >
+      {config.pulse && (
+        <motion.span
+          animate={{ scale: [1, 1.3, 1], opacity: [0.6, 1, 0.6] }}
+          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+          className="w-2 h-2 rounded-full"
+          style={{ background: config.color }}
+          aria-hidden="true"
+        />
+      )}
+      {!config.pulse && (
+        <span className="w-2 h-2 rounded-full" style={{ background: config.color }} aria-hidden="true" />
+      )}
+      <span className="font-ui text-xs font-semibold uppercase tracking-wider" style={{ color: config.color }}>
+        {config.label}
+      </span>
+    </motion.div>
+  );
+}
+
+/* ────────────────────────── Social Rail ────────────────────────── */
+
+function SocialRail({ links }: { links: SocialLink[] }) {
+  const [scrollPosition, setScrollPosition] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [showLeftArrow, setShowLeftArrow] = useState(false);
+  const [showRightArrow, setShowRightArrow] = useState(false);
+
+  const handleScroll = useCallback(() => {
+    if (containerRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = containerRef.current;
+      setScrollPosition(scrollLeft);
+      setShowLeftArrow(scrollLeft > 10);
+      setShowRightArrow(scrollLeft + clientWidth < scrollWidth - 10);
+    }
+  }, []);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (container) {
+      container.addEventListener('scroll', handleScroll, { passive: true });
+      handleScroll();
+    }
+    return () => container?.removeEventListener('scroll', handleScroll);
+  }, [handleScroll, links.length]);
+
+  const scrollLeft = () => containerRef.current?.scrollBy({ left: -200, behavior: 'smooth' });
+  const scrollRight = () => containerRef.current?.scrollBy({ left: 200, behavior: 'smooth' });
+
+  return (
+    <div className="relative">
+      {showLeftArrow && (
+        <button
+          onClick={scrollLeft}
+          className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 z-10 glass-card p-2 rounded-full shadow-lg"
+          style={{ borderColor: 'var(--studio-accent)' }}
+          aria-label="Scroll left"
+        >
+          <ChevronLeft className="w-5 h-5" style={{ color: 'var(--studio-accent)' }} />
+        </button>
+      )}
+
+      <div
+        ref={containerRef}
+        className="flex gap-3 overflow-x-auto scroll-snap-x pb-4 snap-mandatory -ml-4 pr-4"
+        style={{
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
+        }}
+        onScroll={handleScroll}
+      >
+        <div style={{ width: '4px', flexShrink: 0 }} aria-hidden="true" /> {/* Left padding for snap */}
+
+        {links.map((link, index) => (
+          <a
+            key={`${link.platform}-${index}`}
+            href={link.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 px-4 py-3 glass-card shrink-0 snap-start transition-all duration-300"
+            style={{
+              minWidth: '120px',
+              borderColor: 'transparent',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'var(--studio-accent)';
+              e.currentTarget.style.transform = 'translateY(-3px)';
+              e.currentTarget.style.boxShadow = 'var(--shadow-md)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'transparent';
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = 'var(--glass-shadow)';
+            }}
+            aria-label={link.label}
+          >
+            <span className="flex items-center justify-center w-10 h-10 rounded-full shrink-0"
+              style={{ background: 'var(--studio-accent-subtle)', color: 'var(--studio-accent)' }}>
+              {link.brandSvg ? (
+                <span dangerouslySetInnerHTML={{ __html: typeof link.brandSvg === 'string' ? link.brandSvg : '' }} className="w-5 h-5" />
+              ) : (
+                <SocialIcon label={link.label} url={link.url} icon={link.icon} className="w-5 h-5 fill-current" />
+              )}
+            </span>
+            <span className="font-ui text-sm font-medium truncate" style={{ color: 'var(--studio-stone-700)' }}>
+              {link.label}
+            </span>
+          </a>
+        ))}
+
+        <div style={{ width: '4px', flexShrink: 0 }} aria-hidden="true" /> {/* Right padding for snap */}
+      </div>
+
+      {showRightArrow && (
+        <button
+          onClick={scrollRight}
+          className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 z-10 glass-card p-2 rounded-full shadow-lg"
+          style={{ borderColor: 'var(--studio-accent)' }}
+          aria-label="Scroll right"
+        >
+          <ChevronRight className="w-5 h-5" style={{ color: 'var(--studio-accent)' }} />
+        </button>
+      )}
     </div>
   );
 }
 
-// ============================================================
-// 10 — MAIN STUDIO TEMPLATE COMPONENT
-// ============================================================
-export interface StudioTemplateProps extends Partial<TemplateProps> {
-  data?: Partial<StudioProfileData>;
-  templateId?: string;
-}
+/* ────────────────────────── Project Drawer ────────────────────────── */
 
-export function StudioTemplate({
-  profile,
-  accentColor,
-  isPreview = false,
-  onLinkClick,
-  data: directData,
-}: StudioTemplateProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const currentYear = useMemo(() => new Date().getFullYear(), []);
-  const accent = useMemo(() => accentColor || '#0A84FF', [accentColor]);
+function ProjectDrawer({ project, isOpen, onClose, accentColor }: ProjectDrawerProps) {
+  const drawerRef = useRef<HTMLDivElement>(null);
+  const previousActiveElement = useRef<HTMLElement | null>(null);
 
-  // Compute profile data strictly from real input
-  const studioData = useMemo(() => {
-    return adaptPublicProfileToStudio(profile, directData);
-  }, [profile, directData]);
-
-  // State for interactivity
-  const [toasts, setToasts] = useState<Toast[]>([]);
-  const [drawerProject, setDrawerProject] = useState<StudioProject | null>(null);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-
-  // Toast helpers
-  const showToast = useCallback((message: string, type: 'success' | 'info' = 'success') => {
-    const id = Math.random().toString(36).slice(2);
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 2500);
-  }, []);
-
-  const dismissToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
-
-  const handleCopyEmail = useCallback(() => {
-    if (studioData.email) {
-      navigator.clipboard.writeText(studioData.email);
-      showToast(`Copied: ${studioData.email}`, 'success');
-    }
-  }, [studioData.email, showToast]);
-
-  const handleDownloadVCard = useCallback(() => {
-    const vcard = [
-      'BEGIN:VCARD',
-      'VERSION:3.0',
-      `N:${studioData.nameLineTwo ? `${studioData.nameLineOne};${studioData.nameLineTwo}` : studioData.nameLineOne};;;;`,
-      `FN:${studioData.nameLineOne} ${studioData.nameLineTwo || ''}`,
-      studioData.role ? `TITLE:${studioData.role}` : '',
-      studioData.category ? `ORG:${studioData.category}` : '',
-      studioData.email ? `EMAIL:${studioData.email}` : '',
-      typeof window !== 'undefined' ? `URL:${window.location.origin}` : '',
-      'END:VCARD',
-    ]
-      .filter(Boolean)
-      .join('\n');
-
-    const blob = new Blob([vcard], { type: 'text/vcard' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${(studioData.nameLineOne + (studioData.nameLineTwo ? '_' + studioData.nameLineTwo : '')).replace(/\s+/g, '_') || 'Studio'}.vcf`;
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast('Contact vCard saved!', 'success');
-  }, [studioData, showToast]);
-
-  const handleSocialClick = useCallback(
-    (social: StudioSocial) => {
-      if (onLinkClick) {
-        onLinkClick({
-          id: social.platform,
-          label: social.label,
-          url: social.url,
-          icon: social.icon || null,
-          clicks: 0,
-          order: 0,
-          isVisible: true,
-        });
-      }
-    },
-    [onLinkClick]
-  );
-
-  const handleProjectClick = useCallback((project: StudioProject) => {
-    setDrawerProject(project);
-    setIsDrawerOpen(true);
-  }, []);
-
-  const closeDrawer = useCallback(() => {
-    setIsDrawerOpen(false);
-    setTimeout(() => setDrawerProject(null), 300);
-  }, []);
-
-  const mailtoHref = useMemo(() => {
-    if (studioData.email) {
-      return `mailto:${studioData.email}?subject=Project%20Inquiry%20via%20Studio%20Profile`;
-    }
-    return '#';
-  }, [studioData.email]);
-
-  // Scroll reveal
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (prefersReducedMotion) return;
+    if (isOpen) {
+      previousActiveElement.current = document.activeElement as HTMLElement;
+      document.body.style.overflow = 'hidden';
+      drawerRef.current?.focus();
+      document.addEventListener('keydown', handleKeyDown);
+    } else {
+      document.body.style.overflow = '';
+      previousActiveElement.current?.focus();
+    }
+    return () => {
+      document.body.style.overflow = '';
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen]);
 
-    const sections = containerRef.current?.querySelectorAll<HTMLElement>('.studio-reveal-section');
-    if (!sections || sections.length === 0) return;
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') onClose();
+    if (e.key === 'Tab') trapFocus(e);
+  };
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('studio-revealed');
-            observer.unobserve(entry.target);
-          }
-        });
-      },
-      { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
+  const trapFocus = (e: KeyboardEvent) => {
+    if (!drawerRef.current) return;
+    const focusableElements = drawerRef.current.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
     );
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements[focusableElements.length - 1];
+    if (e.shiftKey && document.activeElement === firstElement) {
+      e.preventDefault();
+      lastElement?.focus();
+    } else if (!e.shiftKey && document.activeElement === lastElement) {
+      e.preventDefault();
+      firstElement?.focus();
+    }
+  };
 
-    sections.forEach((sec) => observer.observe(sec));
-    return () => observer.disconnect();
-  }, []);
-
-  const prefersReducedMotion = useMemo(
-    () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
-    []
-  );
+  if (!isOpen || !project) return null;
 
   return (
-    <div className="studio-template-root min-h-screen w-full bg-[var(--studio-bg)] text-[var(--studio-ink)] py-8 md:py-16 px-3 md:px-6 md:px-8 flex justify-center items-start selection:bg-[var(--studio-accent)] selection:text-white">
-      {/* Editorial Fonts & Design Tokens */}
-      <style dangerouslySetInnerHTML={{ __html: `
-        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&family=JetBrains+Mono:wght@400;500;600&display=swap');
-
-        :root {
-          --studio-bg: #FAFAF9;
-          --studio-surface: #FFFFFF;
-          --studio-surface-elevated: #FFFFFF;
-          --studio-ink: #1A1A2E;
-          --studio-ink-soft: #4A4A68;
-          --studio-muted: #6B6B8A;
-          --studio-rule: rgba(26,26,46,0.08);
-          --studio-rule-strong: rgba(26,26,46,0.15);
-          --studio-accent: ${accent};
-          --studio-accent-soft: ${accent}15;
-          --studio-accent-border: ${accent}40;
-          --studio-success: #10B981;
-          --studio-warning: #F59E0B;
-          --studio-error: #EF4444;
-        }
-
-        .studio-template-root .font-studio-sans {
-          font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        }
-
-        .studio-template-root .font-studio-serif {
-          font-family: 'Playfair Display', Georgia, serif;
-        }
-
-        .studio-template-root .font-studio-mono {
-          font-family: 'JetBrains Mono', "SF Mono", "Fira Code", monospace;
-        }
-
-        .studio-chamfer {
-          clip-path: polygon(12px 0, 100% 0, 100% 100%, 0 100%, 0 12px);
-        }
-
-        @media (min-width: 768px) {
-          .studio-metrics-desktop { display: grid !important; }
-          .studio-metrics-mobile { display: none !important; }
-        }
-        @media (max-width: 767px) {
-          .studio-metrics-desktop { display: none !important; }
-          .studio-metrics-mobile { display: block !important; }
-        }
-
-        .studio-reveal-section {
-          opacity: 0;
-          transform: translateY(16px);
-          transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        .studio-reveal-section.studio-revealed {
-          opacity: 1;
-          transform: translateY(0);
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          .studio-reveal-section {
-            opacity: 1 !important;
-            transform: none !important;
-            transition: none !important;
-          }
-          .studio-lift:hover {
-            transform: none !important;
-          }
-        }
-
-        /* Scrollbar styling for social rail */
-        .studio-social-rail::-webkit-scrollbar { height: 6px; }
-        .studio-social-rail::-webkit-scrollbar-track { background: transparent; }
-        .studio-social-rail::-webkit-scrollbar-thumb { background: var(--studio-rule-strong); border-radius: 3px; }
-        .studio-social-rail::-webkit-scrollbar-thumb:hover { background: var(--studio-muted); }
-      `}} />
-
-      {/* Toast Stack */}
-      <ToastStack toasts={toasts} onDismiss={dismissToast} />
-
-      {/* Project Drawer */}
-      <ProjectDrawer
-        project={drawerProject}
-        isOpen={isDrawerOpen}
-        onClose={closeDrawer}
-        accentColor={accent}
-      />
-
-      {/* Main Profile Shell */}
-      <article
-        ref={containerRef}
-        aria-label={`${studioData.nameLineOne} ${studioData.nameLineTwo} — Studio Profile`}
-        className="font-studio-sans relative w-full max-w-[420px] md:w-[min(980px,calc(100vw-80px))] md:max-w-[980px] md:my-8 bg-[var(--studio-surface)] border border-[var(--studio-rule)] rounded-[24px] md:rounded-[28px] shadow-[0_24px_48px_-16px_rgba(26,26,46,0.08)] overflow-hidden transition-all duration-300"
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
+        className="fixed inset-0 z-[90] flex items-center justify-end"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="drawer-title"
+        onClick={onClose}
       >
-        {/* Registration Corner Marks */}
-        <div className="pointer-events-none absolute top-3 left-3 w-3 h-3 border-t border-l border-[var(--studio-rule)]" aria-hidden="true" />
-        <div className="pointer-events-none absolute top-3 right-3 w-3 h-3 border-t border-r border-[var(--studio-rule)]" aria-hidden="true" />
+        {/* Backdrop */}
+        <motion.div
+          className="absolute inset-0"
+          style={{ background: 'rgba(22, 20, 16, 0.5)', backdropFilter: 'blur(4px)' }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        />
 
-        {/* ========================================================
-            TOP BAR — Edition + Live Clock
-        ======================================================== */}
-        <header className="relative pt-4 md:pt-5 pb-3 px-5 md:px-6">
-          <div className="flex items-center justify-between">
-            {/* Left: Edition Badge */}
-            <div className="flex items-center gap-2">
-              <span className="text-[9px] font-studio-mono font-semibold tracking-[0.2em] uppercase text-[var(--studio-muted)]">
-                EDITION
+        {/* Drawer Panel */}
+        <motion.div
+          ref={drawerRef}
+          tabIndex={-1}
+          className="relative w-full max-w-xl md:max-w-2xl h-full md:h-[90vh] glass-card-elevated overflow-hidden flex flex-col"
+          style={{
+            borderLeftColor: accentColor,
+            borderLeftWidth: '4px',
+          }}
+          initial={{ x: '100%' }}
+          animate={{ x: 0 }}
+          exit={{ x: '100%' }}
+          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="flex items-start justify-between p-6 border-b" style={{ borderColor: 'var(--studio-stone-200)' }}>
+            <div className="pr-4">
+              <span className="font-ui text-xs font-semibold uppercase tracking-widest" style={{ color: accentColor }}>
+                Project Detail
               </span>
-              <span
-                className="px-2 py-0.5 rounded-[4px] text-[9px] font-studio-mono font-semibold tracking-[0.15em] uppercase"
-                style={{
-                  backgroundColor: `${accent}15`,
-                  color: accent,
-                  border: `1px solid ${accent}40`,
-                }}
-              >
-                {studioData.edition || '01'}
-              </span>
-            </div>
-
-            {/* Right: Live Clock */}
-            <LiveClock timezone={(profile as any)?.timezone} accentColor={accent} />
-          </div>
-
-          {/* Divider with center mark */}
-          <div className="relative mt-3 w-full flex items-center justify-center">
-            <div className="w-full h-[1px] bg-[var(--studio-rule)]" />
-            <div className="absolute bg-[var(--studio-surface)] px-2 flex items-center justify-center">
-              <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: accent }} />
-            </div>
-          </div>
-        </header>
-
-        {/* ========================================================
-            01 — IDENTITY SECTION
-        ======================================================== */}
-        <section id="identity" aria-label="Identity" className="studio-reveal-section px-5 md:px-[40px] pt-3 md:pt-[28px] pb-5 md:pb-[28px]">
-          {/* Section Header */}
-          <div className="flex items-baseline justify-between gap-3 mb-4 md:mb-5">
-            <h2 className="text-[9px] font-studio-mono font-bold tracking-[0.22em] uppercase text-[var(--studio-muted)] whitespace-nowrap">
-              01 / IDENTITY
-            </h2>
-            {studioData.category && (
-              <span className="text-[8px] font-studio-mono font-medium tracking-[0.2em] uppercase text-[var(--studio-muted)] text-right truncate max-w-[40%]">
-                {studioData.category}
-              </span>
-            )}
-          </div>
-
-          {/* Two-Column: Portrait + Info */}
-          <div className="grid grid-cols-1 md:grid-cols-[28%_72%] gap-6 md:gap-12 items-start">
-            {/* Left: Portrait */}
-            <div className="flex flex-col items-center md:items-start shrink-0">
-              <div
-                className="studio-lift relative w-[140px] md:w-full aspect-[3/4] transition-all duration-500 ease-out hover:-translate-y-1 cursor-pointer group"
-                tabIndex={0}
-                role="img"
-                aria-label={studioData.portraitAlt}
-              >
-                {studioData.portraitImage ? (
-                  <div className="relative w-full h-full studio-chamfer bg-[var(--studio-surface-elevated)] overflow-hidden border border-[var(--studio-rule-strong)] shadow-[0_8px_24px_rgba(26,26,46,0.06)]">
-                    <img
-                      src={studioData.portraitImage}
-                      alt={studioData.portraitAlt}
-                      className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-700 ease-out"
-                    />
-                    <div className="pointer-events-none absolute inset-0 studio-chamfer border border-[var(--studio-rule)]" />
-                    <div className="absolute bottom-2 left-2 font-studio-serif italic font-semibold text-[22px] text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.3)] select-none">
-                      {studioData.initial}
-                    </div>
-                  </div>
-                ) : (
-                  /* Abstract Editorial Artwork */
-                  <div className="relative w-full h-full studio-chamfer bg-[var(--studio-surface-elevated)] overflow-hidden border border-[var(--studio-rule-strong)] shadow-[inset_0_0_20px_rgba(26,26,46,0.04)]">
-                    <svg viewBox="0 0 140 180" className="w-full h-full" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <rect width="140" height="180" fill="#F5F5F3" />
-                      <line x1="18" y1="0" x2="18" y2="180" stroke="var(--studio-ink)" strokeWidth="0.5" strokeOpacity="0.3" />
-                      <line x1="0" y1="20" x2="140" y2="130" stroke="var(--studio-ink)" strokeWidth="0.6" strokeOpacity="0.35" />
-                      <line x1="30" y1="0" x2="115" y2="180" stroke="var(--studio-ink)" strokeWidth="0.4" strokeOpacity="0.2" />
-
-                      {/* Accent geometric forms */}
-                      <rect x="85" y="55" width="32" height="32" rx="4" style={{ fill: accent, opacity: 0.9 }} />
-                      <circle cx="95" cy="65" r="3" fill="var(--studio-ink)" />
-                      <path d="M 0,120 Q 40,105 75,120 Q 110,135 140,125 L 140,180 L 0,180 Z" style={{ fill: accent, opacity: 0.15 }} />
-
-                      <text x="20" y="158" fontFamily="'Playfair Display', Georgia, serif" fontSize="30" fontStyle="italic" fontWeight="600" fill="var(--studio-ink)" className="select-none" opacity="0.4">
-                        {studioData.initial}
-                      </text>
-
-                      <polygon points="16,1 138,1 138,179 1,179 1,18" stroke="var(--studio-ink)" strokeWidth="0.6" strokeOpacity="0.25" fill="none" />
-                    </svg>
-                  </div>
-                )}
-              </div>
-
-              {/* Availability Pill (below portrait on mobile, inline on desktop) */}
-              {(studioData.availability || studioData.location) && (
-                <div className="mt-4 w-full md:w-auto flex items-center justify-center md:justify-start gap-2 flex-wrap">
-                  <AvailabilityPill status={(studioData.availability ? 'open' : null) as any} label={studioData.availability || undefined} accentColor={accent} />
-                  {studioData.location && (
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--studio-rule)] border border-[var(--studio-rule-strong)]">
-                      <MapPinIcon className="w-3.5 h-3.5 text-[var(--studio-muted)]" />
-                      <span className="text-[10px] font-studio-mono font-medium uppercase tracking-[0.1em] text-[var(--studio-muted)]">
-                        {studioData.location}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Right: Profile Info */}
-            <div className="flex flex-col justify-start pt-0 md:pt-1 min-w-0">
-              {studioData.role && (
-                <div className="text-[9px] md:text-[10px] font-studio-mono font-bold tracking-[0.25em] uppercase mb-2 md:mb-3" style={{ color: accent }}>
-                  {studioData.role}
-                </div>
-              )}
-
-              <h1 className="font-studio-serif tracking-[-0.02em] leading-[0.9] select-text">
-                <span className="block text-[44px] md:text-[clamp(4.5rem,7vw,7.5rem)] font-medium text-[var(--studio-ink)]">
-                  {studioData.nameLineOne}
-                </span>
-                {studioData.nameLineTwo && (
-                  <span className="block text-[44px] md:text-[clamp(4.5rem,7vw,7.5rem)] font-medium italic text-[var(--studio-ink)]/70 leading-[0.95]">
-                    {studioData.nameLineTwo}
-                  </span>
-                )}
-              </h1>
-
-              {studioData.bio && (
-                <p className="text-[14px] md:text-[16px] leading-[1.6] md:leading-[1.55] text-[var(--studio-ink-soft)] font-normal mt-4 md:mt-6 max-w-[280px] md:max-w-[90%]">
-                  {studioData.bio}
-                </p>
-              )}
-
-              {/* Established */}
-              {studioData.established && (
-                <div className="mt-4 pt-3 border-t border-[var(--studio-rule)] flex items-center gap-2 text-[10px] font-studio-mono font-medium uppercase tracking-[0.15em] text-[var(--studio-muted)]">
-                  <CalendarIcon className="w-3.5 h-3.5 shrink-0" />
-                  <span>Est. {studioData.established}</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
-
-        {/* ========================================================
-            02 — METRICS / SIGNALS SECTION
-        ======================================================== */}
-        {studioData.metrics && studioData.metrics.length > 0 && (
-          <section id="signals" aria-label="Key Signals" className="studio-reveal-section px-5 md:px-[40px] pt-2 md:pt-[16px] pb-4 md:pb-[20px]">
-            <div className="flex items-baseline justify-between gap-3 mb-3 md:mb-4">
-              <h2 className="text-[9px] font-studio-mono font-bold tracking-[0.22em] uppercase text-[var(--studio-muted)] whitespace-nowrap">
-                02 / SIGNALS
+              <h2 id="drawer-title" className="font-editorial text-2xl md:text-3xl font-semibold mt-1 text-balance" style={{ color: 'var(--studio-stone-900)' }}>
+                {project.title}
               </h2>
-              <span className="text-[8px] font-studio-mono font-medium tracking-[0.2em] uppercase text-[var(--studio-muted)]">
-                SELECTED METRICS
-              </span>
             </div>
+            <button
+              onClick={onClose}
+              className="glass-card p-2 rounded-full shrink-0 transition-all hover:bg-[var(--studio-accent-subtle)]"
+              style={{ color: 'var(--studio-stone-500)' }}
+              aria-label="Close project detail"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
 
-            {/* Desktop */}
-            <div className="studio-metrics-desktop relative bg-[var(--studio-surface-elevated)] border-t border-b border-[var(--studio-rule-strong)] py-3 md:py-[20px] px-3 md:px-[40px]">
-              <div className="pointer-events-none absolute top-1 left-1.5 w-2 h-2 border-t border-l" style={{ borderColor: accent }} aria-hidden="true" />
-              <div className="pointer-events-none absolute top-1 right-1.5 w-2 h-2 border-t border-r" style={{ borderColor: accent }} aria-hidden="true" />
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-8">
+            {/* Image */}
+            {project.imageUrl && (
+              <div className="relative aspect-video rounded-2xl overflow-hidden">
+                <img
+                  src={project.imageUrl}
+                  alt={project.title}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+              </div>
+            )}
 
-              <div className="grid grid-cols-3 divide-x" style={{ borderColor: 'var(--studio-rule)' }}>
-                {studioData.metrics.map((metric, idx) => (
-                  <div key={idx} className={`flex flex-col px-2 md:px-4 relative ${idx === 0 ? 'pl-1 md:pl-2' : ''}`}>
-                    <div className="flex justify-end mb-1">
-                      <span className="text-[7px] font-studio-mono tracking-wider text-[var(--studio-muted)]">
-                        {metric.index || `0${idx + 1}`}
-                      </span>
-                    </div>
-                    <div className="font-studio-serif text-[32px] md:text-[40px] font-medium leading-none text-[var(--studio-ink)] my-1">
+            {/* Description */}
+            {project.description && (
+              <div>
+                <h3 className="font-ui text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: 'var(--studio-stone-500)' }}>
+                  Overview
+                </h3>
+                <p className="font-ui leading-relaxed text-base" style={{ color: 'var(--studio-stone-700)' }}>
+                  {project.description}
+                </p>
+              </div>
+            )}
+
+            {/* Metrics */}
+            {project.metrics?.length && (
+              <div className="grid grid-cols-2 gap-4" style={{ borderTop: '1px solid var(--studio-stone-200)', paddingTop: 'var(--space-6)' }}>
+                {project.metrics.map((metric, i) => (
+                  <div key={i} className="text-center p-4 glass-card">
+                    <div className="font-editorial text-3xl font-bold mb-1" style={{ color: accentColor }}>
                       {metric.value}
                     </div>
-                    <div className="text-[7.5px] md:text-[8px] font-studio-mono font-semibold tracking-[0.16em] uppercase text-[var(--studio-muted)] leading-tight">
+                    <div className="font-ui text-xs uppercase tracking-wider" style={{ color: 'var(--studio-stone-500)' }}>
                       {metric.label}
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
+            )}
 
-            {/* Mobile */}
-            <div className="studio-metrics-mobile relative bg-[var(--studio-surface-elevated)] border border-[var(--studio-rule)] rounded-[8px] divide-y overflow-hidden shadow-sm" style={{ borderColor: 'var(--studio-rule)' }}>
-              {studioData.metrics.map((metric, idx) => (
-                <div key={idx} className="flex items-baseline justify-between px-3.5 py-3 relative group">
-                  <div className="pointer-events-none absolute bottom-1 right-1 w-1.5 h-1.5 border-b border-r" style={{ borderColor: accent }} aria-hidden="true" />
-                  <div className="flex items-baseline gap-2.5 min-w-0 pr-2">
-                    <span className="font-studio-serif text-[28px] font-medium leading-none text-[var(--studio-ink)] shrink-0">
-                      {metric.value}
+            {/* Tags */}
+            {project.tags?.length && (
+              <div>
+                <h3 className="font-ui text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: 'var(--studio-stone-500)' }}>
+                  Expertise
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {project.tags.map((tag, i) => (
+                    <span
+                      key={i}
+                      className="px-3 py-1.5 rounded-full text-xs font-medium"
+                      style={{
+                        background: 'var(--studio-accent-subtle)',
+                        color: 'var(--studio-accent)',
+                        border: '1px solid var(--studio-accent)',
+                        opacity: 0.9,
+                      }}
+                    >
+                      {tag}
                     </span>
-                    <span className="text-[8px] font-studio-mono font-semibold tracking-[0.16em] uppercase text-[var(--studio-muted)] truncate">
-                      {metric.label}
-                    </span>
-                  </div>
-                  <span className="text-[7.5px] font-studio-mono text-[var(--studio-muted)] shrink-0">
-                    {metric.index || `0${idx + 1}`}
-                  </span>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </section>
-        )}
+              </div>
+            )}
 
-        {/* ========================================================
-            03 — SOCIAL RAIL (Horizontal Scroll-Snap)
-        ======================================================== */}
-        {studioData.socials && studioData.socials.length > 0 && (
-          <section id="socials" aria-label="Social Links" className="studio-reveal-section px-5 md:px-[40px] pt-2 md:pt-[16px] pb-4 md:pb-[20px]">
-            <div className="flex items-baseline justify-between gap-3 mb-3 md:mb-4">
-              <h2 className="text-[9px] font-studio-mono font-bold tracking-[0.22em] uppercase text-[var(--studio-muted)] whitespace-nowrap">
-                03 / CONNECT
-              </h2>
-              <span className="text-[8px] font-studio-mono font-medium tracking-[0.2em] uppercase text-[var(--studio-muted)]">
-                STAY IN TOUCH
-              </span>
-            </div>
+            {/* Category & Year */}
+            {(project.category || project.year) && (
+              <div className="flex flex-wrap gap-4 text-sm" style={{ color: 'var(--studio-stone-600)' }}>
+                {project.category && (
+                  <div className="flex items-center gap-1.5">
+                    <Briefcase className="w-4 h-4" />
+                    <span className="font-medium">{project.category}</span>
+                  </div>
+                )}
+                {project.year && (
+                  <div className="flex items-center gap-1.5">
+                    <Award className="w-4 h-4" />
+                    <span className="font-medium">{project.year}</span>
+                  </div>
+                )}
+              </div>
+            )}
 
-            <div
-              className="studio-social-rail flex gap-3 overflow-x-auto scroll-snap-x px-1 pb-2 md:pb-0 -mx-1 md:mx-0 snap-mandatory"
-              role="list"
-              aria-label="Social platforms"
-            >
-              {studioData.socials.map((social, index) => (
+            {/* CTA Buttons */}
+            <div className="flex flex-col sm:flex-row gap-3 pt-4" style={{ borderTop: '1px solid var(--studio-stone-200)' }}>
+              {project.url && (
                 <a
-                  key={`${social.platform}-${index}`}
-                  href={social.url}
+                  href={project.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={() => handleSocialClick(social)}
-                  aria-label={`${social.label} — ${social.sublabel || 'Social Link'}`}
-                  className={`
-                    group shrink-0 snap-start w-[80px] md:w-[96px] flex flex-col items-center gap-2 px-3 py-3 md:px-4 md:py-4
-                    bg-[var(--studio-surface-elevated)] border border-[var(--studio-rule)] rounded-[12px]
-                    transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_8px_24px_rgba(26,26,46,0.08)]
-                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--studio-accent)]
-                  `}
-                  style={{ borderColor: 'var(--studio-rule)' }}
+                  className="btn-primary flex-1"
                 >
-                  <div className="relative w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-[8px] transition-all duration-200 group-hover:scale-105" style={{ backgroundColor: `${accent}08`, border: `1px solid ${accent}20` }}>
-                    {renderStudioSocialIcon(social.platform, 'w-5 h-5 md:w-6 md:h-6')}
-                    <span
-                      className="absolute -bottom-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-studio-mono font-bold"
-                      style={{ backgroundColor: accent, color: '#fff' }}
-                      aria-hidden="true"
-                    >
-                      {index + 1 < 10 ? `0${index + 1}` : index + 1}
-                    </span>
-                  </div>
-                  <span className="text-[9px] md:text-[10px] font-studio-mono font-semibold uppercase tracking-[0.1em] text-[var(--studio-ink)] text-center leading-tight">
-                    {social.label}
-                  </span>
+                  <ExternalLink className="w-4 h-4" />
+                  View Project
                 </a>
-              ))}
+              )}
+              <button
+                onClick={onClose}
+                className="btn-secondary flex-1"
+              >
+                Close
+              </button>
             </div>
-          </section>
-        )}
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
 
-        {/* ========================================================
-            04 — FEATURED PROJECTS (with drawer trigger)
-        ======================================================== */}
-        {studioData.projects && studioData.projects.length > 0 && (
-          <section id="projects" aria-label="Featured Projects" className="studio-reveal-section px-5 md:px-[40px] pt-2 md:pt-[16px] pb-4 md:pb-[20px]">
-            <div className="flex items-baseline justify-between gap-3 mb-3 md:mb-4">
-              <h2 className="text-[9px] font-studio-mono font-bold tracking-[0.22em] uppercase text-[var(--studio-muted)] whitespace-nowrap">
-                04 / WORK
-              </h2>
-              <span className="text-[8px] font-studio-mono font-medium tracking-[0.2em] uppercase text-[var(--studio-muted)]">
-                SELECTED PROJECTS
-              </span>
+/* ────────────────────────── Scroll Reveal ────────────────────────── */
+
+function ScrollReveal({ children, delay = 0, className = '', style }: { children: React.ReactNode; delay?: number; className?: string; style?: React.CSSProperties }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setIsVisible(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
+    );
+    if (ref.current) observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <motion.div
+      ref={ref}
+      className={className}
+      style={style}
+      initial={{ opacity: 0, y: 30 }}
+      animate={isVisible ? { opacity: 1, y: 0 } : {}}
+      transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+/* ────────────────────────── Decorative Elements ────────────────────────── */
+
+function DecorativeOrb({ className = '', style = {} }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <div
+      className={className}
+      style={{
+        ...style,
+        borderRadius: '50%',
+        filter: 'blur(80px)',
+        opacity: 0.4,
+        pointerEvents: 'none',
+      }}
+      aria-hidden="true"
+    />
+  );
+}
+
+function GeometricAccent({ className = '', style }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg
+      className={className}
+      width="100%"
+      height="100%"
+      viewBox="0 0 100 100"
+      preserveAspectRatio="none"
+      aria-hidden="true"
+      style={{ opacity: 0.03, ...style }}
+    >
+      <defs>
+        <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+          <path d="M 20 0 L 0 0 0 20" fill="none" stroke="currentColor" strokeWidth="0.5" />
+        </pattern>
+      </defs>
+      <rect width="100" height="100" fill="url(#grid)" />
+      <circle cx="50" cy="50" r="30" fill="none" stroke="currentColor" strokeWidth="0.5" />
+      <circle cx="50" cy="50" r="15" fill="none" stroke="currentColor" strokeWidth="0.5" />
+    </svg>
+  );
+}
+
+/* ────────────────────────── Main Studio Template ────────────────────────── */
+
+export function StudioTemplate({ profile, onLinkClick }: TemplateProps) {
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [openProject, setOpenProject] = useState<NonNullable<PublicProfile['projects']>[0] | null>(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  }, []);
+
+  const handleCopyEmail = async () => {
+    if (!profile.email) return;
+    const result = await copyToClipboard(profile.email, 'email');
+    showToast(result.message, result.success ? 'success' : 'error');
+  };
+
+  const handleDownloadVCard = () => {
+    downloadVCard(profile);
+    showToast('Contact saved as vCard', 'success');
+  };
+
+  const socialLinks = useMemo(() => normalizeSocialLinks(profile), [profile.links, profile.socialHandles, profile.email, profile.phone, profile.website]);
+  const proofPoints = useMemo(() => getProofPoints(profile), [profile.proofs, profile.proofPoints, profile.proof_points]);
+  const hasProjects = profile.projects && profile.projects.length > 0;
+
+  const accentColor = profile.theme?.accentColor || 'var(--studio-accent)';
+
+  const nameParts = profile.name?.split(' ') || [];
+  const firstName = nameParts[0] || '';
+  const lastName = nameParts.slice(1).join(' ') || '';
+
+  return (
+    <>
+      <style dangerouslySetInnerHTML={{ __html: STUDIO_STYLES }} />
+      <ToastStack />
+
+      <div className="studio-template font-ui antialiased">
+        {/* Decorative Background Orbs */}
+        <div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden" aria-hidden="true">
+          <DecorativeOrb
+            className="absolute -top-40 -right-40 w-[500px] h-[500px]"
+            style={{ background: 'radial-gradient(circle, var(--studio-accent) 0%, transparent 70%)' }}
+          />
+          <DecorativeOrb
+            className="absolute -bottom-40 -left-40 w-[400px] h-[400px]"
+            style={{ background: 'radial-gradient(circle, var(--studio-sage) 0%, transparent 70%)' }}
+          />
+          <DecorativeOrb
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px]"
+            style={{ background: 'radial-gradient(circle, var(--studio-gold) 0%, transparent 80%)', opacity: 0.15 }}
+          />
+        </div>
+
+        {/* Navigation */}
+        <header className="fixed top-0 left-0 right-0 z-50 px-6 py-4 md:px-8 md:py-5">
+          <nav className="max-w-7xl mx-auto flex items-center justify-between" style={{ height: '64px' }}>
+            {/* Logo / Brand */}
+            <div className="flex items-center gap-3 z-10">
+              <div className="relative w-10 h-10 rounded-2xl flex items-center justify-center overflow-hidden"
+                style={{ background: 'linear-gradient(135deg, var(--studio-accent) 0%, var(--studio-accent-dark) 100%)' }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--studio-cream)]" aria-hidden="true">
+                  <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2" />
+                  <line x1="12" y1="22" x2="12" y2="15.5" />
+                  <line x1="22" y1="8.5" x2="12" y2="15.5" />
+                  <line x1="2" y1="8.5" x2="12" y2="15.5" />
+                </svg>
+              </div>
+              {profile.name && (
+                <span className="font-editorial text-xl font-semibold hidden sm:block" style={{ color: 'var(--studio-stone-900)' }}>
+                  {profile.name}
+                </span>
+              )}
             </div>
 
-            <div className="space-y-3">
-              {studioData.projects.slice(0, 3).map((project, idx) => (
-                <button
-                  key={project.id}
-                  onClick={() => handleProjectClick(project)}
-                  className="group w-full text-left p-4 md:p-5 rounded-[12px] bg-[var(--studio-surface-elevated)] border border-[var(--studio-rule)] transition-all duration-200 hover:border-[var(--studio-accent-border)] hover:shadow-[0_8px_24px_rgba(26,26,46,0.06)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--studio-accent)]"
-                  style={{ borderColor: 'var(--studio-rule)' }}
-                  aria-label={`View project: ${project.title}`}
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <span className="text-[8px] font-studio-mono font-bold tracking-[0.2em] uppercase text-[var(--studio-muted)]">
-                          0{idx + 1}
-                        </span>
-                        {project.subtitle && (
-                          <span className="text-[10px] font-studio-mono font-medium uppercase tracking-[0.1em]" style={{ color: accent }}>
-                            {project.subtitle}
-                          </span>
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex items-center gap-8">
+              <a href="#profile" className="font-ui text-sm font-medium transition-colors hover:text-[var(--studio-accent)]" style={{ color: 'var(--studio-stone-600)' }}>Profile</a>
+              {(profile.headline || profile.bio || profile.focus || profile.interests || profile.expertise?.length) && (
+                <a href="#about" className="font-ui text-sm font-medium transition-colors hover:text-[var(--studio-accent)]" style={{ color: 'var(--studio-stone-600)' }}>About</a>
+              )}
+              {hasProjects && (
+                <a href="#work" className="font-ui text-sm font-medium transition-colors hover:text-[var(--studio-accent)]" style={{ color: 'var(--studio-stone-600)' }}>Work</a>
+              )}
+              <AvailabilityPill availability={profile.availability} />
+              <LiveClock timezone={profile.timezone} />
+            </div>
+
+            {/* Mobile Menu Button */}
+            <div className="md:hidden flex items-center gap-3">
+              <button
+                onClick={handleCopyEmail}
+                className="glass-card p-2 rounded-full"
+                style={{ color: 'var(--studio-stone-500)' }}
+                aria-label="Copy email"
+              >
+                <Mail className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="glass-card p-2 rounded-full"
+                style={{ color: 'var(--studio-stone-700)' }}
+                aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
+                aria-expanded={isMobileMenuOpen}
+              >
+                {isMobileMenuOpen ? <X className="w-6 h-6" /> : <MessageSquare className="w-6 h-6" />}
+              </button>
+            </div>
+          </nav>
+
+          {/* Mobile Menu */}
+          <AnimatePresence>
+            {isMobileMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="md:hidden mt-4 glass-card p-4 space-y-2 overflow-hidden"
+              >
+                <a href="#profile" onClick={() => setIsMobileMenuOpen(false)} className="block px-4 py-3 rounded-xl font-ui text-sm font-medium transition-colors hover:bg-[var(--studio-accent-subtle)]" style={{ color: 'var(--studio-stone-700)' }}>Profile</a>
+                {(profile.headline || profile.bio || profile.focus || profile.interests || profile.expertise?.length) && (
+                  <a href="#about" onClick={() => setIsMobileMenuOpen(false)} className="block px-4 py-3 rounded-xl font-ui text-sm font-medium transition-colors hover:bg-[var(--studio-accent-subtle)]" style={{ color: 'var(--studio-stone-700)' }}>About</a>
+                )}
+                {hasProjects && (
+                  <a href="#work" onClick={() => setIsMobileMenuOpen(false)} className="block px-4 py-3 rounded-xl font-ui text-sm font-medium transition-colors hover:bg-[var(--studio-accent-subtle)]" style={{ color: 'var(--studio-stone-700)' }}>Work</a>
+                )}
+                {profile.email && (
+                  <a href={`mailto:${profile.email}`} onClick={() => setIsMobileMenuOpen(false)} className="block px-4 py-3 rounded-xl font-ui text-sm font-medium transition-colors hover:bg-[var(--studio-accent-subtle)]" style={{ color: 'var(--studio-accent)' }}>
+                    <Mail className="w-4 h-4 inline mr-2" /> Contact
+                  </a>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </header>
+
+        {/* Main Content */}
+        <main className="pt-24 pb-20 px-6 md:px-8 lg:px-12">
+          <div className="max-w-7xl mx-auto">
+
+            {/* HERO SECTION */}
+            <section id="profile" className="relative mb-[var(--space-10)]">
+              <div className="grid lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+                {/* Left Column - Photo & Social Rail */}
+                <div className="lg:col-span-5 relative" style={{ zIndex: 10 }}>
+                  <ScrollReveal delay={0.1}>
+                    {profile.avatarUrl && (
+                      <div className="relative aspect-[4/5] rounded-2xl overflow-hidden"
+                        style={{
+                          boxShadow: 'var(--shadow-xl), var(--shadow-gold)',
+                          border: '1px solid var(--studio-stone-200)',
+                        }}>
+                        <img
+                          src={profile.avatarUrl}
+                          alt={profile.name || 'Profile photograph'}
+                          className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
+                        />
+                        {/* Corner accent */}
+                        <div className="absolute top-0 left-0 w-20 h-20 border-t-4 border-l-4" style={{ borderColor: 'var(--studio-accent)' }} />
+                        <div className="absolute bottom-0 right-0 w-20 h-20 border-b-4 border-r-4" style={{ borderColor: 'var(--studio-gold)' }} />
+                        {/* Location badge */}
+                        {profile.location && (
+                          <div className="absolute bottom-4 left-4 right-4 glass-card px-4 py-2 text-center">
+                            <MapPin className="w-4 h-4 inline mr-1.5" style={{ color: 'var(--studio-accent)' }} />
+                            <span className="font-ui text-sm font-medium" style={{ color: 'var(--studio-stone-700)' }}>{profile.location}</span>
+                          </div>
                         )}
                       </div>
-                      <h3 className="font-studio-serif text-[18px] md:text-[20px] font-medium leading-tight text-[var(--studio-ink)] truncate group-hover:text-[var(--studio-accent)] transition-colors">
-                        {project.title}
-                      </h3>
-                      {project.description && (
-                        <p className="text-[13px] md:text-[14px] leading-[1.55] text-[var(--studio-ink-soft)] mt-2 line-clamp-2">
-                          {project.description}
+                    )}
+
+                    {/* Availability & Clock Stack */}
+                    <div className="mt-6 flex flex-col gap-3">
+                      <AvailabilityPill availability={profile.availability} />
+                      <LiveClock timezone={profile.timezone} />
+                    </div>
+
+                    {/* Social Rail - Sticky on scroll */}
+                    {socialLinks.length > 0 && (
+                      <ScrollReveal delay={0.3} className="mt-8 sticky top-24">
+                        <div className="glass-card p-5">
+                          <div className="flex items-center justify-between mb-4">
+                            <span className="font-ui text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--studio-stone-500)' }}>
+                              Connect
+                            </span>
+                            <span className="font-mono text-xs" style={{ color: 'var(--studio-stone-400)' }}>
+                              {socialLinks.length}
+                            </span>
+                          </div>
+                          <SocialRail links={socialLinks} />
+                        </div>
+                      </ScrollReveal>
+                    )}
+                  </ScrollReveal>
+                </div>
+
+                {/* Right Column - Identity & Info */}
+                <div className="lg:col-span-7 lg:pl-8 relative">
+                  <ScrollReveal delay={0.2} className="pt-4 md:pt-12">
+                    {/* Eyebrow */}
+                    {profile.headline && (
+                      <div className="inline-flex items-center gap-2 mb-5 glass-card px-4 py-2 inline-block"
+                        style={{ borderColor: 'var(--studio-accent)' }}>
+                        <span className="w-2 h-2 rounded-full" style={{ background: 'var(--studio-accent)' }} aria-hidden="true" />
+                        <span className="font-ui text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--studio-stone-600)' }}>
+                          {profile.headline}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Name */}
+                    {profile.name && (
+                      <h1 className="font-editorial font-semibold leading-[1.05] tracking-tight mb-6 text-balance"
+                        style={{ fontSize: 'clamp(2.5rem, 6vw, 5.5rem)', color: 'var(--studio-stone-950)' }}>
+                        <span className="font-normal">{firstName}</span>{' '}
+                        <span className="italic" style={{ color: 'var(--studio-accent)' }}>{lastName}</span>
+                      </h1>
+                    )}
+
+                    {/* Subdomain / Handle */}
+                    {profile.subdomain && (
+                      <p className="font-mono text-sm mb-8" style={{ color: 'var(--studio-stone-500)' }}>
+                        @{profile.subdomain} <span style={{ color: 'var(--studio-stone-300)' }}>·</span> <span className="font-ui font-medium" style={{ color: 'var(--studio-accent)' }}>unool.com</span>
+                      </p>
+                    )}
+
+                    {/* Bio */}
+                    {profile.bio && (
+                      <ScrollReveal delay={0.3}>
+                        <p className="font-ui text-lg leading-relaxed max-w-2xl mb-8 text-pretty" style={{ color: 'var(--studio-stone-600)' }}>
+                          "{profile.bio}"
+                        </p>
+                      </ScrollReveal>
+                    )}
+
+                    {/* CTA Row */}
+                    <ScrollReveal delay={0.4}>
+                      <div className="flex flex-wrap items-center gap-4">
+                        {profile.email && (
+                          <button
+                            onClick={handleCopyEmail}
+                            className="btn-primary group"
+                            aria-label="Copy email address"
+                          >
+                            <Mail className="w-4 h-4" />
+                            Copy Email
+                            <span className="font-mono text-xs opacity-0 group-hover:opacity-100 transition-opacity">⌘C</span>
+                          </button>
+                        )}
+                        <button
+                          onClick={handleDownloadVCard}
+                          className="btn-secondary"
+                          aria-label="Download vCard"
+                        >
+                          <Download className="w-4 h-4" />
+                          Save Contact
+                        </button>
+                        {profile.website && (
+                          <a
+                            href={profile.website}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn-ghost"
+                            aria-label="Visit website"
+                          >
+                            <GlobeIcon className="w-4 h-4" />
+                            Website
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+                      </div>
+                    </ScrollReveal>
+
+                    {/* Quick Stats */}
+                    {(proofPoints.length > 0 || profile.expertise?.length) && (
+                      <ScrollReveal delay={0.5} className="mt-10 pt-8" style={{ borderTop: '1px solid var(--studio-stone-200)' }}>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          {proofPoints.slice(0, 3).map((proof, i) => (
+                            <div key={i} className="text-center p-4 glass-card">
+                              <div className="font-editorial text-3xl md:text-4xl font-bold mb-1" style={{ color: 'var(--studio-accent)' }}>
+                                {proof.value}
+                              </div>
+                              <div className="font-ui text-xs uppercase tracking-wider" style={{ color: 'var(--studio-stone-500)' }}>
+                                {proof.title}
+                              </div>
+                            </div>
+                          ))}
+                          {profile.expertise?.length && proofPoints.length < 3 && (
+                            <div className="text-center p-4 glass-card">
+                              <div className="font-editorial text-3xl md:text-4xl font-bold mb-1" style={{ color: 'var(--studio-sage)' }}>
+                                {profile.expertise.length}+
+                              </div>
+                              <div className="font-ui text-xs uppercase tracking-wider" style={{ color: 'var(--studio-stone-500)' }}>
+                                Skills
+                              </div>
+                            </div>
+                          )}
+                          {socialLinks.length && proofPoints.length < 2 && profile.expertise?.length === undefined && (
+                            <div className="text-center p-4 glass-card">
+                              <div className="font-editorial text-3xl md:text-4xl font-bold mb-1" style={{ color: 'var(--studio-gold)' }}>
+                                {socialLinks.length}
+                              </div>
+                              <div className="font-ui text-xs uppercase tracking-wider" style={{ color: 'var(--studio-stone-500)' }}>
+                                Networks
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </ScrollReveal>
+                    )}
+                  </ScrollReveal>
+                </div>
+              </div>
+
+              {/* Decorative Divider */}
+              <div className="mt-10 relative" aria-hidden="true">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full h-px" style={{
+                    background: 'linear-gradient(90deg, transparent, var(--studio-stone-200), transparent)'
+                  }} />
+                </div>
+                <div className="relative flex justify-center">
+                  <div className="w-3 h-3 rounded-full" style={{
+                    background: 'var(--studio-accent)',
+                    boxShadow: '0 0 20px var(--studio-accent-glow)'
+                  }} />
+                </div>
+              </div>
+            </section>
+
+            {/* ABOUT SECTION */}
+            {(profile.headline || profile.bio || profile.focus || profile.interests || profile.expertise?.length || profile.experience?.length) && (
+              <section id="about" className="mb-[var(--space-10)]">
+                <ScrollReveal delay={0.1}>
+                  <div className="grid lg:grid-cols-12 gap-8 lg:gap-12">
+                    {/* Left: Editorial Content */}
+                    <div className="lg:col-span-7">
+                      <div className="flex items-center gap-3 mb-8">
+                        <div className="w-12 h-px" style={{ background: 'var(--studio-accent)' }} />
+                        <span className="font-ui text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--studio-stone-500)' }}>
+                          About
+                        </span>
+                      </div>
+
+                      <h2 className="font-editorial font-semibold leading-[1.1] tracking-tight mb-6 text-balance"
+                        style={{ fontSize: 'clamp(1.75rem, 4vw, 3rem)', color: 'var(--studio-stone-900)' }}>
+                        Designing with <br />
+                        <span className="italic" style={{ color: 'var(--studio-accent)' }}>a little more</span> attention.
+                      </h2>
+
+                      {profile.bio && (
+                        <p className="font-ui text-lg leading-relaxed max-w-2xl mb-10 text-pretty" style={{ color: 'var(--studio-stone-600)' }}>
+                          {profile.bio}
                         </p>
                       )}
-                      {project.tags && project.tags.length > 0 && (
-                        <div className="mt-3 flex flex-wrap gap-1.5">
-                          {project.tags.slice(0, 4).map((tag, i) => (
-                            <span
+
+                      {/* Details Grid */}
+                      <div className="grid md:grid-cols-2 gap-6">
+                        {profile.location && (
+                          <div className="glass-card p-5">
+                            <MapPin className="w-5 h-5 mb-2" style={{ color: 'var(--studio-accent)' }} />
+                            <span className="font-ui text-xs uppercase tracking-widest block mb-1" style={{ color: 'var(--studio-stone-500)' }}>Based in</span>
+                            <p className="font-editorial text-lg font-medium" style={{ color: 'var(--studio-stone-900)' }}>{profile.location}</p>
+                          </div>
+                        )}
+                        {profile.focus && (
+                          <div className="glass-card p-5">
+                            <Star className="w-5 h-5 mb-2" style={{ color: 'var(--studio-gold)' }} />
+                            <span className="font-ui text-xs uppercase tracking-widest block mb-1" style={{ color: 'var(--studio-stone-500)' }}>Focus</span>
+                            <p className="font-editorial text-lg font-medium" style={{ color: 'var(--studio-stone-900)' }}>{profile.focus}</p>
+                          </div>
+                        )}
+                        {profile.interests && (
+                          <div className="glass-card p-5 md:col-span-2">
+                            <Heart className="w-5 h-5 mb-2" style={{ color: 'var(--studio-accent)' }} />
+                            <span className="font-ui text-xs uppercase tracking-widest block mb-2" style={{ color: 'var(--studio-stone-500)' }}>Interests</span>
+                            <p className="font-ui text-base leading-relaxed" style={{ color: 'var(--studio-stone-600)' }}>{profile.interests}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Expertise */}
+                      {profile.expertise?.length && (
+                        <div className="mt-10">
+                          <div className="flex items-center justify-between mb-5">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-px" style={{ background: 'var(--studio-sage)' }} />
+                              <span className="font-ui text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--studio-stone-500)' }}>Expertise</span>
+                            </div>
+                            <span className="font-mono text-xs" style={{ color: 'var(--studio-stone-400)' }}>{profile.expertise.length}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {profile.expertise.map((skill, i) => (
+                              <motion.span
+                                key={i}
+                                initial={{ opacity: 0, scale: 0.9 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ delay: 0.05 * i, duration: 0.3 }}
+                                className="px-4 py-2 glass-card font-ui text-sm font-medium transition-all"
+                                style={{ color: 'var(--studio-stone-700)' }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.background = 'var(--studio-accent)';
+                                  e.currentTarget.style.color = 'var(--studio-cream)';
+                                  e.currentTarget.style.borderColor = 'var(--studio-accent)';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.background = 'var(--glass-bg)';
+                                  e.currentTarget.style.color = 'var(--studio-stone-700)';
+                                  e.currentTarget.style.borderColor = 'var(--glass-border)';
+                                }}
+                              >
+                                {skill}
+                              </motion.span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Experience */}
+                      {profile.experience?.length && (
+                        <div className="mt-10 space-y-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-px" style={{ background: 'var(--studio-gold)' }} />
+                              <span className="font-ui text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--studio-stone-500)' }}>Experience</span>
+                            </div>
+                            <span className="font-mono text-xs" style={{ color: 'var(--studio-stone-400)' }}>{profile.experience.length}</span>
+                          </div>
+                          {profile.experience.map((exp, i) => (
+                            <motion.div
                               key={i}
-                              className="px-2 py-0.5 text-[9px] font-studio-mono font-medium uppercase tracking-[0.1em] rounded-[4px]"
-                              style={{
-                                backgroundColor: `${accent}10`,
-                                color: accent,
-                                border: `1px solid ${accent}30`,
-                              }}
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: 0.1 * i, duration: 0.4 }}
+                              className="glass-card p-5 flex items-center justify-between gap-4"
                             >
-                              {tag}
-                            </span>
+                              <div>
+                                <p className="font-editorial text-base font-medium" style={{ color: 'var(--studio-stone-900)' }}>
+                                  {exp.company || exp.role}
+                                </p>
+                                {exp.role && exp.company && (
+                                  <p className="font-ui text-sm mt-0.5" style={{ color: 'var(--studio-stone-500)' }}>{exp.role}</p>
+                                )}
+                              </div>
+                              <span className="font-mono text-sm font-medium shrink-0" style={{ color: 'var(--studio-accent)' }}>
+                                {exp.year}
+                              </span>
+                            </motion.div>
                           ))}
                         </div>
                       )}
                     </div>
-                    <div className="flex-shrink-0 ml-4">
-                      <ChevronRightIcon className="w-5 h-5 text-[var(--studio-muted)] group-hover:text-[var(--studio-accent)] transition-colors group-hover:translate-x-1" />
+
+                    {/* Right: Visual Accent / Quote */}
+                    <div className="lg:col-span-5 relative">
+                      <div className="sticky top-28 h-full min-h-[400px]">
+                        <div className="relative h-full glass-card-elevated p-8 md:p-10 flex flex-col justify-between">
+                          <div>
+                            <GeometricAccent className="absolute -top-20 -right-20 w-64 h-64" style={{ color: 'var(--studio-accent)' }} />
+                            <div className="relative z-10">
+                              <Quote className="w-10 h-10 mb-4" style={{ color: 'var(--studio-accent)', opacity: 0.3 }} />
+                              <blockquote className="font-editorial italic text-xl md:text-2xl leading-relaxed" style={{ color: 'var(--studio-stone-700)' }}>
+                                "Great design isn't what it looks like. It's how it works, how it feels, and how it transforms the everyday into something memorable."
+                              </blockquote>
+                            </div>
+                          </div>
+                          <div className="relative z-10 pt-8" style={{ borderTop: '1px solid var(--studio-stone-200)' }}>
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+                                style={{ background: 'linear-gradient(135deg, var(--studio-accent) 0%, var(--studio-accent-dark) 100%)' }}>
+                                <Users className="w-6 h-6 text-[var(--studio-cream)]" />
+                              </div>
+                              <div>
+                                <p className="font-editorial text-lg font-semibold" style={{ color: 'var(--studio-stone-900)' }}>Collaborative by nature</p>
+                                <p className="font-ui text-sm" style={{ color: 'var(--studio-stone-500)' }}>We believe the best work happens together</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </button>
-              ))}
-            </div>
-          </section>
-        )}
+                </ScrollReveal>
+              </section>
+            )}
 
-        {/* ========================================================
-            RECENT ACTIVITY
-        ======================================================== */}
-        <div className="px-5 md:px-[40px] pt-4">
-          <RecentActivitySection
-            activity={(profile as any)?.recentActivity}
-            variant="club"
-            autoScroll={(profile as any)?.autoScroll}
-          />
-        </div>
+            {/* PROOF POINTS */}
+            {proofPoints.length > 0 && (
+              <section id="proof" className="mb-[var(--space-10)]">
+                <ScrollReveal delay={0.1}>
+                  <div className="flex items-center justify-between mb-10">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-px" style={{ background: 'var(--studio-sage)' }} />
+                      <span className="font-ui text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--studio-stone-500)' }}>Proof Points</span>
+                    </div>
+                    <span className="font-mono text-xs" style={{ color: 'var(--studio-stone-400)' }}>{proofPoints.length}</span>
+                  </div>
+                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    {proofPoints.map((proof, i) => (
+                      <motion.div
+                        key={i}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.08 * i, duration: 0.5 }}
+                        className="glass-card-elevated p-6 md:p-8 group"
+                      >
+                        <div className="flex items-start justify-between gap-4 mb-4">
+                          <span className="font-mono text-xs font-bold shrink-0" style={{ color: 'var(--studio-stone-400)' }}>
+                            {String(i + 1).padStart(2, '0')}
+                          </span>
+                          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                            style={{ background: 'var(--studio-accent-subtle)', color: 'var(--studio-accent)' }}>
+                            <Award className="w-5 h-5" />
+                          </div>
+                        </div>
+                        <div className="font-editorial text-4xl md:text-5xl font-bold mb-3" style={{ color: 'var(--studio-stone-950)' }}>
+                          {proof.value}
+                        </div>
+                        <div className="font-ui text-sm uppercase tracking-wider" style={{ color: 'var(--studio-stone-500)' }}>
+                          {proof.title}
+                        </div>
+                        <div className="absolute bottom-0 left-0 right-0 h-px opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ background: 'var(--studio-accent)' }} />
+                      </motion.div>
+                    ))}
+                  </div>
+                </ScrollReveal>
+              </section>
+            )}
 
-        {/* ========================================================
-            05 — CTA SECTION (Interactive)
-        ======================================================== */}
-        <section id="cta" aria-label="Call to Action" className="studio-reveal-section bg-[var(--studio-ink)] text-white px-5 md:px-[40px] py-5 md:py-[32px] relative overflow-hidden">
-          {/* Subtle accent geometry */}
-          <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-            <div className="absolute top-0 right-0 w-[200px] h-[200px] translate-x-1/2 -translate-y-1/2 rounded-full opacity-[0.03]" style={{ backgroundColor: accent }} />
-            <div className="absolute bottom-0 left-0 w-[150px] h-[150px] -translate-x-1/2 translate-y-1/2 rounded-full opacity-[0.02]" style={{ backgroundColor: accent }} />
+            {/* SELECTED WORK */}
+            {hasProjects && (
+              <section id="work" className="mb-[var(--space-10)]">
+                <ScrollReveal delay={0.1}>
+                  <div className="flex items-center justify-between mb-10">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-px" style={{ background: 'var(--studio-gold)' }} />
+                      <span className="font-ui text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--studio-stone-500)' }}>Selected Work</span>
+                    </div>
+                    <span className="font-mono text-xs" style={{ color: 'var(--studio-stone-400)' }}>{profile.projects!.length}</span>
+                  </div>
+
+                  <h2 className="font-editorial font-semibold leading-[1.1] tracking-tight mb-10 text-balance"
+                    style={{ fontSize: 'clamp(1.75rem, 4vw, 3rem)', color: 'var(--studio-stone-900)' }}>
+                    A few things <br />
+                    <span className="italic" style={{ color: 'var(--studio-gold)' }}>made with care.</span>
+                  </h2>
+
+                  <div className="space-y-4">
+                    {profile.projects!.map((project, i) => (
+                      <motion.article
+                        key={project.id || i}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.08 * i, duration: 0.5 }}
+                        className="group relative glass-card overflow-hidden"
+                        onClick={() => setOpenProject(project)}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <div className="flex flex-col md:flex-row">
+                          {/* Thumbnail */}
+                          <div className="relative w-full md:w-48 md:flex-shrink-0 aspect-square md:aspect-auto overflow-hidden">
+                            {project.imageUrl ? (
+                              <img
+                                src={project.imageUrl}
+                                alt={project.title}
+                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center" style={{ background: 'var(--studio-stone-100)' }}>
+                                <div className="w-12 h-12 rounded-full" style={{ border: '2px solid var(--studio-stone-300)' }} />
+                              </div>
+                            )}
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-[var(--studio-accent)] opacity-0 group-hover:opacity-10 transition-opacity duration-500" />
+                          </div>
+
+                          {/* Content */}
+                          <div className="flex-1 p-5 md:p-6 flex flex-col justify-between">
+                            <div>
+                              <div className="flex items-center gap-3 mb-3">
+                                <span className="font-mono text-xs font-bold shrink-0" style={{ color: 'var(--studio-stone-400)' }}>
+                                  {String(i + 1).padStart(2, '0')}
+                                </span>
+                                {project.category && (
+                                  <span className="px-2.5 py-1 rounded-full font-ui text-xs font-medium"
+                                    style={{ background: 'var(--studio-sage-subtle)', color: 'var(--studio-sage)' }}>
+                                    {project.category}
+                                  </span>
+                                )}
+                                {project.year && (
+                                  <span className="font-mono text-xs" style={{ color: 'var(--studio-stone-400)' }}>
+                                    {project.year}
+                                  </span>
+                                )}
+                              </div>
+                              <h3 className="font-editorial text-xl md:text-2xl font-semibold mb-2 group-hover:text-[var(--studio-accent)] transition-colors" style={{ color: 'var(--studio-stone-950)' }}>
+                                {project.title}
+                              </h3>
+                              {project.description && (
+                                <p className="font-ui text-base leading-relaxed line-clamp-2" style={{ color: 'var(--studio-stone-600)' }}>
+                                  {project.description}
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Tags */}
+                            {project.tags?.length && (
+                              <div className="flex flex-wrap gap-2 mt-4 pt-4" style={{ borderTop: '1px solid var(--studio-stone-200)' }}>
+                                {project.tags.slice(0, 4).map((tag, ti) => (
+                                  <span
+                                    key={ti}
+                                    className="px-3 py-1 rounded-full font-ui text-xs font-medium"
+                                    style={{ background: 'var(--studio-stone-100)', color: 'var(--studio-stone-600)' }}
+                                  >
+                                    {tag}
+                                  </span>
+                                ))}
+                                {project.tags.length > 4 && (
+                                  <span className="px-3 py-1 rounded-full font-ui text-xs font-medium"
+                                    style={{ background: 'var(--studio-accent-subtle)', color: 'var(--studio-accent)' }}>
+                                    +{project.tags.length - 4} more
+                                  </span>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Metrics */}
+                            {project.metrics?.length && (
+                              <div className="flex items-center gap-6 mt-4 pt-4" style={{ borderTop: '1px solid var(--studio-stone-200)' }}>
+                                {project.metrics.map((metric, mi) => (
+                                  <div key={mi} className="text-center">
+                                    <div className="font-editorial text-xl font-bold" style={{ color: accentColor }}>
+                                      {metric.value}
+                                    </div>
+                                    <div className="font-ui text-[10px] uppercase tracking-wider" style={{ color: 'var(--studio-stone-500)' }}>
+                                      {metric.label}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Arrow Indicator */}
+                          <div className="absolute right-6 top-1/2 -translate-y-1/2 md:right-6 md:top-1/2 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300">
+                            <div className="w-12 h-12 rounded-full flex items-center justify-center"
+                              style={{ background: 'var(--studio-accent)', color: 'var(--studio-cream)' }}>
+                              <ChevronRight className="w-5 h-5" />
+                            </div>
+                          </div>
+                        </div>
+                      </motion.article>
+                    ))}
+                  </div>
+                </ScrollReveal>
+              </section>
+            )}
+
+            {/* CONTACT FOOTER */}
+            <footer id="contact" className="relative">
+              <ScrollReveal delay={0.1}>
+                <div className="relative rounded-2xl overflow-hidden"
+                  style={{
+                    background: 'linear-gradient(135deg, var(--studio-stone-900) 0%, var(--studio-stone-800) 50%, var(--studio-stone-700) 100%)',
+                    border: '1px solid var(--studio-stone-600)',
+                  }}>
+                  {/* Decorative background */}
+                  <div className="absolute inset-0 overflow-hidden" aria-hidden="true">
+                    <GeometricAccent className="absolute top-0 left-0 w-full h-full" style={{ color: 'var(--studio-accent)' }} />
+                    <DecorativeOrb
+                      className="absolute -top-20 -right-20 w-[300px] h-[300px]"
+                      style={{ background: 'radial-gradient(circle, var(--studio-accent) 0%, transparent 70%)', opacity: 0.15 }}
+                    />
+                    <DecorativeOrb
+                      className="absolute bottom-20 left-20 w-[200px] h-[200px]"
+                      style={{ background: 'radial-gradient(circle, var(--studio-gold) 0%, transparent 70%)', opacity: 0.1 }}
+                    />
+                  </div>
+
+                  <div className="relative z-10 max-w-4xl mx-auto px-6 py-12 md:py-20 lg:px-12 lg:py-24">
+                    <div className="flex items-center justify-between mb-10">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-px" style={{ background: 'var(--studio-gold)' }} />
+                        <span className="font-ui text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--studio-stone-400)' }}>Get In Touch</span>
+                      </div>
+                      <span className="font-mono text-xs" style={{ color: 'var(--studio-stone-500)' }}>04</span>
+                    </div>
+
+                    <h2 className="font-editorial font-semibold leading-[1.05] tracking-tight mb-8 text-center md:text-left text-balance"
+                      style={{ fontSize: 'clamp(2rem, 5vw, 4rem)', color: 'var(--studio-cream)' }}>
+                      Let's make something<br />
+                      <span className="italic" style={{ color: 'var(--studio-gold)' }}>useful.</span>
+                    </h2>
+
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 max-w-md mx-auto md:mx-0">
+                      {profile.email && (
+                        <a
+                          href={`mailto:${profile.email}`}
+                          className="btn-primary flex-1 text-lg px-8 py-4 group"
+                        >
+                          <Mail className="w-5 h-5" />
+                          WRITE TO {profile.name?.toUpperCase() || 'ME'}
+                          <ChevronRight className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" />
+                        </a>
+                      )}
+                      <button
+                        onClick={handleDownloadVCard}
+                        className="btn-secondary flex-1 text-lg px-8 py-4"
+                        style={{ borderColor: 'var(--studio-stone-400)', color: 'var(--studio-stone-200)' }}
+                      >
+                        <Download className="w-5 h-5" />
+                        SAVE CONTACT
+                      </button>
+                    </div>
+
+                    <div className="mt-16 pt-8 flex flex-col md:flex-row items-center justify-between gap-4"
+                      style={{ borderTop: '1px solid var(--studio-stone-700)' }}>
+                      <p className="font-ui text-xs uppercase tracking-widest" style={{ color: 'var(--studio-stone-500)' }}>
+                        © {new Date().getFullYear()}{profile.name ? ` / ${profile.name}` : ''}
+                      </p>
+                      <a href="#profile" className="btn-ghost" style={{ color: 'var(--studio-stone-400)' }}>
+                        Back to top
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </ScrollReveal>
+            </footer>
+
           </div>
+        </main>
 
-          <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
-            <div>
-              <h2 className="font-studio-serif tracking-[-0.015em] leading-[0.95] select-text">
-                <span className="block text-[32px] md:text-[44px] font-medium">
-                  Let's build
-                </span>
-                <span className="block text-[32px] md:text-[44px] font-medium italic" style={{ color: accent }}>
-                  something remarkable.
-                </span>
-              </h2>
-            </div>
+        {/* Project Drawer */}
+        <ProjectDrawer
+          project={openProject!}
+          isOpen={!!openProject}
+          onClose={() => setOpenProject(null)}
+          accentColor={accentColor}
+        />
 
-            {/* Right: Action Buttons */}
-            <div className="w-full md:w-auto self-start md:self-end flex flex-col md:flex-row gap-3">
-              {/* Primary CTA */}
-              <a
-                href={mailtoHref}
-                className="group relative w-full md:w-auto inline-flex items-center justify-center gap-2 px-5 md:px-7 py-3.5 md:py-4 rounded-[10px] font-studio-mono font-semibold text-[11px] md:text-[12px] uppercase tracking-[0.15em] transition-all"
-                style={{
-                  backgroundColor: accent,
-                  color: '#fff',
-                  border: `1px solid ${accent}`,
-                }}
-                aria-label={`${studioData.ctaLabel}${studioData.email ? ` — Email ${studioData.email}` : ''}`}
-              >
-                <span className="relative z-10">{studioData.ctaLabel}</span>
-                <ArrowRightIcon className="w-4 h-4 md:w-5 md:h-5 relative z-10 group-hover:translate-x-1 transition-transform" />
-                <div className="pointer-events-none absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity rounded-[10px]" />
-              </a>
-
-              {/* Secondary: Download vCard */}
-              <button
-                onClick={handleDownloadVCard}
-                className="w-full md:w-auto inline-flex items-center justify-center gap-2 px-5 md:px-7 py-3.5 md:py-4 rounded-[10px] font-studio-mono font-semibold text-[11px] md:text-[12px] uppercase tracking-[0.15em] transition-all border border-[var(--studio-rule-strong)] text-[var(--studio-ink)] hover:bg-[var(--studio-rule)]"
-              >
-                <DownloadIcon className="w-4 h-4" />
-                <span>Save Contact</span>
-              </button>
-
-              {/* Tertiary: Copy Email */}
-              {studioData.email && (
-                <button
-                  onClick={handleCopyEmail}
-                  className="w-full md:w-auto inline-flex items-center justify-center gap-2 px-5 md:px-7 py-3.5 md:py-4 rounded-[10px] font-studio-mono font-semibold text-[11px] md:text-[12px] uppercase tracking-[0.15em] transition-all border border-[var(--studio-rule-strong)] text-[var(--studio-ink)] hover:bg-[var(--studio-rule)]"
-                >
-                  <CopyIcon className="w-4 h-4" />
-                  <span>Copy Email</span>
-                </button>
-              )}
-            </div>
-          </div>
-        </section>
-
-        {/* ========================================================
-            FOOTER
-        ======================================================== */}
-        <footer aria-label="Profile Footer" className="bg-[var(--studio-surface-elevated)] border-t border-[var(--studio-rule)] px-5 md:px-6 py-3.5 md:py-4 flex flex-col md:flex-row items-center md:items-center justify-between gap-2 md:gap-0 text-[8px] font-studio-mono font-semibold tracking-[0.2em] uppercase text-[var(--studio-muted)]">
-          <div className="flex items-center gap-3 flex-wrap">
-            <span>STUDIO / {currentYear}</span>
-            <span className="w-[1px] h-4" style={{ backgroundColor: 'var(--studio-rule)' }} aria-hidden="true" />
-            <span>{studioData.footerStatement}</span>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => window.scrollTo({ top: 0, behavior: prefersReducedMotion ? 'auto' : 'smooth' })}
-            aria-label="Back to top of profile"
-            className="flex items-center gap-1.5 hover:text-[var(--studio-accent)] transition-colors p-1 rounded-[6px] hover:bg-[var(--studio-rule)]"
-          >
-            <span className="sr-only">Back to top</span>
-            <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <line x1="8" y1="13" x2="8" y2="3" />
-              <polyline points="4 7 8 3 12 7" />
-            </svg>
-          </button>
-        </footer>
-      </article>
-    </div>
+        {/* Toast Container (handled by ToastStack) */}
+      </div>
+    </>
   );
 }
 
