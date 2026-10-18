@@ -8,6 +8,7 @@ import { Menu, BadgeCheck, ArrowRight, Bookmark, Send, Quote, Github, Linkedin, 
 import { OpenToBadges } from '@/components/profile/OpenToBadges';
 import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
 import { ClubTemplate } from './ClubTemplate';
+import { ClubTemplateV2 } from './ClubTemplateV2';
 import { StudioTemplate } from './StudioTemplate';
 import { SocialIcon, getSocialSvgPath, renderSocialOrIcon, normalizeSocialPlatform } from '@/components/profile/SocialBrandIcons';
 export { ClubTemplate };
@@ -4245,7 +4246,7 @@ export function IdentityTemplate(props: TemplateProps & { templateId: string }) 
     case 'human': content = <HumanTemplate {...props} />; break;
     // Agency
     case 'the-machine': content = <MachineTemplate {...props} />; break;
-    case 'the-club': content = <ClubTemplate {...props} />; break;
+    case 'the-club': content = <ClubTemplateV2 {...props} />; break;
     case 'the-studio': content = <StudioTemplate {...props} />; break;
     // Entrepreneur
     case 'the-builder': content = <BuilderTemplate {...props} />; break;

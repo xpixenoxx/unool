@@ -1,0 +1,212 @@
+/* ============================================================
+   CLUB TEMPLATE v2 — Compact Design Tokens
+   Linktree-density, angular/sharp, per-section unique visual language
+   ============================================================ */
+
+:root {
+  /* ----- SPACING — Ultra-compact, Linktree-density ----- */
+  --club-space-0: 0;
+  --club-space-1: 2px;
+  --club-space-2: 4px;
+  --club-space-3: 6px;
+  --club-space-4: 8px;
+  --club-space-5: 10px;
+  --club-space-6: 12px;
+  --club-space-8: 16px;
+  --club-space-10: 20px;
+  --club-space-12: 24px;
+  --club-space-16: 32px;
+  --club-space-20: 40px;
+  --club-space-24: 48px;
+
+  /* ----- RADII — Angular, sharp, per-section distinct ----- */
+  --club-radius-none: 0;
+  --club-radius-sharp: 2px;
+  --club-radius-tight: 4px;
+  --club-radius-card: 6px;
+  --club-radius-pill: 9999px;
+  --club-radius-blade: 0 12px 12px 0;      /* Asymmetric - left sharp, right round */
+  --club-radius-blade-rev: 12px 0 0 12px;  /* Asymmetric - right sharp, left round */
+  --club-radius-bevel: 8px 0 8px 0;        /* Beveled corners */
+  --club-radius-notch: 0 0 12px 12px;      /* Bottom only */
+  --club-radius-notch-rev: 12px 12px 0 0;  /* Top only */
+
+  /* ----- TYPOGRAPHY — Editorial but compact ----- */
+  --club-text-xs: clamp(0.625rem, 0.6rem + 0.125vw, 0.6875rem);      /* 10-11px */
+  --club-text-sm: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);          /* 12-14px */
+  --club-text-base: clamp(0.875rem, 0.825rem + 0.25vw, 1rem);         /* 14-16px */
+  --club-text-lg: clamp(1rem, 0.925rem + 0.375vw, 1.125rem);          /* 16-18px */
+  --club-text-xl: clamp(1.25rem, 1.125rem + 0.625vw, 1.5rem);         /* 20-24px */
+  --club-text-2xl: clamp(1.5rem, 1.3rem + 1vw, 2rem);                 /* 24-32px */
+  --club-text-3xl: clamp(2rem, 1.7rem + 1.5vw, 3rem);                 /* 32-48px */
+  --club-text-4xl: clamp(2.5rem, 2rem + 2.5vw, 4rem);                 /* 40-64px */
+
+  --club-leading-tight: 1.1;
+  --club-leading-snug: 1.25;
+  --club-leading-normal: 1.4;
+  --club-leading-relaxed: 1.6;
+
+  --club-tracking-tight: -0.03em;
+  --club-tracking-normal: 0;
+  --club-tracking-wide: 0.05em;
+  --club-tracking-wider: 0.1em;
+  --club-tracking-widest: 0.2em;
+
+  /* ----- COLORS — Deep void, electric accents, no purple gradients ----- */
+  --club-void: oklch(0.025 0.015 250);
+  --club-void-soft: oklch(0.045 0.018 250);
+  --club-void-lift: oklch(0.065 0.02 250);
+  --club-void-card: oklch(0.055 0.018 250);
+
+  --club-fg: oklch(0.985 0 0);
+  --club-fg-muted: oklch(0.72 0.01 250);
+  --club-fg-subtle: oklch(0.55 0.01 250);
+
+  --club-electric-cyan: oklch(0.72 0.22 200);
+  --club-electric-cyan-dim: oklch(0.72 0.22 200 / 0.15);
+  --club-electric-cyan-glow: oklch(0.72 0.22 200 / 0.4);
+
+  --club-electric-magenta: oklch(0.68 0.26 330);
+  --club-electric-magenta-dim: oklch(0.68 0.26 330 / 0.15);
+  --club-electric-magenta-glow: oklch(0.68 0.26 330 / 0.4);
+
+  --club-electric-gold: oklch(0.82 0.18 85);
+  --club-electric-gold-dim: oklch(0.82 0.18 85 / 0.15);
+  --club-electric-gold-glow: oklch(0.82 0.18 85 / 0.4);
+
+  --club-electric-lime: oklch(0.78 0.24 130);
+  --club-electric-lime-dim: oklch(0.78 0.24 130 / 0.15);
+  --club-electric-lime-glow: oklch(0.78 0.24 130 / 0.4);
+
+  --club-border: oklch(0.15 0.02 250);
+  --club-border-bright: oklch(0.22 0.02 250);
+
+  /* ----- MOTION — Snappy, purposeful, reduced-motion safe ----- */
+  --club-ease-snap: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --club-ease-smooth: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --club-ease-sharp: cubic-bezier(0.4, 0, 0.2, 1);
+  --club-ease-bounce: cubic-bezier(0.34, 1.6, 0.64, 1);
+
+  --club-dur-instant: 80ms;
+  --club-dur-fast: 150ms;
+  --club-dur-base: 250ms;
+  --club-dur-slow: 400ms;
+  --club-dur-slower: 600ms;
+
+  /* ----- SHADOWS — Sharp, defined, not soft/blurry ----- */
+  --club-shadow-blade: 0 0 0 1px var(--club-electric-cyan), 0 8px 24px -8px var(--club-electric-cyan-glow);
+  --club-shadow-blade-magenta: 0 0 0 1px var(--club-electric-magenta), 0 8px 24px -8px var(--club-electric-magenta-glow);
+  --club-shadow-blade-gold: 0 0 0 1px var(--club-electric-gold), 0 8px 24px -8px var(--club-electric-gold-glow);
+  --club-shadow-blade-lime: 0 0 0 1px var(--club-electric-lime), 0 8px 24px -8px var(--club-electric-lime-glow);
+  --club-shadow-inner: inset 0 0 0 1px var(--club-border);
+  --club-shadow-lift: 0 4px 16px -4px oklch(0 0 0 / 0.5);
+  --club-shadow-lift-lg: 0 12px 32px -8px oklch(0 0 0 / 0.6);
+
+  /* ----- BREAKPOINTS ----- */
+  --club-bp-sm: 480px;
+  --club-bp-md: 768px;
+  --club-bp-lg: 1024px;
+  --club-bp-xl: 1280px;
+  --club-bp-2xl: 1536px;
+
+  /* ----- Z-INDEX ----- */
+  --club-z-bg: 0;
+  --club-z-content: 10;
+  --club-z-nav: 100;
+  --club-z-toast: 200;
+  --club-z-modal: 300;
+}
+
+/* ============================================================
+   BASE RESET — Compact, no browser defaults
+   ============================================================ */
+
+.club-template-v2 *,
+.club-template-v2 *::before,
+.club-template-v2 *::after {
+  box-sizing: border-box;
+}
+
+.club-template-v2 {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background: var(--club-void);
+  color: var(--club-fg);
+  min-height: 100vh;
+  line-height: var(--club-leading-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.club-template-v2 a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.club-template-v2 button {
+  font-family: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.club-template-v2 img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* ============================================================
+   SCROLLBAR — Thin, sharp
+   ============================================================ */
+
+.club-template-v2 ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.club-template-v2 ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.club-template-v2 ::-webkit-scrollbar-thumb {
+  background: var(--club-border-bright);
+  border-radius: 0;
+}
+
+.club-template-v2 ::-webkit-scrollbar-thumb:hover {
+  background: var(--club-electric-cyan);
+}
+
+/* ============================================================
+   SELECTION
+   ============================================================ */
+
+.club-template-v2 ::selection {
+  background: var(--club-electric-cyan-dim);
+  color: var(--club-fg);
+}
+
+/* ============================================================
+   FOCUS — Visible, sharp
+   ============================================================ */
+
+.club-template-v2 :focus-visible {
+  outline: 2px solid var(--club-electric-cyan);
+  outline-offset: 2px;
+  border-radius: var(--club-radius-sharp);
+}
+
+/* ============================================================
+   REDUCED MOTION
+   ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .club-template-v2 *,
+  .club-template-v2 *::before,
+  .club-template-v2 *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
