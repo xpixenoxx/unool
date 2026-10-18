@@ -55,9 +55,14 @@ export async function POST(request: NextRequest) {
     // 2. Query subscribed_apps from Meta to verify current status
     let subscribedFields: string[] = [];
     try {
-      const verifyRes = await fetch(
-        `https://graph.instagram.com/v20.0/${connection.platform_user_id}/subscribed_apps?access_token=${accessToken}`
+      let verifyRes = await fetch(
+        `https://graph.instagram.com/v20.0/me/subscribed_apps?access_token=${accessToken}`
       );
+      if (!verifyRes.ok) {
+        verifyRes = await fetch(
+          `https://graph.instagram.com/v20.0/${connection.platform_user_id}/subscribed_apps?access_token=${accessToken}`
+        );
+      }
       if (verifyRes.ok) {
         const verifyData = await verifyRes.json();
         subscribedFields = verifyData.data?.[0]?.subscribed_fields || [];

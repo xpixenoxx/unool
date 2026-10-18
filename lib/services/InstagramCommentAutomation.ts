@@ -846,41 +846,54 @@ Return ONLY valid JSON:
         access_token: accessToken,
       });
 
-      // Try graph.facebook.com first (standard for Business / Page-linked accounts)
-      let response = await fetchWithRetry(
-        `https://graph.facebook.com/v20.0/${igUserId}/subscribed_apps`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: params.toString(),
-        }
-      );
+      // Priority list of subscription endpoints:
+      // Instagram Login tokens (IG...) work on graph.instagram.com.
+      // Facebook Page tokens (EA...) work on graph.facebook.com.
+      const endpointsToTry = [
+        `https://graph.instagram.com/v20.0/me/subscribed_apps?${params.toString()}`,
+        `https://graph.instagram.com/v20.0/${igUserId}/subscribed_apps?${params.toString()}`,
+        `https://graph.facebook.com/v20.0/${igUserId}/subscribed_apps?${params.toString()}`,
+        `https://graph.facebook.com/v20.0/me/subscribed_apps?${params.toString()}`,
+      ];
 
-      // Fall back to graph.instagram.com if facebook endpoint returns error
-      if (!response.ok) {
-        response = await fetchWithRetry(
-          `https://graph.instagram.com/v20.0/${igUserId}/subscribed_apps`,
-          {
+      for (const endpoint of endpointsToTry) {
+        try {
+          const response = await fetchWithRetry(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: params.toString(),
+          });
+
+          const respText = await response.text();
+          let data: any = null;
+          try { data = JSON.parse(respText); } catch {}
+
+          if (response.ok && (data?.success === true || respText.includes('"success":true'))) {
+            logger.info('Instagram account subscribed to webhook successfully', {
+              igUserId,
+              endpoint: endpoint.split('?')[0],
+              success: true,
+            });
+            return true;
+          } else {
+            logger.warn('Webhook subscription attempt returned non-success', {
+              igUserId,
+              endpoint: endpoint.split('?')[0],
+              status: response.status,
+              body: respText.substring(0, 300),
+            });
           }
-        );
+        } catch (attemptErr) {
+          logger.warn('Webhook subscription attempt failed with network error', {
+            igUserId,
+            endpoint: endpoint.split('?')[0],
+            error: attemptErr instanceof Error ? attemptErr.message : String(attemptErr),
+          });
+        }
       }
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        logger.error('Failed to subscribe Instagram account to webhook', {
-          igUserId,
-          error: new Error(errorText),
-          status: response.status,
-        });
-        return false;
-      }
-
-      const data = await response.json();
-      logger.info('Instagram account subscribed to webhook', { igUserId, success: data.success });
-      return data.success === true;
+      logger.error('All Instagram webhook subscription endpoints failed', { igUserId });
+      return false;
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       logger.error('Error subscribing Instagram account to webhook', { igUserId, error: err });

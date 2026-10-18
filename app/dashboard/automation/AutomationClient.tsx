@@ -1108,6 +1108,13 @@ export default function AutomationClient({
   const [simLoading, setSimLoading] = useState(false);
   const [syncingWebhook, setSyncingWebhook] = useState(false);
   const [syncingComments, setSyncingComments] = useState(false);
+  const [syncDiagnostics, setSyncDiagnostics] = useState<any[] | null>(null);
+  const [metaWithheldInfo, setMetaWithheldInfo] = useState<{
+    postsWithCommentsCount: number;
+    mediaCount: number;
+    diagnostics: any[];
+  } | null>(null);
+  const [showDiagnosticsDetail, setShowDiagnosticsDetail] = useState(false);
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
@@ -1125,16 +1132,27 @@ export default function AutomationClient({
       });
       const data = await res.json();
       if (data.ok) {
-        if (data.newCommentsProcessed > 0) {
-          showToast(`Synced ${data.newCommentsProcessed} comment${data.newCommentsProcessed > 1 ? 's' : ''} (${data.repliesPosted} auto-replied)!`, 'success');
-        } else if (data.totalCommentsExamined > 0) {
-          showToast(`Audited ${data.totalCommentsExamined} comments across ${data.mediaCount || 0} posts — all up to date.`, 'success');
-        } else if (data.mediaCount === 0) {
-          showToast('No Instagram posts found for this account. Ensure account has published posts.', 'error');
-        } else if (data.postsWithCommentsCount > 0) {
-          showToast(`Audited ${data.mediaCount} posts (${data.postsWithCommentsCount} with comments). Meta withheld them — ensure tester is added in Meta Developer Portal.`, 'error');
+        if (data.diagnostics) {
+          setSyncDiagnostics(data.diagnostics);
+        }
+        if (data.metaWithheld || (data.postsWithCommentsCount > 0 && data.totalCommentsExamined === 0)) {
+          setMetaWithheldInfo({
+            postsWithCommentsCount: data.postsWithCommentsCount,
+            mediaCount: data.mediaCount,
+            diagnostics: data.diagnostics || [],
+          });
+          showToast(`Audited ${data.mediaCount} posts (${data.postsWithCommentsCount} with comments). Meta withheld them — see Dev Mode guide below.`, 'error');
         } else {
-          showToast(`Audited ${data.mediaCount} post${data.mediaCount > 1 ? 's' : ''}. No comments found on Instagram.`, 'success');
+          setMetaWithheldInfo(null);
+          if (data.newCommentsProcessed > 0) {
+            showToast(`Synced ${data.newCommentsProcessed} comment${data.newCommentsProcessed > 1 ? 's' : ''} (${data.repliesPosted} auto-replied)!`, 'success');
+          } else if (data.totalCommentsExamined > 0) {
+            showToast(`Audited ${data.totalCommentsExamined} comments across ${data.mediaCount || 0} posts — all up to date.`, 'success');
+          } else if (data.mediaCount === 0) {
+            showToast('No Instagram posts found for this account. Ensure account has published posts.', 'error');
+          } else {
+            showToast(`Audited ${data.mediaCount} post${data.mediaCount > 1 ? 's' : ''}. No comments found on Instagram.`, 'success');
+          }
         }
       } else {
         showToast(data.message || data.error || 'Failed to sync comments', 'error');
@@ -2077,6 +2095,130 @@ export default function AutomationClient({
                 </div>
               </div>
 
+              {/* Meta Development Mode Notice & Tester Action Guide */}
+              {metaWithheldInfo && (
+                <div style={{
+                  background: 'linear-gradient(135deg, #FFFDF7 0%, #FEF9EE 100%)',
+                  border: '1.5px solid #E6D2B5',
+                  borderRadius: 14,
+                  padding: '20px 24px',
+                  marginBottom: 20,
+                  boxShadow: '0 4px 16px rgba(139, 115, 85, 0.08)',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          padding: '3px 9px',
+                          borderRadius: 6,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.04em',
+                          background: '#FEF3C7',
+                          color: '#B45309',
+                          border: '1px solid #FDE68A',
+                        }}>
+                          Development Stage Diagnostic
+                        </span>
+                        <h4 className="un-editorial-font" style={{ fontSize: 17, fontWeight: 700, color: '#3D2B1F', margin: 0 }}>
+                          Meta Withheld Comments for {metaWithheldInfo.postsWithCommentsCount} Post{metaWithheldInfo.postsWithCommentsCount > 1 ? 's' : ''}
+                        </h4>
+                      </div>
+                      <p style={{ color: '#786146', fontSize: 13.5, lineHeight: 1.5, margin: 0, maxWidth: 820 }}>
+                        Instagram confirmed that <strong>{metaWithheldInfo.postsWithCommentsCount}</strong> of your <strong>{metaWithheldInfo.mediaCount}</strong> audited posts have comments, but Meta&apos;s Graph API returned empty comment arrays (<code style={{ fontSize: 12, background: '#F5ECE0', padding: '1px 5px', borderRadius: 4 }}>data: []</code>). This occurs because your Meta App is in <strong>Development Mode</strong> and the commenting tester account has not accepted their Tester Role at Facebook.
+                      </p>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                      <button
+                        type="button"
+                        onClick={() => setShowDiagnosticsDetail(!showDiagnosticsDetail)}
+                        className="un-btn un-btn-secondary"
+                        style={{ fontSize: 12, padding: '7px 12px' }}
+                      >
+                        {showDiagnosticsDetail ? 'Hide Technical Diagnostics' : 'View Diagnostics'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={syncWebhook}
+                        disabled={syncingWebhook}
+                        className="un-btn un-btn-secondary"
+                        style={{ fontSize: 12, padding: '7px 12px' }}
+                      >
+                        {syncingWebhook ? 'Syncing...' : 'Sync Webhooks'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Step-by-Step Instructions */}
+                  <div style={{
+                    marginTop: 16,
+                    paddingTop: 16,
+                    borderTop: '1px solid #EFE4D3',
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+                    gap: 14,
+                  }}>
+                    <div style={{ background: '#FAF6EE', padding: '12px 14px', borderRadius: 8, border: '1px solid #EAE0D0' }}>
+                      <div style={{ fontWeight: 700, fontSize: 12, color: '#3D2B1F', marginBottom: 4 }}>
+                        1. Add Tester in Meta Portal
+                      </div>
+                      <div style={{ fontSize: 12, color: '#8B7355', lineHeight: 1.45 }}>
+                        In <strong>Meta Developer Portal</strong> &rarr; <em>App Roles &rarr; Roles &rarr; Testers</em>, invite the tester&apos;s Facebook account.
+                      </div>
+                    </div>
+
+                    <div style={{ background: '#FAF6EE', padding: '12px 14px', borderRadius: 8, border: '1px solid #EAE0D0' }}>
+                      <div style={{ fontWeight: 700, fontSize: 12, color: '#3D2B1F', marginBottom: 4 }}>
+                        2. Tester Accepts at facebook.com
+                      </div>
+                      <div style={{ fontSize: 12, color: '#8B7355', lineHeight: 1.45 }}>
+                        Tester must visit <strong>facebook.com &rarr; Settings &rarr; Apps and Websites &rarr; Developer Invites</strong> tab and click <em>Accept</em>.
+                      </div>
+                    </div>
+
+                    <div style={{ background: '#FAF6EE', padding: '12px 14px', borderRadius: 8, border: '1px solid #EAE0D0' }}>
+                      <div style={{ fontWeight: 700, fontSize: 12, color: '#3D2B1F', marginBottom: 4 }}>
+                        3. Audit Posts Again
+                      </div>
+                      <div style={{ fontSize: 12, color: '#8B7355', lineHeight: 1.45 }}>
+                        Once the role shows an accepted green status in Meta Portal, click <strong>Audit Posts</strong> above to fetch the comments.
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Technical Diagnostic Details Accordion */}
+                  {showDiagnosticsDetail && metaWithheldInfo.diagnostics.length > 0 && (
+                    <div style={{
+                      marginTop: 16,
+                      background: '#2B2118',
+                      color: '#E8DCCF',
+                      padding: 14,
+                      borderRadius: 8,
+                      fontSize: 12,
+                      fontFamily: 'monospace',
+                      maxHeight: 220,
+                      overflowY: 'auto',
+                    }}>
+                      <div style={{ color: '#D4A373', fontWeight: 700, marginBottom: 6 }}>
+                        Meta Graph API Diagnostic Traces:
+                      </div>
+                      {metaWithheldInfo.diagnostics.map((d: any, idx: number) => (
+                        <div key={idx} style={{ padding: '4px 0', borderBottom: '1px solid #3F3327' }}>
+                          <span style={{ color: d.status === 'ok' ? '#10B981' : d.status === 'meta_empty_data' ? '#F59E0B' : '#EF4444', fontWeight: 600 }}>
+                            [{d.status}]
+                          </span>{' '}
+                          <span style={{ color: '#E8DCCF' }}>{d.step}</span>: {d.detail || JSON.stringify(d)}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Table Ledger */}
               {feedLoading ? (
                 <div style={{ textAlign: 'center', padding: '60px 0' }}>
@@ -2086,8 +2228,14 @@ export default function AutomationClient({
               ) : comments.length === 0 ? (
                 <div className="un-card" style={{ textAlign: 'center', padding: '64px 20px' }}>
                   <div className="un-logo-jewel" style={{ margin: '0 auto 16px', width: 44, height: 44, opacity: 0.7 }}><SvgMessage /></div>
-                  <h4 className="un-editorial-font" style={{ fontSize: 18, fontWeight: 700, color: '#3D2B1F', marginBottom: 4 }}>No Comments Recorded Yet</h4>
-                  <p style={{ color: '#8B7355', fontSize: 13 }}>Click Audit Posts to scan recent Instagram media or wait for real-time webhooks.</p>
+                  <h4 className="un-editorial-font" style={{ fontSize: 18, fontWeight: 700, color: '#3D2B1F', marginBottom: 4 }}>
+                    {metaWithheldInfo ? 'Comments Withheld by Meta (Development Mode)' : 'No Comments Recorded Yet'}
+                  </h4>
+                  <p style={{ color: '#8B7355', fontSize: 13, maxWidth: 540, margin: '0 auto' }}>
+                    {metaWithheldInfo
+                      ? `Instagram confirmed ${metaWithheldInfo.postsWithCommentsCount} post(s) have comments, but Meta Graph API withheld them in Development Mode. Follow the guide above to accept the tester invite at facebook.com.`
+                      : 'Click Audit Posts to scan recent Instagram media or wait for real-time webhooks.'}
+                  </p>
                 </div>
               ) : (
                 <>

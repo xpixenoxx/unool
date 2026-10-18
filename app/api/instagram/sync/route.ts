@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
     const automation = new InstagramCommentAutomation(groqApiKey);
 
     // ── Step-by-step diagnostic log ──────────────────────────────────────
-    const diagnostics: Array<{ step: string; status: string; detail?: string }> = [];
+    const diagnostics: Array<{ step: string; status: string; detail?: string; [key: string]: any }> = [];
 
     // Step 0: Connection info
     diagnostics.push({
@@ -388,10 +388,16 @@ export async function POST(request: NextRequest) {
     // 5. For each media item, fetch and process comments
     for (const media of mediaItems) {
       let rawComments: any[] = [];
+      const commentsCount = media.comments_count ?? 0;
 
       // Source 1: Check if comments were already retrieved in bulk me/media call
       if (media.comments?.data && Array.isArray(media.comments.data) && media.comments.data.length > 0) {
         rawComments = [...media.comments.data];
+      }
+
+      // Optimization: If media explicitly reports 0 comments and no nested comments found, skip making 9 API calls
+      if (rawComments.length === 0 && commentsCount === 0 && media.comments_count !== undefined) {
+        continue;
       }
 
       // Source 2: Multi-pattern queries across both Graph domains and field variations
@@ -420,8 +426,11 @@ export async function POST(request: NextRequest) {
         for (const endpoint of queryCandidates) {
           try {
             const res = await fetch(endpoint);
-            if (res.ok) {
-              const resData = await res.json();
+            const resText = await res.text();
+            let resData: any = null;
+            try { resData = JSON.parse(resText); } catch {}
+
+            if (res.ok && resData) {
               const items = resData.data || resData.comments?.data || [];
               if (Array.isArray(items) && items.length > 0) {
                 for (const item of items) {
@@ -432,27 +441,59 @@ export async function POST(request: NextRequest) {
                     }
                   }
                 }
+                logger.info('Successfully fetched comments for post', {
+                  mediaId: media.id,
+                  endpoint: endpoint.split('?')[0],
+                  count: rawComments.length,
+                });
                 break; // Successfully obtained comments, stop trying other endpoints for this post
               }
+            } else {
+              logger.debug('Comment query candidate returned non-200 or invalid payload', {
+                mediaId: media.id,
+                endpoint: endpoint.split('?')[0],
+                status: res.status,
+                body: resText.substring(0, 200),
+              });
             }
-          } catch {}
+          } catch (err: any) {
+            logger.warn('Comment query candidate fetch failed', {
+              mediaId: media.id,
+              endpoint: endpoint.split('?')[0],
+              error: err.message,
+            });
+          }
         }
 
-        if ((media.comments_count || 0) > 0 && rawComments.length === 0 && diagnostics.filter(d => d.step.startsWith('withheld_sample')).length < 2) {
-          try {
-            const sampleRes = await fetch(`https://graph.instagram.com/v20.0/${media.id}/comments?fields=id,text,timestamp,username&access_token=${accessToken}`);
-            const sampleBody = await sampleRes.text();
-            diagnostics.push({
-              step: `withheld_sample_${media.id}`,
-              status: sampleRes.ok ? 'meta_empty_data' : 'meta_api_error',
-              detail: `HTTP ${sampleRes.status}: ${sampleBody.substring(0, 200)} (Instagram reports comments_count=${media.comments_count})`,
-            });
-          } catch (e: any) {
-            diagnostics.push({
-              step: `withheld_sample_${media.id}`,
-              status: 'fetch_error',
-              detail: e.message,
-            });
+        // If post has comments according to Instagram but Meta returned empty array across all endpoints
+        if (commentsCount > 0 && rawComments.length === 0) {
+          const sampleCount = diagnostics.filter(d => d.step.startsWith('withheld_sample')).length;
+          if (sampleCount < 4) {
+            try {
+              const sampleRes = await fetch(`https://graph.instagram.com/v20.0/${media.id}/comments?fields=id,text,timestamp,username&access_token=${accessToken}`);
+              const sampleBody = await sampleRes.text();
+              logger.warn('Meta Graph API returned empty data for post with comments (Dev Mode withholding)', {
+                mediaId: media.id,
+                commentsCount,
+                httpStatus: sampleRes.status,
+                metaResponse: sampleBody.substring(0, 300),
+              });
+              diagnostics.push({
+                step: `withheld_sample_${media.id}`,
+                status: sampleRes.ok ? 'meta_empty_data' : 'meta_api_error',
+                detail: `HTTP ${sampleRes.status}: ${sampleBody.substring(0, 200)} (Instagram reports comments_count=${commentsCount})`,
+                mediaId: media.id,
+                reportedCount: commentsCount,
+                sampleBody: sampleBody.substring(0, 300),
+              });
+            } catch (e: any) {
+              logger.error('Failed to query withheld sample', { mediaId: media.id, error: e.message });
+              diagnostics.push({
+                step: `withheld_sample_${media.id}`,
+                status: 'fetch_error',
+                detail: e.message,
+              });
+            }
           }
         }
       }
@@ -639,14 +680,23 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const isMetaWithheld = postsWithCommentsCount > 0 && totalCommentsExamined === 0;
+
     diagnostics.push({
       step: 'comments_summary',
-      status: totalCommentsExamined > 0 ? 'ok' : (postsWithCommentsCount > 0 ? 'warning' : 'empty'),
+      status: totalCommentsExamined > 0 ? 'ok' : (isMetaWithheld ? 'meta_withheld' : 'empty'),
       detail: totalCommentsExamined > 0
         ? `Found and examined ${totalCommentsExamined} comments across ${mediaItems.length} posts.`
-        : (postsWithCommentsCount > 0
-            ? `Instagram reports ${postsWithCommentsCount} post(s) have comments, but Meta Graph API withheld them. If your Meta App is in Development Mode, the commenter must be an added Tester in Meta Developer Portal (developers.facebook.com).`
+        : (isMetaWithheld
+            ? `Meta Withheld Comments in Development Mode: Instagram reports ${postsWithCommentsCount} post(s) have comments, but Meta Graph API returned 0 comment objects. The commenter must have an accepted Tester role in your Meta App at developers.facebook.com or facebook.com/settings -> Developer Invites.`
             : `All ${mediaItems.length} posts have 0 comments according to Instagram.`),
+      metaWithheld: isMetaWithheld,
+      postsWithCommentsCount,
+      guidance: isMetaWithheld ? [
+        '1. In Meta Developer Portal (developers.facebook.com) -> App Roles -> Roles -> Testers, invite the tester.',
+        '2. The tester must go to facebook.com -> Settings & Privacy -> Settings -> Apps and Websites -> Developer Invites tab (or developers.facebook.com/requests) and ACCEPT.',
+        '3. If they only accepted in Instagram app settings, that does not grant Meta App Role access in Development Mode.',
+      ] : undefined,
     });
 
     return NextResponse.json({
@@ -658,6 +708,7 @@ export async function POST(request: NextRequest) {
       newCommentsProcessed,
       repliesPosted,
       processedComments,
+      metaWithheld: isMetaWithheld,
       diagnostics,
     });
   } catch (error: any) {
