@@ -62,11 +62,12 @@ export async function GET(request: NextRequest) {
 
     const { data: ws } = await supabase
       .from('workspaces')
-      .select('metadata')
+      .select('settings')
       .eq('id', workspaceId)
       .single();
 
-    const stored = ws?.metadata?.linkedin_automation_config || null;
+    const currentSettings = (ws?.settings as Record<string, unknown>) || {};
+    const stored = (currentSettings.linkedin_automation_config as Record<string, unknown>) || null;
 
     if (!stored) {
       return NextResponse.json({
@@ -102,16 +103,16 @@ export async function PUT(request: NextRequest) {
     const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
     if (!hasAccess) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-    // Fetch existing workspace metadata to preserve other properties
+    // Fetch existing workspace settings to preserve other properties
     const { data: ws } = await supabase
       .from('workspaces')
-      .select('metadata')
+      .select('settings')
       .eq('id', workspaceId)
       .single();
 
-    const currentMetadata = ws?.metadata || {};
-    const updatedMetadata = {
-      ...currentMetadata,
+    const currentSettings = (ws?.settings as Record<string, unknown>) || {};
+    const updatedSettings = {
+      ...currentSettings,
       linkedin_automation_config: {
         ...rest,
         updated_at: new Date().toISOString(),
@@ -120,16 +121,16 @@ export async function PUT(request: NextRequest) {
 
     const { error } = await supabase
       .from('workspaces')
-      .update({ metadata: updatedMetadata })
+      .update({ settings: updatedSettings })
       .eq('id', workspaceId);
 
     if (error) {
-      logger.error('Failed to update LinkedIn automation config in workspace metadata', { error, workspaceId });
-      return NextResponse.json({ error: 'Failed to save config' }, { status: 500 });
+      logger.error('Failed to update LinkedIn automation config in workspace settings', { error, workspaceId });
+      return NextResponse.json({ error: error.message || 'Failed to save config' }, { status: 500 });
     }
 
     logger.info('LinkedIn automation config saved', { workspaceId, enabled: rest.enabled });
-    return NextResponse.json({ success: true, data: updatedMetadata.linkedin_automation_config });
+    return NextResponse.json({ success: true, data: updatedSettings.linkedin_automation_config });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     logger.error('PUT /api/linkedin/automation error', { error: err });
