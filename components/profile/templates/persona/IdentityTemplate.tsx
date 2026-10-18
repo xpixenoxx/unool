@@ -8,9 +8,8 @@ import { Menu, BadgeCheck, ArrowRight, Bookmark, Send, Sparkles, Quote, Github, 
 import { OpenToBadges } from '@/components/profile/OpenToBadges';
 import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
 import { ClubTemplate } from './ClubTemplate';
-import { StudioTemplate } from './StudioTemplate';
 import { SocialIcon, getSocialSvgPath, renderSocialOrIcon, normalizeSocialPlatform } from '@/components/profile/SocialBrandIcons';
-export { ClubTemplate, StudioTemplate };
+export { ClubTemplate };
 
 // --- 01 INDIVIDUAL --- //
 
@@ -4244,7 +4243,6 @@ export function IdentityTemplate(props: TemplateProps & { templateId: string }) 
     case 'vision': content = <VisionTemplate {...props} />; break;
     case 'human': content = <HumanTemplate {...props} />; break;
     // Agency
-    case 'the-studio': content = <StudioTemplate {...props} />; break;
     case 'the-machine': content = <MachineTemplate {...props} />; break;
     case 'the-club': content = <ClubTemplate {...props} />; break;
     // Entrepreneur

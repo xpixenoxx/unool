@@ -103,22 +103,6 @@ export const TEMPLATE_REGISTRY: TemplateMeta[] = [
 
   // 03 — AGENCY
   {
-    id: 'the-studio',
-    name: 'The Studio',
-    category: 'agency',
-    intensity: 'minimal',
-    preset: 'minimal',
-    icon: '🎨',
-    tagline: 'We create beautiful things.',
-    description: 'High-end creative/design agency. Artistic, editorial grids, asymmetrical layouts, large imagery.',
-    tags: ['editorial', 'minimal', 'fashion-forward', 'artistic'],
-    thumbnail: '/templates/previews/the-studio.svg',
-    features: {
-      has3DBackground: false, hasParallax: true, hasTiltCards: false, hasMagneticHover: true, hasAnimatedOrbs: false, hasGradientText: false, supportsVideoBackground: false, maxLinks: 8, maxProofPoints: 4, performanceBudget: 'light',
-    },
-    persona: 'the-studio',
-  },
-  {
     id: 'the-machine',
     name: 'The Machine',
     category: 'agency',
