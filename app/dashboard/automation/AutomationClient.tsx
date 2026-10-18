@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useUserContext } from '@/lib/hooks/use-user-context';
 import LinkedInAutomationClient from './LinkedInAutomationClient';
+import BrandMaterialsSection from './BrandMaterialsSection';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1079,7 +1080,7 @@ export default function AutomationClient({
     }
   };
 
-  const [activeTab, setActiveTab] = useState<'control' | 'simulator' | 'feed' | 'inbox' | 'dms'>('control');
+  const [activeTab, setActiveTab] = useState<'control' | 'materials' | 'simulator' | 'feed' | 'inbox' | 'dms'>('control');
   const [config, setConfig] = useState<AutomationConfig | null>(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -1386,6 +1387,11 @@ export default function AutomationClient({
       <path d="M2.5 8.5l4 4 7-8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
+  const SvgSparkle = () => (
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+      <path d="M8 1v14M1 8h14M3 3l10 10M3 13L13 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
 
   if (!workspaceId && userCtx?.loading) {
     return (
@@ -1488,11 +1494,12 @@ export default function AutomationClient({
             {/* Tab Navigation */}
             <div className="un-tabs-bar">
               {[
-                { id: 'control',   label: 'Engine Controls', icon: <SvgGrid /> },
-                { id: 'simulator', label: 'Intent Lab',       icon: <SvgPlay /> },
-                { id: 'feed',      label: 'Dispatch Ledger',  icon: <SvgMessage />, badge: commentStats?.total },
-                { id: 'inbox',     label: 'Triage Queue',    icon: <SvgStar />,    badge: pendingCount || undefined },
-                { id: 'dms',       label: 'DM Concierge',    icon: <SvgMail />,    badge: dmStats?.total },
+                { id: 'control',   label: 'Engine Controls',     icon: <SvgGrid /> },
+                { id: 'materials', label: 'Brand & Materials',   icon: <SvgSparkle /> },
+                { id: 'simulator', label: 'Intent Lab',           icon: <SvgPlay /> },
+                { id: 'feed',      label: 'Dispatch Ledger',      icon: <SvgMessage />, badge: commentStats?.total },
+                { id: 'inbox',     label: 'Triage Queue',        icon: <SvgStar />,    badge: pendingCount || undefined },
+                { id: 'dms',       label: 'DM Concierge',        icon: <SvgMail />,    badge: dmStats?.total },
               ].map(tab => (
                 <button
                   key={tab.id}
@@ -1672,11 +1679,31 @@ export default function AutomationClient({
                     </div>
 
                     <div className="un-field">
-                      <label className="un-label">Canonical Resource Link (Dispatched for link requests)</label>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <label className="un-label" style={{ margin: 0 }}>Canonical Resource Link (Dispatched for link requests)</label>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab('materials')}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#7C3AED',
+                            fontSize: 12,
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 4
+                          }}
+                        >
+                          <span>Manage Brand Materials</span>
+                          <span style={{ fontSize: 13 }}>→</span>
+                        </button>
+                      </div>
                       <input
                         type="url"
                         className="un-input"
-                        placeholder="https://yourbrand.com/blueprint"
+                        placeholder="https://yourbrand.com/blueprint or https://unool.co/u/username/page"
                         value={config.linkUrl || ''}
                         onChange={e => updateConfig({ linkUrl: e.target.value || null })}
                       />
@@ -1802,6 +1829,18 @@ export default function AutomationClient({
                 </button>
               </div>
             </div>
+          )}
+
+          {/* ════ TAB: BRAND & PRODUCT MATERIALS HUB ════ */}
+          {activeTab === 'materials' && (
+            <BrandMaterialsSection
+              workspaceId={workspaceId}
+              userId={userId}
+              currentLinkUrl={config.linkUrl}
+              onLinkCreated={(url) => {
+                updateConfig({ linkUrl: url });
+              }}
+            />
           )}
 
           {/* ════ TAB 2: LIVE SIMULATOR ════ */}
