@@ -349,6 +349,85 @@
   --table-cell-padding-y: var(--space-3);
 }
 
+/* === CLUB TEMPLATE TOKENS (Avant-Garde Luxury) === */
+:root {
+  /* --- VOID / NOIR (Base) --- */
+  --club-void: 240 15% 3%;
+  --club-void-elevated: 240 10% 6%;
+  --club-void-card: 240 8% 9%;
+  --club-void-glass: 240 10% 5%;
+
+  /* --- LIQUID CHROME (Primary Accent) --- */
+  --club-chrome: 200 100% 65%;
+  --club-chrome-dim: 200 80% 45%;
+  --club-chrome-bright: 200 100% 75%;
+
+  /* --- ACID LIME (Electric Accent) --- */
+  --club-lime: 100 100% 55%;
+  --club-lime-dim: 100 80% 40%;
+  --club-lime-bright: 100 100% 65%;
+
+  /* --- ELECTRIC VIOLET (Premium Accent) --- */
+  --club-violet: 280 100% 65%;
+  --club-violet-dim: 280 80% 45%;
+  --club-violet-bright: 280 100% 75%;
+
+  /* --- CHAMPAGNE GOLD (Luxury Highlight) --- */
+  --club-gold: 45 85% 58%;
+  --club-gold-dim: 45 70% 42%;
+
+  /* --- SEMANTIC MAPPINGS --- */
+  --club-bg: var(--club-void);
+  --club-bg-elevated: var(--club-void-elevated);
+  --club-bg-card: var(--club-void-card);
+  --club-fg: 0 0% 98%;
+  --club-fg-muted: 240 5% 65%;
+  --club-fg-subtle: 240 5% 45%;
+  --club-border: 240 10% 15%;
+  --club-border-bright: 240 10% 25%;
+  --club-ring: var(--club-chrome);
+  --club-ring-violet: var(--club-violet);
+  --club-ring-lime: var(--club-lime);
+
+  /* --- GRADIENTS --- */
+  --club-gradient-chrome: linear-gradient(135deg, oklch(0.65 0.22 200) 0%, oklch(0.55 0.28 100) 50%, oklch(0.65 0.25 280) 100%);
+  --club-gradient-chrome-radial: radial-gradient(ellipse at center, oklch(0.65 0.22 200 / 0.3) 0%, transparent 70%);
+  --club-gradient-void: linear-gradient(180deg, oklch(0.03 0.02 240) 0%, oklch(0.06 0.01 240) 100%);
+  --club-gradient-card: linear-gradient(145deg, oklch(0.09 0.02 240) 0%, oklch(0.06 0.01 240) 100%);
+  --club-glass: linear-gradient(135deg, oklch(0.12 0.02 240 / 0.4) 0%, oklch(0.06 0.01 240 / 0.2) 100%);
+  --club-glass-border: oklch(0.25 0.02 240 / 0.3);
+  --club-glass-border-bright: oklch(0.35 0.02 240 / 0.5);
+
+  /* --- TYPOGRAPHY --- */
+  --club-text-section-num: clamp(0.7rem, 0.65rem + 0.25vw, 0.875rem);
+  --club-text-section-title: clamp(1.5rem, 1.2rem + 1.5vw, 2.5rem);
+  --club-text-hero-logo: clamp(3rem, 2rem + 5vw, 6rem);
+  --club-text-hero-tagline: clamp(1.25rem, 1rem + 1.25vw, 2rem);
+  --club-text-manifesto: clamp(1.125rem, 1rem + 0.6vw, 1.375rem);
+  --club-text-manifesto-leading: 1.8;
+  --club-text-kpi: clamp(3rem, 2.5rem + 3vw, 5rem);
+  --club-text-body: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+  --club-text-body-leading: 1.7;
+  --club-text-mono: clamp(0.75rem, 0.7rem + 0.2vw, 0.875rem);
+
+  /* --- MOTION --- */
+  --club-spring-snappy: {stiffness: 550, damping: 32, mass: 0.7};
+  --club-spring-standard: {stiffness: 420, damping: 28, mass: 1};
+  --club-spring-gentle: {stiffness: 280, damping: 24, mass: 1.3};
+  --club-spring-bouncy: {stiffness: 480, damping: 18, mass: 1};
+  --club-spring-smooth: {stiffness: 350, damping: 30, mass: 1};
+  --club-spring-magnetic: {stiffness: 650, damping: 38, mass: 0.5};
+  --club-spring-orbital: {stiffness: 180, damping: 12, mass: 2.5};
+  --club-spring-liquid: {stiffness: 250, damping: 15, mass: 2};
+
+  /* --- BREAKPOINTS --- */
+  --club-bp-mobile: 640px;
+  --club-bp-tablet: 768px;
+  --club-bp-desktop: 1024px;
+  --club-bp-wide: 1440px;
+  --club-bp-ultrawide: 1920px;
+}
+
 /* === PROFILE THEMES (Public Profiles) === */
 .theme-minimal {
   --profile-bg: oklch(0.985 0.002 247.8);

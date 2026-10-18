@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Geist, Geist_Mono, Syne } from 'next/font/google';
+import { Geist, Geist_Mono, Syne, Cormorant_Garamond, Plus_Jakarta_Sans } from 'next/font/google';
 import * as Sentry from "@sentry/nextjs";
 import './globals.css';
 import { Toaster } from 'sonner';
@@ -7,6 +7,8 @@ import { Toaster } from 'sonner';
 const geist = Geist({ subsets: ['latin'], variable: '--font-geist', display: 'swap' });
 const geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-geist-mono', display: 'swap' });
 const syne = Syne({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'], variable: '--font-syne', display: 'swap' });
+const cormorant = Cormorant_Garamond({ subsets: ['latin'], weight: ['300', '400', '500', '600', '700'], variable: '--font-cormorant', display: 'swap' });
+const plusJakarta = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700'], variable: '--font-plus-jakarta', display: 'swap' });
 
 export const metadata: Metadata = {
   title: 'Unool — One Link + One Click',
@@ -29,7 +31,7 @@ function ErrorFallback({ error, resetError }: { error: unknown; componentStack: 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${geist.variable} ${geistMono.variable} ${syne.variable} font-sans antialiased`}>
+      <body className={`${geist.variable} ${geistMono.variable} ${syne.variable} ${cormorant.variable} ${plusJakarta.variable} font-sans antialiased`}>
         <Sentry.ErrorBoundary fallback={ErrorFallback}>
           {children}
         </Sentry.ErrorBoundary>
