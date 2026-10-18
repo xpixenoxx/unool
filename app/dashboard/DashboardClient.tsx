@@ -5,8 +5,8 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
-  Globe, PenTool, CheckCircle, ExternalLink, TrendingUp,
-  Clock, Activity, Plus, ArrowRight, Sparkles, Eye, MousePointerClick,
+  Globe, PenTool, ExternalLink, TrendingUp,
+  Activity, Plus, ArrowRight, Eye, MousePointerClick,
   FileText, Radio, ChevronRight, Zap, Send, Star,
   CalendarDays, Wifi, WifiOff, ArrowUpRight, MoreHorizontal
 } from 'lucide-react';
@@ -1000,7 +1000,7 @@ function EmptyState() {
           color: B.card,
         }}
       >
-        <Sparkles className="h-4 w-4" />
+        <Plus className="h-4 w-4" />
         Create Your First Post
       </Link>
     </div>

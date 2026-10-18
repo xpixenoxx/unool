@@ -4,11 +4,9 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Sparkles,
   RefreshCw,
   ArrowRight,
   Check,
-  AlertCircle,
   X,
   BookOpen,
   Zap,
@@ -17,6 +15,7 @@ import {
   HelpCircle,
   Eye,
   SlidersHorizontal,
+  Lightbulb,
 } from 'lucide-react';
 import { StudioIdea, IdeaFormat } from '@/lib/ai/studioIdeas';
 import { studioToast } from '@/components/dashboard/StudioToast';
@@ -248,7 +247,7 @@ export function StudioIdeaGenerator({
         <div className="flex items-center justify-between gap-3 pb-3.5 mb-3.5 border-b border-[#EFE9DF] dark:border-zinc-800">
           <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 rounded-lg bg-[#C4A265]/15 text-[#C4A265] border border-[#C4A265]/30 flex items-center justify-center shrink-0">
-              <Sparkles className="w-4 h-4" />
+              <Lightbulb className="w-4 h-4" />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -284,7 +283,6 @@ export function StudioIdeaGenerator({
           <div className="py-10 flex flex-col items-center justify-center text-center space-y-3">
             <div className="relative flex items-center justify-center">
               <div className="w-10 h-10 rounded-full border-2 border-[#DACFBF] dark:border-zinc-700 border-t-[#C4A265] animate-spin" />
-              <Sparkles className="w-4 h-4 text-[#C4A265] absolute" />
             </div>
             <div className="space-y-1">
               <p className="text-xs sm:text-sm font-semibold text-[#3D2B1F] dark:text-zinc-200">
@@ -301,7 +299,7 @@ export function StudioIdeaGenerator({
         {!isLoading && error && (
           <div className="p-4 rounded-xl bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/20 text-zinc-800 dark:text-zinc-200 space-y-3 my-2">
             <div className="flex items-start gap-2.5">
-              <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <span className="w-2 h-2 rounded-full bg-[#C49B3C] shrink-0 mt-1.5 inline-block" aria-hidden="true" />
               <p className="text-xs sm:text-sm leading-relaxed">{error.message}</p>
             </div>
 

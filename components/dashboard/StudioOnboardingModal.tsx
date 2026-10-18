@@ -8,8 +8,9 @@ import {
   ArrowRight,
   Plus,
   Check,
+  CheckCircle,
+  Lightbulb,
   X,
-  Sparkles,
   RefreshCw,
   AlertCircle,
 } from 'lucide-react';
@@ -904,8 +905,8 @@ export function StudioOnboardingModal({
                 className="flex flex-col space-y-6 py-2"
               >
                 <div className="text-center space-y-2">
-                  <div className="w-12 h-12 rounded-2xl bg-[#C4A265]/15 text-[#C4A265] border border-[#C4A265]/30 flex items-center justify-center mx-auto mb-2">
-                    <Sparkles className="w-6 h-6" />
+                  <div className="w-12 h-12 rounded-2xl bg-[#4A8C5C]/15 text-[#4A8C5C] border border-[#4A8C5C]/30 flex items-center justify-center mx-auto mb-2">
+                    <CheckCircle className="w-6 h-6" />
                   </div>
                   <h2 className="text-2xl font-bold tracking-tight text-[#3D2B1F] dark:text-zinc-100">
                     You&apos;re all set
@@ -989,7 +990,7 @@ export function StudioOnboardingModal({
                     }}
                     className="flex-1 px-5 py-3.5 rounded-2xl bg-white dark:bg-zinc-800 border border-[#DACFBF] dark:border-zinc-700 text-[#3D2B1F] dark:text-zinc-100 hover:bg-[#FAF6EE] dark:hover:bg-zinc-700 font-semibold text-sm shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <Sparkles className="w-4 h-4 text-[#C4A265]" />
+                    <Lightbulb className="w-4 h-4 text-[#C4A265]" />
                     <span>Generate ideas</span>
                   </button>
 

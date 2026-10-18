@@ -10,7 +10,6 @@ import {
   Share2,
   Radio,
   QrCode,
-  Sparkles,
   ArrowRight,
   ShieldCheck,
 } from 'lucide-react';
@@ -382,7 +381,9 @@ export function BroadcastCelebrationModal({
 
               {/* ── 5. Recipient Experience Callout ── */}
               <div className="rounded-2xl p-3 bg-white/[0.02] border border-white/5 flex items-start gap-2.5 text-[11px] text-[#A89F91] leading-relaxed">
-                <Sparkles className="w-4 h-4 text-[#C4A265] shrink-0 mt-0.5" />
+                <span className="w-4 h-4 shrink-0 mt-0.5 flex items-center justify-center">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#C4A265]" />
+                </span>
                 <span>
                   <strong>Interactive Audience Flow:</strong> When visitors tap your One-Link, they land on your verified public profile and auto-scroll directly to this story for instant engagement, with seamless access to your portfolio and links.
                 </span>

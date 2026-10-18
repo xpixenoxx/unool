@@ -11,9 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import {
-  CheckCircle,
   Loader2,
-  Sparkles,
   Send,
   X,
   Linkedin,
@@ -79,6 +77,10 @@ import {
   Menu,
   Phone,
   Share2,
+  Brain,
+  Lightbulb,
+  Wand2,
+  CheckCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { studioToast } from '@/components/dashboard/StudioToast';
@@ -255,7 +257,7 @@ function IPhoneBottomNavBar({
               <Search className="w-5 h-5" strokeWidth={activeTab === 'search' ? 2.5 : 1.8} />
             </button>
             <button type="button" onClick={() => setActiveTab('grok')} className={cn('p-2 transition-transform active:scale-90', activeTab === 'grok' ? (isDark ? 'text-white' : 'text-black') : iconMuted)}>
-              <Sparkles className="w-5 h-5" strokeWidth={activeTab === 'grok' ? 2.5 : 1.8} />
+              <Brain className="w-5 h-5" strokeWidth={activeTab === 'grok' ? 2.5 : 1.8} />
             </button>
             <button type="button" onClick={() => setActiveTab('bell')} className={cn('p-2 transition-transform active:scale-90', activeTab === 'bell' ? (isDark ? 'text-white' : 'text-black') : iconMuted)}>
               <Bell className="w-5 h-5" strokeWidth={activeTab === 'bell' ? 2.5 : 1.8} />
@@ -1648,7 +1650,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
             href="/dashboard/schedule"
             className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100 transition-all shadow-sm"
           >
-            <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+            <Calendar className="w-3.5 h-3.5 text-amber-600" />
             Plan Entire Week (Flight Plan)
           </Link>
         </div>
@@ -1888,7 +1890,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   : 'text-muted-foreground hover:text-foreground'
               )}
             >
-              <Sparkles className="w-4 h-4" />
+              <Brain className="w-4 h-4" />
               AI Composer
             </button>
             <button
@@ -1929,7 +1931,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   }}
                   className="h-8 text-xs font-semibold px-3 bg-white dark:bg-zinc-800 hover:bg-[#F5EFE2] dark:hover:bg-zinc-700 border-zinc-200 dark:border-zinc-700 text-[#8B7355] dark:text-zinc-200 hover:text-[#3D2B1F] flex items-center gap-1.5 cursor-pointer shrink-0 shadow-2xs"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-[#C4A265]" />
+                  <Lightbulb className="w-3.5 h-3.5 text-[#C4A265]" />
                   <span>{isIdeaGeneratorOpen ? 'Hide ideas' : 'Generate ideas'}</span>
                 </Button>
               </CardHeader>
@@ -1943,7 +1945,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                 {(profile?.studioProfile || profile?.onboardingAnswers) && (
                   <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-[#FAF6EE] dark:bg-zinc-800/60 border border-[#E8E0D4] dark:border-zinc-800 text-xs text-[#8B7355] dark:text-zinc-300 transition-colors">
                     <div className="flex items-center gap-2 min-w-0">
-                      <Sparkles className="w-3.5 h-3.5 text-[#C4A265] shrink-0" />
+                      <div className="w-3.5 h-3.5 text-[#C4A265] shrink-0" />
                       <div className="flex items-center gap-1.5 flex-wrap min-w-0">
                         <span className="font-semibold text-zinc-900 dark:text-zinc-100">
                           Active Persona:
@@ -2115,7 +2117,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                     }}
                     className="h-8 text-xs font-semibold px-3 bg-white dark:bg-zinc-800 hover:bg-[#F5EFE2] dark:hover:bg-zinc-700 border-zinc-200 dark:border-zinc-700 text-[#8B7355] dark:text-zinc-200 hover:text-[#3D2B1F] flex items-center gap-1.5 cursor-pointer shrink-0 shadow-2xs"
                   >
-                    <Sparkles className="w-3.5 h-3.5 text-[#C4A265]" />
+                    <Lightbulb className="w-3.5 h-3.5 text-[#C4A265]" />
                     <span>{isIdeaGeneratorOpen ? 'Hide ideas' : 'Generate ideas'}</span>
                   </Button>
                 </CardHeader>
@@ -2129,7 +2131,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   {(profile?.studioProfile || profile?.onboardingAnswers) && (
                     <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-[#FAF6EE] dark:bg-zinc-800/60 border border-[#E8E0D4] dark:border-zinc-800 text-xs text-[#8B7355] dark:text-zinc-300 transition-colors">
                       <div className="flex items-center gap-2 min-w-0">
-                        <Sparkles className="w-3.5 h-3.5 text-[#C4A265] shrink-0" />
+                        <div className="w-3.5 h-3.5 text-[#C4A265] shrink-0" />
                         <div className="flex items-center gap-1.5 flex-wrap min-w-0">
                           <span className="font-semibold text-zinc-900 dark:text-zinc-100">
                             {personalizeWithProfile ? 'Personalized with' : 'Personalization paused:'}
@@ -2258,7 +2260,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                         {generatingType === 'selected' ? (
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         ) : (
-                          <Sparkles className="mr-2 h-4 w-4" />
+                          <FileText className="mr-2 h-4 w-4" />
                         )}
                         Draft for Selected
                       </Button>
@@ -2269,7 +2271,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                         {generatingType === 'all' ? (
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         ) : (
-                          <Sparkles className="mr-2 h-4 w-4" />
+                          <FileText className="mr-2 h-4 w-4" />
                         )}
                         Draft for All
                       </Button>
@@ -2423,7 +2425,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                                         {humanizingPlatform === platform ? (
                                           <Loader2 className="w-3 h-3 animate-spin text-primary" />
                                         ) : (
-                                          <Sparkles className="w-3 h-3 text-amber-500" />
+                                          <Wand2 className="w-3 h-3 text-amber-500" />
                                         )}
                                         De-Slop
                                       </Button>
@@ -2548,7 +2550,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                                       {isHumanizingAll ? (
                                         <Loader2 className="w-3 h-3 animate-spin text-primary" />
                                       ) : (
-                                        <Sparkles className="w-3 h-3 text-amber-500" />
+                                        <Wand2 className="w-3 h-3 text-amber-500" />
                                       )}
                                       De-Slop all drafts
                                     </Button>

@@ -4,12 +4,13 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ExternalLink, RefreshCw, AlertCircle, CheckCircle, Clock, Zap,
-  TrendingUp, BarChart2, Calendar, Sparkles, Pencil, Trash2, Loader2,
+  ExternalLink, RefreshCw, Zap,
+  TrendingUp, BarChart2, Calendar, Pencil, Trash2, Loader2,
   FileText, Activity, Target, Flame, ArrowUpRight, Layers, Eye,
   Award, PieChart, Hash, Type, BarChart3, HelpCircle, Info,
-  Share2, Search, Filter, Check, ChevronRight, ChevronDown,
-  BookOpen, ShieldCheck, ArrowRight, Compass, Wand2, Copy, Link2, X
+  Share2, Search, Filter, Check, CheckCircle, Clock, ChevronRight, ChevronDown,
+  BookOpen, ShieldCheck, ArrowRight, Compass, Wand2, Copy, Link2, X,
+  Brain, Lightbulb
 } from 'lucide-react';
 import Link from 'next/link';
 import { formatDistanceToNow, format } from 'date-fns';
@@ -948,25 +949,25 @@ function PostCard({
           </div>
           {post.engagement.likes > 0 && (
             <span className="inline-flex items-center gap-1 font-semibold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200">
-              <span>❤️</span>
+              <span className="text-[10px] font-mono">LIKES</span>
               <span>{post.engagement.likes}</span>
             </span>
           )}
           {post.engagement.comments > 0 && (
             <span className="inline-flex items-center gap-1 font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
-              <span>💬</span>
+              <span className="text-[10px] font-mono">COMMENTS</span>
               <span>{post.engagement.comments}</span>
             </span>
           )}
           {post.engagement.shares > 0 && (
             <span className="inline-flex items-center gap-1 font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-              <span>🔄</span>
+              <span className="text-[10px] font-mono">SHARES</span>
               <span>{post.engagement.shares}</span>
             </span>
           )}
           {post.engagement.views > 0 && (
             <span className="inline-flex items-center gap-1 font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-200">
-              <span>👁️</span>
+              <span className="text-[10px] font-mono">VIEWS</span>
               <span>{post.engagement.views}</span>
             </span>
           )}
@@ -998,7 +999,8 @@ function PostCard({
                     <span className="text-xs font-medium text-gray-700">{cfg.name}</span>
                     {variant.engagement && variant.engagement.totalInteractions > 0 && (
                       <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-[#F5EFE2] text-[#3D2B1F]">
-                        🔥 {variant.engagement.totalInteractions}
+                        <span className="text-[9px] font-mono">ENGAGE</span>{' '}
+                        {variant.engagement.totalInteractions}
                       </span>
                     )}
                     <ExternalLink className="w-3 h-3 text-gray-300 group-hover:text-gray-500 transition-colors" />
@@ -1017,7 +1019,7 @@ function PostCard({
                     <span className={`text-xs font-medium ${isFailed ? 'text-red-600' : 'text-gray-500'}`}>
                       {cfg.name}
                     </span>
-                    {isFailed && <AlertCircle className="w-3 h-3 text-red-500" />}
+                    {isFailed && <span className="w-2 h-2 rounded-full bg-[#B85450] inline-block" aria-hidden="true" />}
                     {isPending && <span className="text-[10px] text-gray-400 ml-0.5">sending…</span>}
                   </motion.div>
                 )}
@@ -1032,7 +1034,7 @@ function PostCard({
         <div className="px-5 py-2.5 bg-red-50/70 border-t border-red-100 flex flex-col gap-1.5 text-xs text-red-700">
           {failedVariants.map(fv => (
             <div key={fv.id} className="flex items-start gap-1.5">
-              <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0 mt-0.5" />
+              <span className="w-2 h-2 rounded-full bg-[#B85450] shrink-0 mt-1.5 inline-block" aria-hidden="true" />
               <div>
                 <span className="font-semibold">{getPlatformConfig(fv.platform).name}:</span>{' '}
                 <span>{fv.error?.message || 'Publishing failed. Please reconnect account or verify permissions.'}</span>
@@ -1046,20 +1048,20 @@ function PostCard({
       <div className="px-5 py-3 bg-gray-50/60 border-t border-gray-100 flex items-center justify-between gap-3 text-xs text-gray-500 flex-wrap">
         <div className="flex items-center gap-3 flex-wrap">
           {publishedVariants.length > 0 && (
-            <span className="text-green-600 font-medium flex items-center gap-1">
-              <CheckCircle className="w-3.5 h-3.5" />
+            <span className="text-green-600 font-medium flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-[#4A8C5C]" aria-hidden="true" />
               {publishedVariants.length} live
             </span>
           )}
           {pendingVariants.length > 0 && (
-            <span className="text-amber-600 font-medium flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5" />
+            <span className="text-amber-600 font-medium flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-[#C49B3C]" aria-hidden="true" />
               {pendingVariants.length} pending
             </span>
           )}
           {failedVariants.length > 0 && (
-            <span className="text-red-500 font-medium flex items-center gap-1">
-              <AlertCircle className="w-3.5 h-3.5" />
+            <span className="text-red-500 font-medium flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-[#B85450]" aria-hidden="true" />
               {failedVariants.length} failed
             </span>
           )}
@@ -1215,7 +1217,7 @@ function DNAView({
   if (!resonance) {
     return (
       <div className="py-16 text-center text-gray-400">
-        <Sparkles className="w-8 h-8 mx-auto mb-3 text-amber-500 animate-spin" />
+        <Brain className="w-8 h-8 mx-auto mb-3 text-amber-500 animate-spin" />
         <p className="text-sm font-medium">Analyzing your Post DNA patterns…</p>
       </div>
     );
@@ -1225,7 +1227,7 @@ function DNAView({
     return (
       <div className="bg-white rounded-2xl border border-dashed border-[#E8E0D4] p-12 text-center">
         <div className="w-12 h-12 rounded-2xl bg-[#F0EBE3] flex items-center justify-center mx-auto mb-3">
-          <Sparkles className="w-6 h-6 text-[#C4A265]" />
+          <Layers className="w-6 h-6 text-[#C4A265]" />
         </div>
         <h3 className="font-bold text-[#3D2B1F] mb-1">Building Your Post DNA</h3>
         <p className="text-sm text-[#8B7355] max-w-sm mx-auto mb-5 leading-relaxed">
@@ -1307,7 +1309,7 @@ function DNAView({
         <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <Sparkles className="w-4 h-4 text-[#C4A265]" />
+              <Target className="w-4 h-4 text-[#C4A265]" />
               <p className="text-xs font-bold text-[#8B7355] uppercase tracking-wider">Content Resonance Index</p>
             </div>
             <div className="flex items-baseline gap-3">
@@ -1645,7 +1647,7 @@ function DNAView({
               <div key={rec.id} className="p-3.5 bg-[#FAF7F2] rounded-xl border border-[#E8E0D4] flex flex-col justify-between">
                 <div>
                   <div className="flex items-center gap-1.5 font-bold text-xs text-[#3D2B1F] mb-1">
-                    <Sparkles className="w-3.5 h-3.5 text-[#C4A265]" />
+                    <Lightbulb className="w-3.5 h-3.5 text-[#C4A265]" />
                     <span>{rec.title}</span>
                   </div>
                   <p className="text-xs text-[#8B7355] leading-relaxed mb-3">{rec.desc}</p>

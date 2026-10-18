@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Linkedin, Twitter, MessageSquare, CheckCircle, Edit, Send, AlertCircle, Sparkles, CircleCheckBig, X, ExternalLink, Facebook, Youtube, Instagram, Cloud, MessageCircle, Image as ImageIcon, Send as SendIcon, Eye, Twitch, Hash, Dribbble, GraduationCap, Store, Gamepad2, Video, Zap, FileText, Copy, Share2, Smartphone, Globe, Mail, BookOpen, Code2, ArrowLeft, Radio, Check } from 'lucide-react';
+import { Loader2, Linkedin, Twitter, MessageSquare, CheckCircle, Edit, Send, AlertCircle, X, ExternalLink, Facebook, Youtube, Instagram, Cloud, MessageCircle, Image as ImageIcon, Send as SendIcon, Eye, Twitch, Hash, Dribbble, GraduationCap, Store, Gamepad2, Video, Zap, FileText, Copy, Share2, Smartphone, Globe, Mail, BookOpen, Code2, ArrowLeft, Check, PenTool } from 'lucide-react';
 import { toast } from 'sonner';
 import { Flex, Box, Stack, Text, Display, Divider } from '@/components/ui/layout';
 import { MotionBox, MotionStack, spring, stagger } from '@/components/ui/motion';
@@ -404,7 +404,7 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
         </Flex>
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <Sparkles className="h-12 w-12 text-muted-foreground/50 mb-4" />
+            <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
             <Text color="muted">Post not found. Create a new post to get started.</Text>
             <Button asChild className="mt-4">
               <Link href="/dashboard/composer">Create Post</Link>
@@ -463,7 +463,9 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
                   color: '#1A130B',
                 }}
               >
-                <Radio className="h-4 w-4 stroke-[2.2]" />
+                <span className="w-4 h-4 rounded-full border-2 border-current flex items-center justify-center">
+                  <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                </span>
                 <span>Broadcast & Amplify</span>
               </button>
               <Button
@@ -523,7 +525,9 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
                     border: '1px solid rgba(196, 162, 101, 0.3)',
                   }}
                 >
-                  <Radio className="h-6 w-6 text-[#A68B52]" />
+                  <span className="w-6 h-6 rounded-full border-2 border-[#A68B52] flex items-center justify-center">
+                    <span className="w-2 h-2 rounded-full bg-[#A68B52]" />
+                  </span>
                 </div>
                 <div>
                   <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -597,7 +601,7 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
         <Card className="border-blue-500/20 bg-blue-500/5 dark:border-blue-500/10 dark:bg-blue-500/3">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
+              <FileText className="h-5 w-5 text-primary" />
               Original Content
             </CardTitle>
           </CardHeader>
@@ -617,19 +621,19 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
       <MotionBox variant="slide-up" delay={0.1}>
         <div className="mb-4">
           <h2 className="text-xl font-bold flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
+            <PenTool className="h-5 w-5 text-primary" />
             Review & Edit ({drafts.filter(d => d.status === 'draft').length} ready)
           </h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {drafts.map((draft) => {
                 const config = PLATFORM_CONFIG[draft.platform] || {
-                  icon: Sparkles,
+                  icon: FileText,
                   name: String(draft.platform || 'Platform'),
                   maxChars: 10000,
                   color: 'bg-primary',
                 };
-                const Icon = config.icon || Sparkles;
+                const Icon = config.icon || FileText;
                 const isOverLimit = (draft.characterCount || 0) > (draft.maxChars || 10000);
                 const isPublished = draft.status === 'published';
                 const isFailed = draft.status === 'failed';
@@ -670,7 +674,7 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
                             draft.status === 'draft' ? 'outline' : 'secondary'
                           }
                         >
-                          {isPublished && <CircleCheckBig className="mr-1 h-3 w-3" />}
+                          {isPublished && <Check className="mr-1 h-3 w-3" />}
                           {isPublished ? 'Published' : isFailed ? 'Failed' : draft.status.charAt(0).toUpperCase() + draft.status.slice(1)}
                         </Badge>
                       </Flex>
@@ -735,7 +739,7 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
                               {savingDraft[draft.platform] ? (
                                 <Loader2 className="h-3 w-3 animate-spin" />
                               ) : (
-                                <CircleCheckBig className="h-3 w-3" />
+                                <Check className="h-3 w-3" />
                               )}
                               {dirtyDrafts[draft.platform] ? 'Save Changes' : 'Saved'}
                             </Button>
@@ -777,7 +781,7 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
                       <Box className="mt-3 p-3 rounded-lg bg-green-50/50 dark:bg-green-900/10 border border-green-200/50 dark:border-green-900/50">
                         <Flex between center wrap gap={2}>
                           <Flex center gap={2}>
-                            <CircleCheckBig className="h-4 w-4 text-green-600" />
+                            <Check className="h-4 w-4 text-green-600" />
                             <Text size="sm" className="text-green-700 dark:text-green-300 font-medium">Published successfully</Text>
                           </Flex>
                           <Flex center gap={2}>

@@ -1,30 +1,33 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Sparkles, 
-  ExternalLink, 
-  Copy, 
-  Check, 
-  Upload, 
-  FileText, 
-  Image as ImageIcon, 
-  File, 
-  Globe, 
-  Plus, 
-  Trash2, 
-  Layers, 
-  X, 
-  Loader2, 
-  Share2, 
-  CheckCircle2, 
+import {
+  ExternalLink,
+  Copy,
+  Check,
+  Upload,
+  FileText,
+  Image as ImageIcon,
+  File,
+  Globe,
+  Plus,
+  Trash2,
+  Layers,
+  X,
+  Loader2,
+  Share2,
   AlignLeft,
   ChevronDown,
   ChevronUp,
   ClipboardPaste,
   Clipboard,
   PenTool,
-  Type
+  Type,
+  Eye,
+  ArrowRight,
+  Link as LinkIcon,
+  Database,
+  Package,
 } from 'lucide-react';
 
 export interface MaterialItem {
@@ -172,6 +175,7 @@ export default function BrandMaterialsSection({
     return () => { cancelled = true; };
   }, [workspaceId]);
 
+<<<<<<< HEAD
   // Read URL search params for quick entry from post composer
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -244,9 +248,9 @@ export default function BrandMaterialsSection({
     }
   };
 
-  // Copy primary showcase URL
-  const copyLink = (urlToCopy?: string) => {
-    const targetUrl = urlToCopy || livePageUrl;
+  // Copy link
+  const copyLink = (urlToCopy?: string | React.MouseEvent<HTMLButtonElement>) => {
+    const targetUrl = typeof urlToCopy === 'string' ? urlToCopy : livePageUrl;
     if (typeof window !== 'undefined') {
       navigator.clipboard.writeText(targetUrl);
       setCopied(true);
@@ -592,8 +596,8 @@ export default function BrandMaterialsSection({
           boxShadow: '0 6px 20px rgba(16,185,129,0.12)'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#10B981', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <CheckCircle2 size={24} />
+            <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#10B981', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <span className="w-5 h-5 bg-white/30 rounded-full" style={{ width: 14, height: 14 }} />
             </div>
             <div>
               <div style={{ color: '#065F46', fontWeight: 800, fontSize: 16 }}>
@@ -691,7 +695,7 @@ export default function BrandMaterialsSection({
                 alignItems: 'center',
                 gap: 5
               }}>
-                <Sparkles size={12} />
+                <Package size={12} />
                 <span>New Post Page (Draft)</span>
               </span>
             )}
@@ -760,7 +764,7 @@ export default function BrandMaterialsSection({
             <div className="un-card-header">
               <div className="un-card-title">
                 <div className="un-card-title-icon" style={{ background: '#F5F3FF', color: '#7C3AED' }}>
-                  <Sparkles size={16} />
+                  <Package size={16} />
                 </div>
                 <span>Brand &amp; Product Details</span>
               </div>
@@ -810,7 +814,7 @@ export default function BrandMaterialsSection({
             <div className="un-card-header">
               <div className="un-card-title">
                 <div className="un-card-title-icon" style={{ background: '#ECFDF5', color: '#047857' }}>
-                  <Layers size={16} />
+                  <Database size={16} />
                 </div>
                 <span>Brand Materials Repository</span>
               </div>
@@ -934,7 +938,7 @@ export default function BrandMaterialsSection({
                 fontSize: 12.5,
                 fontWeight: 600,
               }}>
-                <CheckCircle2 size={16} style={{ color: '#10B981', flexShrink: 0 }} />
+                <span className="w-2 h-2 rounded-full bg-[#10B981] inline-block flex-shrink-0" />
                 <span>{pasteNotice}</span>
               </div>
             )}

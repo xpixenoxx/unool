@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Globe, PenTool, Loader2, Sparkles, Trash2, Palette, Link as LinkIcon, ExternalLink, Plus, CheckCircle, AlertCircle, Trash, ArrowRight, Shield, Activity, CalendarDays, MousePointerClick, UploadCloud, Image as ImageIcon, X } from 'lucide-react';
+import { Globe, PenTool, Loader2, Trash2, Palette, Link as LinkIcon, ExternalLink, Plus, CheckCircle, AlertCircle, Trash, ArrowRight, Shield, Activity, CalendarDays, MousePointerClick, UploadCloud, Image as ImageIcon, X, Wand2 } from 'lucide-react';
 import { OpenToSelector } from '@/components/profile/OpenToBadges';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -474,7 +474,7 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
         <div className="absolute top-0 left-0 w-1 h-full" style={{ backgroundColor: B.accent }} />
         <div className="flex flex-col sm:flex-row sm:items-center gap-4 ml-2">
           <div className="p-2.5 rounded-xl flex-shrink-0" style={{ backgroundColor: B.accentBg }}>
-            <Sparkles className="h-5 w-5" style={{ color: B.accent }} />
+            <Wand2 className="h-5 w-5" style={{ color: B.accent }} />
           </div>
           <div className="flex-1">
             <h3 className="text-sm font-semibold" style={{ color: B.text }}>Magic Autofill</h3>
@@ -847,7 +847,7 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
               <div className="relative z-10 flex items-start gap-3.5">
                 {/* Persona Icon Badge */}
                 <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/10 flex items-center justify-center text-xl shrink-0 shadow-inner">
-                  {appliedTemplateAlert.icon || '✨'}
+                  {appliedTemplateAlert.icon || '★'}
                 </div>
 
                 {/* Text & Context */}
