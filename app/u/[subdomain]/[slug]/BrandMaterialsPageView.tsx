@@ -72,9 +72,10 @@ interface Props {
   searchParams?: { [key: string]: string | string[] | undefined };
 }
 
-// Clean helper for masking Cloudflare URLs
+// Clean helper for masking Cloudflare URLs (skips avatars so user profile images load directly from high-speed CDN)
 function maskCloudflareUrl(url?: string | null): string {
   if (!url) return '';
+  if (url.includes('/avatars/')) return url;
   const matchR2Dev = url.match(/https?:\/\/[^/]+\.r2\.dev\/(.+)$/);
   if (matchR2Dev) return `/api/media/${matchR2Dev[1]}`;
   const matchR2Storage = url.match(/https?:\/\/[^/]+\.r2\.cloudflarestorage\.com\/[^/]+\/(.+)$/);
@@ -667,6 +668,9 @@ export default function BrandMaterialsPageView({
   const [copiedItemId, setCopiedItemId] = useState<string | null>(null);
   const [copiedContent, setCopiedContent] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<MaterialItem | null>(null);
+  const [avatarError, setAvatarError] = useState(false);
+
+  const avatarSrc = profile?.avatarUrl || (profile as any)?.avatar_url;
 
   // Read URL search param for quick previewing any template or item
   const rawTargetQuery = searchParams?.item || searchParams?.file || searchParams?.product || searchParams?.material || '';
@@ -1128,10 +1132,15 @@ export default function BrandMaterialsPageView({
                 borderColor: theme.isDark ? 'rgba(255, 255, 255, 0.2)' : '#FFFFFF',
               }}
             >
-              {profile?.avatarUrl ? (
-                <img src={maskCloudflareUrl(profile.avatarUrl)} alt={profile.name || subdomain} className="w-full h-full object-cover" />
+              {avatarSrc && !avatarError ? (
+                <img 
+                  src={avatarSrc} 
+                  alt={profile?.name || subdomain} 
+                  className="w-full h-full object-cover" 
+                  onError={() => setAvatarError(true)}
+                />
               ) : (
-                <span className="text-sm font-bold" style={{ color: theme.pageTextColor }}>
+                <span className="text-sm font-bold uppercase" style={{ color: theme.pageTextColor }}>
                   {(profile?.name || subdomain).charAt(0).toUpperCase()}
                 </span>
               )}
