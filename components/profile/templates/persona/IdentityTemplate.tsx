@@ -8,8 +8,10 @@ import { Menu, BadgeCheck, ArrowRight, Bookmark, Send, Quote, Github, Linkedin, 
 import { OpenToBadges } from '@/components/profile/OpenToBadges';
 import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
 import { ClubTemplate } from './ClubTemplate';
+import { StudioTemplate } from './StudioTemplate';
 import { SocialIcon, getSocialSvgPath, renderSocialOrIcon, normalizeSocialPlatform } from '@/components/profile/SocialBrandIcons';
 export { ClubTemplate };
+export { StudioTemplate };
 
 // --- 01 INDIVIDUAL --- //
 
@@ -4228,7 +4230,7 @@ export function IdentityTemplate(props: TemplateProps & { templateId: string }) 
   const accentColor: string | undefined = (profile as any).theme?.accentColor;
 
   // Templates with dark backgrounds need light-adjusted badge / activity styling
-  const darkTemplates = ['lone', 'rebellion', 'the-builder', 'the-hustler', 'the-visionary', 'the-creator'];
+  const darkTemplates = ['lone', 'rebellion', 'the-builder', 'the-hustler', 'the-visionary', 'the-creator', 'the-studio'];
   const isDark = darkTemplates.includes(templateId);
 
   let content: React.ReactNode;
@@ -4244,6 +4246,7 @@ export function IdentityTemplate(props: TemplateProps & { templateId: string }) 
     // Agency
     case 'the-machine': content = <MachineTemplate {...props} />; break;
     case 'the-club': content = <ClubTemplate {...props} />; break;
+    case 'the-studio': content = <StudioTemplate {...props} />; break;
     // Entrepreneur
     case 'the-builder': content = <BuilderTemplate {...props} />; break;
     case 'the-visionary': content = <VisionaryTemplate {...props} />; break;

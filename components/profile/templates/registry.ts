@@ -234,6 +234,24 @@ export const TEMPLATE_REGISTRY: TemplateMeta[] = [
     },
     persona: 'the-voice',
   },
+
+  // 06 — AGENCY (PREMIUM)
+  {
+    id: 'the-studio',
+    name: 'The Studio',
+    category: 'agency',
+    intensity: 'max',
+    preset: 'creative',
+    icon: '🏛️',
+    tagline: 'Crafting culture-defining work.',
+    description: 'Premier independent studio. Editorial luxury, immersive canvas, zero-scroll cockpit. Liquid ripples, floating monoliths, atelier palette.',
+    tags: ['luxury', 'editorial', 'immersive', 'premium', 'atelier'],
+    thumbnail: '/templates/previews/the-studio.svg',
+    features: {
+      has3DBackground: true, hasParallax: true, hasTiltCards: true, hasMagneticHover: true, hasAnimatedOrbs: true, hasGradientText: true, supportsVideoBackground: false, maxLinks: 15, maxProofPoints: 8, performanceBudget: 'heavy',
+    },
+    persona: 'the-studio',
+  },
 ];
 
 export function getTemplateById(id: string): TemplateMeta | undefined {
