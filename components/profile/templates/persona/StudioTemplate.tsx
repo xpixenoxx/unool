@@ -112,8 +112,8 @@ const STUDIO_STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
   :root {
-    /* Premium Warm Stone Palette */
-    --studio-cream: #FDFBF7;
+    /* Premium Warm Neutral Palette — NO pure white, NO dark */
+    --studio-cream: #FEFDF9;
     --studio-warm-white: #FAF8F3;
     --studio-stone-50: #F5F2EB;
     --studio-stone-100: #EDE8DF;
@@ -127,22 +127,26 @@ const STUDIO_STYLES = `
     --studio-stone-900: #2A261F;
     --studio-stone-950: #161410;
 
-    /* Accent: Burnt Sienna / Terracotta - sophisticated, warm, premium */
+    /* Accent: Burnt Sienna — sophisticated, warm, premium */
     --studio-accent: #C45D3E;
     --studio-accent-light: #E87D5A;
     --studio-accent-dark: #9B472F;
     --studio-accent-glow: rgba(196, 93, 62, 0.35);
     --studio-accent-subtle: rgba(196, 93, 62, 0.08);
 
-    /* Secondary: Sage Green for balance */
+    /* Secondary: Sage Green */
     --studio-sage: #7A8A6E;
     --studio-sage-light: #9AB08F;
     --studio-sage-subtle: rgba(122, 138, 110, 0.1);
 
-    /* Gold highlight for premium touches */
+    /* Gold highlight */
     --studio-gold: #C8A86E;
     --studio-gold-light: #E0C490;
     --studio-gold-subtle: rgba(200, 168, 110, 0.15);
+
+    /* Soft Rose for variety */
+    --studio-rose: #D48B7A;
+    --studio-rose-subtle: rgba(212, 139, 122, 0.1);
 
     /* Spacing Scale */
     --space-1: 4px;
@@ -177,20 +181,22 @@ const STUDIO_STYLES = `
     --radius-2xl: 32px;
     --radius-full: 9999px;
 
-    /* Shadows */
+    /* Shadows — layered, premium */
     --shadow-xs: 0 1px 2px rgba(22, 20, 16, 0.03);
     --shadow-sm: 0 2px 8px rgba(22, 20, 16, 0.05);
     --shadow-md: 0 8px 24px rgba(22, 20, 16, 0.07);
     --shadow-lg: 0 16px 48px rgba(22, 20, 16, 0.09);
     --shadow-xl: 0 24px 64px rgba(22, 20, 16, 0.12);
+    --shadow-2xl: 0 32px 80px rgba(22, 20, 16, 0.15);
     --shadow-glow: 0 0 60px var(--studio-accent-glow);
     --shadow-gold: 0 0 40px var(--studio-gold-subtle);
+    --shadow-inner: inset 0 2px 4px rgba(22, 20, 16, 0.03);
 
-    /* Glassmorphism */
-    --glass-bg: rgba(250, 248, 243, 0.72);
-    --glass-border: rgba(196, 93, 62, 0.12);
+    /* Glassmorphism — refined */
+    --glass-bg: rgba(250, 248, 243, 0.85);
+    --glass-border: rgba(196, 93, 62, 0.1);
     --glass-shadow: 0 8px 32px rgba(22, 20, 16, 0.06);
-    --glass-blur: saturate(180%) blur(20px);
+    --glass-blur: saturate(180%) blur(24px);
 
     /* Transitions */
     --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
@@ -201,37 +207,7 @@ const STUDIO_STYLES = `
     --duration-slower: 600ms;
   }
 
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --studio-cream: #1A1814;
-      --studio-warm-white: #1F1C17;
-      --studio-stone-50: #26221C;
-      --studio-stone-100: #2E2922;
-      --studio-stone-200: #3D372E;
-      --studio-stone-300: #544C3F;
-      --studio-stone-400: #6E6352;
-      --studio-stone-500: #8B7D68;
-      --studio-stone-600: #A89982;
-      --studio-stone-700: #C4B8A4;
-      --studio-stone-800: #DCD5C7;
-      --studio-stone-900: #EDE8DF;
-      --studio-stone-950: #FAF8F3;
-
-      --glass-bg: rgba(26, 24, 20, 0.8);
-      --glass-border: rgba(200, 168, 110, 0.18);
-      --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
-      animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
-      scroll-behavior: auto !important;
-    }
-  }
-
+  /* Force light mode — no dark variant */
   .studio-template {
     font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
     background: var(--studio-cream);
@@ -241,29 +217,32 @@ const STUDIO_STYLES = `
     overflow-x: hidden;
   }
 
+  /* Layered atmospheric background */
   .studio-template::before {
     content: '';
     position: fixed;
     inset: 0;
-    z-index: -2;
+    z-index: -3;
     background:
-      radial-gradient(ellipse 80% 50% at 20% 10%, var(--studio-accent-subtle) 0%, transparent 60%),
-      radial-gradient(ellipse 60% 40% at 80% 90%, var(--studio-sage-subtle) 0%, transparent 55%),
-      radial-gradient(ellipse 40% 30% at 50% 50%, var(--studio-gold-subtle) 0%, transparent 70%),
+      radial-gradient(ellipse 100% 60% at 10% 0%, var(--studio-accent-subtle) 0%, transparent 55%),
+      radial-gradient(ellipse 80% 50% at 90% 100%, var(--studio-sage-subtle) 0%, transparent 50%),
+      radial-gradient(ellipse 60% 40% at 50% 50%, var(--studio-gold-subtle) 0%, transparent 65%),
+      radial-gradient(ellipse 40% 30% at 80% 20%, var(--studio-rose-subtle) 0%, transparent 60%),
       linear-gradient(180deg, var(--studio-cream) 0%, var(--studio-stone-50) 100%);
     pointer-events: none;
   }
 
+  /* Subtle grain texture */
   .studio-template::after {
     content: '';
     position: fixed;
     inset: 0;
-    z-index: -1;
+    z-index: -2;
     background-image:
       radial-gradient(circle at 1px 1px, var(--studio-stone-200) 0.5px, transparent 0.5px),
-      radial-gradient(circle at 1px 1px, var(--studio-stone-300) 0.3px, transparent 0.3px);
-    background-size: 60px 60px, 120px 120px;
-    opacity: 0.15;
+      radial-gradient(circle at 2px 2px, var(--studio-stone-300) 0.3px, transparent 0.3px);
+    background-size: 80px 80px, 160px 160px;
+    opacity: 0.08;
     pointer-events: none;
   }
 
@@ -271,20 +250,20 @@ const STUDIO_STYLES = `
   .font-ui { font-family: 'Space Grotesk', sans-serif; }
   .font-mono { font-family: 'JetBrains Mono', monospace; }
 
-  /* Glass Card */
+  /* Glass Cards — multiple elevations */
   .glass-card {
     background: var(--glass-bg);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-xl);
-    box-shadow: var(--glass-shadow);
+    box-shadow: var(--glass-shadow), var(--shadow-inner);
     transition: all var(--duration-base) var(--ease-out);
   }
 
   .glass-card:hover {
-    border-color: var(--studio-accent);
-    box-shadow: var(--shadow-md), 0 0 0 1px var(--studio-accent);
+    border-color: rgba(196, 93, 62, 0.3);
+    box-shadow: var(--shadow-md), 0 0 0 1px rgba(196, 93, 62, 0.15), var(--shadow-inner);
     transform: translateY(-2px);
   }
 
@@ -294,17 +273,26 @@ const STUDIO_STYLES = `
     -webkit-backdrop-filter: var(--glass-blur);
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-2xl);
-    box-shadow: var(--shadow-lg);
+    box-shadow: var(--shadow-lg), var(--shadow-inner);
   }
 
-  /* Buttons */
+  .glass-card-subtle {
+    background: rgba(250, 248, 243, 0.6);
+    backdrop-filter: saturate(150%) blur(16px);
+    -webkit-backdrop-filter: saturate(150%) blur(16px);
+    border: 1px solid rgba(196, 93, 62, 0.06);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* Buttons — premium */
   .btn-primary {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: var(--space-2);
     padding: var(--space-3) var(--space-6);
-    background: var(--studio-accent);
+    background: linear-gradient(135deg, var(--studio-accent) 0%, var(--studio-accent-dark) 100%);
     color: var(--studio-cream);
     font-family: 'Space Grotesk', sans-serif;
     font-weight: 600;
@@ -316,17 +304,28 @@ const STUDIO_STYLES = `
     cursor: pointer;
     transition: all var(--duration-base) var(--ease-out);
     box-shadow: var(--shadow-sm), 0 0 0 1px rgba(196, 93, 62, 0.2);
+    position: relative;
+    overflow: hidden;
   }
 
+  .btn-primary::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, var(--studio-accent-light) 0%, var(--studio-accent) 100%);
+    opacity: 0;
+    transition: opacity var(--duration-base) var(--ease-out);
+  }
+
+  .btn-primary:hover::before { opacity: 1; }
+  .btn-primary > * { position: relative; z-index: 1; }
+
   .btn-primary:hover {
-    background: var(--studio-accent-light);
     transform: translateY(-2px);
     box-shadow: var(--shadow-md), var(--shadow-glow);
   }
 
-  .btn-primary:active {
-    transform: translateY(0);
-  }
+  .btn-primary:active { transform: translateY(0); }
 
   .btn-primary:focus-visible {
     outline: 2px solid var(--studio-accent);
@@ -382,27 +381,10 @@ const STUDIO_STYLES = `
     color: var(--studio-accent);
   }
 
-  /* Input / Textarea */
-  .studio-input {
-    width: 100%;
-    padding: var(--space-3) var(--space-4);
-    background: var(--studio-warm-white);
-    border: 1px solid var(--studio-stone-200);
-    border-radius: var(--radius-md);
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: var(--text-base);
-    color: var(--studio-stone-900);
-    transition: all var(--duration-fast) var(--ease-out);
-  }
-
-  .studio-input:focus {
-    outline: none;
-    border-color: var(--studio-accent);
-    box-shadow: 0 0 0 3px var(--studio-accent-subtle);
-  }
-
-  .studio-input::placeholder {
-    color: var(--studio-stone-400);
+  /* Focus visible */
+  :focus-visible {
+    outline: 2px solid var(--studio-accent);
+    outline-offset: 2px;
   }
 
   /* Scrollbar */
@@ -414,15 +396,19 @@ const STUDIO_STYLES = `
   /* Selection */
   ::selection { background: var(--studio-accent); color: var(--studio-cream); }
 
-  /* Focus visible */
-  :focus-visible {
-    outline: 2px solid var(--studio-accent);
-    outline-offset: 2px;
-  }
-
-  /* Utility */
+  /* Utilities */
   .text-balance { text-wrap: balance; }
   .text-pretty { text-wrap: pretty; }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 `;
 
 /* ────────────────────────── Utility Functions ────────────────────────── */
@@ -503,7 +489,6 @@ const normalizeSocialLinks = (profile: PublicProfile): SocialLink[] => {
   if (profile.links?.length) {
     profile.links.forEach((link) => {
       const platform = normalizeSocialPlatform(link.label, link.url, link.icon);
-      // Generate a readable label from the platform
       const label = link.label || platform.charAt(0).toUpperCase() + platform.slice(1);
       links.push({
         label,
@@ -520,7 +505,6 @@ const normalizeSocialLinks = (profile: PublicProfile): SocialLink[] => {
     Object.entries(profile.socialHandles).forEach(([key, val]) => {
       if (!val) return;
       const platform = normalizeSocialPlatform(key, val);
-      // Avoid duplicates
       if (!links.some(l => l.platform === platform)) {
         const label = key.charAt(0).toUpperCase() + key.slice(1);
         links.push({
@@ -596,7 +580,6 @@ function ToastStack() {
     }, 3000);
   }, []);
 
-  // Expose globally for components that need it
   useEffect(() => {
     (window as any).__studioToast = showToast;
     return () => { delete (window as any).__studioToast; };
@@ -617,9 +600,9 @@ function ToastStack() {
           transition={{ type: 'spring', stiffness: 300, damping: 25 }}
           className="pointer-events-auto glass-card px-5 py-3.5 flex items-center gap-3 min-w-[240px] max-w-[90vw]"
           style={{
+            borderLeftWidth: '4px',
             borderLeftColor: toast.type === 'success' ? 'var(--studio-sage)' :
               toast.type === 'error' ? 'var(--studio-accent)' : 'var(--studio-gold)',
-            borderLeftWidth: '4px',
           }}
         >
           {toast.type === 'success' && <Check className="w-5 h-5 text-[var(--studio-sage)]" />}
@@ -644,7 +627,7 @@ function LiveClock({ timezone }: { timezone?: string }) {
       setAbbr(getTimezoneAbbr(timezone));
     };
     update();
-    const interval = setInterval(update, 30000); // Update every 30s
+    const interval = setInterval(update, 30000);
     return () => clearInterval(interval);
   }, [timezone]);
 
@@ -665,7 +648,7 @@ function LiveClock({ timezone }: { timezone?: string }) {
 function AvailabilityPill({ availability }: { availability?: string }) {
   if (!availability) return null;
 
-  const statuses = {
+  const statuses: Record<string, { label: string; icon: React.ComponentType<{ className?: string }>; color: string; bg: string; pulse: boolean }> = {
     'open for work': { label: 'Open for work', icon: Zap, color: 'var(--studio-sage)', bg: 'var(--studio-sage-subtle)', pulse: true },
     'booked': { label: 'Booked', icon: Clock, color: 'var(--studio-accent)', bg: 'var(--studio-accent-subtle)', pulse: false },
     'on retainer': { label: 'On retainer', icon: Star, color: 'var(--studio-gold)', bg: 'var(--studio-gold-subtle)', pulse: false },
@@ -674,13 +657,15 @@ function AvailabilityPill({ availability }: { availability?: string }) {
   };
 
   const normalized = availability.toLowerCase().trim();
-  const config = statuses[normalized as keyof typeof statuses] || {
+  const config = statuses[normalized] || {
     label: availability,
     icon: Clock,
     color: 'var(--studio-stone-500)',
     bg: 'var(--studio-stone-100)',
     pulse: false,
   };
+
+  const Icon = config.icon;
 
   return (
     <motion.div
@@ -760,7 +745,7 @@ function SocialRail({ links }: { links: SocialLink[] }) {
         }}
         onScroll={handleScroll}
       >
-        <div style={{ width: '4px', flexShrink: 0 }} aria-hidden="true" /> {/* Left padding for snap */}
+        <div style={{ width: '4px', flexShrink: 0 }} aria-hidden="true" />
 
         {links.map((link, index) => (
           <a
@@ -768,7 +753,7 @@ function SocialRail({ links }: { links: SocialLink[] }) {
             href={link.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 px-4 py-3 glass-card shrink-0 snap-start transition-all duration-300"
+            className="flex items-center justify-center gap-2 px-4 py-3 glass-card shrink-0 snap-start transition-all duration-300 group"
             style={{
               minWidth: '120px',
               borderColor: 'transparent',
@@ -785,10 +770,12 @@ function SocialRail({ links }: { links: SocialLink[] }) {
             }}
             aria-label={link.label}
           >
-            <span className="flex items-center justify-center w-10 h-10 rounded-full shrink-0"
+            <span className="flex items-center justify-center w-10 h-10 rounded-full shrink-0 group-hover:scale-110 transition-transform duration-300"
               style={{ background: 'var(--studio-accent-subtle)', color: 'var(--studio-accent)' }}>
               {link.brandSvg ? (
-                <span dangerouslySetInnerHTML={{ __html: typeof link.brandSvg === 'string' ? link.brandSvg : '' }} className="w-5 h-5" />
+                <span className="w-5 h-5" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {link.brandSvg}
+                </span>
               ) : (
                 <SocialIcon label={link.label} url={link.url} icon={link.icon} className="w-5 h-5 fill-current" />
               )}
@@ -799,7 +786,7 @@ function SocialRail({ links }: { links: SocialLink[] }) {
           </a>
         ))}
 
-        <div style={{ width: '4px', flexShrink: 0 }} aria-hidden="true" /> {/* Right padding for snap */}
+        <div style={{ width: '4px', flexShrink: 0 }} aria-hidden="true" />
       </div>
 
       {showRightArrow && (
@@ -874,7 +861,6 @@ function ProjectDrawer({ project, isOpen, onClose, accentColor }: ProjectDrawerP
         aria-labelledby="drawer-title"
         onClick={onClose}
       >
-        {/* Backdrop */}
         <motion.div
           className="absolute inset-0"
           style={{ background: 'rgba(22, 20, 16, 0.5)', backdropFilter: 'blur(4px)' }}
@@ -883,7 +869,6 @@ function ProjectDrawer({ project, isOpen, onClose, accentColor }: ProjectDrawerP
           exit={{ opacity: 0 }}
         />
 
-        {/* Drawer Panel */}
         <motion.div
           ref={drawerRef}
           tabIndex={-1}
@@ -898,7 +883,6 @@ function ProjectDrawer({ project, isOpen, onClose, accentColor }: ProjectDrawerP
           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Header */}
           <div className="flex items-start justify-between p-6 border-b" style={{ borderColor: 'var(--studio-stone-200)' }}>
             <div className="pr-4">
               <span className="font-ui text-xs font-semibold uppercase tracking-widest" style={{ color: accentColor }}>
@@ -918,9 +902,7 @@ function ProjectDrawer({ project, isOpen, onClose, accentColor }: ProjectDrawerP
             </button>
           </div>
 
-          {/* Content */}
           <div className="flex-1 overflow-y-auto p-6 space-y-8">
-            {/* Image */}
             {project.imageUrl && (
               <div className="relative aspect-video rounded-2xl overflow-hidden">
                 <img
@@ -933,7 +915,6 @@ function ProjectDrawer({ project, isOpen, onClose, accentColor }: ProjectDrawerP
               </div>
             )}
 
-            {/* Description */}
             {project.description && (
               <div>
                 <h3 className="font-ui text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: 'var(--studio-stone-500)' }}>
@@ -945,7 +926,6 @@ function ProjectDrawer({ project, isOpen, onClose, accentColor }: ProjectDrawerP
               </div>
             )}
 
-            {/* Metrics */}
             {project.metrics?.length && (
               <div className="grid grid-cols-2 gap-4" style={{ borderTop: '1px solid var(--studio-stone-200)', paddingTop: 'var(--space-6)' }}>
                 {project.metrics.map((metric, i) => (
@@ -961,7 +941,6 @@ function ProjectDrawer({ project, isOpen, onClose, accentColor }: ProjectDrawerP
               </div>
             )}
 
-            {/* Tags */}
             {project.tags?.length && (
               <div>
                 <h3 className="font-ui text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: 'var(--studio-stone-500)' }}>
@@ -986,7 +965,6 @@ function ProjectDrawer({ project, isOpen, onClose, accentColor }: ProjectDrawerP
               </div>
             )}
 
-            {/* Category & Year */}
             {(project.category || project.year) && (
               <div className="flex flex-wrap gap-4 text-sm" style={{ color: 'var(--studio-stone-600)' }}>
                 {project.category && (
@@ -1004,7 +982,6 @@ function ProjectDrawer({ project, isOpen, onClose, accentColor }: ProjectDrawerP
               </div>
             )}
 
-            {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-3 pt-4" style={{ borderTop: '1px solid var(--studio-stone-200)' }}>
               {project.url && (
                 <a
@@ -1111,12 +1088,108 @@ function GeometricAccent({ className = '', style }: { className?: string; style?
   );
 }
 
+/* ────────────────────────── Floating Nav (Optional - minimal) ────────────────────────── */
+
+function FloatingNav({ profile, socialLinks, onCopyEmail, onDownloadVCard }: {
+  profile: PublicProfile;
+  socialLinks: SocialLink[];
+  onCopyEmail: () => void;
+  onDownloadVCard: () => void;
+}) {
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => setIsScrolled(window.scrollY > 100);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  if (!profile.name && socialLinks.length === 0) return null;
+
+  return (
+    <motion.nav
+      initial={{ y: -100, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.5, delay: 0.2 }}
+      className="fixed top-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-4 py-3 glass-card-elevated"
+      style={{
+        borderColor: isScrolled ? 'rgba(196, 93, 62, 0.2)' : 'transparent',
+        boxShadow: isScrolled ? 'var(--shadow-lg)' : 'var(--glass-shadow)',
+        maxWidth: 'calc(100vw - 2rem)',
+      }}
+    >
+      <div className="flex items-center gap-2">
+        <div className="w-8 h-8 rounded-xl flex items-center justify-center overflow-hidden"
+          style={{ background: 'linear-gradient(135deg, var(--studio-accent) 0%, var(--studio-accent-dark) 100%)' }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--studio-cream)]" aria-hidden="true">
+            <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2" />
+            <line x1="12" y1="22" x2="12" y2="15.5" />
+            <line x1="22" y1="8.5" x2="12" y2="15.5" />
+            <line x1="2" y1="8.5" x2="12" y2="15.5" />
+          </svg>
+        </div>
+        <span className="font-editorial text-lg font-semibold hidden sm:block" style={{ color: 'var(--studio-stone-900)' }}>
+          {profile.name}
+        </span>
+      </div>
+
+      <div className="hidden md:flex items-center gap-1 ml-4">
+        {socialLinks.slice(0, 4).map((link, i) => (
+          <a
+            key={link.platform}
+            href={link.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="glass-card-subtle p-2 rounded-xl transition-all hover:bg-[var(--studio-accent-subtle)] group"
+            aria-label={link.label}
+          >
+            {link.brandSvg ? (
+              <span className="w-4 h-4 group-hover:scale-110 transition-transform" style={{ color: 'var(--studio-stone-500)' }}>
+                {link.brandSvg}
+              </span>
+            ) : (
+              <SocialIcon label={link.label} url={link.url} icon={link.icon} className="w-4 h-4 fill-current" style={{ color: 'var(--studio-stone-500)' }} />
+            )}
+          </a>
+        ))}
+        {socialLinks.length > 4 && (
+          <span className="glass-card-subtle px-3 py-2 rounded-xl font-mono text-xs" style={{ color: 'var(--studio-stone-500)' }}>
+            +{socialLinks.length - 4}
+          </span>
+        )}
+      </div>
+
+      <div className="ml-auto flex items-center gap-2">
+        <AvailabilityPill availability={profile.availability} />
+        <LiveClock timezone={profile.timezone} />
+        {profile.email && (
+          <button
+            onClick={onCopyEmail}
+            className="glass-card-subtle p-2 rounded-xl hover:bg-[var(--studio-accent-subtle)] transition-colors"
+            style={{ color: 'var(--studio-stone-500)' }}
+            aria-label="Copy email"
+          >
+            <Mail className="w-4 h-4" />
+          </button>
+        )}
+        <button
+          onClick={onDownloadVCard}
+          className="glass-card-subtle p-2 rounded-xl hover:bg-[var(--studio-gold-subtle)] transition-colors"
+          style={{ color: 'var(--studio-stone-500)' }}
+          aria-label="Download vCard"
+        >
+          <Download className="w-4 h-4" />
+        </button>
+      </div>
+    </motion.nav>
+  );
+}
+
 /* ────────────────────────── Main Studio Template ────────────────────────── */
 
 export function StudioTemplate({ profile, onLinkClick }: TemplateProps) {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [openProject, setOpenProject] = useState<NonNullable<PublicProfile['projects']>[0] | null>(null);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
@@ -1150,7 +1223,7 @@ export function StudioTemplate({ profile, onLinkClick }: TemplateProps) {
       <ToastStack />
 
       <div className="studio-template font-ui antialiased">
-        {/* Decorative Background Orbs */}
+        {/* Atmospheric Background Orbs */}
         <div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden" aria-hidden="true">
           <DecorativeOrb
             className="absolute -top-40 -right-40 w-[500px] h-[500px]"
@@ -1164,92 +1237,22 @@ export function StudioTemplate({ profile, onLinkClick }: TemplateProps) {
             className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px]"
             style={{ background: 'radial-gradient(circle, var(--studio-gold) 0%, transparent 80%)', opacity: 0.15 }}
           />
+          <DecorativeOrb
+            className="absolute top-20 right-20 w-[200px] h-[200px]"
+            style={{ background: 'radial-gradient(circle, var(--studio-rose) 0%, transparent 70%)', opacity: 0.2 }}
+          />
         </div>
 
-        {/* Navigation */}
-        <header className="fixed top-0 left-0 right-0 z-50 px-6 py-4 md:px-8 md:py-5">
-          <nav className="max-w-7xl mx-auto flex items-center justify-between" style={{ height: '64px' }}>
-            {/* Logo / Brand */}
-            <div className="flex items-center gap-3 z-10">
-              <div className="relative w-10 h-10 rounded-2xl flex items-center justify-center overflow-hidden"
-                style={{ background: 'linear-gradient(135deg, var(--studio-accent) 0%, var(--studio-accent-dark) 100%)' }}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--studio-cream)]" aria-hidden="true">
-                  <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2" />
-                  <line x1="12" y1="22" x2="12" y2="15.5" />
-                  <line x1="22" y1="8.5" x2="12" y2="15.5" />
-                  <line x1="2" y1="8.5" x2="12" y2="15.5" />
-                </svg>
-              </div>
-              {profile.name && (
-                <span className="font-editorial text-xl font-semibold hidden sm:block" style={{ color: 'var(--studio-stone-900)' }}>
-                  {profile.name}
-                </span>
-              )}
-            </div>
-
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center gap-8">
-              <a href="#profile" className="font-ui text-sm font-medium transition-colors hover:text-[var(--studio-accent)]" style={{ color: 'var(--studio-stone-600)' }}>Profile</a>
-              {(profile.headline || profile.bio || profile.focus || profile.interests || profile.expertise?.length) && (
-                <a href="#about" className="font-ui text-sm font-medium transition-colors hover:text-[var(--studio-accent)]" style={{ color: 'var(--studio-stone-600)' }}>About</a>
-              )}
-              {hasProjects && (
-                <a href="#work" className="font-ui text-sm font-medium transition-colors hover:text-[var(--studio-accent)]" style={{ color: 'var(--studio-stone-600)' }}>Work</a>
-              )}
-              <AvailabilityPill availability={profile.availability} />
-              <LiveClock timezone={profile.timezone} />
-            </div>
-
-            {/* Mobile Menu Button */}
-            <div className="md:hidden flex items-center gap-3">
-              <button
-                onClick={handleCopyEmail}
-                className="glass-card p-2 rounded-full"
-                style={{ color: 'var(--studio-stone-500)' }}
-                aria-label="Copy email"
-              >
-                <Mail className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="glass-card p-2 rounded-full"
-                style={{ color: 'var(--studio-stone-700)' }}
-                aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
-                aria-expanded={isMobileMenuOpen}
-              >
-                {isMobileMenuOpen ? <X className="w-6 h-6" /> : <MessageSquare className="w-6 h-6" />}
-              </button>
-            </div>
-          </nav>
-
-          {/* Mobile Menu */}
-          <AnimatePresence>
-            {isMobileMenuOpen && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="md:hidden mt-4 glass-card p-4 space-y-2 overflow-hidden"
-              >
-                <a href="#profile" onClick={() => setIsMobileMenuOpen(false)} className="block px-4 py-3 rounded-xl font-ui text-sm font-medium transition-colors hover:bg-[var(--studio-accent-subtle)]" style={{ color: 'var(--studio-stone-700)' }}>Profile</a>
-                {(profile.headline || profile.bio || profile.focus || profile.interests || profile.expertise?.length) && (
-                  <a href="#about" onClick={() => setIsMobileMenuOpen(false)} className="block px-4 py-3 rounded-xl font-ui text-sm font-medium transition-colors hover:bg-[var(--studio-accent-subtle)]" style={{ color: 'var(--studio-stone-700)' }}>About</a>
-                )}
-                {hasProjects && (
-                  <a href="#work" onClick={() => setIsMobileMenuOpen(false)} className="block px-4 py-3 rounded-xl font-ui text-sm font-medium transition-colors hover:bg-[var(--studio-accent-subtle)]" style={{ color: 'var(--studio-stone-700)' }}>Work</a>
-                )}
-                {profile.email && (
-                  <a href={`mailto:${profile.email}`} onClick={() => setIsMobileMenuOpen(false)} className="block px-4 py-3 rounded-xl font-ui text-sm font-medium transition-colors hover:bg-[var(--studio-accent-subtle)]" style={{ color: 'var(--studio-accent)' }}>
-                    <Mail className="w-4 h-4 inline mr-2" /> Contact
-                  </a>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </header>
+        {/* Floating Nav — minimal, elegant */}
+        <FloatingNav
+          profile={profile}
+          socialLinks={socialLinks}
+          onCopyEmail={handleCopyEmail}
+          onDownloadVCard={handleDownloadVCard}
+        />
 
         {/* Main Content */}
-        <main className="pt-24 pb-20 px-6 md:px-8 lg:px-12">
+        <main className="pt-28 pb-20 px-6 md:px-8 lg:px-12">
           <div className="max-w-7xl mx-auto">
 
             {/* HERO SECTION */}
@@ -1269,9 +1272,11 @@ export function StudioTemplate({ profile, onLinkClick }: TemplateProps) {
                           alt={profile.name || 'Profile photograph'}
                           className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
                         />
-                        {/* Corner accent */}
+                        {/* Corner accents */}
                         <div className="absolute top-0 left-0 w-20 h-20 border-t-4 border-l-4" style={{ borderColor: 'var(--studio-accent)' }} />
                         <div className="absolute bottom-0 right-0 w-20 h-20 border-b-4 border-r-4" style={{ borderColor: 'var(--studio-gold)' }} />
+                        <div className="absolute top-0 right-0 w-16 h-16 border-t-4 border-r-4" style={{ borderColor: 'var(--studio-sage)', opacity: 0.5 }} />
+                        <div className="absolute bottom-0 left-0 w-16 h-16 border-b-4 border-l-4" style={{ borderColor: 'var(--studio-rose)', opacity: 0.5 }} />
                         {/* Location badge */}
                         {profile.location && (
                           <div className="absolute bottom-4 left-4 right-4 glass-card px-4 py-2 text-center">
@@ -1290,7 +1295,7 @@ export function StudioTemplate({ profile, onLinkClick }: TemplateProps) {
 
                     {/* Social Rail - Sticky on scroll */}
                     {socialLinks.length > 0 && (
-                      <ScrollReveal delay={0.3} className="mt-8 sticky top-24">
+                      <ScrollReveal delay={0.3} className="mt-8 sticky top-28">
                         <div className="glass-card p-5">
                           <div className="flex items-center justify-between mb-4">
                             <span className="font-ui text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--studio-stone-500)' }}>
@@ -1321,7 +1326,7 @@ export function StudioTemplate({ profile, onLinkClick }: TemplateProps) {
                       </div>
                     )}
 
-                    {/* Name */}
+                    {/* Name — editorial, expressive */}
                     {profile.name && (
                       <h1 className="font-editorial font-semibold leading-[1.05] tracking-tight mb-6 text-balance"
                         style={{ fontSize: 'clamp(2.5rem, 6vw, 5.5rem)', color: 'var(--studio-stone-950)' }}>
@@ -1346,7 +1351,7 @@ export function StudioTemplate({ profile, onLinkClick }: TemplateProps) {
                       </ScrollReveal>
                     )}
 
-                    {/* CTA Row */}
+                    {/* CTA Row — prominent, premium */}
                     <ScrollReveal delay={0.4}>
                       <div className="flex flex-wrap items-center gap-4">
                         {profile.email && (
@@ -1384,38 +1389,41 @@ export function StudioTemplate({ profile, onLinkClick }: TemplateProps) {
                       </div>
                     </ScrollReveal>
 
-                    {/* Quick Stats */}
+                    {/* Quick Stats — proof points, skills, networks */}
                     {(proofPoints.length > 0 || profile.expertise?.length) && (
                       <ScrollReveal delay={0.5} className="mt-10 pt-8" style={{ borderTop: '1px solid var(--studio-stone-200)' }}>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                           {proofPoints.slice(0, 3).map((proof, i) => (
-                            <div key={i} className="text-center p-4 glass-card">
+                            <div key={i} className="text-center p-4 glass-card group relative overflow-hidden">
                               <div className="font-editorial text-3xl md:text-4xl font-bold mb-1" style={{ color: 'var(--studio-accent)' }}>
                                 {proof.value}
                               </div>
                               <div className="font-ui text-xs uppercase tracking-wider" style={{ color: 'var(--studio-stone-500)' }}>
                                 {proof.title}
                               </div>
+                              <div className="absolute bottom-0 left-0 right-0 h-px opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ background: 'var(--studio-accent)' }} />
                             </div>
                           ))}
                           {profile.expertise?.length && proofPoints.length < 3 && (
-                            <div className="text-center p-4 glass-card">
+                            <div className="text-center p-4 glass-card group relative overflow-hidden">
                               <div className="font-editorial text-3xl md:text-4xl font-bold mb-1" style={{ color: 'var(--studio-sage)' }}>
                                 {profile.expertise.length}+
                               </div>
                               <div className="font-ui text-xs uppercase tracking-wider" style={{ color: 'var(--studio-stone-500)' }}>
                                 Skills
                               </div>
+                              <div className="absolute bottom-0 left-0 right-0 h-px opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ background: 'var(--studio-sage)' }} />
                             </div>
                           )}
                           {socialLinks.length && proofPoints.length < 2 && profile.expertise?.length === undefined && (
-                            <div className="text-center p-4 glass-card">
+                            <div className="text-center p-4 glass-card group relative overflow-hidden">
                               <div className="font-editorial text-3xl md:text-4xl font-bold mb-1" style={{ color: 'var(--studio-gold)' }}>
                                 {socialLinks.length}
                               </div>
                               <div className="font-ui text-xs uppercase tracking-wider" style={{ color: 'var(--studio-stone-500)' }}>
                                 Networks
                               </div>
+                              <div className="absolute bottom-0 left-0 right-0 h-px opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ background: 'var(--studio-gold)' }} />
                             </div>
                           )}
                         </div>
@@ -1470,24 +1478,27 @@ export function StudioTemplate({ profile, onLinkClick }: TemplateProps) {
                       {/* Details Grid */}
                       <div className="grid md:grid-cols-2 gap-6">
                         {profile.location && (
-                          <div className="glass-card p-5">
+                          <div className="glass-card p-5 group relative overflow-hidden">
                             <MapPin className="w-5 h-5 mb-2" style={{ color: 'var(--studio-accent)' }} />
                             <span className="font-ui text-xs uppercase tracking-widest block mb-1" style={{ color: 'var(--studio-stone-500)' }}>Based in</span>
                             <p className="font-editorial text-lg font-medium" style={{ color: 'var(--studio-stone-900)' }}>{profile.location}</p>
+                            <div className="absolute bottom-0 left-0 right-0 h-px opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ background: 'var(--studio-accent)' }} />
                           </div>
                         )}
                         {profile.focus && (
-                          <div className="glass-card p-5">
+                          <div className="glass-card p-5 group relative overflow-hidden">
                             <Star className="w-5 h-5 mb-2" style={{ color: 'var(--studio-gold)' }} />
                             <span className="font-ui text-xs uppercase tracking-widest block mb-1" style={{ color: 'var(--studio-stone-500)' }}>Focus</span>
                             <p className="font-editorial text-lg font-medium" style={{ color: 'var(--studio-stone-900)' }}>{profile.focus}</p>
+                            <div className="absolute bottom-0 left-0 right-0 h-px opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ background: 'var(--studio-gold)' }} />
                           </div>
                         )}
                         {profile.interests && (
-                          <div className="glass-card p-5 md:col-span-2">
+                          <div className="glass-card p-5 md:col-span-2 group relative overflow-hidden">
                             <Heart className="w-5 h-5 mb-2" style={{ color: 'var(--studio-accent)' }} />
                             <span className="font-ui text-xs uppercase tracking-widest block mb-2" style={{ color: 'var(--studio-stone-500)' }}>Interests</span>
                             <p className="font-ui text-base leading-relaxed" style={{ color: 'var(--studio-stone-600)' }}>{profile.interests}</p>
+                            <div className="absolute bottom-0 left-0 right-0 h-px opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ background: 'var(--studio-rose)' }} />
                           </div>
                         )}
                       </div>
@@ -1545,7 +1556,7 @@ export function StudioTemplate({ profile, onLinkClick }: TemplateProps) {
                               initial={{ opacity: 0, x: -20 }}
                               animate={{ opacity: 1, x: 0 }}
                               transition={{ delay: 0.1 * i, duration: 0.4 }}
-                              className="glass-card p-5 flex items-center justify-between gap-4"
+                              className="glass-card p-5 flex items-center justify-between gap-4 group relative overflow-hidden"
                             >
                               <div>
                                 <p className="font-editorial text-base font-medium" style={{ color: 'var(--studio-stone-900)' }}>
@@ -1558,16 +1569,17 @@ export function StudioTemplate({ profile, onLinkClick }: TemplateProps) {
                               <span className="font-mono text-sm font-medium shrink-0" style={{ color: 'var(--studio-accent)' }}>
                                 {exp.year}
                               </span>
+                              <div className="absolute bottom-0 left-0 right-0 h-px opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ background: 'var(--studio-gold)' }} />
                             </motion.div>
                           ))}
                         </div>
                       )}
                     </div>
 
-                    {/* Right: Visual Accent / Quote */}
+                    {/* Right: Visual Accent / Quote Card */}
                     <div className="lg:col-span-5 relative">
                       <div className="sticky top-28 h-full min-h-[400px]">
-                        <div className="relative h-full glass-card-elevated p-8 md:p-10 flex flex-col justify-between">
+                        <div className="relative h-full glass-card-elevated p-8 md:p-10 flex flex-col justify-between group">
                           <div>
                             <GeometricAccent className="absolute -top-20 -right-20 w-64 h-64" style={{ color: 'var(--studio-accent)' }} />
                             <div className="relative z-10">
@@ -1589,6 +1601,8 @@ export function StudioTemplate({ profile, onLinkClick }: TemplateProps) {
                               </div>
                             </div>
                           </div>
+                          {/* Subtle accent line on hover */}
+                          <div className="absolute bottom-0 left-0 right-0 h-px opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: 'linear-gradient(90deg, var(--studio-accent), var(--studio-gold))' }} />
                         </div>
                       </div>
                     </div>
@@ -1615,7 +1629,7 @@ export function StudioTemplate({ profile, onLinkClick }: TemplateProps) {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.08 * i, duration: 0.5 }}
-                        className="glass-card-elevated p-6 md:p-8 group"
+                        className="glass-card-elevated p-6 md:p-8 group relative overflow-hidden"
                       >
                         <div className="flex items-start justify-between gap-4 mb-4">
                           <span className="font-mono text-xs font-bold shrink-0" style={{ color: 'var(--studio-stone-400)' }}>
@@ -1633,6 +1647,7 @@ export function StudioTemplate({ profile, onLinkClick }: TemplateProps) {
                           {proof.title}
                         </div>
                         <div className="absolute bottom-0 left-0 right-0 h-px opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ background: 'var(--studio-accent)' }} />
+                        <div className="absolute top-0 right-0 w-24 h-24 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: 'radial-gradient(circle at top right, var(--studio-accent-subtle), transparent)' }} />
                       </motion.div>
                     ))}
                   </div>
@@ -1769,24 +1784,28 @@ export function StudioTemplate({ profile, onLinkClick }: TemplateProps) {
               </section>
             )}
 
-            {/* CONTACT FOOTER */}
+            {/* CONTACT FOOTER — LIGHT, not dark */}
             <footer id="contact" className="relative">
               <ScrollReveal delay={0.1}>
                 <div className="relative rounded-2xl overflow-hidden"
                   style={{
-                    background: 'linear-gradient(135deg, var(--studio-stone-900) 0%, var(--studio-stone-800) 50%, var(--studio-stone-700) 100%)',
-                    border: '1px solid var(--studio-stone-600)',
+                    background: 'linear-gradient(135deg, var(--studio-stone-100) 0%, var(--studio-stone-50) 50%, var(--studio-cream) 100%)',
+                    border: '1px solid var(--studio-stone-200)',
                   }}>
-                  {/* Decorative background */}
+                  {/* Decorative background — light */}
                   <div className="absolute inset-0 overflow-hidden" aria-hidden="true">
                     <GeometricAccent className="absolute top-0 left-0 w-full h-full" style={{ color: 'var(--studio-accent)' }} />
                     <DecorativeOrb
                       className="absolute -top-20 -right-20 w-[300px] h-[300px]"
-                      style={{ background: 'radial-gradient(circle, var(--studio-accent) 0%, transparent 70%)', opacity: 0.15 }}
+                      style={{ background: 'radial-gradient(circle, var(--studio-accent) 0%, transparent 70%)', opacity: 0.1 }}
                     />
                     <DecorativeOrb
                       className="absolute bottom-20 left-20 w-[200px] h-[200px]"
-                      style={{ background: 'radial-gradient(circle, var(--studio-gold) 0%, transparent 70%)', opacity: 0.1 }}
+                      style={{ background: 'radial-gradient(circle, var(--studio-gold) 0%, transparent 70%)', opacity: 0.08 }}
+                    />
+                    <DecorativeOrb
+                      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px]"
+                      style={{ background: 'radial-gradient(circle, var(--studio-rose) 0%, transparent 80%)', opacity: 0.06 }}
                     />
                   </div>
 
@@ -1794,13 +1813,13 @@ export function StudioTemplate({ profile, onLinkClick }: TemplateProps) {
                     <div className="flex items-center justify-between mb-10">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-px" style={{ background: 'var(--studio-gold)' }} />
-                        <span className="font-ui text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--studio-stone-400)' }}>Get In Touch</span>
+                        <span className="font-ui text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--studio-stone-500)' }}>Get In Touch</span>
                       </div>
-                      <span className="font-mono text-xs" style={{ color: 'var(--studio-stone-500)' }}>04</span>
+                      <span className="font-mono text-xs" style={{ color: 'var(--studio-stone-400)' }}>04</span>
                     </div>
 
                     <h2 className="font-editorial font-semibold leading-[1.05] tracking-tight mb-8 text-center md:text-left text-balance"
-                      style={{ fontSize: 'clamp(2rem, 5vw, 4rem)', color: 'var(--studio-cream)' }}>
+                      style={{ fontSize: 'clamp(2rem, 5vw, 4rem)', color: 'var(--studio-stone-900)' }}>
                       Let's make something<br />
                       <span className="italic" style={{ color: 'var(--studio-gold)' }}>useful.</span>
                     </h2>
@@ -1819,7 +1838,7 @@ export function StudioTemplate({ profile, onLinkClick }: TemplateProps) {
                       <button
                         onClick={handleDownloadVCard}
                         className="btn-secondary flex-1 text-lg px-8 py-4"
-                        style={{ borderColor: 'var(--studio-stone-400)', color: 'var(--studio-stone-200)' }}
+                        style={{ borderColor: 'var(--studio-stone-300)', color: 'var(--studio-stone-700)' }}
                       >
                         <Download className="w-5 h-5" />
                         SAVE CONTACT
@@ -1827,13 +1846,13 @@ export function StudioTemplate({ profile, onLinkClick }: TemplateProps) {
                     </div>
 
                     <div className="mt-16 pt-8 flex flex-col md:flex-row items-center justify-between gap-4"
-                      style={{ borderTop: '1px solid var(--studio-stone-700)' }}>
+                      style={{ borderTop: '1px solid var(--studio-stone-200)' }}>
                       <p className="font-ui text-xs uppercase tracking-widest" style={{ color: 'var(--studio-stone-500)' }}>
                         © {new Date().getFullYear()}{profile.name ? ` / ${profile.name}` : ''}
                       </p>
-                      <a href="#profile" className="btn-ghost" style={{ color: 'var(--studio-stone-400)' }}>
-                        Back to top
+                      <a href="#profile" className="btn-ghost" style={{ color: 'var(--studio-stone-500)' }}>
                         <ChevronLeft className="w-3.5 h-3.5" />
+                        Back to top
                       </a>
                     </div>
                   </div>
@@ -1851,8 +1870,6 @@ export function StudioTemplate({ profile, onLinkClick }: TemplateProps) {
           onClose={() => setOpenProject(null)}
           accentColor={accentColor}
         />
-
-        {/* Toast Container (handled by ToastStack) */}
       </div>
     </>
   );
