@@ -24,7 +24,7 @@ import {
   Check,
   CheckCircle2,
   Award,
-  Sparkles,
+  Sliders,
   ExternalLink,
   Search,
   Radio,
@@ -413,7 +413,7 @@ function XMobile({ content, isEmpty, media, profileName, initials, avatarUrl }: 
         <AvatarCircle initials={initials} avatarUrl={avatarUrl} size={28} bg="#6366F1" />
         <PlatformBrandLogo platform="x" size={20} variant="glyph" className="text-white" />
         <div className="w-7 flex justify-end">
-          <Sparkles className="w-4 h-4 text-[#71767B]" />
+          <Sliders className="w-4 h-4 text-[#71767B]" />
         </div>
       </div>
 
@@ -1679,7 +1679,6 @@ function DevtoMobile({ content, isEmpty, media, profileName, initials, avatarUrl
               className={`flex items-center gap-1 cursor-pointer transition-colors ${reacted ? 'text-rose-600 font-semibold' : ''}`}
             >
               <Heart className={`w-3.5 h-3.5 text-rose-500 ${reacted ? 'fill-rose-500' : ''}`} />
-              <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
               <span>{reactions}</span>
             </button>
             <div className="flex items-center gap-1">

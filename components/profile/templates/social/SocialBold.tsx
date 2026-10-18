@@ -105,13 +105,13 @@ export function SocialBoldTemplate({ profile, accentColor, isPreview }: Template
 
       {/* Parallax Layers - Floating Social Elements */}
       <ParallaxLayers strength={20} className="pointer-events-none">
-        <ParallaxBoldSocial x={10} y={15} size={28} color={accent} delay={0} icon="✨" reducedMotion={reducedMotion} />
+        <ParallaxBoldSocial x={10} y={15} size={28} color={accent} delay={0} icon="◆" reducedMotion={reducedMotion} />
         <ParallaxBoldSocial x={90} y={12} size={32} color={secondaryAccent} delay={0.3} icon="★" reducedMotion={reducedMotion} />
-        <ParallaxBoldSocial x={8} y={82} size={28} color={accent} delay={0.6} icon="✨" reducedMotion={reducedMotion} />
+        <ParallaxBoldSocial x={8} y={82} size={28} color={accent} delay={0.6} icon="◆" reducedMotion={reducedMotion} />
         <ParallaxBoldSocial x={92} y={88} size={32} color={secondaryAccent} delay={0.9} icon="★" reducedMotion={reducedMotion} />
         <ParallaxBoldSocial x={45} y={8} size={28} color={accentGold} delay={0.1} icon="⚡" reducedMotion={reducedMotion} />
         <ParallaxBoldSocial x={95} y={45} size={28} color={accent} delay={0.4} icon="★" reducedMotion={reducedMotion} />
-        <ParallaxBoldSocial x={12} y={50} size={28} color={secondaryAccent} delay={0.7} icon="✨" reducedMotion={reducedMotion} />
+        <ParallaxBoldSocial x={12} y={50} size={28} color={secondaryAccent} delay={0.7} icon="◆" reducedMotion={reducedMotion} />
         <ParallaxBoldSocial x={88} y={28} size={28} color={accentGold} delay={1} icon="⚡" reducedMotion={reducedMotion} />
       </ParallaxLayers>
 

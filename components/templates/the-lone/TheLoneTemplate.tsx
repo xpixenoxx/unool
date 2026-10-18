@@ -1,5 +1,4 @@
-import React from 'react';
-import { Menu, BadgeCheck, ArrowRight, Bookmark, Send, Sparkles, Quote, Github, Linkedin, Instagram, ExternalLink } from 'lucide-react';
+import { Menu, BadgeCheck, ArrowRight, Bookmark, Send, Quote, Github, Linkedin, Instagram, ExternalLink } from 'lucide-react';
 import { TheLoneBackground } from './TheLoneBackground';
 
 export interface TemplateProps {
@@ -75,7 +74,6 @@ export const TheLoneTemplate = ({ profile, onLinkClick }: TemplateProps) => {
               <Menu size={18} className="text-[#FFFFFF]" />
             </button>
             <div className="relative">
-              <Sparkles size={16} className="text-[#FFFFFF] absolute -top-4 -left-4" />
               <div className="h-24 w-24 rounded-full p-1 bg-gradient-to-tr from-[#2C3480] to-transparent">
                 <div className="h-full w-full rounded-full overflow-hidden bg-black border border-[#2C3480]/50 relative flex items-center justify-center">
                   {profile?.avatarUrl ? (

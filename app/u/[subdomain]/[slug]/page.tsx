@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import BrandMaterialsPageView, { BrandMaterialsPageData, CreatorProfile } from './BrandMaterialsPageView';
 import Link from 'next/link';
-import { ArrowLeft, Layers, Sparkles } from 'lucide-react';
+import { ArrowLeft, Layers } from 'lucide-react';
 
 const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
 
@@ -107,7 +107,7 @@ export default async function BrandMaterialsSlugPage({ params, searchParams }: P
       <div className="min-h-screen bg-[#08090C] text-[#F4EFE7] flex items-center justify-center p-6 text-center font-sans">
         <div className="max-w-md w-full p-8 rounded-3xl bg-white/[0.03] border border-white/10 backdrop-blur-md flex flex-col items-center">
           <div className="w-14 h-14 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mb-4">
-            <Sparkles className="w-6 h-6 text-indigo-400" />
+            <Layers className="w-6 h-6 text-indigo-400" />
           </div>
           <h1 className="text-2xl font-bold mb-2">Materials Page Coming Soon</h1>
           <p className="text-sm text-white/60 mb-6 leading-relaxed">

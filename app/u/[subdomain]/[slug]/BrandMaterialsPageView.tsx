@@ -13,14 +13,15 @@ import {
   Share2, 
   Check, 
   Copy, 
-  Sparkles, 
   BadgeCheck, 
   AlignLeft,
   Layers,
   ChevronDown,
   Eye,
   Palette,
-  Instagram
+  Instagram,
+  X,
+  Package
 } from 'lucide-react';
 
 export interface MaterialItem {

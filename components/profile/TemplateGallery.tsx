@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { TemplateMeta } from '@/components/profile/templates/types';
 import { ProfilePreview } from '@/components/profile/ProfilePreview';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { Check, X, Sparkles, Maximize2, Eye, LayoutTemplate } from 'lucide-react';
+import { Check, X, Maximize2, Eye, LayoutTemplate } from 'lucide-react';
 
 /* ═══════════════════════════════════════════════════════════════
    CATEGORIES & PERSONAS
@@ -160,7 +160,7 @@ function FullscreenPreview({
             className="flex items-center gap-2 px-6 py-3 rounded-full text-sm font-bold text-white hover:brightness-110 transition-all"
             style={{ background: 'linear-gradient(135deg, #C4A265, #A68B52)', boxShadow: '0 4px 20px rgba(196,162,101,0.4)' }}
           >
-            <Sparkles className="w-4 h-4" /> Use This Template
+            <Check className="w-4 h-4" /> Use This Template
           </button>
         </div>
 

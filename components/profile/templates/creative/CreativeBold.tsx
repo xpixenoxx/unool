@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { spring } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { Star, Sparkles, Zap, Target } from 'lucide-react';
+import { Star, Zap, Target, Palette } from 'lucide-react';
 import { renderSocialOrIcon } from '@/components/profile/SocialBrandIcons';
 
 export function CreativeBoldTemplate({ profile, accentColor, isPreview }: TemplateProps) {
@@ -198,7 +198,7 @@ export function CreativeBoldTemplate({ profile, accentColor, isPreview }: Templa
                     className="gap-2 px-5 py-2.5"
                     style={{ fontFamily: 'var(--font-syne)', fontSize: '0.9375rem', background: `linear-gradient(135deg, ${accent}, ${secondaryAccent})` }}
                   >
-                    <Sparkles className="h-4 w-4" />
+                    <Palette className="h-4 w-4" />
                     Creative Visionary
                   </Badge>
                   <Badge

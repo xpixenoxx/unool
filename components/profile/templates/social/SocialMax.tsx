@@ -369,18 +369,18 @@ export function SocialMaxTemplate({ profile, accentColor, isPreview }: TemplateP
 
 function SocialMaxFloatingElements({ accent, secondaryAccent, tertiaryAccent, accentGold, reducedMotion }: { accent: string; secondaryAccent: string; tertiaryAccent: string; accentGold: string; reducedMotion: boolean }) {
   const elements = [
-    { x: 8, y: 12, size: 24, color: accent, delay: 0, icon: "✨" },
+    { x: 8, y: 12, size: 24, color: accent, delay: 0, icon: "◆" },
     { x: 92, y: 10, size: 28, color: secondaryAccent, delay: 0.3, icon: "★" },
-    { x: 5, y: 85, size: 24, color: accent, delay: 0.6, icon: "✨" },
+    { x: 5, y: 85, size: 24, color: accent, delay: 0.6, icon: "◆" },
     { x: 95, y: 90, size: 28, color: secondaryAccent, delay: 0.9, icon: "★" },
     { x: 48, y: 5, size: 24, color: tertiaryAccent, delay: 0.1, icon: "✦" },
     { x: 95, y: 48, size: 24, color: accentGold, delay: 0.4, icon: "◆" },
-    { x: 12, y: 50, size: 24, color: secondaryAccent, delay: 0.7, icon: "✨" },
+    { x: 12, y: 50, size: 24, color: secondaryAccent, delay: 0.7, icon: "◆" },
     { x: 88, y: 25, size: 24, color: tertiaryAccent, delay: 1, icon: "✦" },
     { x: 25, y: 15, size: 24, color: accent, delay: 1.2, icon: "★" },
     { x: 75, y: 82, size: 24, color: secondaryAccent, delay: 1.5, icon: "✦" },
     { x: 60, y: 8, size: 24, color: accentGold, delay: 1.8, icon: "◆" },
-    { x: 90, y: 65, size: 24, color: accent, delay: 2.1, icon: "✨" },
+    { x: 90, y: 65, size: 24, color: accent, delay: 2.1, icon: "◆" },
     { x: 35, y: 90, size: 24, color: tertiaryAccent, delay: 2.4, icon: "✦" },
     { x: 15, y: 30, size: 24, color: secondaryAccent, delay: 2.7, icon: "★" },
     { x: 85, y: 70, size: 24, color: accentGold, delay: 3, icon: "◆" },

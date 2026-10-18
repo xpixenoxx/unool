@@ -82,13 +82,13 @@ export function SocialLightTemplate({ profile, accentColor, isPreview }: Templat
 
       {/* Parallax Layers - Floating Social Elements */}
       <ParallaxLayers strength={12} className="pointer-events-none">
-        <ParallaxSocialElement x={10} y={18} size={24} color={accent} delay={0} icon="✨" reducedMotion={reducedMotion} />
+        <ParallaxSocialElement x={10} y={18} size={24} color={accent} delay={0} icon="◆" reducedMotion={reducedMotion} />
         <ParallaxSocialElement x={90} y={15} size={28} color={secondaryAccent} delay={0.3} icon="★" reducedMotion={reducedMotion} />
-        <ParallaxSocialElement x={6} y={80} size={24} color={accent} delay={0.6} icon="✨" reducedMotion={reducedMotion} />
+        <ParallaxSocialElement x={6} y={80} size={24} color={accent} delay={0.6} icon="◆" reducedMotion={reducedMotion} />
         <ParallaxSocialElement x={94} y={85} size={28} color={secondaryAccent} delay={0.9} icon="★" reducedMotion={reducedMotion} />
         <ParallaxSocialElement x={48} y={8} size={24} color={tertiaryAccent} delay={0.1} icon="✦" reducedMotion={reducedMotion} />
         <ParallaxSocialElement x={95} y={48} size={24} color={accent} delay={0.4} icon="★" reducedMotion={reducedMotion} />
-        <ParallaxSocialElement x={18} y={50} size={24} color={secondaryAccent} delay={0.7} icon="✨" reducedMotion={reducedMotion} />
+        <ParallaxSocialElement x={18} y={50} size={24} color={secondaryAccent} delay={0.7} icon="◆" reducedMotion={reducedMotion} />
         <ParallaxSocialElement x={82} y={30} size={24} color={tertiaryAccent} delay={1} icon="✦" reducedMotion={reducedMotion} />
       </ParallaxLayers>
 

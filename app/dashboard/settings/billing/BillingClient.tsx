@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Check, AlertCircle, CreditCard, ArrowUpRight, Loader2, Sparkles, Shield, Zap, Crown } from 'lucide-react';
+import { Check, AlertCircle, CreditCard, ArrowUpRight, Loader2, TrendingUp, Shield, Zap, Crown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   Box, Flex, Text, Card, CardHeader, CardTitle, CardContent, CardDescription, Badge, Button, Separator,
@@ -50,7 +50,7 @@ const PLAN_FEATURES: Record<string, { name: string; description: string; icon: R
   basic: {
     name: 'Basic',
     description: 'For solo creators posting regularly',
-    icon: <span className="text-primary"><Sparkles className="h-6 w-6" /></span>,
+    icon: <span className="text-primary"><TrendingUp className="h-6 w-6" /></span>,
     limits: {
       'Posts/month': '100',
       Profiles: '3',

@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, ExternalLink, ShieldCheck, Sparkles } from 'lucide-react';
+import { Loader2, ExternalLink, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { PlatformBrandLogo } from '@/components/dashboard/PlatformLogos';
 
@@ -175,10 +175,7 @@ export function HashnodeConnectDialog({
                   Connecting...
                 </>
               ) : (
-                <>
-                  <Sparkles className="mr-1.5 h-4 w-4" />
-                  Connect Hashnode
-                </>
+                'Connect Hashnode'
               )}
             </Button>
           </div>

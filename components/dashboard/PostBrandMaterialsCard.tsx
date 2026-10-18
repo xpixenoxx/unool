@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Layers,
-  Sparkles,
   ExternalLink,
   Copy,
   Check,
@@ -745,7 +744,7 @@ export default function PostBrandMaterialsCard({
                     justifyContent: 'center',
                   }}
                 >
-                  <Sparkles size={16} />
+                  <Layers size={16} />
                 </div>
                 <div>
                   <div style={{ fontSize: 16, fontWeight: 800, color: '#3D2B1F' }}>

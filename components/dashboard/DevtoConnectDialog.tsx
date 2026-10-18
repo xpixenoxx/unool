@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, ExternalLink, ShieldCheck, Sparkles } from 'lucide-react';
+import { Loader2, ExternalLink, ShieldCheck, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { PlatformBrandLogo } from '@/components/dashboard/PlatformLogos';
 
@@ -110,7 +110,7 @@ export function DevtoConnectDialog({
           {/* Quick instructions banner */}
           <div className="rounded-xl border border-muted bg-muted/40 p-3.5 space-y-2 text-xs text-muted-foreground">
             <div className="flex items-center gap-1.5 font-medium text-foreground">
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              <Info className="w-3.5 h-3.5 text-blue-500" />
               How to get your DEV.to API Key:
             </div>
             <ol className="list-decimal list-inside space-y-1 pl-1">

@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Globe, PenTool, Loader2, Trash2, Palette, Link as LinkIcon, ExternalLink, Plus, CheckCircle, AlertCircle, Trash, ArrowRight, Shield, Activity, CalendarDays, MousePointerClick, UploadCloud, Image as ImageIcon, X, Wand2 } from 'lucide-react';
+import { Globe, PenTool, Loader2, Trash2, Palette, Link as LinkIcon, ExternalLink, Plus, CheckCircle, AlertCircle, Trash, ArrowRight, Shield, Activity, CalendarDays, MousePointerClick, UploadCloud, Image as ImageIcon, X } from 'lucide-react';
 import { OpenToSelector } from '@/components/profile/OpenToBadges';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -260,7 +260,7 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
           ? ext.proofPoints.map(p => ({ type: p.type, value: p.value, url: p.url || '' }))
           : prev.proofPoints,
       }));
-      toast.success('Profile magic autofill complete! ✨');
+      toast.success('Profile autofill complete!');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to generate profile';
       toast.error(msg);
@@ -474,10 +474,10 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
         <div className="absolute top-0 left-0 w-1 h-full" style={{ backgroundColor: B.accent }} />
         <div className="flex flex-col sm:flex-row sm:items-center gap-4 ml-2">
           <div className="p-2.5 rounded-xl flex-shrink-0" style={{ backgroundColor: B.accentBg }}>
-            <Wand2 className="h-5 w-5" style={{ color: B.accent }} />
+            <Globe className="h-5 w-5" style={{ color: B.accent }} />
           </div>
           <div className="flex-1">
-            <h3 className="text-sm font-semibold" style={{ color: B.text }}>Magic Autofill</h3>
+            <h3 className="text-sm font-semibold" style={{ color: B.text }}>Profile Sync & Autofill</h3>
             <p className="text-xs mt-0.5" style={{ color: B.textMuted }}>Paste your LinkedIn, GitHub, or personal website to instantly extract your details.</p>
           </div>
           <div className="flex w-full sm:w-auto items-center gap-2">

@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Key, Shield, Bell, Palette, Trash2, User, Lock, LogOut, CheckCircle, AlertCircle, Copy, Trash, Check, Sparkles, Settings, AlertTriangle, Link as LinkIcon, Key as KeyIcon, User as UserIcon, CheckCircle2, XCircle } from 'lucide-react';
+import { Loader2, Key, Shield, Bell, Palette, Trash2, User, Lock, LogOut, CheckCircle, AlertCircle, Copy, Trash, Check, Sliders, Settings, AlertTriangle, Link as LinkIcon, Key as KeyIcon, User as UserIcon, CheckCircle2, XCircle } from 'lucide-react';
 import { TemplateSelector } from '@/components/profile/TemplateSelector';
 import { getSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { StudioOnboardingModal } from '@/components/dashboard/StudioOnboardingModal';
@@ -50,7 +50,7 @@ const ALL_SCOPES: { value: ApiKeyScope; label: string; description: string }[] =
 
 const TAB_CONFIG: Record<TabValue, { icon: React.ElementType; label: string; description: string }> = {
   account: { icon: UserIcon, label: 'Account', description: 'Workspace name, plan, and API keys' },
-  persona: { icon: Sparkles, label: 'Studio Persona', description: 'Your persona, focus, target audience, and tone' },
+  persona: { icon: Sliders, label: 'Studio Persona', description: 'Your persona, focus, target audience, and tone' },
   security: { icon: Shield, label: 'Security', description: 'Password, 2FA, and active sessions' },
   notifications: { icon: Bell, label: 'Notifications', description: 'Email and in-app notification preferences' },
   appearance: { icon: Palette, label: 'Appearance', description: 'Theme, density, and display preferences' },
@@ -469,7 +469,7 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
             <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b pb-4">
               <div>
                 <CardTitle className="text-lg font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-[#C4A265]" />
+                  <Sliders className="w-5 h-5 text-[#C4A265]" />
                   <span>Studio Voice Calibrations & Persona</span>
                 </CardTitle>
                 <p className="text-xs text-muted-foreground mt-1">
@@ -493,7 +493,7 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
                   }}
                   className="text-xs font-semibold flex items-center gap-1.5 cursor-pointer hover:bg-[#F5EFE2] dark:hover:bg-zinc-800"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-[#C4A265]" />
+                  <Sliders className="w-3.5 h-3.5 text-[#C4A265]" />
                   <span>Launch Calibrator</span>
                 </Button>
               </div>

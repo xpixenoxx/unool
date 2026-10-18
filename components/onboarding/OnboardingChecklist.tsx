@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import {
-  Check, Star, Target, Sparkles, Zap, BookOpen, Rocket,
+  Check, Star, Target, Share2, Zap, BookOpen, Rocket,
   ArrowRight, Lock, ChevronDown, ChevronUp, Trophy, Circle
 } from 'lucide-react';
 import { useOnboarding } from '@/hooks/useOnboarding';
@@ -22,7 +22,7 @@ const categoryConfig: Record<string, {
   color: string;
 }> = {
   profile: { icon: Target, label: 'Profile Setup', color: 'text-blue-500' },
-  social: { icon: Sparkles, label: 'Social Accounts', color: 'text-purple-500' },
+  social: { icon: Share2, label: 'Social Accounts', color: 'text-purple-500' },
   content: { icon: BookOpen, label: 'Content Creation', color: 'text-amber-500' },
   publish: { icon: Rocket, label: 'Publishing', color: 'text-emerald-500' },
   sync: { icon: Zap, label: 'Sync & Automate', color: 'text-cyan-500' },

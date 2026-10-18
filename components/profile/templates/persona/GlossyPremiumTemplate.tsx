@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { MagneticCard, TiltCard } from '@/components/ui/3d';
 import { spring } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { ExternalLink, Sparkles, Star, Diamond, Gem, Sun, Zap, Crown, Shield } from 'lucide-react';
+import { ExternalLink, Award, Star, Diamond, Gem, Sun, Zap, Crown, Shield } from 'lucide-react';
 import { renderSocialOrIcon } from '@/components/profile/SocialBrandIcons';
 
 export function GlossyPremiumTemplate({
@@ -246,7 +246,6 @@ export function GlossyPremiumTemplate({
                   <Text size="sm" weight="medium" style={{ fontFamily: 'var(--font-sans)', background: `linear-gradient(135deg, ${accent}, ${secondaryAccent})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                     Glossy Premium
                   </Text>
-                  <Sparkles className="w-4 h-4" style={{ color: tertiaryAccent }} />
                 </div>
               </motion.div>
             </Stack>
@@ -521,7 +520,7 @@ export function GlossyPremiumTemplate({
                 <Text size="xs" weight="medium" color="muted" className="uppercase tracking-wider" style={{ fontFamily: 'var(--font-sans)', letterSpacing: '0.1em', color: accent }}>
                   Achievements
                 </Text>
-                <Sparkles className="w-4 h-4" style={{ color: secondaryAccent }} />
+                <Award className="w-4 h-4" style={{ color: secondaryAccent }} />
               </Flex>
               <Flex gap={2.5} className="flex-wrap justify-center" wrap>
                 {achievements.map((proof, index) => (

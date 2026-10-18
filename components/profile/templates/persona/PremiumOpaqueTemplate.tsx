@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { MagneticCard, TiltCard } from '@/components/ui/3d';
 import { spring } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { ExternalLink, ChevronRight, Sparkles, Award, Star, Lock, Crown, Shield, Globe, TrendingUp } from 'lucide-react';
+import { ExternalLink, ChevronRight, Award, Star, Lock, Crown, Shield, Globe, TrendingUp } from 'lucide-react';
 import { renderSocialOrIcon } from '@/components/profile/SocialBrandIcons';
 
 export function PremiumOpaqueTemplate({
@@ -178,7 +178,7 @@ export function PremiumOpaqueTemplate({
               transition={{ ...spring.bouncy, delay: 0.6 }}
             >
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full" style={{ background: `linear-gradient(135deg, ${accent}15, ${secondaryAccent}10)`, border: `1px solid ${accent}30` }}>
-                <Sparkles className="w-4 h-4" style={{ color: accent }} />
+                <Crown className="w-4 h-4" style={{ color: accent }} />
                 <Text size="sm" weight="medium" style={{ fontFamily: 'var(--font-sans)', color: accent }}>
                   Premium Member
                 </Text>
@@ -428,7 +428,6 @@ export function PremiumOpaqueTemplate({
             <Text size="sm" weight="medium" style={{ fontFamily: 'var(--font-mono)', color: accent }}>
               {profile.subdomain}.unool.co
             </Text>
-            <Sparkles className="w-4 h-4" style={{ color: accent }} />
           </div>
         </motion.div>
       </Stack>

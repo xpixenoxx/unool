@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, CheckCircle, Edit, Send, AlertCircle, Sparkles, CircleCheckBig, X, ExternalLink, Image as ImageIcon } from 'lucide-react';
+import { Loader2, CheckCircle, Edit, Send, AlertCircle, FileText, CircleCheckBig, X, ExternalLink, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { Flex, Box, Stack, Text, Display, Divider } from '@/components/ui/layout';
 import { MotionBox, MotionStack, spring, stagger } from '@/components/ui/motion';
@@ -274,7 +274,7 @@ function PublishContentInner() {
         </Flex>
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <Sparkles className="h-12 w-12 text-muted-foreground/50 mb-4" />
+            <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
             <Text color="muted">Post not found. Create a new post to get started.</Text>
             <Button asChild className="mt-4">
               <Link href="/dashboard/composer">Create Post</Link>
@@ -315,7 +315,7 @@ function PublishContentInner() {
         <Card className="border-blue-500/20 bg-blue-500/5 dark:border-blue-500/10 dark:bg-blue-500/3">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
+              <FileText className="h-5 w-5 text-primary" />
               Original Content
             </CardTitle>
           </CardHeader>
@@ -336,7 +336,7 @@ function PublishContentInner() {
         <Card variant="elevated">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
+              <Edit className="h-5 w-5 text-primary" />
               Review & Edit ({drafts.filter(d => d.status === 'draft').length} ready)
             </CardTitle>
           </CardHeader>

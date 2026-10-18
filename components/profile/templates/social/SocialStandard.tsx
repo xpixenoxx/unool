@@ -82,13 +82,13 @@ export function SocialStandardTemplate({ profile, accentColor, isPreview }: Temp
 
       {/* Parallax Layers - Floating Social Elements */}
       <ParallaxLayers strength={12} className="pointer-events-none">
-        <ParallaxStandardSocial x={12} y={15} size={24} color={accent} delay={0} icon="✨" reducedMotion={reducedMotion} />
+        <ParallaxStandardSocial x={12} y={15} size={24} color={accent} delay={0} icon="◆" reducedMotion={reducedMotion} />
         <ParallaxStandardSocial x={88} y={12} size={28} color={secondaryAccent} delay={0.3} icon="★" reducedMotion={reducedMotion} />
-        <ParallaxStandardSocial x={8} y={82} size={24} color={accent} delay={0.6} icon="✨" reducedMotion={reducedMotion} />
+        <ParallaxStandardSocial x={8} y={82} size={24} color={accent} delay={0.6} icon="◆" reducedMotion={reducedMotion} />
         <ParallaxStandardSocial x={92} y={88} size={28} color={secondaryAccent} delay={0.9} icon="★" reducedMotion={reducedMotion} />
         <ParallaxStandardSocial x={50} y={8} size={24} color={tertiaryAccent} delay={0.1} icon="✦" reducedMotion={reducedMotion} />
         <ParallaxStandardSocial x={95} y={50} size={24} color={accent} delay={0.4} icon="★" reducedMotion={reducedMotion} />
-        <ParallaxStandardSocial x={15} y={50} size={24} color={secondaryAccent} delay={0.7} icon="✨" reducedMotion={reducedMotion} />
+        <ParallaxStandardSocial x={15} y={50} size={24} color={secondaryAccent} delay={0.7} icon="◆" reducedMotion={reducedMotion} />
         <ParallaxStandardSocial x={85} y={25} size={24} color={tertiaryAccent} delay={1} icon="✦" reducedMotion={reducedMotion} />
       </ParallaxLayers>
 

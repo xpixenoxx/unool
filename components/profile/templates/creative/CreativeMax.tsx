@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { spring } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { Star, Sparkles, Zap, Target, Award, TrendingUp, Users, Globe, Music, Palette, Zap as ZapIcon } from 'lucide-react';
+import { Star, Zap, Target, Award, TrendingUp, Users, Globe, Music, Palette, Zap as ZapIcon } from 'lucide-react';
 import { SocialIcon, renderSocialOrIcon } from '@/components/profile/SocialBrandIcons';
 
 export function CreativeMaxTemplate({ profile, accentColor, isPreview }: TemplateProps) {
@@ -246,7 +246,7 @@ export function CreativeMaxTemplate({ profile, accentColor, isPreview }: Templat
               >
                 <Flex gap={3} className="flex-wrap justify-center">
                   <CreativeMaxBadge
-                    icon={<Sparkles className="h-4 w-4" />}
+                    icon={<Palette className="h-4 w-4" />}
                     label="Creative Visionary"
                     gradient={`linear-gradient(135deg, ${accent}, ${secondaryAccent})`}
                     style={{ fontFamily: 'var(--font-syne)', fontSize: '1rem' }}

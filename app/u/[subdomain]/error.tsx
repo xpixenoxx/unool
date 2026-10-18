@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, AlertCircle, Sparkles } from 'lucide-react';
+import { RefreshCw, AlertCircle, ArrowRight } from 'lucide-react';
 
 export default function PublicProfileError({
   error,
@@ -33,7 +33,7 @@ export default function PublicProfileError({
           </Button>
           <Button variant="outline" asChild>
             <Link href="/signup">
-              <Sparkles className="mr-2 h-4 w-4" />
+              <ArrowRight className="mr-2 h-4 w-4" />
               Create Profile
             </Link>
           </Button>

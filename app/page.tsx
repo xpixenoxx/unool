@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { motion, type Variants } from 'framer-motion';
 import {
-  ArrowRight, CheckCircle, Zap, Shield, Sparkles,
+  ArrowRight, CheckCircle, Zap, Shield, Layers,
   PenTool, Globe, Clock, Users, BarChart2,
 } from 'lucide-react';
 
@@ -821,7 +821,7 @@ export default function HomePage() {
 
             {[
               { icon: PenTool, title: 'One Link Profile', desc: 'Beautiful public profile at yourname.unool.co. 5 professional themes. Auto-generated from any URL. Proof points, links, badges — all editable.', side: 'left' },
-              { icon: Sparkles, title: 'AI Post Composer', desc: 'Write once. AI adapts for each platform\'s character limits, formatting, and best practices. LinkedIn threads, X tweets, Threads replies.', side: 'right' },
+              { icon: Layers, title: 'Multi-Network Composer', desc: 'Write once. Adapt seamlessly for each platform\'s character limits, formatting, and best practices. LinkedIn threads, X tweets, Threads replies.', side: 'right' },
               { icon: Shield, title: 'Human-in-the-Loop', desc: 'AI drafts. You approve. Edit inline, reject, or write from scratch. Nothing posts without your explicit click. Full control, zero surprises.', side: 'left' },
               { icon: Globe, title: 'One-Click Publish', desc: 'Connected accounts via OAuth. One click publishes to LinkedIn, X, and Threads simultaneously. Real-time status tracking.', side: 'right' },
               { icon: Clock, title: 'Smart Scheduling', desc: 'Schedule posts for optimal times. Timezone-aware. Queue management. Recurring posts. Calendar view.', side: 'left' },

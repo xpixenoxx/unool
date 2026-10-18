@@ -8,9 +8,9 @@ import {
   TrendingUp, BarChart2, Calendar, Pencil, Trash2, Loader2,
   FileText, Activity, Target, Flame, ArrowUpRight, Layers, Eye,
   Award, PieChart, Hash, Type, BarChart3, HelpCircle, Info,
-  Share2, Search, Filter, Check, CheckCircle, Clock, ChevronRight, ChevronDown,
-  BookOpen, ShieldCheck, ArrowRight, Compass, Wand2, Copy, Link2, X,
-  Brain, Lightbulb
+  Share2, Search, Filter, Check, ChevronRight, ChevronDown,
+  BookOpen, ShieldCheck, ArrowRight, Compass, Copy, Link2, X,
+  Radio, Lightbulb
 } from 'lucide-react';
 import Link from 'next/link';
 import { formatDistanceToNow, format } from 'date-fns';
@@ -587,7 +587,7 @@ export function SignalClient() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {[
                   { label: 'Dispatches', value: liveStats.total, icon: <Layers className="w-4 h-4 text-[#C4A265]" /> },
-                  { label: 'Live Posts', value: liveStats.published, icon: <CheckCircle className="w-4 h-4 text-emerald-600" /> },
+                  { label: 'Live Posts', value: liveStats.published, icon: <Radio className="w-4 h-4 text-emerald-600" /> },
                   {
                     label: liveStats.totalInteractions > 0 ? 'Interactions' : 'Golden Hour',
                     value: liveStats.totalInteractions > 0 ? liveStats.totalInteractions : liveStats.active,
@@ -718,7 +718,7 @@ export function SignalClient() {
                   <div className="flex items-start justify-between gap-3 mb-2">
                     <div className="flex items-center gap-2.5">
                       <div className="w-8 h-8 rounded-xl bg-[#F5EFE2] flex items-center justify-center text-[#C4A265]">
-                        <Wand2 className="w-4 h-4" />
+                        <Layers className="w-4 h-4" />
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
@@ -747,7 +747,7 @@ export function SignalClient() {
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-3 border-t border-[#F0EBE3]">
                     {[
                       { icon: <Zap className="w-3.5 h-3.5 text-amber-500" />, title: '1. Hook Style', desc: 'The 3-second dropoff trigger' },
-                      { icon: <Clock className="w-3.5 h-3.5 text-blue-500" />, title: '2. Golden Hour', desc: '60-min viral velocity testing' },
+                      { icon: <Activity className="w-3.5 h-3.5 text-blue-500" />, title: '2. Golden Hour', desc: '60-min viral velocity testing' },
                       { icon: <BarChart2 className="w-3.5 h-3.5 text-emerald-500" />, title: '3. Density', desc: 'Word count pacing for dwell time' },
                       { icon: <Target className="w-3.5 h-3.5 text-purple-500" />, title: '4. Synergy', desc: 'Cross-platform audience footprint' },
                     ].map((item) => (
@@ -1217,7 +1217,7 @@ function DNAView({
   if (!resonance) {
     return (
       <div className="py-16 text-center text-gray-400">
-        <Brain className="w-8 h-8 mx-auto mb-3 text-amber-500 animate-spin" />
+        <Loader2 className="w-8 h-8 mx-auto mb-3 text-[#C4A265] animate-spin" />
         <p className="text-sm font-medium">Analyzing your Post DNA patterns…</p>
       </div>
     );
@@ -1533,7 +1533,7 @@ function DNAView({
         {resonance.bestHour && (
           <div className="bg-white rounded-2xl border border-[#E8E0D4] p-5 shadow-xs">
             <div className="flex items-center gap-2 mb-2">
-              <Clock className="w-4 h-4 text-purple-500" />
+              <Activity className="w-4 h-4 text-purple-500" />
               <p className="text-xs font-bold text-[#8B7355] uppercase tracking-wider">
                 {resonance.bestHour.interactions && resonance.bestHour.interactions > 0 ? 'Peak Engagement Window' : 'Most Active Time'}
               </p>

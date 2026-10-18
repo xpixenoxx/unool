@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import type { TemplateProps } from '@/components/profile/templates/types';
 import { getTemplateById } from '@/components/profile/templates/registry';
 import { motion } from 'framer-motion';
-import { Menu, BadgeCheck, ArrowRight, Bookmark, Send, Sparkles, Quote, Github, Linkedin, Instagram, ExternalLink, Users, Link as LinkIcon, Eye } from 'lucide-react';
+import { Menu, BadgeCheck, ArrowRight, Bookmark, Send, Quote, Github, Linkedin, Instagram, ExternalLink, Users, Link as LinkIcon, Eye } from 'lucide-react';
 import { OpenToBadges } from '@/components/profile/OpenToBadges';
 import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
 import { ClubTemplate } from './ClubTemplate';
@@ -316,7 +316,6 @@ function LoneTemplate({ profile, onLinkClick }: any) {
           </div>
           
           <div className="relative z-10 mr-2 mb-2">
-            <Sparkles size={20} className="text-[#F4EFE7] absolute -top-3 -left-4 opacity-80" />
             <div 
               className="w-[100px] h-[100px] rounded-full border border-[#F4EFE7]/30 shadow-[0_0_25px_rgba(18,61,255,0.2)] relative p-1 backdrop-blur-md"
               style={{ background: 'rgba(18, 61, 255, 0.05)' }}

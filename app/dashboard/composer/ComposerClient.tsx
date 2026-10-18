@@ -77,9 +77,7 @@ import {
   Menu,
   Phone,
   Share2,
-  Brain,
   Lightbulb,
-  Wand2,
   CheckCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -257,7 +255,7 @@ function IPhoneBottomNavBar({
               <Search className="w-5 h-5" strokeWidth={activeTab === 'search' ? 2.5 : 1.8} />
             </button>
             <button type="button" onClick={() => setActiveTab('grok')} className={cn('p-2 transition-transform active:scale-90', activeTab === 'grok' ? (isDark ? 'text-white' : 'text-black') : iconMuted)}>
-              <Brain className="w-5 h-5" strokeWidth={activeTab === 'grok' ? 2.5 : 1.8} />
+              <Bookmark className="w-5 h-5" strokeWidth={activeTab === 'grok' ? 2.5 : 1.8} />
             </button>
             <button type="button" onClick={() => setActiveTab('bell')} className={cn('p-2 transition-transform active:scale-90', activeTab === 'bell' ? (isDark ? 'text-white' : 'text-black') : iconMuted)}>
               <Bell className="w-5 h-5" strokeWidth={activeTab === 'bell' ? 2.5 : 1.8} />
@@ -1890,7 +1888,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   : 'text-muted-foreground hover:text-foreground'
               )}
             >
-              <Brain className="w-4 h-4" />
+              <PenTool className="w-4 h-4" />
               AI Composer
             </button>
             <button
@@ -2425,7 +2423,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                                         {humanizingPlatform === platform ? (
                                           <Loader2 className="w-3 h-3 animate-spin text-primary" />
                                         ) : (
-                                          <Wand2 className="w-3 h-3 text-amber-500" />
+                                          <Edit3 className="w-3 h-3 text-amber-500" />
                                         )}
                                         De-Slop
                                       </Button>
@@ -2550,7 +2548,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                                       {isHumanizingAll ? (
                                         <Loader2 className="w-3 h-3 animate-spin text-primary" />
                                       ) : (
-                                        <Wand2 className="w-3 h-3 text-amber-500" />
+                                        <Edit3 className="w-3 h-3 text-amber-500" />
                                       )}
                                       De-Slop all drafts
                                     </Button>

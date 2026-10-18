@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { motion, useScroll, useTransform } from 'framer-motion';
-import { Scale, ArrowLeft, FileText, Zap, Shield, Sparkles } from 'lucide-react';
+import { Scale, ArrowLeft, FileText, Zap, Shield, PenTool } from 'lucide-react';
 import { useRef } from 'react';
 
 export default function TermsOfServicePage() {
@@ -13,7 +13,7 @@ export default function TermsOfServicePage() {
   const sections = [
     { id: 'acceptance', icon: FileText, title: 'Acceptance of Terms', content: 'By accessing or using Unool, you agree to these Terms. We may update them occasionally, and material changes will be posted here. Continued use constitutes your acceptance.' },
     { id: 'service', icon: Zap, title: 'The Service', content: 'Unool provides a professional profile and social publishing platform. You get one link for your public profile, and AI tools to adapt and publish content to connected platforms like LinkedIn and X.' },
-    { id: 'ai', icon: Sparkles, title: 'AI & Content', content: 'You retain full ownership of your content. Our AI adapts your drafts, but you always review and approve before publishing. You are responsible for the accuracy and legality of everything you post.' },
+    { id: 'ai', icon: PenTool, title: 'AI & Content', content: 'You retain full ownership of your content. Our AI adapts your drafts, but you always review and approve before publishing. You are responsible for the accuracy and legality of everything you post.' },
     { id: 'conduct', icon: Shield, title: 'Acceptable Use', content: 'Do not violate laws, spam, scrape, impersonate others, or attempt to reverse-engineer our systems. We reserve the right to suspend or terminate accounts that violate these rules.' }
   ];
 

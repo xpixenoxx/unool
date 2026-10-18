@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, ExternalLink, ShieldCheck, Sparkles, Send, CheckCircle2 } from 'lucide-react';
+import { Loader2, ExternalLink, ShieldCheck, Send, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PlatformBrandLogo } from '@/components/dashboard/PlatformLogos';
 
@@ -240,10 +240,7 @@ export function ListmonkConnectDialog({
                   Connecting...
                 </>
               ) : (
-                <>
-                  <Sparkles className="mr-1.5 h-4 w-4" />
-                  Connect Listmonk
-                </>
+                'Connect Listmonk'
               )}
             </Button>
           </div>

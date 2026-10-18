@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, KeyboardEvent, ClipboardEvent } from 'reac
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, Search, Bell, Mail, User, Bookmark, Loader2, Image, Sparkles, Smile, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { Home, Search, Bell, Mail, User, Bookmark, Loader2, Image, BarChart2, Smile, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { getSupabaseBrowserClient } from '@/lib/supabase/browser';
 
 const C = {
@@ -326,7 +326,7 @@ export default function SignUpSocialPage() {
                       <div className="flex items-center justify-between">
                         <div className="flex gap-4 text-[#C84B31]">
                           <Image className="w-5 h-5 cursor-pointer opacity-50 hover:opacity-100" />
-                          <Sparkles className="w-5 h-5 cursor-pointer opacity-50 hover:opacity-100" />
+                          <BarChart2 className="w-5 h-5 cursor-pointer opacity-50 hover:opacity-100" />
                           <Smile className="w-5 h-5 cursor-pointer opacity-50 hover:opacity-100" />
                         </div>
                         <button
