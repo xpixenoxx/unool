@@ -444,6 +444,8 @@ export default function BrandMaterialsPageView({
                 ))}
               </div>
             </section>
+          )}
+
           {/* ── Redirect to User's Main Live Page Banner ── */}
           <div className="mt-8 p-5 sm:p-6 rounded-2xl bg-white/70 border border-[#8DA396]/30 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
             <div className="flex items-center gap-3.5">
@@ -713,6 +715,8 @@ export default function BrandMaterialsPageView({
               ))}
             </div>
           </section>
+        )}
+
         {/* ── Redirect to User's Main Live Page Banner ── */}
         <div className="mt-8 p-5 sm:p-6 rounded-2xl bg-white/[0.04] border border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
