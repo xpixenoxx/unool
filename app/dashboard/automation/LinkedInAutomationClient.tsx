@@ -32,8 +32,10 @@ interface LinkedInAutomationConfig {
 interface LinkedInCommentLog {
   id: string;
   comment_id: string;
+  post_id?: string;
   comment_text: string;
   commenter_username: string;
+  author_headline?: string;
   classification: string;
   confidence: number;
   suggested_reply: string | null;
@@ -120,9 +122,17 @@ export default function LinkedInAutomationClient({
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [liConnection, setLiConnection] = useState<{ status: 'connected' | 'not_connected' | 'expired'; username?: string } | null>(null);
   const [comments, setComments] = useState<LinkedInCommentLog[]>([]);
+  const [commentStats, setCommentStats] = useState<{
+    total: number;
+    autoReplied: number;
+    flagged: number;
+    highIntent: number;
+  } | null>(null);
   const [commentFilter, setCommentFilter] = useState('all');
   const [commentSearch, setCommentSearch] = useState('');
   const [feedLoading, setFeedLoading] = useState(false);
+  const [manualPostUrl, setManualPostUrl] = useState('');
+  const [showManualAudit, setShowManualAudit] = useState(false);
 
   // Simulator state
   const [simType, setSimType] = useState<'comment' | 'dm'>('comment');
@@ -164,6 +174,28 @@ export default function LinkedInAutomationClient({
         showToast('Using default LinkedIn automation configuration', 'success');
       });
   }, [workspaceId]);
+
+  // 3. Load recorded LinkedIn comments
+  const loadComments = useCallback(async () => {
+    if (!workspaceId) return;
+    setFeedLoading(true);
+    try {
+      const res = await fetch(`/api/linkedin/comments?workspaceId=${workspaceId}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.comments) setComments(data.comments);
+        if (data.stats) setCommentStats(data.stats);
+      }
+    } catch {
+      // ignore silent fetch failures
+    } finally {
+      setFeedLoading(false);
+    }
+  }, [workspaceId]);
+
+  useEffect(() => {
+    loadComments();
+  }, [loadComments]);
 
   const updateConfig = (patch: Partial<LinkedInAutomationConfig>) => {
     setConfig(prev => ({ ...prev, ...patch }));
@@ -250,12 +282,45 @@ export default function LinkedInAutomationClient({
     }
   };
 
-  const syncLinkedInPosts = async () => {
+  const syncLinkedInPosts = async (specificUrl?: string) => {
+    if (!workspaceId) return;
     setSyncingPosts(true);
-    setTimeout(() => {
+    try {
+      const targetUrl = typeof specificUrl === 'string' && specificUrl.trim()
+        ? specificUrl.trim()
+        : (manualPostUrl.trim() ? manualPostUrl.trim() : undefined);
+
+      const res = await fetch('/api/linkedin/comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workspaceId,
+          postUrl: targetUrl,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.ok) {
+        if (data.comments) setComments(data.comments);
+        if (data.stats) setCommentStats(data.stats);
+
+        if (data.newCommentsProcessed > 0) {
+          showToast(`Audited ${data.mediaCount || 1} post(s) — captured ${data.newCommentsProcessed} live comment(s)!`, 'success');
+          if (manualPostUrl) setManualPostUrl('');
+        } else if (data.mediaCount > 0) {
+          showToast(`Audited ${data.mediaCount} post(s) (${data.totalCommentsExamined || 0} comment(s) examined). All up to date.`, 'success');
+        } else {
+          showToast(data.message || 'No LinkedIn posts found. Paste post URL to audit directly.', 'error');
+          setShowManualAudit(true);
+        }
+      } else {
+        showToast(data.error || 'Failed to audit LinkedIn posts', 'error');
+      }
+    } catch {
+      showToast('Network error connecting to LinkedIn audit service', 'error');
+    } finally {
       setSyncingPosts(false);
-      showToast('Audited recent LinkedIn posts — active engagement monitor synchronized.', 'success');
-    }, 1200);
+    }
   };
 
   if (loading) {
@@ -323,8 +388,8 @@ export default function LinkedInAutomationClient({
             {[
               { id: 'control',   label: 'Engine Controls', icon: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5"/><rect x="9" y="1" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5"/><rect x="1" y="9" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5"/><rect x="9" y="9" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5"/></svg> },
               { id: 'simulator', label: 'Intent Lab',       icon: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M4 3l9 5-9 5V3z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/></svg> },
-              { id: 'feed',      label: 'Dispatch Ledger',  icon: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M14 2H2a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3l3 3 3-3h3a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1z" stroke="currentColor" strokeWidth="1.5"/></svg> },
-              { id: 'inbox',     label: 'Triage Queue',    icon: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M8 1.5l2 4 4.5.6-3.3 3.1.8 4.3L8 11.4l-4 2.1.8-4.3L1.5 6.1l4.5-.6 2-4z" stroke="currentColor" strokeWidth="1.5"/></svg> },
+              { id: 'feed',      label: 'Dispatch Ledger',  icon: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M14 2H2a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3l3 3 3-3h3a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1z" stroke="currentColor" strokeWidth="1.5"/></svg>, badge: commentStats?.total },
+              { id: 'inbox',     label: 'Triage Queue',    icon: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M8 1.5l2 4 4.5.6-3.3 3.1.8 4.3L8 11.4l-4 2.1.8-4.3L1.5 6.1l4.5-.6 2-4z" stroke="currentColor" strokeWidth="1.5"/></svg>, badge: commentStats?.flagged || undefined },
               { id: 'dms',       label: 'InMail Concierge',icon: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="3" width="13" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.5"/><path d="M1.5 5l6.5 4.5L14.5 5" stroke="currentColor" strokeWidth="1.5"/></svg> },
             ].map(tab => (
               <button
@@ -334,6 +399,7 @@ export default function LinkedInAutomationClient({
               >
                 {tab.icon}
                 <span>{tab.label}</span>
+                {tab.badge ? <span className="un-tab-badge">{tab.badge}</span> : null}
               </button>
             ))}
           </div>
@@ -701,6 +767,29 @@ export default function LinkedInAutomationClient({
         {/* ════ TAB 3: DISPATCH LEDGER ════ */}
         {activeTab === 'feed' && (
           <div>
+            {/* KPI Stat Tiles */}
+            {commentStats && (
+              <div className="un-stat-grid">
+                <div className="un-stat-tile">
+                  <div className="un-stat-num un-editorial-font">{commentStats.total}</div>
+                  <div className="un-stat-label">Total Audited</div>
+                </div>
+                <div className="un-stat-tile">
+                  <div className="un-stat-num un-editorial-font" style={{ color: '#D97706' }}>{commentStats.highIntent}</div>
+                  <div className="un-stat-label">High-Intent Leads</div>
+                </div>
+                <div className="un-stat-tile">
+                  <div className="un-stat-num un-editorial-font" style={{ color: '#5B21B6' }}>{commentStats.byClassification?.link_request || 0}</div>
+                  <div className="un-stat-label">Resource / Deck Asks</div>
+                </div>
+                <div className="un-stat-tile">
+                  <div className="un-stat-num un-editorial-font" style={{ color: '#DC2626' }}>{commentStats.flagged}</div>
+                  <div className="un-stat-label">Triage Flagged</div>
+                </div>
+              </div>
+            )}
+
+            {/* Filter & Search Bar */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {['all', 'positive', 'question', 'link_request', 'purchase_intent', 'negative', 'spam'].map(f => (
@@ -723,28 +812,252 @@ export default function LinkedInAutomationClient({
                   value={commentSearch}
                   onChange={e => setCommentSearch(e.target.value)}
                 />
-                <button onClick={syncLinkedInPosts} disabled={syncingPosts} className="un-btn un-btn-secondary" style={{ padding: '8px 14px', fontSize: 12 }}>
+                <button
+                  onClick={() => syncLinkedInPosts()}
+                  disabled={syncingPosts || feedLoading}
+                  className="un-btn un-btn-secondary"
+                  style={{ padding: '8px 14px', fontSize: 12 }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M13.65 2.35A7.95 7.95 0 0 0 8 0C3.58 0 0 3.58 0 8s3.58 8 8 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 8 14 6 6 0 1 1 8 2c1.66 0 3.14.69 4.22 1.78L9 7h7V0l-2.35 2.35z" fill="currentColor"/></svg>
                   <span>{syncingPosts ? 'Auditing...' : 'Audit Posts'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowManualAudit(!showManualAudit)}
+                  className="un-btn un-btn-secondary"
+                  style={{ padding: '8px 12px', fontSize: 12 }}
+                  title="Audit a specific LinkedIn post directly by link"
+                >
+                  <span>{showManualAudit ? 'Hide URL Tool' : 'Audit by URL'}</span>
                 </button>
               </div>
             </div>
 
-            {/* Empty Ledger */}
-            <div className="un-card" style={{ textAlign: 'center', padding: '64px 20px' }}>
-              <div className="un-logo-jewel" style={{ margin: '0 auto 16px', width: 44, height: 44, background: '#E0F2FE', color: '#0A66C2' }}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 10.9v8.37H9.2V10.9H6.46M7.83 6.3a1.6 1.6 0 0 0-1.6 1.6 1.6 1.6 0 0 0 1.6 1.6 1.6 1.6 0 0 0 1.6-1.6c0-.88-.72-1.6-1.6-1.6Z"/></svg>
+            {/* Targeted Post Audit Card */}
+            {showManualAudit && (
+              <div style={{ background: '#FFFDF9', border: '1.5px solid #C4A265', borderRadius: 14, padding: '16px 20px', marginBottom: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13.5, color: '#3D2B1F' }}>
+                    Audit Live LinkedIn Post by URL or URN
+                  </div>
+                  <span style={{ fontSize: 11, color: '#8B7355' }}>
+                    Use this to capture comments on posts published directly on LinkedIn
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <input
+                    type="text"
+                    className="un-input"
+                    placeholder="https://www.linkedin.com/feed/update/urn:li:activity:... or urn:li:share:..."
+                    value={manualPostUrl}
+                    onChange={e => setManualPostUrl(e.target.value)}
+                    style={{ flex: 1, fontSize: 12.5 }}
+                  />
+                  <button
+                    onClick={() => syncLinkedInPosts(manualPostUrl)}
+                    disabled={syncingPosts || !manualPostUrl.trim()}
+                    className="un-btn un-btn-primary"
+                    style={{ fontSize: 12.5, padding: '8px 18px', whiteSpace: 'nowrap' }}
+                  >
+                    <span>{syncingPosts ? 'Scanning...' : 'Fetch Comments'}</span>
+                  </button>
+                </div>
               </div>
-              <h4 className="un-editorial-font" style={{ fontSize: 18, fontWeight: 700, color: '#3D2B1F', marginBottom: 4 }}>No LinkedIn Comments Recorded Yet</h4>
-              <p style={{ color: '#8B7355', fontSize: 13 }}>Click Audit Posts to scan recent LinkedIn activity or wait for incoming post comments.</p>
-            </div>
+            )}
+
+            {/* Loading Indicator */}
+            {feedLoading ? (
+              <div style={{ textAlign: 'center', padding: '60px 0' }}>
+                <div className="un-spinner" />
+                <p style={{ color: '#8B7355', fontSize: 13, marginTop: 10 }}>Loading LinkedIn interaction ledger...</p>
+              </div>
+            ) : comments.length === 0 ? (
+              /* Empty Ledger State */
+              <div className="un-card" style={{ textAlign: 'center', padding: '64px 20px' }}>
+                <div className="un-logo-jewel" style={{ margin: '0 auto 16px', width: 44, height: 44, background: '#E0F2FE', color: '#0A66C2' }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 10.9v8.37H9.2V10.9H6.46M7.83 6.3a1.6 1.6 0 0 0-1.6 1.6 1.6 1.6 0 0 0 1.6 1.6 1.6 1.6 0 0 0 1.6-1.6c0-.88-.72-1.6-1.6-1.6Z"/></svg>
+                </div>
+                <h4 className="un-editorial-font" style={{ fontSize: 18, fontWeight: 700, color: '#3D2B1F', marginBottom: 4 }}>No LinkedIn Comments Recorded Yet</h4>
+                <p style={{ color: '#8B7355', fontSize: 13, maxWidth: 520, margin: '0 auto 16px' }}>
+                  Click <strong>Audit Posts</strong> to scan recent LinkedIn media, or click <strong>Audit by URL</strong> to fetch comments directly from any live post.
+                </p>
+                <button onClick={() => syncLinkedInPosts()} disabled={syncingPosts} className="un-btn un-btn-primary" style={{ padding: '8px 18px', fontSize: 13 }}>
+                  <span>{syncingPosts ? 'Scanning Activity...' : 'Scan LinkedIn Media Now'}</span>
+                </button>
+              </div>
+            ) : (
+              /* Live Ledger Table */
+              <div className="un-table-card">
+                <table className="un-table">
+                  <thead>
+                    <tr>
+                      <th>Author</th>
+                      <th>Inbound Comment</th>
+                      <th>Intent Classification</th>
+                      <th>Generated Consultative Reply</th>
+                      <th>Lead Tier</th>
+                      <th>Status</th>
+                      <th>Timestamp</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {comments
+                      .filter(c => {
+                        if (commentFilter !== 'all' && c.classification !== commentFilter) return false;
+                        if (!commentSearch.trim()) return true;
+                        const q = commentSearch.toLowerCase();
+                        return (
+                          (c.commenter_username && c.commenter_username.toLowerCase().includes(q)) ||
+                          (c.comment_text && c.comment_text.toLowerCase().includes(q)) ||
+                          (c.suggested_reply && c.suggested_reply.toLowerCase().includes(q))
+                        );
+                      })
+                      .map(c => {
+                        const style = CLASSIFICATION_STYLES[c.classification] || CLASSIFICATION_STYLES['unrelated'];
+                        const lead = LEAD_SCORES[c.lead_score] || LEAD_SCORES[0];
+                        return (
+                          <tr key={c.id}>
+                            <td>
+                              <div>
+                                <span style={{ fontWeight: 700, color: '#3D2B1F', fontSize: 12.5 }}>
+                                  {c.commenter_username || 'LinkedIn Member'}
+                                </span>
+                                {c.author_headline && (
+                                  <div style={{ fontSize: 11, color: '#8B7355', maxWidth: 170, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {c.author_headline}
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                            <td style={{ maxWidth: 240, color: '#5D4330', lineHeight: 1.5, fontSize: 12.5 }}>
+                              {c.comment_text}
+                            </td>
+                            <td>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 9px', borderRadius: 14, background: style.bg, border: `1px solid ${style.border}`, color: style.color, fontSize: 11, fontWeight: 700 }}>
+                                <span style={{ width: 6, height: 6, borderRadius: '50%', background: style.color }} />
+                                <span>{style.label}</span>
+                              </span>
+                            </td>
+                            <td style={{ maxWidth: 260, color: '#3D2B1F', fontSize: 12, lineHeight: 1.45 }}>
+                              <div style={{ background: '#FAF7F2', border: '1px solid #E8E0D4', borderRadius: 8, padding: '8px 10px' }}>
+                                {c.suggested_reply || '—'}
+                              </div>
+                            </td>
+                            <td>
+                              <span style={{ fontSize: 11, fontWeight: 700, color: lead.color, background: '#F8FAFC', border: `1px solid ${lead.color}40`, padding: '2px 8px', borderRadius: 10, whiteSpace: 'nowrap' }}>
+                                {lead.label}
+                              </span>
+                            </td>
+                            <td>
+                              {c.flagged_for_review ? (
+                                <span style={{ fontSize: 10.5, fontWeight: 700, background: '#FEF2F2', color: '#991B1B', border: '1px solid #FECACA', padding: '2px 7px', borderRadius: 8 }}>
+                                  Flagged
+                                </span>
+                              ) : c.auto_replied ? (
+                                <span style={{ fontSize: 10.5, fontWeight: 700, background: '#ECFDF5', color: '#047857', border: '1px solid #A7F3D0', padding: '2px 7px', borderRadius: 8 }}>
+                                  Replied
+                                </span>
+                              ) : (
+                                <span style={{ fontSize: 10.5, fontWeight: 600, background: '#F1F5F9', color: '#64748B', border: '1px solid #CBD5E1', padding: '2px 7px', borderRadius: 8 }}>
+                                  Audited
+                                </span>
+                              )}
+                            </td>
+                            <td style={{ color: '#A69279', fontSize: 11, whiteSpace: 'nowrap' }}>
+                              {new Date(c.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
 
         {/* ════ TAB 4: TRIAGE QUEUE ════ */}
         {activeTab === 'inbox' && (
-          <div className="un-card" style={{ textAlign: 'center', padding: '64px 20px' }}>
-            <h4 className="un-editorial-font" style={{ fontSize: 18, fontWeight: 700, color: '#3D2B1F', marginBottom: 4 }}>LinkedIn Triage Inbox Clean</h4>
-            <p style={{ color: '#8B7355', fontSize: 13 }}>High-stakes enterprise deals, contrarian remarks, or inquiries needing direct founder review will appear here.</p>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+              <div>
+                <h2 className="un-editorial-font" style={{ fontSize: 24, fontWeight: 700, color: '#3D2B1F', margin: 0 }}>
+                  LinkedIn Human Triage Queue
+                </h2>
+                <p style={{ color: '#8B7355', fontSize: 13.5, margin: '4px 0 0' }}>
+                  Commercial buyer leads, enterprise pricing asks, and contrarian debates routed for direct executive review.
+                </p>
+              </div>
+              <button onClick={loadComments} className="un-btn un-btn-secondary" style={{ fontSize: 12.5 }}>
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M13.65 2.35A7.95 7.95 0 0 0 8 0C3.58 0 0 3.58 0 8s3.58 8 8 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 8 14 6 6 0 1 1 8 2c1.66 0 3.14.69 4.22 1.78L9 7h7V0l-2.35 2.35z" fill="currentColor"/></svg>
+                <span>Refresh Queue</span>
+              </button>
+            </div>
+
+            {comments.filter(c => c.flagged_for_review).length === 0 ? (
+              <div className="un-card" style={{ textAlign: 'center', padding: '64px 20px' }}>
+                <div className="un-logo-jewel" style={{ margin: '0 auto 16px', width: 44, height: 44, background: '#ECFDF5', color: '#047857' }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
+                </div>
+                <h4 className="un-editorial-font" style={{ fontSize: 18, fontWeight: 700, color: '#3D2B1F', marginBottom: 4 }}>LinkedIn Triage Inbox Clean</h4>
+                <p style={{ color: '#8B7355', fontSize: 13 }}>No high-priority leads or contrarian objections currently require manual sign-off.</p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {comments.filter(c => c.flagged_for_review).map(c => {
+                  const style = CLASSIFICATION_STYLES[c.classification] || CLASSIFICATION_STYLES['unrelated'];
+                  const lead = LEAD_SCORES[c.lead_score] || LEAD_SCORES[0];
+                  return (
+                    <div key={c.id} className="un-card" style={{ borderLeft: `4px solid ${style.color}` }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14, marginBottom: 10, flexWrap: 'wrap' }}>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ fontWeight: 700, color: '#3D2B1F', fontSize: 14 }}>{c.commenter_username}</span>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 8px', borderRadius: 12, background: style.bg, border: `1px solid ${style.border}`, color: style.color, fontSize: 11, fontWeight: 700 }}>
+                              {style.label}
+                            </span>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: lead.color, background: '#F8FAFC', border: `1px solid ${lead.color}40`, padding: '2px 7px', borderRadius: 8 }}>
+                              {lead.label}
+                            </span>
+                          </div>
+                          {c.author_headline && <div style={{ fontSize: 12, color: '#8B7355', marginTop: 2 }}>{c.author_headline}</div>}
+                        </div>
+                        <span style={{ fontSize: 11, color: '#A69279' }}>
+                          {new Date(c.created_at).toLocaleString()}
+                        </span>
+                      </div>
+
+                      <div style={{ background: '#FAF7F2', border: '1px solid #E8E0D4', borderRadius: 10, padding: '12px 14px', marginBottom: 12 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: '#8B7355', textTransform: 'uppercase', marginBottom: 4 }}>Inbound Remark:</div>
+                        <div style={{ fontSize: 13.5, color: '#3D2B1F', lineHeight: 1.5 }}>{c.comment_text}</div>
+                      </div>
+
+                      {c.suggested_reply && (
+                        <div style={{ background: '#FFFFFF', border: '1px solid #E5DFD5', borderRadius: 10, padding: '12px 14px', marginBottom: 12 }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: '#C4A265', textTransform: 'uppercase', marginBottom: 4 }}>Proposed Consultative Reply:</div>
+                          <div style={{ fontSize: 13, color: '#3D2B1F', lineHeight: 1.5 }}>{c.suggested_reply}</div>
+                        </div>
+                      )}
+
+                      <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                        <button
+                          onClick={() => {
+                            if (c.suggested_reply) {
+                              navigator.clipboard.writeText(c.suggested_reply);
+                              showToast('Reply copied to clipboard!');
+                            }
+                          }}
+                          className="un-btn un-btn-secondary"
+                          style={{ padding: '6px 14px', fontSize: 12 }}
+                        >
+                          Copy Reply
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
