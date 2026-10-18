@@ -237,13 +237,24 @@ function LoverTemplate({ profile, accentColor }: any) {
   );
 }
 
-function LoneTemplate({ profile }: any) {
-  const nameParts = (profile?.name || 'Imandi Prasanna').split(' ');
-  const firstName = nameParts[0] || 'Imandi';
-  const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') + '.' : 'Prasanna.';
+function LoneTemplate({ profile, onLinkClick }: any) {
+  const rawName = (profile?.name || '').trim();
+  const nameParts = rawName ? rawName.split(/\s+/) : [];
+  const firstName = nameParts[0] || profile?.subdomain || '';
+  const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
 
   const links = profile?.links || [];
-  const stats = profile?.proofs || [];
+  const stats = profile?.proofs || profile?.proofPoints || [];
+
+  const downloadVCard = () => {
+    const vcard = `BEGIN:VCARD\nVERSION:3.0\nN:${profile?.name || ''};;;;\nFN:${profile?.name || ''}\nEMAIL:${profile?.email || ''}\nORG:${profile?.company || ''}\nTITLE:${profile?.role || profile?.headline || ''}\nURL:${typeof window !== 'undefined' ? window.location.origin : ''}\nEND:VCARD`;
+    const blob = new Blob([vcard], { type: 'text/vcard' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${profile?.name?.replace(/\s+/g, '_') || 'Contact'}.vcf`;
+    a.click();
+  };
   
   // Recent activity is handled natively via profile.recentActivity
 
@@ -293,11 +304,15 @@ function LoneTemplate({ profile }: any) {
           <div className="flex flex-col z-10 pb-2">
             <h1 className="font-bold tracking-tight leading-[1.05]">
               <span className="text-[#F4EFE7] block font-serif font-black" style={{ fontSize: '3.2rem' }}>{firstName}</span>
-              <span className="block font-serif font-black" style={{ color: '#123DFF', fontSize: '3.2rem' }}>{lastName}</span>
+              {lastName ? (
+                <span className="block font-serif font-black" style={{ color: '#123DFF', fontSize: '3.2rem' }}>{lastName}</span>
+              ) : null}
             </h1>
-            <p className="text-[#9296A0] text-[10px] tracking-[0.4em] uppercase mt-4 font-medium">
-              {profile?.role || 'PROFESSIONAL'}
-            </p>
+            {(profile?.role || profile?.headline) && (
+              <p className="text-[#9296A0] text-[10px] tracking-[0.4em] uppercase mt-4 font-medium">
+                {profile.role || profile.headline}
+              </p>
+            )}
           </div>
           
           <div className="relative z-10 mr-2 mb-2">
@@ -310,7 +325,9 @@ function LoneTemplate({ profile }: any) {
                 {profile?.avatarUrl ? (
                   <img src={profile.avatarUrl} alt={profile.name || 'Avatar'} className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-[#101B3A] to-[#111318]" />
+                  <div className="w-full h-full bg-gradient-to-br from-[#101B3A] to-[#111318] flex items-center justify-center font-serif text-2xl font-bold text-[#F4EFE7]/40">
+                    {firstName ? firstName.charAt(0).toUpperCase() : ''}
+                  </div>
                 )}
               </div>
               <div className="absolute bottom-[6px] right-[2px] h-3.5 w-3.5 bg-[#123DFF] rounded-full border-[2px] border-[#08090C] shadow-[0_0_8px_rgba(18,61,255,0.8)]" />
@@ -443,6 +460,12 @@ function LoneTemplate({ profile }: any) {
                     href={link.url} 
                     target="_blank" 
                     rel="noopener noreferrer" 
+                    onClick={(e) => {
+                      if (onLinkClick) {
+                        e.preventDefault();
+                        onLinkClick(link);
+                      }
+                    }}
                     className="group rounded-[22px] overflow-hidden relative block hover:scale-[1.01] transition-transform shadow-[0_12px_30px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.15)]"
                     style={{ 
                       transform: 'skewX(-20deg)',
@@ -511,6 +534,7 @@ function LoneTemplate({ profile }: any) {
           </a>
           
           <button 
+            onClick={downloadVCard}
             className="flex-1 rounded-[20px] text-[#F4EFE7] overflow-hidden shadow-[0_8px_20px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] hover:bg-white/5 transition-colors relative"
             style={{ 
               transform: 'skewX(-20deg)',
@@ -529,7 +553,7 @@ function LoneTemplate({ profile }: any) {
 
         {/* Footer */}
         <footer className="flex justify-between items-center text-[#9296A0] text-[10px] px-2 mt-auto mb-2 uppercase tracking-widest">
-          <span>{profile?.subdomain ? `${profile.subdomain}.unool.co` : 'ipras.unool.co'}</span>
+          <span>{profile?.subdomain ? `${profile.subdomain}.unool.co` : ''}</span>
           <span className="font-serif tracking-widest opacity-80 text-[#F4EFE7]">Unool</span>
         </footer>
       </div>

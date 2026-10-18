@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, BadgeCheck, ArrowRight, Bookmark, Send, Sparkles, Quote, Github, Linkedin, Instagram, ExternalLink, Activity } from 'lucide-react';
+import { Menu, BadgeCheck, ArrowRight, Bookmark, Send, Sparkles, Quote, Github, Linkedin, Instagram, ExternalLink } from 'lucide-react';
 import { TheLoneBackground } from './TheLoneBackground';
 
 export interface TemplateProps {
@@ -12,9 +12,10 @@ export interface TemplateProps {
 
 export const TheLoneTemplate = ({ profile, onLinkClick }: TemplateProps) => {
   // Split name for styling
-  const nameParts = (profile?.name || 'Imandi Prasanna').split(' ');
-  const firstName = nameParts[0] || 'Imandi';
-  const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') + '.' : 'Prasanna.';
+  const rawName = (profile?.name || '').trim();
+  const nameParts = rawName ? rawName.split(/\s+/) : [];
+  const firstName = nameParts[0] || profile?.subdomain || '';
+  const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
 
   // Map icon strings to actual lucide components
   const getIconComponent = (iconName: string) => {
@@ -26,19 +27,21 @@ export const TheLoneTemplate = ({ profile, onLinkClick }: TemplateProps) => {
     }
   };
 
-  const links = profile?.links || [
-    { label: 'LinkedIn', url: 'linkedin.com/in/...', icon: 'linkedin' },
-    { label: 'Instagram', url: 'instagram.com/', icon: 'instagram' },
-    { label: 'Github', url: 'github.com/', icon: 'github' }
-  ];
+  const links = profile?.links || [];
 
-  const stats = profile?.proofs || [
-    { title: 'Followers', value: '12K' },
-    { title: 'Connections', value: '500+' },
-    { title: 'Profile Views', value: '50k' }
-  ];
+  const stats = profile?.proofs || profile?.proofPoints || [];
 
-  // We are going to map stats to the design colors from our hardcoded list for visual variety
+  const downloadVCard = () => {
+    const vcard = `BEGIN:VCARD\nVERSION:3.0\nN:${profile?.name || ''};;;;\nFN:${profile?.name || ''}\nEMAIL:${profile?.email || ''}\nORG:${profile?.company || ''}\nTITLE:${profile?.role || profile?.headline || ''}\nURL:${typeof window !== 'undefined' ? window.location.origin : ''}\nEND:VCARD`;
+    const blob = new Blob([vcard], { type: 'text/vcard' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${profile?.name?.replace(/\s+/g, '_') || 'Contact'}.vcf`;
+    a.click();
+  };
+
+  // We are going to map stats to the design colors from our list for visual variety
   const getStatStyle = (index: number) => {
     return index % 2 === 0 ? { dark: true } : { dark: false };
   };
@@ -58,11 +61,13 @@ export const TheLoneTemplate = ({ profile, onLinkClick }: TemplateProps) => {
           <div className="flex flex-col z-10 pt-4">
             <h1 className="text-4xl font-bold tracking-tight leading-tight">
               <span className="text-[#FFFFFF] block font-serif">{firstName}</span>
-              <span className="text-[#2C3480] block font-serif">{lastName}</span>
+              {lastName && <span className="text-[#2C3480] block font-serif">{lastName}</span>}
             </h1>
-            <p className="text-[#FFFFFF]/60 text-xs tracking-[0.3em] uppercase mt-4">
-              {profile?.role || 'Professional'}
-            </p>
+            {(profile?.role || profile?.headline) && (
+              <p className="text-[#FFFFFF]/60 text-xs tracking-[0.3em] uppercase mt-4">
+                {profile?.role || profile?.headline}
+              </p>
+            )}
           </div>
           
           <div className="flex flex-col items-end gap-6 z-10">
@@ -74,10 +79,10 @@ export const TheLoneTemplate = ({ profile, onLinkClick }: TemplateProps) => {
               <div className="h-24 w-24 rounded-full p-1 bg-gradient-to-tr from-[#2C3480] to-transparent">
                 <div className="h-full w-full rounded-full overflow-hidden bg-black border border-[#2C3480]/50 relative flex items-center justify-center">
                   {profile?.avatarUrl ? (
-                    <img src={profile.avatarUrl} alt={profile.name || 'Avatar'} className="w-full h-full object-cover" />
+                    <img src={profile.avatarUrl} alt={profile?.name || 'Avatar'} className="w-full h-full object-cover" />
                   ) : (
-                    <div className="w-full h-full bg-gradient-to-b from-[#FFFFFF]/10 to-[#2C3480]/20 flex items-center justify-center">
-                      <span className="text-[#FFFFFF]/50 text-xs">Photo</span>
+                    <div className="w-full h-full bg-gradient-to-b from-[#FFFFFF]/10 to-[#2C3480]/20 flex items-center justify-center font-serif text-xl font-bold text-[#FFFFFF]/50">
+                      {firstName ? firstName.charAt(0).toUpperCase() : ''}
                     </div>
                   )}
                 </div>
@@ -112,7 +117,7 @@ export const TheLoneTemplate = ({ profile, onLinkClick }: TemplateProps) => {
                 <div key={i} className={`transform -skew-x-12 border rounded-xl overflow-hidden shadow-lg ${style.dark ? 'bg-[#FFFFFF]/5 border-[#FFFFFF]/10' : 'bg-[#FFFFFF] border-[#FFFFFF]'}`}>
                   <div className={`transform skew-x-12 p-4 flex flex-col items-center justify-center text-center ${style.dark ? 'text-[#FFFFFF]' : 'text-black'}`}>
                     <span className="text-xl font-bold font-serif mb-1">{stat.value}</span>
-                    <span className={`text-[10px] uppercase tracking-wider ${style.dark ? 'text-[#FFFFFF]/60' : 'text-black/60'}`}>{stat.title}</span>
+                    <span className={`text-[10px] uppercase tracking-wider ${style.dark ? 'text-[#FFFFFF]/60' : 'text-black/60'}`}>{stat.title || stat.label}</span>
                   </div>
                 </div>
               );
@@ -157,9 +162,9 @@ export const TheLoneTemplate = ({ profile, onLinkClick }: TemplateProps) => {
                         <IconComponent size={20} className={!style.light && link.icon !== 'linkedin' ? 'fill-current text-[#FFFFFF]' : ''} />
                       </div>
                       <div className={`flex-1 ${style.light ? 'text-black' : 'text-[#FFFFFF]'}`}>
-                        <h3 className="font-semibold text-sm truncate max-w-[150px]">{link.label}</h3>
+                        <h3 className="font-semibold text-sm truncate max-w-[150px]">{link.label || link.title}</h3>
                         <p className={`text-xs truncate max-w-[150px] ${style.light ? 'text-black/60' : 'text-[#FFFFFF]/50'}`}>
-                          {link.url.replace(/^https?:\/\//, '')}
+                          {(link.url || '').replace(/^https?:\/\//, '')}
                         </p>
                       </div>
                       <div className={`h-8 w-8 rounded-full border flex items-center justify-center shrink-0 mr-2 transition-transform group-hover:-rotate-45 ${style.light ? 'border-black/10 text-black' : 'border-[#FFFFFF]/20 text-[#FFFFFF]'}`}>
@@ -186,7 +191,10 @@ export const TheLoneTemplate = ({ profile, onLinkClick }: TemplateProps) => {
             </div>
           </a>
           
-          <button className="flex-1 transform -skew-x-12 bg-[#FFFFFF]/5 border border-[#FFFFFF]/20 text-[#FFFFFF] overflow-hidden hover:bg-[#FFFFFF]/10 transition-colors backdrop-blur-sm">
+          <button 
+            onClick={downloadVCard}
+            className="flex-1 transform -skew-x-12 bg-[#FFFFFF]/5 border border-[#FFFFFF]/20 text-[#FFFFFF] overflow-hidden hover:bg-[#FFFFFF]/10 transition-colors backdrop-blur-sm"
+          >
             <div className="transform skew-x-12 p-4 flex items-center justify-center gap-3">
               <Bookmark size={16} />
               <span className="font-medium text-sm">Save Contact</span>
@@ -196,7 +204,7 @@ export const TheLoneTemplate = ({ profile, onLinkClick }: TemplateProps) => {
 
         {/* Footer */}
         <footer className="flex justify-between items-center text-[#FFFFFF]/40 text-xs px-2 mt-auto">
-          <span>{profile?.subdomain ? `${profile.subdomain}.unool.co` : 'ipras.unool.co'}</span>
+          <span>{profile?.subdomain ? `${profile.subdomain}.unool.co` : ''}</span>
           <span className="font-serif text-[#FFFFFF]/60">Unool</span>
         </footer>
 
