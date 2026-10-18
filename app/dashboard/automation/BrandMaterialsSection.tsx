@@ -25,9 +25,14 @@ import {
   Type,
   Eye,
   ArrowRight,
-  Link as LinkIcon,
   Database,
   Package,
+  Palette,
+  Instagram,
+  Search,
+  Calendar,
+  Link as LinkIcon,
+  RotateCw
 } from 'lucide-react';
 
 export interface MaterialItem {
@@ -43,6 +48,16 @@ export interface MaterialItem {
   order?: number;
 }
 
+export interface InstagramPostItem {
+  id: string;
+  caption?: string;
+  media_type?: string;
+  media_url?: string;
+  thumbnail_url?: string;
+  permalink?: string;
+  timestamp?: string;
+}
+
 export interface BrandMaterialsPageData {
   id?: string;
   slug?: string;
@@ -50,9 +65,11 @@ export interface BrandMaterialsPageData {
   tagline?: string;
   description?: string;
   materials: MaterialItem[];
+  linked_posts?: any[];
   theme?: {
     accentColor?: string;
     template?: string;
+    linked_posts?: any[];
   };
   is_published?: boolean;
 }
@@ -115,6 +132,19 @@ export default function BrandMaterialsSection({
   const [tagline, setTagline] = useState<string>('');
   const [description, setDescription] = useState<string>('');
   const [materials, setMaterials] = useState<MaterialItem[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('auto');
+  const [liveTemplateName, setLiveTemplateName] = useState<string>('The Voice');
+
+  // Instagram connection & linked published posts state
+  const [publishedPosts, setPublishedPosts] = useState<InstagramPostItem[]>([]);
+  const [loadingPosts, setLoadingPosts] = useState<boolean>(false);
+  const [isInstagramConnected, setIsInstagramConnected] = useState<boolean>(false);
+  const [instagramUsername, setInstagramUsername] = useState<string>('');
+  const [linkedPostIds, setLinkedPostIds] = useState<string[]>([]);
+  const [postSearchQuery, setPostSearchQuery] = useState<string>('');
+  const [manualPostUrl, setManualPostUrl] = useState<string>('');
+  const [savingPostLinks, setSavingPostLinks] = useState<boolean>(false);
+  const [postLinkSavedToast, setPostLinkSavedToast] = useState<string | null>(null);
 
   // Inline Add Material Box (replaces modal popup)
   const [addBoxOpen, setAddBoxOpen] = useState(false);
@@ -136,6 +166,27 @@ export default function BrandMaterialsSection({
   const activeItemQuery = getItemQueryParam(firstMaterial);
   const livePageUrl = `https://${subdomain}.unool.co/${internalSlug && internalSlug !== 'showcase' ? internalSlug : (activeItemQuery ? `?${activeItemQuery}` : '')}`;
 
+  // Load published Instagram posts from Meta Graph API & UNOOL records
+  const loadInstagramPosts = async () => {
+    if (!workspaceId) return;
+    setLoadingPosts(true);
+    try {
+      const res = await fetch(`/api/instagram/posts?workspaceId=${workspaceId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setIsInstagramConnected(!!data.connected);
+        setInstagramUsername(data.username || '');
+        if (Array.isArray(data.posts)) {
+          setPublishedPosts(data.posts);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load Instagram posts:', err);
+    } finally {
+      setLoadingPosts(false);
+    }
+  };
+
   // Fetch page data on mount
   useEffect(() => {
     let cancelled = false;
@@ -147,6 +198,9 @@ export default function BrandMaterialsSection({
           const data = await res.json();
           if (!cancelled) {
             setSubdomain(data.subdomain || 'user');
+            if (data.liveTemplate) {
+              setLiveTemplateName(data.liveTemplate);
+            }
             if (data.pages) {
               setPages(data.pages);
             }
@@ -156,12 +210,20 @@ export default function BrandMaterialsSection({
               setTitle(data.page.title || '');
               setTagline(data.page.tagline || '');
               setDescription(data.page.description || '');
+              setSelectedTemplate(data.page.theme?.template || 'auto');
               const sanitized = (data.page.materials || []).map((m: any) => ({
                 ...m,
                 url: maskCloudflareUrl(m.url),
                 thumbnailUrl: m.thumbnailUrl ? maskCloudflareUrl(m.thumbnailUrl) : undefined,
               }));
               setMaterials(sanitized);
+
+              // Initialize linked Instagram post IDs
+              const rawLinked = data.page.linked_posts || data.page.theme?.linked_posts || [];
+              const parsedIds = Array.isArray(rawLinked)
+                ? rawLinked.map((item: any) => (typeof item === 'string' ? item : (item.id || item.media_id)))
+                : [];
+              setLinkedPostIds(parsedIds);
             }
           }
         }
@@ -172,6 +234,7 @@ export default function BrandMaterialsSection({
       }
     }
     loadData();
+    loadInstagramPosts();
     return () => { cancelled = true; };
   }, [workspaceId]);
 
@@ -194,12 +257,18 @@ export default function BrandMaterialsSection({
     setTitle(p.title || '');
     setTagline(p.tagline || '');
     setDescription(p.description || '');
+    setSelectedTemplate(p.theme?.template || 'auto');
     const sanitized = (p.materials || []).map((m: any) => ({
       ...m,
       url: maskCloudflareUrl(m.url),
       thumbnailUrl: m.thumbnailUrl ? maskCloudflareUrl(m.thumbnailUrl) : undefined,
     }));
     setMaterials(sanitized);
+    const rawLinked = p.linked_posts || p.theme?.linked_posts || [];
+    const parsedIds = Array.isArray(rawLinked)
+      ? rawLinked.map((item: any) => (typeof item === 'string' ? item : (item.id || item.media_id)))
+      : [];
+    setLinkedPostIds(parsedIds);
     setSuccessBanner(null);
   };
 
@@ -215,9 +284,103 @@ export default function BrandMaterialsSection({
     setTitle(initialTitle || '');
     setTagline('Exclusive resources & materials for this post');
     setDescription('');
+    setSelectedTemplate('auto');
     setMaterials([]);
+    setLinkedPostIds([]);
     setSuccessBanner(null);
     setAddBoxOpen(false);
+  };
+
+  // Toggle connection for an Instagram post
+  const togglePostLink = (postId: string) => {
+    setLinkedPostIds(prev =>
+      prev.includes(postId) ? prev.filter(id => id !== postId) : [...prev, postId]
+    );
+  };
+
+  // Link or unlink all published Instagram posts
+  const handleLinkAllPosts = () => {
+    if (publishedPosts.length === 0) return;
+    const allIds = publishedPosts.map(p => p.id);
+    const areAllLinked = allIds.every(id => linkedPostIds.includes(id));
+    if (areAllLinked) {
+      setLinkedPostIds([]);
+    } else {
+      const combined = Array.from(new Set([...linkedPostIds, ...allIds]));
+      setLinkedPostIds(combined);
+    }
+  };
+
+  // Manually link an Instagram post via URL or Media ID
+  const handleAddManualPost = () => {
+    const trimmed = manualPostUrl.trim();
+    if (!trimmed) return;
+    let identifier = trimmed;
+    const urlMatch = trimmed.match(/\/p\/([a-zA-Z0-9_-]+)/);
+    if (urlMatch && urlMatch[1]) {
+      identifier = urlMatch[1];
+    }
+    if (!linkedPostIds.includes(identifier)) {
+      setLinkedPostIds(prev => [identifier, ...prev]);
+      if (!publishedPosts.some(p => p.id === identifier)) {
+        setPublishedPosts(prev => [
+          {
+            id: identifier,
+            caption: trimmed.startsWith('http') ? `Direct Link: ${trimmed}` : `Post ID: ${identifier}`,
+            permalink: trimmed.startsWith('http') ? trimmed : `https://www.instagram.com/p/${identifier}/`,
+            timestamp: new Date().toISOString(),
+            media_type: 'IMAGE',
+          },
+          ...prev,
+        ]);
+      }
+    }
+    setManualPostUrl('');
+  };
+
+  // Save linked post connections instantly
+  const handleSavePostLinksOnly = async () => {
+    setSavingPostLinks(true);
+    try {
+      const slugToUse = isCreatingNewPage
+        ? (title.trim()
+            ? title.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').slice(0, 30)
+            : `post-${Date.now().toString(36)}`)
+        : (internalSlug || activePageSlug || 'showcase');
+
+      const res = await fetch('/api/brand-materials', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workspaceId,
+          slug: slugToUse,
+          title: title.trim() || 'Brand Materials',
+          tagline: tagline.trim(),
+          description: description.trim(),
+          materials,
+          linked_posts: linkedPostIds,
+          theme: {
+            ...(selectedTemplate && selectedTemplate !== 'auto' ? { template: selectedTemplate } : {}),
+            linked_posts: linkedPostIds,
+          },
+          updateAutomationLink: true,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.pages) setPages(data.pages);
+        setPostLinkSavedToast(`✓ Saved: ${linkedPostIds.length} Instagram post(s) linked to this page!`);
+        setTimeout(() => setPostLinkSavedToast(null), 3500);
+      } else {
+        alert('Failed to save Instagram post connections.');
+      }
+    } catch (err) {
+      console.error('Error saving post links:', err);
+      alert('Error saving post links.');
+    } finally {
+      setSavingPostLinks(false);
+    }
   };
 
   // Delete a brand page
@@ -533,6 +696,11 @@ export default function BrandMaterialsSection({
           tagline: tagline.trim(),
           description: description.trim(),
           materials,
+          linked_posts: linkedPostIds,
+          theme: {
+            ...(selectedTemplate && selectedTemplate !== 'auto' ? { template: selectedTemplate } : {}),
+            linked_posts: linkedPostIds,
+          },
           updateAutomationLink: true,
         }),
       });
@@ -755,68 +923,134 @@ export default function BrandMaterialsSection({
         </div>
       </div>
 
-      {/* ── 2-Column Config Layout ── */}
-      <div className="un-grid-2">
-        {/* Left Column: Brand & Showcase Metadata */}
-        <div>
-          <div className="un-card">
-            <div className="un-card-header">
-              <div className="un-card-title">
-                <div className="un-card-title-icon" style={{ background: '#F5F3FF', color: '#7C3AED' }}>
-                  <Package size={16} />
-                </div>
-                <span>Brand &amp; Product Details</span>
-              </div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#8B7355', background: '#F5EFE2', padding: '2px 8px', borderRadius: 6 }}>
-                Hero Setup
-              </span>
+      {/* ── Brand & Showcase Details (Full-width, zero dead space) ── */}
+      <div className="un-card">
+        <div className="un-card-header">
+          <div className="un-card-title">
+            <div className="un-card-title-icon" style={{ background: '#F5F3FF', color: '#7C3AED' }}>
+              <Package size={16} />
             </div>
+            <span>Brand &amp; Product Details</span>
+          </div>
+          <span style={{ fontSize: 11, fontWeight: 700, color: '#8B7355', background: '#F5EFE2', padding: '2px 8px', borderRadius: 6 }}>
+            Hero Setup
+          </span>
+        </div>
 
-            <div className="un-field">
-              <label className="un-label">Brand / Product Showcase Title</label>
-              <input
-                type="text"
-                className="un-input"
-                placeholder="e.g. Aura Skincare &amp; Daily Essentials"
-                value={title}
-                onChange={e => setTitle(e.target.value)}
-              />
-            </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+          <div className="un-field" style={{ marginBottom: 0 }}>
+            <label className="un-label">Brand / Product Showcase Title</label>
+            <input
+              type="text"
+              className="un-input"
+              placeholder="e.g. Aura Skincare &amp; Daily Essentials"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+            />
+          </div>
 
-            <div className="un-field">
-              <label className="un-label">Tagline / Subheading</label>
-              <input
-                type="text"
-                className="un-input"
-                placeholder="e.g. Official product lookbook, catalogue, and brand guides"
-                value={tagline}
-                onChange={e => setTagline(e.target.value)}
-              />
-            </div>
-
-            <div className="un-field" style={{ marginBottom: 0 }}>
-              <label className="un-label">Brand Story &amp; Product Overview</label>
-              <textarea
-                className="un-input un-textarea"
-                style={{ minHeight: 120 }}
-                placeholder="Share context about your brand, mission, product line, and what materials are provided in this hub."
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-              />
-            </div>
+          <div className="un-field" style={{ marginBottom: 0 }}>
+            <label className="un-label">Tagline / Subheading</label>
+            <input
+              type="text"
+              className="un-input"
+              placeholder="e.g. Official product lookbook, catalogue, and brand guides"
+              value={tagline}
+              onChange={e => setTagline(e.target.value)}
+            />
           </div>
         </div>
 
-        {/* Right Column: Materials Asset Manager & Dropzone */}
-        <div>
-          <div className="un-card">
-            <div className="un-card-header">
-              <div className="un-card-title">
-                <div className="un-card-title-icon" style={{ background: '#ECFDF5', color: '#047857' }}>
-                  <Database size={16} />
-                </div>
-                <span>Brand Materials Repository</span>
-              </div>
+        <div className="un-field" style={{ marginTop: 14, marginBottom: 0 }}>
+          <label className="un-label">Brand Story &amp; Product Overview</label>
+          <textarea
+            className="un-input un-textarea"
+            style={{ minHeight: 90 }}
+            placeholder="Share context about your brand, mission, product line, and what materials are provided in this hub."
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+          />
+        </div>
+
+        {/* ── Template & Style Preset (From Templates & Design Section) ── */}
+        <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #E8E0D4' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+              <Palette size={15} style={{ color: '#7C3AED' }} />
+              <label className="un-label" style={{ marginBottom: 0, fontWeight: 700, fontSize: 13, color: '#3D2B1F' }}>
+                Showcase Template &amp; Design Style
+              </label>
+            </div>
+            <span style={{ fontSize: 11.5, color: '#8B7355' }}>
+              Profile Live Theme: <strong>{liveTemplateName || 'The Voice'}</strong>
+            </span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 10, alignItems: 'center' }}>
+            <select
+              className="un-input"
+              value={selectedTemplate}
+              onChange={e => setSelectedTemplate(e.target.value)}
+              style={{ fontSize: 13, background: '#FFFDF9', cursor: 'pointer', height: 40 }}
+            >
+              <option value="auto">✨ Auto (Matches Your Live Profile — {liveTemplateName || 'The Voice'})</option>
+              <optgroup label="Influencer">
+                <option value="the-voice">✍️ The Voice (Editorial &amp; Storyteller)</option>
+                <option value="the-aesthete">✦ The Aesthete (Luxury Curated Magazine)</option>
+                <option value="the-creator">🎬 The Creator (Vibrant Motion &amp; Video)</option>
+              </optgroup>
+              <optgroup label="Individual">
+                <option value="lover">❤️ The Lover (Romantic, Emotional &amp; Journal)</option>
+                <option value="lone">🌑 The Lone (Quiet Cinematic Solitude)</option>
+                <option value="energy">⚡ The Energy (Discipline &amp; High Voltage)</option>
+              </optgroup>
+              <optgroup label="Startup">
+                <option value="rebellion">🚨 The Rebellion (Disruptive Crimson)</option>
+                <option value="vision">🔮 The Vision (Cyber Blue Intelligence)</option>
+                <option value="human">🫶 The Human (Warm Organic Terracotta)</option>
+              </optgroup>
+              <optgroup label="Agency">
+                <option value="the-studio">🎨 The Studio (High-End Design Editorial)</option>
+                <option value="the-machine">📊 The Machine (Data-Driven Performance)</option>
+                <option value="the-club">🪩 The Club (Culture &amp; Creator Lounge)</option>
+              </optgroup>
+              <optgroup label="Entrepreneur">
+                <option value="the-builder">🔨 The Builder (Productivity Blueprint)</option>
+                <option value="the-visionary">🔭 The Visionary (Executive Champagne Gold)</option>
+                <option value="the-hustler">🔥 The Hustler (High-Speed Hyper Rose)</option>
+              </optgroup>
+            </select>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <a
+                href={`${livePageUrl}${selectedTemplate !== 'auto' ? (livePageUrl.includes('?') ? `&template=${selectedTemplate}` : `?template=${selectedTemplate}`) : ''}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="un-btn"
+                style={{ fontSize: 12, padding: '8px 14px', background: '#F5F3FF', borderColor: '#DDD6FE', color: '#6D28D9', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                title="Preview this page with the selected template style"
+              >
+                <Eye size={13} />
+                <span>Preview Template Style</span>
+                <ExternalLink size={12} />
+              </a>
+              <span style={{ fontSize: 11, color: '#8B7355' }}>
+                All 15 templates share identical section layout
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Materials Asset Manager & Dropzone (Full-width, zero dead space) ── */}
+      <div className="un-card">
+        <div className="un-card-header">
+          <div className="un-card-title">
+            <div className="un-card-title-icon" style={{ background: '#ECFDF5', color: '#047857' }}>
+              <Database size={16} />
+            </div>
+            <span>Brand Materials Repository</span>
+          </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <button
                   type="button"
@@ -1002,157 +1236,196 @@ export default function BrandMaterialsSection({
                   ))}
                 </div>
 
-                <div className="un-field" style={{ marginBottom: 0 }}>
-                  <label className="un-label">Title / Heading *</label>
-                  <input
-                    type="text"
-                    className="un-input"
-                    placeholder="e.g. Care Instructions, Brand Story, or Size Guide"
-                    value={matTitle}
-                    onChange={e => setMatTitle(e.target.value)}
-                  />
-                </div>
-
-                {/* Text Type Content */}
+                {/* Dynamic Form Fields */}
                 {matType === 'text' ? (
-                  <div className="un-field" style={{ marginBottom: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, flexWrap: 'wrap', gap: 6 }}>
-                      <label className="un-label" style={{ marginBottom: 0 }}>
-                        Note Content / Story / Guide *
-                      </label>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                        {/* Quick markdown formatting tools */}
-                        <button
-                          type="button"
-                          onClick={() => insertFormatting('# ')}
-                          className="un-btn"
-                          style={{ padding: '2px 8px', fontSize: 11, background: '#FAF7F2', fontWeight: 700 }}
-                          title="Insert Heading"
-                        >
-                          H1
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => insertFormatting('## ')}
-                          className="un-btn"
-                          style={{ padding: '2px 8px', fontSize: 11, background: '#FAF7F2', fontWeight: 700 }}
-                          title="Insert Subheading"
-                        >
-                          H2
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => insertFormatting('• ')}
-                          className="un-btn"
-                          style={{ padding: '2px 8px', fontSize: 11, background: '#FAF7F2' }}
-                          title="Insert Bullet Point"
-                        >
-                          • Bullet
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => insertFormatting('**', '**')}
-                          className="un-btn"
-                          style={{ padding: '2px 8px', fontSize: 11, background: '#FAF7F2', fontWeight: 700 }}
-                          title="Bold Text"
-                        >
-                          B
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handlePasteFromClipboard}
-                          className="un-btn"
-                          style={{ padding: '2px 9px', fontSize: 11, background: '#EFF6FF', borderColor: '#BFDBFE', color: '#1D4ED8' }}
-                          title="Paste from clipboard"
-                        >
-                          <ClipboardPaste size={12} />
-                          <span>Paste</span>
-                        </button>
-                        {matContent && (
-                          <button
-                            type="button"
-                            onClick={() => setMatContent('')}
-                            style={{ background: 'transparent', border: 'none', color: '#8B7355', fontSize: 11, cursor: 'pointer', textDecoration: 'underline' }}
-                          >
-                            Clear
-                          </button>
-                        )}
+                  <>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
+                      <div className="un-field" style={{ marginBottom: 0 }}>
+                        <label className="un-label">Title / Heading *</label>
+                        <input
+                          type="text"
+                          className="un-input"
+                          placeholder="e.g. Care Instructions, Brand Story, or Size Guide"
+                          value={matTitle}
+                          onChange={e => setMatTitle(e.target.value)}
+                        />
+                      </div>
+
+                      <div className="un-field" style={{ marginBottom: 0 }}>
+                        <label className="un-label">Category</label>
+                        <input
+                          type="text"
+                          className="un-input"
+                          placeholder="e.g. Guide, Story, FAQ"
+                          value={matCategory}
+                          onChange={e => setMatCategory(e.target.value)}
+                        />
                       </div>
                     </div>
-                    <textarea
-                      ref={textareaRef}
-                      className="un-input un-textarea"
-                      style={{ minHeight: 150, fontFamily: 'inherit', lineHeight: 1.6 }}
-                      placeholder="Type your notes, product details, craft guide, FAQ, or brand story directly here...&#10;&#10;Supports headings (#), bullet lists (- or •), bold (**text**), or simple paragraphs."
-                      value={matContent}
-                      onChange={e => setMatContent(e.target.value)}
-                      onBlur={() => {
-                        if (!matTitle.trim() && matContent.trim()) {
-                          setMatTitle(deriveTitleFromText(matContent));
-                        }
-                      }}
-                    />
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4, fontSize: 11, color: '#8B7355' }}>
-                      <span>
-                        {matContent.trim() ? (
-                          <>
-                            <strong>{matContent.trim().split(/\s+/).filter(Boolean).length}</strong> words • <strong>{matContent.length}</strong> chars • <strong>{matContent.split('\n').length}</strong> lines
-                          </>
-                        ) : (
-                          'Type directly or paste from clipboard — no .txt or .md files needed'
-                        )}
-                      </span>
-                      <span>Markdown &amp; plain text supported</span>
+
+                    <div className="un-field" style={{ marginBottom: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, flexWrap: 'wrap', gap: 6 }}>
+                        <label className="un-label" style={{ marginBottom: 0 }}>
+                          Note Content / Story / Guide *
+                        </label>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          <button
+                            type="button"
+                            onClick={() => insertFormatting('# ')}
+                            className="un-btn"
+                            style={{ padding: '2px 8px', fontSize: 11, background: '#FAF7F2', fontWeight: 700 }}
+                            title="Insert Heading"
+                          >
+                            H1
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => insertFormatting('## ')}
+                            className="un-btn"
+                            style={{ padding: '2px 8px', fontSize: 11, background: '#FAF7F2', fontWeight: 700 }}
+                            title="Insert Subheading"
+                          >
+                            H2
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => insertFormatting('• ')}
+                            className="un-btn"
+                            style={{ padding: '2px 8px', fontSize: 11, background: '#FAF7F2' }}
+                            title="Insert Bullet Point"
+                          >
+                            • Bullet
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => insertFormatting('**', '**')}
+                            className="un-btn"
+                            style={{ padding: '2px 8px', fontSize: 11, background: '#FAF7F2', fontWeight: 700 }}
+                            title="Bold Text"
+                          >
+                            B
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handlePasteFromClipboard}
+                            className="un-btn"
+                            style={{ padding: '2px 9px', fontSize: 11, background: '#EFF6FF', borderColor: '#BFDBFE', color: '#1D4ED8' }}
+                            title="Paste from clipboard"
+                          >
+                            <ClipboardPaste size={12} />
+                            <span>Paste</span>
+                          </button>
+                          {matContent && (
+                            <button
+                              type="button"
+                              onClick={() => setMatContent('')}
+                              style={{ background: 'transparent', border: 'none', color: '#8B7355', fontSize: 11, cursor: 'pointer', textDecoration: 'underline' }}
+                            >
+                              Clear
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <textarea
+                        ref={textareaRef}
+                        className="un-input un-textarea"
+                        style={{ minHeight: 150, fontFamily: 'inherit', lineHeight: 1.6 }}
+                        placeholder="Type your notes, product details, craft guide, FAQ, or brand story directly here...&#10;&#10;Supports headings (#), bullet lists (- or •), bold (**text**), or simple paragraphs."
+                        value={matContent}
+                        onChange={e => setMatContent(e.target.value)}
+                        onBlur={() => {
+                          if (!matTitle.trim() && matContent.trim()) {
+                            setMatTitle(deriveTitleFromText(matContent));
+                          }
+                        }}
+                      />
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4, fontSize: 11, color: '#8B7355' }}>
+                        <span>
+                          {matContent.trim() ? (
+                            <>
+                              <strong>{matContent.trim().split(/\s+/).filter(Boolean).length}</strong> words • <strong>{matContent.length}</strong> chars • <strong>{matContent.split('\n').length}</strong> lines
+                            </>
+                          ) : (
+                            'Type directly or paste from clipboard — no .txt or .md files needed'
+                          )}
+                        </span>
+                        <span>Markdown &amp; plain text supported</span>
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <div className="un-field" style={{ marginBottom: 0 }}>
-                    <label className="un-label">Asset URL or Uploaded Link *</label>
-                    <input
-                      type="text"
-                      className="un-input"
-                      placeholder="https://... (or use the dropzone above)"
-                      value={matUrl}
-                      onChange={e => setMatUrl(maskCloudflareUrl(e.target.value))}
-                    />
-                  </div>
-                )}
 
-                <div className="un-field" style={{ marginBottom: 0 }}>
-                  <label className="un-label">Brief Description</label>
-                  <input
-                    type="text"
-                    className="un-input"
-                    placeholder="Short summary for viewers"
-                    value={matDesc}
-                    onChange={e => setMatDesc(e.target.value)}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <div className="un-field" style={{ flex: 1, marginBottom: 0 }}>
-                    <label className="un-label">Category</label>
-                    <input
-                      type="text"
-                      className="un-input"
-                      placeholder="e.g. Toys, Lookbook"
-                      value={matCategory}
-                      onChange={e => setMatCategory(e.target.value)}
-                    />
-                  </div>
-                  {matType !== 'text' && (
-                    <div className="un-field" style={{ width: '35%', marginBottom: 0 }}>
-                      <label className="un-label">Size / Format</label>
+                    <div className="un-field" style={{ marginBottom: 0 }}>
+                      <label className="un-label">Brief Description</label>
                       <input
                         type="text"
                         className="un-input"
-                        placeholder="e.g. 20 KB"
-                        value={matSize}
-                        onChange={e => setMatSize(e.target.value)}
+                        placeholder="Short summary for viewers"
+                        value={matDesc}
+                        onChange={e => setMatDesc(e.target.value)}
                       />
                     </div>
-                  )}
-                </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
+                      <div className="un-field" style={{ marginBottom: 0 }}>
+                        <label className="un-label">Title / Heading *</label>
+                        <input
+                          type="text"
+                          className="un-input"
+                          placeholder="e.g. Care Instructions, Brand Story, or Size Guide"
+                          value={matTitle}
+                          onChange={e => setMatTitle(e.target.value)}
+                        />
+                      </div>
+
+                      <div className="un-field" style={{ marginBottom: 0 }}>
+                        <label className="un-label">Asset URL or Uploaded Link *</label>
+                        <input
+                          type="text"
+                          className="un-input"
+                          placeholder="https://... (or use the dropzone above)"
+                          value={matUrl}
+                          onChange={e => setMatUrl(maskCloudflareUrl(e.target.value))}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
+                      <div className="un-field" style={{ marginBottom: 0 }}>
+                        <label className="un-label">Brief Description</label>
+                        <input
+                          type="text"
+                          className="un-input"
+                          placeholder="Short summary for viewers"
+                          value={matDesc}
+                          onChange={e => setMatDesc(e.target.value)}
+                        />
+                      </div>
+
+                      <div className="un-field" style={{ marginBottom: 0 }}>
+                        <label className="un-label">Category</label>
+                        <input
+                          type="text"
+                          className="un-input"
+                          placeholder="e.g. Toys, Lookbook"
+                          value={matCategory}
+                          onChange={e => setMatCategory(e.target.value)}
+                        />
+                      </div>
+
+                      <div className="un-field" style={{ marginBottom: 0 }}>
+                        <label className="un-label">Size / Format</label>
+                        <input
+                          type="text"
+                          className="un-input"
+                          placeholder="e.g. 20 KB"
+                          value={matSize}
+                          onChange={e => setMatSize(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
                   <button
@@ -1190,7 +1463,11 @@ export default function BrandMaterialsSection({
                 No materials placed yet. Drag files into the box above or click "+ Add Material".
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
+                gap: 12,
+              }}>
                 {materials.map((item, idx) => (
                   <div
                     key={item.id || idx}
@@ -1245,7 +1522,6 @@ export default function BrandMaterialsSection({
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
                             whiteSpace: 'nowrap',
-                            maxWidth: 340,
                           }}>
                             {item.content || item.description}
                           </div>
@@ -1306,7 +1582,444 @@ export default function BrandMaterialsSection({
               </div>
             )}
           </div>
+
+      {/* ── Connect to Published Instagram Posts ── */}
+      <div className="un-card" style={{ border: linkedPostIds.length > 0 ? '1.5px solid #FBCFE8' : undefined }}>
+        <div className="un-card-header" style={{ flexWrap: 'wrap', gap: 12 }}>
+          <div className="un-card-title">
+            <div
+              className="un-card-title-icon"
+              style={{
+                background: 'linear-gradient(135deg, #FDF2F8 0%, #FFF1F2 100%)',
+                color: '#E1306C',
+                border: '1px solid #FCE7F3'
+              }}
+            >
+              <Instagram size={17} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <span>Connect to Published Instagram Posts</span>
+              {isInstagramConnected ? (
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: '#047857',
+                    background: '#ECFDF5',
+                    border: '1px solid #A7F3D0',
+                    padding: '2.5px 9px',
+                    borderRadius: 9999,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                  }}
+                >
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10B981' }} />
+                  @{instagramUsername || 'instagram'} Connected
+                </span>
+              ) : (
+                <a
+                  href="/dashboard/settings/accounts"
+                  className="un-btn"
+                  style={{ fontSize: 11, padding: '3px 8px', color: '#8B7355', textDecoration: 'none' }}
+                >
+                  Connect Instagram
+                </a>
+              )}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            {publishedPosts.length > 0 && (
+              <button
+                type="button"
+                onClick={handleLinkAllPosts}
+                className="un-btn"
+                style={{ fontSize: 11.5, padding: '5px 12px' }}
+                title="Link or unlink all published posts"
+              >
+                {publishedPosts.length > 0 && publishedPosts.every(p => linkedPostIds.includes(p.id))
+                  ? 'Unlink All Posts'
+                  : 'Link All Published Posts'}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={loadInstagramPosts}
+              className="un-btn"
+              style={{ padding: '5px 9px', fontSize: 11.5 }}
+              title="Refresh published posts from Instagram"
+            >
+              <RotateCw size={13} className={loadingPosts ? 'animate-spin' : ''} />
+            </button>
+            <button
+              type="button"
+              onClick={handleSavePostLinksOnly}
+              disabled={savingPostLinks}
+              className="un-btn un-btn-primary"
+              style={{ fontSize: 11.5, padding: '5px 14px', background: '#E1306C', borderColor: '#E1306C' }}
+            >
+              {savingPostLinks ? (
+                <>
+                  <Loader2 className="animate-spin" size={13} />
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <>
+                  <Check size={13} />
+                  <span>Save Post Connections</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
+
+        <p style={{ fontSize: 13, color: '#8B7355', margin: '0 0 16px', lineHeight: 1.5 }}>
+          Link this brand page (<strong>{title || activePageSlug}</strong>) to one, many, or all of your published Instagram posts.
+          Whenever audience members comment on these posts, UNOOL&apos;s automation will instantly reply and DM this specific brand page URL (
+          <code style={{ fontSize: 11.5, background: '#F5EFE2', padding: '1px 5px', borderRadius: 4, color: '#3D2B1F' }}>
+            {livePageUrl}
+          </code>
+          ) instead of a generic link.
+        </p>
+
+        {/* ── Saved Toast Notice ── */}
+        {postLinkSavedToast && (
+          <div
+            style={{
+              background: '#ECFDF5',
+              border: '1.5px solid #A7F3D0',
+              borderRadius: 12,
+              padding: '10px 16px',
+              fontSize: 13,
+              fontWeight: 600,
+              color: '#047857',
+              marginBottom: 16,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            <CheckCircle2 size={16} />
+            <span>{postLinkSavedToast}</span>
+          </div>
+        )}
+
+        {/* ── Search & Manual Post Link Toolbar ── */}
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 10,
+            marginBottom: 16,
+            background: '#FAF8F5',
+            padding: '12px 14px',
+            borderRadius: 14,
+            border: '1px solid #F0EAE1',
+          }}
+        >
+          {/* Caption Search */}
+          <div style={{ position: 'relative', flex: '1 1 240px' }}>
+            <Search size={14} style={{ position: 'absolute', left: 10, top: 11, color: '#8B7355' }} />
+            <input
+              type="text"
+              placeholder="Search published posts by caption..."
+              value={postSearchQuery}
+              onChange={e => setPostSearchQuery(e.target.value)}
+              className="un-input"
+              style={{ paddingLeft: 32, fontSize: 12.5 }}
+            />
+          </div>
+
+          {/* Manual Post URL or ID input */}
+          <div style={{ display: 'flex', gap: 6, flex: '1 1 300px' }}>
+            <input
+              type="text"
+              placeholder="Paste Instagram post URL or Media ID (e.g. instagram.com/p/...)"
+              value={manualPostUrl}
+              onChange={e => setManualPostUrl(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleAddManualPost();
+                }
+              }}
+              className="un-input"
+              style={{ fontSize: 12.5 }}
+            />
+            <button
+              type="button"
+              onClick={handleAddManualPost}
+              className="un-btn"
+              style={{ fontSize: 12, padding: '6px 14px', background: '#FFFFFF', fontWeight: 600, flexShrink: 0 }}
+            >
+              <Plus size={13} />
+              <span>Connect</span>
+            </button>
+          </div>
+        </div>
+
+        {/* ── Posts List / Grid ── */}
+        {loadingPosts ? (
+          <div
+            style={{
+              padding: '36px',
+              textAlign: 'center',
+              background: '#FAF8F5',
+              borderRadius: 14,
+              color: '#8B7355',
+              fontSize: 13,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 10,
+            }}
+          >
+            <Loader2 className="animate-spin" size={18} style={{ color: '#E1306C' }} />
+            <span>Loading your published Instagram posts...</span>
+          </div>
+        ) : publishedPosts.length === 0 ? (
+          <div
+            style={{
+              padding: '28px 24px',
+              textAlign: 'center',
+              background: '#FAF8F5',
+              borderRadius: 14,
+              color: '#8B7355',
+              fontSize: 13,
+              border: '1.5px dashed #E8E0D4',
+            }}
+          >
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: '50%',
+                background: '#FDF2F8',
+                color: '#E1306C',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 10px',
+              }}
+            >
+              <Instagram size={22} />
+            </div>
+            <div style={{ fontWeight: 700, color: '#3D2B1F', marginBottom: 4 }}>
+              {isInstagramConnected ? 'No published posts found yet' : 'Instagram account not connected'}
+            </div>
+            <p style={{ margin: '0 auto 12px', maxWidth: 440, fontSize: 12.5, lineHeight: 1.45 }}>
+              {isInstagramConnected
+                ? 'When you publish posts on Instagram or via UNOOL Composer, they will automatically appear here. You can also paste any Instagram post link in the box above to link it directly.'
+                : 'Connect your Instagram account in Settings to automatically sync your posts, or paste any Instagram post URL above to link it immediately.'}
+            </p>
+            {!isInstagramConnected && (
+              <a
+                href="/dashboard/settings/accounts"
+                className="un-btn un-btn-primary"
+                style={{ fontSize: 12, padding: '6px 14px', textDecoration: 'none', display: 'inline-flex' }}
+              >
+                Connect Instagram Account
+              </a>
+            )}
+          </div>
+        ) : (
+          (() => {
+            const filteredPosts = publishedPosts.filter(p => {
+              if (!postSearchQuery.trim()) return true;
+              const q = postSearchQuery.toLowerCase();
+              return (
+                (p.caption && p.caption.toLowerCase().includes(q)) ||
+                (p.id && p.id.toLowerCase().includes(q)) ||
+                (p.permalink && p.permalink.toLowerCase().includes(q))
+              );
+            });
+
+            return (
+              <>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                    gap: 12,
+                    maxHeight: 460,
+                    overflowY: 'auto',
+                    paddingRight: 4,
+                  }}
+                >
+                  {filteredPosts.map(post => {
+                    const isLinked = linkedPostIds.includes(post.id);
+                    return (
+                      <div
+                        key={post.id}
+                        style={{
+                          background: isLinked ? '#FFF9FB' : '#FFFFFF',
+                          border: isLinked ? '2px solid #E1306C' : '1.5px solid #E8E0D4',
+                          borderRadius: 14,
+                          padding: '12px 14px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          gap: 10,
+                          boxShadow: isLinked ? '0 4px 14px rgba(225,48,108,0.12)' : '0 1px 3px rgba(61,43,31,0.02)',
+                          transition: 'all 0.2s ease',
+                        }}
+                      >
+                        <div>
+                          {/* Post Header Row */}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span
+                                style={{
+                                  fontSize: 10,
+                                  fontWeight: 700,
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.04em',
+                                  padding: '2px 7px',
+                                  borderRadius: 5,
+                                  background: isLinked ? '#FDF2F8' : '#F5EFE2',
+                                  color: isLinked ? '#E1306C' : '#8B7355',
+                                }}
+                              >
+                                {post.media_type || 'POST'}
+                              </span>
+                              {post.timestamp && (
+                                <span style={{ fontSize: 11, color: '#A89F91' }}>
+                                  {new Date(post.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                                </span>
+                              )}
+                            </div>
+
+                            {post.permalink && (
+                              <a
+                                href={post.permalink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="un-btn"
+                                style={{ padding: '3px 7px', fontSize: 11, background: '#FAF8F5' }}
+                                title="Open post on Instagram"
+                              >
+                                <ExternalLink size={12} />
+                              </a>
+                            )}
+                          </div>
+
+                          {/* Post Thumbnail & Caption */}
+                          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                            <div
+                              style={{
+                                width: 54,
+                                height: 54,
+                                borderRadius: 8,
+                                background: '#F5EFE2',
+                                overflow: 'hidden',
+                                flexShrink: 0,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                border: '1px solid #E8E0D4',
+                              }}
+                            >
+                              {post.media_url ? (
+                                <img
+                                  src={post.media_url}
+                                  alt="Post preview"
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                />
+                              ) : (
+                                <Instagram size={22} style={{ color: '#C4A265' }} />
+                              )}
+                            </div>
+
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <p
+                                style={{
+                                  fontSize: 12,
+                                  color: '#3D2B1F',
+                                  margin: 0,
+                                  lineHeight: 1.4,
+                                  display: '-webkit-box',
+                                  WebkitLineClamp: 2,
+                                  WebkitBoxOrient: 'vertical',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                }}
+                              >
+                                {post.caption || 'No caption for this post.'}
+                              </p>
+                              <div style={{ fontSize: 10.5, color: '#8B7355', marginTop: 4, fontFamily: 'monospace' }}>
+                                ID: {post.id.slice(0, 16)}...
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Connection Toggle Button */}
+                        <button
+                          type="button"
+                          onClick={() => togglePostLink(post.id)}
+                          className="un-btn"
+                          style={{
+                            width: '100%',
+                            fontSize: 11.5,
+                            padding: '6px 10px',
+                            fontWeight: 700,
+                            background: isLinked ? '#E1306C' : '#FFFFFF',
+                            color: isLinked ? '#FFFFFF' : '#3D2B1F',
+                            borderColor: isLinked ? '#E1306C' : '#E8E0D4',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 6,
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          {isLinked ? (
+                            <>
+                              <Check size={13} />
+                              <span>✓ Linked to this Page</span>
+                            </>
+                          ) : (
+                            <>
+                              <Plus size={13} />
+                              <span>Link to this Page</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Footer connection count summary */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginTop: 14,
+                    paddingTop: 12,
+                    borderTop: '1px solid #F0EAE1',
+                    fontSize: 12,
+                    color: '#8B7355',
+                    flexWrap: 'wrap',
+                    gap: 8,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Instagram size={14} style={{ color: '#E1306C' }} />
+                    <span style={{ fontWeight: 600, color: '#3D2B1F' }}>
+                      {linkedPostIds.length} of {publishedPosts.length} post(s) linked to this page.
+                    </span>
+                  </div>
+                  <span>
+                    Audience commenting on linked posts will automatically receive this page via SignalDM.
+                  </span>
+                </div>
+              </>
+            );
+          })()
+        )}
       </div>
 
       {/* ── All Created Brand & Post Pages Gallery ── */}
@@ -1344,6 +2057,7 @@ export default function BrandMaterialsSection({
               const pItemQuery = getItemQueryParam(pFirstMat);
               const pUrl = `https://${subdomain}.unool.co/${p.slug !== 'showcase' ? p.slug : (pItemQuery ? `?${pItemQuery}` : '')}`;
               const isCurrent = activePageSlug === p.slug;
+              const pLinkedCount = (p.linked_posts && p.linked_posts.length) || (p.theme?.linked_posts && p.theme.linked_posts.length) || 0;
 
               return (
                 <div
@@ -1387,6 +2101,19 @@ export default function BrandMaterialsSection({
                         {pUrl}
                       </a>
                     </div>
+
+                    {/* Instagram Linked Posts Count Pill */}
+                    {pLinkedCount > 0 ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#E1306C', fontWeight: 600, marginTop: 6 }}>
+                        <Instagram size={12} />
+                        <span>{pLinkedCount} Instagram post(s) linked</span>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#A89F91', marginTop: 6 }}>
+                        <Instagram size={12} />
+                        <span>Not linked to Instagram yet</span>
+                      </div>
+                    )}
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid #F0EAE1', gap: 8 }}>

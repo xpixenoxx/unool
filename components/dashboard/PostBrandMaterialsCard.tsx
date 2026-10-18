@@ -42,9 +42,11 @@ export interface BrandMaterialsPageData {
   tagline?: string;
   description?: string;
   materials: MaterialItem[];
+  linked_posts?: any[];
   theme?: {
     accentColor?: string;
     template?: string;
+    linked_posts?: any[];
   };
   is_published?: boolean;
 }
@@ -424,11 +426,16 @@ export default function PostBrandMaterialsCard({
                   }}
                 >
                   <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ fontSize: 12.5, fontWeight: 700, color: '#3D2B1F', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 700, color: '#3D2B1F', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                       <span>{p.title || slug}</span>
                       <span style={{ fontSize: 10.5, color: '#8B7355', fontWeight: 500 }}>
                         ({p.materials?.length || 0} items)
                       </span>
+                      {((p.linked_posts?.length || p.theme?.linked_posts?.length || 0) > 0) && (
+                        <span style={{ fontSize: 10, color: '#E1306C', fontWeight: 600 }}>
+                          • 📸 {(p.linked_posts?.length || p.theme?.linked_posts?.length)} post(s) linked
+                        </span>
+                      )}
                     </div>
                     <div style={{ fontSize: 11, color: '#8B7355', fontFamily: 'monospace' }}>
                       {pUrl}

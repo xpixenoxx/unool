@@ -60,10 +60,12 @@ export async function GET(request: NextRequest) {
 
       const page = {
         ...pageData,
+        linked_posts: pageData.linked_posts || pageData.theme?.linked_posts || [],
         materials: (pageData.materials || []).map(sanitizeMaterial),
         theme: {
           accentColor: pageData.theme?.accentColor || '#8B5CF6',
           template: liveTemplate,
+          linked_posts: pageData.linked_posts || pageData.theme?.linked_posts || [],
           ...(pageData.theme || {}),
         },
       };
@@ -128,6 +130,7 @@ export async function GET(request: NextRequest) {
 
     const sanitizedPages = (allPages || []).map((p: any) => ({
       ...p,
+      linked_posts: p.linked_posts || p.theme?.linked_posts || [],
       materials: (p.materials || []).map(sanitizeMaterial),
     }));
 
@@ -141,7 +144,10 @@ export async function GET(request: NextRequest) {
     const effectiveSlug = pageData?.slug || slug || 'showcase';
 
     // Default structure if not created yet
-    const page = pageData ? pageData : {
+    const page = pageData ? {
+      ...pageData,
+      linked_posts: pageData.linked_posts || pageData.theme?.linked_posts || [],
+    } : {
       slug: effectiveSlug,
       title: profile?.name ? `${profile.name}'s Brand Showcase` : 'Brand & Product Showcase',
       tagline: 'Official materials, catalogues, lookbooks & resources',
@@ -149,7 +155,8 @@ export async function GET(request: NextRequest) {
       primary_cta_label: 'Visit Official Website',
       primary_cta_url: '',
       materials: [],
-      theme: { accentColor: '#8B5CF6', template: liveTemplate },
+      linked_posts: [],
+      theme: { accentColor: '#8B5CF6', template: liveTemplate, linked_posts: [] },
       is_published: true,
     };
 
@@ -214,6 +221,7 @@ export async function PUT(request: NextRequest) {
       primaryCtaUrl,
       materials,
       theme,
+      linked_posts,
       isPublished = true,
       updateAutomationLink = true,
     } = body;
@@ -242,6 +250,7 @@ export async function PUT(request: NextRequest) {
     const mergedTheme = {
       accentColor: theme?.accentColor || '#8B5CF6',
       template: liveTemplate, // matched with user's live page template theme!
+      linked_posts: linked_posts || theme?.linked_posts || [],
       ...theme,
     };
 

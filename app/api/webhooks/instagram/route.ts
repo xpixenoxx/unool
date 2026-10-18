@@ -553,11 +553,50 @@ async function processCommentEvent(igUserId: string, value: Record<string, unkno
       }
     }
 
+    // ── Resolve specific brand materials page linked to this Instagram post ──
+    let activeLinkUrl = automationConfig.linkUrl;
+    if (commentEvent.mediaId && connection.workspace_id) {
+      try {
+        const { data: matchedPages } = await supabase
+          .from('brand_materials_pages')
+          .select('slug, title, theme, materials')
+          .eq('workspace_id', connection.workspace_id)
+          .eq('is_published', true);
+
+        if (matchedPages && matchedPages.length > 0) {
+          const matched = matchedPages.find(p => {
+            const linked = p.theme?.linked_posts || (p as any).linked_posts || [];
+            return linked.some((lp: any) => {
+              if (typeof lp === 'string') return lp === commentEvent.mediaId || commentEvent.mediaId.includes(lp);
+              return lp?.id === commentEvent.mediaId || lp?.permalink?.includes(commentEvent.mediaId);
+            });
+          });
+          if (matched) {
+            const pageSlug = matched.slug;
+            const brandSub = (connection.username || 'user').toLowerCase().trim();
+            activeLinkUrl = (pageSlug && pageSlug !== 'showcase')
+              ? `https://${brandSub}.unool.co/${pageSlug}`
+              : `https://${brandSub}.unool.co/`;
+            logger.info('Dispatched post-linked brand materials page for Instagram media in webhook', {
+              mediaId: commentEvent.mediaId,
+              slug: pageSlug,
+              activeLinkUrl,
+            });
+          }
+        }
+      } catch (err) {
+        logger.warn('Error finding linked brand materials page for media in webhook', { error: err });
+      }
+    }
+
     // ── Send DM for link_request / purchase_intent ──────────────────────
-    if (result.shouldSendDM && automationConfig.linkUrl) {
+    if (result.shouldSendDM && activeLinkUrl) {
       const commenterIgScopedId = (value.from as any)?.id as string | undefined;
-      const dmText = result.suggestedDM ||
-        `Hey @${commentEvent.username}! Here's the link you asked for: ${automationConfig.linkUrl}`;
+      const dmText = result.suggestedDM 
+        ? (automationConfig.linkUrl && activeLinkUrl !== automationConfig.linkUrl 
+            ? result.suggestedDM.replace(automationConfig.linkUrl, activeLinkUrl)
+            : result.suggestedDM)
+        : `Hey @${commentEvent.username}! Here's the link you asked for: ${activeLinkUrl}`;
       const dmRes = await automation.sendDmForComment(
         accessToken,
         connection.platform_user_id,
