@@ -22,15 +22,17 @@ import {
 
 const mockClassifyAndGenerate = vi.fn();
 
-vi.mock('@/lib/ai/providers/GroqProvider', () => ({
-  GroqProvider: vi.fn().mockImplementation(() => ({
-    generateObject: vi.fn().mockImplementation(async () => {
-      const val = await mockClassifyAndGenerate();
-      return { ok: true, value: val };
-    }),
-    generateStructuredJSON: mockClassifyAndGenerate,
-  })),
-}));
+vi.mock('@/lib/ai/providers/GroqProvider', () => {
+  return {
+    GroqProvider: class MockGroqProvider {
+      async generateObject() {
+        const val = await mockClassifyAndGenerate();
+        return { ok: true, value: val };
+      }
+      generateStructuredJSON = mockClassifyAndGenerate;
+    },
+  };
+});
 
 // ─── Test Fixtures ────────────────────────────────────────────────────────────
 
@@ -355,6 +357,60 @@ describe('InstagramCommentAutomation', () => {
       // but the method itself should still be callable and return classification
       expect(result).toBeDefined();
       expect(result.classification).toBeTruthy();
+    });
+
+    it('generates a sarcastic off-topic deflection when user asks outside the product', async () => {
+      mockClassifyAndGenerate.mockResolvedValue({
+        classification: 'unrelated',
+        confidence: 0.95,
+        suggestedReply: 'I literally live inside this DM obsessing over UNOOL 24/7—you really think I check the Tokyo weather? 😜 Tell me what you\'re growing with us instead!',
+        leadScore: 0,
+        shouldAutoReply: true,
+        shouldEscalate: false,
+        reasoning: 'Off-topic question redirected sarcastically back to UNOOL',
+      });
+
+      const result = await automation.classifyAndReplyDM(
+        makeDmEvent('What is the weather in Tokyo right now?'),
+        { ...baseConfig, dmAutoReplyEnabled: true },
+        [{ role: 'user', text: 'Hey there' }, { role: 'assistant', text: 'Hey! What can I help you unlock today? 😉' }],
+        2,
+        'UNOOL'
+      );
+
+      expect(result.classification).toBe('unrelated');
+      expect(result.shouldAutoReply).toBe(true);
+      expect(result.suggestedReply).toContain('UNOOL');
+      expect(result.suggestedReply).toContain('Tokyo');
+    });
+
+    it('maintains multi-turn context and handles turn 15 wrap-up gracefully', async () => {
+      mockClassifyAndGenerate.mockResolvedValue({
+        classification: 'question',
+        confidence: 0.94,
+        suggestedReply: 'We had an absolute blast chatting, but we\'ve hit our DM chat limit! ✨ Tap our link here: https://unool.com/u/testbrand to jump right in, or our team is ready to help 😉',
+        leadScore: 2,
+        shouldAutoReply: true,
+        shouldEscalate: false,
+        reasoning: 'Turn 15 finale with product link and next step invitation',
+      });
+
+      const history = Array.from({ length: 14 }).map((_, i) => ({
+        role: (i % 2 === 0 ? 'user' : 'assistant') as 'user' | 'assistant',
+        text: `Message ${i + 1}`,
+      }));
+
+      const result = await automation.classifyAndReplyDM(
+        makeDmEvent('Can you tell me more about pricing?'),
+        { ...baseConfig, dmAutoReplyEnabled: true },
+        history,
+        15,
+        'UNOOL'
+      );
+
+      expect(result.classification).toBe('question');
+      expect(result.shouldAutoReply).toBe(true);
+      expect(result.suggestedReply).toContain('https://unool.com/u/testbrand');
     });
   });
 });

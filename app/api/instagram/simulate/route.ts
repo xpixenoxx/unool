@@ -25,12 +25,14 @@ export async function POST(request: NextRequest) {
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json();
-    const { workspaceId, commentText, postCaption, isDmSimulation, dmText } = body as {
+    const { workspaceId, commentText, postCaption, isDmSimulation, dmText, conversationHistory, conversationTurn } = body as {
       workspaceId: string;
       commentText?: string;
       postCaption?: string;
       isDmSimulation?: boolean;
       dmText?: string;
+      conversationHistory?: Array<{ role: 'user' | 'assistant'; text: string }>;
+      conversationTurn?: number;
     };
 
     if (!workspaceId) return NextResponse.json({ error: 'workspaceId required' }, { status: 400 });
@@ -104,10 +106,15 @@ export async function POST(request: NextRequest) {
         timestamp: new Date().toISOString(),
       };
 
-      const result = await automation.classifyAndReplyDM(dmEvent, {
-        ...automationConfig,
-        dmAutoReplyEnabled: true,
-      });
+      const result = await automation.classifyAndReplyDM(
+        dmEvent,
+        {
+          ...automationConfig,
+          dmAutoReplyEnabled: true,
+        },
+        conversationHistory || [],
+        conversationTurn || 1
+      );
 
       return NextResponse.json({
         type: 'dm',

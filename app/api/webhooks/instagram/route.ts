@@ -14,6 +14,7 @@ import {
   type DmEvent,
   type AutomationConfig,
   type ClassifiedComment,
+  type ConversationMessage,
 } from '@/lib/services/InstagramCommentAutomation';
 import { ContentGuard } from '@/lib/ai/ContentGuard';
 import { ContentHumanizer } from '@/lib/ai/engines/ContentHumanizer';
@@ -678,153 +679,60 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
 
   const automation = new InstagramCommentAutomation(groqApiKey);
 
-  // ── Follow-Gate State Engine ──────────────────────────────────────────
-  const quickReplyPayload = (message as any)?.quick_reply?.payload;
-  const normalizedText = (dmEvent.text || '').trim().toLowerCase();
-  const brandHandle = connection.username ? `@${connection.username}` : 'our profile';
-  const targetLink = automationConfig.linkUrl || 'https://unool.co';
-
-  const isYesResponse =
-    quickReplyPayload === 'FOLLOW_GATE_YES' ||
-    ['yes', 'yep', 'done', 'followed', 'i followed', 'i followed now', 'i have followed', 'already followed'].includes(normalizedText);
-
-  const isWillFollowResponse =
-    quickReplyPayload === 'FOLLOW_GATE_WILL_FOLLOW' ||
-    ['will follow now', 'will follow', 'following now', 'later'].includes(normalizedText);
-
-  // Check if user has already unlocked/received the link in the past
-  const { data: previousDelivery } = await supabase
+  // ── Multi-Turn Conversation Memory Engine (10 to 15 turns) ──────────
+  // Fetch chronological conversation history for this sender in this workspace
+  const { data: previousLogs } = await supabase
     .from('instagram_dm_logs')
-    .select('id')
+    .select('message_text, ai_reply, created_at')
     .eq('workspace_id', connection.workspace_id)
     .eq('sender_id', dmEvent.senderId)
-    .ilike('ai_reply', `%${targetLink}%`)
-    .limit(1);
+    .order('created_at', { ascending: true })
+    .limit(30);
 
-  const hasAlreadyReceivedLink = !!(previousDelivery && previousDelivery.length > 0);
+  const conversationHistory: ConversationMessage[] = [];
+  let conversationTurnCount = 0;
 
-  // Branch A: User answered "Yes" / clicked [Yes] to check follow status
-  if (isYesResponse) {
-    const isFollowing = await automation.checkUserFollowsBusiness(accessToken, dmEvent.senderId);
-
-    if (isFollowing) {
-      // User follows! Deliver the link!
-      const deliveryText = `Awesome! Thanks for following ${brandHandle}! 🎉\n\nHere is your link: ${targetLink}`;
-      await automation.sendPrivateMessage(accessToken, igUserId, dmEvent.senderId, deliveryText);
-      await logDmEvent(connection.workspace_id, dmEvent, {
-        classification: 'link_request',
-        confidence: 1.0,
-        suggestedReply: deliveryText,
-        leadScore: 2,
-        shouldAutoReply: true,
-        shouldEscalate: false,
-        reasoning: 'Follow verified via Meta Graph API: link unlocked and delivered.',
-      });
-      await supabase
-        .from('instagram_dm_logs')
-        .update({ auto_replied: true })
-        .eq('workspace_id', connection.workspace_id)
-        .eq('message_id', dmEvent.messageId);
-      await velocityThrottle.recordReply(`dm:${connection.workspace_id}`);
-      logger.info('Follow-gate unlocked: link sent to follower', { senderId: dmEvent.senderId });
-      return;
-    } else {
-      // User claims yes, but Meta says NOT following yet!
-      const notFollowingText = `Oops! Looks like you're not following ${brandHandle} yet.\n\nPlease tap follow on our profile, then tap below! 👇`;
-      await automation.sendQuickReplyMessage(
-        accessToken,
-        igUserId,
-        dmEvent.senderId,
-        notFollowingText,
-        [
-          { title: 'Done, check again', payload: 'FOLLOW_GATE_YES' }
-        ]
-      );
-      await logDmEvent(connection.workspace_id, dmEvent, {
-        classification: 'question',
-        confidence: 0.9,
-        suggestedReply: notFollowingText,
-        leadScore: 1,
-        shouldAutoReply: true,
-        shouldEscalate: false,
-        reasoning: 'Follow check failed via Meta Graph API: prompted user to follow.',
-      });
-      await supabase
-        .from('instagram_dm_logs')
-        .update({ auto_replied: true })
-        .eq('workspace_id', connection.workspace_id)
-        .eq('message_id', dmEvent.messageId);
-      await velocityThrottle.recordReply(`dm:${connection.workspace_id}`);
-      logger.info('Follow-gate denied: user not following yet', { senderId: dmEvent.senderId });
-      return;
+  if (previousLogs && previousLogs.length > 0) {
+    for (const log of previousLogs) {
+      if (log.message_text) {
+        conversationHistory.push({ role: 'user', text: log.message_text });
+      }
+      if (log.ai_reply && log.ai_reply !== 'SKIP') {
+        conversationHistory.push({ role: 'assistant', text: log.ai_reply });
+        conversationTurnCount++;
+      }
     }
   }
 
-  // Branch B: User answered "Will follow now"
-  if (isWillFollowResponse) {
-    const followNowText = `Awesome! Follow ${brandHandle}, then tap below and I'll send your link right over! 👇`;
-    await automation.sendQuickReplyMessage(
-      accessToken,
-      igUserId,
-      dmEvent.senderId,
-      followNowText,
-      [
-        { title: 'I followed now', payload: 'FOLLOW_GATE_YES' }
-      ]
-    );
-    await logDmEvent(connection.workspace_id, dmEvent, {
-      classification: 'question',
-      confidence: 0.9,
-      suggestedReply: followNowText,
-      leadScore: 1,
-      shouldAutoReply: true,
-      shouldEscalate: false,
-      reasoning: 'User indicated they will follow now: sent follow reminder with verification button.',
+  // If conversation has already reached beyond the 15-reply ceiling, stop auto-replying to prevent endless loops
+  if (conversationTurnCount > 15) {
+    logger.info('DM conversation reached turn limit (>15 replies)', {
+      workspaceId: connection.workspace_id,
+      senderId: dmEvent.senderId,
+      conversationTurnCount,
     });
-    await supabase
-      .from('instagram_dm_logs')
-      .update({ auto_replied: true })
-      .eq('workspace_id', connection.workspace_id)
-      .eq('message_id', dmEvent.messageId);
-    await velocityThrottle.recordReply(`dm:${connection.workspace_id}`);
-    logger.info('Follow-gate waiting: user promised to follow', { senderId: dmEvent.senderId });
+    await logDmEvent(connection.workspace_id, dmEvent, {
+      classification: 'unrelated',
+      confidence: 1.0,
+      suggestedReply: 'SKIP',
+      leadScore: 1,
+      shouldAutoReply: false,
+      shouldEscalate: true,
+      reasoning: 'Conversation turn limit reached (15 replies exceeded); escalated for human handling.',
+    });
     return;
   }
 
-  // Branch C: First-time message / asking for link / "hi" / general greeting
-  // If user has not yet unlocked the link, present the follow gate question:
-  if (!hasAlreadyReceivedLink) {
-    const gatePrompt = `Hey! 👋 Did you follow me?`;
-    await automation.sendQuickReplyMessage(
-      accessToken,
-      igUserId,
-      dmEvent.senderId,
-      gatePrompt,
-      [
-        { title: 'Yes', payload: 'FOLLOW_GATE_YES' },
-        { title: 'Will follow now', payload: 'FOLLOW_GATE_WILL_FOLLOW' }
-      ]
-    );
-    await logDmEvent(connection.workspace_id, dmEvent, {
-      classification: 'question',
-      confidence: 0.95,
-      suggestedReply: gatePrompt,
-      leadScore: 1,
-      shouldAutoReply: true,
-      shouldEscalate: false,
-      reasoning: 'Initial inbound DM: presented follow-gate question with Yes / Will follow now options.',
-    });
-    await supabase
-      .from('instagram_dm_logs')
-      .update({ auto_replied: true })
-      .eq('workspace_id', connection.workspace_id)
-      .eq('message_id', dmEvent.messageId);
-    await velocityThrottle.recordReply(`dm:${connection.workspace_id}`);
-    logger.info('Follow-gate initiated: sent verification prompt', { senderId: dmEvent.senderId });
-    return;
-  }
+  const currentTurn = conversationTurnCount + 1;
+  const brandName = connection.username ? `@${connection.username}` : 'our product';
 
-  const result = await automation.classifyAndReplyDM(dmEvent, automationConfig);
+  const result = await automation.classifyAndReplyDM(
+    dmEvent,
+    automationConfig,
+    conversationHistory,
+    currentTurn,
+    brandName
+  );
 
   // Log the DM (auto_replied starts as false, updated on confirmed send)
   await logDmEvent(connection.workspace_id, dmEvent, result);
