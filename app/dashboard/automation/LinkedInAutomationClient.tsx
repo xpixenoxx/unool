@@ -127,12 +127,21 @@ export default function LinkedInAutomationClient({
     autoReplied: number;
     flagged: number;
     highIntent: number;
+    byClassification?: Record<string, number>;
   } | null>(null);
   const [commentFilter, setCommentFilter] = useState('all');
   const [commentSearch, setCommentSearch] = useState('');
   const [feedLoading, setFeedLoading] = useState(false);
   const [manualPostUrl, setManualPostUrl] = useState('');
   const [showManualAudit, setShowManualAudit] = useState(false);
+  const [auditDiagnostics, setAuditDiagnostics] = useState<Array<{
+    post: string;
+    status: number;
+    urn: string;
+    endpoint: string;
+    message: string;
+  }> | null>(null);
+  const [showDiagnosticsDetail, setShowDiagnosticsDetail] = useState(false);
 
   // Simulator state
   const [simType, setSimType] = useState<'comment' | 'dm'>('comment');
@@ -305,11 +314,27 @@ export default function LinkedInAutomationClient({
         if (data.stats) setCommentStats(data.stats);
 
         if (data.newCommentsProcessed > 0) {
+          setAuditDiagnostics(null);
           showToast(`Audited ${data.mediaCount || 1} post(s) — captured ${data.newCommentsProcessed} live comment(s)!`, 'success');
           if (manualPostUrl) setManualPostUrl('');
+        } else if (data.totalCommentsExamined > 0) {
+          setAuditDiagnostics(null);
+          showToast(`Audited ${data.mediaCount || 1} post(s) (${data.totalCommentsExamined} comment(s) examined). All up to date.`, 'success');
+        } else if (data.diagnostics && data.diagnostics.length > 0) {
+          setAuditDiagnostics(data.diagnostics);
+          const firstDiag = data.diagnostics[0];
+          if (firstDiag.status === 403) {
+            showToast('LinkedIn API returned 403 Forbidden. See diagnostic details below.', 'error');
+          } else if (firstDiag.status === 404) {
+            showToast('LinkedIn API returned 404. Post entity not found or not public.', 'error');
+          } else {
+            showToast(`LinkedIn audit: 0 comments retrieved (status ${firstDiag.status || 'unknown'}).`, 'error');
+          }
         } else if (data.mediaCount > 0) {
-          showToast(`Audited ${data.mediaCount} post(s) (${data.totalCommentsExamined || 0} comment(s) examined). All up to date.`, 'success');
+          setAuditDiagnostics(null);
+          showToast(`Audited ${data.mediaCount} post(s) (0 comments found on LinkedIn).`, 'success');
         } else {
+          setAuditDiagnostics(null);
           showToast(data.message || 'No LinkedIn posts found. Paste post URL to audit directly.', 'error');
           setShowManualAudit(true);
         }
@@ -370,7 +395,7 @@ export default function LinkedInAutomationClient({
                     <span>@{liConnection.username || 'linkedin_member'}</span>
                     <span style={{ color: '#1E40AF', opacity: 0.7, fontSize: 11 }}>Active API</span>
                   </div>
-                  <button onClick={syncLinkedInPosts} disabled={syncingPosts} className="un-btn un-btn-secondary" style={{ padding: '6px 13px', fontSize: 12 }}>
+                  <button onClick={() => syncLinkedInPosts()} disabled={syncingPosts} className="un-btn un-btn-secondary" style={{ padding: '6px 13px', fontSize: 12 }}>
                     <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M13.65 2.35A7.95 7.95 0 0 0 8 0C3.58 0 0 3.58 0 8s3.58 8 8 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 8 14 6 6 0 1 1 8 2c1.66 0 3.14.69 4.22 1.78L9 7h7V0l-2.35 2.35z" fill="currentColor"/></svg>
                     <span>{syncingPosts ? 'Auditing...' : 'Audit Posts'}</span>
                   </button>
@@ -861,6 +886,135 @@ export default function LinkedInAutomationClient({
                   >
                     <span>{syncingPosts ? 'Scanning...' : 'Fetch Comments'}</span>
                   </button>
+                </div>
+              </div>
+            )}
+
+            {/* Live Audit Diagnostic Card (shown if LinkedIn API encountered permission/lookup blocks) */}
+            {auditDiagnostics && auditDiagnostics.length > 0 && (
+              <div style={{
+                background: auditDiagnostics.some(d => d.status === 403) ? '#FEF2F2' : '#FFFBEB',
+                border: `1.5px solid ${auditDiagnostics.some(d => d.status === 403) ? '#FCA5A5' : '#FCD34D'}`,
+                borderRadius: 14,
+                padding: '18px 20px',
+                marginBottom: 20,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                  <div style={{ display: 'flex', gap: 12 }}>
+                    <div style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: '50%',
+                      background: auditDiagnostics.some(d => d.status === 403) ? '#FEE2E2' : '#FEF3C7',
+                      color: auditDiagnostics.some(d => d.status === 403) ? '#991B1B' : '#92400E',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                      fontWeight: 800,
+                      fontSize: 14,
+                    }}>
+                      !
+                    </div>
+                    <div>
+                      <div style={{
+                        fontWeight: 700,
+                        fontSize: 14,
+                        color: auditDiagnostics.some(d => d.status === 403) ? '#991B1B' : '#92400E',
+                        marginBottom: 4,
+                      }}>
+                        {auditDiagnostics.some(d => d.status === 403)
+                          ? 'LinkedIn API Permissions Restriction (HTTP 403 Forbidden)'
+                          : auditDiagnostics.some(d => d.status === 404)
+                          ? 'LinkedIn Post Entity Not Found (HTTP 404)'
+                          : 'LinkedIn Live Audit Notification'}
+                      </div>
+                      <div style={{ fontSize: 13, color: '#3D2B1F', lineHeight: 1.55 }}>
+                        {auditDiagnostics.some(d => d.status === 403) ? (
+                          <>
+                            The LinkedIn API returned <strong>403 Forbidden</strong> when attempting to read live comments. In LinkedIn&apos;s API architecture:
+                            <ul style={{ margin: '8px 0 8px 18px', padding: 0 }}>
+                              <li style={{ marginBottom: 4 }}>
+                                <strong>App Scopes:</strong> Standard tokens with <code>w_member_social</code> can publish posts, but LinkedIn requires read permissions (e.g. <code>r_member_social</code> or <strong>Community Management API</strong> products) to read comments via the API.
+                              </li>
+                              <li style={{ marginBottom: 4 }}>
+                                <strong>Development Mode:</strong> If your LinkedIn Developer App is in Development Mode, your LinkedIn user account must be added under <em>LinkedIn Developer Portal &rarr; App &rarr; Roles</em> as an Administrator, Developer, or Tester.
+                              </li>
+                              <li>
+                                <strong>Reconnect Token:</strong> If you recently added products in LinkedIn Developer Portal, click <em>Settings &rarr; Reconnect LinkedIn</em> to update your access token.
+                              </li>
+                            </ul>
+                          </>
+                        ) : auditDiagnostics.some(d => d.status === 404) ? (
+                          <>
+                            LinkedIn returned <strong>404 Not Found</strong> for the candidate activity URNs. Please confirm:
+                            <ul style={{ margin: '8px 0 8px 18px', padding: 0 }}>
+                              <li>The post is set to <strong>Public (Anyone)</strong>, not &ldquo;Connections Only&rdquo;.</li>
+                              <li>The post is authored by the connected LinkedIn member or authorized page.</li>
+                            </ul>
+                          </>
+                        ) : (
+                          <span>LinkedIn could not return comments for this entity. Check the technical diagnostics below.</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setAuditDiagnostics(null)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      fontSize: 18,
+                      color: '#9CA3AF',
+                      cursor: 'pointer',
+                      padding: 4,
+                    }}
+                    title="Dismiss alert"
+                  >
+                    &times;
+                  </button>
+                </div>
+
+                {/* Toggle details */}
+                <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid rgba(0,0,0,0.06)' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowDiagnosticsDetail(!showDiagnosticsDetail)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#0A66C2',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      padding: 0,
+                    }}
+                  >
+                    {showDiagnosticsDetail ? '▲ Hide Technical Diagnostics' : '▼ Show Technical Diagnostics (API Endpoints & Responses)'}
+                  </button>
+
+                  {showDiagnosticsDetail && (
+                    <div style={{
+                      marginTop: 8,
+                      background: '#1F2937',
+                      color: '#F9FAFB',
+                      padding: '12px 14px',
+                      borderRadius: 8,
+                      fontSize: 11.5,
+                      fontFamily: 'monospace',
+                      maxHeight: 180,
+                      overflowY: 'auto',
+                    }}>
+                      {auditDiagnostics.map((d, idx) => (
+                        <div key={idx} style={{ marginBottom: 6 }}>
+                          <div><strong>URN:</strong> {d.urn} | <strong>Endpoint:</strong> {d.endpoint} | <strong>Status:</strong> {d.status}</div>
+                          <div style={{ color: '#FCA5A5' }}><strong>Response:</strong> {d.message}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             )}

@@ -140,21 +140,127 @@ function generateSuggestedReply(
   return `Thanks for the input, ${firstName}!`;
 }
 
-export function parseLinkedInPostUrn(input: string): string | null {
-  if (!input) return null;
+export function extractLinkedInCandidateUrns(input: string): string[] {
+  if (!input) return [];
   const clean = input.trim();
-  if (clean.startsWith('urn:li:')) return clean;
+  const urns: string[] = [];
 
-  const activityMatch = clean.match(/urn:li:(?:activity|share|ugcPost):(\d+)/);
-  if (activityMatch) return activityMatch[0];
+  // Extract numeric ID if present (LinkedIn IDs are usually 15-20 digits)
+  const numMatch = clean.match(/(\d{15,})/);
+  if (numMatch) {
+    const numId = numMatch[1];
+    // In LinkedIn, social actions (comments & likes) are primarily indexed under activity URNs
+    urns.push(`urn:li:activity:${numId}`);
+    urns.push(`urn:li:share:${numId}`);
+    urns.push(`urn:li:ugcPost:${numId}`);
+  }
 
-  const urlActivityMatch = clean.match(/activity-?(\d{15,})/);
-  if (urlActivityMatch) return `urn:li:activity:${urlActivityMatch[1]}`;
+  const directUrnMatch = clean.match(/urn:li:[a-zA-Z0-9_]+:[a-zA-Z0-9_\-]+/);
+  if (directUrnMatch && !urns.includes(directUrnMatch[0])) {
+    urns.unshift(directUrnMatch[0]);
+  }
 
-  const pureNumMatch = clean.match(/^(\d{15,})$/);
-  if (pureNumMatch) return `urn:li:share:${pureNumMatch[1]}`;
+  return urns.length > 0 ? urns : (clean.startsWith('urn:li:') ? [clean] : []);
+}
 
-  return null;
+export function parseLinkedInPostUrn(input: string): string | null {
+  const urns = extractLinkedInCandidateUrns(input);
+  return urns.length > 0 ? urns[0] : null;
+}
+
+// Helper to fetch comments across candidate endpoints and URNs
+async function fetchCommentsForCandidates(
+  candidateUrns: string[],
+  accessToken: string,
+  debug: string[]
+): Promise<{
+  elements: any[];
+  successfulUrn?: string;
+  diagnostics: Array<{ urn: string; endpoint: string; status: number; message: string }>;
+}> {
+  const diagnostics: Array<{ urn: string; endpoint: string; status: number; message: string }> = [];
+
+  for (const candidateUrn of candidateUrns) {
+    const endpoints = [
+      {
+        name: 'rest_encoded_202606',
+        url: `https://api.linkedin.com/rest/socialActions/${encodeURIComponent(candidateUrn)}/comments?count=50`,
+        headers: LI_HEADERS(accessToken),
+      },
+      {
+        name: 'rest_encoded_202501',
+        url: `https://api.linkedin.com/rest/socialActions/${encodeURIComponent(candidateUrn)}/comments?count=50`,
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'X-Restli-Protocol-Version': '2.0.0',
+          'LinkedIn-Version': '202501',
+        },
+      },
+      {
+        name: 'rest_encoded_202401',
+        url: `https://api.linkedin.com/rest/socialActions/${encodeURIComponent(candidateUrn)}/comments?count=50`,
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'X-Restli-Protocol-Version': '2.0.0',
+          'LinkedIn-Version': '202401',
+        },
+      },
+      {
+        name: 'rest_raw',
+        url: `https://api.linkedin.com/rest/socialActions/${candidateUrn}/comments?count=50`,
+        headers: LI_HEADERS(accessToken),
+      },
+      {
+        name: 'v2_encoded',
+        url: `https://api.linkedin.com/v2/socialActions/${encodeURIComponent(candidateUrn)}/comments?count=50`,
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'X-Restli-Protocol-Version': '2.0.0',
+        },
+      },
+    ];
+
+    for (const ep of endpoints) {
+      try {
+        const res = await fetch(ep.url, { headers: ep.headers });
+        if (res.ok) {
+          const data = await res.json();
+          const elements = data.elements || data.comments || [];
+          debug.push(`fetch_ok:${candidateUrn.slice(-10)}:${ep.name}:count=${elements.length}`);
+          return {
+            elements,
+            successfulUrn: candidateUrn,
+            diagnostics: [],
+          };
+        } else {
+          const errText = await res.text();
+          let parsedMsg = errText;
+          try {
+            const errJson = JSON.parse(errText);
+            parsedMsg = errJson.message || errJson.error || errText;
+          } catch {}
+
+          debug.push(`fetch_err:${candidateUrn.slice(-10)}:${ep.name}:${res.status}`);
+          diagnostics.push({
+            urn: candidateUrn,
+            endpoint: ep.name,
+            status: res.status,
+            message: parsedMsg.slice(0, 300),
+          });
+        }
+      } catch (err) {
+        debug.push(`fetch_ex:${candidateUrn.slice(-10)}:${String(err)}`);
+        diagnostics.push({
+          urn: candidateUrn,
+          endpoint: ep.name,
+          status: 0,
+          message: String(err),
+        });
+      }
+    }
+  }
+
+  return { elements: [], diagnostics };
 }
 
 // ── GET /api/linkedin/comments?workspaceId=xxx&classification=all&search=xxx
@@ -306,102 +412,117 @@ export async function POST(request: NextRequest) {
     const existingLogs = (currentSettings.linkedin_comment_logs as LinkedInCommentLog[]) || [];
 
     // ── Collect Post URNs to audit ────────────────────────
-    const postUrnsToAudit: { urn: string; id: string }[] = [];
+    const postUrnsToAudit: { urn: string; id: string; candidateUrns: string[] }[] = [];
 
-    // 1. If user supplied a specific post URL or URN
+    // 1. If user supplied a specific post URL or URN, focus ONLY on that target post
     if (specificPostUrl) {
-      const parsed = parseLinkedInPostUrn(specificPostUrl);
-      if (parsed) {
-        postUrnsToAudit.push({ urn: parsed, id: parsed });
-        debug.push(`manual_post_urn:${parsed}`);
+      const candidates = extractLinkedInCandidateUrns(specificPostUrl);
+      if (candidates.length > 0) {
+        postUrnsToAudit.push({
+          urn: candidates[0],
+          id: specificPostUrl,
+          candidateUrns: candidates,
+        });
+        debug.push(`manual_post_candidates:${candidates.join(',')}`);
       } else {
         return NextResponse.json({
           ok: false,
           error: 'Invalid LinkedIn post link. Please provide a valid LinkedIn URL or URN (e.g. https://www.linkedin.com/feed/update/urn:li:activity:...).',
         }, { status: 400 });
       }
-    }
+    } else {
+      // 2. Fetch posts from Unool database
+      const { data: platformPosts } = await adminSupabase
+        .from('platform_posts')
+        .select('id, platform_post_id, platform_url')
+        .eq('platform_connection_id', connection.id)
+        .not('platform_post_id', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(15);
 
-    // 2. Fetch posts from Unool database
-    const { data: platformPosts } = await adminSupabase
-      .from('platform_posts')
-      .select('id, platform_post_id, platform_url')
-      .eq('platform_connection_id', connection.id)
-      .not('platform_post_id', 'is', null)
-      .order('created_at', { ascending: false })
-      .limit(15);
-
-    if (platformPosts) {
-      for (const p of platformPosts) {
-        const platformPostId = p.platform_post_id;
-        if (!platformPostId) continue;
-        const urn = platformPostId.startsWith('urn:')
-          ? platformPostId
-          : `urn:li:share:${platformPostId}`;
-        if (!postUrnsToAudit.some(item => item.urn === urn)) {
-          postUrnsToAudit.push({ urn, id: platformPostId });
+      if (platformPosts) {
+        for (const p of platformPosts) {
+          const platformPostId = p.platform_post_id;
+          if (!platformPostId) continue;
+          const candidates = extractLinkedInCandidateUrns(platformPostId);
+          if (!postUrnsToAudit.some(item => item.id === platformPostId)) {
+            postUrnsToAudit.push({
+              urn: candidates[0] || platformPostId,
+              id: platformPostId,
+              candidateUrns: candidates,
+            });
+          }
         }
+        debug.push(`db_platform_posts:${platformPosts.length}`);
       }
-      debug.push(`db_platform_posts:${platformPosts.length}`);
-    }
 
-    // 3. Fallback: check workspace posts published to LinkedIn
-    if (postUrnsToAudit.length === 0) {
-      const { data: wsPosts } = await adminSupabase
-        .from('posts')
-        .select('id')
-        .eq('workspace_id', workspaceId)
-        .eq('status', 'published')
-        .limit(10);
+      // 3. Fallback: check workspace posts published to LinkedIn
+      if (postUrnsToAudit.length === 0) {
+        const { data: wsPosts } = await adminSupabase
+          .from('posts')
+          .select('id')
+          .eq('workspace_id', workspaceId)
+          .eq('status', 'published')
+          .limit(10);
 
-      if (wsPosts && wsPosts.length > 0) {
-        const postIds = wsPosts.map((p: any) => p.id);
-        const { data: variants } = await adminSupabase
-          .from('post_variants')
-          .select('platform_post_id')
-          .in('post_id', postIds)
-          .eq('platform', 'linkedin')
-          .not('platform_post_id', 'is', null);
+        if (wsPosts && wsPosts.length > 0) {
+          const postIds = wsPosts.map((p: any) => p.id);
+          const { data: variants } = await adminSupabase
+            .from('post_variants')
+            .select('platform_post_id')
+            .in('post_id', postIds)
+            .eq('platform', 'linkedin')
+            .not('platform_post_id', 'is', null);
 
-        if (variants) {
-          for (const v of variants) {
-            const pid = v.platform_post_id;
-            if (pid) {
-              const urn = pid.startsWith('urn:') ? pid : `urn:li:share:${pid}`;
-              if (!postUrnsToAudit.some(item => item.urn === urn)) {
-                postUrnsToAudit.push({ urn, id: pid });
+          if (variants) {
+            for (const v of variants) {
+              const pid = v.platform_post_id;
+              if (pid) {
+                const candidates = extractLinkedInCandidateUrns(pid);
+                if (!postUrnsToAudit.some(item => item.id === pid)) {
+                  postUrnsToAudit.push({
+                    urn: candidates[0] || pid,
+                    id: pid,
+                    candidateUrns: candidates,
+                  });
+                }
               }
             }
+            debug.push(`workspace_variant_posts:${variants.length}`);
           }
-          debug.push(`workspace_variant_posts:${variants.length}`);
         }
       }
-    }
 
-    // 4. Try fetching member's own posts via LinkedIn REST API
-    try {
-      const profileRes = await fetch('https://api.linkedin.com/v2/userinfo', {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      if (profileRes.ok) {
-        const profile = await profileRes.json();
-        const authorUrn = `urn:li:person:${profile.sub}`;
-        const restPostsUrl = `https://api.linkedin.com/rest/posts?author=${encodeURIComponent(authorUrn)}&q=author&count=5`;
-        const postsRes = await fetch(restPostsUrl, { headers: LI_HEADERS(accessToken) });
-        if (postsRes.ok) {
-          const pd = await postsRes.json();
-          const elements = pd.elements || [];
-          for (const el of elements) {
-            const urn = el.id || el['$URN'];
-            if (urn && !postUrnsToAudit.some(item => item.urn === urn)) {
-              postUrnsToAudit.push({ urn, id: urn });
+      // 4. Try fetching member's own posts via LinkedIn REST API
+      try {
+        const profileRes = await fetch('https://api.linkedin.com/v2/userinfo', {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (profileRes.ok) {
+          const profile = await profileRes.json();
+          const authorUrn = `urn:li:person:${profile.sub}`;
+          const restPostsUrl = `https://api.linkedin.com/rest/posts?author=${encodeURIComponent(authorUrn)}&q=author&count=5`;
+          const postsRes = await fetch(restPostsUrl, { headers: LI_HEADERS(accessToken) });
+          if (postsRes.ok) {
+            const pd = await postsRes.json();
+            const elements = pd.elements || [];
+            for (const el of elements) {
+              const urn = el.id || el['$URN'];
+              if (urn && !postUrnsToAudit.some(item => item.id === urn)) {
+                const candidates = extractLinkedInCandidateUrns(urn);
+                postUrnsToAudit.push({
+                  urn: candidates[0] || urn,
+                  id: urn,
+                  candidateUrns: candidates,
+                });
+              }
             }
+            debug.push(`rest_posts_api:${elements.length}`);
           }
-          debug.push(`rest_posts_api:${elements.length}`);
         }
+      } catch {
+        /* skip API author scan fallback */
       }
-    } catch {
-      /* skip API author scan fallback */
     }
 
     if (postUrnsToAudit.length === 0) {
@@ -419,30 +540,31 @@ export async function POST(request: NextRequest) {
     // ── Audit comments for collected posts ─────────────────
     const newOrUpdatedLogs: LinkedInCommentLog[] = [];
     let totalCommentsExamined = 0;
+    const allDiagnostics: Array<{ post: string; status: number; urn: string; endpoint: string; message: string }> = [];
 
     for (const postItem of postUrnsToAudit) {
       try {
-        const commentsUrl = `https://api.linkedin.com/rest/socialActions/${encodeURIComponent(postItem.urn)}/comments?count=30`;
-        const res = await fetch(commentsUrl, { headers: LI_HEADERS(accessToken) });
+        const { elements, diagnostics: postDiagnostics } = await fetchCommentsForCandidates(
+          postItem.candidateUrns && postItem.candidateUrns.length > 0
+            ? postItem.candidateUrns
+            : [postItem.urn],
+          accessToken,
+          debug
+        );
 
-        if (!res.ok) {
-          const errText = await res.text();
-          debug.push(`audit_post_err:${postItem.urn.slice(-12)}:${res.status}`);
-          continue;
+        if (elements.length === 0 && postDiagnostics.length > 0) {
+          allDiagnostics.push(...postDiagnostics.map(d => ({ ...d, post: postItem.id })));
         }
 
-        const data = await res.json();
-        const elements = data.elements || [];
         totalCommentsExamined += elements.length;
-        debug.push(`audit_post_ok:${postItem.urn.slice(-12)}:comments=${elements.length}`);
 
         for (const c of elements) {
-          const commentId = c['$URN'] || c.id || `${postItem.id}_${Math.random().toString(36).substring(7)}`;
-          const commentText = c.message?.text || c.comment || '';
+          const commentId = c.commentUrn || c['$URN'] || c.id || `${postItem.id}_${Math.random().toString(36).substring(7)}`;
+          const commentText = c.message?.text || c.comment || c.text || '';
           if (!commentText.trim()) continue;
 
-          const commenterName = c.actor?.name || 'LinkedIn Member';
-          const authorHeadline = c.actor?.headline || '';
+          const commenterName = c.actorName || c.actor?.name || (typeof c.actor === 'string' && c.actor.startsWith('urn:li:person:') ? `LinkedIn Member (${c.actor.replace('urn:li:person:', '').slice(0, 8)})` : 'LinkedIn Member');
+          const authorHeadline = c.actor?.headline || c.headline || '';
           const createdAt = c.created?.time ? new Date(c.created.time).toISOString() : new Date().toISOString();
 
           const { classification, confidence, leadScore, flagged, reasoning } = classifyComment(commentText);
@@ -521,6 +643,7 @@ export async function POST(request: NextRequest) {
       newCommentsProcessed: newOrUpdatedLogs.length,
       comments: mergedLogs,
       stats,
+      diagnostics: allDiagnostics,
       debug,
     });
   } catch (error) {

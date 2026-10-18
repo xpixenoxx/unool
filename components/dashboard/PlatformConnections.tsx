@@ -375,6 +375,17 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
 
   const [connections, setConnections] =
     useState<Record<Platform, PlatformConnection>>(initialConnections);
+
+  // Sort platforms: connected first, preserving relative order
+  const sortedPlatforms = useMemo(
+    () =>
+      [...connectablePlatforms].sort((a, b) => {
+        const aConn = connections[a]?.status === 'connected';
+        const bConn = connections[b]?.status === 'connected';
+        return aConn === bConn ? 0 : aConn ? -1 : 1;
+      }),
+    [connectablePlatforms, connections]
+  );
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState<Platform | null>(null);
   const [disconnecting, setDisconnecting] = useState<Platform | null>(null);
@@ -750,9 +761,9 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
         </CardHeader>
 
         <CardContent className="pt-0">
-          {/* Connected + available platforms */}
+          {/* Connected + available platforms (connected first) */}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {connectablePlatforms.map((platform) => {
+            {sortedPlatforms.map((platform) => {
               const cfg = PLATFORM_CONFIG[platform];
               const connection = connections[platform];
               const Icon = cfg.icon;

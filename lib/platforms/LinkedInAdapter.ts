@@ -23,7 +23,10 @@ export class LinkedInAdapter implements PlatformAdapter {
     clientSecret: config.LINKEDIN_CLIENT_SECRET || '',
     redirectUri: config.LINKEDIN_REDIRECT_URI || `${config.NEXT_PUBLIC_APP_URL}/api/auth/platform/callback`,
     // r_liteprofile was deprecated in 2023. Use OpenID Connect scopes.
-    scopes: ['openid', 'profile', 'email', 'w_member_social'],
+    // Can be overridden via LINKEDIN_SCOPES env variable to include r_member_social or r_organization_social
+    scopes: process.env.LINKEDIN_SCOPES
+      ? process.env.LINKEDIN_SCOPES.split(',').map(s => s.trim())
+      : ['openid', 'profile', 'email', 'w_member_social'],
   };
 
   getAuthUrl(state: string): string {

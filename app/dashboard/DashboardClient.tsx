@@ -382,7 +382,10 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               { id: 'youtube' as SupportedPlatformType, name: 'YouTube', color: '#FF0000', connected: data.connections['youtube']?.status === 'connected' },
               { id: 'pinterest' as SupportedPlatformType, name: 'Pinterest', color: '#E60023', connected: data.connections['pinterest']?.status === 'connected' },
               { id: 'bluesky' as SupportedPlatformType, name: 'Bluesky', color: '#0085ff', connected: data.connections['bluesky']?.status === 'connected' },
-            ].map((platform) => {
+            ]
+            // Sort: connected platforms first, preserving their relative order
+            .sort((a, b) => (a.connected === b.connected ? 0 : a.connected ? -1 : 1))
+            .map((platform) => {
               const isLinkedinAnalytics = platform.id === 'linkedin' && platform.connected;
               return (
               <div
@@ -465,11 +468,30 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           <Dialog>
             <DialogTrigger asChild>
               <button
-                className="mt-4 flex w-full items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg transition-colors hover:bg-black/5"
-                style={{ color: B.accent }}
+                className="mt-4 flex w-full items-center justify-center gap-1.5 text-xs font-semibold py-2.5 rounded-xl transition-all duration-200"
+                style={{
+                  backgroundColor: B.accentBg,
+                  color: B.accentDark,
+                  border: `2px solid ${B.accent}`,
+                  boxShadow: '0 2px 8px rgba(196, 162, 101, 0.25)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = B.accentBgHover;
+                  e.currentTarget.style.boxShadow = '0 4px 16px rgba(196, 162, 101, 0.35)';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = B.accentBg;
+                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(196, 162, 101, 0.25)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+                onMouseDown={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0) scale(0.98)';
+                  e.currentTarget.style.boxShadow = '0 1px 4px rgba(196, 162, 101, 0.3)';
+                }}
               >
-                Manage all platforms
-                <ArrowRight className="h-3 w-3" />
+                All platforms
+                <ArrowRight className="h-3.5 w-3.5" />
               </button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[800px] bg-[#F7F3ED] border-none max-h-[85vh] overflow-y-auto">
