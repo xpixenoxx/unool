@@ -175,7 +175,6 @@ export default function BrandMaterialsSection({
     return () => { cancelled = true; };
   }, [workspaceId]);
 
-<<<<<<< HEAD
   // Read URL search params for quick entry from post composer
   useEffect(() => {
     if (typeof window !== 'undefined') {
