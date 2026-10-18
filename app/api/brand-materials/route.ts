@@ -7,6 +7,29 @@ import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
 
 const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
 
+export function maskCloudflareUrl(url: string): string {
+  if (!url) return url;
+  const matchR2Dev = url.match(/https?:\/\/[^/]+\.r2\.dev\/(.+)$/);
+  if (matchR2Dev) return `/api/media/${matchR2Dev[1]}`;
+  const matchR2Storage = url.match(/https?:\/\/[^/]+\.r2\.cloudflarestorage\.com\/[^/]+\/(.+)$/);
+  if (matchR2Storage) return `/api/media/${matchR2Storage[1]}`;
+  return url;
+}
+
+function sanitizeMaterial(item: any): any {
+  return {
+    ...item,
+    url: maskCloudflareUrl(item.url),
+    thumbnailUrl: item.thumbnailUrl ? maskCloudflareUrl(item.thumbnailUrl) : undefined,
+  };
+}
+
+function buildSubdomainPageUrl(subdomain: string, slug: string, queryParam?: string): string {
+  const host = `https://${subdomain}.unool.co`;
+  const base = `${host}/${slug}`;
+  return queryParam ? `${base}?${queryParam}` : base;
+}
+
 // GET /api/brand-materials?workspaceId=xxx&slug=page
 export async function GET(request: NextRequest) {
   try {
@@ -22,48 +45,81 @@ export async function GET(request: NextRequest) {
     const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
     if (!hasAccess) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-    // Fetch user profile to get subdomain
+    // Fetch user profile to get subdomain & live page template theme
     const { data: profile } = await supabase
       .from('profiles')
-      .select('subdomain, name, avatar_url, role, company')
+      .select('subdomain, name, avatar_url, role, company, theme')
       .eq('workspace_id', workspaceId)
       .maybeSingle();
 
     const subdomain = profile?.subdomain || 'user';
-    const appBaseUrl = config.NEXT_PUBLIC_APP_URL || 'https://unool.co';
+    const liveTemplate = (profile?.theme as any)?.template || (profile?.theme as any)?.preset || 'the-voice';
 
-    // Fetch existing page if any
-    const { data: pageData } = await supabase
+    // Fetch existing page for workspace and slug
+    let pageQuery = supabase
       .from('brand_materials_pages')
       .select('*')
-      .eq('workspace_id', workspaceId)
-      .eq('slug', slug)
-      .maybeSingle();
+      .eq('workspace_id', workspaceId);
+
+    if (slug && slug !== 'page') {
+      pageQuery = pageQuery.eq('slug', slug);
+    } else {
+      pageQuery = pageQuery.order('updated_at', { ascending: false }).limit(1);
+    }
+    const { data: pageResults } = await pageQuery;
+    const pageData = pageResults && pageResults.length > 0 ? pageResults[0] : null;
+
+    const effectiveSlug = pageData?.slug || slug || 'page';
 
     // Default structure if not created yet
-    const page = pageData || {
-      slug: slug,
+    const page = pageData ? {
+      ...pageData,
+      materials: (pageData.materials || []).map(sanitizeMaterial),
+    } : {
+      slug: effectiveSlug,
       title: profile?.name ? `${profile.name}'s Brand & Product Showcase` : 'Brand & Product Showcase',
       tagline: 'Official materials, catalogues, lookbooks & resources',
       description: 'Explore our latest releases, documents, lookbooks, and brand materials curated in one central hub.',
       primary_cta_label: 'Visit Official Website',
       primary_cta_url: '',
       materials: [],
-      theme: { accentColor: '#8B5CF6' },
+      theme: { accentColor: '#8B5CF6', template: liveTemplate },
       is_published: true,
     };
 
-    const fullUrl = `${appBaseUrl}/u/${subdomain}/${slug}`;
+    // Generate query string based on user's first uploaded file/URL if available
+    const firstMaterial = (page.materials && page.materials.length > 0) ? page.materials[0] : null;
+    let queryParam = '';
+    if (firstMaterial) {
+      const cleanSlug = encodeURIComponent(
+        (firstMaterial.title || 'asset')
+          .toLowerCase()
+          .replace(/[^a-z0-9_-]/g, '_')
+          .replace(/_+/g, '_')
+          .replace(/^_|_$/g, '')
+          .substring(0, 40)
+      );
+      if (firstMaterial.type === 'image' || firstMaterial.type === 'pdf' || firstMaterial.type === 'doc') {
+        queryParam = `file=${cleanSlug}`;
+      } else {
+        queryParam = `item=${cleanSlug}`;
+      }
+    }
+    const fullUrl = buildSubdomainPageUrl(subdomain, page.slug, queryParam);
 
     return NextResponse.json({
       success: true,
       page,
       subdomain,
+      subdomainBase: `https://${subdomain}.unool.co/`,
       pageUrl: fullUrl,
+      cleanPageUrl: buildSubdomainPageUrl(subdomain, page.slug),
+      liveTemplate,
       profile: {
         name: profile?.name,
         avatarUrl: profile?.avatar_url,
         subdomain,
+        theme: profile?.theme,
       },
     });
   } catch (error) {
@@ -103,16 +159,24 @@ export async function PUT(request: NextRequest) {
     // Sanitize slug: lowercase alphanumeric and hyphens only
     const sanitizedSlug = (slug || 'page').toLowerCase().replace(/[^a-z0-9-_]/g, '').trim() || 'page';
 
-    // Fetch user profile subdomain
+    // Fetch user profile subdomain and live template theme
     const { data: profile } = await supabase
       .from('profiles')
-      .select('subdomain, name')
+      .select('subdomain, name, theme')
       .eq('workspace_id', workspaceId)
       .maybeSingle();
 
     const subdomain = profile?.subdomain || 'user';
-    const appBaseUrl = config.NEXT_PUBLIC_APP_URL || 'https://unool.co';
-    const pageUrl = `${appBaseUrl}/u/${subdomain}/${sanitizedSlug}`;
+    const liveTemplate = (profile?.theme as any)?.template || (profile?.theme as any)?.preset || 'the-voice';
+
+    // Ensure all materials have Cloudflare URLs masked
+    const sanitizedMaterials = (Array.isArray(materials) ? materials : []).map(sanitizeMaterial);
+
+    const mergedTheme = {
+      accentColor: theme?.accentColor || '#8B5CF6',
+      template: liveTemplate, // matched with user's live page template theme!
+      ...theme,
+    };
 
     const upsertPayload = {
       workspace_id: workspaceId,
@@ -122,8 +186,8 @@ export async function PUT(request: NextRequest) {
       description: description || null,
       primary_cta_label: primaryCtaLabel || 'Visit Website',
       primary_cta_url: primaryCtaUrl || null,
-      materials: Array.isArray(materials) ? materials : [],
-      theme: theme || { accentColor: '#8B5CF6' },
+      materials: sanitizedMaterials,
+      theme: mergedTheme,
       is_published: isPublished ?? true,
       updated_at: new Date().toISOString(),
     };
@@ -138,6 +202,27 @@ export async function PUT(request: NextRequest) {
       logger.error('Failed to upsert brand materials page', { error, workspaceId });
       return NextResponse.json({ error: 'Failed to save brand materials' }, { status: 500 });
     }
+
+    // Generate query string based on user's first uploaded file or URL
+    const firstMaterial = sanitizedMaterials.length > 0 ? sanitizedMaterials[0] : null;
+    let queryParam = '';
+    if (firstMaterial) {
+      const cleanSlug = encodeURIComponent(
+        (firstMaterial.title || 'asset')
+          .toLowerCase()
+          .replace(/[^a-z0-9_-]/g, '_')
+          .replace(/_+/g, '_')
+          .replace(/^_|_$/g, '')
+          .substring(0, 40)
+      );
+      if (firstMaterial.type === 'image' || firstMaterial.type === 'pdf' || firstMaterial.type === 'doc') {
+        queryParam = `file=${cleanSlug}`;
+      } else {
+        queryParam = `item=${cleanSlug}`;
+      }
+    }
+    const pageUrl = buildSubdomainPageUrl(subdomain, sanitizedSlug, queryParam);
+    const cleanPageUrl = buildSubdomainPageUrl(subdomain, sanitizedSlug);
 
     // When requested (or by default), update the Instagram automation canonical resource link
     // so any audience asking for links in DMs or comments receives this newly created page!
@@ -160,8 +245,10 @@ export async function PUT(request: NextRequest) {
       success: true,
       data,
       pageUrl,
+      cleanPageUrl,
       subdomain,
       slug: sanitizedSlug,
+      liveTemplate,
     });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));

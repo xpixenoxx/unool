@@ -35,13 +35,14 @@ export async function POST(request: NextRequest) {
     if (r2Configured) {
       try {
         const key = `materials/${safeFilename}`;
-        const res = await uploadToR2({
+        await uploadToR2({
           bucket: 'post-media',
           key,
           body: buffer,
           contentType,
         });
-        publicUrl = res.url;
+        // Completely mask Cloudflare R2 URL behind internal proxy route
+        publicUrl = `/api/media/${key}`;
       } catch (r2Error) {
         logger.warn('R2 upload failed, falling back to data URL', { error: r2Error });
       }

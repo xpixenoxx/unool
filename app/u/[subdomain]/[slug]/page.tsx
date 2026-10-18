@@ -10,6 +10,7 @@ const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_
 
 interface PageProps {
   params: Promise<{ subdomain: string; slug: string }>;
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -57,17 +58,18 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 }
 
-export default async function BrandMaterialsSlugPage({ params }: PageProps) {
+export default async function BrandMaterialsSlugPage({ params, searchParams }: PageProps) {
   const { subdomain, slug } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : {};
 
   if (!subdomain) {
     notFound();
   }
 
-  // Fetch creator profile
+  // Fetch creator profile including active template theme
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, workspace_id, name, subdomain, headline, role, company, bio, avatar_url')
+    .select('id, workspace_id, name, subdomain, headline, role, company, bio, avatar_url, theme')
     .eq('subdomain', subdomain)
     .maybeSingle();
 
@@ -125,6 +127,19 @@ export default async function BrandMaterialsSlugPage({ params }: PageProps) {
 
   const appUrl = config.NEXT_PUBLIC_APP_URL || 'https://unool.co';
 
+  // Live profile template theme (e.g. 'the-voice', 'lone', 'lover')
+  const liveTemplate = (profile.theme as any)?.template || (profile.theme as any)?.preset || (pageData.theme as any)?.template || 'the-voice';
+
+  // Mask Cloudflare URLs on all materials
+  const maskUrl = (rawUrl?: string | null): string => {
+    if (!rawUrl) return '';
+    const matchR2Dev = rawUrl.match(/https?:\/\/[^/]+\.r2\.dev\/(.+)$/);
+    if (matchR2Dev) return `/api/media/${matchR2Dev[1]}`;
+    const matchR2Storage = rawUrl.match(/https?:\/\/[^/]+\.r2\.cloudflarestorage\.com\/[^/]+\/(.+)$/);
+    if (matchR2Storage) return `/api/media/${matchR2Storage[1]}`;
+    return rawUrl;
+  };
+
   const creatorProfile: CreatorProfile = {
     name: profile.name,
     subdomain: profile.subdomain,
@@ -142,8 +157,16 @@ export default async function BrandMaterialsSlugPage({ params }: PageProps) {
     description: pageData.description,
     primary_cta_label: pageData.primary_cta_label,
     primary_cta_url: pageData.primary_cta_url,
-    materials: pageData.materials || [],
-    theme: pageData.theme || { accentColor: '#8B5CF6' },
+    materials: (pageData.materials || []).map((m: any) => ({
+      ...m,
+      url: maskUrl(m.url),
+      thumbnailUrl: m.thumbnailUrl ? maskUrl(m.thumbnailUrl) : undefined,
+    })),
+    theme: {
+      accentColor: pageData.theme?.accentColor || '#8B5CF6',
+      template: liveTemplate,
+      ...(pageData.theme || {}),
+    },
     is_published: pageData.is_published,
   };
 
@@ -154,6 +177,8 @@ export default async function BrandMaterialsSlugPage({ params }: PageProps) {
       pageData={materialsPageData}
       profile={creatorProfile}
       appUrl={appUrl}
+      liveTemplate={liveTemplate}
+      searchParams={resolvedSearchParams}
     />
   );
 }

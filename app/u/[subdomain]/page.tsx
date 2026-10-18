@@ -76,6 +76,17 @@ export default function PublicProfilePage({ params }: { params: Promise<{ subdom
   }, []);
 
   const shouldScrollToActivity = searchParams.get('activity') === '1' || hasActivityHash;
+  const targetPage = searchParams.get('page');
+
+  // If a ?page=... query string is provided on root subdomain, smoothly route to the subpage
+  useEffect(() => {
+    if (targetPage && typeof window !== 'undefined') {
+      const currentUrl = new URL(window.location.href);
+      currentUrl.pathname = `/${targetPage}`;
+      currentUrl.searchParams.delete('page');
+      window.location.replace(currentUrl.toString());
+    }
+  }, [targetPage]);
 
   useEffect(() => {
     let cancelled = false;

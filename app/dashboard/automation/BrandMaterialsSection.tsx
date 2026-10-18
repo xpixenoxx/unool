@@ -92,9 +92,40 @@ export default function BrandMaterialsSection({
   const [matThumbnail, setMatThumbnail] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [copiedItemId, setCopiedItemId] = useState<string | null>(null);
 
-  const appBaseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://unool.co';
-  const livePageUrl = `${appBaseUrl}/u/${subdomain}/${slug}`;
+  // Cloudflare R2 URL mask helper
+  const maskUrl = (rawUrl: string): string => {
+    if (!rawUrl) return rawUrl;
+    const matchR2Dev = rawUrl.match(/https?:\/\/[^/]+\.r2\.dev\/(.+)$/);
+    if (matchR2Dev) return `/api/media/${matchR2Dev[1]}`;
+    const matchR2Storage = rawUrl.match(/https?:\/\/[^/]+\.r2\.cloudflarestorage\.com\/[^/]+\/(.+)$/);
+    if (matchR2Storage) return `/api/media/${matchR2Storage[1]}`;
+    return rawUrl;
+  };
+
+  // Helper to generate query string parameter for an asset
+  const getQueryParamForMaterial = (item?: MaterialItem | null): string => {
+    if (!item) return '';
+    const cleanSlug = encodeURIComponent(
+      (item.title || 'asset')
+        .toLowerCase()
+        .replace(/[^a-z0-9_-]/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_|_$/g, '')
+        .substring(0, 40)
+    );
+    if (item.type === 'image' || item.type === 'pdf' || item.type === 'doc') {
+      return `file=${cleanSlug}`;
+    }
+    return `item=${cleanSlug}`;
+  };
+
+  // Canonical subdomain extension URL (*.unool.co) with query string based on user's uploaded materials
+  const firstMaterial = materials.length > 0 ? materials[0] : null;
+  const activeQueryParam = getQueryParamForMaterial(firstMaterial);
+  const livePageUrl = `https://${subdomain}.unool.co/${slug}${activeQueryParam ? `?${activeQueryParam}` : ''}`;
+  const cleanPageUrl = `https://${subdomain}.unool.co/${slug}`;
 
   // Fetch page data on mount
   useEffect(() => {
@@ -102,7 +133,7 @@ export default function BrandMaterialsSection({
     async function loadData() {
       setLoading(true);
       try {
-        const res = await fetch(`/api/brand-materials?workspaceId=${workspaceId}&slug=page`);
+        const res = await fetch(`/api/brand-materials?workspaceId=${workspaceId}`);
         if (res.ok) {
           const data = await res.json();
           if (!cancelled) {
@@ -115,7 +146,12 @@ export default function BrandMaterialsSection({
               setPrimaryCtaLabel(data.page.primary_cta_label || 'Visit Official Store');
               setPrimaryCtaUrl(data.page.primary_cta_url || '');
               setAccentColor(data.page.theme?.accentColor || '#8B5CF6');
-              setMaterials(data.page.materials || []);
+              const sanitized = (data.page.materials || []).map((m: any) => ({
+                ...m,
+                url: maskUrl(m.url),
+                thumbnailUrl: m.thumbnailUrl ? maskUrl(m.thumbnailUrl) : undefined,
+              }));
+              setMaterials(sanitized);
             }
           }
         }
@@ -130,11 +166,23 @@ export default function BrandMaterialsSection({
   }, [workspaceId]);
 
   // Copy link
-  const copyLink = () => {
+  const copyLink = (urlToCopy?: string) => {
+    const targetUrl = urlToCopy || livePageUrl;
     if (typeof window !== 'undefined') {
-      navigator.clipboard.writeText(livePageUrl);
+      navigator.clipboard.writeText(targetUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2200);
+    }
+  };
+
+  // Copy specific asset direct query link
+  const copyAssetLink = (item: MaterialItem) => {
+    const itemQuery = getQueryParamForMaterial(item);
+    const itemUrl = `https://${subdomain}.unool.co/${slug}?${itemQuery}`;
+    if (typeof window !== 'undefined') {
+      navigator.clipboard.writeText(itemUrl);
+      setCopiedItemId(item.id);
+      setTimeout(() => setCopiedItemId(null), 2000);
     }
   };
 
@@ -155,13 +203,15 @@ export default function BrandMaterialsSection({
 
       if (res.ok) {
         const data = await res.json();
-        setMatUrl(data.url);
+        // Fully mask Cloudflare URL
+        const maskedUrl = maskUrl(data.url);
+        setMatUrl(maskedUrl);
         if (!matTitle) {
           setMatTitle(file.name.replace(/\.[^/.]+$/, ''));
         }
         setMatSize(data.size || '');
         if (data.type === 'image') {
-          setMatThumbnail(data.url);
+          setMatThumbnail(maskedUrl);
           setMatType('image');
         } else if (data.type === 'pdf') {
           setMatType('pdf');
@@ -184,15 +234,18 @@ export default function BrandMaterialsSection({
       return;
     }
 
+    const cleanUrl = maskUrl(matUrl.trim());
+    const cleanThumb = matThumbnail.trim() ? maskUrl(matThumbnail.trim()) : (matType === 'image' ? cleanUrl : undefined);
+
     const newItem: MaterialItem = {
       id: `mat-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
       type: matType,
       title: matTitle.trim(),
-      url: matUrl.trim(),
+      url: cleanUrl,
       description: matDesc.trim() || undefined,
       category: matCategory.trim() || undefined,
       size: matSize.trim() || undefined,
-      thumbnailUrl: matThumbnail.trim() || (matType === 'image' ? matUrl.trim() : undefined),
+      thumbnailUrl: cleanThumb,
       order: materials.length,
     };
 
@@ -314,14 +367,20 @@ export default function BrandMaterialsSection({
         flexWrap: 'wrap'
       }}>
         <div style={{ flex: 1, minWidth: 280 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8B5CF6', background: '#F5F3FF', padding: '3px 10px', borderRadius: 8 }}>
-              Subdomain Extension
+              *.unool.co Subdomain Extension
             </span>
-            <span style={{ fontSize: 12, color: '#8B7355', fontWeight: 500 }}>Auto-Dispatched on Instagram DM &amp; Comments</span>
+            {activeQueryParam ? (
+              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', color: '#047857', background: '#ECFDF5', padding: '3px 10px', borderRadius: 8 }}>
+                Query Param: ?{activeQueryParam}
+              </span>
+            ) : (
+              <span style={{ fontSize: 12, color: '#8B7355', fontWeight: 500 }}>Auto-Dispatched on Instagram DM &amp; Comments</span>
+            )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
-            <h2 className="un-editorial-font" style={{ fontSize: 22, fontWeight: 700, color: '#3D2B1F', margin: 0 }}>
+            <h2 className="un-editorial-font" style={{ fontSize: 20, fontWeight: 700, color: '#3D2B1F', margin: 0, wordBreak: 'break-all' }}>
               {livePageUrl}
             </h2>
           </div>
@@ -331,7 +390,7 @@ export default function BrandMaterialsSection({
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button onClick={copyLink} className="un-btn" style={{ fontSize: 13 }}>
+          <button onClick={() => copyLink(livePageUrl)} className="un-btn" style={{ fontSize: 13 }}>
             {copied ? <Check size={15} style={{ color: '#10B981' }} /> : <Copy size={15} />}
             <span>{copied ? 'Copied' : 'Copy URL'}</span>
           </button>
@@ -371,18 +430,31 @@ export default function BrandMaterialsSection({
             </div>
 
             <div className="un-field">
-              <label className="un-label">Subdomain Extension Slug</label>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                <label className="un-label" style={{ marginBottom: 0 }}>Subdomain Extension Slug (*.unool.co)</label>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: '#047857', background: '#ECFDF5', padding: '1px 8px', borderRadius: 6 }}>
+                  *.unool.co Subdomain Active
+                </span>
+              </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ color: '#8B7355', fontSize: 13.5, fontWeight: 600 }}>https://unool.co/u/{subdomain}/</span>
+                <span style={{ color: '#8B7355', fontSize: 13.5, fontWeight: 600, fontFamily: 'monospace' }}>https://{subdomain}.unool.co/</span>
                 <input
                   type="text"
                   className="un-input"
                   style={{ flex: 1, fontFamily: 'monospace' }}
-                  placeholder="page"
+                  placeholder="crocheting"
                   value={slug}
                   onChange={e => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, ''))}
                 />
               </div>
+              {activeQueryParam && (
+                <div style={{ fontSize: 12, color: '#8B7355', marginTop: 6, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <span>Generated Query URL:</span>
+                  <code style={{ background: '#FAF7F2', padding: '2px 8px', borderRadius: 6, color: '#3D2B1F', fontWeight: 600, fontSize: 11 }}>
+                    {livePageUrl}
+                  </code>
+                </div>
+              )}
             </div>
 
             <div className="un-field">
@@ -567,8 +639,17 @@ export default function BrandMaterialsSection({
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                      <button
+                        type="button"
+                        onClick={() => copyAssetLink(item)}
+                        className="un-btn"
+                        style={{ padding: '5px 8px', fontSize: 11, background: '#FAF8F5' }}
+                        title="Copy Direct Query URL for this Asset"
+                      >
+                        {copiedItemId === item.id ? <Check size={13} style={{ color: '#10B981' }} /> : <Share2 size={13} />}
+                      </button>
                       <a
-                        href={item.url}
+                        href={maskUrl(item.url)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="un-btn"
@@ -611,7 +692,7 @@ export default function BrandMaterialsSection({
           <div>
             <div style={{ color: '#3D2B1F', fontWeight: 700, fontSize: 14 }}>Ready to Publish Materials Hub</div>
             <div style={{ color: '#8B7355', fontSize: 12 }}>
-              Saves brand details and produces the live link at <span style={{ fontWeight: 600 }}>/u/{subdomain}/{slug}</span>
+              Saves brand details and updates the live link at <span style={{ fontWeight: 600 }}>https://{subdomain}.unool.co/{slug}</span>
             </div>
           </div>
         </div>
@@ -760,12 +841,18 @@ export default function BrandMaterialsSection({
             <div className="un-field">
               <label className="un-label">Asset Destination URL *</label>
               <input
-                type="url"
+                type="text"
                 className="un-input"
                 placeholder="https://... (or uploaded file link)"
                 value={matUrl}
-                onChange={e => setMatUrl(e.target.value)}
+                onChange={e => setMatUrl(maskUrl(e.target.value))}
               />
+              {matUrl.startsWith('/api/media/') && (
+                <div style={{ fontSize: 11, color: '#047857', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <CheckCircle2 size={12} />
+                  <span>Secure internal proxy URL active (Cloudflare domain hidden)</span>
+                </div>
+              )}
             </div>
 
             <div className="un-field">
