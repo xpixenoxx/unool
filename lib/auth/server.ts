@@ -9,9 +9,33 @@ export interface AuthContext {
 
 const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
 
+// Development auth bypass - mirrors lib/auth/context.ts behavior
+async function checkDevAuthBypass(): Promise<AuthContext | null> {
+  if (config.DEV_AUTH_BYPASS === true) {
+    try {
+      const { isDevAuthEnabled, getDevAuthContextAsync } = await import('@/lib/auth/dev/bypass');
+      if (isDevAuthEnabled()) {
+        const devContext = await getDevAuthContextAsync();
+        if (devContext) {
+          return devContext;
+        }
+      }
+    } catch (err) {
+      console.warn('[Auth] Dev bypass import failed:', err instanceof Error ? err.message : err);
+    }
+  }
+  return null;
+}
+
 export async function getCurrentAuth(request: NextRequest): Promise<AuthContext | null> {
   const debugLines: string[] = [];
   try {
+    // Priority 0: Development auth bypass
+    const devAuth = await checkDevAuthBypass();
+    if (devAuth) {
+      return devAuth;
+    }
+
     // Priority 1: Check for secure headers injected by middleware.ts
     const headerUserId = request.headers.get('x-user-id');
     let headerWorkspaceId = request.headers.get('x-workspace-id');

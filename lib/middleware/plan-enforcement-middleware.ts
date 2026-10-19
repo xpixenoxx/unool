@@ -11,6 +11,7 @@ import {
   isFeatureEnabled,
 } from '@/lib/plan-enforcement';
 import { logger } from '@/lib/logger';
+import { config } from '@/lib/config/schema';
 
 export interface PlanEnforcementContext {
   userId: string;
@@ -34,6 +35,36 @@ export interface PlanEnforcementResult {
 }
 
 async function getPlanContext(userId: string, workspaceId: string): Promise<PlanEnforcementContext | null> {
+  // Dev bypass: return mock plan context for visual testing
+  if (config.DEV_AUTH_BYPASS === true) {
+    logger.info('DEV_AUTH_BYPASS enabled — returning mock plan context', { userId, workspaceId });
+    return {
+      userId,
+      workspaceId,
+      plan: 'pro',
+      features: {
+        posts_per_month: -1,
+        profiles: -1,
+        team_seats: -1,
+        ai_adaptations_per_month: -1,
+        media_uploads_per_month: -1,
+        api_access: true,
+        custom_domain: true,
+        analytics_retention_days: 365,
+      },
+      limits: {
+        posts_per_month: -1,
+        profiles: -1,
+        team_seats: -1,
+        ai_adaptations_per_month: -1,
+        media_uploads_per_month: -1,
+        api_access: true,
+        custom_domain: true,
+        analytics_retention_days: 365,
+      },
+    };
+  }
+
   // Read the plan from the workspaces table — this is where upgrades are stored.
   // (Previously this read from profiles.plan which is a social profile row and has no plan field.)
   let workspace: { plan: string; plan_status?: string; plan_expires_at?: string | null; features?: unknown } | null = null;
@@ -172,6 +203,11 @@ async function checkQuota(
   workspaceId: string,
   plan: string
 ): Promise<{ allowed: boolean; limit: number; currentUsage: number; reason?: string }> {
+  // Dev bypass: skip quota checks when dev auth bypass is enabled
+  if (config.DEV_AUTH_BYPASS === true) {
+    return { allowed: true, limit: -1, currentUsage: 0 };
+  }
+
   const monthStart = new Date();
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);

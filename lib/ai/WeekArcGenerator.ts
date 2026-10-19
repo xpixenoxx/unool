@@ -155,7 +155,7 @@ export function getUpcomingDaysForArc(weekStartDate?: string): Array<{ day: numb
 
 // ─── Fact-Grounded Algorithmic Synthesizer (Fallback when AI Provider is offline) ─────
 
-function synthesizeFactGroundedArc(params: {
+export function synthesizeFactGroundedArc(params: {
   coreStory: string;
   followUps: { whatChanged: string; whatWentWrong: string; oneRealNumber: string };
   connectedPlatforms: PlatformType[];

@@ -37,6 +37,8 @@ const configSchema = z.object({
 
   // Dev auth bypass
   DEV_AUTH_BYPASS: z.coerce.boolean().optional().default(false),
+  // Dev mock arc for visual testing (requires DEV_AUTH_BYPASS=true)
+  DEV_MOCK_ARC: z.coerce.boolean().optional().default(false),
 
   // OTP security
   OTP_PEPPER: z.string().optional(),

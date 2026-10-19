@@ -79,6 +79,7 @@ import {
   Share2,
   Lightbulb,
   CheckCircle,
+  PenTool,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { studioToast } from '@/components/dashboard/StudioToast';
