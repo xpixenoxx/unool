@@ -1,0 +1,638 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..700,0..100;1,9..144,300..700,0..100&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');
+
+.unool-signup-page {
+  --cream: #F3EBE1;
+  --paper: #FBF8F3;
+  --line: #D2C5B8;
+  --ink: #1C1416;
+  --mute: #6B5B5F;
+  --bur: #5A1020;
+  --bur2: #481019;
+  --rose: #E9CFD3;
+  --peach: #F2D4C8;
+  --tan: #E3D8CB;
+  --err: #8F1D1D;
+  --serif: "Fraunces", Georgia, serif;
+  --sans: "DM Sans", -apple-system, "Segoe UI", sans-serif;
+
+  background: var(--paper);
+  font-family: var(--sans);
+  color: var(--ink);
+  padding: 24px;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+.unool-signup-page * {
+  box-sizing: border-box;
+}
+
+.unool-signup-page .frame {
+  max-width: 1180px;
+  margin: 0 auto;
+  background: var(--cream);
+  border-radius: 28px;
+  padding: 28px 32px 24px;
+  box-sizing: border-box;
+}
+
+.unool-signup-page header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.unool-signup-page .mark {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font: 600 30px var(--serif);
+  font-variation-settings: "SOFT" 100, "opsz" 72;
+  color: var(--bur);
+  letter-spacing: -.01em;
+  text-decoration: none;
+}
+
+.unool-signup-page .dot {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--bur);
+  color: var(--cream);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 21px;
+  font-style: italic;
+}
+
+.unool-signup-page header p {
+  color: var(--mute);
+  font-size: 15px;
+  margin: 0;
+}
+
+.unool-signup-page header a {
+  color: var(--bur);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.unool-signup-page .days,
+.unool-signup-page .grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 16px;
+}
+
+.unool-signup-page .days {
+  margin: 22px 0 14px;
+}
+
+.unool-signup-page .days span {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: .06em;
+  color: var(--mute);
+  padding: 10px 0;
+  border-radius: 999px;
+  transition: all .2s ease;
+}
+
+.unool-signup-page .days .on {
+  background: var(--bur);
+  color: #fff;
+  font-weight: 600;
+}
+
+.unool-signup-page .stage {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  padding: 36px 12px;
+}
+
+.unool-signup-page .grid {
+  position: absolute;
+  inset: 0;
+  grid-template-rows: repeat(4, 1fr);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.unool-signup-page .cell {
+  border: 1.5px dashed var(--line);
+  border-radius: 16px;
+  padding: 10px;
+  min-height: 96px;
+  transition: border-color .2s;
+}
+
+.unool-signup-page .ev {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.unool-signup-page .ev:before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: currentColor;
+  opacity: .55;
+  flex: none;
+}
+
+.unool-signup-page .rose {
+  background: var(--rose);
+  color: var(--bur);
+}
+
+.unool-signup-page .peach {
+  background: var(--peach);
+  color: #8A3A22;
+}
+
+.unool-signup-page .tan {
+  background: var(--tan);
+  color: #5A4A44;
+}
+
+.unool-signup-page .dark {
+  background: var(--bur);
+  color: #fff;
+}
+
+.unool-signup-page .dash {
+  border: 1.5px dashed var(--bur);
+  color: var(--bur);
+}
+
+.unool-signup-page .live:before {
+  border-radius: 50%;
+  background: #B4472F;
+  opacity: 1;
+}
+
+.unool-signup-page .ev.new {
+  animation: pop .5s cubic-bezier(.34, 1.56, .64, 1);
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: translateY(-14px) scale(.85);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.unool-signup-page .now {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 2px solid #B4472F;
+  z-index: 2;
+  pointer-events: none;
+  transition: top .7s cubic-bezier(.4, 0, .2, 1);
+  top: 6%;
+}
+
+.unool-signup-page .now:before {
+  content: "";
+  position: absolute;
+  left: -5px;
+  top: -6px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #B4472F;
+}
+
+.unool-signup-page .now:after {
+  content: "now";
+  position: absolute;
+  right: 0;
+  top: -11px;
+  background: #B4472F;
+  color: #fff;
+  font: 600 11px var(--sans);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.unool-signup-page .card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 620px;
+  background: var(--paper);
+  border: 1.5px solid var(--line);
+  border-radius: 26px;
+  padding: 28px 34px 26px;
+  box-shadow: 0 24px 60px rgba(90, 16, 32, .16);
+}
+
+.unool-signup-page .tag {
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--bur);
+  background: var(--rose);
+  border-radius: 999px;
+  padding: 5px 12px;
+}
+
+.unool-signup-page .sent {
+  position: relative;
+  font: 400 28px/1.45 var(--serif);
+  font-variation-settings: "SOFT" 100, "opsz" 48;
+  letter-spacing: -.012em;
+  margin-top: 10px;
+}
+
+.unool-signup-page .ms {
+  position: absolute;
+  visibility: hidden;
+  white-space: pre;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  font: italic 400 28px var(--serif);
+  font-variation-settings: "SOFT" 100, "opsz" 48;
+  letter-spacing: -.012em;
+}
+
+.unool-signup-page .ln {
+  display: flex;
+  gap: 14px;
+  padding: 10px 0;
+}
+
+.unool-signup-page .tk {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  margin-top: 11px;
+  border-radius: 50%;
+  border: 1.5px solid #8A7B75;
+  color: var(--paper);
+  font: 700 13px var(--sans);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .3s;
+  user-select: none;
+}
+
+.unool-signup-page .tk.done {
+  background: var(--bur);
+  border-color: var(--bur);
+  transform: rotate(-8deg) scale(1.08);
+}
+
+.unool-signup-page .tx {
+  flex: 1;
+  min-width: 0;
+}
+
+.unool-signup-page input.il {
+  font: italic 400 28px var(--serif);
+  font-variation-settings: "SOFT" 100, "opsz" 48;
+  letter-spacing: -.012em;
+  color: var(--bur);
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid #8A7B75;
+  border-radius: 0;
+  padding: 0 4px;
+  line-height: 1.25;
+  max-width: 100%;
+  min-width: 120px;
+  outline: none;
+  transition: border-color .15s, background .15s;
+}
+
+.unool-signup-page input.il::placeholder {
+  color: #a3949a;
+}
+
+.unool-signup-page input.il:focus {
+  outline: 2px solid var(--bur);
+  outline-offset: 3px;
+  border-radius: 4px;
+  border-bottom-color: var(--bur);
+  background: #fff;
+}
+
+.unool-signup-page input.il:read-only {
+  border-bottom-style: dotted;
+}
+
+.unool-signup-page .sans {
+  font: 500 14px/1.4 var(--sans);
+}
+
+.unool-signup-page .rg {
+  display: inline-flex;
+  gap: 6px;
+  vertical-align: middle;
+  margin-left: 4px;
+}
+
+.unool-signup-page .pl {
+  position: relative;
+  display: block;
+}
+
+.unool-signup-page .pl input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.unool-signup-page .pl span {
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 16px;
+  border: 1px solid #8A7B75;
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--ink);
+  font: 500 14px var(--sans);
+  letter-spacing: 0;
+  cursor: pointer;
+  transition: all .15s;
+  user-select: none;
+}
+
+.unool-signup-page .pl span:hover {
+  border-color: var(--bur);
+}
+
+.unool-signup-page .pl input:checked + span {
+  background: var(--bur);
+  color: var(--paper);
+  border-color: var(--bur);
+}
+
+.unool-signup-page .pl input:focus-visible + span,
+.unool-signup-page .btn:focus-visible,
+.unool-signup-page .g:focus-visible,
+.unool-signup-page .eye:focus-visible {
+  outline: 2px solid var(--bur);
+  outline-offset: 3px;
+}
+
+.unool-signup-page .eye {
+  vertical-align: middle;
+  height: 34px;
+  padding: 0 13px;
+  margin-left: 8px;
+  border-radius: 999px;
+  border: 1px solid #8A7B75;
+  background: var(--paper);
+  color: var(--ink);
+  font: 500 13px var(--sans);
+  letter-spacing: 0;
+  cursor: pointer;
+}
+
+.unool-signup-page .err,
+.unool-signup-page .hint {
+  font: 400 13px/1.4 var(--sans);
+  letter-spacing: 0;
+  margin-top: 6px;
+}
+
+.unool-signup-page .err {
+  color: var(--err);
+}
+
+.unool-signup-page .hint {
+  color: var(--mute);
+}
+
+.unool-signup-page .err:empty,
+.unool-signup-page .hint:empty {
+  display: none;
+}
+
+.unool-signup-page .btn {
+  height: 54px;
+  width: 100%;
+  border: 0;
+  border-radius: 12px;
+  background: var(--bur);
+  color: var(--paper);
+  font: 600 16px var(--sans);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 14px;
+  transition: background .15s, transform .15s;
+}
+
+.unool-signup-page .btn:hover {
+  background: var(--bur2);
+  transform: translateY(-1px);
+}
+
+.unool-signup-page .btn:disabled {
+  opacity: .75;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.unool-signup-page .cap {
+  font-size: 13px;
+  color: var(--mute);
+  text-align: center;
+  margin-top: 10px;
+}
+
+.unool-signup-page .g {
+  height: 46px;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ink);
+  font: 500 14px var(--sans);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  margin-top: 12px;
+  transition: border-color .15s;
+}
+
+.unool-signup-page .g:hover {
+  border-color: var(--bur);
+}
+
+.unool-signup-page .terms {
+  font-size: 12px;
+  color: var(--mute);
+  text-align: center;
+  margin-top: 12px;
+}
+
+.unool-signup-page .spin {
+  width: 15px;
+  height: 15px;
+  border: 2px solid var(--paper);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: sp .7s linear infinite;
+  display: inline-block;
+}
+
+@keyframes sp {
+  to { transform: rotate(360deg); }
+}
+
+.unool-signup-page footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  color: var(--mute);
+  font: italic 400 17px var(--serif);
+  margin-top: 6px;
+}
+
+.unool-signup-page .sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+/* OTP verification styles matching calendar aesthetic */
+.unool-signup-page .otp-wrap {
+  margin-top: 16px;
+}
+
+.unool-signup-page .otp-boxes {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  margin: 18px 0;
+}
+
+.unool-signup-page .otp-box {
+  height: 52px;
+  width: 100%;
+  text-align: center;
+  font-size: 22px;
+  font-weight: 700;
+  font-family: var(--sans);
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ink);
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+
+.unool-signup-page .otp-box:focus {
+  border-color: var(--bur);
+  box-shadow: 0 0 0 4px var(--rose);
+}
+
+.unool-signup-page .otp-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 14px;
+}
+
+.unool-signup-page .lnk {
+  background: none;
+  border: 0;
+  font: 13px var(--sans);
+  color: var(--bur);
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+}
+
+@media(max-width: 760px) {
+  .unool-signup-page {
+    padding: 8px;
+  }
+  .unool-signup-page .frame {
+    padding: 18px 14px;
+    border-radius: 20px;
+  }
+  .unool-signup-page .days,
+  .unool-signup-page .grid {
+    gap: 6px;
+  }
+  .unool-signup-page .days span {
+    font-size: 10px;
+    padding: 8px 0;
+  }
+  .unool-signup-page .cell {
+    padding: 4px;
+  }
+  .unool-signup-page .ev {
+    display: none;
+  }
+  .unool-signup-page .now {
+    display: none;
+  }
+  .unool-signup-page .stage {
+    padding: 20px 0;
+  }
+  .unool-signup-page .card {
+    padding: 22px 18px;
+  }
+  .unool-signup-page .sent,
+  .unool-signup-page .ms,
+  .unool-signup-page input.il {
+    font-size: 22px;
+  }
+  .unool-signup-page input.il {
+    min-width: 100px;
+  }
+  .unool-signup-page header p {
+    font-size: 13px;
+  }
+  .unool-signup-page .mark {
+    font-size: 24px;
+  }
+  .unool-signup-page footer {
+    font-size: 14px;
+  }
+}
+
+@media(prefers-reduced-motion: reduce) {
+  .unool-signup-page * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
