@@ -113,16 +113,39 @@ export function buildStudioContext(profile?: StudioProfile | Record<string, any>
   const isStudent = roleLower.includes('student');
   const isEng = roleLower.includes('engineer') || roleLower.includes('developer');
   const isCreatorOrInfluencer = roleLower.includes('creator') || roleLower.includes('influencer');
+  const isFounder = roleLower.includes('founder') || roleLower.includes('entrepreneur') || roleLower.includes('ceo');
 
-  if (businessStage) {
+  // Sanitize leftover academic fields if creator switched away from Student
+  const academicPattern = /\b(exam|exams|finals|midterms|homework|study routines?|campus life|grade[s]?|classes|undergrad|college student|masters student|phd)\b/i;
+  let effectiveStage = businessStage;
+  let effectiveWorkInterests = workInterests;
+  let effectiveAudience = audience;
+
+  if (!isStudent) {
+    if (academicPattern.test(effectiveStage)) {
+      effectiveStage = isFounder ? 'Growing' : 'Experienced';
+    }
+    if (academicPattern.test(effectiveWorkInterests)) {
+      effectiveWorkInterests = effectiveWorkInterests
+        .replace(/\b(exam[s]?|finals|midterms|homework|study routines?|campus life|grade[s]?)\b/gi, '')
+        .replace(/,\s*,/g, ',')
+        .replace(/^[\s,]+|[\s,]+$/g, '')
+        .trim();
+    }
+    if (/fellow students|my campus|study community|campus & local/i.test(effectiveAudience)) {
+      effectiveAudience = isFounder ? 'Customers & peers in my industry' : 'Followers in my niche';
+    }
+  }
+
+  if (effectiveStage) {
     if (isStudent) {
-      lines.push(`- Stage in studies: ${businessStage}`);
+      lines.push(`- Stage in studies: ${effectiveStage}`);
     } else if (isEng) {
-      lines.push(`- Career level: ${businessStage}`);
+      lines.push(`- Career level: ${effectiveStage}`);
     } else if (isCreatorOrInfluencer) {
-      lines.push(`- Audience / creator stage: ${businessStage}`);
+      lines.push(`- Audience / creator stage: ${effectiveStage}`);
     } else {
-      lines.push(`- Business stage: ${businessStage}`);
+      lines.push(`- Business stage: ${effectiveStage}`);
     }
   }
 
@@ -140,17 +163,17 @@ export function buildStudioContext(profile?: StudioProfile | Record<string, any>
     lines.push(`- What they do: ${doing}`);
   }
 
-  if (workInterests) {
+  if (effectiveWorkInterests) {
     if (isStudent) {
-      lines.push(`- Favorite study topics & projects: ${workInterests}`);
+      lines.push(`- Favorite study topics & projects: ${effectiveWorkInterests}`);
     } else if (isEng) {
-      lines.push(`- Favorite tech topics & discussions: ${workInterests}`);
+      lines.push(`- Favorite tech topics & discussions: ${effectiveWorkInterests}`);
     } else {
-      lines.push(`- What they love talking about in their work: ${workInterests}`);
+      lines.push(`- What they love talking about in their work: ${effectiveWorkInterests}`);
     }
   }
-  if (audience) {
-    lines.push(`- Target audience: ${audience}`);
+  if (effectiveAudience) {
+    lines.push(`- Target audience: ${effectiveAudience}`);
   }
   if (tone) {
     lines.push(`- Voice/tone: ${tone}`);
@@ -159,11 +182,21 @@ export function buildStudioContext(profile?: StudioProfile | Record<string, any>
     lines.push(`- Preferred post style: ${style}`);
   }
   if (interests.length > 0) {
-    lines.push(`- Interests: ${interests.join(', ')}`);
+    // If not student, filter out any residual 'Exams' or 'Studies' from interests
+    const filteredInterests = !isStudent
+      ? interests.filter((item) => !academicPattern.test(item))
+      : interests;
+    if (filteredInterests.length > 0) {
+      lines.push(`- Interests: ${filteredInterests.join(', ')}`);
+    }
   }
 
   lines.push('');
   lines.push('HOW TO USE IT:');
+  lines.push(`- STRICT PERSONA CONSISTENCY: The creator's active identity is strictly "${role || 'Creator'}".`);
+  if (!isStudent) {
+    lines.push('- Do NOT use student, academic, exam, campus, or homework metaphors or topics. Write strictly from the creator\'s professional/founder perspective.');
+  }
   lines.push("- Write in the creator's tone and preferred style, in first person, as if they wrote it.");
   lines.push('- Speak to the target audience; choose examples and vocabulary that audience relates to.');
   lines.push('- Use interests only when they naturally strengthen the post (a metaphor, an analogy, a hook). Never force them in, and never list them.');

@@ -83,6 +83,10 @@ export function buildIdeasPrompt(params: {
 
   const systemPrompt = 'You are a friendly content coach helping a creator figure out what to post.';
 
+  const rawRole = params.profile?.role || (params.profile as any)?.persona || '';
+  const roleStr = sanitizeProfileValue(rawRole) || 'Creator';
+  const isStudentRole = roleStr.toLowerCase().includes('student');
+
   const prompt = `You are a friendly content coach helping a creator figure out what to post.
 Today's date: ${formattedToday}. Upcoming relevant moments: ${hooksText}.
 
@@ -91,6 +95,7 @@ ${studioContextBlock}
 Generate exactly 3 post ideas.
 
 MUST-FOLLOW RULES
+- STRICT ROLE ALIGNMENT: All 3 ideas must strictly reflect the creator's active role: "${roleStr}". ${!isStudentRole ? `The creator is a ${roleStr}, NOT a student. Absolutely DO NOT generate ideas, hooks, or analogies about exams, homework, classes, grades, or student life. Focus on real-world ${roleStr} topics: product development, business growth, customers, hiring, bootstrapping, and leadership.` : 'Focus on student projects, campus life, studying, and growth.'}
 - UNIQUE: each idea combines at least TWO things from the profile (for example what their business does + a stage lesson/challenge, or what they love talking about at work + an outside interest or seasonal moment). Nothing that any creator in any niche could post.
 - NOT GENERIC: ban '5 tips for...', 'why consistency matters', 'my journey', 'lessons I learned', 'Monday motivation' style ideas.
 - CONVERSATIONAL AND EASY TO UNDERSTAND: write like a smart friend talking, in simple everyday words. Short sentences. No jargon, no buzzwords, no abstract or poetic phrasing. A person should understand the idea in 3 seconds without re-reading. Each title must be plain (max 12 words) and say exactly what the post is about.

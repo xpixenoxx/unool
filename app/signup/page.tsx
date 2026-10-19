@@ -1,55 +1,133 @@
 'use client';
 
-import { useState, useRef, useEffect, KeyboardEvent, ClipboardEvent } from 'react';
+import React, { useState, useRef, useEffect, useCallback, Suspense, KeyboardEvent, ClipboardEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Home, Search, Bell, Mail, User, Bookmark, Loader2, Image, BarChart2, Smile, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { getSupabaseBrowserClient } from '@/lib/supabase/browser';
+import './signup.css';
 
-const C = {
-  oxblood: '#3A0B1A',
-  mahogany: '#5C1A1A',
-  terracotta: '#8C2A25',
-  clay: '#C84B31',
-  sand: '#D4B896',
-  cream: '#FFF9F2',
-  ink: '#1A0A05',
+// Calendar static events
+const STATIC_EVENTS: Record<number, [string, string]> = {
+  0: ['Update', 'rose'],
+  1: ['Best time', 'dash'],
+  5: ['Publishing', 'peach live'],
+  6: ['Report', 'tan'],
+  8: ['Clip', 'dark'],
+  12: ['Recap', 'peach'],
+  14: ['Launch', 'peach'],
+  20: ['Reel', 'dark'],
+  22: ['Case study', 'tan']
 };
 
-interface FormErrors {
-  name?: string;
-  email?: string;
-  password?: string;
-}
+const DYNAMIC_SLOTS: Record<number, number> = {
+  1: 7,
+  2: 13,
+  3: 21,
+  4: 27
+};
 
-function validateForm(name: string, email: string, password: string): FormErrors {
-  const errors: FormErrors = {};
-  if (!name.trim()) errors.name = 'Name is required.';
-  if (!email.includes('@')) errors.email = 'Enter a valid email address.';
-  if (password.length < 8) errors.password = 'Password must be at least 8 characters.';
-  if (password.length > 128) errors.password = 'Password must be at most 128 characters.';
-  return errors;
-}
+const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
-export default function SignUpSocialPage() {
+function SignUpComponent() {
   const router = useRouter();
 
+  // Form Fields
   const [name, setName] = useState('');
+  const [who, setWho] = useState<'solo' | 'team' | ''>('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [errors, setErrors] = useState<FormErrors>({});
-  const [apiError, setApiError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [stage, setStage] = useState<'form' | 'otp' | 'done'>('form');
-  
-  // OTP State
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Errors & States
+  const [nameError, setNameError] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [isDone, setIsDone] = useState(false);
+  const [stage, setStage] = useState<'form' | 'otp' | 'completed'>('form');
+
+  // OTP Verification States
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const [nextResendAt, setNextResendAt] = useState<string>();
+  const [otpError, setOtpError] = useState('');
   const [cooldown, setCooldown] = useState(0);
+  const [nextResendAt, setNextResendAt] = useState<string>();
   const [resendLoading, setResendLoading] = useState(false);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
+  // DOM Refs
+  const msRef = useRef<HTMLSpanElement>(null);
+  const nmRef = useRef<HTMLInputElement>(null);
+  const emRef = useRef<HTMLInputElement>(null);
+  const pwRef = useRef<HTMLInputElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const capRef = useRef<HTMLParagraphElement>(null);
+  const tagRef = useRef<HTMLSpanElement>(null);
+  const stRef = useRef<HTMLParagraphElement>(null);
+
+  // Validation Checks
+  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const okName = name.trim().length > 0;
+  const okWho = who !== '';
+  const okEmail = emailRe.test(email.trim());
+  const okPw = password.length >= 8;
+  const filledCount = [okName, okWho, okEmail, okPw].filter(Boolean).length;
+
+  // Measure text and fit input width
+  const fit = useCallback((input: HTMLInputElement | null) => {
+    if (!input || !msRef.current) return;
+    msRef.current.textContent = input.value || input.getAttribute('placeholder') || '';
+    input.style.width = (msRef.current.offsetWidth + 16) + 'px';
+  }, []);
+
+  useEffect(() => {
+    fit(nmRef.current);
+    fit(emRef.current);
+    if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => {
+        fit(nmRef.current);
+        fit(emRef.current);
+      });
+    }
+  }, [fit]);
+
+  // Today's weekday index (Mon=0, Sun=6)
+  const todayWeekdayIndex = (new Date().getDay() + 6) % 7;
+
+  // Dynamic slot events text & class
+  const getSlotEvent = (slotNum: number): { text: string; cls: string } | null => {
+    if (isDone) {
+      if (slotNum === 1) return { text: 'Hi, ' + name.trim().split(' ')[0], cls: 'dark' };
+      if (slotNum === 2) return { text: who === 'team' ? 'Team calendar' : 'Solo calendar', cls: 'dark' };
+      if (slotNum === 3) return { text: 'Inbox confirmed', cls: 'dark' };
+      if (slotNum === 4) return { text: 'Password set', cls: 'dark' };
+    }
+    if (slotNum === 1 && okName) return { text: 'Hi, ' + name.trim().split(' ')[0], cls: 'rose' };
+    if (slotNum === 2 && okWho) return { text: who === 'team' ? 'Team calendar' : 'Solo calendar', cls: 'peach' };
+    if (slotNum === 3 && okEmail) return { text: 'Inbox confirmed', cls: 'tan' };
+    if (slotNum === 4 && okPw) return { text: 'Password set', cls: 'dark' };
+    return null;
+  };
+
+  // Timeline bar position
+  const nowTop = isDone ? '96%' : `${6 + filledCount * 21}%`;
+
+  // Password hint text
+  const pwHintText = password
+    ? okPw
+      ? 'Looks good.'
+      : 'Keep going, 8 or more characters.'
+    : 'At least 8 characters.';
+
+  // Caption text
+  const captionText = isDone
+    ? 'Opening your workspace…'
+    : filledCount === 4
+    ? 'All set. Your first week is ready.'
+    : filledCount > 0
+    ? `${filledCount} of 4 slots filled on your calendar.`
+    : 'Every answer lands on your calendar. Watch the week fill up.';
+
+  // Cooldown countdown for OTP
   useEffect(() => {
     if (!nextResendAt) return;
     const diff = Math.ceil((new Date(nextResendAt).getTime() - Date.now()) / 1000);
@@ -62,16 +140,13 @@ export default function SignUpSocialPage() {
     return () => clearInterval(t);
   }, [cooldown]);
 
-  useEffect(() => {
-    if (stage === 'otp') {
-      setTimeout(() => otpRefs.current[0]?.focus(), 600);
-    }
-  }, [stage]);
-
+  // Google OAuth Signup
   const handleGoogleSignIn = async () => {
     try {
-      setLoading(true);
-      setApiError('');
+      setBusy(true);
+      setNameError('');
+      setEmailError('');
+      setPasswordError('');
       const supabase = getSupabaseBrowserClient();
       await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -80,45 +155,78 @@ export default function SignUpSocialPage() {
         }
       });
     } catch {
-      setApiError('Failed to initiate Google sign in.');
-      setLoading(false);
+      setPasswordError('Failed to initiate Google sign in.');
+      setBusy(false);
     }
   };
 
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setApiError('');
-    const errs = validateForm(name, email, password);
-    setErrors(errs);
-    if (Object.keys(errs).length) return;
+  // Form Submit
+  const handleSubmit = async () => {
+    if (busy) return;
+    setNameError('');
+    setEmailError('');
+    setPasswordError('');
 
-    setLoading(true);
+    let hasErr = false;
+    if (!name.trim()) {
+      setNameError('Enter your name');
+      hasErr = true;
+    }
+    if (!emailRe.test(email.trim())) {
+      setEmailError('Enter a valid email, like name@company.com');
+      hasErr = true;
+    }
+    if (password.length < 8) {
+      setPasswordError('Use at least 8 characters');
+      hasErr = true;
+    }
+
+    if (hasErr) return;
+
+    setBusy(true);
     try {
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), email: email.trim().toLowerCase(), password }),
+        body: JSON.stringify({
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
+          password
+        })
       });
       const data = await res.json();
+
       if (!res.ok) {
-        setApiError(data.message || 'Something went wrong.');
+        setPasswordError(data.message || 'Something went wrong. Please try again.');
+        setBusy(false);
       } else {
-        setNextResendAt(new Date(Date.now() + 60_000).toISOString());
-        setStage('otp');
+        // Trigger completion animation on calendar
+        setIsDone(true);
+        if (btnRef.current) btnRef.current.textContent = '✓ You’re in';
+        if (tagRef.current) tagRef.current.textContent = 'Welcome to Unool';
+        if (stRef.current) stRef.current.textContent = 'Account created. Opening your workspace.';
+
+        // Transition to OTP verification if required by backend
+        setTimeout(() => {
+          setNextResendAt(new Date(Date.now() + 60_000).toISOString());
+          setStage('otp');
+          setBusy(false);
+          setTimeout(() => otpRefs.current[0]?.focus(), 300);
+        }, 900);
       }
     } catch {
-      setApiError('Network error. Please try again.');
-    } finally {
-      setLoading(false);
+      setPasswordError('Network error. Please try again.');
+      setBusy(false);
     }
   };
 
+  // OTP handlers
   const handleOtpChange = (i: number, val: string) => {
     const digit = val.replace(/\D/g, '').slice(-1);
     const next = [...otp];
     next[i] = digit;
     setOtp(next);
-    setApiError('');
+    setOtpError('');
     if (digit && i < 5) otpRefs.current[i + 1]?.focus();
   };
 
@@ -138,29 +246,31 @@ export default function SignUpSocialPage() {
   const verifyOtp = async () => {
     const token = otp.join('');
     if (token.length < 6) return;
-    setLoading(true);
-    setApiError('');
-    
+    setBusy(true);
+    setOtpError('');
+
     try {
       const res = await fetch('/api/auth/signup/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, otp: token }),
+        body: JSON.stringify({ email: email.trim().toLowerCase(), otp: token })
       });
       const data = await res.json();
 
       if (!res.ok) {
-        setApiError(data.message || 'Invalid code.');
+        setOtpError(data.message || 'Invalid code.');
         setOtp(['', '', '', '', '', '']);
+        setBusy(false);
         setTimeout(() => otpRefs.current[0]?.focus(), 50);
       } else {
-        setStage('done');
-        setTimeout(() => router.push(data.redirectTo || '/signin'), 2000);
+        setStage('completed');
+        setTimeout(() => {
+          router.push(data.redirectTo || '/signin');
+        }, 1500);
       }
     } catch {
-      setApiError('Network error.');
-    } finally {
-      setLoading(false);
+      setOtpError('Network error.');
+      setBusy(false);
     }
   };
 
@@ -171,7 +281,7 @@ export default function SignUpSocialPage() {
       await fetch('/api/auth/resend-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, purpose: 'signup' }),
+        body: JSON.stringify({ email: email.trim().toLowerCase(), purpose: 'signup' })
       });
       setOtp(['', '', '', '', '', '']);
       setCooldown(60);
@@ -181,370 +291,429 @@ export default function SignUpSocialPage() {
     }
   };
 
-  const navItems = [
-    { icon: Home, label: 'Home', active: false },
-    { icon: Search, label: 'Explore', active: false },
-    { icon: Bell, label: 'Notifications', active: false },
-    { icon: Mail, label: 'Messages', active: false },
-    { icon: Bookmark, label: 'Bookmarks', active: false },
-    { icon: User, label: 'Profile', active: false },
-  ];
-
   return (
-    <div 
-      className="min-h-screen w-full flex justify-center font-sans text-white selection:bg-[#C84B31]"
-      style={{ background: `linear-gradient(180deg, ${C.oxblood} 0%, ${C.terracotta} 40%, ${C.sand} 80%, ${C.cream} 100%)` }}
-    >
-      <div className="w-full max-w-7xl flex h-screen overflow-hidden">
-        
-        {/* Left Sidebar (Nav) */}
-        <div className="hidden sm:flex flex-col w-[80px] lg:w-[275px] shrink-0 border-r border-white/10 p-4">
-          <Link href="/" className="flex items-center gap-4 p-3 hover:bg-white/5 w-fit rounded-full transition-colors mb-4 group">
-            <ArrowLeft className="w-7 h-7 group-hover:-translate-x-1 transition-transform" />
-            <span className="hidden lg:block text-xl font-bold">Back to Site</span>
-          </Link>
-          
-          <div className="flex flex-col gap-2 w-full mt-2">
-            {navItems.map((item, i) => (
-              <div key={i} className="flex items-center gap-5 p-3 w-fit lg:w-full lg:px-4 rounded-full transition-colors opacity-50 hover:bg-white/5 cursor-not-allowed">
-                <item.icon className="w-7 h-7" />
-                <span className="hidden lg:block text-xl">{item.label}</span>
-              </div>
-            ))}
+    <div className="unool-signup-page">
+      <div className="frame">
+        <header>
+          <div className="mark">
+            <div className="dot">U</div>
+            Unool
           </div>
+          <p>
+            Already have an account? <Link href="/signin">Sign in</Link>
+          </p>
+        </header>
 
-          <Link href="/signin" className="mt-8 bg-transparent border border-white text-white font-bold text-lg py-4 px-8 rounded-full hidden lg:block text-center hover:bg-white/10 transition-colors shadow-lg">
-            Sign In Instead
-          </Link>
+        {/* 7 Weekday Headers */}
+        <div className="days" id="days" aria-hidden="true">
+          {DAYS.map((day, idx) => (
+            <span key={day} className={idx === todayWeekdayIndex ? 'on' : ''}>
+              {day}
+            </span>
+          ))}
         </div>
 
-        {/* Center Feed: Composing a post */}
-        <div className="flex-1 w-full max-w-[600px] border-r border-white/10 flex flex-col h-full overflow-y-auto no-scrollbar relative bg-black/40 backdrop-blur-md">
-          {/* Header */}
-          <div className="sticky top-0 z-50 bg-black/60 backdrop-blur-xl border-b border-white/10 p-4 flex gap-8">
-            <Link href="/signin" className="text-[15px] font-bold text-white/50 hover:text-white transition-colors pb-2">
-              Sign In
-            </Link>
-            <Link href="/signup" className="text-[15px] font-bold relative pb-2 text-white">
-              Sign Up
-              <div className="absolute bottom-0 left-0 right-0 h-1 rounded-t-full bg-[#C84B31]" />
-            </Link>
+        {/* Calendar Stage */}
+        <div className="stage">
+          {/* 4x7 = 28 Cells */}
+          <div className="grid" id="grid" aria-hidden="true">
+            {Array.from({ length: 28 }, (_, i) => {
+              // Static events
+              if (STATIC_EVENTS[i]) {
+                const [title, cls] = STATIC_EVENTS[i];
+                return (
+                  <div key={i} className="cell" id={`c${i}`}>
+                    <div className={`ev ${cls}`}>{title}</div>
+                  </div>
+                );
+              }
+              // Dynamic slot cells: 7, 13, 21, 27
+              const slotIdx = Object.keys(DYNAMIC_SLOTS).find(
+                key => DYNAMIC_SLOTS[Number(key)] === i
+              );
+              if (slotIdx) {
+                const event = getSlotEvent(Number(slotIdx));
+                return (
+                  <div key={i} className="cell" id={`c${i}`}>
+                    {event ? (
+                      <div className={`ev new ${event.cls}`}>
+                        {event.text}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              }
+              // Blank cell
+              return <div key={i} className="cell" id={`c${i}`} />;
+            })}
           </div>
 
-          {/* The Compose Area */}
-          <div className="p-4 sm:p-6 pb-32">
-            
-            {/* The initial compose form */}
-            <div className="relative z-10 w-full mb-6">
-              <div className="flex gap-4">
-                <div className="flex flex-col items-center">
-                  <div className="w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xl font-bold z-10 relative bg-white/10 shadow-inner">
-                    {name ? name.charAt(0).toUpperCase() : <User className="w-6 h-6 opacity-50" />}
-                  </div>
-                  {/* Thread line connecting downward if stage changes */}
-                  <AnimatePresence>
-                    {stage !== 'form' && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: '100%', opacity: 1 }}
-                        transition={{ duration: 0.5, ease: 'easeOut' }}
-                        className="w-0.5 mt-2 flex-grow rounded-full bg-white/20"
-                      />
-                    )}
-                  </AnimatePresence>
-                </div>
-                
-                <div className="flex-1 pt-1">
-                  {stage === 'form' ? (
-                    <motion.form 
-                      onSubmit={handleSignup} 
-                      className="w-full flex flex-col gap-2"
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                    >
-                      <h2 className="text-xl font-bold mb-4 opacity-80">Compose your profile</h2>
-                      
-                      <button
-                        type="button"
-                        onClick={handleGoogleSignIn}
-                        disabled={loading}
-                        className="w-full bg-white/5 hover:bg-white/10 rounded-2xl flex items-center justify-center gap-3 p-3 text-[15px] font-bold text-white transition-colors outline-none disabled:opacity-50 group border border-white/10 mb-2"
-                      >
-                        <div className="w-5 h-5 bg-white rounded-full flex items-center justify-center p-0.5 group-hover:scale-105 transition-transform">
-                          <svg viewBox="0 0 24 24" className="w-full h-full">
-                            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                          </svg>
-                        </div>
-                        Continue with Google
-                      </button>
-                      
-                      <div className="w-full flex items-center bg-transparent py-2">
-                        <div className="flex-1 h-px bg-white/10" />
-                        <span className="text-[10px] text-white/40 px-3 font-bold uppercase tracking-widest">Or email</span>
-                        <div className="flex-1 h-px bg-white/10" />
-                      </div>
+          {/* Red Timeline Bar */}
+          <div className="now" id="now" aria-hidden="true" style={{ top: nowTop }} />
 
+          {/* Form Card */}
+          <main className="card">
+            {stage === 'form' ? (
+              <>
+                <span className="tag" id="tag" ref={tagRef}>
+                  Create your account
+                </span>
+
+                <div className="sent">
+                  <span className="ms" id="ms" ref={msRef} aria-hidden="true"></span>
+
+                  {/* Line 1: Name */}
+                  <div className="ln">
+                    <span className={`tk ${okName ? 'done' : ''}`} id="t1" aria-hidden="true">
+                      ✓
+                    </span>
+                    <div className="tx">
+                      <label htmlFor="nm" style={{ display: 'inline' }}>
+                        Hi, I’m{' '}
+                      </label>
                       <input
+                        ref={nmRef}
+                        className="il"
+                        id="nm"
                         type="text"
-                        placeholder="Your full name"
+                        autoComplete="name"
+                        placeholder="your name"
+                        maxLength={60}
                         value={name}
-                        onChange={(e) => { setName(e.target.value); setErrors(p => ({...p, name: undefined})); }}
-                        disabled={loading}
-                        className={`w-full bg-transparent border-none focus:ring-0 text-xl font-medium p-2 placeholder:text-white/30 text-white outline-none disabled:opacity-50
-                          ${errors.name ? 'border-b border-red-500' : ''}`}
+                        disabled={busy}
+                        onChange={(e) => {
+                          setName(e.target.value);
+                          setNameError('');
+                          fit(nmRef.current);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            emRef.current?.focus();
+                          }
+                        }}
                       />
-                      {errors.name && <p className="text-red-400 text-xs px-2">{errors.name}</p>}
+                      .
+                      <p className="err" id="e1" role="alert">
+                        {nameError}
+                      </p>
+                    </div>
+                  </div>
 
+                  {/* Line 2: Posting As (Radio) */}
+                  <div className="ln">
+                    <span className={`tk ${okWho ? 'done' : ''}`} id="t2" aria-hidden="true">
+                      ✓
+                    </span>
+                    <div className="tx">
+                      I post as{' '}
+                      <span className="rg sans" role="radiogroup" aria-label="Posting as">
+                        <label className="pl">
+                          <input
+                            type="radio"
+                            name="who"
+                            value="solo"
+                            checked={who === 'solo'}
+                            disabled={busy}
+                            onChange={() => setWho('solo')}
+                          />
+                          <span>Just me</span>
+                        </label>
+                        <label className="pl">
+                          <input
+                            type="radio"
+                            name="who"
+                            value="team"
+                            checked={who === 'team'}
+                            disabled={busy}
+                            onChange={() => setWho('team')}
+                          />
+                          <span>A team</span>
+                        </label>
+                      </span>
+                      .
+                    </div>
+                  </div>
+
+                  {/* Line 3: Email */}
+                  <div className="ln">
+                    <span className={`tk ${okEmail ? 'done' : ''}`} id="t3" aria-hidden="true">
+                      ✓
+                    </span>
+                    <div className="tx">
+                      <label htmlFor="em" style={{ display: 'inline' }}>
+                        You can reach me at{' '}
+                      </label>
                       <input
+                        ref={emRef}
+                        className="il"
+                        id="em"
                         type="email"
-                        placeholder="Email address"
+                        inputMode="email"
+                        autoComplete="email"
+                        placeholder="name@company.com"
                         value={email}
-                        onChange={(e) => { setEmail(e.target.value); setErrors(p => ({...p, email: undefined})); setApiError(''); }}
-                        disabled={loading}
-                        className={`w-full bg-transparent border-none focus:ring-0 text-lg p-2 placeholder:text-white/30 text-white outline-none disabled:opacity-50
-                          ${errors.email ? 'border-b border-red-500' : ''}`}
+                        disabled={busy}
+                        onChange={(e) => {
+                          setEmail(e.target.value);
+                          setEmailError('');
+                          fit(emRef.current);
+                        }}
+                        onBlur={() => {
+                          const v = email.trim();
+                          if (v && !emailRe.test(v)) {
+                            setEmailError('Enter a valid email, like name@company.com');
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            pwRef.current?.focus();
+                          }
+                        }}
                       />
-                      {errors.email && <p className="text-red-400 text-xs px-2">{errors.email}</p>}
+                      .
+                      <p className="err" id="e3" role="alert">
+                        {emailError}
+                      </p>
+                    </div>
+                  </div>
 
+                  {/* Line 4: Password */}
+                  <div className="ln">
+                    <span className={`tk ${okPw ? 'done' : ''}`} id="t4" aria-hidden="true">
+                      ✓
+                    </span>
+                    <div className="tx">
+                      <label htmlFor="pw" style={{ display: 'inline' }}>
+                        I’ll protect it with{' '}
+                      </label>
                       <input
-                        type="password"
-                        placeholder="Password (min 8 chars)"
+                        ref={pwRef}
+                        className="il"
+                        id="pw"
+                        type={showPassword ? 'text' : 'password'}
+                        autoComplete="new-password"
+                        placeholder="password"
+                        style={{ width: '190px' }}
                         value={password}
-                        onChange={(e) => { setPassword(e.target.value); setErrors(p => ({...p, password: undefined})); }}
-                        disabled={loading}
-                        className={`w-full bg-transparent border-none focus:ring-0 text-lg p-2 placeholder:text-white/30 text-white outline-none disabled:opacity-50
-                          ${errors.password ? 'border-b border-red-500' : ''}`}
+                        disabled={busy}
+                        onChange={(e) => {
+                          setPassword(e.target.value);
+                          setPasswordError('');
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleSubmit();
+                          }
+                        }}
                       />
-                      {errors.password && <p className="text-red-400 text-xs px-2">{errors.password}</p>}
-                      {apiError && <p className="text-red-400 text-sm px-2 mt-2">{apiError}</p>}
+                      <button
+                        className="eye"
+                        type="button"
+                        id="eye"
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                        onClick={() => setShowPassword(p => !p)}
+                      >
+                        {showPassword ? 'Hide' : 'Show'}
+                      </button>
+                      .
+                      <p className="hint" id="pwhint" aria-live="polite">
+                        {pwHintText}
+                      </p>
+                      <p className="err" id="e4" role="alert">
+                        {passwordError}
+                      </p>
+                    </div>
+                  </div>
+                </div>
 
-                      <div className="w-full h-px bg-white/10 my-4" />
-
-                      <div className="flex items-center justify-between">
-                        <div className="flex gap-4 text-[#C84B31]">
-                          <Image className="w-5 h-5 cursor-pointer opacity-50 hover:opacity-100" />
-                          <BarChart2 className="w-5 h-5 cursor-pointer opacity-50 hover:opacity-100" />
-                          <Smile className="w-5 h-5 cursor-pointer opacity-50 hover:opacity-100" />
-                        </div>
-                        <button
-                          type="submit"
-                          disabled={loading || !name || !email || !password}
-                          className="px-6 py-2 rounded-full font-bold text-[15px] text-black bg-white flex items-center gap-2 transition-transform active:scale-95 disabled:opacity-50 disabled:active:scale-100 hover:bg-white/90"
-                        >
-                          {loading ? <Loader2 className="w-4 h-4 animate-spin text-black" /> : 'Post Profile'}
-                        </button>
-                      </div>
-                    </motion.form>
+                <button
+                  className="btn"
+                  type="button"
+                  id="go"
+                  ref={btnRef}
+                  disabled={busy}
+                  onClick={handleSubmit}
+                >
+                  {busy ? (
+                    <>
+                      <span className="spin"></span>Creating your account…
+                    </>
                   ) : (
-                    <motion.div 
-                      className="w-full flex flex-col gap-1 pb-4"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                    >
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-bold text-[15px]">{name}</span>
-                        <span className="text-[15px] text-white/50">@{email.split('@')[0]}</span>
-                      </div>
-                      <p className="text-[15px] text-white/90">
-                        Joining the network! Waiting for verification...
-                      </p>
-                    </motion.div>
+                    'Create my account →'
                   )}
+                </button>
+
+                <p className="cap" id="cap" ref={capRef}>
+                  {captionText}
+                </p>
+
+                <button
+                  className="g"
+                  type="button"
+                  disabled={busy}
+                  onClick={handleGoogleSignIn}
+                >
+                  <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+                    <path
+                      fill="#EA4335"
+                      d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"
+                    />
+                    <path
+                      fill="#4285F4"
+                      d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z"
+                    />
+                    <path
+                      fill="#FBBC05"
+                      d="M10.5 28.7A14.5 14.5 0 0 1 9.5 24c0-1.6.3-3.2.8-4.7l-7.9-6.1A24 24 0 0 0 0 24c0 3.9.9 7.5 2.6 10.8l7.9-6.1z"
+                    />
+                    <path
+                      fill="#34A853"
+                      d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.8 2.3-8.4 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"
+                    />
+                  </svg>
+                  Or sign up with Google
+                </button>
+
+                <p className="terms">
+                  By creating an account, you agree to the Terms of Service and Privacy Policy.
+                </p>
+                <p className="sr" role="status" id="st" ref={stRef}></p>
+              </>
+            ) : stage === 'otp' ? (
+              <div className="otp-wrap">
+                <span className="tag">Confirm your email</span>
+                <h2 style={{ fontFamily: 'var(--serif)', fontSize: '26px', fontWeight: 600, color: 'var(--bur)', margin: '14px 0 6px' }}>
+                  Check your inbox.
+                </h2>
+                <p className="hint" style={{ fontSize: '14px' }}>
+                  We just sent a 6-digit confirmation code to <b>{email}</b>. Enter it below to activate your calendar.
+                </p>
+
+                <div className="otp-boxes">
+                  {otp.map((digit, i) => (
+                    <input
+                      key={i}
+                      ref={(el) => { otpRefs.current[i] = el; }}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      value={digit}
+                      onChange={(e) => handleOtpChange(i, e.target.value)}
+                      onKeyDown={(e) => {
+                        handleOtpKeyDown(i, e);
+                        if (e.key === 'Enter') verifyOtp();
+                      }}
+                      onPaste={i === 0 ? handleOtpPaste : undefined}
+                      disabled={busy}
+                      className="otp-box"
+                    />
+                  ))}
                 </div>
-              </div>
-            </div>
 
-            {/* Post 2: Unool replies with OTP request */}
-            <AnimatePresence>
-              {(stage === 'otp' || stage === 'done') && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.2 }}
-                  className="relative z-10 w-full"
+                {otpError && (
+                  <p className="err" role="alert" style={{ textAlign: 'center', marginBottom: '8px' }}>
+                    {otpError}
+                  </p>
+                )}
+
+                <button
+                  className="btn"
+                  type="button"
+                  disabled={busy || otp.join('').length < 6}
+                  onClick={verifyOtp}
                 >
-                  <div className="flex gap-4">
-                    <div className="flex flex-col items-center">
-                      <div className="w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xl font-bold z-10 shadow-inner" style={{ background: `linear-gradient(135deg, ${C.clay}, ${C.terracotta})` }}>
-                        U
-                      </div>
-                      {/* Only draw line if stage is done, to connect to the final checkmark */}
-                      {stage === 'done' && (
-                        <div className="w-0.5 mt-2 flex-grow rounded-full bg-white/20" />
-                      )}
-                    </div>
-                    
-                    <div className="flex-1 pt-1 pb-6">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-bold text-[15px]">Unool</span>
-                        <span className="text-[15px] text-white/50 flex items-center gap-1">
-                          <CheckCircle2 className="w-4 h-4 text-white fill-[#C84B31]" /> @unool
-                        </span>
-                      </div>
-                      
-                      <p className="text-[15px] leading-relaxed mb-4 text-white/90">
-                        Welcome to the community, {name.split(' ')[0]}! 🎉<br/>
-                        I just sent a 6-digit verification code to your email. Enter it below to confirm your account.
-                      </p>
+                  {busy ? (
+                    <>
+                      <span className="spin"></span>Confirming…
+                    </>
+                  ) : (
+                    'Confirm & open workspace →'
+                  )}
+                </button>
 
-                      {/* OTP Form Input */}
-                      {stage === 'otp' && (
-                        <div className="rounded-2xl border border-white/20 bg-white/5 p-4 backdrop-blur-md">
-                          <div className="flex justify-between gap-2 mb-4">
-                            {otp.map((digit, i) => (
-                              <input
-                                key={i}
-                                ref={(el) => { otpRefs.current[i] = el; }}
-                                type="text"
-                                inputMode="numeric"
-                                maxLength={1}
-                                value={digit}
-                                onChange={(e) => handleOtpChange(i, e.target.value)}
-                                onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                                onPaste={i === 0 ? handleOtpPaste : undefined}
-                                disabled={loading}
-                                className={`w-10 h-12 sm:w-12 sm:h-14 text-center text-xl font-bold rounded-xl border transition-all duration-200 outline-none bg-black/50 text-white
-                                  ${digit ? 'border-[#C84B31] shadow-[0_0_15px_rgba(200,75,49,0.3)]' : 'border-white/20'}
-                                  focus:border-[#C84B31] focus:ring-1 focus:ring-[#C84B31]
-                                `}
-                              />
-                            ))}
-                          </div>
-
-                          {apiError && (
-                            <p className="text-red-400 text-sm mt-2 font-medium text-center">{apiError}</p>
-                          )}
-                          
-                          <div className="flex flex-col sm:flex-row items-center justify-between mt-6 gap-4">
-                            {cooldown > 0 ? (
-                              <span className="text-sm font-medium text-white/50">
-                                Resend in {cooldown}s
-                              </span>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={handleResend}
-                                disabled={resendLoading}
-                                className="text-sm font-bold hover:underline text-[#C84B31]"
-                              >
-                                {resendLoading ? 'Sending...' : 'Resend Code'}
-                              </button>
-                            )}
-                            
-                            <button
-                              type="button"
-                              onClick={verifyOtp}
-                              disabled={loading || otp.join('').length < 6}
-                              className="w-full sm:w-auto px-8 py-2.5 rounded-full font-bold text-[14px] text-black bg-white flex items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-50 disabled:active:scale-100 hover:bg-white/90"
-                            >
-                              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Confirm'}
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
-                      {stage === 'otp' && (
-                        <button onClick={() => { setStage('form'); setOtp(['','','','','','']); setApiError(''); }} className="text-sm font-semibold mt-4 text-white/50 hover:text-white transition-colors">
-                          ← Cancel signup
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Post 3: Final confirmation */}
-            <AnimatePresence>
-              {stage === 'done' && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.2 }}
-                  className="flex gap-4 relative z-0"
-                >
-                  <div className="flex flex-col items-center">
-                    <div className="w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center text-white shadow-sm bg-green-500/20 border border-green-500/50">
-                      <CheckCircle2 className="w-6 h-6 text-green-400" />
-                    </div>
-                  </div>
-                  
-                  <div className="flex-1 pt-1 pb-4">
-                    <motion.div 
-                      initial={{ opacity: 0, scale: 0.8 }} 
-                      animate={{ opacity: 1, scale: 1 }} 
-                      className="mt-2 p-6 rounded-2xl border border-green-500/50 bg-green-500/10 flex flex-col items-center justify-center text-center gap-3 w-full"
+                <div className="otp-actions">
+                  {cooldown > 0 ? (
+                    <span style={{ fontSize: '13px', color: 'var(--mute)' }}>
+                      Resend in {cooldown}s
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="lnk"
+                      onClick={handleResend}
+                      disabled={resendLoading}
                     >
-                      <CheckCircle2 className="w-12 h-12 text-green-400" />
-                      <h3 className="text-xl font-bold text-green-400">Access Granted</h3>
-                      <p className="text-sm text-green-400/80">Allowed to Unool. Redirecting to sign in...</p>
-                    </motion.div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                      {resendLoading ? 'Sending...' : 'Resend code'}
+                    </button>
+                  )}
 
-          </div>
+                  <button
+                    type="button"
+                    className="lnk"
+                    onClick={() => {
+                      setStage('form');
+                      setIsDone(false);
+                      setOtp(['', '', '', '', '', '']);
+                      setOtpError('');
+                    }}
+                  >
+                    ← Back to form
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                <span className="tag">Account verified</span>
+                <h2 style={{ fontFamily: 'var(--serif)', fontSize: '28px', color: 'var(--bur)', margin: '16px 0 8px' }}>
+                  Welcome to Unool! 🎉
+                </h2>
+                <p className="hint">
+                  Your workspace is ready. Redirecting you to sign in...
+                </p>
+              </div>
+            )}
+          </main>
         </div>
 
-        {/* Right Sidebar (Trending/Info) */}
-        <div className="hidden lg:flex flex-col w-[350px] shrink-0 p-6 pl-8">
-          <div className="bg-black/20 backdrop-blur-md rounded-2xl border border-white/10 p-4 mb-6">
-            <h2 className="text-xl font-bold mb-4">Already signed up?</h2>
-            <p className="text-sm text-white/60 mb-4 leading-relaxed">
-              If you already have an account with Unool, you can skip the creation process and jump right in.
-            </p>
-            <Link href="/signin" className="block w-full py-2 border border-white/20 rounded-full text-center font-bold hover:bg-white/10 transition-colors">
-              Sign In
-            </Link>
-          </div>
-
-          <div className="bg-black/20 backdrop-blur-md rounded-2xl border border-white/10 p-4">
-            <h2 className="text-xl font-bold mb-4">What's happening</h2>
-            
-            <div className="flex flex-col gap-4">
-              <div className="flex justify-between items-start cursor-pointer group">
-                <div className="flex flex-col">
-                  <span className="text-xs text-white/50">Technology · Trending</span>
-                  <span className="font-bold group-hover:text-[#C84B31] transition-colors">#DesignSystems</span>
-                  <span className="text-xs text-white/40">125K posts</span>
-                </div>
-              </div>
-              
-              <div className="flex justify-between items-start cursor-pointer group">
-                <div className="flex flex-col">
-                  <span className="text-xs text-white/50">Startups · Trending</span>
-                  <span className="font-bold group-hover:text-[#C84B31] transition-colors">Ship Faster</span>
-                  <span className="text-xs text-white/40">84.2K posts</span>
-                </div>
-              </div>
-
-              <div className="flex justify-between items-start cursor-pointer group">
-                <div className="flex flex-col">
-                  <span className="text-xs text-white/50">AI · Trending</span>
-                  <span className="font-bold group-hover:text-[#C84B31] transition-colors">Unool 2.0</span>
-                  <span className="text-xs text-white/40">52.1K posts</span>
-                </div>
-              </div>
-            </div>
-            
-            <button className="text-[#C84B31] text-sm mt-4 hover:underline">Show more</button>
-          </div>
-          
-          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-6 text-xs text-white/40 px-2">
-            <span className="hover:underline cursor-pointer">Terms of Service</span>
-            <span className="hover:underline cursor-pointer">Privacy Policy</span>
-            <span className="hover:underline cursor-pointer">Cookie Policy</span>
-            <span className="hover:underline cursor-pointer">Accessibility</span>
-            <span className="hover:underline cursor-pointer">Ads info</span>
-            <span>© 2026 Unool Inc.</span>
-          </div>
-        </div>
-
+        <footer>
+          <span>Every post, every network, one calm queue.</span>
+          <span>Terms · Privacy</span>
+        </footer>
       </div>
     </div>
+  );
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense
+      fallback={
+        <div
+          style={{
+            minHeight: '100vh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: '#FBF8F3',
+          }}
+        >
+          <div
+            style={{
+              width: '28px',
+              height: '28px',
+              border: '2px solid #D2C5B8',
+              borderTopColor: '#5A1020',
+              borderRadius: '50%',
+              animation: 'sp 0.7s linear infinite',
+            }}
+          />
+        </div>
+      }
+    >
+      <SignUpComponent />
+    </Suspense>
   );
 }

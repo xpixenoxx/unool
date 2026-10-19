@@ -302,10 +302,31 @@ export function StudioOnboardingModal({
     if (!currentQuestionConfig) return;
 
     const key = currentQuestionConfig.key;
-    setAnswers((prev) => ({
-      ...prev,
-      [key]: option,
-    }));
+    if (key === 'role' && option !== answers.role) {
+      const targetConfig = getRoleConfig(option);
+      setAnswers((prev) => {
+        let nextWorkInterests = prev.workInterests || '';
+        if (prev.role?.toLowerCase().includes('student') && !option.toLowerCase().includes('student')) {
+          if (/\b(exam|exams|finals|midterms|homework|study|campus|college|undergrad)\b/i.test(nextWorkInterests)) {
+            nextWorkInterests = '';
+          }
+        }
+        return {
+          ...prev,
+          role: option,
+          businessStage: targetConfig.stageOptions[2] || targetConfig.stageOptions[0] || 'Growing',
+          businessDomain: targetConfig.domainChips[0] || 'Software/AI',
+          doing: targetConfig.domainChips[0] || 'Software/AI',
+          workInterests: nextWorkInterests,
+          audience: targetConfig.audienceOptions[0] || 'Followers in my niche',
+        };
+      });
+    } else {
+      setAnswers((prev) => ({
+        ...prev,
+        [key]: option,
+      }));
+    }
 
     setIsOtherSelected(false);
     setOtherText('');
@@ -328,10 +349,22 @@ export function StudioOnboardingModal({
     if (!trimmed) return;
 
     const key = currentQuestionConfig.key;
-    setAnswers((prev) => ({
-      ...prev,
-      [key]: trimmed,
-    }));
+    if (key === 'role' && trimmed !== answers.role) {
+      const targetConfig = getRoleConfig(trimmed);
+      setAnswers((prev) => ({
+        ...prev,
+        role: trimmed,
+        businessStage: targetConfig.stageOptions[2] || targetConfig.stageOptions[0] || 'Growing',
+        businessDomain: targetConfig.domainChips[0] || 'Software/AI',
+        doing: targetConfig.domainChips[0] || 'Software/AI',
+        audience: targetConfig.audienceOptions[0] || 'Followers in my niche',
+      }));
+    } else {
+      setAnswers((prev) => ({
+        ...prev,
+        [key]: trimmed,
+      }));
+    }
 
     goToNextStep();
   };
