@@ -588,7 +588,36 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
                       <button
                         key={r}
                         type="button"
-                        onClick={() => setStudioProfile((prev) => ({ ...prev, role: r }))}
+                        onClick={() => {
+                          const targetConfig = ROLE_BRANCH_CONFIGS[r] || ROLE_BRANCH_CONFIGS['Founder'];
+                          setStudioProfile((prev) => {
+                            const isStageValid = targetConfig.stageOptions.includes(prev.businessStage || '');
+                            const nextStage = isStageValid ? prev.businessStage : (targetConfig.stageOptions[2] || targetConfig.stageOptions[0]);
+
+                            const isAudienceValid = targetConfig.audienceOptions.includes(prev.audience || '');
+                            const nextAudience = isAudienceValid ? prev.audience : (targetConfig.audienceOptions[0] || 'Followers in my niche');
+
+                            let nextWorkInterests = prev.workInterests || '';
+                            if (prev.role?.toLowerCase().includes('student') && !r.toLowerCase().includes('student')) {
+                              if (/\b(exam|exams|finals|midterms|homework|study|campus|college|undergrad)\b/i.test(nextWorkInterests)) {
+                                nextWorkInterests = '';
+                              }
+                            }
+
+                            const domain = (prev.businessDomain || prev.doing || '').trim();
+                            const nextDomain = domain || targetConfig.domainChips[0] || 'Software/AI';
+
+                            return {
+                              ...prev,
+                              role: r,
+                              businessStage: nextStage,
+                              audience: nextAudience,
+                              businessDomain: nextDomain,
+                              doing: nextDomain,
+                              workInterests: nextWorkInterests,
+                            };
+                          });
+                        }}
                         className={`px-2.5 py-1 text-xs rounded-lg border transition-all cursor-pointer ${
                           studioProfile.role.toLowerCase() === r.toLowerCase()
                             ? 'bg-[#C4A265] text-white border-[#C4A265] font-semibold shadow-xs'

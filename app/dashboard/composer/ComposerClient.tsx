@@ -1054,7 +1054,11 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
 
   const loadProfile = useCallback(async () => {
     try {
-      const res = await fetch('/api/profile', { credentials: 'include' });
+      const res = await fetch('/api/profile', {
+        credentials: 'include',
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' },
+      });
       const data = await res.json();
       if (data.profile) {
         setProfile({
@@ -1080,11 +1084,25 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
     loadConnections();
 
     const handleProfileUpdate = (e: any) => {
-      if (e?.detail) {
-        setProfile((prev) => (prev ? { ...prev, studioProfile: e.detail } : null));
-      } else {
-        loadProfile();
+      const updatedStudioProfile = e?.detail;
+      if (updatedStudioProfile) {
+        setProfile((prev) => ({
+          id: prev?.id || '',
+          name: prev?.name || '',
+          headline: prev?.headline || '',
+          bio: prev?.bio || '',
+          role: updatedStudioProfile.role || prev?.role || '',
+          company: prev?.company || '',
+          onboardingAnswers: {
+            persona: updatedStudioProfile.role,
+            focus: updatedStudioProfile.businessDomain || updatedStudioProfile.doing,
+            audience: [updatedStudioProfile.audience],
+            tone: [updatedStudioProfile.tone],
+          },
+          studioProfile: updatedStudioProfile,
+        }));
       }
+      loadProfile();
     };
 
     window.addEventListener('studio-profile-updated', handleProfileUpdate);

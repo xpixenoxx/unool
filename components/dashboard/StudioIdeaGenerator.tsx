@@ -93,6 +93,11 @@ const FORMAT_CONFIG: Record<
   },
 };
 
+function getProfileSignature(p?: StudioProfile | null): string {
+  if (!p) return '';
+  return `${p.role || ''}|${p.businessStage || ''}|${p.businessDomain || p.doing || ''}|${p.workInterests || ''}|${p.audience || ''}`;
+}
+
 export function StudioIdeaGenerator({
   isOpen,
   onClose,
@@ -109,7 +114,15 @@ export function StudioIdeaGenerator({
   const [selectedTitle, setSelectedTitle] = useState<string | null>(null);
   const [loadingMsgIndex, setLoadingMsgIndex] = useState(0);
   const hasLoadedRef = useRef(false);
-  const prevProfileRef = useRef<string>('');
+  const generatedForSignatureRef = useRef<string>('');
+  const studioProfileRef = useRef<StudioProfile | null | undefined>(studioProfile);
+
+  // Keep studioProfileRef in sync with latest prop
+  useEffect(() => {
+    studioProfileRef.current = studioProfile;
+  }, [studioProfile]);
+
+  const currentSignature = getProfileSignature(studioProfile);
 
   // Rotate loading message while loading
   useEffect(() => {
@@ -122,8 +135,11 @@ export function StudioIdeaGenerator({
 
   // Fetch ideas from endpoint
   const fetchIdeas = useCallback(
-    async (accumulatedTitles: string[], targetBatch: number) => {
-      if (!hasCompletedProfile) {
+    async (accumulatedTitles: string[], targetBatch: number, overrideProfile?: StudioProfile) => {
+      const activeProfile = overrideProfile || studioProfileRef.current;
+      const isProfileValid = hasCompletedProfile || Boolean(activeProfile?.role);
+
+      if (!isProfileValid) {
         setError({
           message: 'Complete your Studio profile to generate tailored ideas based on your voice and focus.',
           isProfileMissing: true,
@@ -142,7 +158,7 @@ export function StudioIdeaGenerator({
           credentials: 'include',
           body: JSON.stringify({
             alreadyShown: accumulatedTitles.slice(-15),
-            studioProfile: studioProfile || undefined,
+            studioProfile: activeProfile || undefined,
           }),
         });
 
@@ -187,30 +203,73 @@ export function StudioIdeaGenerator({
         setIsLoading(false);
       }
     },
-    [hasCompletedProfile, studioProfile]
+    [hasCompletedProfile]
   );
+
+  // When studioProfile changes to a new persona:
+  useEffect(() => {
+    if (!studioProfile || !hasCompletedProfile) return;
+
+    if (generatedForSignatureRef.current && generatedForSignatureRef.current !== currentSignature) {
+      // Instantly clear stale ideas from previous persona
+      setIdeas([]);
+      setBatchNumber(1);
+      setShownTitles([]);
+      setSelectedTitle(null);
+      hasLoadedRef.current = false;
+
+      // If open, regenerate immediately for the new persona
+      if (isOpen) {
+        hasLoadedRef.current = true;
+        generatedForSignatureRef.current = currentSignature;
+        fetchIdeas([], 1, studioProfile);
+      }
+    }
+  }, [currentSignature, isOpen, studioProfile, hasCompletedProfile, fetchIdeas]);
 
   // Initial load when opened
   useEffect(() => {
-    if (isOpen && !hasLoadedRef.current) {
-      hasLoadedRef.current = true;
-      fetchIdeas([], 1);
+    if (isOpen && hasCompletedProfile && currentSignature) {
+      if (generatedForSignatureRef.current !== currentSignature || !hasLoadedRef.current) {
+        hasLoadedRef.current = true;
+        generatedForSignatureRef.current = currentSignature;
+        setIdeas([]);
+        setBatchNumber(1);
+        setShownTitles([]);
+        fetchIdeas([], 1, studioProfile || undefined);
+      }
     }
-  }, [isOpen, fetchIdeas]);
+  }, [isOpen, hasCompletedProfile, currentSignature, studioProfile, fetchIdeas]);
 
-  // Re-fetch if studioProfile changes while open
+  // Global listener for 'studio-profile-updated' event for instant zero-delay updates
   useEffect(() => {
-    const profileKey = studioProfile
-      ? `${studioProfile.role}_${studioProfile.businessDomain || studioProfile.doing}_${studioProfile.businessStage}`
-      : '';
-    if (prevProfileRef.current && prevProfileRef.current !== profileKey && isOpen) {
-      setShownTitles([]);
-      fetchIdeas([], 1);
-    }
-    if (profileKey) {
-      prevProfileRef.current = profileKey;
-    }
-  }, [studioProfile, isOpen, fetchIdeas]);
+    const handleGlobalProfileUpdate = (e: any) => {
+      const updatedProfile = e?.detail as StudioProfile | undefined;
+      if (!updatedProfile) return;
+
+      studioProfileRef.current = updatedProfile;
+      const newSig = getProfileSignature(updatedProfile);
+
+      if (newSig && newSig !== generatedForSignatureRef.current) {
+        setIdeas([]);
+        setBatchNumber(1);
+        setShownTitles([]);
+        setSelectedTitle(null);
+        hasLoadedRef.current = false;
+
+        if (isOpen) {
+          hasLoadedRef.current = true;
+          generatedForSignatureRef.current = newSig;
+          fetchIdeas([], 1, updatedProfile);
+        }
+      }
+    };
+
+    window.addEventListener('studio-profile-updated', handleGlobalProfileUpdate);
+    return () => {
+      window.removeEventListener('studio-profile-updated', handleGlobalProfileUpdate);
+    };
+  }, [isOpen, fetchIdeas]);
 
   // If user opened with incomplete profile, immediately show nudge
   useEffect(() => {
