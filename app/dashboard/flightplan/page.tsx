@@ -18,7 +18,7 @@ export default async function FlightPlanPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex items-center justify-center min-h-[60vh]" style={{ backgroundColor: '#0D0C0A' }}>
+        <div className="flex items-center justify-center min-h-[60vh]" style={{ backgroundColor: '#F7F3ED' }}>
           <Loader2 className="h-8 w-8 animate-spin" style={{ color: '#C4A265' }} />
         </div>
       }

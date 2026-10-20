@@ -28,7 +28,7 @@ import {
 import { useImageUpload } from '@/hooks/flightplan';
 import { FLIGHTPLAN_CONSTANTS, PLATFORM_CONFIG } from '@/types/flightplan';
 import type { WeekArc, ArcPost, ArcPlatformDraft, PlatformType } from '@/types/flightplan';
-import { B, PLATFORM_META, MOTION, SPACING, RADIUS, SHADOW } from './design-tokens';
+import { B, PLATFORM_META, BEAT_COLORS, MOTION, SPACING, RADIUS, SHADOW } from './design-tokens';
 
 interface ReviewScreenProps {
   arc: WeekArc;
@@ -342,6 +342,7 @@ export function ReviewScreen({
                 className="rounded-2xl overflow-hidden"
                 style={{
                   border: `1px solid ${isExpanded ? B.accent : B.border}`,
+                  borderLeft: `4px solid ${BEAT_COLORS[post.arcBeat] || B.accent}`,
                   backgroundColor: B.card,
                   boxShadow: isExpanded ? `0 0 0 3px ${B.accent}18, ${B.cardShadow}` : B.cardShadow,
                 }}

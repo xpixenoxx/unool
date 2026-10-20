@@ -14,7 +14,7 @@ import { ScheduledPostModal } from './ScheduledPostModal';
 import { useFlightPlanActions } from '@/hooks/flightplan';
 import { FLIGHTPLAN_CONSTANTS } from '@/types/flightplan';
 import type { CanvasPost } from '@/types/flightplan';
-import { B, PLATFORM_META, MOTION, SPACING, RADIUS, SHADOW } from './design-tokens';
+import { B, PLATFORM_META, BEAT_COLORS, MOTION, SPACING, RADIUS, SHADOW } from './design-tokens';
 
 interface WeekCanvasProps {
   workspaceId: string;
@@ -36,6 +36,7 @@ export function WeekCanvas({
   const [holdActive, setHoldActive] = useState(false);
   const [selectedPost, setSelectedPost] = useState<CanvasPost | null>(null);
   const [hasOpenedTargetPost, setHasOpenedTargetPost] = useState(false);
+  const [selectedMobileDay, setSelectedMobileDay] = useState<string | null>(null);
 
   const { loadCanvas, holdQueue, cancelPost } = useFlightPlanActions();
 
@@ -161,6 +162,29 @@ export function WeekCanvas({
     return map;
   }, [posts]);
 
+  const scheduledCount = useMemo(() => posts.filter(p => p.status === 'scheduled').length, [posts]);
+  const publishedCount = useMemo(() => posts.filter(p => p.status === 'published').length, [posts]);
+  const uniquePlatformsCount = useMemo(() => {
+    const s = new Set<string>();
+    posts.forEach(p => p.platforms.forEach(v => s.add(v.platform)));
+    return s.size || 1;
+  }, [posts]);
+
+  const nextPost = useMemo(() => {
+    const unpub = posts
+      .filter(p => p.status === 'scheduled' && p.scheduledAt)
+      .sort((a, b) => new Date(a.scheduledAt!).getTime() - new Date(b.scheduledAt!).getTime())[0];
+    if (!unpub || !unpub.scheduledAt) return null;
+    const d = new Date(unpub.scheduledAt);
+    const platform = unpub.platforms[0]?.platform || 'instagram';
+    const meta = PLATFORM_META[platform];
+    return {
+      platformName: meta?.name || platform,
+      dayLabel: format(d, 'EEE'),
+      timeFormatted: format(d, 'h:mm a'),
+    };
+  }, [posts]);
+
   const statusColor = (status: string) => {
     if (status === 'published') return B.success;
     if (status === 'failed') return B.danger;
@@ -170,52 +194,73 @@ export function WeekCanvas({
 
   return (
     <div className="space-y-6">
-      {/* Toolbar */}
+      {/* ─── Toolbar (matches reference .bar .wk .cnt) ─── */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setWeekOffset(w => Math.max(0, w - 1))}
-            disabled={weekOffset <= 0}
-            className="p-2 rounded-xl transition-opacity disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-            style={{ backgroundColor: B.card, border: `1px solid ${B.border}`, color: B.textMuted, focusRingColor: B.accent, focusRingOffsetColor: B.card }}
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <div>
-            <p className="font-semibold text-sm" style={{ color: B.text }}>
-              {format(weekStart, 'MMM d')} – {format(addDays(weekStart, 6), 'MMM d, yyyy')}
-            </p>
-            <p className="text-xs" style={{ color: B.textMuted }}>
-              {posts.length} posts scheduled
-            </p>
-          </div>
-          <button
-            onClick={() => setWeekOffset(w => Math.min(1, w + 1))}
-            disabled={weekOffset >= 1}
-            className="p-2 rounded-xl transition-opacity disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-            style={{ backgroundColor: B.card, border: `1px solid ${B.border}`, color: B.textMuted, focusRingColor: B.accent, focusRingOffsetColor: B.card }}
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-
         <div className="flex items-center gap-2">
+          {/* Week Selector Pill */}
+          <div
+            className="flex items-center gap-1 p-1 rounded-full border shadow-xs"
+            style={{ backgroundColor: B.card, borderColor: B.border }}
+          >
+            <button
+              onClick={() => setWeekOffset(w => Math.max(0, w - 1))}
+              disabled={weekOffset <= 0}
+              className="w-7 h-7 rounded-full flex items-center justify-center transition-colors hover:bg-black/5 disabled:opacity-30 disabled:cursor-not-allowed"
+              style={{ color: B.textSecondary }}
+              aria-label="Previous week"
+            >
+              ‹
+            </button>
+            <span className="px-3 text-xs sm:text-sm font-semibold text-center min-w-[130px] sm:min-w-[150px]" style={{ color: B.text }}>
+              {format(weekStart, 'MMM d')} – {format(addDays(weekStart, 6), 'MMM d, yyyy')}
+            </span>
+            <button
+              onClick={() => setWeekOffset(w => Math.min(1, w + 1))}
+              disabled={weekOffset >= 1}
+              className="w-7 h-7 rounded-full flex items-center justify-center transition-colors hover:bg-black/5 disabled:opacity-30 disabled:cursor-not-allowed"
+              style={{ color: B.textSecondary }}
+              aria-label="Next week"
+            >
+              ›
+            </button>
+          </div>
+
+          {/* Today Button */}
+          <button
+            onClick={() => {
+              setWeekOffset(0);
+              const todayKey = format(new Date(), 'yyyy-MM-dd');
+              setSelectedMobileDay(todayKey);
+            }}
+            className="px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-colors hover:bg-black/5"
+            style={{
+              backgroundColor: weekOffset === 0 ? B.accentBg : B.card,
+              borderColor: weekOffset === 0 ? B.accentBorder : B.border,
+              color: weekOffset === 0 ? B.accentHover : B.textSecondary,
+            }}
+          >
+            Today
+          </button>
+
+          {/* Hold Queue Toggle Button */}
           <button
             onClick={handleHold}
             disabled={isHolding}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all"
             style={{
               backgroundColor: holdActive ? B.warningBg : B.card,
-              border: `1px solid ${holdActive ? B.warning : B.border}`,
-              color: holdActive ? B.warning : B.textMuted,
-              focusRingColor: holdActive ? B.warning : B.accent,
-              focusRingOffsetColor: B.card,
+              borderColor: holdActive ? B.warningBorder : B.border,
+              color: holdActive ? B.warning : B.textSecondary,
             }}
           >
-            {isHolding ? <Loader2 className="w-4 h-4 animate-spin" /> :
-              holdActive ? <PlayCircle className="w-4 h-4" /> : <PauseCircle className="w-4 h-4" />}
-            {holdActive ? 'Release Queue' : 'Hold My Queue'}
+            {isHolding ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <span>⏸</span>}
+            <span>{holdActive ? 'Queue Held' : 'Hold my queue'}</span>
           </button>
+        </div>
+
+        {/* Counter Summary */}
+        <div className="text-xs font-medium ml-auto" style={{ color: B.textMuted }}>
+          {scheduledCount} scheduled · {publishedCount} published · {uniquePlatformsCount} platform{uniquePlatformsCount === 1 ? '' : 's'}
         </div>
       </div>
 
@@ -227,17 +272,90 @@ export function WeekCanvas({
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             transition={MOTION.spring.standard}
-            className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm"
-            style={{ backgroundColor: B.warningBg, border: `1px solid ${B.warning}44`, color: B.warning }}
+            className="flex items-center gap-3 px-4 py-3 rounded-2xl text-sm"
+            style={{ backgroundColor: B.warningBg, border: `1px solid ${B.warningBorder}`, color: B.text }}
           >
-            <PauseCircle className="w-4 h-4 flex-shrink-0" />
-            <span>
-              <strong>Queue is held.</strong> Scheduled posts in the next 3 hours will be skipped.
-              They won&apos;t be re-sent automatically — release the queue to resume.
+            <PauseCircle className="w-4 h-4 flex-shrink-0" style={{ color: B.warning }} />
+            <span className="flex-1">
+              <strong>Queue is held.</strong> Scheduled posts are paused until you release the queue.
             </span>
+            <button
+              onClick={handleHold}
+              className="px-3 py-1 rounded-full text-xs font-semibold border bg-white shadow-xs"
+              style={{ color: B.warning, borderColor: B.warningBorder }}
+            >
+              Release queue
+            </button>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ─── Hero Arc Ribbon Banner (matches .hero .arc .rib in reference) ─── */}
+      <div
+        className="rounded-2xl p-5 shadow-lg relative overflow-hidden"
+        style={{
+          background: 'linear-gradient(135deg, #3D2B1F 0%, #4E3828 100%)',
+          boxShadow: '0 10px 30px rgba(61,43,31,0.18)',
+        }}
+      >
+        <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+          <span className="font-bold text-base tracking-tight" style={{ color: '#E8D9B5' }}>
+            Weekly Narrative Arc · 5-Beat Engine
+          </span>
+          <div className="text-xs" style={{ color: '#D9C9A6' }}>
+            {holdActive ? (
+              <span className="font-semibold text-amber-300">⏸ Queue paused</span>
+            ) : nextPost ? (
+              <span>
+                Next up <b className="text-white font-semibold">{nextPost.platformName}</b> · {nextPost.dayLabel} {nextPost.timeFormatted}
+              </span>
+            ) : (
+              <span>All posts queued</span>
+            )}
+          </div>
+        </div>
+
+        {/* 7-Day Connected Arc Dots Ribbon */}
+        <div className="relative pt-3 hidden sm:block">
+          {/* Continuous gradient connector bar */}
+          <div
+            className="absolute left-[7.14%] w-[57.2%] top-[22px] h-[3px] rounded-full z-0 pointer-events-none"
+            style={{
+              background: 'linear-gradient(90deg, #C4A265, #B8794B, #C0554F, #4A9C62, #9A6B8E)',
+            }}
+          />
+
+          <div className="grid grid-cols-7 gap-2 relative z-10">
+            {weekDays.map((day, idx) => {
+              const beats = ['Hook', 'Context', 'Challenge', 'Proof', 'CTA'];
+              const beat = idx < 5 ? beats[idx] : null;
+              const beatColor = beat ? BEAT_COLORS[beat] : null;
+
+              return (
+                <div key={idx} className="flex flex-col items-center gap-1.5 text-center">
+                  <span
+                    className="w-5 h-5 rounded-full flex items-center justify-center transition-transform hover:scale-110"
+                    style={{
+                      backgroundColor: beatColor ? beatColor : '#3D2B1F',
+                      border: beatColor ? `2px solid ${beatColor}` : '2px dashed #6f5b44',
+                      boxShadow: beatColor ? `0 0 0 4px ${beatColor}35` : 'none',
+                    }}
+                  />
+                  <span
+                    className="text-xs font-semibold"
+                    style={{ color: beatColor || '#8d7a5f' }}
+                  >
+                    {beat || 'Rest'}
+                  </span>
+                  <span className="text-[10px] uppercase tracking-wider text-[#A8917A]">
+                    {format(day, 'EEE')}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
 
       {isLoading ? (
         <div className="flex items-center justify-center py-20">
@@ -258,159 +376,303 @@ export function WeekCanvas({
           <button
             onClick={onNewArc}
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-            style={{ backgroundColor: B.accent, color: '#fff', boxShadow: `0 4px 16px ${B.accent}40`, focusRingColor: B.accent, focusRingOffsetColor: B.card }}
+            style={{ backgroundColor: B.accent, color: '#fff', boxShadow: `0 4px 16px ${B.accentGlow}` }}
           >
             Plan My Week
           </button>
         </div>
       ) : (
-        /* 7-day grid */
-        <div className="grid grid-cols-7 gap-2">
-          {weekDays.map(day => {
-            const dayKey = format(day, 'yyyy-MM-dd');
-            const dayPosts = postsByDay.get(dayKey) ?? [];
-            const isNow = isToday(day);
-            const count = dayPosts.length;
-            const isCompact = count >= FLIGHTPLAN_CONSTANTS.COMPACT_THRESHOLD;
-            const isUltraCompact = count >= FLIGHTPLAN_CONSTANTS.ULTRA_COMPACT_THRESHOLD;
-
-            return (
-              <div key={dayKey} className="space-y-2">
-                {/* Day header */}
-                <div className="text-center pb-2" style={{ borderBottom: `1px solid ${B.border}` }}>
-                  <p className="text-xs font-medium uppercase tracking-wide" style={{ color: B.textMuted }}>
+        <>
+          {/* ─── Mobile: Horizontal Day-Tab Strip (matches reference .strip) ─── */}
+          <div className="flex gap-2 overflow-x-auto pb-2 md:hidden" style={{ scrollbarWidth: 'none' }}>
+            {weekDays.map(day => {
+              const dayKey = format(day, 'yyyy-MM-dd');
+              const count = postsByDay.get(dayKey)?.length ?? 0;
+              const isNow = isToday(day);
+              const isSel = (selectedMobileDay || format(new Date(), 'yyyy-MM-dd')) === dayKey;
+              return (
+                <button
+                  key={dayKey}
+                  type="button"
+                  onClick={() => setSelectedMobileDay(dayKey)}
+                  className="flex-shrink-0 flex flex-col items-center gap-1 min-w-[68px] px-3 py-2.5 rounded-2xl transition-all text-xs font-medium focus-visible:outline-none focus-visible:ring-2"
+                  style={{
+                    backgroundColor: isSel ? B.accentBg : B.card,
+                    color: isSel ? B.accentHover : B.text,
+                    border: `1.5px solid ${isSel ? B.accent : B.border}`,
+                    boxShadow: isSel ? `0 4px 12px ${B.accentGlow}` : B.cardShadow,
+                  }}
+                >
+                  <span className="uppercase tracking-wider text-[10px] font-semibold" style={{ color: isSel ? B.accentHover : B.textMuted }}>
                     {format(day, 'EEE')}
-                  </p>
-                  <div
-                    className="w-7 h-7 rounded-full flex items-center justify-center mx-auto mt-1 text-sm font-bold"
-                    style={{
-                      backgroundColor: isNow ? B.accent : 'transparent',
-                      color: isNow ? '#fff' : B.text,
-                    }}
-                  >
+                  </span>
+                  <span className="font-bold text-lg" style={{ color: isSel ? B.accentHover : B.text }}>
                     {format(day, 'd')}
-                  </div>
-                </div>
+                  </span>
+                  <span className="text-[10px] font-medium" style={{ color: B.accentHover }}>
+                    {count} post{count === 1 ? '' : 's'}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
 
-                {/* Post cards for this day with auto-shrink when > 3 posts */}
-                <div className={cn(
-                  "min-h-[80px]",
-                  isUltraCompact ? "space-y-1" : isCompact ? "space-y-1" : "space-y-1.5"
-                )}>
-                  {dayPosts.map(post => (
-                    <motion.div
-                      key={post.postId}
-                      layout
-                      onClick={() => setSelectedPost(post)}
-                      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedPost(post); }}}
-                      tabIndex={0}
-                      role="button"
-                      className={cn(
-                        "rounded-xl group relative transition-transform hover:scale-[1.02] hover:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
-                        isUltraCompact
-                          ? "p-1.5"
-                          : isCompact
-                          ? "p-2"
-                          : "p-2.5"
-                      )}
-                      style={{
-                        backgroundColor: B.card,
-                        border: `1px solid ${B.border}`,
-                        cursor: 'pointer',
-                        boxShadow: B.cardShadow,
-                        focusRingColor: B.accent,
-                        focusRingOffsetColor: B.card,
-                      }}
+          {/* ─── Mobile: Selected-Day Posts (matches reference .mday) ─── */}
+          <div className="md:hidden space-y-2.5">
+            {(() => {
+              const activeDayKey = selectedMobileDay || format(new Date(), 'yyyy-MM-dd');
+              const activePosts = postsByDay.get(activeDayKey) ?? [];
+              const dayIndex = weekDays.findIndex(d => format(d, 'yyyy-MM-dd') === activeDayKey);
+              const beatName = dayIndex >= 0 && dayIndex < 5 ? ['Hook', 'Context', 'Challenge', 'Proof', 'CTA'][dayIndex] : null;
+              const beatColor = beatName ? BEAT_COLORS[beatName] : B.accent;
+
+              if (activePosts.length === 0) {
+                return (
+                  <div
+                    className="text-center py-10 px-4 rounded-2xl border border-dashed text-sm"
+                    style={{ borderColor: B.border, color: B.textSecondary, backgroundColor: B.card }}
+                  >
+                    <p className="font-medium">Nothing scheduled for this day.</p>
+                    <button
+                      type="button"
+                      onClick={onNewArc}
+                      className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold border transition-colors"
+                      style={{ backgroundColor: B.accentBg, borderColor: B.accentBorder, color: B.accentHover }}
                     >
-                      <div className={cn("flex items-center justify-between", isUltraCompact ? "mb-0.5" : isCompact ? "mb-1" : "mb-1.5")}>
-                        <span
-                          className={cn(
-                            "font-mono font-medium flex items-center gap-1",
-                            isUltraCompact ? "text-[10px]" : "text-xs"
-                          )}
-                          style={{ color: B.textMuted }}
-                        >
-                          <Clock className={isUltraCompact ? "w-2.5 h-2.5" : "w-3 h-3"} />
-                          {post.scheduledAt ? format(new Date(post.scheduledAt), 'HH:mm') : '--:--'}
-                        </span>
-                        <div
-                          className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: statusColor(post.status) }}
-                        />
-                      </div>
+                      + Add post
+                    </button>
+                  </div>
+                );
+              }
 
-                      <p
-                        className={cn(
-                          "leading-snug",
-                          isUltraCompact
-                            ? "text-[10px] truncate"
-                            : isCompact
-                            ? "text-[11px] line-clamp-1"
-                            : "text-xs line-clamp-2"
-                        )}
-                        style={{ color: B.textSecondary }}
-                        title={post.content}
-                      >
-                        {post.content}
-                      </p>
-
+              return (
+                <>
+                  {activePosts.map(post => {
+                    const isPub = post.status === 'published';
+                    return (
                       <div
-                        className={cn(
-                          "flex items-center justify-between",
-                          isUltraCompact ? "mt-1 pt-1" : isCompact ? "mt-1.5 pt-1" : "mt-2 pt-1.5"
-                        )}
-                        style={{ borderTop: `1px solid ${B.border}50` }}
+                        key={post.postId}
+                        onClick={() => setSelectedPost(post)}
+                        className="p-3.5 rounded-2xl transition-all cursor-pointer"
+                        style={{
+                          backgroundColor: B.card,
+                          border: `1px solid ${B.border}`,
+                          borderLeft: `4px solid ${beatColor}`,
+                          boxShadow: B.cardShadow,
+                        }}
                       >
-                        <div className="flex items-center flex-wrap gap-1">
-                          {post.platforms.slice(0, isUltraCompact ? 2 : 3).map(v => {
-                            const meta = PLATFORM_META[v.platform];
-                            return (
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-xs font-mono font-semibold" style={{ color: B.textSecondary }}>
+                            {post.scheduledAt ? format(new Date(post.scheduledAt), 'h:mm a') : '--:--'}
+                          </span>
+                          {isPub ? (
+                            <span className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ backgroundColor: B.successBg, color: B.success }}>
+                              ✓ Published
+                            </span>
+                          ) : beatName ? (
+                            <span
+                              className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-semibold"
+                              style={{ backgroundColor: `${beatColor}18`, color: beatColor, border: `1px solid ${beatColor}40` }}
+                            >
+                              {beatName}
+                            </span>
+                          ) : null}
+                        </div>
+                        <p className="text-xs leading-relaxed line-clamp-2" style={{ color: B.text }}>
+                          {post.content}
+                        </p>
+                        <div className="flex items-center justify-between mt-3 pt-2 border-t border-black/5">
+                          <div className="flex gap-1">
+                            {post.platforms.slice(0, 4).map(v => (
                               <span
                                 key={v.variantId}
-                                className={cn(
-                                  "inline-flex items-center justify-center rounded-full p-0.5 shadow-2xs transition-transform hover:scale-110",
-                                  isUltraCompact ? "w-4 h-4" : "w-5 h-5"
-                                )}
-                                style={{ backgroundColor: meta?.bg || B.card }}
-                                title={meta?.name || v.platform}
+                                className="w-5 h-5 rounded-full flex items-center justify-center"
+                                style={{ backgroundColor: PLATFORM_META[v.platform]?.bg || B.accentBg }}
                               >
-                                <PlatformBrandLogo
-                                  platform={v.platform as SupportedPlatformType}
-                                  size={isUltraCompact ? 10 : 12}
-                                />
+                                <PlatformBrandLogo platform={v.platform as SupportedPlatformType} size={11} />
                               </span>
-                            );
-                          })}
-                          {post.platforms.length > (isUltraCompact ? 2 : 3) && (
-                            <span
-                              className={cn(
-                                "rounded-full font-medium leading-none flex items-center justify-center",
-                                isUltraCompact ? "text-[8px] px-1 py-0.5" : "text-[9px] px-1.5 py-0.5"
-                              )}
-                              style={{ backgroundColor: B.border, color: B.textMuted }}
-                            >
-                              +{post.platforms.length - (isUltraCompact ? 2 : 3)}
-                            </span>
-                          )}
-                        </div>
-
-                        {!isUltraCompact && (
-                          <span
-                            className="text-[10px] font-medium flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                            style={{ color: B.accentDark }}
-                          >
-                            <Edit3 className="w-2.5 h-2.5" />
-                            Edit
+                            ))}
+                          </div>
+                          <span className="text-xs font-semibold" style={{ color: B.accentHover }}>
+                            Edit →
                           </span>
-                        )}
+                        </div>
                       </div>
-                    </motion.div>
-                  ))}
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={onNewArc}
+                    className="w-full py-2.5 rounded-xl border border-dashed text-xs font-semibold transition-all hover:bg-black/5"
+                    style={{ borderColor: B.border, color: B.textMuted }}
+                  >
+                    + Add post
+                  </button>
+                </>
+              );
+            })()}
+          </div>
+
+          {/* ─── Desktop: 7-Day Grid (matches reference .grid .col .post .add) ─── */}
+          <div className="hidden md:grid md:grid-cols-7 gap-3 items-stretch">
+            {weekDays.map((day, dayIndex) => {
+              const dayKey = format(day, 'yyyy-MM-dd');
+              const dayPosts = postsByDay.get(dayKey) ?? [];
+              const isNow = isToday(day);
+              const beatName = dayIndex < 5 ? ['Hook', 'Context', 'Challenge', 'Proof', 'CTA'][dayIndex] : null;
+              const beatColor = beatName ? BEAT_COLORS[beatName] : B.accent;
+
+              return (
+                <div
+                  key={dayKey}
+                  className={cn(
+                    "rounded-2xl p-2.5 min-h-[380px] flex flex-col gap-2 transition-all",
+                    isNow ? "ring-2" : ""
+                  )}
+                  style={{
+                    backgroundColor: isNow ? B.accentBg : B.card,
+                    border: `1px solid ${isNow ? B.accent : B.border}`,
+                    boxShadow: isNow ? `inset 0 3px 0 ${B.accent}, ${B.cardShadow}` : B.cardShadow,
+                  }}
+                >
+                  {/* Day header */}
+                  <div
+                    className="flex justify-between items-baseline px-1 pt-0.5 pb-2 border-b"
+                    style={{ borderColor: isNow ? B.accentBorder : B.border }}
+                  >
+                    <span className="text-xs font-semibold" style={{ color: isNow ? B.accentHover : B.textMuted }}>
+                      {format(day, 'EEE')}{isNow ? ' · Today' : ''}
+                    </span>
+                    <span className="text-xl font-bold tracking-tight" style={{ color: isNow ? B.accentHover : B.text }}>
+                      {format(day, 'd')}
+                    </span>
+                  </div>
+
+                  {/* Post cards list */}
+                  <div className="flex-1 space-y-2">
+                    {dayPosts.map(post => {
+                      const isPub = post.status === 'published';
+
+                      return (
+                        <motion.div
+                          key={post.postId}
+                          layout
+                          onClick={() => setSelectedPost(post)}
+                          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedPost(post); }}}
+                          tabIndex={0}
+                          role="button"
+                          className="rounded-xl p-2.5 group relative transition-all hover:shadow-md cursor-pointer"
+                          style={{
+                            backgroundColor: B.card,
+                            border: `1px solid ${B.border}`,
+                            borderLeft: `4px solid ${beatColor}`,
+                            boxShadow: B.cardShadow,
+                          }}
+                        >
+                          {/* Top row: Platform logos, time, status pill */}
+                          <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                            <div className="flex items-center gap-1">
+                              {post.platforms.slice(0, 2).map(v => (
+                                <span
+                                  key={v.variantId}
+                                  className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0"
+                                  style={{ backgroundColor: PLATFORM_META[v.platform]?.bg || B.accentBg }}
+                                  title={PLATFORM_META[v.platform]?.name || v.platform}
+                                >
+                                  <PlatformBrandLogo platform={v.platform as SupportedPlatformType} size={10} />
+                                </span>
+                              ))}
+                            </div>
+                            <span className="font-mono text-[11px] font-semibold" style={{ color: B.textSecondary }}>
+                              {post.scheduledAt ? format(new Date(post.scheduledAt), 'h:mm a') : '--:--'}
+                            </span>
+                            {isPub ? (
+                              <span
+                                className="ml-auto px-1.5 py-0.5 rounded-full text-[10px] font-semibold flex items-center gap-0.5"
+                                style={{ backgroundColor: B.successBg, color: B.success, border: `1px solid ${B.successBorder}` }}
+                              >
+                                ✓ Published
+                              </span>
+                            ) : beatName ? (
+                              <span
+                                className="ml-auto px-1.5 py-0.5 rounded-full text-[10px] font-semibold"
+                                style={{
+                                  backgroundColor: `${beatColor}18`,
+                                  color: beatColor,
+                                  border: `1px solid ${beatColor}40`,
+                                }}
+                              >
+                                {beatName}
+                              </span>
+                            ) : null}
+                          </div>
+
+                          {/* Post text snippet */}
+                          <p className="text-xs leading-snug line-clamp-2" style={{ color: B.text }}>
+                            {post.content}
+                          </p>
+
+                          {/* Quick Actions on hover */}
+                          {!isPub && (
+                            <div
+                              className="flex items-center gap-2 mt-2 pt-1.5 border-t opacity-0 group-hover:opacity-100 transition-opacity"
+                              style={{ borderColor: `${B.border}80` }}
+                              onClick={e => e.stopPropagation()}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => setSelectedPost(post)}
+                                className="text-[11px] font-semibold hover:underline"
+                                style={{ color: B.accentHover }}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setSelectedPost(post)}
+                                className="text-[11px] font-semibold hover:underline"
+                                style={{ color: B.textSecondary }}
+                              >
+                                Reschedule
+                              </button>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  const confirmed = window.confirm('Delete this scheduled post?');
+                                  if (confirmed) {
+                                    await cancelPost(post.postId);
+                                    loadWeekCanvas();
+                                  }
+                                }}
+                                className="text-[11px] font-semibold hover:underline ml-auto"
+                                style={{ color: B.danger }}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          )}
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+
+                  {/* + Add post button at bottom of day column */}
+                  <button
+                    type="button"
+                    onClick={onNewArc}
+                    className="w-full min-h-[44px] rounded-xl border border-dashed flex items-center justify-center text-xs font-semibold transition-all opacity-40 hover:opacity-100 hover:border-solid hover:bg-black/5 mt-auto"
+                    style={{
+                      borderColor: B.border,
+                      color: B.textMuted,
+                    }}
+                  >
+                    + Add post
+                  </button>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        </>
       )}
 
       {/* Scheduled Post Detail & Edit Modal */}

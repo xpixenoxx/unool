@@ -40,6 +40,7 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
     audienceTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   });
 
+  const [activeStep, setActiveStep] = useState<0 | 1 | 2>(0); // 0=CoreStory 1=Insights 2=Platforms
   const [activeFollowUp, setActiveFollowUp] = useState(0);
   const [showPlatformSelector, setShowPlatformSelector] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
@@ -121,44 +122,60 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
       exit={{ opacity: 0, y: -20 }}
       className="space-y-6"
     >
-      {/* Progress indicator */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5">
-            {['Story', 'Follow-ups', 'Platforms', 'Schedule'].map((step, idx) => (
-              <React.Fragment key={step}>
+      {/* ─── Unified 3-step breadcrumb stepper ─────────────────── */}
+      <div className="flex items-center gap-2 mb-6">
+        {(['Core story', 'Guided insights', 'Channels \u0026 cadence'] as const).map((label, idx) => {
+          const done   = activeStep > idx;
+          const active = activeStep === idx;
+          return (
+            <div key={label} className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={idx > activeStep}
+                onClick={() => { if (idx < activeStep) setActiveStep(idx as 0 | 1 | 2); }}
+                className="flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-default"
+                style={{ focusRingColor: B.accent, focusRingOffsetColor: B.bg } as React.CSSProperties}
+              >
                 <div
-                  className={cn(
-                    "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors"
-                  )}
+                  className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200 flex-shrink-0"
                   style={{
-                    backgroundColor: idx < 2 ? B.accentBg : B.cardBorder,
-                    color: idx < 2 ? B.accentHover : B.textMuted,
+                    backgroundColor: done ? B.accent : active ? B.accentBg : B.cardBorder,
+                    color:           done ? '#fff'   : active ? B.accent  : B.textMuted,
+                    border:          active ? `2px solid ${B.accent}` : done ? '2px solid transparent' : `2px solid ${B.border}`,
+                    boxShadow:       active ? `0 0 0 3px ${B.accentGlow}` : 'none',
                   }}
                 >
-                  {idx + 1}
+                  {done ? <Check className="w-3.5 h-3.5" /> : idx + 1}
                 </div>
-                {idx < 3 && (
-                  <div
-                    className="w-12 h-0.5 rounded"
-                    style={{ backgroundColor: B.border }}
-                  />
-                )}
-              </React.Fragment>
-            ))}
-          </div>
-        </div>
+                <span
+                  className="text-xs font-medium hidden sm:block"
+                  style={{ color: active ? B.text : done ? B.textSecondary : B.textMuted }}
+                >
+                  {label}
+                </span>
+              </button>
+              {idx < 2 && (
+                <div
+                  className="w-8 h-0.5 rounded-full transition-colors duration-300"
+                  style={{ backgroundColor: done ? B.accent : B.border }}
+                />
+              )}
+            </div>
+          );
+        })}
       </div>
 
-      {/* Step 1: Core Story */}
-      <motion.div
-        key="story"
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        exit={{ opacity: 0, x: 20 }}
-        transition={MOTION.spring.standard}
-        className="space-y-4"
-      >
+      {/* ─── Step 1: Core Story ─────────────────────────────────── */}
+      <AnimatePresence mode="wait">
+        {activeStep === 0 && (
+          <motion.div
+            key="step-0"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={MOTION.spring.standard}
+            className="space-y-4"
+          >
         <div className="flex items-center gap-3 p-4 rounded-2xl" style={{ backgroundColor: B.accentBg, border: `1px solid ${B.accentBorder}` }}>
           <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: B.accentBorder }}>
             <Lightbulb className="w-5 h-5" style={{ color: B.accentHover }} />
@@ -190,22 +207,60 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
             <AlertCircle className="w-3 h-3" /> {validationErrors.coreStory}
           </p>
         )}
-        <div className="flex items-center justify-between text-xs" style={{ color: B.textMuted }}>
-          <span>{characterCounts.coreStory || 0} characters</span>
-          <span>Target: 200-500 chars</span>
-        </div>
-      </motion.div>
+          <div className="flex items-center justify-between text-xs" style={{ color: B.textMuted }}>
+            <div className="flex items-center gap-2">
+              <span>{characterCounts.coreStory || 0} characters</span>
+              <span>•</span>
+              <span style={{ color: (characterCounts.coreStory || 0) >= 150 && (characterCounts.coreStory || 0) <= 600 ? B.success : B.textMuted }}>
+                {(characterCounts.coreStory || 0) >= 150 && (characterCounts.coreStory || 0) <= 600 ? 'Good length' : 'Target: 200–500 chars'}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleChange('coreStory', 'Eight months ago we were chasing enterprise deals that took weeks to close. Then we noticed 35% of new accounts quit before ever publishing. We scrapped sales calls, built a $29 self-serve plan, and rebuilt onboarding around a single question.')}
+              className="text-xs font-semibold hover:underline"
+              style={{ color: B.accentHover }}
+            >
+              Use an example
+            </button>
+          </div>
 
-      {/* Step 2: Follow-up Questions */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={activeFollowUp}
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -20 }}
-          transition={MOTION.spring.standard}
-          className="space-y-4"
-        >
+          {/* Continue button */}
+          <div className="flex justify-end pt-1">
+            <button
+              onClick={() => {
+                if (!formData.coreStory.trim()) {
+                  setValidationErrors(v => ({ ...v, coreStory: 'Core story is required' }));
+                  return;
+                }
+                setValidationErrors(v => { const n = { ...v }; delete n.coreStory; return n; });
+                setActiveStep(1);
+              }}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+              style={{
+                backgroundColor: formData.coreStory.trim() ? B.accent : B.cardBorder,
+                color: formData.coreStory.trim() ? '#fff' : B.textMuted,
+                boxShadow: formData.coreStory.trim() ? `0 4px 16px ${B.accentGlow}` : 'none',
+                cursor: formData.coreStory.trim() ? 'pointer' : 'not-allowed',
+              }}
+            >
+              Continue to Guided Insights
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+          </motion.div>
+        )}
+
+        {/* ─── Step 2: Guided Insights ───────────────────────────── */}
+        {activeStep === 1 && (
+          <motion.div
+            key={`step-1-q-${activeFollowUp}`}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={MOTION.spring.standard}
+            className="space-y-4"
+          >
           <div className="flex items-center gap-3 p-4 rounded-2xl" style={{ backgroundColor: B.successBg, border: `1px solid ${B.successBorder}` }}>
             <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: B.successBorder }}>
               <Target className="w-5 h-5" style={{ color: B.success }} />
@@ -218,14 +273,14 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
             </div>
           </div>
 
-          <div className="space-y-4 p-4 rounded-2xl" style={{ backgroundColor: B.card, border: `1px solid ${B.border}` }}>
-            <label className="block text-sm font-medium mb-2" style={{ color: B.text }}>
+          <div className="space-y-3 p-4 rounded-2xl" style={{ backgroundColor: B.card, border: `1px solid ${B.border}` }}>
+            <label className="block text-sm font-medium mb-1" style={{ color: B.text }}>
               {FOLLOW_UP_QUESTIONS[activeFollowUp].question}
             </label>
             <Textarea
               value={formData[FOLLOW_UP_QUESTIONS[activeFollowUp].id as keyof StoryIntakeData] as string}
               onChange={e => handleChange(FOLLOW_UP_QUESTIONS[activeFollowUp].id as keyof StoryIntakeData, e.target.value)}
-              rows={4}
+              rows={3}
               placeholder={FOLLOW_UP_QUESTIONS[activeFollowUp].placeholder}
               className="resize-y rounded-xl text-sm"
               style={{
@@ -240,12 +295,65 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
                 <AlertCircle className="w-3 h-3" /> {validationErrors[FOLLOW_UP_QUESTIONS[activeFollowUp].id]}
               </p>
             )}
+
+            {/* Quick Suggestion Chips */}
+            {activeFollowUp === 0 && (
+              <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                <span className="text-[11px] font-medium" style={{ color: B.textMuted }}>Suggestions:</span>
+                {['Launched a $29 plan', 'Dropped sales calls', 'Rebuilt self-serve onboarding'].map(chip => (
+                  <button
+                    key={chip}
+                    type="button"
+                    onClick={() => handleChange('whatChanged', chip)}
+                    className="px-2.5 py-1 rounded-full text-xs border transition-colors hover:border-amber-400"
+                    style={{ backgroundColor: B.accentBg, borderColor: B.border, color: B.textSecondary }}
+                  >
+                    {chip}
+                  </button>
+                ))}
+              </div>
+            )}
+            {activeFollowUp === 1 && (
+              <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                <span className="text-[11px] font-medium" style={{ color: B.textMuted }}>Suggestions:</span>
+                {['Onboarding took 3 weeks', '35% of users quit before posting', 'Enterprise deals had too much drag'].map(chip => (
+                  <button
+                    key={chip}
+                    type="button"
+                    onClick={() => handleChange('whatWentWrong', chip)}
+                    className="px-2.5 py-1 rounded-full text-xs border transition-colors hover:border-amber-400"
+                    style={{ backgroundColor: B.accentBg, borderColor: B.border, color: B.textSecondary }}
+                  >
+                    {chip}
+                  </button>
+                ))}
+              </div>
+            )}
+            {activeFollowUp === 2 && (
+              <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                <span className="text-[11px] font-medium" style={{ color: B.textMuted }}>Suggestions:</span>
+                {['+47 customers in 3 weeks', '-35% churn', 'Onboarding cut from 3 weeks to 3 minutes'].map(chip => (
+                  <button
+                    key={chip}
+                    type="button"
+                    onClick={() => handleChange('oneRealNumber', chip)}
+                    className="px-2.5 py-1 rounded-full text-xs border transition-colors hover:border-amber-400"
+                    style={{ backgroundColor: B.accentBg, borderColor: B.border, color: B.textSecondary }}
+                  >
+                    {chip}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="flex items-center justify-between">
             <button
-              onClick={() => setActiveFollowUp(p => Math.max(0, p - 1))}
-              disabled={activeFollowUp === 0}
+            onClick={() => {
+                if (activeFollowUp === 0) setActiveStep(0);
+                else setActiveFollowUp(p => Math.max(0, p - 1));
+              }}
+              disabled={false}
               className="px-4 py-2 rounded-xl text-sm font-medium border transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
               style={{ borderColor: B.border, color: B.textSecondary, backgroundColor: B.card, focusRingColor: B.accent, focusRingOffsetColor: B.card }}
             >
@@ -265,25 +373,25 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
                 if (activeFollowUp < FOLLOW_UP_QUESTIONS.length - 1) {
                   setActiveFollowUp(p => p + 1);
                 } else {
-                  setShowPlatformSelector(true);
+                  setActiveStep(2);
                 }
               }}
               className="px-4 py-2 rounded-xl text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
               style={{ backgroundColor: B.accent, color: '#fff', boxShadow: `0 4px 16px ${B.accent}66`, focusRingColor: B.accent, focusRingOffsetColor: B.card }}
             >
-              {activeFollowUp < FOLLOW_UP_QUESTIONS.length - 1 ? 'Next →' : 'Choose Platforms →'}
+              {activeFollowUp < FOLLOW_UP_QUESTIONS.length - 1 ? 'Next →' : 'Channels →'}
             </button>
           </div>
-        </motion.div>
-      </AnimatePresence>
+          </motion.div>
+        )}
 
-      {/* Step 3: Platform Selector */}
-      <AnimatePresence>
-        {showPlatformSelector && (
+        {/* ─── Step 3: Channels & Cadence ─────────────────────────── */}
+        {activeStep === 2 && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
+            key="step-2"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
             transition={MOTION.spring.standard}
             className="space-y-4"
           >
@@ -404,7 +512,7 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
 
             <div className="flex items-center justify-end gap-3 pt-4">
               <button
-                onClick={() => { setShowPlatformSelector(false); setActiveFollowUp(FOLLOW_UP_QUESTIONS.length - 1); }}
+                onClick={() => { setActiveStep(1); setActiveFollowUp(FOLLOW_UP_QUESTIONS.length - 1); }}
                 className="px-4 py-2 rounded-xl text-sm font-medium border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
                 style={{ borderColor: B.border, color: B.textSecondary, backgroundColor: B.card, focusRingColor: B.accent, focusRingOffsetColor: B.card }}
               >
@@ -414,10 +522,10 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
                 onClick={handleSubmit}
                 disabled={isGenerating}
                 className="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-                style={{ backgroundColor: B.accent, color: '#fff', boxShadow: `0 4px 16px ${B.accent}66`, focusRingColor: B.accent, focusRingOffsetColor: B.card }}
+                style={{ backgroundColor: B.accent, color: '#fff', boxShadow: `0 4px 16px ${B.accentGlow}` }}
               >
                 {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                {isGenerating ? 'Generating…' : 'Generate Flight Plan'}
+                {isGenerating ? 'Generating…' : 'Generate Flight Plan ✨'}
               </button>
             </div>
           </motion.div>
