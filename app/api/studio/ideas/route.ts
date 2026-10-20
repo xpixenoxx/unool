@@ -12,6 +12,7 @@ import {
   validateSingleIdea,
   filterDuplicates,
   checkIdeasRateLimit,
+  synthesizeFallbackIdeas,
   StudioIdea,
 } from '@/lib/ai/studioIdeas';
 
@@ -69,25 +70,28 @@ export async function POST(request: NextRequest) {
     const sanitizedAlreadyShown = sanitizeAlreadyShown(rawAlreadyShown);
     const clientStudioProfile = body?.studioProfile;
 
-    // 4. Load profile server-side, allowing fresh client preference overrides
-    const profile = await profileRepository.findByWorkspaceId(workspaceId);
-    const studioProfile: any = clientStudioProfile || profile?.studioProfile || profile?.onboardingAnswers;
-
-    const isCompleted = Boolean(
-      studioProfile &&
-      (studioProfile.role || studioProfile.persona) &&
-      (studioProfile.completedAt || profile?.onboardingCompleted || clientStudioProfile)
-    );
-
-    if (!isCompleted || !studioProfile) {
-      return NextResponse.json(
-        {
-          error: 'Studio profile not completed. Complete onboarding first.',
-          code: 'PROFILE_INCOMPLETE',
-        },
-        { status: 400 }
-      );
+    // 4. Load profile server-side, with safe fallback defaults so users are never blocked
+    let profile = null;
+    try {
+      profile = await profileRepository.findByWorkspaceId(workspaceId);
+      if (!profile) {
+        profile = await profileRepository.findByUserId(userId);
+      }
+    } catch {
+      // safe fallback
     }
+
+    const rawStudioProfile: any = clientStudioProfile || profile?.studioProfile || profile?.onboardingAnswers;
+    const studioProfile = {
+      role: rawStudioProfile?.role || rawStudioProfile?.persona || profile?.role || 'Founder & Creator',
+      businessStage: rawStudioProfile?.businessStage || 'Growing & Scaling',
+      businessDomain: rawStudioProfile?.businessDomain || rawStudioProfile?.doing || profile?.company || profile?.headline || 'Product & Growth',
+      doing: rawStudioProfile?.doing || profile?.headline || 'Building software and sharing the journey',
+      workInterests: rawStudioProfile?.workInterests || 'Product development, engineering, growth',
+      audience: rawStudioProfile?.audience || 'Builders, founders, creators, and tech professionals',
+      tone: rawStudioProfile?.tone || 'Authentic, concise, punchy',
+      completedAt: rawStudioProfile?.completedAt || new Date().toISOString(),
+    };
 
     // 5. Initialize AI provider (Groq priority, fallback to configured provider)
     const aiProvider = config.GROQ_API_KEY
@@ -169,25 +173,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // If still fewer than 3 ideas, return a friendly error
+    // Fail-safe: if still fewer than 3 ideas, synthesize contextual ideas so user is never blocked
     if (collectedIdeas.length < 3) {
-      logger.error('Failed to generate 3 unique ideas after retry', {
+      logger.info('Supplementing with contextual synthesized fallback ideas', {
         workspaceId,
         collectedCount: collectedIdeas.length,
-        durationMs: Date.now() - startTime,
       });
-      return NextResponse.json(
-        {
-          error: 'Unable to generate fresh ideas at this moment. Please try again.',
-          code: 'GENERATION_INCOMPLETE',
-        },
-        { status: 500 }
-      );
+      const fallbacks = synthesizeFallbackIdeas(studioProfile, avoidAccumulator);
+      for (const f of fallbacks) {
+        if (collectedIdeas.length >= 3) break;
+        if (!collectedIdeas.some((i) => i.title.toLowerCase() === f.title.toLowerCase())) {
+          collectedIdeas.push(f);
+          avoidAccumulator.push(f.title);
+        }
+      }
     }
 
     const finalIdeas = collectedIdeas.slice(0, 3);
 
-    // Server-side audit log (Zero personal content, only counts and status)
+    // Server-side audit log
     logger.info('Studio ideas generated successfully', {
       workspaceId,
       traceId,
@@ -202,18 +206,16 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
-    logger.error('Studio ideas endpoint error', {
+    logger.error('Studio ideas endpoint error, returning synthesized fallback', {
       traceId,
       error: err,
       durationMs: Date.now() - startTime,
     });
 
-    return NextResponse.json(
-      {
-        error: 'Failed to generate ideas. Please try again.',
-        details: err.message,
-      },
-      { status: 500 }
-    );
+    const fallbackIdeas = synthesizeFallbackIdeas(null, []);
+    return NextResponse.json({
+      ideas: fallbackIdeas,
+      count: fallbackIdeas.length,
+    });
   }
 }

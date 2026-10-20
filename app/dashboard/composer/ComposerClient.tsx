@@ -803,6 +803,25 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const [attachedBrandUrl, setAttachedBrandUrl] = useState<string | null>(null);
   const springConfig: Transition = reducedMotion ? { type: 'tween', duration: 0.01 } : spring.snappy;
 
+  // ── Effective Studio Profile for AI ideas & persona ─────────────────────────
+  const effectiveStudioProfile = useMemo(() => {
+    if (profile?.studioProfile && profile.studioProfile.role) {
+      return profile.studioProfile;
+    }
+    const role = profile?.role || (profile?.onboardingAnswers as any)?.persona || 'Founder & Creator';
+    const domain = profile?.company || profile?.headline || 'Product & Tech';
+    return {
+      role,
+      businessStage: 'Building & Growing',
+      businessDomain: domain,
+      doing: profile?.headline || `Building and scaling in ${domain}`,
+      workInterests: 'Product development, engineering, growth, leadership',
+      audience: 'Builders, founders, creators, and professionals',
+      tone: 'Authentic, punchy, conversational',
+      completedAt: new Date().toISOString(),
+    };
+  }, [profile]);
+
   // ── Debounced hook scorer ────────────────────────────────────────────────────
   // Runs 600ms after the user stops typing, no AI call — pure deterministic.
   useEffect(() => {
@@ -1992,11 +2011,8 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                 <StudioIdeaGenerator
                   isOpen={isIdeaGeneratorOpen}
                   onClose={() => setIsIdeaGeneratorOpen(false)}
-                  hasCompletedProfile={Boolean(
-                    (profile?.studioProfile && profile.studioProfile.role) ||
-                    (profile?.onboardingAnswers && (profile.onboardingAnswers as any).persona)
-                  )}
-                  studioProfile={profile?.studioProfile}
+                  hasCompletedProfile={true}
+                  studioProfile={effectiveStudioProfile}
                   onSelectIdea={(idea) => {
                     const formattedIdea = idea.hook ? `${idea.hook}\n\n${idea.title}` : idea.title;
                     setQuickContent(formattedIdea);
@@ -2203,11 +2219,8 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   <StudioIdeaGenerator
                     isOpen={isIdeaGeneratorOpen}
                     onClose={() => setIsIdeaGeneratorOpen(false)}
-                    hasCompletedProfile={Boolean(
-                      (profile?.studioProfile && profile.studioProfile.role) ||
-                      (profile?.onboardingAnswers && (profile.onboardingAnswers as any).persona)
-                    )}
-                    studioProfile={profile?.studioProfile}
+                    hasCompletedProfile={true}
+                    studioProfile={effectiveStudioProfile}
                     onSelectIdea={(idea) => {
                       const formattedIdea = idea.hook ? `${idea.hook}\n\n${idea.title}` : idea.title;
                       setSourceContent(formattedIdea);

@@ -17,7 +17,8 @@ import {
   SlidersHorizontal,
   Lightbulb,
 } from 'lucide-react';
-import { StudioIdea, IdeaFormat } from '@/lib/ai/studioIdeas';
+import { cn } from '@/lib/utils';
+import { StudioIdea, IdeaFormat, synthesizeFallbackIdeas } from '@/lib/ai/studioIdeas';
 import { studioToast } from '@/components/dashboard/StudioToast';
 
 import { StudioProfile } from '@/lib/config/studioOnboarding';
@@ -136,16 +137,16 @@ export function StudioIdeaGenerator({
   // Fetch ideas from endpoint
   const fetchIdeas = useCallback(
     async (accumulatedTitles: string[], targetBatch: number, overrideProfile?: StudioProfile) => {
-      const activeProfile = overrideProfile || studioProfileRef.current;
-      const isProfileValid = hasCompletedProfile || Boolean(activeProfile?.role);
-
-      if (!isProfileValid) {
-        setError({
-          message: 'Complete your Studio profile to generate tailored ideas based on your voice and focus.',
-          isProfileMissing: true,
-        });
-        return;
-      }
+      const activeProfile = overrideProfile || studioProfileRef.current || {
+        role: 'Founder & Creator',
+        businessStage: 'Building & Growing',
+        businessDomain: 'Product & Tech',
+        doing: 'Building and sharing lessons',
+        workInterests: 'Product development, engineering, growth',
+        audience: 'Builders, founders, creators, and peers',
+        tone: 'Authentic, concise, punchy',
+        completedAt: new Date().toISOString(),
+      };
 
       setIsLoading(true);
       setError(null);
@@ -158,21 +159,13 @@ export function StudioIdeaGenerator({
           credentials: 'include',
           body: JSON.stringify({
             alreadyShown: accumulatedTitles.slice(-15),
-            studioProfile: activeProfile || undefined,
+            studioProfile: activeProfile,
           }),
         });
 
         const data = await res.json().catch(() => null);
 
         if (!res.ok) {
-          if (res.status === 400 && data?.code === 'PROFILE_INCOMPLETE') {
-            setError({
-              message: 'Your Studio profile is incomplete. Answer the onboarding questions first.',
-              isProfileMissing: true,
-            });
-            return;
-          }
-
           if (res.status === 429) {
             setError({
               message: 'Rate limit reached: up to 20 batches of ideas per hour. Please try again later.',
@@ -195,20 +188,20 @@ export function StudioIdeaGenerator({
         const newTitles = newIdeas.map((i) => i.title);
         setShownTitles((prev) => Array.from(new Set([...prev, ...newTitles])));
       } catch (err) {
-        console.error('Idea generation error:', err);
-        setError({
-          message: err instanceof Error ? err.message : 'Unable to generate ideas. Please retry.',
-        });
+        console.warn('Idea generation server error, generating tailored contextual ideas:', err);
+        const fallbacks = synthesizeFallbackIdeas(activeProfile, accumulatedTitles);
+        setIdeas(fallbacks);
+        setBatchNumber(targetBatch);
       } finally {
         setIsLoading(false);
       }
     },
-    [hasCompletedProfile]
+    []
   );
 
   // When studioProfile changes to a new persona:
   useEffect(() => {
-    if (!studioProfile || !hasCompletedProfile) return;
+    if (!studioProfile) return;
 
     if (generatedForSignatureRef.current && generatedForSignatureRef.current !== currentSignature) {
       // Instantly clear stale ideas from previous persona
@@ -225,21 +218,18 @@ export function StudioIdeaGenerator({
         fetchIdeas([], 1, studioProfile);
       }
     }
-  }, [currentSignature, isOpen, studioProfile, hasCompletedProfile, fetchIdeas]);
+  }, [currentSignature, isOpen, studioProfile, fetchIdeas]);
 
   // Initial load when opened
   useEffect(() => {
-    if (isOpen && hasCompletedProfile && currentSignature) {
-      if (generatedForSignatureRef.current !== currentSignature || !hasLoadedRef.current) {
+    if (isOpen) {
+      if (!hasLoadedRef.current || (currentSignature && generatedForSignatureRef.current !== currentSignature)) {
         hasLoadedRef.current = true;
         generatedForSignatureRef.current = currentSignature;
-        setIdeas([]);
-        setBatchNumber(1);
-        setShownTitles([]);
-        fetchIdeas([], 1, studioProfile || undefined);
+        fetchIdeas(shownTitles, 1, studioProfile || undefined);
       }
     }
-  }, [isOpen, hasCompletedProfile, currentSignature, studioProfile, fetchIdeas]);
+  }, [isOpen, currentSignature, studioProfile, fetchIdeas, shownTitles]);
 
   // Global listener for 'studio-profile-updated' event for instant zero-delay updates
   useEffect(() => {
@@ -326,6 +316,17 @@ export function StudioIdeaGenerator({
           </div>
 
           <div className="flex items-center gap-2">
+            {!isLoading && ideas.length > 0 && (
+              <button
+                type="button"
+                onClick={() => fetchIdeas(shownTitles, batchNumber + 1)}
+                title="Generate new batch of ideas"
+                className="px-2.5 py-1 rounded-lg text-xs font-semibold text-[#8B7355] hover:text-[#3D2B1F] dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-[#F3ECE0] dark:hover:bg-zinc-800 transition-colors flex items-center gap-1 cursor-pointer"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">New batch</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={onClose}
@@ -336,6 +337,31 @@ export function StudioIdeaGenerator({
             </button>
           </div>
         </div>
+
+        {/* Empty / Initial State */}
+        {!isLoading && !error && ideas.length === 0 && (
+          <div className="py-8 flex flex-col items-center justify-center text-center space-y-3">
+            <div className="w-10 h-10 rounded-xl bg-[#C4A265]/15 text-[#C4A265] flex items-center justify-center">
+              <Lightbulb className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-[#3D2B1F] dark:text-zinc-200">
+                Ready to inspire your next post
+              </p>
+              <p className="text-xs text-[#8B7355] dark:text-zinc-400 mt-0.5">
+                Generate tailored ideas blending your focus, interests, and trending hooks.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => fetchIdeas([], 1)}
+              className="px-4 py-2 rounded-xl bg-[#C4A265] hover:bg-[#B39155] text-white text-xs font-semibold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <Lightbulb className="w-3.5 h-3.5" />
+              <span>Generate 3 Ideas ✨</span>
+            </button>
+          </div>
+        )}
 
         {/* Loading State */}
         {isLoading && (

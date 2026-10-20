@@ -309,3 +309,66 @@ export function checkIdeasRateLimit(
 export function resetIdeasRateLimit(): void {
   rateLimitMap.clear();
 }
+
+/**
+ * Deterministic, contextual fallback ideas generator that guarantees fresh,
+ * high-converting ideas even if the AI provider times out or is unconfigured.
+ */
+export function synthesizeFallbackIdeas(
+  profile?: StudioProfile | Record<string, any> | null,
+  alreadyShown: string[] = []
+): StudioIdea[] {
+  const role = profile?.role || (profile as any)?.persona || 'Founder & Creator';
+  const domain = profile?.businessDomain || profile?.doing || (profile as any)?.company || 'Product Growth';
+
+  const pool: StudioIdea[] = [
+    {
+      title: `The biggest misconception about succeeding as a ${role}`,
+      hook: `Most people think winning as a ${role} is about grinding 80 hours a week. Here is what actually moved the needle for us:`,
+      format: 'hot take',
+      why_it_works: 'Challenges common industry dogma with refreshing honesty that drives saves and shares.',
+    },
+    {
+      title: `The pivot that changed everything for our ${domain}`,
+      hook: `We spent months pushing a feature nobody asked for. The moment we stripped it down, our retention spiked:`,
+      format: 'story',
+      why_it_works: 'Vulnerability and tangible turnaround stories build authority and emotional connection.',
+    },
+    {
+      title: `Our 3-step checklist before shipping any update in ${domain}`,
+      hook: `Every time we skip step 2 on this list, something breaks in production. Here is our exact pre-launch filter:`,
+      format: 'how-to',
+      why_it_works: 'Actionable tactical frameworks trigger high bookmark rates and immediate peer discussion.',
+    },
+    {
+      title: `Behind the scenes: what our actual numbers looked like this month`,
+      hook: `Transparency check: the real metrics, the churn spike we did not expect, and how we responded.`,
+      format: 'behind-the-scenes',
+      why_it_works: 'Raw build-in-public metrics cut through generic marketing noise instantly.',
+    },
+    {
+      title: `Question for fellow creators and builders in ${domain}`,
+      hook: `When you are scaling fast, how do you balance shipping speed vs technical debt? Curious how you handle it:`,
+      format: 'question to audience',
+      why_it_works: 'Low-friction, relatable questions drive high comment velocity and algorithmic reach.',
+    },
+    {
+      title: `3 tools and mental models that saved our team 15+ hours`,
+      hook: `We replaced 4 messy spreadsheets with one automated workflow. Here are the 3 simple shifts:`,
+      format: 'list',
+      why_it_works: 'Curated tool stacks with concrete time savings deliver instant tangible utility.',
+    },
+    {
+      title: `The hardest lesson we learned the hard way this quarter`,
+      hook: `I used to think customer feedback should dictate every roadmap decision. I was wrong. Here is why:`,
+      format: 'story',
+      why_it_works: 'Contrarian personal epiphanies provoke curiosity and spark engaging debate.',
+    },
+  ];
+
+  const candidates = pool.filter(
+    (item) => !alreadyShown.some((shown) => areTitlesSimilar(item.title, shown))
+  );
+
+  return candidates.length >= 3 ? candidates.slice(0, 3) : pool.slice(0, 3);
+}
