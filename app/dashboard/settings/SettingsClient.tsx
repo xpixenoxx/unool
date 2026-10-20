@@ -16,7 +16,7 @@ import { Loader2, Key, Shield, Bell, Palette, Trash2, User, Lock, LogOut, CheckC
 import { TemplateSelector } from '@/components/profile/TemplateSelector';
 import { getSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { StudioOnboardingModal } from '@/components/dashboard/StudioOnboardingModal';
-import { StudioProfile, getRoleConfig } from '@/lib/config/studioOnboarding';
+import { StudioProfile, getRoleConfig, ROLE_BRANCH_CONFIGS } from '@/lib/config/studioOnboarding';
 
 type TabValue = 'account' | 'persona' | 'security' | 'notifications' | 'appearance' | 'danger';
 

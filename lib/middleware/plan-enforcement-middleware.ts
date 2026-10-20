@@ -246,27 +246,27 @@ async function checkQuota(
     export_data: { table: 'exports', limitKey: 'analytics_retention_days', timeWindow: new Date(0) },
   };
 
-  const config = actionConfig[action];
-  if (!config) return { allowed: true, limit: -1, currentUsage: 0 };
+  const targetConfig = actionConfig[action];
+  if (!targetConfig) return { allowed: true, limit: -1, currentUsage: 0 };
 
-  const limit = limits?.[config.limitKey] as number | boolean | undefined;
+  const limit = limits?.[targetConfig.limitKey] as number | boolean | undefined;
   if (limit === true || limit === -1 || limit === undefined) {
     return { allowed: true, limit: -1, currentUsage: 0 };
   }
 
   let currentUsage = 0;
-  if (config.timeWindow > new Date(0)) {
+  if (targetConfig.timeWindow > new Date(0)) {
     // Time-windowed query
     const { count } = await supabaseAdmin
-      .from(config.table)
+      .from(targetConfig.table)
       .select('id', { count: 'exact', head: true })
       .eq('workspace_id', workspaceId)
-      .gte('created_at', config.timeWindow.toISOString());
+      .gte('created_at', targetConfig.timeWindow.toISOString());
     currentUsage = count || 0;
   } else {
     // Total count
     const { count } = await supabaseAdmin
-      .from(config.table)
+      .from(targetConfig.table)
       .select('id', { count: 'exact', head: true })
       .eq('workspace_id', workspaceId);
     currentUsage = count || 0;
@@ -279,7 +279,7 @@ async function checkQuota(
     allowed: currentUsage < numericLimit,
     limit: numericLimit,
     currentUsage,
-    reason: currentUsage >= numericLimit ? `Limit reached: ${config.limitKey} (${currentUsage}/${numericLimit})` : undefined,
+    reason: currentUsage >= numericLimit ? `Limit reached: ${targetConfig.limitKey} (${currentUsage}/${numericLimit})` : undefined,
   };
 }
 

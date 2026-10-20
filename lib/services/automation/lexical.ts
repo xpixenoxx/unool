@@ -91,14 +91,14 @@ export class LexicalEntropyGuard {
   }
 
   /**
-   * Get the opening 3 words of a reply (normalized).
+   * Get the opening words of a reply (normalized).
    */
   private getOpening(text: string): string {
     return text
       .toLowerCase()
       .replace(/[^\w\s]/g, '')
       .split(/\s+/)
-      .slice(0, 3)
+      .slice(0, 2)
       .join(' ')
       .trim();
   }

@@ -65,7 +65,7 @@ export function ClubCuratedWorks({ projects, onProjectOpen }: ClubCuratedWorksPr
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [selectedProject]);
 
-  const cardVariants = prefersReduced
+  const cardVariants: any = prefersReduced
     ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.01 } } }
     : { hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 420, damping: 28 } } };
 
@@ -324,7 +324,7 @@ export function ClubCuratedWorks({ projects, onProjectOpen }: ClubCuratedWorksPr
         }
       `}</style>
 
-      <section
+      <motion.section
         id="works"
         ref={sectionRef}
         className="club-works-section"
@@ -457,7 +457,7 @@ export function ClubCuratedWorks({ projects, onProjectOpen }: ClubCuratedWorksPr
             </>
           )}
         </AnimatePresence>
-      </section>
+      </motion.section>
     </>
   );
 }

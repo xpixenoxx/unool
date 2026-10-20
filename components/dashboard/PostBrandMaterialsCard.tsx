@@ -1043,11 +1043,11 @@ export default function PostBrandMaterialsCard({
                         }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                          {m.type === 'image' && <ImageIcon size={15} style={{ color: '#DF5B4C', shrink: 0 }} />}
-                          {m.type === 'pdf' && <FileText size={15} style={{ color: '#B8473D', shrink: 0 }} />}
-                          {m.type === 'text' && <AlignLeft size={15} style={{ color: '#1D4ED8', shrink: 0 }} />}
-                          {m.type === 'website' && <Globe size={15} style={{ color: '#1C2B21', shrink: 0 }} />}
-                          <span style={{ fontSize: 12, fontWeight: 600, color: '#3D2B1F', truncate: true }}>
+                          {m.type === 'image' && <ImageIcon size={15} style={{ color: '#DF5B4C', flexShrink: 0 }} />}
+                          {m.type === 'pdf' && <FileText size={15} style={{ color: '#B8473D', flexShrink: 0 }} />}
+                          {m.type === 'text' && <AlignLeft size={15} style={{ color: '#1D4ED8', flexShrink: 0 }} />}
+                          {m.type === 'website' && <Globe size={15} style={{ color: '#1C2B21', flexShrink: 0 }} />}
+                          <span style={{ fontSize: 12, fontWeight: 600, color: '#3D2B1F', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {m.title}
                           </span>
                         </div>

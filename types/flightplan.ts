@@ -3,7 +3,27 @@
  * Complete type system for the weekly content scheduling engine
  */
 
+import type React from 'react';
 import type { SupportedPlatform } from '@/lib/platforms';
+
+declare module 'react' {
+  interface CSSProperties {
+    focusRingColor?: string;
+    focusRingOffsetColor?: string;
+    '--accent'?: string;
+    '--gap'?: string;
+    '--status-color'?: string;
+    '--padding'?: string;
+    '--font-size'?: string;
+  }
+}
+
+declare module 'framer-motion' {
+  interface MotionStyle {
+    focusRingColor?: string;
+    focusRingOffsetColor?: string;
+  }
+}
 
 /* ═══════════════════════════════════════════════════════════════════════════
    PLATFORM CONFIGURATION
@@ -52,6 +72,7 @@ export const PLATFORM_CONFIG: Record<PlatformType, PlatformConfig> = {
   hashnode: { icon: {} as React.ElementType, name: 'Hashnode', maxChars: 100000, color: 'bg-[#2962FF]' },
   devto: { icon: {} as React.ElementType, name: 'DEV.to', maxChars: 100000, color: 'bg-neutral-900' },
   reddit: { icon: {} as React.ElementType, name: 'Reddit', maxChars: 40000, color: 'bg-[#FF4500]' },
+  manual: { icon: {} as React.ElementType, name: 'Manual', maxChars: 5000, color: 'bg-zinc-600' },
 };
 
 export const PLATFORM_META: Record<string, PlatformMeta> = {
@@ -84,7 +105,7 @@ export const PLATFORM_META: Record<string, PlatformMeta> = {
   whatsapp: { name: 'WhatsApp', color: '#25D366', bg: '#E7F9EE', icon: 'wa' },
   lemmy: { name: 'Lemmy', color: '#00BC8C', bg: '#E6F7EF', icon: 'lem' },
   listmonk: { name: 'Listmonk', color: '#0045ff', bg: '#E8EBFF', icon: 'lm' },
-  hashnode: { name: 'Hashnode', color: '#2962FF', bg: '#ECF2FE', icon: 'hn' },
+  manual: { name: 'Manual', color: '#71717A', bg: '#27272A', icon: 'mn' },
 };
 
 export interface PlatformDraft {
@@ -305,6 +326,7 @@ export interface UseImageUploadResult {
   isUploading: Record<number, boolean>;
   isDragging: Record<number, boolean>;
   setIsDragging: (postIdx: number, dragging: boolean) => void;
+  registerFileInput?: (postIdx: number, el: HTMLInputElement | null) => void;
 }
 
 export interface UseTimeSelectorResult {
@@ -312,13 +334,15 @@ export interface UseTimeSelectorResult {
   minute: number;
   setHour: (h: number) => void;
   setMinute: (m: number) => void;
-  quickPresets: Array<{ label: string; minutes: number; icon: React.ReactNode }>;
+  quickPresets: Array<{ label: string; minutes: number; icon?: React.ReactNode; isPrimary?: boolean }>;
   applyQuickPreset: (minutes: number) => void;
   isPastTime: boolean;
+  minuteOptions: number[];
 }
 
 export interface UseTimezoneResult {
   timezone: string;
+  setTimezone: (tz: string) => void;
   offset: string;              // e.g., "-07:00"
   label: string;               // e.g., "Pacific Time (PT)"
   allTimezones: Array<{ value: string; label: string; offset: string }>;
@@ -371,7 +395,7 @@ export interface TimeSelectorProps {
   onHourChange: (h: number) => void;
   onMinuteChange: (m: number) => void;
   isPastTime?: boolean;
-  quickPresets?: Array<{ label: string; minutes: number; icon: React.ReactNode }>;
+  quickPresets?: Array<{ label: string; minutes: number; icon?: React.ReactNode; isPrimary?: boolean }>;
   onQuickPreset?: (minutes: number) => void;
   disabled?: boolean;
 }
@@ -382,7 +406,7 @@ export interface HashtagInputProps {
   onRemove: (tag: string) => void;
   placeholder?: string;
   maxTags?: number;
-  inputRef?: React.RefObject<HTMLInputElement>;
+  inputRef?: React.RefObject<HTMLInputElement | null> | React.RefObject<HTMLInputElement>;
 }
 
 export interface AutoFirstCommentProps {
@@ -398,7 +422,7 @@ export interface ImageDropZoneProps {
   isUploading?: boolean;
   isDragging?: boolean;
   setIsDragging?: (dragging: boolean) => void;
-  fileInputRef?: React.RefObject<HTMLInputElement>;
+  fileInputRef?: React.RefObject<HTMLInputElement | null> | React.RefObject<HTMLInputElement>;
   compact?: boolean;
 }
 

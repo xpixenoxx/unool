@@ -43,6 +43,8 @@ export interface BrandMaterialsPageData {
   title: string;
   tagline?: string | null;
   description?: string | null;
+  primary_cta_label?: string | null;
+  primary_cta_url?: string | null;
   materials: MaterialItem[];
   linked_posts?: any[];
   theme?: {

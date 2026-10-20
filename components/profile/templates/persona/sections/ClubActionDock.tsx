@@ -37,7 +37,7 @@ export function ClubActionDock({ profile, onBookSession, onDownloadVCard, onCopy
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const dockVariants = prefersReduced
+  const dockVariants: any = prefersReduced
     ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.01 } } }
     : { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 420, damping: 28, delay: 0.5 } } };
 
@@ -129,7 +129,7 @@ export function ClubActionDock({ profile, onBookSession, onDownloadVCard, onCopy
         }
       `}</style>
 
-      <footer className="club-action-dock" role="contentinfo" initial="hidden" animate="visible" variants={dockVariants}>
+      <motion.footer className="club-action-dock" role="contentinfo" initial="hidden" animate="visible" variants={dockVariants}>
         <div className="club-dock-left">
           <LiveClock format="HH:mm" className="club-dock-clock" />
           <ClubAvailabilityPill status={profile.availability || 'selective'} />
@@ -179,7 +179,7 @@ export function ClubActionDock({ profile, onBookSession, onDownloadVCard, onCopy
             Email copied!
           </motion.div>
         )}
-      </footer>
+      </motion.footer>
     </>
   );
 }

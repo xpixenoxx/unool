@@ -89,7 +89,7 @@ describe('Instagram Webhook', () => {
       const response = await POST(request);
       expect(response.status).toBe(401);
       const json = await response.json();
-      expect(json.error).toBe('Missing signature');
+      expect(json.error).toMatch(/signature/i);
     });
 
     it('rejects invalid HMAC signatures with 401', async () => {

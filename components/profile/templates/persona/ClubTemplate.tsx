@@ -74,7 +74,7 @@ function ClubTemplateInner({ profile, accentColor, isPreview, onLinkClick }: Tem
     }
   }, [clubData, addToast]);
 
-  const handleContactSubmit = useCallback(async (data: ClubTemplateData) => {
+  const handleContactSubmit = useCallback(async (data: any) => {
     // Submit to API
     const response = await fetch('/api/profile/contact', {
       method: 'POST',

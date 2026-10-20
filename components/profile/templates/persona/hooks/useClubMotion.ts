@@ -1,7 +1,12 @@
 'use client';
 
 import { useReducedMotionContext } from './useReducedMotion';
-import { SpringConfig } from 'framer-motion';
+
+export interface SpringConfig {
+  stiffness: number;
+  damping: number;
+  mass?: number;
+}
 
 /* ============================================================
    CLUB MOTION SPRINGS — Framer Motion Configurations
@@ -60,10 +65,7 @@ export const clubSectionDelays = {
    Returns reduced-motion-aware variants
    ============================================================ */
 
-export interface MotionVariants {
-  hidden: Record<string, unknown>;
-  visible: Record<string, unknown>;
-}
+export type MotionVariants = any;
 
 export function useClubMotion() {
   const prefersReduced = useReducedMotionContext();
@@ -167,7 +169,7 @@ interface ScrollRevealOptions {
 
 export function useScrollReveal<T extends HTMLElement>(
   options: ScrollRevealOptions = {}
-): [RefObject<T>, boolean] {
+): [RefObject<any>, boolean] {
   const { threshold = 0.1, rootMargin = '0px', triggerOnce = true, delay = 0 } = options;
   const [isVisible, setIsVisible] = useState(false);
   const elementRef = useRef<T>(null);

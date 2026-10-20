@@ -18,12 +18,12 @@ export function ClubManifesto({ bio, manifesto }: ClubManifestoProps) {
   const { fadeInUp, sectionDelays } = useClubMotion();
   const [sectionRef, isVisible] = useScrollReveal<HTMLElement>({ threshold: 0.15, delay: 0 });
 
-  const sectionVariants = {
+  const sectionVariants: any = {
     hidden: { opacity: 0 },
     visible: { opacity: 1, transition: { staggerChildren: 0.08, delayChildren: 0.1 } },
   };
 
-  const itemVariants = {
+  const itemVariants: any = {
     hidden: { opacity: 0, y: 30 },
     visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 350, damping: 28 } },
   };
@@ -133,7 +133,7 @@ export function ClubManifesto({ bio, manifesto }: ClubManifestoProps) {
         }
       `}</style>
 
-      <section
+      <motion.section
         id="manifesto"
         ref={sectionRef}
         className="club-manifesto-section"
@@ -165,7 +165,7 @@ export function ClubManifesto({ bio, manifesto }: ClubManifestoProps) {
           <div className="club-accent-line" />
           <div className="club-accent-dot" />
         </div>
-      </section>
+      </motion.section>
     </>
   );
 }

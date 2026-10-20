@@ -527,7 +527,7 @@ export function ReviewScreen({
                             isDragging={mergedIsDragging[postIdx]}
                             setIsDragging={dragging => setDragState(postIdx, dragging)}
                             fileInputRef={React.createRef<HTMLInputElement>()}
-                            ref={el => { if (el) registerFileInput(postIdx, el); }}
+                            ref={el => { if (el) registerFileInput?.(postIdx, el); }}
                           />
                         </div>
 
@@ -603,9 +603,9 @@ export function ReviewScreen({
 
                             {/* Alert Banner for Unacceptable / Ungeneratable Content or Over Limit */}
                             <ContentValidationBanner
-                              isBlocked={isPlatformBlocked}
+                              isBlocked={Boolean(isPlatformBlocked)}
                               isOverLimit={isOverLimit}
-                              violationMessage={platformGuardResult?.violation.message}
+                              violationMessage={!platformGuardResult?.safe ? platformGuardResult?.violation.message : undefined}
                               platformName={PLATFORM_CONFIG[currentPlatformDraft.platform as PlatformType]?.name || currentPlatformDraft.platform}
                               currentCount={currentPlatformDraft.characterCount}
                               maxChars={config?.maxChars}

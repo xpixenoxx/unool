@@ -2091,7 +2091,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   <div className="pt-2">
                     <PostBrandMaterialsCard
                       workspaceId={workspaceId}
-                      subdomain={profile?.subdomain || (user as any)?.subdomain || 'user'}
+                      subdomain={(profile as any)?.subdomain || (user as any)?.subdomain || 'user'}
                       postContent={quickContent}
                       attachedSlug={attachedBrandSlug}
                       onAttachPage={(slug, url) => {
@@ -2343,7 +2343,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   <div className="pt-2">
                     <PostBrandMaterialsCard
                       workspaceId={workspaceId}
-                      subdomain={profile?.subdomain || (user as any)?.subdomain || 'user'}
+                      subdomain={(profile as any)?.subdomain || (user as any)?.subdomain || 'user'}
                       postContent={sourceContent}
                       attachedSlug={attachedBrandSlug}
                       onAttachPage={(slug, url) => {

@@ -193,7 +193,7 @@ function ClubToastItem({ toast, onRemove }: { toast: ClubToast; onRemove: (id: s
     return () => clearInterval(interval);
   }, [duration, toast.id, onRemove]);
 
-  const variants = {
+  const variants: any = {
     initial: { opacity: 0, x: 100, scale: 0.95 },
     animate: { opacity: 1, x: 0, scale: 1, transition: { type: 'spring', stiffness: 500, damping: 30 } },
     exit: { opacity: 0, x: 100, scale: 0.95, transition: { duration: 0.15 } },

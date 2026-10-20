@@ -31,7 +31,7 @@ export function ClubTopNav({ profile }: ClubTopNavProps) {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const navVariants = prefersReduced
+  const navVariants: any = prefersReduced
     ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.01 } } }
     : { hidden: { opacity: 0, y: -20 }, visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 500, damping: 30 } } };
 
@@ -127,7 +127,7 @@ export function ClubTopNav({ profile }: ClubTopNavProps) {
         }
       `}</style>
 
-      <nav
+      <motion.nav
         className={`club-top-nav ${scrolled ? 'scrolled' : ''}`}
         role="navigation"
         aria-label="Main navigation"
@@ -195,7 +195,7 @@ export function ClubTopNav({ profile }: ClubTopNavProps) {
             </motion.div>
           </AnimatePresence>
         </div>
-      </nav>
+      </motion.nav>
 
       {/* Spacer for fixed nav */}
       <div style={{ height: '72px' }} aria-hidden="true" />

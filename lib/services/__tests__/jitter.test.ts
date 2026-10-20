@@ -147,7 +147,7 @@ describe('LexicalEntropyGuard', () => {
       'Glad it resonated! What type of team are you on?',
     ];
     // Same opening "Glad it" pattern
-    const tooSimilar = 'Glad it helped! What's your timeline on this?';
+    const tooSimilar = "Glad it helped! What's your timeline on this?";
     expect(guard.isTooSimilar(tooSimilar, recent)).toBe(true);
   });
 

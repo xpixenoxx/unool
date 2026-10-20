@@ -56,7 +56,7 @@ export function ClubRecentActivity({ activities, profile }: ClubRecentActivityPr
   const [sectionRef, isVisible] = useScrollReveal<HTMLElement>({ threshold: 0.15 });
   const prefersReduced = useClubMotion().prefersReduced;
 
-  const itemVariants = prefersReduced
+  const itemVariants: any = prefersReduced
     ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.01 } } }
     : { hidden: { opacity: 0, x: -20 }, visible: { opacity: 1, x: 0, transition: { type: 'spring', stiffness: 350, damping: 28 } } };
 
@@ -204,7 +204,7 @@ export function ClubRecentActivity({ activities, profile }: ClubRecentActivityPr
         .club-activity-link:hover { color: oklch(0.55 0.28 100); }
       `}</style>
 
-      <section
+      <motion.section
         id="activity"
         ref={sectionRef}
         className="club-activity-section"
@@ -261,7 +261,7 @@ export function ClubRecentActivity({ activities, profile }: ClubRecentActivityPr
             <p className="club-activity-description" style={{ margin: 0 }}>No recent activity</p>
           </div>
         )}
-      </section>
+      </motion.section>
     </>
   );
 }

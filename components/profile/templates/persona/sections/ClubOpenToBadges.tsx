@@ -21,7 +21,7 @@ interface ClubOpenToBadgesProps {
    Animated intent chips with pulse on hover
    ============================================================ */
 
-const ICON_MAP: Record<string, React.ComponentType<{ size?: number }>> = {
+const ICON_MAP: Record<string, React.ComponentType<{ size?: number; strokeWidth?: number }>> = {
   Handshake,
   Mic,
   Compass,
@@ -43,7 +43,7 @@ export function ClubOpenToBadges({ openTo }: ClubOpenToBadgesProps) {
   const [sectionRef, isVisible] = useScrollReveal<HTMLElement>({ threshold: 0.15 });
   const prefersReduced = useClubMotion().prefersReduced;
 
-  const badgeVariants = prefersReduced
+  const badgeVariants: any = prefersReduced
     ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.01 } } }
     : { hidden: { opacity: 0, scale: 0.9 }, visible: { opacity: 1, scale: 1, transition: { type: 'spring', stiffness: 480, damping: 18 } } };
 
@@ -129,7 +129,7 @@ export function ClubOpenToBadges({ openTo }: ClubOpenToBadgesProps) {
         }
       `}</style>
 
-      <section
+      <motion.section
         id="open-to"
         ref={sectionRef}
         className="club-open-to-section"
@@ -164,7 +164,7 @@ export function ClubOpenToBadges({ openTo }: ClubOpenToBadgesProps) {
             );
           })}
         </motion.div>
-      </section>
+      </motion.section>
     </>
   );
 }

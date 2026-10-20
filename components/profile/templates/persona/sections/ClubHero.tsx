@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useClubMotion, useScrollReveal } from '../hooks/useClubMotion';
 import { useReducedMotionContext } from '../hooks/useReducedMotion';
 import { ClubHero3DFallback } from './ClubHero3D';
@@ -55,7 +55,7 @@ export function ClubHero({ profile }: ClubHeroProps) {
     ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.01 } } }
     : fadeIn('standard', sectionDelays.hero + 0.05);
 
-  const scrollIndicatorVariants = prefersReduced
+  const scrollIndicatorVariants: any = prefersReduced
     ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.01, delay: 1 } } }
     : { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 20, delay: 1.5 } } };
 
@@ -157,7 +157,7 @@ export function ClubHero({ profile }: ClubHeroProps) {
         .club-hero-fallback { z-index: 0; }
       `}</style>
 
-      <section
+      <motion.section
         id="hero"
         ref={heroRef}
         className="club-hero"
@@ -213,7 +213,7 @@ export function ClubHero({ profile }: ClubHeroProps) {
         >
           <ScrollIndicator />
         </motion.div>
-      </section>
+      </motion.section>
     </>
   );
 }

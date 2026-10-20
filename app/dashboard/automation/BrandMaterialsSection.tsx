@@ -32,7 +32,8 @@ import {
   Search,
   Calendar,
   Link as LinkIcon,
-  RotateCw
+  RotateCw,
+  CheckCircle2,
 } from 'lucide-react';
 
 export interface MaterialItem {
@@ -795,7 +796,7 @@ export default function BrandMaterialsSection({
             </a>
             <button
               type="button"
-              onClick={startNewPostPage}
+              onClick={() => startNewPostPage()}
               className="un-btn"
               style={{ fontSize: 13, background: '#F0FDF4', borderColor: '#A7F3D0', color: '#065F46' }}
             >
@@ -871,7 +872,7 @@ export default function BrandMaterialsSection({
 
         <button
           type="button"
-          onClick={startNewPostPage}
+          onClick={() => startNewPostPage()}
           className="un-btn un-btn-primary"
           style={{ fontSize: 12, padding: '7px 16px', background: '#DF5B4C', borderColor: '#DF5B4C', borderRadius: 20 }}
           title="Create a dedicated materials page for a new post"
@@ -2033,7 +2034,7 @@ export default function BrandMaterialsSection({
           </div>
           <button
             type="button"
-            onClick={startNewPostPage}
+            onClick={() => startNewPostPage()}
             className="un-btn un-btn-primary"
             style={{ fontSize: 12, padding: '6px 14px' }}
           >

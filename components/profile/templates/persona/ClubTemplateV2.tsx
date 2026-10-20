@@ -493,7 +493,7 @@ function ClubCuratedWorksV2({ projects }: CuratedWorksProps) {
                   <img src={project.image} alt="" loading="lazy" className="club-work-image" />
                 ) : (
                   <div className="club-work-placeholder" aria-hidden="true">
-                    <Icon />
+                    {Icon}
                   </div>
                 )}
                 <div className="club-work-type-badge">{project.type?.toUpperCase() || 'WORK'}</div>
@@ -869,7 +869,7 @@ interface ContactDrawerProps {
     location?: string;
     calendlyUrl?: string;
   };
-  onSubmit: (data: ClubTemplateData) => Promise<void>;
+  onSubmit: (data: any) => Promise<void>;
 }
 
 function ClubContactDrawerV2({ isOpen, onClose, profile, onSubmit }: ContactDrawerProps) {
@@ -883,7 +883,7 @@ function ClubContactDrawerV2({ isOpen, onClose, profile, onSubmit }: ContactDraw
     e.preventDefault();
     setStatus('submitting');
     try {
-      await onSubmit(formData as ClubTemplateData);
+      await onSubmit(formData);
       setStatus('success');
       setFormData({ name: '', email: '', subject: '', message: '' });
       setTimeout(() => { onClose(); setStatus('idle'); }, 2000);
@@ -1111,7 +1111,7 @@ function ClubActionDockV2({ profile, onBookSession, onDownloadVCard, onCopyEmail
     <footer className="club-action-dock" role="contentinfo" style={{ opacity: prefersReduced ? 1 : 0, transform: prefersReduced ? 'none' : 'translateY(100%)', transition: 'opacity 0.4s var(--club-ease-smooth), transform 0.4s var(--club-ease-smooth)' }}>
       <div className="club-dock-left">
         <LiveClock format="HH:mm" className="club-dock-clock" />
-        <AvailabilityPill status={profile.availability || 'selective'} />
+        <AvailabilityPill status={(profile.availability as any) || 'selective'} />
       </div>
 
       <div className="club-dock-center">
@@ -1272,7 +1272,7 @@ function ClubTemplateV2Inner({ profile, accentColor, isPreview, onLinkClick }: T
     id: item.id,
     label: item.label,
     icon: item.icon ? CLUB_BRAND_ICONS[normalizeSocialPlatformKey(item.icon as ClubBrandIconKey)] : undefined,
-    href: item.href,
+    href: (item as any).href,
   }));
 
   return (
@@ -1291,7 +1291,7 @@ function ClubTemplateV2Inner({ profile, accentColor, isPreview, onLinkClick }: T
         <ClubCuratedWorksV2 projects={clubData.projects} />
         <ClubSocialsMatrixV2 socialLinks={socialLinks} />
         <ClubOpenToBadgesV2 openTo={openToBadges} />
-        <ClubRecentActivityV2 activities={clubData.activities} profile={{ name: clubData.name, avatar: clubData.avatar }} />
+        <ClubRecentActivityV2 activities={clubData.activities as any} profile={{ name: clubData.name, avatar: clubData.avatar }} />
       </main>
 
       {/* Mobile Action Dock — only on mobile */}

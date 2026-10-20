@@ -10,7 +10,7 @@ import { useReducedMotionContext } from '../hooks/useReducedMotion';
 export function ScrollIndicator() {
   const prefersReduced = useReducedMotionContext();
 
-  const variants = prefersReduced
+  const variants: any = prefersReduced
     ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.01 } } }
     : {
         hidden: { opacity: 0, y: 10 },
@@ -26,7 +26,7 @@ export function ScrollIndicator() {
         },
       };
 
-  const bounceVariants = prefersReduced
+  const bounceVariants: any = prefersReduced
     ? { animate: { y: 0 } }
     : {
         animate: {

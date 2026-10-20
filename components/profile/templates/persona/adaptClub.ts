@@ -186,7 +186,7 @@ const DEFAULT_ACTIVITIES: ClubActivityItem[] = [
 
 export function adaptPublicProfileToClub(profile: PublicProfile): ClubTemplateData {
   // Process proof points
-  const proofPoints: ClubProofPoint[] = (profile.proofPoints || []).length > 0
+  const proofPoints: ClubProofPoint[] = (profile.proofPoints && profile.proofPoints.length > 0)
     ? profile.proofPoints.map((p, i) => ({
         id: p.id || `proof-${i}`,
         label: p.label,
@@ -198,7 +198,7 @@ export function adaptPublicProfileToClub(profile: PublicProfile): ClubTemplateDa
     : DEFAULT_PROOF_POINTS;
 
   // Process projects
-  const projects: ClubProject[] = (profile.projects || []).length > 0
+  const projects: ClubProject[] = (profile.projects && profile.projects.length > 0)
     ? profile.projects.map((p, i) => ({
         id: p.id || `project-${i}`,
         title: p.title,
@@ -215,7 +215,7 @@ export function adaptPublicProfileToClub(profile: PublicProfile): ClubTemplateDa
 
   // Process social links
   const socialLinks: ClubSocialLink[] = (profile.links || [])
-    .filter(l => l.platform && !l.isPrimaryAction)
+    .filter((l): l is ProfileLink & { platform: string } => Boolean(l.platform) && !l.isPrimaryAction)
     .map((l, i) => {
       const iconKey = normalizeSocialPlatformKey(l.platform);
       return {
@@ -232,8 +232,8 @@ export function adaptPublicProfileToClub(profile: PublicProfile): ClubTemplateDa
   const primaryCTA = profile.links?.find(l => l.isPrimaryAction);
 
   // Process OpenTo
-  const openTo: ClubOpenToItem[] = (profile.openTo || []).length > 0
-    ? profile.openTo.map((o, i) => ({
+  const openTo: ClubOpenToItem[] = (profile.openTo && profile.openTo.length > 0)
+    ? profile.openTo.map((o: any, i: number) => ({
         id: o.id || `open-${i}`,
         label: o.label,
         icon: o.icon || 'Sparkles',
@@ -247,8 +247,8 @@ export function adaptPublicProfileToClub(profile: PublicProfile): ClubTemplateDa
       ];
 
   // Process activities
-  const activities: ClubActivityItem[] = (profile.activity || []).length > 0
-    ? profile.activity.map((a, i) => ({
+  const activities: ClubActivityItem[] = (profile.activity && profile.activity.length > 0)
+    ? profile.activity.map((a: any, i: number) => ({
         id: a.id || `activity-${i}`,
         type: a.type || 'custom',
         title: a.title,
@@ -267,7 +267,7 @@ export function adaptPublicProfileToClub(profile: PublicProfile): ClubTemplateDa
     bio: profile.bio || 'Culture isn\'t borrowed. It\'s built. Every campaign, every collaboration, every pixel — intentional. We don\'t follow trends. We originate them.',
     manifesto: profile.manifesto || 'A collective of strategists, designers, and cultural architects. We partner with brands that want to matter. Not just sell. Matter. Our work lives at the intersection of culture, technology, and human truth. We build worlds, not just campaigns.',
     avatar: profile.avatar,
-    availability: profile.availability || 'selective',
+    availability: (profile.availability as any) || 'selective',
 
     // Data
     proofPoints,

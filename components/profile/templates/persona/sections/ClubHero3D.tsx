@@ -22,7 +22,7 @@ const LiquidChromeMaterial = ({
   uScrollProgress: number;
   uIntensity: number;
 }) => {
-  const materialRef = useRef<THREE.ShaderMaterial>();
+  const materialRef = useRef<THREE.ShaderMaterial | null>(null);
 
   useEffect(() => {
     const material = new THREE.ShaderMaterial({
@@ -192,7 +192,7 @@ const LiquidChromeMaterial = ({
     }
   });
 
-  return <primitive object={materialRef.current} />;
+  return materialRef.current ? <primitive object={materialRef.current} /> : null;
 };
 
 // Icosahedron Geometry Component
@@ -202,12 +202,14 @@ const Icosphere = ({
   uScrollProgress,
   uIntensity,
   subdivisions = 3,
+  rotation,
 }: {
   uTime: number;
   uMouse: THREE.Vector2;
   uScrollProgress: number;
   uIntensity: number;
   subdivisions?: number;
+  rotation?: any;
 }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const { uTime: _, uMouse: __, uScrollProgress: ___, uIntensity: ____, ...props } = {
@@ -280,7 +282,7 @@ const AmbientParticles = ({ uTime, uIntensity }: { uTime: number; uIntensity: nu
     }
   });
 
-  return <primitive object={pointsRef.current} />;
+  return pointsRef.current ? <primitive object={pointsRef.current} /> : null;
 };
 
 // Main 3D Scene Component
@@ -348,7 +350,7 @@ export function ClubHero3D({
         onLoad?.();
       }}
     >
-      <color attach="background" args={[0x000000, 0]} />
+      <color attach="background" args={['#000000']} />
       <fog attach="fog" args={[0x06100e, 5, 15]} />
 
       {/* Main Icosphere */}

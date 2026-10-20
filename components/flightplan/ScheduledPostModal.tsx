@@ -451,9 +451,9 @@ export function ScheduledPostModal({
 
             {/* Modal Alert Banner for Safety Violation or Character Limit */}
             <ContentValidationBanner
-              isBlocked={isModalContentBlocked}
+              isBlocked={Boolean(isModalContentBlocked)}
               isOverLimit={isModalOverLimit}
-              violationMessage={modalGuardResult?.violation.message}
+              violationMessage={!modalGuardResult?.safe ? modalGuardResult?.violation.message : undefined}
               platformName={platformMeta.name}
               currentCount={currentContent.length}
               maxChars={modalVariantConfig?.maxChars}

@@ -182,7 +182,7 @@ export async function GET(request: NextRequest) {
       totalCount: combinedPosts.length,
     });
   } catch (error) {
-    logger.error('Error in GET /api/instagram/posts', { error });
+    logger.error('Error in GET /api/instagram/posts', { error: error instanceof Error ? error : new Error(String(error)) });
     return NextResponse.json({ error: 'Failed to fetch Instagram posts' }, { status: 500 });
   }
 }

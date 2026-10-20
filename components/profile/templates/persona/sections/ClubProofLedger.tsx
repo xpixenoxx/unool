@@ -21,7 +21,7 @@ interface ClubProofLedgerProps {
    KPI cards with magnetic hover, live counters
    ============================================================ */
 
-const ICON_MAP: Record<string, React.ComponentType<{ size?: number }>> = {
+const ICON_MAP: Record<string, React.ComponentType<{ size?: number; strokeWidth?: number }>> = {
   TrendingUp,
   Users,
   Award,
@@ -33,7 +33,7 @@ export function ClubProofLedger({ proofPoints }: ClubProofLedgerProps) {
   const [sectionRef, isVisible] = useScrollReveal<HTMLElement>({ threshold: 0.15 });
   const prefersReduced = useClubMotion().prefersReduced;
 
-  const cardVariants = prefersReduced
+  const cardVariants: any = prefersReduced
     ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.01 } } }
     : { hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 420, damping: 28 } } };
 
@@ -157,7 +157,7 @@ export function ClubProofLedger({ proofPoints }: ClubProofLedgerProps) {
         .club-proof-card:hover .club-proof-glow { opacity: 1; }
       `}</style>
 
-      <section
+      <motion.section
         id="proof"
         ref={sectionRef}
         className="club-proof-section"
@@ -205,7 +205,7 @@ export function ClubProofLedger({ proofPoints }: ClubProofLedgerProps) {
             );
           })}
         </motion.div>
-      </section>
+      </motion.section>
     </>
   );
 }

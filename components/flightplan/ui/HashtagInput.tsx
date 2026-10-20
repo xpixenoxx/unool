@@ -11,12 +11,8 @@ export const HashtagInput = forwardRef<HTMLInputElement, HashtagInputProps>(
     const internalRef = useRef<HTMLInputElement>(null);
     const [newTag, setNewTag] = React.useState('');
 
-    useImperativeHandle(ref, () => ({
-      focus: () => internalRef.current?.focus(),
-      value: newTag,
-    }));
-
-    useImperativeHandle(inputRef, () => internalRef.current, []);
+    useImperativeHandle(ref, () => internalRef.current as HTMLInputElement, []);
+    useImperativeHandle(inputRef, () => internalRef.current as HTMLInputElement, []);
 
     const handleAdd = () => {
       const clean = newTag.trim().replace(/^#+/, '');

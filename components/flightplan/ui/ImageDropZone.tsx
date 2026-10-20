@@ -26,10 +26,10 @@ export const ImageDropZone = forwardRef<HTMLInputElement, ImageDropZoneInternalP
     const internalFileInputRef = useRef<HTMLInputElement>(null);
 
     // Expose ref to parent
-    React.useImperativeHandle(ref, () => internalFileInputRef.current, []);
+    React.useImperativeHandle(ref, () => internalFileInputRef.current as HTMLInputElement, []);
 
     // Also expose to passed ref
-    React.useImperativeHandle(fileInputRef, () => internalFileInputRef.current, []);
+    React.useImperativeHandle(fileInputRef, () => internalFileInputRef.current as HTMLInputElement, []);
 
     const handleDragOver = useCallback((e: React.DragEvent) => {
       e.preventDefault();

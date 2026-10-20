@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
           metadata: {
             storyType,
             weekStartDate,
-            profileId: profile?.id,
+            profileId: profileId,
             connectedPlatforms,
             isPreviewOnly,
             isMock: true,

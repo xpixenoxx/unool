@@ -1,10 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useClubMotion, useScrollReveal } from '../hooks/useClubMotion';
 import { CLUB_BRAND_ICONS, type ClubBrandIconKey } from '../ClubBrandIcons';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface ClubSocialLink {
   id: string;
@@ -30,7 +30,7 @@ export function ClubSocialsMatrix({ socialLinks }: ClubSocialsMatrixProps) {
   const prefersReduced = useClubMotion().prefersReduced;
   const railRef = useRef<HTMLDivElement>(null);
 
-  const cardVariants = prefersReduced
+  const cardVariants: any = prefersReduced
     ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.01 } } }
     : { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 420, damping: 28 } } };
 
@@ -170,7 +170,7 @@ export function ClubSocialsMatrix({ socialLinks }: ClubSocialsMatrixProps) {
         }
       `}</style>
 
-      <section
+      <motion.section
         id="socials"
         ref={sectionRef}
         className="club-socials-section"
@@ -227,7 +227,7 @@ export function ClubSocialsMatrix({ socialLinks }: ClubSocialsMatrixProps) {
             ))}
           </div>
         </div>
-      </section>
+      </motion.section>
     </>
   );
 }

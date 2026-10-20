@@ -137,7 +137,6 @@ export const B = {
   accentBgLight: 'rgba(212,175,55,0.12)',
   successBgLight: 'rgba(16,185,129,0.12)',
   infoBgLight: 'rgba(14,165,233,0.12)',
-  infoBorder: '#153E5C',
 } as const;
 
 export type DesignTokens = typeof B;
