@@ -140,7 +140,7 @@ function generateSuggestedReply(
   return `Thanks for the input, ${firstName}!`;
 }
 
-export function extractLinkedInCandidateUrns(input: string): string[] {
+function extractLinkedInCandidateUrns(input: string): string[] {
   if (!input) return [];
   const clean = input.trim();
   const urns: string[] = [];
@@ -163,7 +163,7 @@ export function extractLinkedInCandidateUrns(input: string): string[] {
   return urns.length > 0 ? urns : (clean.startsWith('urn:li:') ? [clean] : []);
 }
 
-export function parseLinkedInPostUrn(input: string): string | null {
+function parseLinkedInPostUrn(input: string): string | null {
   const urns = extractLinkedInCandidateUrns(input);
   return urns.length > 0 ? urns[0] : null;
 }

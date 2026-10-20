@@ -7,7 +7,7 @@ import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
 
 const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
 
-export function maskCloudflareUrl(url: string): string {
+function maskCloudflareUrl(url: string): string {
   if (!url) return url;
   const matchR2Dev = url.match(/https?:\/\/[^/]+\.r2\.dev\/(.+)$/);
   if (matchR2Dev) return `/api/media/${matchR2Dev[1]}`;

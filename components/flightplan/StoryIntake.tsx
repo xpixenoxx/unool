@@ -20,9 +20,9 @@ interface StoryIntakeProps {
 }
 
 const FOLLOW_UP_QUESTIONS: FollowUpQuestion[] = [
-  { id: 'whatChanged', question: 'What changed recently?', placeholder: 'New feature, milestone, pivot, hire, metric...', required: true },
-  { id: 'whatWentWrong', question: 'What went wrong?', placeholder: 'Failed launch, churn spike, bug, competitor move...', required: false },
-  { id: 'oneRealNumber', question: 'One real number that proves it', placeholder: '+$47k MRR, -23% churn, 12→3 min onboarding...', required: true },
+  { id: 'whatChanged', question: 'What changed recently?', placeholder: 'New feature, milestone, pivot, hire, metric...', required: false },
+  { id: 'whatWentWrong', question: 'What was the challenge?', placeholder: 'The bottleneck, churn spike, bug, hard lesson...', required: false },
+  { id: 'oneRealNumber', question: 'One real number that proves it', placeholder: '+$47k MRR, -23% churn, 12→3 min onboarding...', required: false },
 ];
 
 const ARC_BEATS = ['Hook', 'Context', 'Challenge', 'Turning Point', 'Resolution', 'Proof', 'CTA'];
@@ -36,7 +36,7 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
     whatWentWrong: '',
     oneRealNumber: '',
     weekStartDate: format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd'),
-    selectedPlatforms: connectedPlatforms.length > 0 ? connectedPlatforms : [],
+    selectedPlatforms: connectedPlatforms.length > 0 ? connectedPlatforms : (['instagram', 'facebook', 'linkedin', 'threads', 'x'] as PlatformType[]),
     audienceTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   });
 
@@ -94,20 +94,35 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
 
   const validateForm = useCallback(() => {
     const errors: Record<string, string> = {};
-    if (!formData.coreStory.trim()) errors.coreStory = 'Core story is required';
-    if (!formData.whatChanged.trim()) errors.whatChanged = 'What changed is required';
-    if (!formData.oneRealNumber.trim()) errors.oneRealNumber = 'A real number is required';
-    if (formData.selectedPlatforms.length === 0) errors.selectedPlatforms = 'Select at least one platform';
+    if (!formData.coreStory.trim()) {
+      errors.coreStory = 'Core story is required';
+      setActiveStep(0);
+      setValidationErrors(errors);
+      return false;
+    }
     setValidationErrors(errors);
-    return Object.keys(errors).length === 0;
+    return true;
   }, [formData]);
 
   const handleSubmit = useCallback(() => {
-    if (validateForm()) {
-      clearDraft();
-      onGenerate(formData);
+    if (!formData.coreStory.trim()) {
+      setValidationErrors({ coreStory: 'Core story is required' });
+      setActiveStep(0);
+      return;
     }
-  }, [validateForm, clearDraft, onGenerate, formData]);
+    const finalPlatforms = formData.selectedPlatforms.length > 0
+      ? formData.selectedPlatforms
+      : (['instagram', 'facebook', 'linkedin', 'threads', 'x'] as PlatformType[]);
+
+    const finalData: StoryIntakeData = {
+      ...formData,
+      selectedPlatforms: finalPlatforms,
+      weekStartDate: formData.weekStartDate || format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd'),
+    };
+
+    clearDraft();
+    onGenerate(finalData);
+  }, [clearDraft, onGenerate, formData]);
 
   const allPlatforms = Object.keys(PLATFORM_META) as PlatformType[];
   const connectedSet = new Set(connectedPlatforms);
@@ -127,13 +142,14 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
         {(['Core story', 'Guided insights', 'Channels \u0026 cadence'] as const).map((label, idx) => {
           const done   = activeStep > idx;
           const active = activeStep === idx;
+          const canClick = idx === 0 || !!formData.coreStory.trim();
           return (
             <div key={label} className="flex items-center gap-2">
               <button
                 type="button"
-                disabled={idx > activeStep}
-                onClick={() => { if (idx < activeStep) setActiveStep(idx as 0 | 1 | 2); }}
-                className="flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-default"
+                disabled={!canClick}
+                onClick={() => { if (canClick) setActiveStep(idx as 0 | 1 | 2); }}
+                className="flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ focusRingColor: B.accent, focusRingOffsetColor: B.bg } as React.CSSProperties}
               >
                 <div
@@ -225,8 +241,24 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
             </button>
           </div>
 
-          {/* Continue button */}
-          <div className="flex justify-end pt-1">
+          {/* Navigation buttons */}
+          <div className="flex items-center justify-between pt-2">
+            <button
+              type="button"
+              onClick={() => {
+                if (!formData.coreStory.trim()) {
+                  setValidationErrors(v => ({ ...v, coreStory: 'Core story is required' }));
+                  return;
+                }
+                setValidationErrors(v => { const n = { ...v }; delete n.coreStory; return n; });
+                setActiveStep(2);
+              }}
+              className="text-xs font-semibold hover:underline px-2 py-1"
+              style={{ color: B.textSecondary }}
+            >
+              Skip directly to channels →
+            </button>
+
             <button
               onClick={() => {
                 if (!formData.coreStory.trim()) {
@@ -251,53 +283,42 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
           </motion.div>
         )}
 
-        {/* ─── Step 2: Guided Insights ───────────────────────────── */}
+        {/* ─── Step 2: Guided Insights (Unified All 3 Questions) ───── */}
         {activeStep === 1 && (
           <motion.div
-            key={`step-1-q-${activeFollowUp}`}
+            key="step-1"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
             transition={MOTION.spring.standard}
-            className="space-y-4"
+            className="space-y-5"
           >
-          <div className="flex items-center gap-3 p-4 rounded-2xl" style={{ backgroundColor: B.successBg, border: `1px solid ${B.successBorder}` }}>
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: B.successBorder }}>
-              <Target className="w-5 h-5" style={{ color: B.success }} />
+            <div className="flex items-center gap-3 p-4 rounded-2xl" style={{ backgroundColor: B.successBg, border: `1px solid ${B.successBorder}` }}>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: B.successBorder }}>
+                <Target className="w-5 h-5" style={{ color: B.success }} />
+              </div>
+              <div>
+                <h3 className="font-semibold text-sm" style={{ color: B.text }}>Step 2 of 3: Add a Few Details</h3>
+                <p className="text-xs mt-0.5" style={{ color: B.textMuted }}>
+                  Specifics make the posts sound like you. Skip any you do not have.
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="font-semibold text-sm" style={{ color: B.text }}>Step 2 of 3: Follow-up Questions</h3>
-              <p className="text-xs mt-0.5" style={{ color: B.textMuted }}>
-                Question {activeFollowUp + 1} of {FOLLOW_UP_QUESTIONS.length}
-              </p>
-            </div>
-          </div>
 
-          <div className="space-y-3 p-4 rounded-2xl" style={{ backgroundColor: B.card, border: `1px solid ${B.border}` }}>
-            <label className="block text-sm font-medium mb-1" style={{ color: B.text }}>
-              {FOLLOW_UP_QUESTIONS[activeFollowUp].question}
-            </label>
-            <Textarea
-              value={formData[FOLLOW_UP_QUESTIONS[activeFollowUp].id as keyof StoryIntakeData] as string}
-              onChange={e => handleChange(FOLLOW_UP_QUESTIONS[activeFollowUp].id as keyof StoryIntakeData, e.target.value)}
-              rows={3}
-              placeholder={FOLLOW_UP_QUESTIONS[activeFollowUp].placeholder}
-              className="resize-y rounded-xl text-sm"
-              style={{
-                backgroundColor: B.card,
-                borderColor: validationErrors[FOLLOW_UP_QUESTIONS[activeFollowUp].id] ? B.danger : B.border,
-                color: B.text,
-              }}
-              aria-invalid={!!validationErrors[FOLLOW_UP_QUESTIONS[activeFollowUp].id]}
-            />
-            {validationErrors[FOLLOW_UP_QUESTIONS[activeFollowUp].id] && (
-              <p className="text-xs flex items-center gap-1" style={{ color: B.danger }}>
-                <AlertCircle className="w-3 h-3" /> {validationErrors[FOLLOW_UP_QUESTIONS[activeFollowUp].id]}
-              </p>
-            )}
-
-            {/* Quick Suggestion Chips */}
-            {activeFollowUp === 0 && (
+            {/* Q0: What changed */}
+            <div className="space-y-2 p-4 rounded-2xl" style={{ backgroundColor: B.card, border: `1px solid ${B.border}` }}>
+              <label className="block text-sm font-semibold" style={{ color: B.text }}>
+                What changed recently?
+              </label>
+              <p className="text-xs" style={{ color: B.textMuted }}>A milestone, a release, a pivot, or a shift in a metric.</p>
+              <Textarea
+                value={formData.whatChanged || ''}
+                onChange={e => handleChange('whatChanged', e.target.value)}
+                rows={2}
+                placeholder="New feature, milestone, pivot, hire, metric..."
+                className="resize-y rounded-xl text-sm"
+                style={{ backgroundColor: B.card, borderColor: B.border, color: B.text }}
+              />
               <div className="flex items-center gap-1.5 flex-wrap pt-1">
                 <span className="text-[11px] font-medium" style={{ color: B.textMuted }}>Suggestions:</span>
                 {['Launched a $29 plan', 'Dropped sales calls', 'Rebuilt self-serve onboarding'].map(chip => (
@@ -312,8 +333,22 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
                   </button>
                 ))}
               </div>
-            )}
-            {activeFollowUp === 1 && (
+            </div>
+
+            {/* Q1: What was the challenge */}
+            <div className="space-y-2 p-4 rounded-2xl" style={{ backgroundColor: B.card, border: `1px solid ${B.border}` }}>
+              <label className="block text-sm font-semibold" style={{ color: B.text }}>
+                What was the challenge?
+              </label>
+              <p className="text-xs" style={{ color: B.textMuted }}>The bottleneck, the obstacle or the hard lesson.</p>
+              <Textarea
+                value={formData.whatWentWrong || ''}
+                onChange={e => handleChange('whatWentWrong', e.target.value)}
+                rows={2}
+                placeholder="The bottleneck, churn spike, bug, hard lesson..."
+                className="resize-y rounded-xl text-sm"
+                style={{ backgroundColor: B.card, borderColor: B.border, color: B.text }}
+              />
               <div className="flex items-center gap-1.5 flex-wrap pt-1">
                 <span className="text-[11px] font-medium" style={{ color: B.textMuted }}>Suggestions:</span>
                 {['Onboarding took 3 weeks', '35% of users quit before posting', 'Enterprise deals had too much drag'].map(chip => (
@@ -328,8 +363,22 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
                   </button>
                 ))}
               </div>
-            )}
-            {activeFollowUp === 2 && (
+            </div>
+
+            {/* Q2: One real number */}
+            <div className="space-y-2 p-4 rounded-2xl" style={{ backgroundColor: B.card, border: `1px solid ${B.border}` }}>
+              <label className="block text-sm font-semibold" style={{ color: B.text }}>
+                One real number that proves it
+              </label>
+              <p className="text-xs" style={{ color: B.textMuted }}>Something you can point to that proves traction or change.</p>
+              <Textarea
+                value={formData.oneRealNumber || ''}
+                onChange={e => handleChange('oneRealNumber', e.target.value)}
+                rows={2}
+                placeholder="+$47k MRR, -23% churn, 12→3 min onboarding..."
+                className="resize-y rounded-xl text-sm"
+                style={{ backgroundColor: B.card, borderColor: B.border, color: B.text }}
+              />
               <div className="flex items-center gap-1.5 flex-wrap pt-1">
                 <span className="text-[11px] font-medium" style={{ color: B.textMuted }}>Suggestions:</span>
                 {['+47 customers in 3 weeks', '-35% churn', 'Onboarding cut from 3 weeks to 3 minutes'].map(chip => (
@@ -344,44 +393,24 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
                   </button>
                 ))}
               </div>
-            )}
-          </div>
-
-          <div className="flex items-center justify-between">
-            <button
-            onClick={() => {
-                if (activeFollowUp === 0) setActiveStep(0);
-                else setActiveFollowUp(p => Math.max(0, p - 1));
-              }}
-              disabled={false}
-              className="px-4 py-2 rounded-xl text-sm font-medium border transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-              style={{ borderColor: B.border, color: B.textSecondary, backgroundColor: B.card, focusRingColor: B.accent, focusRingOffsetColor: B.card }}
-            >
-              ← Back
-            </button>
-            <div className="flex items-center gap-2">
-              {FOLLOW_UP_QUESTIONS.map((_, idx) => (
-                <div
-                  key={idx}
-                  className={cn("w-2.5 h-2.5 rounded-full transition-colors")}
-                  style={{ backgroundColor: idx === activeFollowUp ? B.accent : B.cardBorder }}
-                />
-              ))}
             </div>
-            <button
-              onClick={() => {
-                if (activeFollowUp < FOLLOW_UP_QUESTIONS.length - 1) {
-                  setActiveFollowUp(p => p + 1);
-                } else {
-                  setActiveStep(2);
-                }
-              }}
-              className="px-4 py-2 rounded-xl text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-              style={{ backgroundColor: B.accent, color: '#fff', boxShadow: `0 4px 16px ${B.accent}66`, focusRingColor: B.accent, focusRingOffsetColor: B.card }}
-            >
-              {activeFollowUp < FOLLOW_UP_QUESTIONS.length - 1 ? 'Next →' : 'Channels →'}
-            </button>
-          </div>
+
+            <div className="flex items-center justify-between pt-2">
+              <button
+                onClick={() => setActiveStep(0)}
+                className="px-4 py-2 rounded-xl text-sm font-medium border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                style={{ borderColor: B.border, color: B.textSecondary, backgroundColor: B.card, focusRingColor: B.accent, focusRingOffsetColor: B.card }}
+              >
+                ← Back to story
+              </button>
+              <button
+                onClick={() => setActiveStep(2)}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                style={{ backgroundColor: B.accent, color: '#fff', boxShadow: `0 4px 16px ${B.accentGlow}`, focusRingColor: B.accent, focusRingOffsetColor: B.card }}
+              >
+                Next: channels and cadence →
+              </button>
+            </div>
           </motion.div>
         )}
 

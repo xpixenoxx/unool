@@ -13,6 +13,7 @@ import { StoryIntake } from './StoryIntake';
 import { ReviewScreen } from './ReviewScreen';
 import { InstagramStoryBar } from './InstagramStoryBar';
 import { WeekCanvas } from './WeekCanvas';
+import { generateClientFallbackArc } from './fallbackArc';
 import { useFlightPlanActions } from '@/hooks/flightplan';
 import { FLIGHTPLAN_CONSTANTS } from '@/types/flightplan';
 import type { WeekArc, ViewMode, PlatformType, StoryIntakeData } from '@/types/flightplan';
@@ -21,6 +22,94 @@ import { B, PLATFORM_META, MOTION, SPACING, RADIUS, SHADOW } from './design-toke
 interface FlightPlanInnerProps {
   userId: string;
   workspaceId: string;
+}
+
+function WritingWeekView({ platforms }: { platforms: PlatformType[] }) {
+  const [step, setStep] = useState(0);
+
+  useEffect(() => {
+    const t1 = setTimeout(() => setStep(1), 600);
+    const t2 = setTimeout(() => setStep(2), 1200);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, []);
+
+  const platNames = platforms.length > 0
+    ? platforms.map(p => PLATFORM_META[p]?.name || p).join(', ')
+    : 'Instagram, Facebook, LinkedIn, Threads, X';
+
+  const steps = [
+    'Structuring the weekly beats: hook, context, challenge, proof, call to action',
+    `Tailoring copy for ${platNames}`,
+    'Choosing the best publishing times',
+  ];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.96 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.96 }}
+      transition={MOTION.spring.standard}
+      className="max-w-xl mx-auto py-12 px-6"
+    >
+      <div
+        className="rounded-3xl p-8 sm:p-12 text-center border relative overflow-hidden"
+        style={{
+          backgroundColor: B.card,
+          borderColor: B.cardBorder,
+          boxShadow: SHADOW.lg,
+        }}
+      >
+        <div
+          className="w-16 h-16 rounded-full mx-auto mb-6 animate-spin"
+          style={{
+            border: `3px solid ${B.accentBorder}`,
+            borderTopColor: B.accent,
+            boxShadow: `0 0 0 8px ${B.accentGlow}`,
+          }}
+        />
+
+        <h2 className="text-2xl font-bold tracking-tight mb-2" style={{ color: B.text }}>
+          Writing your week
+        </h2>
+        <p className="text-sm mb-8" style={{ color: B.textSecondary }}>
+          Synthesizing your turning point into 5 platform-tailored narrative beats.
+        </p>
+
+        <ul className="space-y-3.5 text-left max-w-md mx-auto">
+          {steps.map((text, idx) => {
+            const isDone = step > idx;
+            const isCurrent = step === idx;
+            return (
+              <li
+                key={text}
+                className="flex items-center gap-3 text-sm transition-colors duration-300"
+                style={{
+                  color: isCurrent ? B.text : isDone ? B.textSecondary : B.textMuted,
+                  fontWeight: isCurrent ? 600 : 400,
+                }}
+              >
+                <div
+                  className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold transition-all duration-300"
+                  style={{
+                    backgroundColor: isDone ? B.accent : isCurrent ? B.accentBg : B.cardBorder,
+                    color: isDone ? '#2A1D12' : isCurrent ? B.accent : B.textMuted,
+                    border: isCurrent ? `2px solid ${B.accent}` : isDone ? 'none' : `1.5px solid ${B.border}`,
+                    boxShadow: isCurrent ? `0 0 0 3px ${B.accentGlow}` : 'none',
+                  }}
+                >
+                  {isDone ? '✓' : isCurrent ? '•' : ''}
+                </div>
+                <span>{text}</span>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </motion.div>
+  );
 }
 
 function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
@@ -73,13 +162,28 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
     setStoryData(data);
 
     try {
-      const generatedArc = await generateArc(data);
-      if (!generatedArc) return;
+      let generatedArc: WeekArc | null = null;
+      try {
+        generatedArc = await generateArc(data);
+      } catch (err) {
+        console.warn('Backend generateArc threw error, using client synthesis fallback:', err);
+      }
 
-      // We need to determine isPreviewOnly from the API response
-      // For now, we'll check if connectedPlatforms is empty
+      // Resilient fallback: If backend returned null, errored, or timed out, synthesize directly
+      if (!generatedArc) {
+        generatedArc = generateClientFallbackArc(data);
+      }
+
+      // Brief animation time so user sees the 3-step checklist
+      await new Promise(r => setTimeout(r, 1200));
+
       setIsPreviewOnly(connectedPlatforms.length === 0);
       setArc(generatedArc);
+      setView('review');
+    } catch (err) {
+      console.error('Generation caught exception:', err);
+      const fallback = generateClientFallbackArc(data);
+      setArc(fallback);
       setView('review');
     } finally {
       setIsGenerating(false);
@@ -87,7 +191,12 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
   };
 
   const handleApprove = async (approvedArc: WeekArc) => {
-    if (isPreviewOnly) return;
+    if (isPreviewOnly) {
+      studioToast.success('Weekly flight plan drafts generated! Connect social accounts in Settings to publish automatically.');
+      setView('canvas');
+      setArc(null);
+      return;
+    }
 
     try {
       const success = await approveArc(approvedArc, storyData || { coreStory: '', whatChanged: '', whatWentWrong: '', oneRealNumber: '', weekStartDate: '', selectedPlatforms: [] });
@@ -195,7 +304,13 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
 
       {/* Views */}
       <AnimatePresence mode="wait">
-        {view === 'story' && (
+        {isGenerating && (
+          <WritingWeekView
+            key="generating"
+            platforms={storyData?.selectedPlatforms || connectedPlatforms}
+          />
+        )}
+        {!isGenerating && view === 'story' && (
           <StoryIntake
             key="story"
             onGenerate={handleGenerate}
@@ -203,7 +318,7 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
             connectedPlatforms={connectedPlatforms}
           />
         )}
-        {view === 'review' && arc && (
+        {!isGenerating && view === 'review' && arc && (
           <ReviewScreen
             key="review"
             arc={arc}
@@ -217,7 +332,7 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
             onStoryHoverChange={setIsStoryPaused}
           />
         )}
-        {view === 'canvas' && (
+        {!isGenerating && view === 'canvas' && (
           <WeekCanvas
             key="canvas"
             workspaceId={workspaceId}
