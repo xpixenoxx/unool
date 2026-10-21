@@ -223,6 +223,23 @@ export const analytics = {
       subdomain: input.subdomain,
     },
   }),
+
+  templateChange: (input: {
+    workspaceId: string;
+    profileId: string;
+    fromTemplate: string;
+    toTemplate: string;
+    userId?: string;
+  }) => trackEvent({
+    eventType: 'template_change',
+    workspaceId: input.workspaceId,
+    profileId: input.profileId,
+    userId: input.userId,
+    eventData: {
+      from_template: input.fromTemplate,
+      to_template: input.toTemplate,
+    },
+  }),
 };
 
 /**

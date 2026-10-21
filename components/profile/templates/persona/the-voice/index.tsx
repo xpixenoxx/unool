@@ -512,6 +512,14 @@ export function VoiceTemplate({ profile, accentColor }: VoiceTemplateProps) {
       .voice-particle, .voice-sound-bar, .voice-float-element,
       .voice-card::before { animation: none !important; transition: none !important; }
     }
+
+    /* Focus visible styles for accessibility */
+    .voice-link:focus-visible,
+    .voice-cta:focus-visible,
+    .voice-metric:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
   `;
 
   return (
@@ -523,15 +531,15 @@ export function VoiceTemplate({ profile, accentColor }: VoiceTemplateProps) {
     >
       <style dangerouslySetInnerHTML={{ __html: customStyles }} />
 
-      <div className="voice-grid" />
-      <div className="voice-atmosphere" />
-      <div className="voice-waveform" />
+      <div className="voice-grid" aria-hidden="true" />
+      <div className="voice-atmosphere" aria-hidden="true" />
+      <div className="voice-waveform" aria-hidden="true" />
 
-      <span className="voice-particle voice-particle-1" />
-      <span className="voice-particle voice-particle-2" />
-      <span className="voice-particle voice-particle-3" />
-      <span className="voice-particle voice-particle-4" />
-      <span className="voice-particle voice-particle-5" />
+      <span className="voice-particle voice-particle-1" aria-hidden="true" />
+      <span className="voice-particle voice-particle-2" aria-hidden="true" />
+      <span className="voice-particle voice-particle-3" aria-hidden="true" />
+      <span className="voice-particle voice-particle-4" aria-hidden="true" />
+      <span className="voice-particle voice-particle-5" aria-hidden="true" />
 
       <div
         className="voice-container"
@@ -539,16 +547,16 @@ export function VoiceTemplate({ profile, accentColor }: VoiceTemplateProps) {
           transform: `rotateY(${mouse.x * 12}deg) rotateX(${mouse.y * -12}deg)`
         }}
       >
-        <div className="voice-float-element ve-1" />
-        <div className="voice-float-element ve-2" />
+        <div className="voice-float-element ve-1" aria-hidden="true" />
+        <div className="voice-float-element ve-2" aria-hidden="true" />
 
         <div className="voice-card">
           <div className="voice-accent-line" />
 
           <div className="voice-inner">
             <div className="voice-avatar-wrap">
-              <div className="voice-avatar-ring" />
-              <div className="voice-avatar-ring-2" />
+              <div className="voice-avatar-ring" aria-hidden="true" />
+              <div className="voice-avatar-ring-2" aria-hidden="true" />
               {profile.avatarUrl ? (
                 <img src={profile.avatarUrl} alt={profile.name} className="voice-avatar" />
               ) : (
@@ -618,7 +626,7 @@ export function VoiceTemplate({ profile, accentColor }: VoiceTemplateProps) {
               {profile.links && profile.links.length > 0 && (
                 <div className="voice-links">
                   {profile.links.map((link: any, i: number) => (
-                    <a key={i} href={link.url} target="_blank" rel="noreferrer" className="voice-link">
+                    <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="voice-link">
                       <div className="voice-link-left">
                         <div className="voice-link-icon">
                           {getSharedLinkIcon(link.label, link.url)}
@@ -636,12 +644,14 @@ export function VoiceTemplate({ profile, accentColor }: VoiceTemplateProps) {
                 </div>
               )}
 
+              {profile.email && (
               <a
-                href={profile.email ? `mailto:${profile.email}` : '#'}
+                href={`mailto:${profile.email}`}
                 className="voice-cta"
               >
-                <span>✉</span> Get in Touch
+                <span aria-hidden="true">✉</span> Get in Touch
               </a>
+            )}
             </div>
           </div>
         </div>

@@ -962,9 +962,9 @@ function ToastStack() {
               toast.type === 'error' ? 'var(--status-busy)' : 'var(--accent-gold)',
           }}
         >
-          {toast.type === 'success' && <Check className="w-5 h-5" style={{ color: 'var(--accent-citrine)' }} />}
-          {toast.type === 'error' && <X className="w-5 h-5" style={{ color: 'var(--status-busy)' }} />}
-          {toast.type === 'info' && <Zap className="w-5 h-5" style={{ color: 'var(--accent-gold)' }} />}
+          {toast.type === 'success' && <Check className="w-5 h-5" style={{ color: 'var(--accent-citrine)' }} aria-hidden="true" />}
+          {toast.type === 'error' && <X className="w-5 h-5" style={{ color: 'var(--status-busy)' }} aria-hidden="true" />}
+          {toast.type === 'info' && <Zap className="w-5 h-5" style={{ color: 'var(--accent-gold)' }} aria-hidden="true" />}
           <span className="font-ui text-sm font-medium">{toast.message}</span>
         </motion.div>
       ))}
@@ -1065,7 +1065,7 @@ function FXToggle({ isActive, onToggle, prefersReducedMotion }: { isActive: bool
       aria-pressed={isActive}
       title={prefersReducedMotion ? 'Effects disabled (reduced motion)' : isActive ? 'FX ON — Click to disable' : 'FX OFF — Click to enable'}
     >
-      <Monitor className="w-5 h-5" />
+      <Monitor className="w-5 h-5" aria-hidden="true" />
       {prefersReducedMotion && <span className="absolute -top-1 -right-1 w-4 h-4">⚠</span>}
     </button>
   );
@@ -1121,7 +1121,7 @@ function TopNav({
 
           <div className="hidden md:flex items-center gap-2 px-3 py-1.5 glass-card-subtle rounded-full"
             style={{ borderColor: 'var(--glass-border-bright)' }}>
-            <MapPin className="w-3.5 h-3.5" style={{ color: 'var(--accent-gold)' }} />
+            <MapPin className="w-3.5 h-3.5" style={{ color: 'var(--accent-gold)' }} aria-hidden="true" />
             <span className="font-ui text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
               {profile.company || profile.role || 'Independent Studio'}
             </span>
@@ -1150,7 +1150,7 @@ function TopNav({
               aria-label="Copy email address"
               title="Copy Email"
             >
-              <Mail className="w-5 h-5" />
+              <Mail className="w-5 h-5" aria-hidden="true" />
             </button>
           )}
 
@@ -1160,7 +1160,7 @@ function TopNav({
             aria-label="Download vCard"
             title="Save Contact"
           >
-            <Download className="w-5 h-5" />
+            <Download className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -1185,7 +1185,7 @@ function IdentityCore({ profile, socialLinks, openToIntents }: { profile: Public
               className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[rgba(13,30,26,0.65)] backdrop-blur-md border border-[var(--accent-gold-subtle)] shadow-sm"
               style={{ borderColor: 'var(--accent-gold)' }}
             >
-              <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--accent-citrine)' }} />
+              <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--accent-citrine)' }} aria-hidden="true" />
               <span className="font-ui text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--accent-gold)' }}>
                 INDEPENDENT DESIGN & DIRECTION
               </span>
@@ -1292,7 +1292,7 @@ function IdentityCore({ profile, socialLinks, openToIntents }: { profile: Public
 
                     {/* Monogram Seal Badge */}
                     <div className="absolute bottom-3 left-3 px-2.5 py-1 rounded-md bg-[rgba(6,16,14,0.85)] backdrop-blur-md border border-[rgba(230,200,117,0.3)] flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--accent-citrine)' }} />
+                      <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--accent-citrine)' }} aria-hidden="true" />
                       <span className="font-mono text-[10px] font-bold tracking-widest uppercase text-[var(--accent-gold)]">
                         ATELIER // {profile.name ? profile.name.slice(0, 2).toUpperCase() : 'TC'}
                       </span>
@@ -1300,8 +1300,8 @@ function IdentityCore({ profile, socialLinks, openToIntents }: { profile: Public
                   </div>
 
                   {/* Metallic Corner Brackets */}
-                  <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 rounded-tl-xl pointer-events-none" style={{ borderColor: 'var(--accent-gold)' }} />
-                  <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 rounded-br-xl pointer-events-none" style={{ borderColor: 'var(--accent-citrine)' }} />
+                  <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 rounded-tl-xl pointer-events-none" style={{ borderColor: 'var(--accent-gold)' }} aria-hidden="true" />
+                  <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 rounded-br-xl pointer-events-none" style={{ borderColor: 'var(--accent-citrine)' }} aria-hidden="true" />
                 </div>
               ) : (
                 <div className="relative aspect-[4/5] max-w-[280px] sm:max-w-[320px] mx-auto lg:ml-auto rounded-2xl overflow-hidden mb-6 p-1.5 glass-card-elevated border border-[var(--glass-border-bright)] shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
@@ -1325,7 +1325,7 @@ function IdentityCore({ profile, socialLinks, openToIntents }: { profile: Public
               <div className="glass-card-elevated p-6 space-y-4 border border-[var(--glass-border-bright)] rounded-2xl max-w-[280px] sm:max-w-[320px] mx-auto lg:ml-auto shadow-md">
                 <div className="flex items-center justify-between pb-3 border-b border-[var(--studio-border-subtle)]">
                   <div className="flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-[var(--accent-citrine)]" />
+                    <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-[var(--accent-citrine)]" aria-hidden="true" />
                     <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--accent-gold)]">
                       ATELIER DOSSIER
                     </span>
@@ -1401,7 +1401,7 @@ function SocialRail({ links }: { links: SocialLink[] }) {
           className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 z-10 btn-icon active"
           aria-label="Scroll left"
         >
-          <ChevronLeft className="w-5 h-5" />
+          <ChevronLeft className="w-5 h-5" aria-hidden="true" />
         </button>
       )}
 
@@ -1444,7 +1444,7 @@ function SocialRail({ links }: { links: SocialLink[] }) {
           className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 z-10 btn-icon active"
           aria-label="Scroll right"
         >
-          <ChevronRight className="w-5 h-5" />
+          <ChevronRight className="w-5 h-5" aria-hidden="true" />
         </button>
       )}
     </div>
@@ -1488,7 +1488,7 @@ function ProofPointsGrid({ profile }: { profile: PublicProfile }) {
                 </span>
                 <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
                   style={{ background: 'var(--accent-gold-subtle)', color: 'var(--accent-gold)' }}>
-                  <Award className="w-6 h-6" />
+                  <Award className="w-6 h-6" aria-hidden="true" />
                 </div>
               </div>
               <div className="font-editorial text-4xl md:text-5xl font-bold mb-3" style={{ color: 'var(--text-primary)' }}>
@@ -1620,7 +1620,7 @@ function ProjectDrawer({ project, isOpen, onClose, accentColor }: ProjectDrawerP
               className="btn-icon shrink-0"
               aria-label="Close project detail"
             >
-              <X className="w-5 h-5" />
+              <X className="w-5 h-5" aria-hidden="true" />
             </button>
           </div>
 
@@ -1628,7 +1628,7 @@ function ProjectDrawer({ project, isOpen, onClose, accentColor }: ProjectDrawerP
             <div className="relative aspect-video rounded-2xl overflow-hidden"
               style={{ background: 'linear-gradient(135deg, var(--studio-deep) 0%, var(--studio-basalt) 100%)' }}>
               <div className="absolute inset-0 flex items-center justify-center" style={{ color: 'var(--text-dim)' }}>
-                <Briefcase className="w-16 h-16 opacity-20" />
+                <Briefcase className="w-16 h-16 opacity-20" aria-hidden="true" />
               </div>
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
             </div>
@@ -1678,11 +1678,11 @@ function ProjectDrawer({ project, isOpen, onClose, accentColor }: ProjectDrawerP
 
             <div className="flex flex-wrap gap-4 text-sm" style={{ color: 'var(--text-muted)' }}>
               <div className="flex items-center gap-1.5">
-                <Briefcase className="w-4 h-4" />
+                <Briefcase className="w-4 h-4" aria-hidden="true" />
                 <span className="font-medium">{projectData.category}</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <Award className="w-4 h-4" />
+                <Award className="w-4 h-4" aria-hidden="true" />
                 <span className="font-medium">{projectData.year}</span>
               </div>
             </div>
@@ -1695,7 +1695,7 @@ function ProjectDrawer({ project, isOpen, onClose, accentColor }: ProjectDrawerP
                   rel="noopener noreferrer"
                   className="btn-primary flex-1"
                 >
-                  <ExternalLink className="w-4 h-4" />
+                  <ExternalLink className="w-4 h-4" aria-hidden="true" />
                   View Project
                 </a>
               )}
@@ -1758,7 +1758,7 @@ function PortfolioSection({ profile, accentColor }: { profile: PublicProfile; ac
                 {/* Thumbnail Placeholder */}
                 <div className="relative w-full md:w-48 md:flex-shrink-0 aspect-square md:aspect-auto overflow-hidden">
                   <div className="w-full h-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, var(--studio-deep) 0%, var(--studio-basalt) 100%)' }}>
-                    <Briefcase className="w-12 h-12" style={{ color: 'var(--studio-border)' }} />
+                    <Briefcase className="w-12 h-12" style={{ color: 'var(--studio-border)' }} aria-hidden="true" />
                   </div>
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-[var(--accent-gold)] opacity-0 group-hover:opacity-10 transition-opacity duration-500" />
                 </div>
@@ -1784,7 +1784,7 @@ function PortfolioSection({ profile, accentColor }: { profile: PublicProfile; ac
                     <span className="font-ui text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
                       VIEW CASE STUDY
                     </span>
-                    <ExternalLink className="w-4 h-4 group-hover:translate-x-1 transition-transform" style={{ color: 'var(--accent-gold)' }} />
+                    <ExternalLink className="w-4 h-4 group-hover:translate-x-1 transition-transform" style={{ color: 'var(--accent-gold)' }} aria-hidden="true" />
                   </div>
                 </div>
 
@@ -1792,7 +1792,7 @@ function PortfolioSection({ profile, accentColor }: { profile: PublicProfile; ac
                 <div className="absolute right-6 top-1/2 -translate-y-1/2 md:right-6 md:top-1/2 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300">
                   <div className="w-12 h-12 rounded-full flex items-center justify-center"
                     style={{ background: 'var(--accent-gold)', color: 'var(--text-inverse)' }}>
-                    <ChevronRight className="w-5 h-5" />
+                    <ChevronRight className="w-5 h-5" aria-hidden="true" />
                   </div>
                 </div>
               </div>
@@ -1846,7 +1846,7 @@ function ActionDock({ profile, onCopyEmail, onDownloadVCard }: { profile: Public
                   onClick={onCopyEmail}
                   className="btn-primary group w-full sm:w-auto"
                 >
-                  <Mail className="w-5 h-5" />
+                  <Mail className="w-5 h-5" aria-hidden="true" />
                   COPY DIRECT EMAIL
                   <span className="font-mono text-xs opacity-0 group-hover:opacity-100 transition-opacity">⌘C</span>
                 </button>
@@ -1855,14 +1855,14 @@ function ActionDock({ profile, onCopyEmail, onDownloadVCard }: { profile: Public
                 onClick={onDownloadVCard}
                 className="btn-secondary w-full sm:w-auto"
               >
-                <Download className="w-5 h-5" />
+                <Download className="w-5 h-5" aria-hidden="true" />
                 SAVE CONTACT (.vcf)
               </button>
               <a
                 href={`mailto:${email}?subject=Project%20Inquiry&body=Hello%20${encodeURIComponent(profile.name)}%2C%0A%0AI%27m%20reaching%20out%20because...`}
                 className="btn-ghost w-full sm:w-auto"
               >
-                <ExternalLink className="w-4 h-4" />
+                <ExternalLink className="w-4 h-4" aria-hidden="true" />
                 INITIATE BRIEF
               </a>
             </div>
@@ -1896,7 +1896,7 @@ function ColophonFooter({ profile }: { profile: PublicProfile }) {
               Studio Edition
             </span>
             <a href="#top" className="btn-ghost text-[10px]">
-              <ChevronLeft className="w-3.5 h-3.5" />
+              <ChevronLeft className="w-3.5 h-3.5" aria-hidden="true" />
               TOP
             </a>
           </div>

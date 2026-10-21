@@ -321,7 +321,7 @@ export function ClubContactDrawer({ isOpen, onClose, profile, onSubmit }: ClubCo
           <div className="club-drawer-header">
             <h2 className="club-drawer-title">Book a Session</h2>
             <button className="club-drawer-close" onClick={onClose} aria-label="Close drawer">
-              <X size={20} strokeWidth={2} />
+              <X size={20} strokeWidth={2} aria-hidden="true" />
             </button>
           </div>
 
@@ -435,7 +435,7 @@ export function ClubContactDrawer({ isOpen, onClose, profile, onSubmit }: ClubCo
 
                 {status === 'error' && (
                   <div className="club-form-error" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                    <AlertCircle size={16} strokeWidth={2} />
+                    <AlertCircle size={16} strokeWidth={2} aria-hidden="true" />
                     {errorMessage}
                   </div>
                 )}
@@ -448,12 +448,12 @@ export function ClubContactDrawer({ isOpen, onClose, profile, onSubmit }: ClubCo
                   >
                     {status === 'submitting' ? (
                       <>
-                        <Loader2 size={18} strokeWidth={2} className="animate-spin" />
+                        <Loader2 size={18} strokeWidth={2} className="animate-spin" aria-hidden="true" />
                         Sending...
                       </>
                     ) : (
                       <>
-                        <Mail size={18} strokeWidth={2} />
+                        <Mail size={18} strokeWidth={2} aria-hidden="true" />
                         Send Request
                       </>
                     )}
@@ -465,7 +465,7 @@ export function ClubContactDrawer({ isOpen, onClose, profile, onSubmit }: ClubCo
             {profile.calendlyUrl && (
               <div className="club-calendly-section">
                 <h3 className="club-calendly-title">
-                  <Calendar size={18} strokeWidth={2} />
+                  <Calendar size={18} strokeWidth={2} aria-hidden="true" />
                   Or book directly
                 </h3>
                 <iframe

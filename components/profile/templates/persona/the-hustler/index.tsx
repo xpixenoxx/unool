@@ -405,6 +405,14 @@ export function HustlerTemplate({ profile, accentColor }: HustlerTemplateProps) 
     @media (prefers-reduced-motion: reduce) {
       .hustler-grid, .hustler-ring, .hustler-ring-2, .hustler-float-shape, .hustler-sparkle { animation: none !important; transition: none !important; }
     }
+
+    /* Focus visible styles for accessibility */
+    .hustler-link:focus-visible,
+    .hustler-conversation-btn:focus-visible,
+    .hustler-data-box:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
   `;
 
   return (
@@ -416,10 +424,11 @@ export function HustlerTemplate({ profile, accentColor }: HustlerTemplateProps) 
     >
       <style dangerouslySetInnerHTML={{ __html: customStyles }} />
 
-      <div className="hustler-grid" />
+      <div className="hustler-grid" aria-hidden="true" />
       <div
         className="hustler-glow"
         style={{ transform: `translate(${mouse.x * 200}px, ${mouse.y * 200}px)` }}
+        aria-hidden="true"
       />
 
       <div
@@ -428,24 +437,24 @@ export function HustlerTemplate({ profile, accentColor }: HustlerTemplateProps) 
           transform: `rotateY(${mouse.x * 12}deg) rotateX(${mouse.y * -12}deg)`
         }}
       >
-        <span className="hustler-sparkle hustler-sparkle-1">✦</span>
-        <span className="hustler-sparkle hustler-sparkle-2">✦</span>
-        <span className="hustler-sparkle hustler-sparkle-3">✦</span>
-        <span className="hustler-sparkle hustler-sparkle-4">✦</span>
+        <span className="hustler-sparkle hustler-sparkle-1" aria-hidden="true">✦</span>
+        <span className="hustler-sparkle hustler-sparkle-2" aria-hidden="true">✦</span>
+        <span className="hustler-sparkle hustler-sparkle-3" aria-hidden="true">✦</span>
+        <span className="hustler-sparkle hustler-sparkle-4" aria-hidden="true">✦</span>
 
-        <div className="hustler-float-shape hu-shape-1" />
-        <div className="hustler-float-shape hu-shape-2" />
+        <div className="hustler-float-shape hu-shape-1" aria-hidden="true" />
+        <div className="hustler-float-shape hu-shape-2" aria-hidden="true" />
 
         <div className="hustler-card">
-          <div className="hustler-corner hustler-corner-tl" />
-          <div className="hustler-corner hustler-corner-tr" />
-          <div className="hustler-corner hustler-corner-bl" />
-          <div className="hustler-corner hustler-corner-br" />
+          <div className="hustler-corner hustler-corner-tl" aria-hidden="true" />
+          <div className="hustler-corner hustler-corner-tr" aria-hidden="true" />
+          <div className="hustler-corner hustler-corner-bl" aria-hidden="true" />
+          <div className="hustler-corner hustler-corner-br" aria-hidden="true" />
 
           <div className="hustler-inner">
             <div className="hustler-avatar-wrap">
-              <div className="hustler-ring" />
-              <div className="hustler-ring-2" />
+              <div className="hustler-ring" aria-hidden="true" />
+              <div className="hustler-ring-2" aria-hidden="true" />
               {profile.avatarUrl ? (
                 <img src={profile.avatarUrl} alt={profile.name} className="hustler-avatar" />
               ) : (
@@ -458,13 +467,15 @@ export function HustlerTemplate({ profile, accentColor }: HustlerTemplateProps) 
               <div className="hustler-role">{profile.headline}</div>
               <p className="hustler-bio">{profile.bio}</p>
 
+              {profile.email && (
               <a
-                href={profile.email ? `mailto:${profile.email}` : '#'}
+                href={`mailto:${profile.email}`}
                 className="hustler-conversation-btn"
                 style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '16px' }}
               >
-                <span>✉</span> Get in Touch
+                <span aria-hidden="true">✉</span> Get in Touch
               </a>
+            )}
 
               {(profile.theme as any)?.conversationUrl && (
                 <a
@@ -519,7 +530,7 @@ export function HustlerTemplate({ profile, accentColor }: HustlerTemplateProps) 
               {profile.links && profile.links.length > 0 && (
                 <div className="hustler-links">
                   {profile.links.map((link: any, i: number) => (
-                    <a key={i} href={link.url} target="_blank" rel="noreferrer" className="hustler-link">
+                    <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="hustler-link">
                       <div className="hustler-link-left">
                         <div className="hustler-link-icon">
                           {getSharedLinkIcon(link.label, link.url)}

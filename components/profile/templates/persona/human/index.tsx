@@ -118,6 +118,16 @@ export function HumanTemplate({ profile, accentColor }: HumanTemplateProps) {
       transform: translateY(1px);
     }
 
+    /* Focus styles for accessibility */
+    .human-social-link:focus-visible,
+    footer a:focus-visible,
+    footer button:focus-visible,
+    nav button:focus-visible,
+    nav a:focus-visible {
+      outline: 2px solid #E2B746;
+      outline-offset: 2px;
+    }
+
     .human-footer-shape-1 {
       border-radius: 140px 20px 0 0 / 100px 40px 0 0;
     }
@@ -136,8 +146,8 @@ export function HumanTemplate({ profile, accentColor }: HumanTemplateProps) {
         style={{ borderRadius: 'clamp(24px, 5vw, 48px)' }}
       >
       <style dangerouslySetInnerHTML={{ __html: customStyles }} />
-      <div className="human-texture" />
-      <div className="human-blob-bg-1" />
+      <div aria-hidden="true" className="human-texture" />
+      <div aria-hidden="true" className="human-blob-bg-1" />
 
       {/* Navigation & Header */}
       <nav className="relative z-20 w-full p-8 md:p-12 flex justify-between items-start max-w-[1400px] mx-auto">
@@ -298,7 +308,7 @@ export function HumanTemplate({ profile, accentColor }: HumanTemplateProps) {
                 ][i % 3];
 
                 return (
-                  <a key={i} href={link.url} target="_blank" rel="noreferrer"
+                  <a key={i} href={link.url} target="_blank" rel="noopener noreferrer"
                      className="human-social-link flex items-center justify-between p-2 md:p-3 shadow-lg group"
                      style={{ backgroundColor: style.bg, color: style.text }}>
                     <div className="flex items-center gap-4 md:gap-5">
@@ -332,9 +342,9 @@ export function HumanTemplate({ profile, accentColor }: HumanTemplateProps) {
       {/* Footer / CTAs */}
       <footer className="relative mt-16 md:mt-24 pt-20 md:pt-24 pb-12 overflow-hidden w-full flex items-center min-h-[250px] md:min-h-[300px]">
         {/* Organic layered backgrounds */}
-        <div className="absolute bottom-0 right-0 w-[85%] md:w-[70%] h-full bg-[#EFE4CC] human-footer-shape-1 z-0 shadow-2xl" />
-        <div className="absolute bottom-0 left-0 w-[70%] md:w-[45%] h-[85%] bg-[#BE5B42] human-footer-shape-2 z-0 shadow-2xl" />
-        <div className="absolute -bottom-16 -left-4 md:left-[5%] w-[50%] md:w-[28%] h-[60%] md:h-[50%] bg-[#123040] human-footer-shape-3 z-0 shadow-2xl" />
+        <div aria-hidden="true" className="absolute bottom-0 right-0 w-[85%] md:w-[70%] h-full bg-[#EFE4CC] human-footer-shape-1 z-0 shadow-2xl" />
+        <div aria-hidden="true" className="absolute bottom-0 left-0 w-[70%] md:w-[45%] h-[85%] bg-[#BE5B42] human-footer-shape-2 z-0 shadow-2xl" />
+        <div aria-hidden="true" className="absolute -bottom-16 -left-4 md:left-[5%] w-[50%] md:w-[28%] h-[60%] md:h-[50%] bg-[#123040] human-footer-shape-3 z-0 shadow-2xl" />
 
         <div className="relative z-10 w-full max-w-[1300px] mx-auto px-6 md:px-12 flex flex-col md:flex-row justify-between items-end gap-8 h-full pb-2">
 
@@ -344,19 +354,15 @@ export function HumanTemplate({ profile, accentColor }: HumanTemplateProps) {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 md:gap-6 w-full md:w-auto mx-auto md:ml-auto md:mr-8 z-10">
-            <a
-              href={profile.email ? `mailto:${profile.email}` : '#'}
-              onClick={(e) => {
-                if (!profile.email) {
-                  e.preventDefault();
-                  showToast('Contact email not available.');
-                }
-              }}
-              className="w-full sm:w-auto px-8 py-4 md:py-5 rounded-full border border-[#1B1D1B]/30 text-[#1B1D1B] font-sans font-bold flex items-center justify-center gap-3 hover:bg-white/10 hover:border-[#1B1D1B] transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1B1D1B]"
-            >
-              <Send size={20} strokeWidth={2} />
-              Get in touch
-            </a>
+            {profile.email && (
+              <a
+                href={`mailto:${profile.email}`}
+                className="w-full sm:w-auto px-8 py-4 md:py-5 rounded-full border border-[#1B1D1B]/30 text-[#1B1D1B] font-sans font-bold flex items-center justify-center gap-3 hover:bg-white/10 hover:border-[#1B1D1B] transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1B1D1B]"
+              >
+                <Send size={20} strokeWidth={2} aria-hidden="true" />
+                Get in touch
+              </a>
+            )}
             <button
               onClick={downloadVCard}
               className="w-full sm:w-auto px-8 py-4 md:py-5 rounded-full bg-[#123040] text-[#F4EDDC] font-sans font-bold flex items-center justify-center gap-3 hover:bg-[#1a4358] hover:-translate-y-1 transition-all shadow-2xl focus:outline-none focus:ring-2 focus:ring-[#1B1D1B]"
@@ -406,7 +412,7 @@ export function HumanTemplate({ profile, accentColor }: HumanTemplateProps) {
                 <div className="mt-12 pt-12 border-t border-[#1B1D1B]/10 flex flex-col gap-5">
                   <span className="text-[10px] uppercase tracking-[0.2em] font-bold opacity-40">Links</span>
                   {profile.links.map((l: any, i: number) => (
-                    <a key={i} href={l.url} target="_blank" rel="noreferrer" className="font-sans font-bold text-lg hover:text-[#BE5B42] transition-colors flex items-center gap-3">
+                    <a key={i} href={l.url} target="_blank" rel="noopener noreferrer" className="font-sans font-bold text-lg hover:text-[#BE5B42] transition-colors flex items-center gap-3">
                       {getSharedLinkIcon(l.label, l.url, l.icon, 'w-5 h-5')}
                       <span>{l.label}</span>
                     </a>

@@ -49,6 +49,12 @@ export function BuilderTemplate({ profile }: BuilderTemplateProps) {
       box-shadow: 2px 2px 0px rgba(52, 38, 50, 1);
       transform: translate(2px, 2px);
     }
+
+    /* Focus visible styles for accessibility */
+    :focus-visible {
+      outline: 2px solid #A85C4A;
+      outline-offset: 2px;
+    }
   `;
 
   return (
@@ -69,7 +75,7 @@ export function BuilderTemplate({ profile }: BuilderTemplateProps) {
         <div className="px-6 md:px-12 pt-16 md:pt-24 max-w-[960px] mx-auto w-full">
           <section className="mb-16 relative">
              <div className="w-full bg-[#342632] text-[#F3EEE6] p-8 md:p-12 relative overflow-hidden flex flex-col md:flex-row gap-8 md:gap-16 group builder-module-shadow border border-[#292226]">
-                <div className="absolute inset-0 builder-blueprint-grid opacity-30" />
+                <div className="absolute inset-0 builder-blueprint-grid opacity-30" aria-hidden="true" />
 
                 <div className="w-full md:w-[35%] relative min-h-[220px] md:min-h-full flex items-center justify-center shrink-0 border-b md:border-b-0 md:border-r border-white/10 pb-8 md:pb-0 md:pr-8">
                    {profile?.avatarUrl ? (
@@ -81,7 +87,7 @@ export function BuilderTemplate({ profile }: BuilderTemplateProps) {
 
                 <div className="flex-1 relative z-10 flex flex-col justify-center">
                    <div className="text-[#C5A86A] text-[9px] uppercase tracking-[0.2em] mb-5 flex items-center gap-3 font-bold">
-                      <div className="w-2 h-2 bg-current rounded-full animate-ping" />
+                      <div className="w-2 h-2 bg-current rounded-full animate-ping" aria-hidden="true" />
                       SYSTEM ONLINE
                    </div>
 
@@ -138,7 +144,7 @@ export function BuilderTemplate({ profile }: BuilderTemplateProps) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                    {proofs.filter((p: any) => p.type || p.title || p.label).map((p: any, i: number) => (
                       <div key={i} className="bg-[#FAFAFA] border-2 border-[#292226]/40 p-6 flex flex-col justify-center hover:border-[#A85C4A] transition-colors group relative overflow-hidden builder-module-shadow">
-                         <div className="absolute inset-0 builder-blueprint-grid opacity-10 pointer-events-none" />
+                         <div className="absolute inset-0 builder-blueprint-grid opacity-10 pointer-events-none" aria-hidden="true" />
                          <div className="absolute left-0 top-0 bottom-0 w-2 bg-[#292226]/10 group-hover:bg-[#A85C4A] transition-colors" />
                          <div className="flex items-baseline gap-4 mb-2 pl-4">
                            <div className="text-[12px] font-bold tracking-[0.2em] uppercase text-[#342632] relative z-10">{p.type || p.title || p.label}</div>
@@ -162,14 +168,19 @@ export function BuilderTemplate({ profile }: BuilderTemplateProps) {
           />
 
           <section className="mt-32 mb-16 bg-[#A85C4A] text-[#F3EEE6] p-8 md:p-16 flex flex-col items-center text-center relative overflow-hidden border border-[#292226] builder-module-shadow">
-             <div className="absolute inset-0 builder-blueprint-grid opacity-20 pointer-events-none" />
+             <div className="absolute inset-0 builder-blueprint-grid opacity-20 pointer-events-none" aria-hidden="true" />
              <h2 className="builder-serif text-5xl md:text-6xl mb-6 max-w-2xl leading-[1.05] relative z-10 text-[#F3EEE6]">Ready to initialize?</h2>
              <p className="text-xs text-[#F3EEE6]/80 mb-10 max-w-md uppercase tracking-widest font-bold relative z-10">
                Begin sequence transfer.
              </p>
-             <a href={email ? `mailto:${email}` : '#'} className="bg-[#342632] text-[#C5A86A] px-8 py-4 text-[12px] uppercase tracking-[0.2em] font-bold flex items-center gap-4 hover:bg-[#292226] transition-colors relative z-10 shadow-[4px_4px_0px_rgba(41,34,38,1)] border border-[#292226]">
-                GET IN TOUCH <span className="text-[#F3EEE6]">↗</span>
+             {email && (
+             <a
+               href={`mailto:${email}`}
+               className="bg-[#342632] text-[#C5A86A] px-8 py-4 text-[12px] uppercase tracking-[0.2em] font-bold flex items-center gap-4 hover:bg-[#292226] transition-colors relative z-10 shadow-[4px_4px_0px_rgba(41,34,38,1)] border border-[#292226]"
+             >
+               GET IN TOUCH <span className="text-[#F3EEE6]" aria-hidden="true">↗</span>
              </a>
+           )}
           </section>
 
         </div>

@@ -18,10 +18,10 @@ export interface ClubToast {
 }
 
 const TOAST_ICONS = {
-  success: <CheckCircle size={20} strokeWidth={2} />,
-  error: <AlertCircle size={20} strokeWidth={2} />,
-  info: <Info size={20} strokeWidth={2} />,
-  warning: <AlertTriangle size={20} strokeWidth={2} />,
+  success: <CheckCircle size={20} strokeWidth={2} aria-hidden="true" />,
+  error: <AlertCircle size={20} strokeWidth={2} aria-hidden="true" />,
+  info: <Info size={20} strokeWidth={2} aria-hidden="true" />,
+  warning: <AlertTriangle size={20} strokeWidth={2} aria-hidden="true" />,
 };
 
 const TOAST_STYLES = {
@@ -227,7 +227,7 @@ function ClubToastItem({ toast, onRemove }: { toast: ClubToast; onRemove: (id: s
         onClick={() => onRemove(toast.id)}
         aria-label="Dismiss notification"
       >
-        <X size={16} strokeWidth={2} />
+        <X size={16} strokeWidth={2} aria-hidden="true" />
       </button>
       <motion.div
         className="club-toast-progress"

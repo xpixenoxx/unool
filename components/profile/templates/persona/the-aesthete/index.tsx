@@ -434,6 +434,14 @@ export function AestheteTemplate({ profile, accentColor }: AestheteTemplateProps
       .aesthete-blob, .aesthete-sparkle, .aesthete-ring, .aesthete-ring-2,
       .aesthete-float-shape { animation: none !important; transition: none !important; }
     }
+
+    /* Focus visible styles for accessibility */
+    .aesthete-link:focus-visible,
+    .aesthete-cta-btn:focus-visible,
+    .aesthete-data-box:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
   `;
 
   const getLinkSubtitle = (label: string) => {
@@ -454,13 +462,13 @@ export function AestheteTemplate({ profile, accentColor }: AestheteTemplateProps
     >
       <style dangerouslySetInnerHTML={{ __html: customStyles }} />
 
-      <div className="aesthete-blob aesthete-blob-1" style={{ transform: `translate(${mouse.x * 80}px, ${mouse.y * 80}px)` }} />
-      <div className="aesthete-blob aesthete-blob-2" style={{ transform: `translate(${mouse.x * -60}px, ${mouse.y * -60}px)` }} />
+      <div className="aesthete-blob aesthete-blob-1" style={{ transform: `translate(${mouse.x * 80}px, ${mouse.y * 80}px)` }} aria-hidden="true" />
+      <div className="aesthete-blob aesthete-blob-2" style={{ transform: `translate(${mouse.x * -60}px, ${mouse.y * -60}px)` }} aria-hidden="true" />
 
-      <span className="aesthete-sparkle aesthete-sparkle-1" ref={(el) => { sparkleRefs.current[0] = el; }}>✦</span>
-      <span className="aesthete-sparkle aesthete-sparkle-2" ref={(el) => { sparkleRefs.current[1] = el; }}>✦</span>
-      <span className="aesthete-sparkle aesthete-sparkle-3" ref={(el) => { sparkleRefs.current[2] = el; }}>✦</span>
-      <span className="aesthete-sparkle aesthete-sparkle-4" ref={(el) => { sparkleRefs.current[3] = el; }}>✦</span>
+      <span className="aesthete-sparkle aesthete-sparkle-1" ref={(el) => { sparkleRefs.current[0] = el; }} aria-hidden="true">✦</span>
+      <span className="aesthete-sparkle aesthete-sparkle-2" ref={(el) => { sparkleRefs.current[1] = el; }} aria-hidden="true">✦</span>
+      <span className="aesthete-sparkle aesthete-sparkle-3" ref={(el) => { sparkleRefs.current[2] = el; }} aria-hidden="true">✦</span>
+      <span className="aesthete-sparkle aesthete-sparkle-4" ref={(el) => { sparkleRefs.current[3] = el; }} aria-hidden="true">✦</span>
 
       <div
         className="aesthete-container"
@@ -468,19 +476,19 @@ export function AestheteTemplate({ profile, accentColor }: AestheteTemplateProps
           transform: `rotateY(${mouse.x * 8}deg) rotateX(${mouse.y * -8}deg)`
         }}
       >
-        <div className="aesthete-float-shape ae-shape-1" />
-        <div className="aesthete-float-shape ae-shape-2" />
+        <div className="aesthete-float-shape ae-shape-1" aria-hidden="true" />
+        <div className="aesthete-float-shape ae-shape-2" aria-hidden="true" />
 
         <div className="aesthete-card">
-          <div className="aesthete-corner aesthete-corner-tl" />
-          <div className="aesthete-corner aesthete-corner-tr" />
-          <div className="aesthete-corner aesthete-corner-bl" />
-          <div className="aesthete-corner aesthete-corner-br" />
+          <div className="aesthete-corner aesthete-corner-tl" aria-hidden="true" />
+          <div className="aesthete-corner aesthete-corner-tr" aria-hidden="true" />
+          <div className="aesthete-corner aesthete-corner-bl" aria-hidden="true" />
+          <div className="aesthete-corner aesthete-corner-br" aria-hidden="true" />
 
           <div className="aesthete-inner">
             <div className="aesthete-avatar-wrap">
-              <div className="aesthete-ring" />
-              <div className="aesthete-ring-2" />
+              <div className="aesthete-ring" aria-hidden="true" />
+              <div className="aesthete-ring-2" aria-hidden="true" />
               {profile.avatarUrl ? (
                 <img src={profile.avatarUrl} alt={profile.name} className="aesthete-avatar" />
               ) : (
@@ -493,13 +501,15 @@ export function AestheteTemplate({ profile, accentColor }: AestheteTemplateProps
               <div className="aesthete-role">{profile.headline}</div>
               <p className="aesthete-bio">{profile.bio}</p>
 
+              {profile.email && (
               <a
-                href={profile.email ? `mailto:${profile.email}` : '#'}
+                href={`mailto:${profile.email}`}
                 className="aesthete-cta-btn"
                 style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '16px' }}
               >
-                <span>✉</span> Get in Touch
+                <span aria-hidden="true">✉</span> Get in Touch
               </a>
+            )}
 
               {(profile.theme as any)?.conversationUrl && (
                 <a
@@ -554,7 +564,7 @@ export function AestheteTemplate({ profile, accentColor }: AestheteTemplateProps
               {profile.links && profile.links.length > 0 && (
                 <div className="aesthete-links">
                   {profile.links.map((link: any, i: number) => (
-                    <a key={i} href={link.url} target="_blank" rel="noreferrer" className="aesthete-link">
+                    <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="aesthete-link">
                       <div className="aesthete-link-left">
                         <div className="aesthete-link-icon">
                           {getSharedLinkIcon(link.label, link.url)}
@@ -576,13 +586,26 @@ export function AestheteTemplate({ profile, accentColor }: AestheteTemplateProps
             <div className="aesthete-cta">
               <div className="aesthete-cta-text">Let's Create Something Beautiful Together</div>
               <div className="aesthete-cta-sub">Open to collaborations, commissions, and meaningful conversations.</div>
-              <a
-                className="aesthete-cta-btn"
-                href={profile.email ? `mailto:${profile.email}` : (profile.links?.[0]?.url || '#')}
-              >
-                Get in Touch
-                <span>→</span>
-              </a>
+              {profile.email && (
+                <a
+                  className="aesthete-cta-btn"
+                  href={`mailto:${profile.email}`}
+                >
+                  Get in Touch
+                  <span aria-hidden="true">→</span>
+                </a>
+              )}
+              {!profile.email && profile.links?.length > 0 && (
+                <a
+                  className="aesthete-cta-btn"
+                  href={profile.links[0].url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Get in Touch
+                  <span aria-hidden="true">→</span>
+                </a>
+              )}
             </div>
           )}
         </div>

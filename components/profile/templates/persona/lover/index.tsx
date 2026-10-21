@@ -99,6 +99,7 @@ export function LoverTemplate({ profile, accentColor }: LoverTemplateProps) {
       animation: lover-float 8s ease-in-out infinite;
       z-index: 1;
       font-family: serif;
+      speak: none;
     }
     .lover-heart-1 { top: 15%; left: 8%; animation-delay: 0s; }
     .lover-heart-2 { top: 25%; right: 10%; animation-delay: 1.5s; font-size: 1rem; }
@@ -117,6 +118,7 @@ export function LoverTemplate({ profile, accentColor }: LoverTemplateProps) {
       pointer-events: none;
       z-index: 2;
       animation: lover-sparkle 3s ease-in-out infinite;
+      speak: none;
     }
     .lover-sparkle-1 { top: 12%; left: 15%; animation-delay: 0s; }
     .lover-sparkle-2 { top: 18%; right: 12%; animation-delay: 0.5s; }
@@ -468,6 +470,14 @@ export function LoverTemplate({ profile, accentColor }: LoverTemplateProps) {
       .lover-blob, .lover-heart, .lover-sparkle, .lover-ring, .lover-ring-2,
       .lover-float-shape { animation: none !important; transition: none !important; }
     }
+
+    /* Focus styles for accessibility */
+    .lover-link:focus-visible,
+    .lover-cta-btn:focus-visible,
+    .lover-conversation-btn:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
   `;
 
   const getLinkSubtitle = (label: string) => {
@@ -493,16 +503,16 @@ export function LoverTemplate({ profile, accentColor }: LoverTemplateProps) {
       <div className="lover-blob lover-blob-2" style={{ transform: `translate(${mouse.x * -60}px, ${mouse.y * -60}px)` }} />
 
       {/* Floating Hearts */}
-      <span className="lover-heart lover-heart-1">♡</span>
-      <span className="lover-heart lover-heart-2">♥</span>
-      <span className="lover-heart lover-heart-3">♡</span>
-      <span className="lover-heart lover-heart-4">♥</span>
+      <span aria-hidden="true" className="lover-heart lover-heart-1">♡</span>
+      <span aria-hidden="true" className="lover-heart lover-heart-2">♥</span>
+      <span aria-hidden="true" className="lover-heart lover-heart-3">♡</span>
+      <span aria-hidden="true" className="lover-heart lover-heart-4">♥</span>
 
       {/* Sparkles */}
-      <span className="lover-sparkle lover-sparkle-1" ref={(el) => { sparkleRefs.current[0] = el; }}>✦</span>
-      <span className="lover-sparkle lover-sparkle-2" ref={(el) => { sparkleRefs.current[1] = el; }}>✦</span>
-      <span className="lover-sparkle lover-sparkle-3" ref={(el) => { sparkleRefs.current[2] = el; }}>✦</span>
-      <span className="lover-sparkle lover-sparkle-4" ref={(el) => { sparkleRefs.current[3] = el; }}>✦</span>
+      <span aria-hidden="true" className="lover-sparkle lover-sparkle-1" ref={(el) => { sparkleRefs.current[0] = el; }}>✦</span>
+      <span aria-hidden="true" className="lover-sparkle lover-sparkle-2" ref={(el) => { sparkleRefs.current[1] = el; }}>✦</span>
+      <span aria-hidden="true" className="lover-sparkle lover-sparkle-3" ref={(el) => { sparkleRefs.current[2] = el; }}>✦</span>
+      <span aria-hidden="true" className="lover-sparkle lover-sparkle-4" ref={(el) => { sparkleRefs.current[3] = el; }}>✦</span>
 
       <div
         className="lover-container"
@@ -538,13 +548,15 @@ export function LoverTemplate({ profile, accentColor }: LoverTemplateProps) {
               <p className="lover-bio">{profile.bio}</p>
 
               {/* Get in Touch CTA */}
-              <a
-                href={profile.email ? `mailto:${profile.email}` : '#'}
-                className="lover-cta-btn"
-                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '16px' }}
-              >
-                <span>✉</span> Get in Touch
-              </a>
+              {profile.email && (
+                <a
+                  href={`mailto:${profile.email}`}
+                  className="lover-cta-btn"
+                  style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '16px' }}
+                >
+                  <span aria-hidden="true">✉</span> Get in Touch
+                </a>
+              )}
 
               {/* Conversation Button */}
               {(profile.theme as any)?.conversationUrl && (
@@ -601,7 +613,7 @@ export function LoverTemplate({ profile, accentColor }: LoverTemplateProps) {
               {profile.links && profile.links.length > 0 && (
                 <div className="lover-links">
                   {profile.links.map((link: any, i: number) => (
-                    <a key={i} href={link.url} target="_blank" rel="noreferrer" className="lover-link">
+                    <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="lover-link">
                       <div className="lover-link-left">
                         <div className="lover-link-icon">
                           {getSharedLinkIcon(link.label, link.url, link.icon, 'w-4 h-4')}
@@ -624,13 +636,20 @@ export function LoverTemplate({ profile, accentColor }: LoverTemplateProps) {
             <div className="lover-cta">
               <div className="lover-cta-text">Let's Create Something Beautiful Together</div>
               <div className="lover-cta-sub">Open to collaborations, commissions, and meaningful conversations.</div>
-              <a
-                className="lover-cta-btn"
-                href={profile.email ? `mailto:${profile.email}` : (profile.links?.[0]?.url || '#')}
-              >
-                Get in Touch
-                <span>→</span>
-              </a>
+              {profile.email ? (
+                <a className="lover-cta-btn" href={`mailto:${profile.email}`}>
+                  Get in Touch <span aria-hidden="true">→</span>
+                </a>
+              ) : profile.links?.[0]?.url ? (
+                <a
+                  className="lover-cta-btn"
+                  href={profile.links[0].url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Get in Touch <span aria-hidden="true">→</span>
+                </a>
+              ) : null}
             </div>
           )}
         </div>

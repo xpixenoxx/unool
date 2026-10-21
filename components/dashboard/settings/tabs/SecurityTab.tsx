@@ -66,11 +66,12 @@ export function SecurityTab({}: SecurityTabProps) {
           >
             <div className="flex items-center gap-2.5">
               {togglingMfa && (
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" aria-hidden="true" />
               )}
               <button
                 role="switch"
                 aria-checked={mfaEnabled}
+                aria-pressed={mfaEnabled}
                 onClick={() => handleToggleMfa(!mfaEnabled)}
                 disabled={togglingMfa}
                 className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors cursor-pointer focus-visible:outline-none disabled:opacity-50 ${
@@ -81,6 +82,7 @@ export function SecurityTab({}: SecurityTabProps) {
                   className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
                     mfaEnabled ? 'translate-x-[18px]' : 'translate-x-[3px]'
                   }`}
+                  aria-hidden="true"
                 />
               </button>
               <span className="text-xs font-medium text-muted-foreground">

@@ -183,7 +183,7 @@ export function ClubProofLedger({ proofPoints }: ClubProofLedgerProps) {
                 style={{ transitionDelay: `${i * 0.05}s` }}
               >
                 <div className="club-proof-icon" aria-hidden="true">
-                  <Icon size={28} strokeWidth={1.5} />
+                  <Icon size={28} strokeWidth={1.5} aria-hidden="true" />
                 </div>
 
                 <div className="club-proof-value">

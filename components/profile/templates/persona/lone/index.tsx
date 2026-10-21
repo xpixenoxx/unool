@@ -409,6 +409,7 @@ export function LoneTemplate({ profile, accentColor }: LoneTemplateProps) {
       pointer-events: none;
       z-index: 2;
       animation: lone-sparkle 3s ease-in-out infinite;
+      speak: none;
     }
     .lone-sparkle-1 { top: 12%; left: 15%; animation-delay: 0s; }
     .lone-sparkle-2 { top: 18%; right: 12%; animation-delay: 0.5s; }
@@ -422,6 +423,13 @@ export function LoneTemplate({ profile, accentColor }: LoneTemplateProps) {
     @media (prefers-reduced-motion: reduce) {
       .lone-grid, .lone-ring, .lone-ring-2, .lone-float-shape, .lone-sparkle { animation: none !important; transition: none !important; }
     }
+
+    /* Focus styles for accessibility */
+    .lone-link:focus-visible,
+    .lone-conversation-btn:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
   `;
 
   return (
@@ -433,8 +441,9 @@ export function LoneTemplate({ profile, accentColor }: LoneTemplateProps) {
     >
       <style dangerouslySetInnerHTML={{ __html: customStyles }} />
 
-      <div className="lone-grid" />
+      <div aria-hidden="true" className="lone-grid" />
       <div
+        aria-hidden="true"
         className="lone-glow"
         style={{ transform: `translate(${mouse.x * 200}px, ${mouse.y * 200}px)` }}
       />
@@ -445,10 +454,10 @@ export function LoneTemplate({ profile, accentColor }: LoneTemplateProps) {
           transform: `rotateY(${mouse.x * 12}deg) rotateX(${mouse.y * -12}deg)`
         }}
       >
-        <span className="lone-sparkle lone-sparkle-1" ref={(el) => { sparkleRefs.current[0] = el; }}>✦</span>
-        <span className="lone-sparkle lone-sparkle-2" ref={(el) => { sparkleRefs.current[1] = el; }}>✦</span>
-        <span className="lone-sparkle lone-sparkle-3" ref={(el) => { sparkleRefs.current[2] = el; }}>✦</span>
-        <span className="lone-sparkle lone-sparkle-4" ref={(el) => { sparkleRefs.current[3] = el; }}>✦</span>
+        <span aria-hidden="true" className="lone-sparkle lone-sparkle-1" ref={(el) => { sparkleRefs.current[0] = el; }}>✦</span>
+        <span aria-hidden="true" className="lone-sparkle lone-sparkle-2" ref={(el) => { sparkleRefs.current[1] = el; }}>✦</span>
+        <span aria-hidden="true" className="lone-sparkle lone-sparkle-3" ref={(el) => { sparkleRefs.current[2] = el; }}>✦</span>
+        <span aria-hidden="true" className="lone-sparkle lone-sparkle-4" ref={(el) => { sparkleRefs.current[3] = el; }}>✦</span>
 
         <div className="lone-float-shape lo-shape-1" />
         <div className="lone-float-shape lo-shape-2" />
@@ -475,13 +484,15 @@ export function LoneTemplate({ profile, accentColor }: LoneTemplateProps) {
               <div className="lone-role">{profile.headline}</div>
               <p className="lone-bio">{profile.bio}</p>
 
-              <a
-                href={profile.email ? `mailto:${profile.email}` : '#'}
-                className="lone-conversation-btn"
-                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '16px' }}
-              >
-                <span>✉</span> Get in Touch
-              </a>
+              {profile.email && (
+                <a
+                  href={`mailto:${profile.email}`}
+                  className="lone-conversation-btn"
+                  style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '16px' }}
+                >
+                  <span aria-hidden="true">✉</span> Get in Touch
+                </a>
+              )}
 
               {(profile.theme as any)?.conversationUrl && (
                 <a
@@ -535,7 +546,7 @@ export function LoneTemplate({ profile, accentColor }: LoneTemplateProps) {
               {profile.links && profile.links.length > 0 && (
                 <div className="lone-links">
                   {profile.links.map((link: any, i: number) => (
-                    <a key={i} href={link.url} target="_blank" rel="noreferrer" className="lone-link">
+                    <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="lone-link">
                       <div className="lone-link-left">
                         <div className="lone-link-icon">
                           {getSharedLinkIcon(link.label, link.url, link.icon, 'w-4 h-4')}

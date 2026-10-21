@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Building2, Sparkles, Terminal, Bell, Shield, AlertTriangle, Palette } from 'lucide-react';
+import { Building2, Sparkles, Terminal, Bell, Shield, AlertTriangle, Palette, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { getSupabaseBrowserClient } from '@/lib/supabase/browser';
@@ -15,10 +15,11 @@ import {
   SecurityTab,
   DangerZoneTab,
   TemplatesTab,
+  TemplateAnalyticsTab,
   LoadingSkeleton,
 } from '@/components/dashboard/settings/tabs';
 
-type SectionId = 'workspace' | 'studio' | 'integrations' | 'notifications' | 'security' | 'danger' | 'templates';
+type SectionId = 'workspace' | 'studio' | 'integrations' | 'notifications' | 'security' | 'danger' | 'templates' | 'analytics';
 
 interface Workspace {
   id: string;
@@ -37,6 +38,7 @@ const NAV_SECTIONS: {
   { id: 'studio', icon: Sparkles, label: 'Studio AI', description: 'Voice & persona calibration' },
   { id: 'integrations', icon: Terminal, label: 'Integrations', description: 'API keys & webhooks' },
   { id: 'templates', icon: Palette, label: 'Templates', description: 'Profile design & themes' },
+  { id: 'analytics', icon: BarChart3, label: 'Analytics', description: 'Template performance & insights' },
   { id: 'notifications', icon: Bell, label: 'Notifications', description: 'Email & event alerts' },
   { id: 'security', icon: Shield, label: 'Security', description: 'MFA & active sessions' },
   { id: 'danger', icon: AlertTriangle, label: 'Danger Zone', description: 'Irreversible actions', danger: true },
@@ -61,6 +63,7 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
   } | null>(null);
   const [mfaEnabled, setMfaEnabled] = useState(false);
   const [togglingMfa, setTogglingMfa] = useState(false);
+  const navRef = useRef<HTMLDivElement>(null);
 
   // Template state
   const [currentTemplate, setCurrentTemplate] = useState<string>('lone');
@@ -143,6 +146,7 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
   };
 
   const handleSaveTemplate = async (templateId: string) => {
+    const previousTemplate = currentTemplate;
     setTemplateLoading(true);
     try {
       const res = await fetch('/api/profile', {
@@ -154,6 +158,21 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
       if (res.ok) {
         setCurrentTemplate(templateId);
         toast.success('Template updated successfully');
+
+        // Track template change
+        if (previousTemplate !== templateId) {
+          try {
+            const { analytics } = await import('@/lib/analytics/track');
+            await analytics.templateChange({
+              workspaceId,
+              profileId: workspaceId, // using workspaceId as profileId for now
+              fromTemplate: previousTemplate,
+              toTemplate: templateId,
+            });
+          } catch {
+            // Analytics tracking failure shouldn't block UI
+          }
+        }
       } else {
         toast.error('Failed to update template');
       }
@@ -212,6 +231,8 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
       {/* OAuth Banner */}
       {oauthBanner && (
         <div
+          role="alert"
+          aria-live="polite"
           className={`flex items-center gap-3 px-4 py-3 rounded-xl border mb-6 text-sm font-medium ${
             oauthBanner.type === 'success'
               ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-200'
@@ -238,14 +259,50 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
       <div className="flex flex-col md:flex-row gap-6">
         {/* Sidebar */}
         <aside className="md:w-52 shrink-0">
-          <nav className="flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-visible pb-2 md:pb-0">
-            {NAV_SECTIONS.map((section) => {
+          <nav
+            ref={navRef}
+            role="tablist"
+            aria-label="Settings sections"
+            className="flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-visible pb-2 md:pb-0"
+            onKeyDown={(e) => {
+              const tabs = navRef.current?.querySelectorAll<HTMLButtonElement>('[role="tab"]');
+              if (!tabs || tabs.length === 0) return;
+              const tabsArray = Array.from(tabs);
+              const activeIndex = tabsArray.findIndex(t => t === document.activeElement);
+              if (activeIndex === -1) return;
+              let newIndex = activeIndex;
+              if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                e.preventDefault();
+                newIndex = (activeIndex + 1) % tabsArray.length;
+              } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                newIndex = (activeIndex - 1 + tabsArray.length) % tabsArray.length;
+              } else if (e.key === 'Home') {
+                e.preventDefault();
+                newIndex = 0;
+              } else if (e.key === 'End') {
+                e.preventDefault();
+                newIndex = tabsArray.length - 1;
+              }
+              if (newIndex !== activeIndex) {
+                tabsArray[newIndex]?.focus();
+                setActiveSection(NAV_SECTIONS[newIndex].id);
+              }
+            }}
+          >
+            {NAV_SECTIONS.map((section, index) => {
               const Icon = section.icon;
               const isActive = activeSection === section.id;
               return (
                 <button
                   key={section.id}
+                  role="tab"
+                  id={`tab-${section.id}`}
+                  aria-selected={isActive}
+                  aria-controls={`panel-${section.id}`}
+                  tabIndex={isActive ? 0 : -1}
                   onClick={() => setActiveSection(section.id)}
+                  onFocus={() => setActiveSection(section.id)}
                   className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition-all duration-150 whitespace-nowrap md:whitespace-normal w-full cursor-pointer group
                     ${
                       isActive
@@ -265,6 +322,7 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
                           : 'text-[#C4A265]'
                         : 'opacity-60 group-hover:opacity-100'
                     }`}
+                    aria-hidden="true"
                   />
                   <span className="text-[13px] font-medium">{section.label}</span>
                 </button>
@@ -276,86 +334,116 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
         {/* Content Panel */}
         <div className="flex-1 min-w-0 space-y-5">
           {activeSection === 'workspace' && (
-            <WorkspaceTab
-              workspaceId={workspaceId}
-              initialWorkspace={workspace}
-              onWorkspaceUpdate={handleSaveWorkspace}
-            />
+            <div role="tabpanel" id="panel-workspace" aria-labelledby="tab-workspace">
+              <WorkspaceTab
+                workspaceId={workspaceId}
+                initialWorkspace={workspace}
+                onWorkspaceUpdate={handleSaveWorkspace}
+              />
+            </div>
           )}
 
           {activeSection === 'studio' && (
-            <StudioTab
-              userId={userId}
-              onProfileUpdate={async (profile: StudioProfile) => {
-                const domain = (profile.businessDomain || profile.doing || '').trim();
-                const payload: StudioProfile = {
-                  role: (profile.role.trim() || 'Creator').slice(0, 80),
-                  businessStage: (profile.businessStage?.trim() || 'Growing').slice(0, 80),
-                  businessDomain: (domain || 'Software/AI').slice(0, 80),
-                  workInterests: profile.workInterests?.trim()
-                    ? profile.workInterests.trim().slice(0, 120)
-                    : undefined,
-                  doing: (domain || 'Software/AI').slice(0, 80),
-                  audience: (profile.audience.trim() || 'Followers in my niche').slice(0, 80),
-                  tone: (profile.tone.trim() || 'Conversational & candid').slice(0, 80),
-                  style: (profile.style.trim() || 'Short punchy lines').slice(0, 80),
-                  interests:
-                    profile.interests.length > 0
-                      ? profile.interests.map((i) => i.trim().slice(0, 80)).filter(Boolean)
-                      : ['General topics'],
-                  completedAt: new Date().toISOString(),
-                };
+            <div role="tabpanel" id="panel-studio" aria-labelledby="tab-studio">
+              <StudioTab
+                userId={userId}
+                onProfileUpdate={async (profile: StudioProfile) => {
+                  const domain = (profile.businessDomain || profile.doing || '').trim();
+                  const payload: StudioProfile = {
+                    role: (profile.role.trim() || 'Creator').slice(0, 80),
+                    businessStage: (profile.businessStage?.trim() || 'Growing').slice(0, 80),
+                    businessDomain: (domain || 'Software/AI').slice(0, 80),
+                    workInterests: profile.workInterests?.trim()
+                      ? profile.workInterests.trim().slice(0, 120)
+                      : undefined,
+                    doing: (domain || 'Software/AI').slice(0, 80),
+                    audience: (profile.audience.trim() || 'Followers in my niche').slice(0, 80),
+                    tone: (profile.tone.trim() || 'Conversational & candid').slice(0, 80),
+                    style: (profile.style.trim() || 'Short punchy lines').slice(0, 80),
+                    interests:
+                      profile.interests.length > 0
+                        ? profile.interests.map((i) => i.trim().slice(0, 80)).filter(Boolean)
+                        : ['General topics'],
+                    completedAt: new Date().toISOString(),
+                  };
 
-                const res = await fetch('/api/studio/profile', {
-                  method: 'PUT',
-                  headers: { 'Content-Type': 'application/json' },
-                  credentials: 'include',
-                  body: JSON.stringify(payload),
-                });
+                  const res = await fetch('/api/studio/profile', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(payload),
+                  });
 
-                if (!res.ok) {
-                  const errData = await res.json().catch(() => null);
-                  throw new Error(errData?.error || 'Failed to save settings');
-                }
-              }}
-            />
+                  if (!res.ok) {
+                    const errData = await res.json().catch(() => null);
+                    throw new Error(errData?.error || 'Failed to save settings');
+                  }
+                }}
+              />
+            </div>
           )}
 
           {activeSection === 'integrations' && (
-            <IntegrationsTab
-              onLoadKeys={async () => {
-                // The IntegrationsTab handles its own loading
-              }}
-            />
+            <div role="tabpanel" id="panel-integrations" aria-labelledby="tab-integrations">
+              <IntegrationsTab
+                onLoadKeys={async () => {
+                  // The IntegrationsTab handles its own loading
+                }}
+              />
+            </div>
           )}
 
           {activeSection === 'templates' && (
-            <TemplatesTab
-              userId={userId}
-              workspaceId={workspaceId}
-              currentTemplate={currentTemplate}
-              onTemplateChange={handleSaveTemplate}
-              profileData={{
-                name: workspace?.name || 'Preview User',
-                headline: 'Preview your template',
-                bio: 'This is a live preview of how your profile will look.',
-                subdomain: workspace?.id || 'preview',
-                avatarUrl: '',
-                links: [
-                  { id: '1', label: 'Twitter', url: 'https://twitter.com', icon: 'twitter', clicks: 0, order: 0, isVisible: true },
-                  { id: '2', label: 'GitHub', url: 'https://github.com', icon: 'github', clicks: 0, order: 1, isVisible: true },
-                  { id: '3', label: 'LinkedIn', url: 'https://linkedin.com', icon: 'linkedin', clicks: 0, order: 2, isVisible: true },
-                ],
-                proofs: [],
-              }}
-            />
+            <div role="tabpanel" id="panel-templates" aria-labelledby="tab-templates">
+              <TemplatesTab
+                userId={userId}
+                workspaceId={workspaceId}
+                currentTemplate={currentTemplate}
+                onTemplateChange={handleSaveTemplate}
+                profileData={{
+                  name: workspace?.name || 'Preview User',
+                  headline: 'Preview your template',
+                  bio: 'This is a live preview of how your profile will look.',
+                  subdomain: workspace?.id || 'preview',
+                  avatarUrl: '',
+                  links: [
+                    { id: '1', label: 'Twitter', url: 'https://twitter.com', icon: 'twitter', clicks: 0, order: 0, isVisible: true },
+                    { id: '2', label: 'GitHub', url: 'https://github.com', icon: 'github', clicks: 0, order: 1, isVisible: true },
+                    { id: '3', label: 'LinkedIn', url: 'https://linkedin.com', icon: 'linkedin', clicks: 0, order: 2, isVisible: true },
+                  ],
+                  proofs: [],
+                }}
+              />
+            </div>
           )}
 
-          {activeSection === 'notifications' && <NotificationsTab />}
+          {activeSection === 'analytics' && (
+            <div role="tabpanel" id="panel-analytics" aria-labelledby="tab-analytics">
+              <TemplateAnalyticsTab
+                userId={userId}
+                workspaceId={workspaceId}
+                currentTemplate={currentTemplate}
+              />
+            </div>
+          )}
 
-          {activeSection === 'security' && <SecurityTab />}
+          {activeSection === 'notifications' && (
+            <div role="tabpanel" id="panel-notifications" aria-labelledby="tab-notifications">
+              <NotificationsTab />
+            </div>
+          )}
 
-          {activeSection === 'danger' && <DangerZoneTab onSignOut={handleSignOut} />}
+          {activeSection === 'security' && (
+            <div role="tabpanel" id="panel-security" aria-labelledby="tab-security">
+              <SecurityTab />
+            </div>
+          )}
+
+          {activeSection === 'danger' && (
+            <div role="tabpanel" id="panel-danger" aria-labelledby="tab-danger">
+              <DangerZoneTab onSignOut={handleSignOut} />
+            </div>
+          )}
         </div>
       </div>
     </div>

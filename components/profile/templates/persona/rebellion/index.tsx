@@ -343,6 +343,15 @@ export function RebellionTemplate({ profile, accentColor }: RebellionTemplatePro
     @media (prefers-reduced-motion: reduce) {
       .reb-orb-3, .reb-float-crown, .reb-sparkle, .reb-float-orb, .reb-ribbon-track, .reb-ring-spin, .reb-gem-pulse, .reb-crown-float, .reb-crown-orbit, .reb-sep-pulse, .reb-dot-pulse, .reb-orb-drift { animation: none !important; transition: none !important; }
     }
+
+    /* Focus styles for accessibility */
+    .reb-link-card:focus-visible,
+    .reb-cta-btn:focus-visible,
+    .reb-cta-btn-sec:focus-visible,
+    .reb-logo:focus-visible {
+      outline: 2px solid var(--gold);
+      outline-offset: 2px;
+    }
   `;
 
   const getLinkSubtitle = (label: string) => {
@@ -358,11 +367,11 @@ export function RebellionTemplate({ profile, accentColor }: RebellionTemplatePro
     <div className="reb-wrap">
       <style dangerouslySetInnerHTML={{ __html: customStyles }} />
 
-      <div className="reb-bg-layer" />
-      <div className="reb-bg-noise" />
-      <div className="reb-orb reb-orb-1" />
-      <div className="reb-orb reb-orb-2" />
-      <div className="reb-orb reb-orb-3" />
+      <div aria-hidden="true" className="reb-bg-layer" />
+      <div aria-hidden="true" className="reb-bg-noise" />
+      <div aria-hidden="true" className="reb-orb reb-orb-1" />
+      <div aria-hidden="true" className="reb-orb reb-orb-2" />
+      <div aria-hidden="true" className="reb-orb reb-orb-3" />
 
       <div className="reb-frame" ref={cardRef} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
 
@@ -374,7 +383,7 @@ export function RebellionTemplate({ profile, accentColor }: RebellionTemplatePro
         {/* ── HEADER ── */}
         <header className="reb-header">
           <a className="reb-logo" href="#top">
-            <span className="reb-crown-icon">♛</span>
+            <span aria-hidden="true" className="reb-crown-icon">♛</span>
             The Rebellion
           </a>
           <div className="reb-nav-right">
@@ -498,17 +507,21 @@ export function RebellionTemplate({ profile, accentColor }: RebellionTemplatePro
         {/* ── CTA SECTION ── */}
         {(profile.links?.length > 0 || profile.email) && (
           <section className="reb-cta-section">
-            <span className="reb-cta-crest reb-cta-crest-tl">♛</span>
-            <span className="reb-cta-crest reb-cta-crest-br">♛</span>
+            <span aria-hidden="true" className="reb-cta-crest reb-cta-crest-tl">♛</span>
+            <span aria-hidden="true" className="reb-cta-crest reb-cta-crest-br">♛</span>
             <div className="reb-cta-inner">
               <div className="reb-cta-left">
                 <h2>Start Something Extraordinary.</h2>
                 <p>Join the rebellion — challenge convention, redefine the rules, and build something that matters.</p>
               </div>
               <div className="reb-cta-buttons">
-                <a className="reb-cta-btn" href={profile.email ? `mailto:${profile.email}` : (profile.links?.[0]?.url || '#')}>Get in Touch — Work with {profile.name?.split(' ')[0] || 'Us'}<span className="reb-cta-btn-icon">→</span></a>
+                {profile.email ? (
+                  <a className="reb-cta-btn" href={`mailto:${profile.email}`}>Get in Touch — Work with {profile.name?.split(' ')[0] || 'Us'}<span aria-hidden="true" className="reb-cta-btn-icon">→</span></a>
+                ) : profile.links?.[0]?.url ? (
+                  <a className="reb-cta-btn" href={profile.links[0].url} target="_blank" rel="noopener noreferrer">Get in Touch — Work with {profile.name?.split(' ')[0] || 'Us'}<span aria-hidden="true" className="reb-cta-btn-icon">→</span></a>
+                ) : null}
                 {profile.links?.[0] && profile.email && (
-                  <a className="reb-cta-btn-sec" href={profile.links[0].url} target="_blank" rel="noopener noreferrer">♛ &nbsp;Follow</a>
+                  <a className="reb-cta-btn-sec" href={profile.links[0].url} target="_blank" rel="noopener noreferrer"><span aria-hidden="true">♛</span> &nbsp;Follow</a>
                 )}
               </div>
             </div>

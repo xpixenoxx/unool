@@ -402,7 +402,7 @@ export function ClubCuratedWorks({ projects, onProjectOpen }: ClubCuratedWorksPr
                     onClick={() => setSelectedProject(null)}
                     aria-label="Close project details"
                   >
-                    <X size={20} strokeWidth={2} />
+                    <X size={20} strokeWidth={2} aria-hidden="true" />
                   </button>
                 </div>
 
@@ -447,7 +447,7 @@ export function ClubCuratedWorks({ projects, onProjectOpen }: ClubCuratedWorksPr
                           className="club-drawer-link"
                         >
                           {link.label}
-                          <ExternalLink size={14} strokeWidth={2} />
+                          <ExternalLink size={14} strokeWidth={2} aria-hidden="true" />
                         </a>
                       ))}
                     </div>

@@ -390,6 +390,13 @@ export function VisionTemplate({ profile, accentColor }: VisionTemplateProps) {
     @media (prefers-reduced-motion: reduce) {
       .vision-grid, .vision-ring, .vision-ring-2, .vision-float-shape, .vision-card::before { animation: none !important; transition: none !important; }
     }
+
+    /* Focus styles for accessibility */
+    .vision-link:focus-visible,
+    .vision-conversation-btn:focus-visible {
+      outline: 2px solid var(--color1);
+      outline-offset: 2px;
+    }
   `;
 
   return (
@@ -401,8 +408,9 @@ export function VisionTemplate({ profile, accentColor }: VisionTemplateProps) {
     >
       <style dangerouslySetInnerHTML={{ __html: customStyles }} />
 
-      <div className="vision-grid" />
+      <div aria-hidden="true" className="vision-grid" />
       <div
+        aria-hidden="true"
         className="vision-glow"
         style={{ transform: `translate(${mouse.x * 200}px, ${mouse.y * 200}px)` }}
       />
@@ -413,8 +421,8 @@ export function VisionTemplate({ profile, accentColor }: VisionTemplateProps) {
           transform: `rotateY(${mouse.x * 12}deg) rotateX(${mouse.y * -12}deg)`
         }}
       >
-        <div className="vision-float-shape v-shape-1" />
-        <div className="vision-float-shape v-shape-2" />
+        <div aria-hidden="true" className="vision-float-shape v-shape-1" />
+        <div aria-hidden="true" className="vision-float-shape v-shape-2" />
 
         <div className="vision-card">
           <div className="vision-scanline" />
@@ -442,13 +450,15 @@ export function VisionTemplate({ profile, accentColor }: VisionTemplateProps) {
               <div className="vision-role">{profile.headline}</div>
               <p className="vision-bio">{profile.bio}</p>
 
-              <a
-                href={profile.email ? `mailto:${profile.email}` : '#'}
-                className="vision-conversation-btn"
-                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '16px' }}
-              >
-                <span>✉</span> Get in Touch
-              </a>
+              {profile.email && (
+                <a
+                  href={`mailto:${profile.email}`}
+                  className="vision-conversation-btn"
+                  style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '16px' }}
+                >
+                  <span aria-hidden="true">✉</span> Get in Touch
+                </a>
+              )}
 
               {(profile.theme as any)?.conversationUrl && (
                 <a
@@ -502,7 +512,7 @@ export function VisionTemplate({ profile, accentColor }: VisionTemplateProps) {
               {profile.links && profile.links.length > 0 && (
                 <div className="vision-links">
                   {profile.links.map((link: any, i: number) => (
-                    <a key={i} href={link.url} target="_blank" rel="noreferrer" className="vision-link flex items-center justify-between">
+                    <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="vision-link flex items-center justify-between">
                       <span className="flex items-center gap-2.5">
                         {getSharedLinkIcon(link.label, link.url, link.icon, 'w-4 h-4')}
                         <span>{link.label}</span>

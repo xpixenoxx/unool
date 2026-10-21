@@ -191,7 +191,7 @@ export function ClubSocialsMatrix({ socialLinks }: ClubSocialsMatrixProps) {
               aria-label="Scroll left"
               disabled={!railRef.current || railRef.current.scrollLeft === 0}
             >
-              <ChevronLeft size={20} strokeWidth={2} />
+              <ChevronLeft size={20} strokeWidth={2} aria-hidden="true" />
             </button>
             <button
               className="club-scroll-btn club-scroll-right"
@@ -199,7 +199,7 @@ export function ClubSocialsMatrix({ socialLinks }: ClubSocialsMatrixProps) {
               aria-label="Scroll right"
               disabled={!railRef.current || railRef.current.scrollLeft + railRef.current.clientWidth >= railRef.current.scrollWidth - 1}
             >
-              <ChevronRight size={20} strokeWidth={2} />
+              <ChevronRight size={20} strokeWidth={2} aria-hidden="true" />
             </button>
           </div>
         </header>
@@ -222,7 +222,7 @@ export function ClubSocialsMatrix({ socialLinks }: ClubSocialsMatrixProps) {
                   {link.icon}
                 </div>
                 <span className="club-social-label">{link.label}</span>
-                <ExternalLink size={14} strokeWidth={1.5} style={{ marginTop: 'var(--space-2)', opacity: 0.5 }} />
+                <ExternalLink size={14} strokeWidth={1.5} style={{ marginTop: 'var(--space-2)', opacity: 0.5 }} aria-hidden="true" />
               </motion.a>
             ))}
           </div>

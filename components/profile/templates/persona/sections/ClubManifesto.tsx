@@ -162,8 +162,8 @@ export function ClubManifesto({ bio, manifesto }: ClubManifestoProps) {
         </motion.div>
 
         <div className="club-manifesto-accent" aria-hidden="true">
-          <div className="club-accent-line" />
-          <div className="club-accent-dot" />
+          <div className="club-accent-line" aria-hidden="true" />
+          <div className="club-accent-dot" aria-hidden="true" />
         </div>
       </motion.section>
     </>

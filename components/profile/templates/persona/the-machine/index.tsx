@@ -290,6 +290,13 @@ export function MachineTemplate({ profile, accentColor }: MachineTemplateProps) 
     @media (prefers-reduced-motion: reduce) {
       .m-avatar-img, .m-link-card, .m-giant-name { animation: none !important; transition: none !important; }
     }
+
+    /* Focus styles for accessibility */
+    .m-link-card:focus-visible,
+    .m-conversation-btn:focus-visible {
+      outline: 2px solid var(--m-accent);
+      outline-offset: 2px;
+    }
   `;
 
   return (
@@ -319,13 +326,15 @@ export function MachineTemplate({ profile, accentColor }: MachineTemplateProps) 
             </div>
           )}
 
-          <a
-            href={profile.email ? `mailto:${profile.email}` : '#'}
-            className="m-conversation-btn"
-            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '16px' }}
-          >
-            <span>✉</span> Get in Touch
-          </a>
+          {profile.email && (
+            <a
+              href={`mailto:${profile.email}`}
+              className="m-conversation-btn"
+              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '16px' }}
+            >
+              <span aria-hidden="true">✉</span> Get in Touch
+            </a>
+          )}
 
           {(profile.theme as any)?.conversationUrl && (
             <a

@@ -404,6 +404,7 @@ export function EnergyTemplate({ profile, accentColor }: EnergyTemplateProps) {
       z-index: 2;
       opacity: 0.6;
       animation: energy-particle-float 6s ease-in-out infinite;
+      speak: none;
     }
     .energy-particle-1 { top: 20%; left: 10%; animation-delay: 0s; }
     .energy-particle-2 { top: 30%; right: 15%; animation-delay: 1s; }
@@ -418,6 +419,13 @@ export function EnergyTemplate({ profile, accentColor }: EnergyTemplateProps) {
       .energy-grid, .energy-ring, .energy-ring-2, .energy-float-shape, .energy-particle,
       .energy-avatar, .energy-role { animation: none !important; transition: none !important; }
     }
+
+    /* Focus styles for accessibility */
+    .energy-link:focus-visible,
+    .energy-conversation-btn:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
   `;
 
   return (
@@ -429,8 +437,9 @@ export function EnergyTemplate({ profile, accentColor }: EnergyTemplateProps) {
     >
       <style dangerouslySetInnerHTML={{ __html: customStyles }} />
 
-      <div className="energy-grid" />
+      <div aria-hidden="true" className="energy-grid" />
       <div
+        aria-hidden="true"
         className="energy-glow"
         style={{ transform: `translate(${mouse.x * 250}px, ${mouse.y * 250}px)` }}
       />
@@ -441,13 +450,13 @@ export function EnergyTemplate({ profile, accentColor }: EnergyTemplateProps) {
           transform: `rotateY(${mouse.x * 10}deg) rotateX(${mouse.y * -10}deg)`
         }}
       >
-        <div className="energy-float-shape en-shape-1" />
-        <div className="energy-float-shape en-shape-2" />
+        <div aria-hidden="true" className="energy-float-shape en-shape-1" />
+        <div aria-hidden="true" className="energy-float-shape en-shape-2" />
 
-        <span className="energy-particle energy-particle-1" />
-        <span className="energy-particle energy-particle-2" />
-        <span className="energy-particle energy-particle-3" />
-        <span className="energy-particle energy-particle-4" />
+        <span aria-hidden="true" className="energy-particle energy-particle-1" />
+        <span aria-hidden="true" className="energy-particle energy-particle-2" />
+        <span aria-hidden="true" className="energy-particle energy-particle-3" />
+        <span aria-hidden="true" className="energy-particle energy-particle-4" />
 
         <div className="energy-card">
           <div className="energy-corner energy-corner-tl" />
@@ -471,13 +480,15 @@ export function EnergyTemplate({ profile, accentColor }: EnergyTemplateProps) {
               <div className="energy-role">{profile.headline}</div>
               <p className="energy-bio">{profile.bio}</p>
 
-              <a
-                href={profile.email ? `mailto:${profile.email}` : '#'}
-                className="energy-conversation-btn"
-                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '16px' }}
-              >
-                <span>⚡</span> Get in Touch
-              </a>
+              {profile.email && (
+                <a
+                  href={`mailto:${profile.email}`}
+                  className="energy-conversation-btn"
+                  style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '16px' }}
+                >
+                  <span aria-hidden="true">⚡</span> Get in Touch
+                </a>
+              )}
 
               {(profile.theme as any)?.conversationUrl && (
                 <a
@@ -532,7 +543,7 @@ export function EnergyTemplate({ profile, accentColor }: EnergyTemplateProps) {
               {profile.links && profile.links.length > 0 && (
                 <div className="energy-links">
                   {profile.links.map((link: any, i: number) => (
-                    <a key={i} href={link.url} target="_blank" rel="noreferrer" className="energy-link">
+                    <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="energy-link">
                       <div className="energy-link-left">
                         <div className="energy-link-icon">
                           {getSharedLinkIcon(link.label, link.url, link.icon, 'w-5 h-5')}

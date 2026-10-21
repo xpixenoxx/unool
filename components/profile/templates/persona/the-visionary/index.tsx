@@ -34,7 +34,7 @@ export function VisionaryTemplate({ profile, onLinkClick, accentColor }: Visiona
 
   const imageUrl = profile?.avatarUrl;
   const email = profile?.email || "";
-  const contactLink = email.includes('@') ? `mailto:${email}` : '#';
+  const contactLink = email.includes('@') ? `mailto:${email}` : null;
 
   const currentYear = new Date().getFullYear();
 
@@ -70,14 +70,20 @@ export function VisionaryTemplate({ profile, onLinkClick, accentColor }: Visiona
           .anim-float, .anim-spin-slow { animation: none !important; }
           .transition-all, .transition-colors, .transition-transform, .transition-opacity { transition: none !important; }
         }
+
+        /* Focus visible styles for accessibility */
+        :focus-visible {
+          outline: 2px solid #2C2825;
+          outline-offset: 2px;
+        }
       `}} />
 
       <div className="visionary-outer-shell relative w-full max-w-[1040px] rounded-[32px] sm:rounded-[48px] border border-[#2C2825]/10 overflow-hidden">
 
-        <div className="absolute top-6 left-6 w-3 h-3 border-t border-l border-[#2C2825]/30 pointer-events-none" />
-        <div className="absolute top-6 right-6 w-3 h-3 border-t border-r border-[#2C2825]/30 pointer-events-none" />
-        <div className="absolute bottom-6 left-6 w-3 h-3 border-b border-l border-[#2C2825]/30 pointer-events-none" />
-        <div className="absolute bottom-6 right-6 w-3 h-3 border-b border-r border-[#2C2825]/30 pointer-events-none" />
+        <div className="absolute top-6 left-6 w-3 h-3 border-t border-l border-[#2C2825]/30 pointer-events-none" aria-hidden="true" />
+        <div className="absolute top-6 right-6 w-3 h-3 border-t border-r border-[#2C2825]/30 pointer-events-none" aria-hidden="true" />
+        <div className="absolute bottom-6 left-6 w-3 h-3 border-b border-l border-[#2C2825]/30 pointer-events-none" aria-hidden="true" />
+        <div className="absolute bottom-6 right-6 w-3 h-3 border-b border-r border-[#2C2825]/30 pointer-events-none" aria-hidden="true" />
 
         <header className="relative pt-8 pb-4 px-8 sm:px-12 flex justify-between items-center text-[9px] tracking-[0.2em] uppercase font-bold text-[#2C2825]">
           <div className="flex items-center gap-3">
@@ -91,7 +97,7 @@ export function VisionaryTemplate({ profile, onLinkClick, accentColor }: Visiona
         <section className="relative px-8 sm:px-12 pt-12 pb-20 flex flex-col md:flex-row gap-12 md:gap-20 items-center md:items-start border-b border-[#2C2825]/10">
 
           <div className="w-full md:w-[400px] flex flex-col items-center shrink-0">
-            <div className="absolute top-16 left-12 w-4 h-4 border-t border-l border-[#2C2825]/20 hidden md:block" />
+            <div className="absolute top-16 left-12 w-4 h-4 border-t border-l border-[#2C2825]/20 hidden md:block" aria-hidden="true" />
             <div className="relative w-full aspect-square max-w-[360px]">
               <div className="absolute inset-0 bg-gradient-to-br from-[#DCCDC3] to-[#E8DCC8] rounded-[50%] anim-float" />
               <div className="absolute inset-4 bg-gradient-to-tr from-[#F5E6D3] to-[#FDF2E9] rounded-[50%] border border-[#2C2825]/10" />
@@ -102,8 +108,8 @@ export function VisionaryTemplate({ profile, onLinkClick, accentColor }: Visiona
                   <span className="visionary-serif text-7xl md:text-9xl text-[#2C2825]/30">{firstName[0]}</span>
                 </div>
               )}
-              <div className="absolute -bottom-6 -right-6 w-14 h-14 bg-[#2C2825] rounded-full flex items-center justify-center border-4 border-[#FDF2E9] shadow-lg">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FDF2E9" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+              <div className="absolute -bottom-6 -right-6 w-14 h-14 bg-[#2C2825] rounded-full flex items-center justify-center border-4 border-[#FDF2E9] shadow-lg" aria-hidden="true">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FDF2E9" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
               </div>
             </div>
             <div className="mt-8 text-center md:text-left w-full">
@@ -153,10 +159,12 @@ export function VisionaryTemplate({ profile, onLinkClick, accentColor }: Visiona
             </div>
 
             <div className="pt-8 border-t border-[#2C2825]/10">
-              <a href={contactLink} className="inline-flex items-center gap-3 px-8 py-4 bg-[#2C2825] text-[#FDF2E9] rounded-[12px] text-sm font-bold uppercase tracking-[0.1em] transition-all hover:shadow-xl hover:shadow-[#2C2825]/30">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-                Get in Touch
-              </a>
+              {contactLink && (
+                <a href={contactLink} className="inline-flex items-center gap-3 px-8 py-4 bg-[#2C2825] text-[#FDF2E9] rounded-[12px] text-sm font-bold uppercase tracking-[0.1em] transition-all hover:shadow-xl hover:shadow-[#2C2825]/30">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                  Get in Touch
+                </a>
+              )}
             </div>
           </div>
         </section>
@@ -169,7 +177,11 @@ export function VisionaryTemplate({ profile, onLinkClick, accentColor }: Visiona
             </div>
             <div className="flex-1 min-w-0 border-l border-[#2C2825]/10 md:border-l-0 md:border-t md:pt-8 pl-8 md:pl-0 md:mt-0">
               <p className="text-[10px] uppercase tracking-[0.2em] text-[#2C2825]/50 font-bold mb-4">CONNECT</p>
-              <a href={contactLink} className="text-base md:text-lg text-[#2C2825] font-medium hover:text-[#2C2825]/60 transition-colors underline underline-offset-2">{email || 'Email not public'}</a>
+              {contactLink ? (
+                <a href={contactLink} className="text-base md:text-lg text-[#2C2825] font-medium hover:text-[#2C2825]/60 transition-colors underline underline-offset-2">{email}</a>
+              ) : (
+                <span className="text-base md:text-lg text-[#2C2825]/40 font-medium">Email not public</span>
+              )}
             </div>
           </div>
         </section>

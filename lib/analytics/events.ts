@@ -9,7 +9,8 @@ export type AnalyticsEventType =
   | 'post_publish'
   | 'post_view'
   | 'profile_cta_click'
-  | 'subdomain_claim';
+  | 'subdomain_claim'
+  | 'template_change';
 
 export const ANALYTICS_EVENT_TYPES: AnalyticsEventType[] = [
   'profile_view',
@@ -18,6 +19,7 @@ export const ANALYTICS_EVENT_TYPES: AnalyticsEventType[] = [
   'post_view',
   'profile_cta_click',
   'subdomain_claim',
+  'template_change',
 ] as const;
 
 export function isValidEventType(type: string): type is AnalyticsEventType {

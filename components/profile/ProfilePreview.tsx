@@ -79,16 +79,39 @@ export function ProfilePreview({
   onLinkClick,
 }: ProfilePreviewProps) {
   const [mounted, setMounted] = React.useState(false);
+  const [loadError, setLoadError] = React.useState(false);
   const effectiveAccentColor = accentColor || profile?.theme?.accentColor || 'var(--color-primary)';
 
   React.useEffect(() => {
     setMounted(true);
-  }, []);
+    setLoadError(false);
+  }, [templateId]);
 
   if (!mounted) {
     return (
-      <div className={cn('flex items-center justify-center h-full min-h-[400px]', className)}>
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      <div className={cn('flex items-center justify-center h-full min-h-[400px]', className)} role="status" aria-live="polite" aria-label="Loading template preview">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" aria-hidden="true" />
+        <span className="sr-only">Loading template preview...</span>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className={cn('flex flex-col items-center justify-center h-full min-h-[400px] p-8 text-center', className)} role="alert">
+        <svg className="h-12 w-12 text-muted-foreground/50 mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="15" y1="9" x2="9" y2="15" />
+          <line x1="9" y1="9" x2="15" y2="15" />
+        </svg>
+        <p className="text-lg font-medium text-foreground mb-2">Failed to load template</p>
+        <p className="text-muted-foreground text-sm mb-4">The template "{templateId}" could not be loaded. Please try again later.</p>
+        <button
+          onClick={() => { setLoadError(false); setMounted(false); }}
+          className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+        >
+          Retry
+        </button>
       </div>
     );
   }
@@ -103,6 +126,9 @@ export function ProfilePreview({
         '--profile-accent': effectiveAccentColor,
         fontFamily: 'var(--font-geist)',
       } as React.CSSProperties}
+      role="region"
+      aria-label={`Template preview: ${templateId}`}
+      onError={() => setLoadError(true)}
     >
       <TemplateWrapper
         templateId={templateId}

@@ -157,7 +157,7 @@ export function ClubOpenToBadges({ openTo }: ClubOpenToBadgesProps) {
                 aria-label={item.label}
               >
                 <span className={`club-badge-icon ${item.variant ? `club-badge-${item.variant}` : ''}`} aria-hidden="true">
-                  <Icon size={16} strokeWidth={2} />
+                  <Icon size={16} strokeWidth={2} aria-hidden="true" />
                 </span>
                 {item.label}
               </motion.span>

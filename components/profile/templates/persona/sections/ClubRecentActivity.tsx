@@ -219,7 +219,7 @@ export function ClubRecentActivity({ activities, profile }: ClubRecentActivityPr
             <h2 id="activity-title" className="club-section-title">RECENT ACTIVITY</h2>
           </div>
           <div className="club-live-clock" aria-label="Live clock">
-            <Clock size={14} strokeWidth={2} />
+            <Clock size={14} strokeWidth={2} aria-hidden="true" />
             <LiveClock format="HH:mm:ss" />
           </div>
         </header>
@@ -242,7 +242,7 @@ export function ClubRecentActivity({ activities, profile }: ClubRecentActivityPr
                   {activity.link && (
                     <a href={activity.link} target="_blank" rel="noopener noreferrer" className="club-activity-link">
                       View
-                      <ExternalLink size={12} strokeWidth={2} />
+                      <ExternalLink size={12} strokeWidth={2} aria-hidden="true" />
                     </a>
                   )}
                   <time className="club-activity-time" dateTime={activity.timestamp}>

@@ -418,6 +418,14 @@ export function CreatorTemplate({ profile, accentColor }: CreatorTemplateProps) 
       .creator-grid, .creator-ring, .creator-ring-2, .creator-float-shape, .creator-particle,
       .creator-avatar, .creator-role { animation: none !important; transition: none !important; }
     }
+
+    /* Focus visible styles for accessibility */
+    .creator-link:focus-visible,
+    .creator-conversation-btn:focus-visible,
+    .creator-data-box:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
   `;
 
   return (
@@ -429,10 +437,11 @@ export function CreatorTemplate({ profile, accentColor }: CreatorTemplateProps) 
     >
       <style dangerouslySetInnerHTML={{ __html: customStyles }} />
 
-      <div className="creator-grid" />
+      <div className="creator-grid" aria-hidden="true" />
       <div
         className="creator-glow"
         style={{ transform: `translate(${mouse.x * 250}px, ${mouse.y * 250}px)` }}
+        aria-hidden="true"
       />
 
       <div
@@ -441,24 +450,24 @@ export function CreatorTemplate({ profile, accentColor }: CreatorTemplateProps) 
           transform: `rotateY(${mouse.x * 10}deg) rotateX(${mouse.y * -10}deg)`
         }}
       >
-        <div className="creator-float-shape cr-shape-1" />
-        <div className="creator-float-shape cr-shape-2" />
+        <div className="creator-float-shape cr-shape-1" aria-hidden="true" />
+        <div className="creator-float-shape cr-shape-2" aria-hidden="true" />
 
-        <span className="creator-particle creator-particle-1" />
-        <span className="creator-particle creator-particle-2" />
-        <span className="creator-particle creator-particle-3" />
-        <span className="creator-particle creator-particle-4" />
+        <span className="creator-particle creator-particle-1" aria-hidden="true" />
+        <span className="creator-particle creator-particle-2" aria-hidden="true" />
+        <span className="creator-particle creator-particle-3" aria-hidden="true" />
+        <span className="creator-particle creator-particle-4" aria-hidden="true" />
 
         <div className="creator-card">
-          <div className="creator-corner creator-corner-tl" />
-          <div className="creator-corner creator-corner-tr" />
-          <div className="creator-corner creator-corner-bl" />
-          <div className="creator-corner creator-corner-br" />
+          <div className="creator-corner creator-corner-tl" aria-hidden="true" />
+          <div className="creator-corner creator-corner-tr" aria-hidden="true" />
+          <div className="creator-corner creator-corner-bl" aria-hidden="true" />
+          <div className="creator-corner creator-corner-br" aria-hidden="true" />
 
           <div className="creator-inner">
             <div className="creator-avatar-wrap">
-              <div className="creator-ring" />
-              <div className="creator-ring-2" />
+              <div className="creator-ring" aria-hidden="true" />
+              <div className="creator-ring-2" aria-hidden="true" />
               {profile.avatarUrl ? (
                 <img src={profile.avatarUrl} alt={profile.name} className="creator-avatar" />
               ) : (
@@ -471,13 +480,15 @@ export function CreatorTemplate({ profile, accentColor }: CreatorTemplateProps) 
               <div className="creator-role">{profile.headline}</div>
               <p className="creator-bio">{profile.bio}</p>
 
+              {profile.email && (
               <a
-                href={profile.email ? `mailto:${profile.email}` : '#'}
+                href={`mailto:${profile.email}`}
                 className="creator-conversation-btn"
                 style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '16px' }}
               >
-                <span>✉</span> Get in Touch
+                <span aria-hidden="true">✉</span> Get in Touch
               </a>
+            )}
 
               {(profile.theme as any)?.conversationUrl && (
                 <a
@@ -532,7 +543,7 @@ export function CreatorTemplate({ profile, accentColor }: CreatorTemplateProps) 
               {profile.links && profile.links.length > 0 && (
                 <div className="creator-links">
                   {profile.links.map((link: any, i: number) => (
-                    <a key={i} href={link.url} target="_blank" rel="noreferrer" className="creator-link">
+                    <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="creator-link">
                       <div className="creator-link-left">
                         <div className="creator-link-icon">
                           {getSharedLinkIcon(link.label, link.url)}

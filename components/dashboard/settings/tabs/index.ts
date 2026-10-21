@@ -6,6 +6,7 @@ export { NotificationsTab } from './NotificationsTab';
 export { SecurityTab } from './SecurityTab';
 export { DangerZoneTab } from './DangerZoneTab';
 export { TemplatesTab } from './TemplatesTab';
+export { TemplateAnalyticsTab } from './TemplateAnalyticsTab';
 
 // Shared components
 export {
