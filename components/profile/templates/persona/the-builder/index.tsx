@@ -86,11 +86,6 @@ export function BuilderTemplate({ profile }: BuilderTemplateProps) {
                 </div>
 
                 <div className="flex-1 relative z-10 flex flex-col justify-center">
-                   <div className="text-[#C5A86A] text-[9px] uppercase tracking-[0.2em] mb-5 flex items-center gap-3 font-bold">
-                      <div className="w-2 h-2 bg-current rounded-full animate-ping" aria-hidden="true" />
-                      SYSTEM ONLINE
-                   </div>
-
                    <div className="flex items-center gap-5 mb-6">
                      <h2 className="builder-serif text-4xl md:text-5xl">{name || "[ BUILDER ]"}</h2>
                    </div>

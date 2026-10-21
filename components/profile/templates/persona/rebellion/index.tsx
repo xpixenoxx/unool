@@ -158,10 +158,7 @@ export function RebellionTemplate({ profile, accentColor }: RebellionTemplatePro
     @keyframes reb-orb-drift { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(20px,-15px) scale(1.2)} }
 
     .reb-hero-left { flex: 1; display: flex; flex-direction: column; justify-content: center; padding-right: 40px; transform: translateZ(40px); }
-    .reb-eyebrow {
-      font-family: 'Cinzel', serif; font-size: 0.75rem; letter-spacing: 4px;
-      text-transform: uppercase; color: var(--gold); margin-bottom: 16px; opacity: 0.9;
-    }
+
     .reb-name {
       font-family: 'Cinzel', serif; font-weight: 900; font-size: clamp(3.5rem, 6vw, 5.5rem);
       line-height: 0.95; letter-spacing: -0.02em; color: var(--text); margin-bottom: 16px;
@@ -403,7 +400,6 @@ export function RebellionTemplate({ profile, accentColor }: RebellionTemplatePro
           </div>
 
           <div className="reb-hero-left">
-            <div className="reb-eyebrow">Disruptive · Royal · Rebellion</div>
             <h1 className="reb-name">{profile.name}</h1>
             <div className="reb-role-row">
               <div className="reb-role-gem" />

@@ -1551,9 +1551,6 @@ export default function HomePage() {
         {/* Hero Section */}
         <section id="overview">
           <div>
-            <div className="pill">
-              <i></i>One Link · One Click · 30+ Platforms
-            </div>
             <h1 className="d">
               <span>
                 <s style={{ '--i': 1 } as React.CSSProperties}>One</s>{' '}
@@ -1626,7 +1623,6 @@ export default function HomePage() {
 
         {/* Platform Voices Section */}
         <section id="voices">
-          <div className="ey">One Click · Every Platform</div>
           <h2 className="d rv">
             One thought. <em>Every voice.</em>
           </h2>
@@ -1653,15 +1649,6 @@ export default function HomePage() {
           </div>
 
           <div className="deck" id="deck">
-            <span className="fx" style={{ left: '5%', top: '90px' }}>
-              ✓ Tone matched
-            </span>
-            <span className="fx" style={{ right: '5%', top: '300px', animationDelay: '-2s' }}>
-              ✓ Limits respected
-            </span>
-            <span className="fx" style={{ left: '9%', bottom: '90px', animationDelay: '-4s' }}>
-              ⚡ Adapted in 0.8s
-            </span>
             <div className="cd li"></div>
             <div className="cd x"></div>
             <div className="cd t"></div>
@@ -1689,7 +1676,6 @@ export default function HomePage() {
 
       {/* Features Bento Grid */}
       <section id="features">
-        <div className="ey">The Unool Workflow</div>
         <h2 className="d rv">
           Everything flows. <em>Nothing breaks.</em>
         </h2>
@@ -1792,16 +1778,6 @@ export default function HomePage() {
         </p>
         <div className="split">
           <div className="pst" id="pst">
-            <span className="fch" data-pos="ig" style={{ left: '-14px', top: '85px' }}>
-              📸 Instagram
-            </span>
-            <span className="fch" data-pos="yt" style={{ right: '-14px', top: '190px', animationDelay: '-2s' }}>
-              ▶ YouTube
-            </span>
-            <span className="fch" data-pos="tt" style={{ left: '-8px', bottom: '115px', animationDelay: '-4s' }}>
-              🎵 TikTok
-            </span>
-
             {/* Authentic Unool Phone Frame */}
             <div className="pf" id="pf">
               {/* Dynamic Island Pill */}
@@ -1867,18 +1843,6 @@ export default function HomePage() {
                 <h4 className="pf-name">Pixenox</h4>
                 <div className="pf-role" style={{ color: currentTpl.subtextColor }}>
                   {currentTpl.role}
-                </div>
-
-                {/* Template Tag Badge */}
-                <div
-                  className="pf-tag-badge"
-                  style={{
-                    background: currentTpl.badge.bg,
-                    color: currentTpl.badge.color,
-                    border: currentTpl.badge.border || 'none',
-                  }}
-                >
-                  {currentTpl.badge.text}
                 </div>
 
                 {/* Proof Points Grid (Original Unool feature) */}
@@ -1956,25 +1920,11 @@ export default function HomePage() {
                     </div>
                   ))}
                 </div>
-
-                {/* Footer Verification */}
-                <div
-                  className="pf-footer-pill"
-                  style={{
-                    background: currentTpl.proofBg,
-                    color: currentTpl.subtextColor,
-                  }}
-                >
-                  ⚡ unool.co/pixenox
-                </div>
               </div>
             </div>
           </div>
 
           <div className="rv">
-            <div className="ey" style={{ color: 'var(--terra)' }}>
-              Your fast, beautiful profile
-            </div>
             <h3 className="d">
               Every link. <em>One home.</em>
             </h3>
@@ -1983,18 +1933,8 @@ export default function HomePage() {
               a theme and watch it change live.
             </p>
 
-            {/* Active Template Indicator Pill */}
-            <div style={{ marginTop: '16px' }}>
-              <div className="tpl-indicator">
-                <span className="dot" style={{ background: currentTpl.color }}></span>
-                <span>
-                  Theme: <b>{currentTpl.name}</b> <small>· {currentTpl.category}</small>
-                </span>
-              </div>
-            </div>
-
             {/* Template Swatches matching Image 2 */}
-            <div className="sw" id="sw">
+            <div className="sw" id="sw" style={{ marginTop: '24px' }}>
               {PROFILE_PREVIEW_TEMPLATES.map((tpl, i) => (
                 <button
                   key={tpl.id}
@@ -2022,7 +1962,6 @@ export default function HomePage() {
 
       {/* Pricing Section */}
       <section id="pricing">
-        <div className="ey">Simple Pricing</div>
         <h2 className="d rv">
           Start free. <em>Scale when you’re ready.</em>
         </h2>
@@ -2047,7 +1986,6 @@ export default function HomePage() {
           </div>
 
           <div className="pc pro rv">
-            <span className="tag">Most Popular</span>
             <h3>Pro</h3>
             <div className="for">For growing creators &amp; teams</div>
             <div className="pr">

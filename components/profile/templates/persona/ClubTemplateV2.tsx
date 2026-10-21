@@ -156,11 +156,6 @@ function ClubHeroV2({ name, tagline, handle }: HeroProps) {
 
       {/* Content — centered, bold, compact */}
       <div className="club-hero-content">
-        <div className="club-hero-badge" style={{ '--accent': 'var(--club-electric-cyan)' }}>
-          <span className="club-section-num">01</span>
-          <span className="club-section-label">MASTHEAD</span>
-        </div>
-
         <h1 id="hero-title" className="club-hero-name">
           {name || 'THE CLUB'}
         </h1>

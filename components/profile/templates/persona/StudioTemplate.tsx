@@ -1177,20 +1177,6 @@ function IdentityCore({ profile, socialLinks, openToIntents }: { profile: Public
         <div className="grid lg:grid-cols-12 gap-8 lg:gap-12 items-start">
           {/* Left Column: Identity */}
           <div className="lg:col-span-7 space-y-8">
-            {/* Category Tag */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[rgba(13,30,26,0.65)] backdrop-blur-md border border-[var(--accent-gold-subtle)] shadow-sm"
-              style={{ borderColor: 'var(--accent-gold)' }}
-            >
-              <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--accent-citrine)' }} aria-hidden="true" />
-              <span className="font-ui text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--accent-gold)' }}>
-                INDEPENDENT DESIGN & DIRECTION
-              </span>
-            </motion.div>
-
             {/* Studio Name */}
             <motion.div
               initial={{ opacity: 0, y: 30 }}

@@ -64,19 +64,7 @@
   max-width: 800px;
 }
 
-.club-hero-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--club-space-3);
-  padding: var(--club-space-2) var(--club-space-4);
-  border-radius: var(--club-radius-blade);
-  background: linear-gradient(135deg, var(--club-void-card) 0%, var(--club-void-lift) 100%);
-  border: 1px solid var(--club-border);
-  border-right-color: var(--accent);
-  border-bottom-color: var(--accent);
-  margin-bottom: var(--club-space-6);
-  backdrop-filter: blur(8px);
-}
+
 
 .club-section-num {
   font-family: 'Cormorant Garamond', serif;

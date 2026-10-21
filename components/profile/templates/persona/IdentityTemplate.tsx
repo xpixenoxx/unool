@@ -768,19 +768,6 @@ function RebellionTemplate({ profile, accentColor }: any) {
       transform: translateY(-90px); /* Moved even further up per user request */
     }
 
-    /* Eyebrow */
-    .reb-eyebrow {
-      display: inline-flex; align-items: center; gap: 10px;
-      font-family: var(--royal); font-size: 0.72rem;
-      letter-spacing: 4px; text-transform: uppercase;
-      color: var(--crimson); margin-bottom: 24px;
-    }
-    .reb-eyebrow::before, .reb-eyebrow::after {
-      content: ""; display: block; width: 28px; height: 1px;
-      background: linear-gradient(90deg, transparent, var(--crimson));
-    }
-    .reb-eyebrow::after { background: linear-gradient(90deg, var(--crimson), transparent); }
-
     /* Giant Name */
     .reb-name {
       font-family: var(--serif); font-weight: 900;
@@ -1257,7 +1244,6 @@ function RebellionTemplate({ profile, accentColor }: any) {
 
           {/* LEFT — Text content */}
           <div className="reb-hero-left">
-            <div className="reb-eyebrow">Disruptive · Royal · Rebellion</div>
             <h1 className="reb-name">{profile.name}</h1>
             <div className="reb-role-row">
               <div className="reb-role-gem" />
@@ -2891,11 +2877,6 @@ function BuilderTemplate({ profile }: any) {
 
                 {/* Content Column */}
                 <div className="flex-1 relative z-10 flex flex-col justify-center">
-                   <div className="text-[#C5A86A] text-[9px] uppercase tracking-[0.2em] mb-5 flex items-center gap-3 font-bold">
-                      <div className="w-2 h-2 bg-current rounded-full animate-ping" />
-                      SYSTEM ONLINE
-                   </div>
-                   
                    <div className="flex items-center gap-5 mb-6">
                      <h2 className="builder-serif text-4xl md:text-5xl">{name || "[ BUILDER ]"}</h2>
                    </div>

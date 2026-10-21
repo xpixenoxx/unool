@@ -19,7 +19,6 @@ import {
   ChevronDown,
   Eye,
   Palette,
-  Instagram,
   X,
   Package
 } from 'lucide-react';
@@ -847,22 +846,6 @@ export default function BrandMaterialsPageView({
             </p>
           )}
 
-          {/* Linked Instagram Post Connection Badge */}
-          {((pageData.linked_posts && pageData.linked_posts.length > 0) || (pageData.theme?.linked_posts && pageData.theme.linked_posts.length > 0)) && (
-            <div 
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold mt-1 shadow-xs"
-              style={{
-                backgroundColor: theme.badgeBg,
-                color: theme.badgeText,
-                border: `1px solid ${theme.itemCardBorder}`,
-              }}
-            >
-              <Instagram size={13} />
-              <span>
-                Connected to Instagram Post • Exclusive Resources &amp; Materials
-              </span>
-            </div>
-          )}
         </section>
 
         {/* ── SECTION 2: MAIN SHOWCASE PREVIEW CARD ── */}

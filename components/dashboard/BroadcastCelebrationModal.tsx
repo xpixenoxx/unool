@@ -144,12 +144,6 @@ export function BroadcastCelebrationModal({
                   </div>
                 </div>
 
-                {/* Status Pill */}
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-mono font-semibold uppercase tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 mb-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>{successCount || validChannels.length || 1} Channel{((successCount || validChannels.length) !== 1) ? 's' : ''} Live & Synchronized</span>
-                </div>
-
                 <h2 className="text-xl sm:text-2xl font-serif font-bold tracking-tight text-white">
                   Story Broadcast Live
                 </h2>

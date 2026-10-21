@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { motion, useScroll, useTransform } from 'framer-motion';
-import { Shield, ArrowLeft, Mail, Database, Lock, Eye, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Mail, Database, Lock, Eye, CheckCircle2 } from 'lucide-react';
 import { useRef } from 'react';
 
 const C = {
@@ -47,10 +47,6 @@ export default function PrivacyPolicyPage() {
         {/* Left Column: Hero & Index */}
         <div className="lg:col-span-5 lg:sticky lg:top-40 h-fit">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease: "easeOut" }}>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-sm font-medium text-white/70 mb-8">
-              <Shield className="w-4 h-4 text-[#C84B31]" />
-              Updated July 2026
-            </div>
             <h1 className="text-5xl lg:text-7xl font-extrabold tracking-tighter leading-[1.1] mb-6">
               Privacy <br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-[#C84B31] to-[#8C2A25]">Policy.</span>
             </h1>

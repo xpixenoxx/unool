@@ -266,33 +266,7 @@ export function VoiceTemplate({ profile, accentColor }: VoiceTemplateProps) {
       transform-style: preserve-3d;
     }
 
-    .voice-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 24px;
-      background: rgba(var(--accent-rgb), 0.1);
-      border: 1px solid var(--accent);
-      border-radius: 100px;
-      font-size: 0.65rem;
-      font-weight: 700;
-      letter-spacing: 3px;
-      text-transform: uppercase;
-      color: var(--accent);
-      margin-bottom: 24px;
-      transform: translateZ(40px);
-      position: relative;
-    }
-    .voice-badge::before {
-      content: ""; width: 8px; height: 8px;
-      background: var(--accent);
-      border-radius: 50%;
-      animation: voice-pulse-dot 1.5s ease-in-out infinite;
-    }
-    @keyframes voice-pulse-dot {
-      0%, 100% { transform: scale(1); opacity: 1; }
-      50% { transform: scale(1.4); opacity: 0.5; }
-    }
+
 
     .voice-name {
       font-family: 'DM Serif Display', serif;
@@ -572,7 +546,6 @@ export function VoiceTemplate({ profile, accentColor }: VoiceTemplateProps) {
             </div>
 
             <div className="voice-content">
-              <div className="voice-badge">ON AIR</div>
               <h1 className="voice-name">{profile.name}</h1>
               <div className="voice-headline">{profile.headline}</div>
               <p className="voice-bio">{profile.bio}</p>

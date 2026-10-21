@@ -51,9 +51,7 @@ export function ClubHero({ profile }: ClubHeroProps) {
     ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.01 } } }
     : fadeInUp('gentle', sectionDelays.hero + 0.2);
 
-  const badgeVariants = prefersReduced
-    ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.01 } } }
-    : fadeIn('standard', sectionDelays.hero + 0.05);
+
 
   const scrollIndicatorVariants: any = prefersReduced
     ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.01, delay: 1 } } }
@@ -88,38 +86,7 @@ export function ClubHero({ profile }: ClubHeroProps) {
           padding: var(--space-8) var(--space-6);
           max-width: 900px;
         }
-        .club-hero-badge {
-          display: inline-flex;
-          align-items: center;
-          gap: var(--space-3);
-          padding: var(--space-2) var(--space-4);
-          border-radius: var(--radius-full);
-          background: linear-gradient(135deg, oklch(0.09 0.02 240 / 0.6), oklch(0.06 0.01 240 / 0.4));
-          border: 1px solid oklch(0.25 0.02 240 / 0.3);
-          backdrop-filter: blur(12px);
-          margin-bottom: var(--space-6);
-        }
-        .club-section-number {
-          font-family: 'Cormorant Garamond', serif;
-          font-weight: 600;
-          font-size: var(--club-text-section-num);
-          letter-spacing: 0.3em;
-          text-transform: uppercase;
-          color: oklch(0.65 0.02 240);
-          opacity: 0.6;
-        }
-        .club-section-title-small {
-          font-family: 'Syne', sans-serif;
-          font-weight: 700;
-          font-size: clamp(0.75rem, 0.7rem + 0.2vw, 0.875rem);
-          font-stretch: 125%;
-          letter-spacing: 0.1em;
-          text-transform: uppercase;
-          background: linear-gradient(135deg, oklch(0.65 0.22 200), oklch(0.55 0.28 100));
-          -webkit-background-clip: text;
-          background-clip: text;
-          -webkit-text-fill-color: transparent;
-        }
+
         .club-hero-logo {
           font-family: 'Cormorant Garamond', serif;
           font-weight: 600;
@@ -186,10 +153,6 @@ export function ClubHero({ profile }: ClubHeroProps) {
 
         {/* Content Layer */}
         <motion.div className="club-hero-content" variants={logoVariants}>
-          <motion.div className="club-hero-badge" variants={badgeVariants}>
-            <span className="club-section-number">01</span>
-            <span className="club-section-title-small">MASTHEAD</span>
-          </motion.div>
 
           <motion.h1
             id="hero-title"
