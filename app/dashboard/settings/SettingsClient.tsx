@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Building2, Sparkles, Terminal, Bell, Shield, AlertTriangle } from 'lucide-react';
+import { Building2, Sparkles, Terminal, Bell, Shield, AlertTriangle, Palette } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { getSupabaseBrowserClient } from '@/lib/supabase/browser';
@@ -14,10 +14,11 @@ import {
   NotificationsTab,
   SecurityTab,
   DangerZoneTab,
+  TemplatesTab,
   LoadingSkeleton,
 } from '@/components/dashboard/settings/tabs';
 
-type SectionId = 'workspace' | 'studio' | 'integrations' | 'notifications' | 'security' | 'danger';
+type SectionId = 'workspace' | 'studio' | 'integrations' | 'notifications' | 'security' | 'danger' | 'templates';
 
 interface Workspace {
   id: string;
@@ -35,6 +36,7 @@ const NAV_SECTIONS: {
   { id: 'workspace', icon: Building2, label: 'Workspace', description: 'Name, plan & details' },
   { id: 'studio', icon: Sparkles, label: 'Studio AI', description: 'Voice & persona calibration' },
   { id: 'integrations', icon: Terminal, label: 'Integrations', description: 'API keys & webhooks' },
+  { id: 'templates', icon: Palette, label: 'Templates', description: 'Profile design & themes' },
   { id: 'notifications', icon: Bell, label: 'Notifications', description: 'Email & event alerts' },
   { id: 'security', icon: Shield, label: 'Security', description: 'MFA & active sessions' },
   { id: 'danger', icon: AlertTriangle, label: 'Danger Zone', description: 'Irreversible actions', danger: true },
@@ -59,6 +61,10 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
   } | null>(null);
   const [mfaEnabled, setMfaEnabled] = useState(false);
   const [togglingMfa, setTogglingMfa] = useState(false);
+
+  // Template state
+  const [currentTemplate, setCurrentTemplate] = useState<string>('lone');
+  const [templateLoading, setTemplateLoading] = useState(false);
 
   const loadWorkspace = async () => {
     try {
@@ -124,6 +130,40 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
     if (res.ok) window.location.href = '/signup';
   };
 
+  const loadTemplate = async () => {
+    try {
+      const res = await fetch('/api/profile', { credentials: 'include' });
+      const data = await res.json();
+      if (data.profile?.theme?.template) {
+        setCurrentTemplate(data.profile.theme.template);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleSaveTemplate = async (templateId: string) => {
+    setTemplateLoading(true);
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ theme: { template: templateId } }),
+      });
+      if (res.ok) {
+        setCurrentTemplate(templateId);
+        toast.success('Template updated successfully');
+      } else {
+        toast.error('Failed to update template');
+      }
+    } catch {
+      toast.error('Failed to update template');
+    } finally {
+      setTemplateLoading(false);
+    }
+  };
+
   /* ── oauth banner ── */
   const connected = searchParams.get('connected');
   const error = searchParams.get('error');
@@ -150,6 +190,7 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
   useEffect(() => {
     loadWorkspace();
     loadUserSecurity();
+    loadTemplate();
   }, []);
 
   /* ── loading skeleton ── */
@@ -284,6 +325,28 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
             <IntegrationsTab
               onLoadKeys={async () => {
                 // The IntegrationsTab handles its own loading
+              }}
+            />
+          )}
+
+          {activeSection === 'templates' && (
+            <TemplatesTab
+              userId={userId}
+              workspaceId={workspaceId}
+              currentTemplate={currentTemplate}
+              onTemplateChange={handleSaveTemplate}
+              profileData={{
+                name: workspace?.name || 'Preview User',
+                headline: 'Preview your template',
+                bio: 'This is a live preview of how your profile will look.',
+                subdomain: workspace?.id || 'preview',
+                avatarUrl: '',
+                links: [
+                  { id: '1', label: 'Twitter', url: 'https://twitter.com', icon: 'twitter', clicks: 0, order: 0, isVisible: true },
+                  { id: '2', label: 'GitHub', url: 'https://github.com', icon: 'github', clicks: 0, order: 1, isVisible: true },
+                  { id: '3', label: 'LinkedIn', url: 'https://linkedin.com', icon: 'linkedin', clicks: 0, order: 2, isVisible: true },
+                ],
+                proofs: [],
               }}
             />
           )}

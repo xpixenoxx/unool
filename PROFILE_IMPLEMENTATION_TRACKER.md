@@ -117,9 +117,13 @@
 - **Content:** How to add new templates, override styles, extend props
 - **Verification:** Created comprehensive documentation covering TemplateProps, PublicProfile, ProfileLink, ProfileProof, adding new templates, extending props, overriding styles, performance budgets, shared utilities, categories/presets, best practices, debugging, and file structure reference
 
-### [ ] **P2-T4: Add E2E Tests for Public Profile Flow**
+### [x] **P2-T4: Add E2E Tests for Public Profile Flow**
 - **Target:** Playwright tests for `app/u/[subdomain]/page.tsx`
-- **Scenarios:** Public profile loads, private returns 404, rate limit triggers
+- **Scenarios:** Public profile loads, private returns 404, rate limit triggers, error handling, responsive design, template variations, API endpoint structure
+- **Created:** `playwright.config.ts` — Playwright configuration with chromium, firefox, webkit projects; webServer for dev server
+- **Created:** `e2e/public-profile.spec.ts` — Comprehensive test suite covering happy path, private profile 404, rate limiting, error handling, responsive design (mobile/tablet/desktop), template variations, API endpoint validation
+- **Created:** `e2e/fixtures.ts` — Test fixtures with authenticatedPage
+- **Verification:** `npx tsc --noEmit` — zero type errors
 
 ### [x] **P2-T5: Migrate SettingsClient.tsx Tabs to Separate Components**
 - **File:** `app/dashboard/settings/SettingsClient.tsx` (1,340 lines)
@@ -139,8 +143,12 @@
 
 ## P3 — Polish & Future-Proofing
 
-### [ ] **P3-T1: Add Template Preview in Settings**
+### [x] **P3-T1: Add Template Preview in Settings**
 - **Feature:** Live preview pane in template selector modal
+- **Created:** `components/dashboard/settings/tabs/TemplatesTab.tsx` — Template selector with live preview using existing `TemplateSelector` component
+- **Updated:** `app/dashboard/settings/SettingsClient.tsx` — Added templates tab to navigation, template state management (`currentTemplate`, `templateLoading`), `loadTemplate()` and `handleSaveTemplate()` functions, rendered `TemplatesTab` in content panel
+- **Updated:** `components/dashboard/settings/tabs/index.ts` — Added `TemplatesTab` to barrel export
+- **Verification:** `npx tsc --noEmit` — zero type errors
 
 ### [ ] **P3-T2: Template Analytics Dashboard**
 - **Feature:** Track template usage, conversion, performance
@@ -169,6 +177,8 @@
 | 2026-10-21 | P2-T2 | Complete | Added maxBundleSizeKB and maxRenderMs to all 15 templates in registry.ts (range: lone 25KB/40ms → the-studio 150KB/250ms); updated TemplateFeatures interface in types.ts; npx tsc --noEmit passes |
 | 2026-10-21 | P2-T3 | Complete | Created docs/profile-templates.md with comprehensive Template Customization API documentation |
 | 2026-10-21 | P2-T5 | Complete | Split SettingsClient.tsx (1340 lines) into 6 tab components + shared utilities in components/dashboard/settings/tabs/; all tabs functional; npx tsc --noEmit passes |
+| 2026-10-21 | P2-T4 | Complete | Created playwright.config.ts and comprehensive e2e/public-profile.spec.ts covering happy path, private 404, rate limiting, error handling, responsive design (mobile/tablet/desktop), template variations, API endpoints; npx tsc --noEmit passes |
+| 2026-10-21 | P3-T1 | Complete | Created TemplatesTab.tsx with live preview using TemplateSelector component; added templates tab to SettingsClient.tsx navigation with state management (loadTemplate, handleSaveTemplate); npx tsc --noEmit passes |
 | | | | |
 
 ---
