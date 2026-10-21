@@ -360,21 +360,22 @@
   color: var(--w1);
   box-shadow: 0 0 90px 20px rgba(200, 75, 49, .55);
   transform: translateZ(0);
-  animation: br 3s ease-in-out infinite;
   pointer-events: none;
 }
 
 .unool-home-page .core-img {
-  width: 58px;
-  height: 58px;
+  width: 62px;
+  height: 62px;
   object-fit: contain;
   display: block;
   filter: drop-shadow(0 2px 8px rgba(61, 12, 26, 0.25));
   pointer-events: none;
   user-select: none;
+  animation: br 3s ease-in-out infinite;
 }
 
 @keyframes br {
+  0%, 100% { transform: scale(1); }
   50% { transform: scale(1.08); }
 }
 

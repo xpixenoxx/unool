@@ -1296,11 +1296,15 @@ export default function HomePage() {
       }
       sizeSphere();
       window.addEventListener('resize', sizeSphere);
+      const coreEl = sp.querySelector('.core') as HTMLElement | null;
 
       function fr() {
         if (!sp) return;
         if (!drag) ry += vy;
         sp.style.transform = 'rotateX(' + rx + 'rad) rotateY(' + ry + 'rad)';
+        if (coreEl) {
+          coreEl.style.transform = 'rotateY(' + -ry + 'rad) rotateX(' + -rx + 'rad)';
+        }
         const cy = Math.cos(ry);
         const sy = Math.sin(ry);
         const cx = Math.cos(rx);
@@ -1604,7 +1608,7 @@ export default function HomePage() {
           <div className="stage" id="stage" ref={stageRef}>
             <div className="sp" id="sp" ref={spRef}>
               <div className="core">
-                <img src="/unool-icon.png" alt="UNOOL" className="core-img" />
+                <img src="/unool-logo.png" alt="UNOOL" className="core-img" />
               </div>
             </div>
           </div>

@@ -112,17 +112,28 @@
 - **Updated:** `TemplateFeatures` interface in `components/profile/templates/types.ts`
 - **Verification:** `npx tsc --noEmit` — zero type errors
 
-### [ ] **P2-T3: Document Template Customization API**
+### [x] **P2-T3: Document Template Customization API**
 - **File:** `docs/profile-templates.md` (create)
 - **Content:** How to add new templates, override styles, extend props
+- **Verification:** Created comprehensive documentation covering TemplateProps, PublicProfile, ProfileLink, ProfileProof, adding new templates, extending props, overriding styles, performance budgets, shared utilities, categories/presets, best practices, debugging, and file structure reference
 
 ### [ ] **P2-T4: Add E2E Tests for Public Profile Flow**
 - **Target:** Playwright tests for `app/u/[subdomain]/page.tsx`
 - **Scenarios:** Public profile loads, private returns 404, rate limit triggers
 
-### [ ] **P2-T5: Migrate SettingsClient.tsx Tabs to Separate Components**
+### [x] **P2-T5: Migrate SettingsClient.tsx Tabs to Separate Components**
 - **File:** `app/dashboard/settings/SettingsClient.tsx` (1,340 lines)
 - **Split:** Each tab → own component in `components/dashboard/settings/tabs/`
+- **Created:**
+  - `components/dashboard/settings/tabs/shared.tsx` - Shared UI components (SectionHeading, SettingRow, PCard, SectionCard, DangerCard, SignOutCard, LoadingSkeleton)
+  - `components/dashboard/settings/tabs/WorkspaceTab.tsx` - Workspace tab
+  - `components/dashboard/settings/tabs/StudioTab.tsx` - Studio AI tab
+  - `components/dashboard/settings/tabs/IntegrationsTab.tsx` - Integrations tab (API keys, webhooks)
+  - `components/dashboard/settings/tabs/NotificationsTab.tsx` - Notifications tab
+  - `components/dashboard/settings/tabs/SecurityTab.tsx` - Security tab (MFA, sessions)
+  - `components/dashboard/settings/tabs/DangerZoneTab.tsx` - Danger Zone tab
+  - `components/dashboard/settings/tabs/index.ts` - Barrel export
+- **Verification:** `npx tsc --noEmit` — zero type errors
 
 ---
 
@@ -156,6 +167,8 @@
 | 2026-10-21 | P1-T5 | Complete | Created partial unique index migration for subdomain; updated API to handle PostgreSQL 23505 unique violation with 409 |
 | 2026-10-21 | P2-T1 | Complete | Extracted TemplateProps to shared types.ts; updated all 15 templates (the-voice, the-club, the-studio) to use typed props; added missing fields to PublicProfile (projects, activity, avatar, description), ProfileLink (platform, isPrimaryAction); updated RecentActivitySection to handle array/single activity; installed missing deps (@aws-sdk/client-s3, @react-three/fiber, @react-three/drei, three); npx tsc --noEmit passes with zero errors |
 | 2026-10-21 | P2-T2 | Complete | Added maxBundleSizeKB and maxRenderMs to all 15 templates in registry.ts (range: lone 25KB/40ms → the-studio 150KB/250ms); updated TemplateFeatures interface in types.ts; npx tsc --noEmit passes |
+| 2026-10-21 | P2-T3 | Complete | Created docs/profile-templates.md with comprehensive Template Customization API documentation |
+| 2026-10-21 | P2-T5 | Complete | Split SettingsClient.tsx (1340 lines) into 6 tab components + shared utilities in components/dashboard/settings/tabs/; all tabs functional; npx tsc --noEmit passes |
 | | | | |
 
 ---
