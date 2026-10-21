@@ -127,6 +127,36 @@ const PLATFORMS: [string, string, string, string][] = [
     '<path d="M3 8l4 9 5-7 5 7 4-9" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>'
   ],
   [
+    'Medium',
+    '#000',
+    '#fff',
+    '<path d="M13.54 12a6.8 6.8 0 0 1-6.77 6.82A6.8 6.8 0 0 1 0 12a6.8 6.8 0 0 1 6.77-6.82A6.8 6.8 0 0 1 13.54 12zM20.96 12c0 3.54-1.51 6.42-3.38 6.42-1.87 0-3.39-2.88-3.39-6.42s1.52-6.42 3.39-6.42 3.38 2.88 3.38 6.42M24 12c0 3.17-.53 5.75-1.19 5.75-.66 0-1.19-2.58-1.19-5.75s.53-5.75 1.19-5.75C23.47 6.25 24 8.83 24 12z"/>'
+  ],
+  [
+    'Dev.to',
+    '#0A0A0A',
+    '#fff',
+    '<path d="M7.42 10.05c-.18-.12-.46-.17-.84-.17H5.21v4.24h1.37c.38 0 .66-.05.84-.16.18-.11.32-.28.41-.53.09-.24.14-.58.14-1.02v-.83c0-.45-.05-.79-.14-1.03-.09-.24-.23-.4-.41-.5zm14.39-7.86H2.19C.98 2.19 0 3.17 0 4.38v15.24c0 1.21.98 2.19 2.19 2.19h19.62c1.21 0 2.19-.98 2.19-2.19V4.38c0-1.21-.98-2.19-2.19-2.19zm-13.62 13h-4.4V8.81h4.4c.83 0 1.5.15 2.01.44.51.3.89.74 1.14 1.33.25.59.38 1.34.38 2.25v.34c0 .91-.13 1.66-.38 2.25-.25.59-.63 1.03-1.14 1.33-.51.29-1.18.44-2.01.44zm6.05 0h-3.41V8.81h3.41v1.17h-2.13v1.88h1.89v1.17h-1.89v1.88h2.13v1.28zm5.72-3.92-1.63 3.92h-1.45l-1.63-3.92V17.3h-1.28V8.81h1.7l1.94 4.67 1.94-4.67h1.7v8.49h-1.28v-4.08z"/>'
+  ],
+  [
+    'Hashnode',
+    '#2962FF',
+    '#fff',
+    '<path d="M22.351 8.019l-6.37-6.37a5.63 5.63 0 0 0-7.962 0l-6.37 6.37a5.63 5.63 0 0 0 0 7.962l6.37 6.37a5.63 5.63 0 0 0 7.962 0l6.37-6.37a5.63 5.63 0 0 0 0-7.962zM12 15.6a3.6 3.6 0 1 1 0-7.2 3.6 3.6 0 0 1 0 7.2z"/>'
+  ],
+  [
+    'Lemmy',
+    '#00BC8C',
+    '#fff',
+    '<path d="M2.9595 4.2228a3.9132 3.9132 0 0 0-.332.019c-.8781.1012-1.67.5699-2.155 1.3862-.475.8-.5922 1.6809-.35 2.4971.2421.8162.8297 1.5575 1.6982 2.1449.0053.0035.0106.0076.0163.0114.746.4498 1.492.7431 2.2877.8994-.02.3318-.0272.6689-.006 1.0181.0634 1.0432.4368 2.0006.996 2.8492l-2.0061.8189a.4163.4163 0 0 0-.2276.2239.416.416 0 0 0 .0879.455.415.415 0 0 0 .2941.1231.4156.4156 0 0 0 .1595-.0312l2.2093-.9035c.408.4859.8695.9315 1.3723 1.318.0196.0151.0407.0264.0603.0423l-1.2918 1.7103a.416.416 0 0 0 .664.501l1.314-1.7385c.7185.4548 1.4782.7927 2.2294 1.0242.3833.7209 1.1379 1.1871 2.0202 1.1871.8907 0 1.6442-.501 2.0242-1.2072.744-.2347 1.4959-.5729 2.2073-1.0262l1.332 1.7606a.4157.4157 0 0 0 .7439-.1936.4165.4165 0 0 0-.0799-.3074l-1.3099-1.7345c.0083-.0075.0178-.0113.0261-.0188.4968-.3803.9549-.8175 1.3622-1.2939l2.155.8794a.4156.4156 0 0 0 .5412-.2276.4151.4151 0 0 0-.2273-.5432l-1.9438-.7928c.577-.8538.9697-1.8183 1.0504-2.8693.0268-.3507.0242-.6914.0079-1.0262.7905-.1572 1.5321-.4502 2.2737-.8974.0053-.0033.011-.0076.0163-.0113.8684-.5874 1.456-1.3287 1.6982-2.145.2421-.8161.125-1.697-.3501-2.497-.4849-.8163-1.2768-1.2852-2.155-1.3863a3.2175 3.2175 0 0 0-.332-.0189c-.7852-.0151-1.6231.229-2.4286.6942-.5926.342-1.1252.867-1.5433 1.4387-1.1699-.6703-2.6923-1.0476-4.5635-1.0785a15.5768 15.5768 0 0 0-.5111 0c-2.085.034-3.7537.43-5.0142 1.1449-.0033-.0038-.0045-.0114-.008-.0152-.4233-.5916-.973-1.1365-1.5835-1.489-.8055-.465-1.6434-.7083-2.4286-.6941Z"/>'
+  ],
+  [
+    'Listmonk',
+    '#0045FF',
+    '#fff',
+    '<path d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0m0 5.1953A6.8047 6.8047 0 0 1 18.8047 12 6.8047 6.8047 0 0 1 12 18.8047 6.8047 6.8047 0 0 1 5.1953 12 6.8047 6.8047 0 0 1 12 5.1953"/>'
+  ],
+  [
     'Manual / Other',
     '#4B5563',
     '#fff',
@@ -670,14 +700,14 @@ export default function HomePage() {
       };
     }
 
-    // Animated platform counter (0 -> 19)
+    // Animated platform counter (0 -> 25)
     let n1Count = 0;
     const n1 = $('#n1');
     const c1 = setInterval(function() {
       if (!n1) return;
       n1.textContent = String(++n1Count);
       if (n1Count >= N) clearInterval(c1);
-    }, 60);
+    }, 50);
 
     // Profile subdomain cycling
     const names = ['yourname', 'pixenox', 'acme', 'studio'];
@@ -863,7 +893,7 @@ export default function HomePage() {
         <section id="overview">
           <div>
             <div className="pill">
-              <i></i>One Link · One Click · 20+ Platforms
+              <i></i>One Link · One Click · 25+ Platforms
             </div>
             <h1 className="d">
               <span>
@@ -883,16 +913,22 @@ export default function HomePage() {
             <p className="sub">
               Unool is your social media command center. Paste a single link and we build your profile,
               write platform-native posts, and publish to LinkedIn, X, Instagram, YouTube, Discord and
-              15+ more — in one click.
+              20+ more — in one click.
             </p>
             <div className="go">
-              <input id="url" defaultValue="https://pixenox.com" aria-label="Your link" />
+              <input
+                id="url"
+                value="https://yourname.unool.co"
+                readOnly
+                aria-label="Your link"
+                style={{ cursor: 'default' }}
+              />
               <button className="btn" id="pub">
                 Publish everywhere →
               </button>
             </div>
             <div id="st">
-              Ready · <b>20 platforms</b> connected
+              Ready · <b>25 platforms</b> connected
             </div>
             <div className="stats">
               <div>
@@ -937,7 +973,7 @@ export default function HomePage() {
           </h2>
           <p className="sub rv" style={{ margin: '24px auto 0' }}>
             Unool adapts your content to each platform’s native format, tone, and limits. Here are just
-            three examples out of 20+.
+            three examples out of 25+.
           </p>
           <div className="th rv">
             <small>Your original thought</small>
@@ -1167,7 +1203,7 @@ export default function HomePage() {
             <ul>
               <li>1 profile at yourname.unool.co</li>
               <li>12 posts/month</li>
-              <li>20+ platforms</li>
+              <li>25+ platforms</li>
               <li>AI adaptation</li>
               <li>5 themes</li>
               <li>Magic link auth</li>
