@@ -4,6 +4,7 @@ import * as React from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import type { TemplateProps } from '@/components/profile/templates/types';
+import { TemplateSkeleton, getSkeletonCategory } from '@/components/profile/templates/TemplateSkeletons';
 
 // Map template IDs to their components for dynamic loading
 // Each template is now in its own file for better code-splitting and maintainability
@@ -54,12 +55,10 @@ function TemplateWrapper({ templateId, profile, accentColor, isPreview, onLinkCl
     );
   }
 
+  const skeletonCategory = getSkeletonCategory(templateId);
+
   return (
-    <React.Suspense fallback={
-      <div className="flex items-center justify-center h-full min-h-[400px]">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
-    }>
+    <React.Suspense fallback={<TemplateSkeleton category={skeletonCategory} />}>
       <Component
         templateId={templateId}
         profile={profile}

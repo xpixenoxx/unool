@@ -79,10 +79,13 @@
 - **Return:** Proper error codes (400 for invalid type, 413 for too large)
 - **Verification:** `npx tsc --noEmit` passes; returns 400 for non-image, 413 for >5MB
 
-### [ ] **P1-T4: Optimize Template Registry with Lazy Loading**
+### [x] **P1-T4: Optimize Template Registry with Lazy Loading**
 - **File:** `components/profile/ProfilePreview.tsx`, `components/profile/templates/registry.ts`
-- **Change:** Ensure all templates use `React.lazy` + `Suspense`
+- **Change:** Ensure all templates use `React.lazy` + `Suspense` (already implemented)
 - **Add:** Loading fallback skeleton per template category
+- **Created:** `components/profile/templates/TemplateSkeletons.tsx` with 5 category-specific skeletons (individual, startup, agency, entrepreneur, influencer)
+- **Updated:** `components/profile/ProfilePreview.tsx` to use category-aware skeletons via `getSkeletonCategory()`
+- **Verification:** `npx tsc --noEmit` passes
 
 ### [ ] **P1-T5: Add Subdomain Uniqueness Check at DB Level**
 - **Migration:** Add unique index on `profiles.subdomain` where `deleted_at IS NULL`
@@ -142,6 +145,7 @@
 | 2026-10-21 | P1-T1 | Complete | Created shared socialIcons.tsx utility; updated 13 template files; consolidated duplicate social icon logic |
 | 2026-10-21 | P1-T2 | Complete | Extracted 15 variants into config-driven activityVariants.tsx; reduced RecentActivitySection.tsx from 968 to ~240 lines; shared render helpers for pulse, platforms, footer |
 | 2026-10-21 | P1-T3 | Complete | Added 5MB size limit validation to avatar upload endpoint; returns 413 for oversized files |
+| 2026-10-21 | P1-T4 | Complete | Added TemplateSkeletons.tsx with 5 category-specific loading skeletons; updated ProfilePreview.tsx to use category-aware Suspense fallbacks |
 | | | | |
 
 ---
