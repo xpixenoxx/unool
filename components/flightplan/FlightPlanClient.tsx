@@ -293,22 +293,26 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
 
       {view === 'review' && arc && (
         <div
-          className="sticky top-3 z-30 flex items-start sm:items-center justify-between gap-4 p-3 rounded-2xl border backdrop-blur-md shadow-sm"
+          className="sticky top-3 z-30 p-3 rounded-2xl border backdrop-blur-md shadow-sm"
           style={{ backgroundColor: B.glass, borderColor: B.glassBorder }}
         >
           <InstagramStoryBar
             posts={(arc?.weekPosts || []).filter(p => !p.deleted)}
             currentIndex={activeStoryIndex}
-            onSelectIndex={setActiveStoryIndex}
+            onSelectIndex={(idx) => {
+              setActiveStoryIndex(idx);
+              const el = document.getElementById(`arc-post-${idx}`);
+              if (el) {
+                const headerOffset = 110;
+                const elementPosition = el.getBoundingClientRect().top;
+                const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+                window.scrollTo({
+                  top: offsetPosition,
+                  behavior: 'smooth'
+                });
+              }
+            }}
           />
-          <button
-            onClick={() => { setView('canvas'); setArc(null); }}
-            className="text-xs font-medium flex items-center gap-1 px-2.5 py-1.5 rounded-lg border hover:bg-black/5 transition-colors cursor-pointer mt-0.5 sm:mt-0 flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-            style={{ color: B.textMuted, borderColor: B.border, focusRingColor: B.accent, focusRingOffsetColor: B.card }}
-          >
-            <X className="w-3 h-3" />
-            Exit Review
-          </button>
         </div>
       )}
 

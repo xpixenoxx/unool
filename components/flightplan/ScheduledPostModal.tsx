@@ -42,13 +42,13 @@ const QUICK_PRESETS = [
   { label: '+1h', minutes: 60, icon: null },
 ];
 
-export function ScheduledPostModal({
+function ScheduledPostModalContent({
   post,
   isOpen,
   onClose,
   onUpdated,
   onCancelled,
-}: ScheduledPostModalProps) {
+}: ScheduledPostModalProps & { post: CanvasPost }) {
   const [activeVariantIndex, setActiveVariantIndex] = useState(0);
   const [editedContent, setEditedContent] = useState<Record<string, string>>({});
   const [editedHashtags, setEditedHashtags] = useState<Record<string, string[]>>({});
@@ -101,17 +101,21 @@ export function ScheduledPostModal({
     }
   }, [post]);
 
-  if (!isOpen || !post) return null;
-
-  const currentVariant = post.platforms[activeVariantIndex] || post.platforms[0];
-  if (!currentVariant) return null;
+  const currentVariant = (post.platforms && post.platforms[activeVariantIndex]) || (post.platforms && post.platforms[0]) || {
+    variantId: 'default',
+    platform: 'instagram' as PlatformType,
+    content: post.content || '',
+    status: post.status,
+    mediaUrls: [],
+    hashtags: [],
+  };
 
   const isPublished = post.status === 'published';
   const currentContent = editedContent[currentVariant.variantId] ?? currentVariant.content;
   const currentTags = editedHashtags[currentVariant.variantId] ?? currentVariant.hashtags ?? [];
   const currentMedia = editedMediaUrls[currentVariant.variantId] ?? currentVariant.mediaUrls ?? [];
 
-  const variantsWithChanges = post.platforms.filter(p => {
+  const variantsWithChanges = (post.platforms || []).filter(p => {
     const c = editedContent[p.variantId] ?? p.content;
     const t = editedHashtags[p.variantId] ?? p.hashtags ?? [];
     const m = editedMediaUrls[p.variantId] ?? p.mediaUrls ?? [];
@@ -282,8 +286,9 @@ export function ScheduledPostModal({
     }
   }, [confirmCancel, post.postId, onCancelled, onClose]);
 
-  const addTag = useCallback(() => {
-    const clean = newTag.trim().replace(/^#/, '');
+  const addTag = useCallback((tagToAdd?: string) => {
+    const raw = typeof tagToAdd === 'string' ? tagToAdd : newTag;
+    const clean = raw.trim().replace(/^#+/, '');
     if (!clean || currentTags.includes(clean)) return;
     setEditedHashtags(prev => ({
       ...prev,
@@ -479,7 +484,7 @@ export function ScheduledPostModal({
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold flex items-center gap-1.5" style={{ color: B.text }}>
                 <ImageIcon className="w-3.5 h-3.5" style={{ color: B.accent }} />
-                Attached Images ({currentMedia.length})
+                Attached Media ({currentMedia.length})
               </label>
               <div className="flex items-center gap-2">
                 {post.platforms.length > 1 && currentMedia.length > 0 && (
@@ -570,4 +575,9 @@ export function ScheduledPostModal({
       </motion.div>
     </motion.div>
   );
+}
+
+export function ScheduledPostModal(props: ScheduledPostModalProps) {
+  if (!props.isOpen || !props.post) return null;
+  return <ScheduledPostModalContent key={props.post.postId} {...props} post={props.post} />;
 }

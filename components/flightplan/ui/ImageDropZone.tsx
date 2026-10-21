@@ -2,13 +2,50 @@
 
 import React, { useRef, useCallback, forwardRef } from 'react';
 import { cn } from '@/lib/utils';
-import { ImagePlus, Image as ImageIcon, Loader2, Trash2 } from 'lucide-react';
+import { ImagePlus, Image as ImageIcon, Loader2, Trash2, Film, FileText, Presentation, File } from 'lucide-react';
 import type { ImageDropZoneProps } from '@/types/flightplan';
 import { FLIGHTPLAN_CONSTANTS } from '@/types/flightplan';
 import { B, MOTION, SPACING, RADIUS, SHADOW } from '../design-tokens';
 
 interface ImageDropZoneInternalProps extends ImageDropZoneProps {
   compact?: boolean;
+}
+
+function renderMediaItem(url: string) {
+  const isVideo = /\.(mp4|mov|webm|ogg|m4v)(\?.*)?$/i.test(url);
+  const isPdf = /\.pdf(\?.*)?$/i.test(url);
+  const isPpt = /\.(ppt|pptx)(\?.*)?$/i.test(url);
+
+  if (isVideo) {
+    return (
+      <div className="relative w-full h-full bg-stone-900 flex items-center justify-center overflow-hidden">
+        <video src={url} className="w-full h-full object-cover" muted playsInline />
+        <span className="absolute bottom-1 left-1 bg-black/80 text-white rounded px-1 py-0.5 text-[8px] font-bold flex items-center gap-0.5">
+          <Film className="w-2.5 h-2.5 text-amber-400" /> VIDEO
+        </span>
+      </div>
+    );
+  }
+
+  if (isPdf) {
+    return (
+      <div className="w-full h-full bg-red-50 text-red-700 flex flex-col items-center justify-center p-1 text-center font-bold text-[9px] border" style={{ borderColor: '#FCA5A5' }}>
+        <FileText className="w-4 h-4 mb-0.5 text-red-600" />
+        <span>PDF</span>
+      </div>
+    );
+  }
+
+  if (isPpt) {
+    return (
+      <div className="w-full h-full bg-amber-50 text-amber-800 flex flex-col items-center justify-center p-1 text-center font-bold text-[9px] border" style={{ borderColor: '#FCD34D' }}>
+        <Presentation className="w-4 h-4 mb-0.5 text-amber-700" />
+        <span>PPT</span>
+      </div>
+    );
+  }
+
+  return <img src={url} alt="" className="w-full h-full object-cover" />;
 }
 
 export const ImageDropZone = forwardRef<HTMLInputElement, ImageDropZoneInternalProps>(
@@ -79,12 +116,12 @@ export const ImageDropZone = forwardRef<HTMLInputElement, ImageDropZoneInternalP
             >
               {images.map((imgUrl, idx) => (
                 <div key={idx} className="relative group w-12 h-12 rounded-lg overflow-hidden border shadow-xs" style={{ borderColor: B.border }}>
-                  <img src={imgUrl} alt="" className="w-full h-full object-cover" />
+                  {renderMediaItem(imgUrl)}
                   <button
                     type="button"
                     onClick={() => onRemove(idx)}
                     className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-white"
-                    title="Remove image"
+                    title="Remove media"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -135,10 +172,10 @@ export const ImageDropZone = forwardRef<HTMLInputElement, ImageDropZoneInternalP
             >
               <ImagePlus className="w-5 h-5" style={{ color: B.textMuted }} />
               <span className="text-xs font-medium" style={{ color: B.text }}>
-                No images
+                No media attached
               </span>
               <span className="text-[10px]" style={{ color: B.textMuted }}>
-                Drop or click (max {maxImages})
+                Drop image, video, PDF or PPT (max {maxImages})
               </span>
             </div>
           )}
@@ -163,12 +200,12 @@ export const ImageDropZone = forwardRef<HTMLInputElement, ImageDropZoneInternalP
           >
             {images.map((imgUrl, idx) => (
               <div key={idx} className="relative group w-16 h-16 rounded-xl overflow-hidden border shadow-xs" style={{ borderColor: B.border }}>
-                <img src={imgUrl} alt="" className="w-full h-full object-cover" />
+                {renderMediaItem(imgUrl)}
                 <button
                   type="button"
                   onClick={() => onRemove(idx)}
                   className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-white"
-                  title="Remove image"
+                  title="Remove media"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -194,7 +231,7 @@ export const ImageDropZone = forwardRef<HTMLInputElement, ImageDropZoneInternalP
                 ) : (
                   <>
                     <ImagePlus className="w-4 h-4" />
-                    <span className="text-[9px] font-medium">Add Image</span>
+                    <span className="text-[9px] font-medium">Add Media</span>
                   </>
                 )}
               </button>
@@ -219,10 +256,10 @@ export const ImageDropZone = forwardRef<HTMLInputElement, ImageDropZoneInternalP
           >
             <ImagePlus className="w-6 h-6" style={{ color: B.textMuted }} />
             <span className="text-xs font-medium" style={{ color: B.text }}>
-              No images attached yet
+              No media attached yet
             </span>
             <span className="text-[10px]" style={{ color: B.textMuted }}>
-              Drop images here or click to browse (PNG, JPG, WebP)
+              Drop images, videos, PDFs or presentations (max {maxImages}) or click to browse
             </span>
           </div>
         )}
@@ -231,7 +268,7 @@ export const ImageDropZone = forwardRef<HTMLInputElement, ImageDropZoneInternalP
           ref={internalFileInputRef}
           type="file"
           multiple
-          accept="image/*"
+          accept="image/*,video/*,.pdf,.ppt,.pptx,application/pdf,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation"
           className="hidden"
           onChange={handleFileChange}
         />

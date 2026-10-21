@@ -113,7 +113,19 @@ export function InstagramStoryBar({
         {posts.map((post, idx) => (
           <button
             key={post.day}
-            onClick={() => onSelectIndex(idx)}
+            onClick={() => {
+              onSelectIndex(idx);
+              const el = document.getElementById(`arc-post-${idx}`);
+              if (el) {
+                const headerOffset = 110;
+                const elementPosition = el.getBoundingClientRect().top;
+                const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+                window.scrollTo({
+                  top: offsetPosition,
+                  behavior: 'smooth'
+                });
+              }
+            }}
             onMouseEnter={() => setHoveredIndex(idx)}
             onMouseLeave={() => setHoveredIndex(null)}
             className={cn(

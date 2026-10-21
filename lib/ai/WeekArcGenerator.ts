@@ -284,6 +284,8 @@ export function synthesizeFactGroundedArc(params: {
       scheduledHour,
       scheduledMinute: 0,
       platforms,
+      imageUrl: null,
+      imageUrls: [],
     };
   });
 
@@ -504,6 +506,8 @@ Write ONLY the JSON. No markdown code blocks. No explanation.`;
           dayLabel,
           scheduledHour,
           platforms: mergedPlatforms,
+          imageUrl: post.imageUrl ?? null,
+          imageUrls: post.imageUrls ? [...post.imageUrls] : [],
         };
       });
 

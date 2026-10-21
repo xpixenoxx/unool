@@ -99,8 +99,17 @@ export async function POST(request: NextRequest) {
               content: sanitized,
               hashtags: ContentGuard.filterHashtags(pf.hashtags ?? []),
               firstCommentHint: pf.firstCommentHint,
-              autoFirstComment: pf.autoFirstComment,
-              mediaUrls: pf.mediaUrls ?? (p.imageUrls ? p.imageUrls.map((u: string) => ({ url: u, type: 'image' })) : (p.imageUrl ? [{ url: p.imageUrl, type: 'image' }] : [])),
+              mediaUrls: (pf.mediaUrls && pf.mediaUrls.length > 0)
+                ? pf.mediaUrls.map((m: any) => typeof m === 'string' ? { url: m, type: 'image' } : { url: m.url, type: m.type || (/\.(mp4|mov|webm)$/i.test(m.url) ? 'video' : /\.(pdf|ppt|pptx)$/i.test(m.url) ? 'document' : 'image') })
+                : (p.imageUrls && p.imageUrls.length > 0
+                    ? p.imageUrls.map((u: string) => ({
+                        url: u,
+                        type: /\.(mp4|mov|webm)$/i.test(u) ? 'video' : /\.(pdf|ppt|pptx)$/i.test(u) ? 'document' : 'image',
+                      }))
+                    : (p.imageUrl ? [{
+                        url: p.imageUrl,
+                        type: /\.(mp4|mov|webm)$/i.test(p.imageUrl) ? 'video' : /\.(pdf|ppt|pptx)$/i.test(p.imageUrl) ? 'document' : 'image',
+                      }] : [])),
               schedulingOffsetMinutes: pf.schedulingOffsetMinutes ?? 0,
             };
           }),

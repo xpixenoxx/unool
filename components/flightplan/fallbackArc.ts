@@ -190,6 +190,8 @@ export function generateClientFallbackArc(data: StoryIntakeData): WeekArc {
       scheduledHour,
       scheduledMinute,
       platforms: platformDrafts,
+      imageUrl: null,
+      imageUrls: [],
     };
   });
 

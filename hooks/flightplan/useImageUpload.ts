@@ -5,11 +5,52 @@ import { studioToast } from '@/components/dashboard/StudioToast';
 import { FLIGHTPLAN_CONSTANTS } from '@/types/flightplan';
 import type { UseImageUploadResult } from '@/types/flightplan';
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB (supports videos and presentations)
+
+const ALLOWED_MIME_TYPES = [
+  // Images
+  'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml', 'image/avif',
+  // Videos
+  'video/mp4', 'video/quicktime', 'video/webm', 'video/mpeg', 'video/ogg', 'video/x-msvideo',
+  // Documents: PDF, PPT, PPTX, Keynote, Docs
+  'application/pdf',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+];
+
+const ALLOWED_EXTENSIONS = [
+  '.jpg', '.jpeg', '.png', '.webp', '.gif', '.svg', '.avif',
+  '.mp4', '.mov', '.webm', '.mpeg', '.avi', '.ogg',
+  '.pdf', '.ppt', '.pptx', '.doc', '.docx'
+];
+
+function getFileContentType(file: File): string {
+  if (file.type && file.type.length > 0) return file.type;
+  const ext = file.name.split('.').pop()?.toLowerCase() || '';
+  if (['mp4', 'm4v'].includes(ext)) return 'video/mp4';
+  if (ext === 'mov') return 'video/quicktime';
+  if (ext === 'webm') return 'video/webm';
+  if (ext === 'pdf') return 'application/pdf';
+  if (ext === 'ppt') return 'application/vnd.ms-powerpoint';
+  if (ext === 'pptx') return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+  if (ext === 'png') return 'image/png';
+  if (['jpg', 'jpeg'].includes(ext)) return 'image/jpeg';
+  if (ext === 'webp') return 'image/webp';
+  if (ext === 'gif') return 'image/gif';
+  return 'application/octet-stream';
+}
+
+function getMediaCategory(file: File): 'image' | 'video' | 'document' {
+  const type = getFileContentType(file);
+  if (type.startsWith('video/')) return 'video';
+  if (type === 'application/pdf' || /\.(pdf|ppt|pptx|doc|docx)$/i.test(file.name)) return 'document';
+  return 'image';
+}
 
 /**
- * Hook for handling multi-image upload with drag-drop, validation, and progress
+ * Hook for handling multi-image/video/document upload with drag-drop, validation, and progress
  * Used by both ReviewScreen (per-day) and ScheduledPostModal (per-variant)
  */
 export function useImageUpload(
@@ -25,12 +66,14 @@ export function useImageUpload(
     const errors: string[] = [];
 
     for (const file of fileArray) {
-      if (!ALLOWED_TYPES.includes(file.type)) {
-        errors.push(`${file.name}: Invalid file type. Only JPEG, PNG, WebP, GIF allowed.`);
+      const ext = '.' + file.name.split('.').pop()?.toLowerCase();
+      const isValid = ALLOWED_MIME_TYPES.includes(file.type) || ALLOWED_EXTENSIONS.includes(ext);
+      if (!isValid) {
+        errors.push(`${file.name}: Unsupported file format. Please upload images, videos, PDFs, or presentations.`);
         continue;
       }
       if (file.size > MAX_FILE_SIZE) {
-        errors.push(`${file.name}: File too large (max 10MB).`);
+        errors.push(`${file.name}: File too large (max 100MB).`);
         continue;
       }
       validFiles.push(file);
@@ -49,11 +92,12 @@ export function useImageUpload(
     const uploadedUrls: string[] = [];
 
     for (const file of files) {
+      const contentType = getFileContentType(file);
       // Step 1: Get signed URL
       const res = await fetch('/api/composer/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename: file.name, contentType: file.type }),
+        body: JSON.stringify({ filename: file.name, contentType }),
       });
 
       const data = await res.json();
@@ -64,7 +108,7 @@ export function useImageUpload(
       // Step 2: Upload to storage
       const uploadRes = await fetch(data.signedUrl, {
         method: 'PUT',
-        headers: { 'Content-Type': file.type },
+        headers: { 'Content-Type': contentType },
         body: file,
       });
 
@@ -87,7 +131,7 @@ export function useImageUpload(
     try {
       const urls = await uploadFiles(validFiles);
       onUploadComplete(postIdx, urls);
-      studioToast.success(`${urls.length} image${urls.length > 1 ? 's' : ''} uploaded`);
+      studioToast.success(`${urls.length} media file${urls.length > 1 ? 's' : ''} uploaded`);
     } catch (error) {
       studioToast.generationFailed(
         error instanceof Error ? error.message : 'Upload failed. Please try again.',
@@ -103,15 +147,13 @@ export function useImageUpload(
   }, [validateFiles, uploadFiles, onUploadComplete]);
 
   const remove = useCallback((postIdx: number, imageIdx: number) => {
-    // This is handled by the parent component's state
-    // The hook just provides the interface
+    // Handled in component state
   }, []);
 
   const setIsDraggingState = useCallback((postIdx: number, dragging: boolean) => {
     setIsDragging(prev => ({ ...prev, [postIdx]: dragging }));
   }, []);
 
-  // Register file input ref
   const registerFileInput = useCallback((postIdx: number, el: HTMLInputElement | null) => {
     fileInputRefs.current[postIdx] = el;
   }, []);
@@ -142,12 +184,14 @@ export function useModalImageUpload(
     const errors: string[] = [];
 
     for (const file of fileArray) {
-      if (!ALLOWED_TYPES.includes(file.type)) {
-        errors.push(`${file.name}: Invalid file type. Only JPEG, PNG, WebP, GIF allowed.`);
+      const ext = '.' + file.name.split('.').pop()?.toLowerCase();
+      const isValid = ALLOWED_MIME_TYPES.includes(file.type) || ALLOWED_EXTENSIONS.includes(ext);
+      if (!isValid) {
+        errors.push(`${file.name}: Unsupported file format. Only images, videos, PDFs, or presentations allowed.`);
         continue;
       }
       if (file.size > MAX_FILE_SIZE) {
-        errors.push(`${file.name}: File too large (max 10MB).`);
+        errors.push(`${file.name}: File too large (max 100MB).`);
         continue;
       }
       validFiles.push(file);
@@ -164,10 +208,11 @@ export function useModalImageUpload(
     const uploadedMedia: Array<{ url: string; type: string }> = [];
 
     for (const file of files) {
+      const contentType = getFileContentType(file);
       const res = await fetch('/api/composer/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename: file.name, contentType: file.type }),
+        body: JSON.stringify({ filename: file.name, contentType }),
       });
 
       const data = await res.json();
@@ -177,7 +222,7 @@ export function useModalImageUpload(
 
       const uploadRes = await fetch(data.signedUrl, {
         method: 'PUT',
-        headers: { 'Content-Type': file.type },
+        headers: { 'Content-Type': contentType },
         body: file,
       });
 
@@ -185,7 +230,8 @@ export function useModalImageUpload(
         throw new Error('Upload to storage failed');
       }
 
-      uploadedMedia.push({ url: data.url, type: 'image' });
+      const mediaType = getMediaCategory(file);
+      uploadedMedia.push({ url: data.url, type: mediaType });
     }
 
     return uploadedMedia;
@@ -200,7 +246,7 @@ export function useModalImageUpload(
     try {
       const media = await uploadFiles(validFiles);
       onUploadComplete(variantId, media);
-      studioToast.success(`${media.length} image${media.length > 1 ? 's' : ''} uploaded`);
+      studioToast.success(`${media.length} media file${media.length > 1 ? 's' : ''} uploaded`);
     } catch (error) {
       studioToast.generationFailed(
         error instanceof Error ? error.message : 'Upload failed. Please try again.',

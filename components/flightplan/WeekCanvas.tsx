@@ -133,11 +133,28 @@ export function WeekCanvas({
   }, [targetPostId, posts, hasOpenedTargetPost]);
 
   const handleCancel = useCallback(async (postId: string) => {
-    const success = await cancelPost(postId);
-    if (success) {
+    const confirmed = window.confirm('Delete this scheduled post?');
+    if (!confirmed) return;
+
+    // Optimistically remove from state so the card vanishes immediately without screen flicker
+    setPosts(prev => prev.filter(p => p.postId !== postId));
+    if (selectedPost?.postId === postId) {
+      setSelectedPost(null);
+    }
+
+    try {
+      const success = await cancelPost(postId);
+      if (success) {
+        const loadedPosts = await loadCanvas(weekOffset);
+        setPosts(loadedPosts);
+        onPostCountChange?.(loadedPosts.length);
+      } else {
+        loadWeekCanvas();
+      }
+    } catch {
       loadWeekCanvas();
     }
-  }, [cancelPost, loadWeekCanvas]);
+  }, [cancelPost, loadCanvas, weekOffset, selectedPost, onPostCountChange, loadWeekCanvas]);
 
   const handleHold = useCallback(async () => {
     setIsHolding(true);
@@ -561,7 +578,7 @@ export function WeekCanvas({
                           onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedPost(post); }}}
                           tabIndex={0}
                           role="button"
-                          className="rounded-xl p-2.5 group relative transition-all hover:shadow-md cursor-pointer"
+                          className="rounded-xl p-2.5 group relative transition-all hover:shadow-md cursor-pointer overflow-hidden"
                           style={{
                             backgroundColor: B.card,
                             border: `1px solid ${B.border}`,
@@ -615,39 +632,39 @@ export function WeekCanvas({
                           {/* Quick Actions on hover */}
                           {!isPub && (
                             <div
-                              className="flex items-center gap-2 mt-2 pt-1.5 border-t opacity-0 group-hover:opacity-100 transition-opacity"
+                              className="flex items-center justify-between gap-1 mt-2 pt-1.5 border-t opacity-0 group-hover:opacity-100 transition-opacity w-full overflow-hidden"
                               style={{ borderColor: `${B.border}80` }}
                               onClick={e => e.stopPropagation()}
                             >
                               <button
                                 type="button"
                                 onClick={() => setSelectedPost(post)}
-                                className="text-[11px] font-semibold hover:underline"
+                                className="inline-flex items-center gap-0.5 text-[10px] font-semibold hover:underline transition-colors py-0.5"
                                 style={{ color: B.accentHover }}
+                                title="Edit post"
                               >
-                                Edit
+                                <Edit3 className="w-2.5 h-2.5 flex-shrink-0" />
+                                <span>Edit</span>
                               </button>
                               <button
                                 type="button"
                                 onClick={() => setSelectedPost(post)}
-                                className="text-[11px] font-semibold hover:underline"
+                                className="inline-flex items-center gap-0.5 text-[10px] font-semibold hover:underline transition-colors py-0.5"
                                 style={{ color: B.textSecondary }}
+                                title="Reschedule post"
                               >
-                                Reschedule
+                                <Clock className="w-2.5 h-2.5 flex-shrink-0" />
+                                <span>Time</span>
                               </button>
                               <button
                                 type="button"
-                                onClick={async () => {
-                                  const confirmed = window.confirm('Delete this scheduled post?');
-                                  if (confirmed) {
-                                    await cancelPost(post.postId);
-                                    loadWeekCanvas();
-                                  }
-                                }}
-                                className="text-[11px] font-semibold hover:underline ml-auto"
+                                onClick={() => handleCancel(post.postId)}
+                                className="inline-flex items-center gap-0.5 text-[10px] font-semibold hover:underline transition-colors py-0.5 ml-auto"
                                 style={{ color: B.danger }}
+                                title="Delete post"
                               >
-                                Delete
+                                <Trash2 className="w-2.5 h-2.5 flex-shrink-0" />
+                                <span>Delete</span>
                               </button>
                             </div>
                           )}

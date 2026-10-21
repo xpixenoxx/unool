@@ -118,6 +118,7 @@ export interface PlatformDraft {
   schedulingOffsetMinutes?: number;
   enabled?: boolean;
   variantId?: string;
+  mediaUrls?: Array<{ url: string; type: string }>;
 }
 
 /* ════════════════════════════════════════════════════════════════════════════

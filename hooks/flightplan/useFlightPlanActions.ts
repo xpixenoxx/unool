@@ -115,8 +115,12 @@ export function useFlightPlanActions(): UseFlightPlanActionsResult {
         userTimezone: tz,
         scheduleMode: 'arc',
         posts: activePosts.map(p => {
-          const allImages = p.imageUrls || (p.imageUrl ? [p.imageUrl] : []);
-          const mediaObjects = allImages.map(u => ({ url: u, type: 'image' as const }));
+          // Each post must independently maintain its own discrete media assets without cross-post deduplication or reference sharing
+          const allImages = [...(p.imageUrls || (p.imageUrl ? [p.imageUrl] : []))];
+          const mediaObjects = allImages.map(u => ({
+            url: u,
+            type: (/\.(mp4|mov|webm)$/i.test(u) ? 'video' : /\.(pdf|ppt|pptx)$/i.test(u) ? 'document' : 'image') as const,
+          }));
           const enabledPlatforms = p.platforms.filter(pf => pf.enabled !== false);
           return {
             day: p.day,
@@ -125,7 +129,7 @@ export function useFlightPlanActions(): UseFlightPlanActionsResult {
             strategy: 'cascading',
             arcBeat: p.arcBeat,
             imageUrl: allImages[0] || null,
-            imageUrls: allImages,
+            imageUrls: [...allImages],
             platforms: enabledPlatforms.map(pf => ({
               platform: pf.platform,
               content: pf.content,
@@ -133,7 +137,7 @@ export function useFlightPlanActions(): UseFlightPlanActionsResult {
               firstCommentHint: pf.firstCommentHint ?? null,
               autoFirstComment: pf.autoFirstComment ?? null,
               schedulingOffsetMinutes: pf.schedulingOffsetMinutes ?? 0,
-              mediaUrls: mediaObjects,
+              mediaUrls: pf.mediaUrls && pf.mediaUrls.length > 0 ? [...pf.mediaUrls] : [...mediaObjects],
             })),
           };
         }),

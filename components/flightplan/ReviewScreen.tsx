@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Trash2, AlertCircle, CheckCircle,
   ImagePlus, X, Loader2, Send, Clock, Zap, Info, AlertTriangle, ArrowUpRight, RotateCcw,
-  Image as ImageIcon, Check, MoreHorizontal
+  Image as ImageIcon, Check, MoreHorizontal, Film
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, addDays, startOfWeek, isToday, startOfDay } from 'date-fns';
@@ -113,6 +113,8 @@ export function ReviewScreen({
           ...post,
           scheduledHour,
           scheduledMinute,
+          imageUrl: post.imageUrl ?? null,
+          imageUrls: post.imageUrls ? [...post.imageUrls] : [],
           platforms: (post?.platforms || []).map(pf => {
             const config = PLATFORM_CONFIG[pf.platform as PlatformType];
             let content = pf.content || '';
@@ -149,6 +151,13 @@ export function ReviewScreen({
     setEditedArc(sanitizeArcContent(arc));
   }, [arc, sanitizeArcContent]);
 
+  // Sync expanded card when active story index changes (e.g. clicking day button)
+  useEffect(() => {
+    if (activeStoryIndex >= 0 && activeStoryIndex < (editedArc?.weekPosts?.length || 0)) {
+      setExpandedPost(activeStoryIndex);
+    }
+  }, [activeStoryIndex, editedArc?.weekPosts?.length]);
+
   const activePosts = useMemo(() => (editedArc?.weekPosts || []).filter(p => !p.deleted), [editedArc]);
 
   const handleImageUpload = useCallback(async (postIdx: number, urls: string[]) => {
@@ -175,6 +184,45 @@ export function ReviewScreen({
               ...post,
               platforms: post.platforms.map((pf, pIdx) =>
                 pIdx === platformIdx ? { ...pf, content, characterCount: content.length } : pf
+              ),
+            }
+          : post
+      ),
+    }));
+  }, []);
+
+  const addHashtag = useCallback((postIdx: number, platformIdx: number, tagToAdd: string) => {
+    const clean = tagToAdd.trim().replace(/^#+/, '');
+    if (!clean) return;
+    setEditedArc(prev => ({
+      ...prev,
+      weekPosts: prev.weekPosts.map((post, idx) =>
+        idx === postIdx
+          ? {
+              ...post,
+              platforms: post.platforms.map((pf, pIdx) => {
+                if (pIdx !== platformIdx) return pf;
+                const existing = pf.hashtags || [];
+                if (existing.includes(clean)) return pf;
+                return { ...pf, hashtags: [...existing, clean] };
+              }),
+            }
+          : post
+      ),
+    }));
+  }, []);
+
+  const removeHashtag = useCallback((postIdx: number, platformIdx: number, tagToRemove: string) => {
+    setEditedArc(prev => ({
+      ...prev,
+      weekPosts: prev.weekPosts.map((post, idx) =>
+        idx === postIdx
+          ? {
+              ...post,
+              platforms: post.platforms.map((pf, pIdx) =>
+                pIdx === platformIdx
+                  ? { ...pf, hashtags: (pf.hashtags || []).filter(t => t !== tagToRemove) }
+                  : pf
               ),
             }
           : post
@@ -541,10 +589,24 @@ export function ReviewScreen({
                     </div>
                   </div>
 
-                  {/* Image thumbnails preview in row */}
+                  {/* Media thumbnails preview in row */}
                   {postImages.length > 0 && (
-                    <div className="relative flex-shrink-0">
-                      <img src={postImages[0]} alt="" className="w-9 h-9 rounded-lg object-cover border" style={{ borderColor: B.border }} />
+                    <div className="relative flex-shrink-0 w-9 h-9 rounded-lg overflow-hidden border" style={{ borderColor: B.border }}>
+                      {/\.(mp4|mov|webm|ogg|m4v)(\?.*)?$/i.test(postImages[0]) ? (
+                        <div className="w-full h-full bg-stone-900 flex items-center justify-center">
+                          <Film className="w-4 h-4 text-amber-400" />
+                        </div>
+                      ) : /\.pdf(\?.*)?$/i.test(postImages[0]) ? (
+                        <div className="w-full h-full bg-red-50 text-red-700 flex items-center justify-center font-bold text-[9px]">
+                          PDF
+                        </div>
+                      ) : /\.(ppt|pptx)(\?.*)?$/i.test(postImages[0]) ? (
+                        <div className="w-full h-full bg-amber-50 text-amber-800 flex items-center justify-center font-bold text-[9px]">
+                          PPT
+                        </div>
+                      ) : (
+                        <img src={postImages[0]} alt="" className="w-full h-full object-cover" />
+                      )}
                       {postImages.length > 1 && (
                         <span className="absolute -bottom-1 -right-1 text-[9px] font-bold px-1 rounded-full bg-black/75 text-white">
                           +{postImages.length - 1}
@@ -638,15 +700,15 @@ export function ReviewScreen({
                           onQuickPreset={m => setPostToQuickTime(postIdx, m)}
                         />
 
-                        {/* Multiple Image upload section */}
+                        {/* Multiple Media upload section */}
                         <div className="space-y-2 pt-1">
                           <div className="flex items-center justify-between">
                             <label className="text-xs font-semibold flex items-center gap-1.5" style={{ color: B.textMuted }}>
                               <ImageIcon className="w-3.5 h-3.5" />
-                              Post Images ({postImages.length})
+                              Attached Media ({postImages.length})
                             </label>
                             <span className="text-[11px]" style={{ color: B.textMuted }}>
-                              Upload multiple images (up to 10)
+                              Images, videos, PDFs &amp; PPTs (up to 10)
                             </span>
                           </div>
 
@@ -685,7 +747,7 @@ export function ReviewScreen({
                               <span className="font-semibold" style={{ color: B.text }}>
                                 Upload to {PLATFORM_CONFIG[currentPlatformDraft.platform as PlatformType]?.name || currentPlatformDraft.platform}:
                               </span>
-                              <span style={{ color: currentPlatformDraft.enabled !== false ? B.success : B.textMuted }}>
+                              <span style={{ color: currentPlatformDraft.enabled !== false ? B.textSecondary : B.textMuted }}>
                                 {currentPlatformDraft.enabled !== false ? '• Included in Flight Plan' : '• Excluded / skipped for this day'}
                               </span>
                             </div>
@@ -698,14 +760,15 @@ export function ReviewScreen({
                               style={
                                 currentPlatformDraft.enabled !== false
                                   ? {
-                                      backgroundColor: B.successBg,
-                                      color: B.success,
-                                      borderColor: B.successBorder,
-                                      focusRingColor: B.success,
+                                      backgroundColor: B.card,
+                                      color: B.text,
+                                      borderColor: B.border,
+                                      boxShadow: B.cardShadow,
+                                      focusRingColor: B.accent,
                                       focusRingOffsetColor: B.card,
                                   }
                                   : {
-                                      backgroundColor: B.cardBorder,
+                                      backgroundColor: B.bg,
                                       color: B.textMuted,
                                       borderColor: B.border,
                                       focusRingColor: B.accent,
@@ -761,20 +824,18 @@ export function ReviewScreen({
                               </div>
                             </div>
 
-                            {/* Hashtags */}
-                            {currentPlatformDraft.hashtags.length > 0 && (
-                              <div className="flex flex-wrap gap-1.5">
-                                {currentPlatformDraft.hashtags.map(tag => (
-                                  <span
-                                    key={tag}
-                                    className="px-2 py-0.5 rounded-md text-xs font-medium"
-                                    style={{ background: B.accentBg, color: B.accentDark }}
-                                  >
-                                    #{tag.replace(/^#+/, '')}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
+                            {/* Hashtags Section */}
+                            <div className="space-y-1.5 pt-1">
+                              <label className="text-xs font-semibold block" style={{ color: B.textSecondary }}>
+                                Hashtags
+                              </label>
+                              <HashtagInput
+                                tags={currentPlatformDraft.hashtags || []}
+                                onAdd={tag => addHashtag(postIdx, currentPlatformIdx, tag)}
+                                onRemove={tag => removeHashtag(postIdx, currentPlatformIdx, tag)}
+                                placeholder="add tag..."
+                              />
+                            </div>
 
                             {/* Auto first comment */}
                             <AutoFirstComment content={currentPlatformDraft.autoFirstComment || ''} />
