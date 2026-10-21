@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { ExternalLink, Github, Linkedin, Instagram } from 'lucide-react';
 import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
+import { getLinkIcon as getSharedLinkIcon } from '@/components/profile/templates/utils/socialIcons';
 
 interface CreatorTemplateProps {
   profile: any;
@@ -422,15 +422,6 @@ export function CreatorTemplate({ profile, accentColor }: CreatorTemplateProps) 
     }
   `;
 
-  const getLinkIcon = (label: string, url: string) => {
-    const lower = label.toLowerCase();
-    if (lower.includes('github')) return <Github size={20} />;
-    if (lower.includes('linkedin')) return <Linkedin size={20} />;
-    if (lower.includes('instagram')) return <Instagram size={20} />;
-    if (lower.includes('twitter') || lower.includes('x.com')) return <span style={{ fontSize: '20px' }}>✕</span>;
-    return <ExternalLink size={20} />;
-  };
-
   return (
     <div
       className="creator-wrap"
@@ -546,7 +537,7 @@ export function CreatorTemplate({ profile, accentColor }: CreatorTemplateProps) 
                     <a key={i} href={link.url} target="_blank" rel="noreferrer" className="creator-link">
                       <div className="creator-link-left">
                         <div className="creator-link-icon">
-                          {getLinkIcon(link.label, link.url)}
+                          {getSharedLinkIcon(link.label, link.url)}
                         </div>
                         <span>{link.label}</span>
                       </div>

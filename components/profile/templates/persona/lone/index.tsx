@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { ExternalLink, Github, Linkedin, Instagram } from 'lucide-react';
 import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
+import { getLinkIcon as getSharedLinkIcon } from '@/components/profile/templates/utils/socialIcons';
 
 interface LoneTemplateProps {
   profile: any;
@@ -426,15 +426,6 @@ export function LoneTemplate({ profile, accentColor }: LoneTemplateProps) {
     }
   `;
 
-  const getLinkIcon = (label: string, url: string) => {
-    const lower = label.toLowerCase();
-    if (lower.includes('github')) return <Github size={18} />;
-    if (lower.includes('linkedin')) return <Linkedin size={18} />;
-    if (lower.includes('instagram')) return <Instagram size={18} />;
-    if (lower.includes('twitter') || lower.includes('x.com')) return <span style={{ fontSize: '18px' }}>✕</span>;
-    return <ExternalLink size={18} />;
-  };
-
   return (
     <div
       className="lone-wrap"
@@ -549,7 +540,7 @@ export function LoneTemplate({ profile, accentColor }: LoneTemplateProps) {
                     <a key={i} href={link.url} target="_blank" rel="noreferrer" className="lone-link">
                       <div className="lone-link-left">
                         <div className="lone-link-icon">
-                          {getLinkIcon(link.label, link.url)}
+                          {getSharedLinkIcon(link.label, link.url, link.icon, 'w-4 h-4')}
                         </div>
                         <span>{link.label}</span>
                       </div>

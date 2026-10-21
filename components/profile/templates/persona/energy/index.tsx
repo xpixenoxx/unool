@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { ExternalLink, Github, Linkedin, Instagram } from 'lucide-react';
 import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
+import { getLinkIcon as getSharedLinkIcon } from '@/components/profile/templates/utils/socialIcons';
 
 interface EnergyTemplateProps {
   profile: any;
@@ -422,15 +422,6 @@ export function EnergyTemplate({ profile, accentColor }: EnergyTemplateProps) {
     }
   `;
 
-  const getLinkIcon = (label: string, url: string) => {
-    const lower = label.toLowerCase();
-    if (lower.includes('github')) return <Github size={20} />;
-    if (lower.includes('linkedin')) return <Linkedin size={20} />;
-    if (lower.includes('instagram')) return <Instagram size={20} />;
-    if (lower.includes('twitter') || lower.includes('x.com')) return <span style={{ fontSize: '20px' }}>✕</span>;
-    return <ExternalLink size={20} />;
-  };
-
   return (
     <div
       className="energy-wrap"
@@ -546,7 +537,7 @@ export function EnergyTemplate({ profile, accentColor }: EnergyTemplateProps) {
                     <a key={i} href={link.url} target="_blank" rel="noreferrer" className="energy-link">
                       <div className="energy-link-left">
                         <div className="energy-link-icon">
-                          {getLinkIcon(link.label, link.url)}
+                          {getSharedLinkIcon(link.label, link.url, link.icon, 'w-5 h-5')}
                         </div>
                         <span>{link.label}</span>
                       </div>

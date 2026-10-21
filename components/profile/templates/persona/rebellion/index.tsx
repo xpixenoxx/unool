@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { ExternalLink, Github, Linkedin, Instagram } from 'lucide-react';
 import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
+import { getLinkIcon as getSharedLinkIcon } from '@/components/profile/templates/utils/socialIcons';
 
 interface RebellionTemplateProps {
   profile: any;
@@ -347,15 +347,6 @@ export function RebellionTemplate({ profile, accentColor }: RebellionTemplatePro
     }
   `;
 
-  const getLinkIcon = (label: string, url: string) => {
-    const lower = label.toLowerCase();
-    if (lower.includes('github')) return <Github size={20} />;
-    if (lower.includes('linkedin')) return <Linkedin size={20} />;
-    if (lower.includes('instagram')) return <Instagram size={20} />;
-    if (lower.includes('twitter') || lower.includes('x.com')) return <span style={{ fontSize: '20px' }}>✕</span>;
-    return <ExternalLink size={20} />;
-  };
-
   const getLinkSubtitle = (label: string) => {
     const lower = label.toLowerCase();
     if (lower.includes('github')) return 'Code & Repos';
@@ -484,7 +475,7 @@ export function RebellionTemplate({ profile, accentColor }: RebellionTemplatePro
             <nav className="reb-links-grid">
               {profile.links.map((link: any, i: number) => (
                 <a key={i} className="reb-link-card" href={link.url} target="_blank" rel="noopener noreferrer" onMouseEnter={() => setHovered(i)} onMouseLeave={() => setHovered(null)}>
-                  <div className="reb-link-icon-wrap">{getLinkIcon(link.label || link.platform, link.url)}</div>
+                  <div className="reb-link-icon-wrap">{getSharedLinkIcon(link.label || link.platform, link.url, link.icon, 'w-5 h-5')}</div>
                   <div className="reb-link-title">{link.label || link.platform}</div>
                   <div className="reb-link-sub">{getLinkSubtitle(link.label || link.platform)}</div>
                   <div className="reb-link-arrow">↗</div>

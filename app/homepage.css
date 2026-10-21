@@ -1490,120 +1490,400 @@
 
 .unool-home-page .pst {
   perspective: 1400px;
-  display: grid;
-  place-items: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   position: relative;
+  width: 100%;
+  max-width: 380px;
   min-height: 620px;
+  margin: 0 auto;
 }
 
 .unool-home-page .pf {
-  width: 300px;
-  height: 580px;
-  border: 10px solid #17100f;
-  border-radius: 46px;
+  width: min(320px, 86vw);
+  height: 590px;
+  border: 11px solid #140f0e;
+  border-radius: 48px;
   background: #fff;
-  padding: 12px 20px;
+  padding: 0;
   text-align: center;
   transform-style: preserve-3d;
-  transition: transform .2s;
-  box-shadow: 40px 60px 80px -30px rgba(61, 12, 26, .4);
+  transition: transform .25s cubic-bezier(.2, .8, .2, 1), box-shadow .3s;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.15) inset, 0 0 0 2px #2b2220, 25px 45px 80px -20px rgba(61, 12, 26, 0.35);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-.unool-home-page .pf .t {
+/* Smartphone Hardware Elements */
+.unool-home-page .pf-status {
+  height: 22px;
+  padding: 4px 18px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  flex: none;
+  z-index: 10;
+  transition: color .3s;
+}
+
+.unool-home-page .pf-notch {
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 82px;
+  height: 20px;
+  background: #000;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  z-index: 15;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.unool-home-page .pf-notch-lens {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #1d2b45, #0a0a0f);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12) inset;
+}
+
+.unool-home-page .pf-notch-sensor {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #121216;
+}
+
+.unool-home-page .pf-appbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font: 800 17px 'Bricolage Grotesque', sans-serif;
-  margin: 20px 0 20px;
-  transform: translateZ(20px);
+  padding: 6px 16px 8px;
+  font: 800 16px 'Bricolage Grotesque', sans-serif;
+  letter-spacing: -0.03em;
+  flex: none;
+  z-index: 10;
+  transition: color .3s;
 }
 
-.unool-home-page .pa {
-  width: 104px;
-  height: 104px;
-  border-radius: 50%;
-  margin: 0 auto 14px;
-  background: linear-gradient(140deg, #521f13, var(--acc));
-  display: grid;
-  place-items: center;
-  color: #fff;
-  font: 800 42px 'Bricolage Grotesque', sans-serif;
-  transform: translateZ(70px);
-  box-shadow: 0 22px 30px -14px var(--acc);
-  transition: background .5s, box-shadow .5s;
-}
-
-.unool-home-page .pf h4 {
-  font: 800 27px 'Bricolage Grotesque', sans-serif;
-  transform: translateZ(45px);
-}
-
-.unool-home-page .pf small {
-  color: #6c5b56;
-  display: block;
-  margin: 5px 0 14px;
-}
-
-.unool-home-page .lk {
+.unool-home-page .pf-appbar .brand {
   display: flex;
-  gap: 12px;
   align-items: center;
-  text-align: left;
-  padding: 11px 14px;
-  border: 1px solid #eee;
-  border-radius: 16px;
-  margin-top: 8px;
-  transform: translateZ(24px);
-  background: #fff;
-  font: 700 14px 'DM Sans', sans-serif;
+  gap: 1px;
 }
 
-.unool-home-page .lk i {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: var(--acc);
-  color: #fff;
+.unool-home-page .pf-appbar .brand span {
+  color: var(--terra);
+}
+
+.unool-home-page .pf-screen {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px 14px 20px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  display: flex;
+  flex-direction: column;
+  transition: background .4s, color .4s;
+}
+
+.unool-home-page .pf-screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* Avatar with checkmark */
+.unool-home-page .pf-avatar-wrap {
+  position: relative;
+  width: 74px;
+  height: 74px;
+  margin: 6px auto 10px;
+  flex: none;
+}
+
+.unool-home-page .pf-avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
   display: grid;
   place-items: center;
+  color: #fff;
+  font: 800 32px 'Bricolage Grotesque', sans-serif;
+  box-shadow: 0 14px 26px -8px var(--acc);
+  transition: background .4s, box-shadow .4s, transform .2s;
+}
+
+.unool-home-page .pf-badge-verified {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #0077b5;
+  color: #fff;
+  border: 2.5px solid #fff;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 800;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.unool-home-page .pf-name {
+  font: 800 22px 'Bricolage Grotesque', sans-serif;
+  letter-spacing: -0.03em;
+  margin-bottom: 2px;
+  line-height: 1.15;
+}
+
+.unool-home-page .pf-role {
+  font-size: 12px;
+  line-height: 1.35;
+  margin-bottom: 8px;
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+.unool-home-page .pf-tag-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 11px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  margin: 0 auto 10px;
+  width: fit-content;
+  transition: all .3s;
+}
+
+/* Proof metrics grid */
+.unool-home-page .pf-proofs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.unool-home-page .pf-proof-item {
+  padding: 6px 4px;
+  border-radius: 12px;
+  text-align: center;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  transition: background .3s, border-color .3s;
+}
+
+.unool-home-page .pf-proof-val {
+  display: block;
+  font: 800 13px 'Bricolage Grotesque', sans-serif;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.unool-home-page .pf-proof-lbl {
+  display: block;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  opacity: 0.7;
+  margin-top: 2px;
+}
+
+/* Bio / Quote pill */
+.unool-home-page .pf-bio {
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 11px;
+  line-height: 1.35;
+  margin-bottom: 10px;
+  font-style: italic;
+  opacity: 0.85;
+}
+
+/* Authentic Links List */
+.unool-home-page .pf-links {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-bottom: 12px;
+}
+
+.unool-home-page .pf-link-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  text-decoration: none;
+  text-align: left;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: #fff;
+  transition: transform .2s cubic-bezier(.2, .8, .2, 1), box-shadow .2s, border-color .2s;
+  cursor: pointer;
+}
+
+.unool-home-page .pf-link-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px -4px rgba(0, 0, 0, 0.12);
+}
+
+.unool-home-page .pf-link-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  flex: none;
   font-style: normal;
-  transition: background .5s;
+  font-weight: 800;
+  font-size: 12px;
+  transition: background .3s;
 }
 
-.unool-home-page .lk span {
+.unool-home-page .pf-link-info {
   flex: 1;
+  min-width: 0;
 }
 
+.unool-home-page .pf-link-title {
+  display: block;
+  font: 700 13px 'DM Sans', sans-serif;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.unool-home-page .pf-link-sub {
+  display: block;
+  font-size: 10px;
+  opacity: 0.65;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.unool-home-page .pf-link-arrow {
+  font-size: 13px;
+  opacity: 0.6;
+  flex: none;
+  transition: transform .2s;
+}
+
+.unool-home-page .pf-link-card:hover .pf-link-arrow {
+  transform: translateX(2px);
+  opacity: 1;
+}
+
+/* Footer verification pill */
+.unool-home-page .pf-footer-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 99px;
+  margin-top: auto;
+  align-self: center;
+  opacity: 0.8;
+  letter-spacing: 0.02em;
+}
+
+/* Floating Badges */
 .unool-home-page .fch {
   position: absolute;
   padding: 9px 16px;
   border-radius: 99px;
-  background: #fff;
-  box-shadow: 0 16px 30px -12px rgba(110, 31, 31, .35);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 14px 28px -8px rgba(110, 31, 31, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.8);
   font: 700 13px 'DM Sans', sans-serif;
+  color: var(--ink);
+  z-index: 12;
+  white-space: nowrap;
+  pointer-events: none;
   animation: fl 5s ease-in-out infinite;
 }
 
+/* Template indicator pill above swatches */
+.unool-home-page .tpl-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 99px;
+  background: rgba(200, 75, 49, 0.08);
+  border: 1px solid rgba(200, 75, 49, 0.22);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 12px;
+  transition: all .25s ease;
+}
+
+.unool-home-page .tpl-indicator .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  animation: pu 1.8s infinite;
+}
+
+.unool-home-page .tpl-indicator b {
+  color: var(--terra);
+}
+
+.unool-home-page .tpl-indicator small {
+  opacity: 0.7;
+}
+
+/* Swatches matching Image 2 */
 .unool-home-page .sw {
   display: flex;
-  gap: 10px;
-  margin: 24px 0 28px;
+  gap: 12px;
+  align-items: center;
+  margin: 14px 0 26px;
+  flex-wrap: wrap;
 }
 
 .unool-home-page .sw button {
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   border: 3px solid #fff;
   box-shadow: 0 0 0 1px #d9cbbb;
   cursor: pointer;
-  transition: transform .2s, box-shadow .2s;
+  transition: transform .2s cubic-bezier(.2, .8, .2, 1), box-shadow .2s;
+  outline: none;
+  position: relative;
 }
 
-.unool-home-page .sw button:hover,
+.unool-home-page .sw button:hover {
+  transform: scale(1.12);
+}
+
 .unool-home-page .sw button.on {
-  transform: scale(1.22);
-  box-shadow: 0 0 0 2px var(--ink);
+  transform: scale(1.18);
+  box-shadow: 0 0 0 3px #fdf6ee, 0 0 0 5.5px #1c0b09;
 }
 
 .unool-home-page .split h3 {
@@ -1613,6 +1893,58 @@
 
 .unool-home-page .split h3 em {
   color: var(--terra);
+}
+
+/* Mobile Responsiveness Improvements */
+@media (max-width: 920px) {
+  .unool-home-page #profile {
+    padding: 70px 4vw 90px;
+    overflow-x: hidden;
+  }
+  .unool-home-page .split {
+    grid-template-columns: 1fr;
+    gap: 48px;
+    text-align: center;
+  }
+  .unool-home-page .split > div:last-child {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 520px;
+    margin: 0 auto;
+  }
+  .unool-home-page .sw {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 640px) {
+  .unool-home-page .pst {
+    max-width: 330px;
+    min-height: 590px;
+  }
+  .unool-home-page .pf {
+    width: 298px;
+    height: 570px;
+    border-width: 9px;
+    border-radius: 44px;
+  }
+  .unool-home-page .fch {
+    font-size: 12px;
+    padding: 7px 13px;
+  }
+  .unool-home-page .fch[data-pos="ig"] {
+    left: -4px !important;
+    top: 55px !important;
+  }
+  .unool-home-page .fch[data-pos="yt"] {
+    right: -4px !important;
+    top: 155px !important;
+  }
+  .unool-home-page .fch[data-pos="tt"] {
+    left: 4px !important;
+    bottom: 85px !important;
+  }
 }
 
 /* pricing */

@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { ExternalLink, Github, Linkedin, Instagram } from 'lucide-react';
 import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
+import { getLinkIcon as getSharedLinkIcon } from '@/components/profile/templates/utils/socialIcons';
 
 interface HustlerTemplateProps {
   profile: any;
@@ -409,15 +409,6 @@ export function HustlerTemplate({ profile, accentColor }: HustlerTemplateProps) 
     }
   `;
 
-  const getLinkIcon = (label: string, url: string) => {
-    const lower = label.toLowerCase();
-    if (lower.includes('github')) return <Github size={18} />;
-    if (lower.includes('linkedin')) return <Linkedin size={18} />;
-    if (lower.includes('instagram')) return <Instagram size={18} />;
-    if (lower.includes('twitter') || lower.includes('x.com')) return <span style={{ fontSize: '18px' }}>✕</span>;
-    return <ExternalLink size={18} />;
-  };
-
   return (
     <div
       className="hustler-wrap"
@@ -533,7 +524,7 @@ export function HustlerTemplate({ profile, accentColor }: HustlerTemplateProps) 
                     <a key={i} href={link.url} target="_blank" rel="noreferrer" className="hustler-link">
                       <div className="hustler-link-left">
                         <div className="hustler-link-icon">
-                          {getLinkIcon(link.label, link.url)}
+                          {getSharedLinkIcon(link.label, link.url)}
                         </div>
                         <span>{link.label}</span>
                       </div>

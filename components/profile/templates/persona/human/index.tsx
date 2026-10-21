@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { ExternalLink, Github, Linkedin, Instagram, BadgeCheck, Send, Bookmark, ArrowRight, Users, Eye } from 'lucide-react';
-import { SocialIcon } from '@/components/profile/SocialBrandIcons';
+import { BadgeCheck, Send, Bookmark, ArrowRight, Users, Eye } from 'lucide-react';
 import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
+import { getLinkIcon as getSharedLinkIcon } from '@/components/profile/templates/utils/socialIcons';
 
 interface HumanTemplateProps {
   profile: any;
@@ -42,15 +42,6 @@ export function HumanTemplate({ profile, accentColor }: HumanTemplateProps) {
     a.download = `${profile.name?.replace(/\s+/g, '_') || 'Contact'}.vcf`;
     a.click();
     showToast('Contact saved!');
-  };
-
-  const getIcon = (iconName?: string) => {
-    switch (iconName?.toLowerCase()) {
-      case 'github': return <Github size={20} />;
-      case 'linkedin': return <Linkedin size={20} />;
-      case 'instagram': return <Instagram size={20} />;
-      default: return <ExternalLink size={20} />;
-    }
   };
 
   const customStyles = `
@@ -314,7 +305,7 @@ export function HumanTemplate({ profile, accentColor }: HumanTemplateProps) {
                      style={{ backgroundColor: style.bg, color: style.text }}>
                     <div className="flex items-center gap-4 md:gap-5">
                       <div className="w-12 h-12 md:w-14 md:h-14 bg-white/60 rounded-xl md:rounded-2xl flex items-center justify-center shrink-0 shadow-sm text-[#1B1D1B]">
-                        <SocialIcon label={link.label} url={link.url} icon={link.icon} className="w-5 h-5 fill-current" />
+                        {getSharedLinkIcon(link.label, link.url, link.icon, 'w-5 h-5')}
                       </div>
                       <div className="flex flex-col overflow-hidden">
                         <span className="font-sans font-bold text-base md:text-lg tracking-tight">{link.label}</span>
@@ -418,7 +409,7 @@ export function HumanTemplate({ profile, accentColor }: HumanTemplateProps) {
                   <span className="text-[10px] uppercase tracking-[0.2em] font-bold opacity-40">Links</span>
                   {profile.links.map((l: any, i: number) => (
                     <a key={i} href={l.url} target="_blank" rel="noreferrer" className="font-sans font-bold text-lg hover:text-[#BE5B42] transition-colors flex items-center gap-3">
-                      <SocialIcon label={l.label} url={l.url} icon={l.icon} className="w-5 h-5 fill-current shrink-0" />
+                      {getSharedLinkIcon(l.label, l.url, l.icon, 'w-5 h-5')}
                       <span>{l.label}</span>
                     </a>
                   ))}

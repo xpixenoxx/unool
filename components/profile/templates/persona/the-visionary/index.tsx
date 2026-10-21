@@ -1,8 +1,7 @@
 'use client';
 
-import { ExternalLink, Github, Linkedin, Instagram } from 'lucide-react';
-import { SocialIcon } from '@/components/profile/SocialBrandIcons';
 import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
+import { getPlatformIcon as getSharedPlatformIcon } from '@/components/profile/templates/utils/socialIcons';
 import type { ProfileLink } from '@/components/profile/templates/types';
 
 interface VisionaryTemplateProps {
@@ -42,10 +41,6 @@ export function VisionaryTemplate({ profile, onLinkClick, accentColor }: Visiona
   const contactLink = email.includes('@') ? `mailto:${email}` : '#';
 
   const currentYear = new Date().getFullYear();
-
-  const getPlatformIcon = (platform: string, url?: string, icon?: string) => {
-    return <SocialIcon label={platform} url={url} icon={icon} className="w-[19px] h-[19px] block fill-current" />;
-  };
 
   return (
     <div className="min-h-screen w-full bg-[#ECEEF5] py-8 sm:py-16 px-4 sm:px-8 flex justify-center items-start text-[#2C2825] font-['Manrope',sans-serif] antialiased">
@@ -153,7 +148,7 @@ export function VisionaryTemplate({ profile, onLinkClick, accentColor }: Visiona
               <div className="flex flex-wrap gap-3">
                 {links.map((link: any, i: number) => (
                   <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" onClick={(e) => { e.preventDefault(); onLinkClick?.(link.url); window.open(link.url, '_blank'); }} className="flex items-center gap-3 px-5 py-3 bg-[#FDF2E9] border border-[#2C2825]/10 rounded-[12px] text-[#2C2825] text-sm font-medium transition-all hover:border-[#2C2825]/30 hover:shadow-md group">
-                    <div className="w-8 h-8 rounded-full bg-[#2C2825]/10 flex items-center justify-center group-hover:bg-[#2C2825] group-hover:text-[#FDF2E9] transition-colors">{getPlatformIcon(link.label, link.url, link.icon)}</div>
+                    {getSharedPlatformIcon(link.label, link.url, link.icon, 19, 'w-8 h-8 rounded-full bg-[#2C2825]/10 flex items-center justify-center group-hover:bg-[#2C2825] group-hover:text-[#FDF2E9] transition-colors')}
                     <span>{link.label}</span>
                     <span className="text-[9px] uppercase tracking-[0.1em] text-[#2C2825]/40 hidden sm:inline">{link.description}</span>
                   </a>

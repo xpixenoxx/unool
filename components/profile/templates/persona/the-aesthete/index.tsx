@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { ExternalLink, Github, Linkedin, Instagram } from 'lucide-react';
 import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
+import { getLinkIcon as getSharedLinkIcon } from '@/components/profile/templates/utils/socialIcons';
 
 interface AestheteTemplateProps {
   profile: any;
@@ -438,15 +438,6 @@ export function AestheteTemplate({ profile, accentColor }: AestheteTemplateProps
     }
   `;
 
-  const getLinkIcon = (label: string, url: string) => {
-    const lower = label.toLowerCase();
-    if (lower.includes('github')) return <Github size={18} />;
-    if (lower.includes('linkedin')) return <Linkedin size={18} />;
-    if (lower.includes('instagram')) return <Instagram size={18} />;
-    if (lower.includes('twitter') || lower.includes('x.com')) return <span style={{ fontSize: '18px' }}>✕</span>;
-    return <ExternalLink size={18} />;
-  };
-
   const getLinkSubtitle = (label: string) => {
     const lower = label.toLowerCase();
     if (lower.includes('github')) return 'Code & Repos';
@@ -568,7 +559,7 @@ export function AestheteTemplate({ profile, accentColor }: AestheteTemplateProps
                     <a key={i} href={link.url} target="_blank" rel="noreferrer" className="aesthete-link">
                       <div className="aesthete-link-left">
                         <div className="aesthete-link-icon">
-                          {getLinkIcon(link.label, link.url)}
+                          {getSharedLinkIcon(link.label, link.url)}
                         </div>
                         <div>
                           <div className="aesthete-link-title">{link.label}</div>

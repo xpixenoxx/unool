@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { ExternalLink, Github, Linkedin, Instagram } from 'lucide-react';
 import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
+import { getLinkIcon as getSharedLinkIcon } from '@/components/profile/templates/utils/socialIcons';
 
 interface VoiceTemplateProps {
   profile: any;
@@ -516,18 +516,6 @@ export function VoiceTemplate({ profile, accentColor }: VoiceTemplateProps) {
     }
   `;
 
-  const getLinkIcon = (label: string, url: string) => {
-    const lower = label.toLowerCase();
-    if (lower.includes('github')) return <Github size={22} />;
-    if (lower.includes('linkedin')) return <Linkedin size={22} />;
-    if (lower.includes('instagram')) return <Instagram size={22} />;
-    if (lower.includes('twitter') || lower.includes('x.com')) return <span style={{ fontSize: '22px' }}>✕</span>;
-    if (lower.includes('youtube')) return <span style={{ fontSize: '22px' }}>▶</span>;
-    if (lower.includes('spotify') || lower.includes('podcast')) return <span style={{ fontSize: '22px' }}>♪</span>;
-    if (lower.includes('substack') || lower.includes('newsletter')) return <span style={{ fontSize: '22px' }}>✉</span>;
-    return <ExternalLink size={22} />;
-  };
-
   return (
     <div
       className="voice-wrap"
@@ -635,7 +623,7 @@ export function VoiceTemplate({ profile, accentColor }: VoiceTemplateProps) {
                     <a key={i} href={link.url} target="_blank" rel="noreferrer" className="voice-link">
                       <div className="voice-link-left">
                         <div className="voice-link-icon">
-                          {getLinkIcon(link.label, link.url)}
+                          {getSharedLinkIcon(link.label, link.url)}
                         </div>
                         <div>
                           <span className="voice-link-label">{link.label}</span>

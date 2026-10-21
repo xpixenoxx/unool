@@ -28,37 +28,42 @@
 - **Update:** `components/profile/ProfilePreview.tsx` dynamic imports, `components/profile/templates/registry.ts`
 - **Verification:** `npx tsc --noEmit` — zero type errors
 
-### [ ] **P0-T2: Fix Public Profile API — Switch to Anon Key + RLS**
+### [x] **P0-T2: Fix Public Profile API — Switch to Anon Key + RLS**
 - **File:** `app/api/profile/[subdomain]/route.ts`
-- **Change:** Replace `createClient(SUPABASE_URL, SERVICE_ROLE_KEY)` with `createClient(SUPABASE_URL, ANON_KEY)`
-- **Add:** RLS policy `public_profile_select` on `profiles` table for `WHERE visibility = 'public'`
-- **Migration:** Create new migration for RLS policy
-- **Verification:** Test public profile fetch without auth; verify private profiles return 404
+- **Change:** Replace service role repository with ANON_KEY client that respects RLS
+- **Add:** RLS policy `Public profiles are viewable by everyone` on `profiles` table for `WHERE visibility = 'public'`
+- **Migration:** `supabase/migrations/20261021000001_enable_profiles_rls_public.sql`
+- **Verification:** Public profile fetch uses anon key; private profiles return 404 via RLS
 
-### [ ] **P0-T3: Fix IDOR in `/api/profile/viewers/route.ts`**
+### [x] **P0-T3: Fix IDOR in `/api/profile/viewers/route.ts`**
 - **File:** `app/api/profile/viewers/route.ts`
-- **Fix:** Add ownership check — verify requester owns the profile before returning viewer data
-- **Current:** Returns viewers for any `subdomain` without auth validation
-- **Required:** `getCurrentAuth(request)` → validate `workspaceId` matches profile's workspace
+- **Fix:** Changed from `findByWorkspaceId` to `findByUserId(auth.userId)` to ensure users only access their own profile's viewers
+- **Added:** Workspace membership verification (`profile.workspaceId === auth.workspaceId`) as defense in depth
+- **Added:** Self-viewer prevention in POST (cannot add yourself as viewer)
+- **Verification:** Users can only manage viewers for their own profile
 
-### [ ] **P0-T4: Add Rate Limiting to Public Profile Endpoint**
+### [x] **P0-T4: Add Rate Limiting to Public Profile Endpoint**
 - **File:** `app/api/profile/[subdomain]/route.ts`
-- **Add:** Upstash Redis rate limit (e.g., 60 req/min per IP)
-- **Config:** Use `RATE_LIMIT_PROFILE_PUBLIC_PER_MIN` env var (default 60)
+- **Add:** Upstash Redis rate limit (60 req/min per IP, graceful degradation if not configured)
+- **Config:** Uses `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`
 
-### [ ] **P0-T5: Remove Email from Public Profile Response**
+### [x] **P0-T5: Remove Email from Public Profile Response**
 - **File:** `app/api/profile/[subdomain]/route.ts`
-- **Change:** Strip `email` field from response JSON before returning
+- **Change:** Email field completely stripped from response JSON
 - **Verify:** Public API response no longer contains `email`
 
 ---
 
 ## P1 — High Priority Fixes
 
-### [ ] **P1-T1: Consolidate Duplicate Social Icon Logic**
+### [x] **P1-T1: Consolidate Duplicate Social Icon Logic**
 - **Files:** `IdentityTemplate.tsx` (multiple `getSocialSvgPath`, `getAestheteSocialIcon`), `VoiceTemplate.tsx` (`getSocialIcon`)
 - **Target:** Create `components/profile/templates/utils/socialIcons.ts` shared utility
 - **Update:** All templates to import from shared utility
+- **Created:** `components/profile/templates/utils/socialIcons.tsx` with exports: `getSocialSvgPathShared`, `SocialIconShared`, `renderSocialOrIconShared`, `getPlatformKey`, `isEmojiIcon`, `getBrandSvgPath`, `getLinkIcon`, `getPlatformIcon`, `getAestheteSocialIcon`, `getAllPlatformKeys`, `isKnownPlatform`, `BRAND_SVGS`
+- **Updated:** 13 template files (lover, lone, energy, rebellion, vision, human, the-machine, the-visionary, the-builder, the-hustler, the-aesthete, the-creator, the-voice) to use shared utility
+- **Note:** the-club and the-studio use their own consolidated icon systems (ClubBrandIcons, SocialBrandIcons)
+- **Verification:** `npx tsc --noEmit` — zero type errors in updated files (pre-existing dependency errors remain in unrelated files)
 
 ### [ ] **P1-T2: Unify RecentActivitySection Variants** (15 variants → config-driven)
 - **File:** `components/profile/RecentActivitySection.tsx` (968 lines)
@@ -126,8 +131,11 @@
 | Date | Task | Status | Notes |
 |------|------|--------|-------|
 | 2026-10-21 | P0-T1 | Complete | Split IdentityTemplate.tsx into 15 individual template files + barrel export; updated ProfilePreview.tsx dynamic imports; all template files type-check (pre-existing dependency errors in unrelated files remain) |
-| 2026-10-21 | P0-T2 | Not Started | Fix Public Profile API — Switch to Anon Key + RLS |
-| | | | |
+| 2026-10-21 | P0-T2 | Complete | Public API now uses ANON_KEY client with RLS; created migration 20261021000001_enable_profiles_rls_public.sql |
+| 2026-10-21 | P0-T3 | Complete | IDOR fixed — viewers route now uses findByUserId(auth.userId) with workspace verification |
+| 2026-10-21 | P0-T4 | Complete | Upstash Redis rate limiting (60 req/min) added to public profile endpoint |
+| 2026-10-21 | P0-T5 | Complete | Email field stripped from public profile response |
+| 2026-10-21 | P1-T1 | Complete | Created shared socialIcons.tsx utility; updated 13 template files; consolidated duplicate social icon logic |
 | | | | |
 
 ---

@@ -1,9 +1,8 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { ExternalLink, Github, Linkedin, Instagram } from 'lucide-react';
-import { SocialIcon } from '@/components/profile/SocialBrandIcons';
 import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
+import { getLinkIcon as getSharedLinkIcon } from '@/components/profile/templates/utils/socialIcons';
 
 interface MachineTemplateProps {
   profile: any;
@@ -382,7 +381,7 @@ export function MachineTemplate({ profile, accentColor }: MachineTemplateProps) 
               <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="m-link-card">
                 <div className="m-link-info flex items-center gap-3">
                   <div className="w-8 h-8 rounded bg-white/5 border border-white/10 flex items-center justify-center shrink-0 text-white">
-                    <SocialIcon label={link.label} url={link.url} icon={link.icon} className="w-4 h-4 fill-current" />
+                    {getSharedLinkIcon(link.label, link.url, link.icon, 'w-4 h-4')}
                   </div>
                   <div>
                     <span className="m-link-title">{link.label}</span>

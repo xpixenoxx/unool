@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { ExternalLink, Github, Linkedin, Instagram } from 'lucide-react';
 import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
+import { getLinkIcon as getSharedLinkIcon } from '@/components/profile/templates/utils/socialIcons';
 
 interface VisionTemplateProps {
   profile: any;
@@ -394,15 +394,6 @@ export function VisionTemplate({ profile, accentColor }: VisionTemplateProps) {
     }
   `;
 
-  const getLinkIcon = (label: string, url: string) => {
-    const lower = label.toLowerCase();
-    if (lower.includes('github')) return <Github size={18} />;
-    if (lower.includes('linkedin')) return <Linkedin size={18} />;
-    if (lower.includes('instagram')) return <Instagram size={18} />;
-    if (lower.includes('twitter') || lower.includes('x.com')) return <span style={{ fontSize: '18px' }}>✕</span>;
-    return <ExternalLink size={18} />;
-  };
-
   return (
     <div
       className="vision-wrap"
@@ -515,7 +506,7 @@ export function VisionTemplate({ profile, accentColor }: VisionTemplateProps) {
                   {profile.links.map((link: any, i: number) => (
                     <a key={i} href={link.url} target="_blank" rel="noreferrer" className="vision-link flex items-center justify-between">
                       <span className="flex items-center gap-2.5">
-                        {getLinkIcon(link.label, link.url)}
+                        {getSharedLinkIcon(link.label, link.url, link.icon, 'w-4 h-4')}
                         <span>{link.label}</span>
                       </span>
                       <span className="vision-link-arrow">↗</span>

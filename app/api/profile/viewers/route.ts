@@ -12,9 +12,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const profile = await profileRepository.findByWorkspaceId(auth.workspaceId);
+    // Find the profile owned by the authenticated user
+    const profile = await profileRepository.findByUserId(auth.userId);
     if (!profile) {
-      return NextResponse.json({ viewers: [] });
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    }
+
+    // Verify workspace membership (defense in depth)
+    if (profile.workspaceId !== auth.workspaceId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const viewers = await profileRepository.getViewers(profile.id);
@@ -38,9 +44,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'viewerUserId is required' }, { status: 400 });
     }
 
-    const profile = await profileRepository.findByWorkspaceId(auth.workspaceId);
+    // Find the profile owned by the authenticated user
+    const profile = await profileRepository.findByUserId(auth.userId);
     if (!profile) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    }
+
+    // Verify workspace membership (defense in depth)
+    if (profile.workspaceId !== auth.workspaceId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // Prevent adding self as viewer
+    if (viewerUserId === auth.userId) {
+      return NextResponse.json({ error: 'Cannot add yourself as a viewer' }, { status: 400 });
     }
 
     await profileRepository.addViewer(profile.id, viewerUserId);
@@ -65,9 +82,15 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'viewerUserId is required' }, { status: 400 });
     }
 
-    const profile = await profileRepository.findByWorkspaceId(auth.workspaceId);
+    // Find the profile owned by the authenticated user
+    const profile = await profileRepository.findByUserId(auth.userId);
     if (!profile) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    }
+
+    // Verify workspace membership (defense in depth)
+    if (profile.workspaceId !== auth.workspaceId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     await profileRepository.removeViewer(profile.id, viewerUserId);

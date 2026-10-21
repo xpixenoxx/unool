@@ -6,7 +6,52 @@ import { analytics, extractTrackingFromRequest } from '@/lib/analytics/track';
 import { SupabasePostRepository } from '@/lib/repositories/supabase/SupabasePostRepository';
 import { SupabasePlatformRepository } from '@/lib/repositories/supabase/SupabasePlatformRepository';
 
-const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
+// Create a public Supabase client with ANON_KEY that respects RLS
+const supabasePublic = createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
+
+// Upstash Redis for rate limiting (optional - gracefully degrades if not configured)
+async function checkRateLimit(request: NextRequest): Promise<{ limited: boolean; headers: Record<string, string> }> {
+  const url = config.UPSTASH_REDIS_REST_URL;
+  const token = config.UPSTASH_REDIS_REST_TOKEN;
+
+  if (!url || !token) {
+    return { limited: false, headers: {} };
+  }
+
+  try {
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+      || request.headers.get('x-real-ip')
+      || 'unknown';
+    const key = `ratelimit:profile:${ip}`;
+
+    const response = await fetch(`${url}/incr/${key}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!response.ok) {
+      return { limited: false, headers: {} };
+    }
+
+    const count = await response.json() as number;
+    const limit = 60; // 60 requests per minute
+    const remaining = Math.max(0, limit - count);
+
+    const headers = {
+      'X-RateLimit-Limit': limit.toString(),
+      'X-RateLimit-Remaining': remaining.toString(),
+      'X-RateLimit-Reset': Math.ceil((Date.now() + 60000) / 1000).toString(),
+    };
+
+    if (count > limit) {
+      return { limited: true, headers: { ...headers, 'Retry-After': '60' } };
+    }
+
+    return { limited: false, headers };
+  } catch {
+    // Fail open on rate limiter errors
+    return { limited: false, headers: {} };
+  }
+}
 
 export async function GET(
   request: NextRequest,
@@ -19,23 +64,33 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid subdomain' }, { status: 400 });
     }
 
-    // Use the Repository which has the service_role key to bypass RLS,
-    // so we can manually enforce our own visibility logic.
-    const profileRepository = new (await import('@/lib/repositories/supabase/SupabaseProfileRepository')).SupabaseProfileRepository();
-    const profile = await profileRepository.findBySubdomain(subdomain);
+    // Rate limiting check
+    const { limited, headers: rateLimitHeaders } = await checkRateLimit(request);
+    if (limited) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: rateLimitHeaders }
+      );
+    }
 
-    if (!profile) {
+    // Use the public (ANON_KEY) client which respects RLS
+    // Only profiles with visibility = 'public' will be returned
+    const { data: profile, error } = await supabasePublic
+      .from('profiles')
+      .select('*')
+      .eq('subdomain', subdomain)
+      .single();
+
+    if (error || !profile) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
 
-    // Note: visibility blocking has been replaced by the "Open to..." feature.
-    // Profiles are always publicly accessible — the owner controls their
-    // availability signals, not page visibility.
+    // At this point, RLS guarantees the profile is public (visibility = 'public')
+    // No need for additional visibility checks
 
     // Increment view count async (fire-and-forget, fallback to ignoring errors)
     try {
-      const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
-      await supabase.rpc('increment_profile_views', { profile_id: profile.id });
+      await supabasePublic.rpc('increment_profile_views', { profile_id: profile.id });
     } catch {
       // Ignore view count errors
     }
@@ -44,9 +99,9 @@ export async function GET(
     const { ipHash, referrer, userAgent } = extractTrackingFromRequest(request);
     const resolvedIpHash = await ipHash;
     analytics.profileView({
-      workspaceId: profile.workspaceId,
+      workspaceId: profile.workspace_id,
       profileId: profile.id,
-      userId: profile.userId,
+      userId: profile.user_id,
       sessionId: request.headers.get('x-session-id') || undefined,
       referrer: referrer || undefined,
       userAgent: userAgent || undefined,
@@ -60,8 +115,8 @@ export async function GET(
       const platformRepo = new SupabasePlatformRepository();
 
       let recentPosts = await postRepo.findByProfileId(profile.id, { status: 'published', limit: 1 });
-      if (recentPosts.length === 0 && profile.workspaceId) {
-        recentPosts = await postRepo.findByWorkspaceId(profile.workspaceId, { status: 'published', limit: 1 });
+      if (recentPosts.length === 0 && profile.workspace_id) {
+        recentPosts = await postRepo.findByWorkspaceId(profile.workspace_id, { status: 'published', limit: 1 });
       }
       const latestPost = recentPosts[0] ?? null;
 
@@ -88,39 +143,33 @@ export async function GET(
       // Non-critical — fail silently so the profile always loads
     }
 
-    // Retrieve the profile owner's login email
-    let userEmail: string | undefined = undefined;
-    if (profile.userId) {
-      try {
-        const { supabaseAdmin } = await import('@/lib/supabase/admin');
-        const { data: userRecord } = await supabaseAdmin
-          .from('users')
-          .select('email')
-          .eq('id', profile.userId)
-          .single();
-        userEmail = userRecord?.email;
-
-        if (!userEmail) {
-          const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(profile.userId);
-          userEmail = authUser?.user?.email;
-        }
-      } catch {
-        // Non-blocking fallback
-      }
-    }
-
-    return NextResponse.json({
-      ...profile,
-      email: userEmail || (profile as any).email || null,
+    // Build response WITHOUT email (P0-T5: strip email from public response)
+    // The email field is never included in the public profile response
+    const response = {
+      id: profile.id,
+      workspaceId: profile.workspace_id,
+      userId: profile.user_id,
+      subdomain: profile.subdomain,
+      name: profile.name,
+      headline: profile.headline,
+      bio: profile.bio,
+      role: profile.role,
+      company: profile.company,
+      avatarUrl: profile.avatar_url,
       links: profile.links || [],
-      proofs: profile.proofPoints || [],
-      openTo: profile.openTo || [],
+      proofs: profile.proof_points || [],
+      openTo: profile.open_to || [],
       theme: profile.theme || { preset: 'minimal' },
+      visibility: profile.visibility,
       recentActivity,
-    });
+      createdAt: profile.created_at,
+      updatedAt: profile.updated_at,
+    };
+
+    return NextResponse.json(response, { headers: rateLimitHeaders });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     logger.error('Public profile API error', { error: err });
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+}

@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { ExternalLink, Github, Linkedin, Instagram } from 'lucide-react';
 import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
+import { getLinkIcon as getSharedLinkIcon } from '@/components/profile/templates/utils/socialIcons';
 
 interface LoverTemplateProps {
   profile: any;
@@ -472,15 +472,6 @@ export function LoverTemplate({ profile, accentColor }: LoverTemplateProps) {
     }
   `;
 
-  const getLinkIcon = (label: string, url: string) => {
-    const lower = label.toLowerCase();
-    if (lower.includes('github')) return <Github size={18} />;
-    if (lower.includes('linkedin')) return <Linkedin size={18} />;
-    if (lower.includes('instagram')) return <Instagram size={18} />;
-    if (lower.includes('twitter') || lower.includes('x.com')) return <span style={{ fontSize: '18px' }}>✕</span>;
-    return <ExternalLink size={18} />;
-  };
-
   const getLinkSubtitle = (label: string) => {
     const lower = label.toLowerCase();
     if (lower.includes('github')) return 'Code & Repos';
@@ -615,7 +606,7 @@ export function LoverTemplate({ profile, accentColor }: LoverTemplateProps) {
                     <a key={i} href={link.url} target="_blank" rel="noreferrer" className="lover-link">
                       <div className="lover-link-left">
                         <div className="lover-link-icon">
-                          {getLinkIcon(link.label, link.url)}
+                          {getSharedLinkIcon(link.label, link.url, link.icon, 'w-4 h-4')}
                         </div>
                         <div>
                           <div className="lover-link-title">{link.label}</div>
