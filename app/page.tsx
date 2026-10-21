@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import './homepage.css';
 
@@ -194,12 +194,304 @@ const PLATFORMS: [string, string, string, string][] = [
   ]
 ];
 
+function svg(p: [string, string, string, string], s: number) {
+  return (
+    '<svg viewBox="0 0 24 24" width="' +
+    s +
+    '" height="' +
+    s +
+    '" fill="' +
+    p[2] +
+    '">' +
+    p[3] +
+    '</svg>'
+  );
+}
+
+const IC: Record<string, string> = {
+  home: 'M3.5 11.2L12 3.5l8.5 7.7V21h-5.7v-6h-5.6v6H3.5z',
+  search: 'M10.5 4a6.5 6.5 0 100 13 6.5 6.5 0 000-13zM15.5 15.5L21 21',
+  plus: 'M12 5v14M5 12h14',
+  heart: 'M12 20.5S3.8 15.4 3.8 9.6A4.6 4.6 0 0112 7.2a4.6 4.6 0 018.2 2.4c0 5.8-8.2 10.9-8.2 10.9z',
+  user: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4.5 20.5c0-3.6 3.4-5.5 7.5-5.5s7.5 1.9 7.5 5.5',
+  bell: 'M6 17v-6a6 6 0 0112 0v6l1.8 2H4.2zM10 21.5h4',
+  mail: 'M3 5.5h18v13H3zM3.4 6.5L12 13.5l8.6-7',
+  chat: 'M4 4.5h16v12H9.5L4 20.5z',
+  rep: 'M4 11V9a3 3 0 013-3h12l-3-3M20 13v2a3 3 0 01-3 3H5l3 3',
+  send: 'M21 3L3 10.5l7 3 3 7.5z',
+  like: 'M7 10.5v10H3.5v-10zM7 10.5l4-7.5c2 0 3 1.2 3 3v3.5h5.5L17.8 20.5H7',
+  job: 'M3 8h18v12H3zM9 8V5h6v3M3 13h18',
+  net: 'M9 11a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM2 20c0-3.5 3-5.5 7-5.5s7 2 7 5.5M16.5 4.5a3.2 3.2 0 010 6M19 15c2 .7 3 2.2 3 4.5',
+  eye: 'M5 20.5v-9M12 20.5V4M19 20.5v-6',
+  up: 'M12 16V3.5M7 8l5-5 5 5M5 12v8.5h14V12'
+};
+
+function ic(name: string, s: number, w?: number) {
+  return (
+    '<svg viewBox="0 0 24 24" width="' +
+    s +
+    '" height="' +
+    s +
+    '" fill="none" stroke="currentColor" stroke-width="' +
+    (w || 1.8) +
+    '" stroke-linecap="round" stroke-linejoin="round"><path d="' +
+    IC[name] +
+    '"/></svg>'
+  );
+}
+
+const SB =
+  '<div class="sb"><b>9:41</b><u class="isl"></u><span><svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect y="7" width="3" height="4" rx=".8"/><rect x="4.6" y="5" width="3" height="6" rx=".8"/><rect x="9.2" y="2.5" width="3" height="8.5" rx=".8"/><rect x="13.8" width="3" height="11" rx=".8"/></svg><svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.4l2-2.1a2.9 2.9 0 00-4 0zM3.7 6a6 6 0 018.6 0l1.2-1.3a7.8 7.8 0 00-11 0zM.8 3A10.2 10.2 0 0115.2 3L16 1.8a11.7 11.7 0 00-16 0z"/></svg><svg width="25" height="12" viewBox="0 0 25 12" fill="currentColor"><rect x=".5" y=".5" width="21" height="11" rx="3.5" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="2.2"/><path d="M23 4v4c.8-.3 1.5-1 1.5-2s-.7-1.7-1.5-2z" opacity=".5"/></svg></span></div>';
+const HI = '<u class="hi"></u>';
+const VB =
+  '<svg width="14" height="14" viewBox="0 0 24 24" style="vertical-align:-2px"><circle cx="12" cy="12" r="11" fill="#1d9bf0"/><path d="M7 12.5l3.2 3.2L17 8.8" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+function tb(a: [string, string?][], onIdx: number, lab?: number) {
+  return (
+    '<div class="tb">' +
+    a
+      .map(function(n, i) {
+        return (
+          '<span class="' +
+          (i === onIdx ? 'on' : '') +
+          '">' +
+          ic(n[0], 23, i === onIdx ? 2.3 : 1.7) +
+          (lab && n[1] ? '<small>' + n[1] + '</small>' : '') +
+          '</span>'
+        );
+      })
+      .join('') +
+    '</div>'
+  );
+}
+
+function xm(a: [string, string][]) {
+  return (
+    '<div class="xm">' +
+    a
+      .map(function(x) {
+        return '<span>' + ic(x[0], 15) + x[1] + '</span>';
+      })
+      .join('') +
+    '</div>'
+  );
+}
+
+function renderPhoneMockups(root: HTMLElement, rawText: string) {
+  const CD = root.querySelectorAll<HTMLElement>('.cd');
+  if (CD.length < 3) return;
+
+  const text = (rawText || '').trim();
+  const isDefault =
+    text.includes('At Pixenox, we just shipped') ||
+    text === 'At Pixenox, we just shipped our AI-powered design system that reduces brand iteration time by 80%. Here’s what we learned building it.';
+
+  if (isDefault) {
+    // 0: LinkedIn
+    CD[0].innerHTML =
+      SB +
+      '<div class="lh"><span class="av">P</span><div class="srch">' +
+      ic('search', 15, 2) +
+      'Search</div>' +
+      ic('chat', 23, 1.7) +
+      '</div><div class="fd"><div class="lp"><div class="ph"><span class="av">P</span><div><b>Pixenox</b> • 1st<small>AI Design Systems</small><small>2h • 🌐</small></div><span class="fl">+ Follow</span></div><p><b>🚀 Big announcement from Pixenox:</b></p><p>We just shipped our AI-powered design system that reduces brand iteration time by <b>80%.</b></p><p>→ Consistency beats creativity at scale<br>→ Design tokens are your secret weapon<br>→ AI amplifies designers, not replaces them</p><p><i>#DesignSystems #AI #Startups</i></p><div class="gfx"><u style="background:#fdf6ee"></u><u style="background:#e8a595"></u><u style="background:#c84b31"></u><em>80%<small>faster iteration</small></em></div><div class="rx"><span>👍❤️💡 842</span><span>67 comments • 12 reposts</span></div><div class="ar"><span>' +
+      ic('like', 19) +
+      'Like</span><span>' +
+      ic('chat', 19) +
+      'Comment</span><span>' +
+      ic('rep', 19) +
+      'Repost</span><span>' +
+      ic('send', 19) +
+      'Send</span></div></div><div class="lp"><div class="ph"><span class="av" style="background:#7a3b69">M</span><div><b>Maya Chen</b> • 2nd<small>Brand Lead at Northwind</small></div></div></div></div>' +
+      tb(
+        [
+          ['home', 'Home'],
+          ['net', 'My Network'],
+          ['plus', 'Post'],
+          ['bell', 'Notifications'],
+          ['job', 'Jobs']
+        ],
+        0,
+        1
+      ) +
+      HI;
+
+    // 1: X (Twitter)
+    CD[1].innerHTML =
+      SB +
+      '<div class="hd xh"><span class="av" style="width:28px;height:28px;font-size:12px">P</span>' +
+      svg(PLATFORMS[1], 20) +
+      '<span></span></div><div class="xt"><span class="on">For you</span><span>Following</span></div><div class="fd"><div class="xp"><div class="col"><span class="av">P</span><u class="thl"></u></div><div class="bx"><div><b>Pixenox</b> ' +
+      VB +
+      ' <span class="g">@pixenox · now</span></div><p>We just shipped something big at <span class="bl">@pixenox</span> 🔥</p><p>An AI design system that cuts brand iteration time by 80%.</p><p>Thread on what we learned 🧵👇</p>' +
+      xm([['chat', '48'], ['rep', '312'], ['heart', '1.2K'], ['eye', '45K'], ['up', '']]) +
+      '</div></div><div class="xp"><span class="av">P</span><div class="bx"><div><b>Pixenox</b> ' +
+      VB +
+      ' <span class="g">@pixenox · now</span></div><p>Old way: create → review → 3 weeks back-and-forth.</p><p>Pixenox way: design tokens + AI = instant brand-consistent output ⚡</p>' +
+      xm([['chat', '21'], ['rep', '140'], ['heart', '860'], ['eye', '18K'], ['up', '']]) +
+      '</div></div></div><span class="fab">+</span>' +
+      tb([['home'], ['search'], ['bell'], ['mail']], 0) +
+      HI;
+
+    // 2: Threads
+    CD[2].innerHTML =
+      SB +
+      '<div class="hd">' +
+      svg(PLATFORMS[2], 28) +
+      '</div><div class="xt"><span class="on">For you</span><span>Following</span></div><div class="fd"><div class="xp"><div class="col"><span class="av">P</span><u class="thl"></u></div><div class="bx"><div><b>pixenox</b> ' +
+      VB +
+      ' <span class="g">2m</span><span class="g r">···</span></div><p>okay so we’ve been quietly working on something at pixenox and i’m finally allowed to talk about it</p><p>we built an AI design system that does in hours what used to take our team weeks</p><p>the biggest lesson? AI doesn’t make designers obsolete — it makes them dangerous (in the best way) 🔥</p><div class="tx">' +
+      ic('heart', 20, 1.6) +
+      ic('chat', 20, 1.6) +
+      ic('rep', 20, 1.6) +
+      ic('send', 20, 1.6) +
+      '</div><div class="g">89 replies · 234 likes</div></div></div><div class="xp"><span class="av" style="background:#2a7f78">M</span><div class="bx"><div><b>maya.builds</b> <span class="g">1m</span></div><p>wait, this is huge. how are you handling token drift across brands?</p><div class="tx">' +
+      ic('heart', 20, 1.6) +
+      ic('chat', 20, 1.6) +
+      ic('rep', 20, 1.6) +
+      ic('send', 20, 1.6) +
+      '</div></div></div></div>' +
+      tb([['home'], ['search'], ['plus'], ['heart'], ['user']], 0) +
+      HI;
+    return;
+  }
+
+  // Dynamic native adaptation for user's thought
+  const safe = (text || 'Your original thought')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  const metricMatch = text.match(/(\d+[\d,.]*%\b|\$\d+[\d,.]*[kKmMbB]?\b|\b\d+x\b|\b\d+[\d,.]*\b)/);
+  const metricVal = metricMatch ? metricMatch[0] : '⚡';
+  const metricLabel = metricMatch ? 'key highlight' : 'native voice';
+
+  const sentences = text
+    .split(/(?<=[.!?])\s+|\n+/)
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  const mainSentence = sentences[0] || text || 'Here is our latest update.';
+  const rest = sentences.slice(1);
+
+  let bullets = [
+    'Tone matched to platform audiences',
+    'Character limits & formatting respected',
+    'Published natively in one click'
+  ];
+  if (rest.length >= 2) {
+    bullets = rest.slice(0, 3);
+  } else if (rest.length === 1) {
+    bullets = [rest[0], 'Speed of iteration compounds your reach', 'Consistency is the ultimate competitive advantage'];
+  }
+
+  const isTech = /ai|code|software|api|model|system|build/i.test(text);
+  const isFounder = /founder|startup|growth|launch|team|sale|product/i.test(text);
+  const hashTags = isTech
+    ? '#AI #Tech #Innovation #Startups'
+    : isFounder
+    ? '#Founders #BuildInPublic #Startups #Growth'
+    : '#Leadership #Innovation #Growth #Strategy';
+
+  const xHook = text.length > 140 ? mainSentence : text;
+  const xInsight = rest.length > 0 ? rest[0] : '1 thought → adapted natively for 30+ platforms in 0.8s.';
+
+  const thText = (text || 'something exciting is in the works').toLowerCase();
+
+  // 0: Dynamic LinkedIn
+  CD[0].innerHTML =
+    SB +
+    '<div class="lh"><span class="av">U</span><div class="srch">' +
+    ic('search', 15, 2) +
+    'Search</div>' +
+    ic('chat', 23, 1.7) +
+    '</div><div class="fd"><div class="lp"><div class="ph"><span class="av">U</span><div><b>You</b> • 1st<small>Creator &amp; Founder</small><small>Just now • 🌐</small></div><span class="fl">+ Follow</span></div><p><b>🚀 Big update:</b></p><p>' +
+    safe +
+    '</p><p>' +
+    bullets.map(b => '→ ' + b).join('<br>') +
+    '</p><p><i>' +
+    hashTags +
+    '</i></p><div class="gfx"><u style="background:#fdf6ee"></u><u style="background:#e8a595"></u><u style="background:#c84b31"></u><em>' +
+    metricVal +
+    '<small>' +
+    metricLabel +
+    '</small></em></div><div class="rx"><span>👍❤️💡 1.2K</span><span>94 comments • 38 reposts</span></div><div class="ar"><span>' +
+    ic('like', 19) +
+    'Like</span><span>' +
+    ic('chat', 19) +
+    'Comment</span><span>' +
+    ic('rep', 19) +
+    'Repost</span><span>' +
+    ic('send', 19) +
+    'Send</span></div></div></div>' +
+    tb(
+      [
+        ['home', 'Home'],
+        ['net', 'My Network'],
+        ['plus', 'Post'],
+        ['bell', 'Notifications'],
+        ['job', 'Jobs']
+      ],
+      0,
+      1
+    ) +
+    HI;
+
+  // 1: Dynamic X
+  CD[1].innerHTML =
+    SB +
+    '<div class="hd xh"><span class="av" style="width:28px;height:28px;font-size:12px">U</span>' +
+    svg(PLATFORMS[1], 20) +
+    '<span></span></div><div class="xt"><span class="on">For you</span><span>Following</span></div><div class="fd"><div class="xp"><div class="col"><span class="av">U</span><u class="thl"></u></div><div class="bx"><div><b>You</b> ' +
+    VB +
+    ' <span class="g">@you · now</span></div><p>' +
+    xHook +
+    ' 🔥</p><p>Thread on what we learned 🧵👇</p>' +
+    xm([['chat', '54'], ['rep', '412'], ['heart', '1.8K'], ['eye', '62K'], ['up', '']]) +
+    '</div></div><div class="xp"><span class="av">U</span><div class="bx"><div><b>You</b> ' +
+    VB +
+    ' <span class="g">@you · now</span></div><p>' +
+    xInsight +
+    ' ⚡</p>' +
+    xm([['chat', '29'], ['rep', '180'], ['heart', '940'], ['eye', '24K'], ['up', '']]) +
+    '</div></div></div><span class="fab">+</span>' +
+    tb([['home'], ['search'], ['bell'], ['mail']], 0) +
+    HI;
+
+  // 2: Dynamic Threads
+  CD[2].innerHTML =
+    SB +
+    '<div class="hd">' +
+    svg(PLATFORMS[2], 28) +
+    '</div><div class="xt"><span class="on">For you</span><span>Following</span></div><div class="fd"><div class="xp"><div class="col"><span class="av">U</span><u class="thl"></u></div><div class="bx"><div><b>you</b> ' +
+    VB +
+    ' <span class="g">now</span><span class="g r">···</span></div><p>okay so i wanted to share something we’ve been working on...</p><p>' +
+    thText +
+    '</p><p>the biggest lesson? speed and consistency compound faster than anything else ✨</p><div class="tx">' +
+    ic('heart', 20, 1.6) +
+    ic('chat', 20, 1.6) +
+    ic('rep', 20, 1.6) +
+    ic('send', 20, 1.6) +
+    '</div><div class="g">124 replies · 410 likes</div></div></div></div>' +
+    tb([['home'], ['search'], ['plus'], ['heart'], ['user']], 0) +
+    HI;
+}
+
 export default function HomePage() {
   const rootRef = useRef<HTMLDivElement>(null);
   const spRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const stmRef = useRef<HTMLDivElement>(null);
   const tipRef = useRef<HTMLDivElement>(null);
+
+  const [thought, setThought] = useState(
+    'At Pixenox, we just shipped our AI-powered design system that reduces brand iteration time by 80%. Here’s what we learned building it.'
+  );
+
+  useEffect(() => {
+    if (!rootRef.current) return;
+    renderPhoneMockups(rootRef.current, thought);
+  }, [thought]);
 
   useEffect(() => {
     if (!rootRef.current) return;
@@ -278,143 +570,7 @@ export default function HomePage() {
     });
 
     // Populate Phone Mockups
-    const IC: Record<string, string> = {
-      home: 'M3.5 11.2L12 3.5l8.5 7.7V21h-5.7v-6h-5.6v6H3.5z',
-      search: 'M10.5 4a6.5 6.5 0 100 13 6.5 6.5 0 000-13zM15.5 15.5L21 21',
-      plus: 'M12 5v14M5 12h14',
-      heart: 'M12 20.5S3.8 15.4 3.8 9.6A4.6 4.6 0 0112 7.2a4.6 4.6 0 018.2 2.4c0 5.8-8.2 10.9-8.2 10.9z',
-      user: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4.5 20.5c0-3.6 3.4-5.5 7.5-5.5s7.5 1.9 7.5 5.5',
-      bell: 'M6 17v-6a6 6 0 0112 0v6l1.8 2H4.2zM10 21.5h4',
-      mail: 'M3 5.5h18v13H3zM3.4 6.5L12 13.5l8.6-7',
-      chat: 'M4 4.5h16v12H9.5L4 20.5z',
-      rep: 'M4 11V9a3 3 0 013-3h12l-3-3M20 13v2a3 3 0 01-3 3H5l3 3',
-      send: 'M21 3L3 10.5l7 3 3 7.5z',
-      like: 'M7 10.5v10H3.5v-10zM7 10.5l4-7.5c2 0 3 1.2 3 3v3.5h5.5L17.8 20.5H7',
-      job: 'M3 8h18v12H3zM9 8V5h6v3M3 13h18',
-      net: 'M9 11a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM2 20c0-3.5 3-5.5 7-5.5s7 2 7 5.5M16.5 4.5a3.2 3.2 0 010 6M19 15c2 .7 3 2.2 3 4.5',
-      eye: 'M5 20.5v-9M12 20.5V4M19 20.5v-6',
-      up: 'M12 16V3.5M7 8l5-5 5 5M5 12v8.5h14V12'
-    };
-
-    function ic(name: string, s: number, w?: number) {
-      return (
-        '<svg viewBox="0 0 24 24" width="' +
-        s +
-        '" height="' +
-        s +
-        '" fill="none" stroke="currentColor" stroke-width="' +
-        (w || 1.8) +
-        '" stroke-linecap="round" stroke-linejoin="round"><path d="' +
-        IC[name] +
-        '"/></svg>'
-      );
-    }
-
-    const SB =
-      '<div class="sb"><b>9:41</b><u class="isl"></u><span><svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect y="7" width="3" height="4" rx=".8"/><rect x="4.6" y="5" width="3" height="6" rx=".8"/><rect x="9.2" y="2.5" width="3" height="8.5" rx=".8"/><rect x="13.8" width="3" height="11" rx=".8"/></svg><svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.4l2-2.1a2.9 2.9 0 00-4 0zM3.7 6a6 6 0 018.6 0l1.2-1.3a7.8 7.8 0 00-11 0zM.8 3A10.2 10.2 0 0115.2 3L16 1.8a11.7 11.7 0 00-16 0z"/></svg><svg width="25" height="12" viewBox="0 0 25 12" fill="currentColor"><rect x=".5" y=".5" width="21" height="11" rx="3.5" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="2.2"/><path d="M23 4v4c.8-.3 1.5-1 1.5-2s-.7-1.7-1.5-2z" opacity=".5"/></svg></span></div>';
-    const HI = '<u class="hi"></u>';
-    const VB =
-      '<svg width="14" height="14" viewBox="0 0 24 24" style="vertical-align:-2px"><circle cx="12" cy="12" r="11" fill="#1d9bf0"/><path d="M7 12.5l3.2 3.2L17 8.8" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-
-    function tb(a: [string, string?][], onIdx: number, lab?: number) {
-      return (
-        '<div class="tb">' +
-        a
-          .map(function(n, i) {
-            return (
-              '<span class="' +
-              (i === onIdx ? 'on' : '') +
-              '">' +
-              ic(n[0], 23, i === onIdx ? 2.3 : 1.7) +
-              (lab && n[1] ? '<small>' + n[1] + '</small>' : '') +
-              '</span>'
-            );
-          })
-          .join('') +
-        '</div>'
-      );
-    }
-    function xm(a: [string, string][]) {
-      return (
-        '<div class="xm">' +
-        a
-          .map(function(x) {
-            return '<span>' + ic(x[0], 15) + x[1] + '</span>';
-          })
-          .join('') +
-        '</div>'
-      );
-    }
-
-    const CD = $$('.cd');
-    if (CD.length >= 3) {
-      // 0: LinkedIn
-      CD[0].innerHTML =
-        SB +
-        '<div class="lh"><span class="av">P</span><div class="srch">' +
-        ic('search', 15, 2) +
-        'Search</div>' +
-        ic('chat', 23, 1.7) +
-        '</div><div class="fd"><div class="lp"><div class="ph"><span class="av">P</span><div><b>Pixenox</b> • 1st<small>AI Design Systems</small><small>2h • 🌐</small></div><span class="fl">+ Follow</span></div><p><b>🚀 Big announcement from Pixenox:</b></p><p>We just shipped our AI-powered design system that reduces brand iteration time by <b>80%.</b></p><p>→ Consistency beats creativity at scale<br>→ Design tokens are your secret weapon<br>→ AI amplifies designers, not replaces them</p><p><i>#DesignSystems #AI #Startups</i></p><div class="gfx"><u style="background:#fdf6ee"></u><u style="background:#e8a595"></u><u style="background:#c84b31"></u><em>80%<small>faster iteration</small></em></div><div class="rx"><span>👍❤️💡 842</span><span>67 comments • 12 reposts</span></div><div class="ar"><span>' +
-        ic('like', 19) +
-        'Like</span><span>' +
-        ic('chat', 19) +
-        'Comment</span><span>' +
-        ic('rep', 19) +
-        'Repost</span><span>' +
-        ic('send', 19) +
-        'Send</span></div></div><div class="lp"><div class="ph"><span class="av" style="background:#7a3b69">M</span><div><b>Maya Chen</b> • 2nd<small>Brand Lead at Northwind</small></div></div></div></div>' +
-        tb(
-          [
-            ['home', 'Home'],
-            ['net', 'My Network'],
-            ['plus', 'Post'],
-            ['bell', 'Notifications'],
-            ['job', 'Jobs']
-          ],
-          0,
-          1
-        ) +
-        HI;
-
-      // 1: X (Twitter)
-      CD[1].innerHTML =
-        SB +
-        '<div class="hd xh"><span class="av" style="width:28px;height:28px;font-size:12px">P</span>' +
-        svg(P[1], 20) +
-        '<span></span></div><div class="xt"><span class="on">For you</span><span>Following</span></div><div class="fd"><div class="xp"><div class="col"><span class="av">P</span><u class="thl"></u></div><div class="bx"><div><b>Pixenox</b> ' +
-        VB +
-        ' <span class="g">@pixenox · now</span></div><p>We just shipped something big at <span class="bl">@pixenox</span> 🔥</p><p>An AI design system that cuts brand iteration time by 80%.</p><p>Thread on what we learned 🧵👇</p>' +
-        xm([['chat', '48'], ['rep', '312'], ['heart', '1.2K'], ['eye', '45K'], ['up', '']]) +
-        '</div></div><div class="xp"><span class="av">P</span><div class="bx"><div><b>Pixenox</b> ' +
-        VB +
-        ' <span class="g">@pixenox · now</span></div><p>Old way: create → review → 3 weeks back-and-forth.</p><p>Pixenox way: design tokens + AI = instant brand-consistent output ⚡</p>' +
-        xm([['chat', '21'], ['rep', '140'], ['heart', '860'], ['eye', '18K'], ['up', '']]) +
-        '</div></div></div><span class="fab">+</span>' +
-        tb([['home'], ['search'], ['bell'], ['mail']], 0) +
-        HI;
-
-      // 2: Threads
-      CD[2].innerHTML =
-        SB +
-        '<div class="hd">' +
-        svg(P[2], 28) +
-        '</div><div class="xt"><span class="on">For you</span><span>Following</span></div><div class="fd"><div class="xp"><div class="col"><span class="av">P</span><u class="thl"></u></div><div class="bx"><div><b>pixenox</b> ' +
-        VB +
-        ' <span class="g">2m</span><span class="g r">···</span></div><p>okay so we’ve been quietly working on something at pixenox and i’m finally allowed to talk about it</p><p>we built an AI design system that does in hours what used to take our team weeks</p><p>the biggest lesson? AI doesn’t make designers obsolete — it makes them dangerous (in the best way) 🔥</p><div class="tx">' +
-        ic('heart', 20, 1.6) +
-        ic('chat', 20, 1.6) +
-        ic('rep', 20, 1.6) +
-        ic('send', 20, 1.6) +
-        '</div><div class="g">89 replies · 234 likes</div></div></div><div class="xp"><span class="av" style="background:#2a7f78">M</span><div class="bx"><div><b>maya.builds</b> <span class="g">1m</span></div><p>wait, this is huge. how are you handling token drift across brands?</p><div class="tx">' +
-        ic('heart', 20, 1.6) +
-        ic('chat', 20, 1.6) +
-        ic('rep', 20, 1.6) +
-        ic('send', 20, 1.6) +
-        '</div></div></div></div>' +
-        tb([['home'], ['search'], ['plus'], ['heart'], ['user']], 0) +
-        HI;
-    }
+    renderPhoneMockups(root, thought);
 
     // Streamgraph Analytics
     const sv = $('#strm');
@@ -898,10 +1054,8 @@ export default function HomePage() {
       {/* Navigation */}
       <nav id="nav">
         <div className="ni">
-          <Link href="#overview" className="lg">
-            <div>
-              <b>ᘐ</b>UNOOL
-            </div>
+          <Link href="#overview" className="lg" aria-label="UNOOL Home">
+            <img src="/unool-logo.png" alt="UNOOL" className="lg-img" />
           </Link>
           <div className="nl">
             <a href="#overview">Overview</a>
@@ -943,7 +1097,7 @@ export default function HomePage() {
             <p className="sub">
               Unool is your social media command center. Paste a single link and we build your profile,
               write platform-native posts, and publish to LinkedIn, X, Instagram, YouTube, Discord and
-              25+ more — in one click.
+              30+ more — in one click.
             </p>
             <div className="go">
               <input
@@ -978,7 +1132,9 @@ export default function HomePage() {
 
           <div className="stage" id="stage" ref={stageRef}>
             <div className="sp" id="sp" ref={spRef}>
-              <div className="core">ᘐ</div>
+              <div className="core">
+                <img src="/unool-icon.png" alt="UNOOL" className="core-img" />
+              </div>
             </div>
           </div>
         </section>
@@ -1004,9 +1160,21 @@ export default function HomePage() {
             three examples out of 30+.
           </p>
           <div className="th rv">
-            <small>Your original thought</small>
-            “At Pixenox, we just shipped our AI-powered design system that reduces brand iteration time by
-            80%. Here’s what we learned building it.”
+            <small className="th-gold-heading">
+              Your original thought · edit it and watch every phone rewrite
+            </small>
+            <div className="th-edit-wrap">
+              <span className="th-quote">“</span>
+              <textarea
+                value={thought}
+                onChange={(e) => setThought(e.target.value)}
+                className="th-textarea"
+                placeholder="Type your original thought here..."
+                rows={3}
+                spellCheck={false}
+              />
+              <span className="th-quote">”</span>
+            </div>
           </div>
 
           <div className="deck" id="deck">
@@ -1278,10 +1446,8 @@ export default function HomePage() {
 
       {/* Footer */}
       <footer>
-        <Link href="#overview" className="lg">
-          <div>
-            <b>ᘐ</b>UNOOL
-          </div>
+        <Link href="#overview" className="lg" aria-label="UNOOL Home">
+          <img src="/unool-logo.png" alt="UNOOL" className="lg-img" />
         </Link>
         <div>
           <Link href="/terms">Terms</Link>
