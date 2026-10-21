@@ -104,10 +104,13 @@
 - **Also fixed:** Added missing fields to shared PublicProfile (projects, activity, avatar, description), ProfileLink (platform, isPrimaryAction), updated RecentActivitySection to accept array or single activity, installed missing npm dependencies (@aws-sdk/client-s3, @react-three/fiber, @react-three/drei, three)
 - **Verification:** `npx tsc --noEmit` — zero type errors
 
-### [ ] **P2-T2: Add Template Performance Budgets**
+### [x] **P2-T2: Add Template Performance Budgets**
 - **File:** `components/profile/templates/registry.ts`
 - **Add:** `maxBundleSizeKB`, `maxRenderMs` per template
 - **CI:** Add bundle size check script
+- **Updated:** All 15 templates with specific budgets (lone: 25KB/40ms, the-studio: 150KB/250ms, etc.)
+- **Updated:** `TemplateFeatures` interface in `components/profile/templates/types.ts`
+- **Verification:** `npx tsc --noEmit` — zero type errors
 
 ### [ ] **P2-T3: Document Template Customization API**
 - **File:** `docs/profile-templates.md` (create)
@@ -152,6 +155,7 @@
 | 2026-10-21 | P1-T4 | Complete | Added TemplateSkeletons.tsx with 5 category-specific loading skeletons; updated ProfilePreview.tsx to use category-aware Suspense fallbacks |
 | 2026-10-21 | P1-T5 | Complete | Created partial unique index migration for subdomain; updated API to handle PostgreSQL 23505 unique violation with 409 |
 | 2026-10-21 | P2-T1 | Complete | Extracted TemplateProps to shared types.ts; updated all 15 templates (the-voice, the-club, the-studio) to use typed props; added missing fields to PublicProfile (projects, activity, avatar, description), ProfileLink (platform, isPrimaryAction); updated RecentActivitySection to handle array/single activity; installed missing deps (@aws-sdk/client-s3, @react-three/fiber, @react-three/drei, three); npx tsc --noEmit passes with zero errors |
+| 2026-10-21 | P2-T2 | Complete | Added maxBundleSizeKB and maxRenderMs to all 15 templates in registry.ts (range: lone 25KB/40ms → the-studio 150KB/250ms); updated TemplateFeatures interface in types.ts; npx tsc --noEmit passes |
 | | | | |
 
 ---

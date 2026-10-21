@@ -8,6 +8,9 @@ export interface TemplateFeatures {
   supportsVideoBackground: boolean;
   maxLinks: number;
   maxProofPoints: number;
+  // Performance budgets
+  maxBundleSizeKB?: number;
+  maxRenderMs?: number;
 }
 
 export interface TemplateMeta {

@@ -15,6 +15,7 @@ export const TEMPLATE_REGISTRY: TemplateMeta[] = [
     thumbnail: '/templates/previews/lover.svg',
     features: {
       has3DBackground: false, hasParallax: false, hasTiltCards: false, hasMagneticHover: true, hasAnimatedOrbs: false, hasGradientText: false, supportsVideoBackground: false, maxLinks: 10, maxProofPoints: 5, performanceBudget: 'light',
+      maxBundleSizeKB: 45, maxRenderMs: 80,
     },
     persona: 'lover',
   },
@@ -31,6 +32,7 @@ export const TEMPLATE_REGISTRY: TemplateMeta[] = [
     thumbnail: '/templates/previews/lone.svg',
     features: {
       has3DBackground: false, hasParallax: false, hasTiltCards: false, hasMagneticHover: false, hasAnimatedOrbs: false, hasGradientText: false, supportsVideoBackground: false, maxLinks: 5, maxProofPoints: 2, performanceBudget: 'ultra-light',
+      maxBundleSizeKB: 25, maxRenderMs: 40,
     },
     persona: 'lone',
   },
@@ -47,6 +49,7 @@ export const TEMPLATE_REGISTRY: TemplateMeta[] = [
     thumbnail: '/templates/previews/energy.svg',
     features: {
       has3DBackground: false, hasParallax: false, hasTiltCards: true, hasMagneticHover: true, hasAnimatedOrbs: false, hasGradientText: false, supportsVideoBackground: false, maxLinks: 10, maxProofPoints: 6, performanceBudget: 'medium',
+      maxBundleSizeKB: 65, maxRenderMs: 120,
     },
     persona: 'energy',
   },
@@ -65,6 +68,7 @@ export const TEMPLATE_REGISTRY: TemplateMeta[] = [
     thumbnail: '/templates/previews/rebellion.svg',
     features: {
       has3DBackground: false, hasParallax: true, hasTiltCards: true, hasMagneticHover: true, hasAnimatedOrbs: false, hasGradientText: true, supportsVideoBackground: false, maxLinks: 12, maxProofPoints: 6, performanceBudget: 'heavy',
+      maxBundleSizeKB: 120, maxRenderMs: 200,
     },
     persona: 'rebellion',
   },
@@ -81,6 +85,7 @@ export const TEMPLATE_REGISTRY: TemplateMeta[] = [
     thumbnail: '/templates/previews/vision.svg',
     features: {
       has3DBackground: true, hasParallax: true, hasTiltCards: false, hasMagneticHover: true, hasAnimatedOrbs: true, hasGradientText: false, supportsVideoBackground: false, maxLinks: 15, maxProofPoints: 5, performanceBudget: 'medium',
+      maxBundleSizeKB: 85, maxRenderMs: 150,
     },
     persona: 'vision',
   },
@@ -97,6 +102,7 @@ export const TEMPLATE_REGISTRY: TemplateMeta[] = [
     thumbnail: '/templates/previews/human.svg',
     features: {
       has3DBackground: false, hasParallax: false, hasTiltCards: false, hasMagneticHover: true, hasAnimatedOrbs: false, hasGradientText: false, supportsVideoBackground: false, maxLinks: 10, maxProofPoints: 6, performanceBudget: 'light',
+      maxBundleSizeKB: 40, maxRenderMs: 75,
     },
     persona: 'human',
   },
@@ -115,6 +121,7 @@ export const TEMPLATE_REGISTRY: TemplateMeta[] = [
     thumbnail: '/templates/previews/the-machine.svg',
     features: {
       has3DBackground: false, hasParallax: false, hasTiltCards: true, hasMagneticHover: false, hasAnimatedOrbs: false, hasGradientText: false, supportsVideoBackground: false, maxLinks: 20, maxProofPoints: 8, performanceBudget: 'medium',
+      maxBundleSizeKB: 70, maxRenderMs: 100,
     },
     persona: 'the-machine',
   },
@@ -131,6 +138,7 @@ export const TEMPLATE_REGISTRY: TemplateMeta[] = [
     thumbnail: '/templates/previews/the-club.svg',
     features: {
       has3DBackground: false, hasParallax: true, hasTiltCards: true, hasMagneticHover: true, hasAnimatedOrbs: false, hasGradientText: true, supportsVideoBackground: false, maxLinks: 15, maxProofPoints: 5, performanceBudget: 'heavy',
+      maxBundleSizeKB: 140, maxRenderMs: 220,
     },
     persona: 'the-club',
   },
@@ -149,6 +157,7 @@ export const TEMPLATE_REGISTRY: TemplateMeta[] = [
     thumbnail: '/templates/previews/the-builder.svg',
     features: {
       has3DBackground: false, hasParallax: false, hasTiltCards: false, hasMagneticHover: false, hasAnimatedOrbs: false, hasGradientText: false, supportsVideoBackground: false, maxLinks: 12, maxProofPoints: 8, performanceBudget: 'ultra-light',
+      maxBundleSizeKB: 30, maxRenderMs: 50,
     },
     persona: 'the-builder',
   },
@@ -165,6 +174,7 @@ export const TEMPLATE_REGISTRY: TemplateMeta[] = [
     thumbnail: '/templates/previews/the-visionary.svg',
     features: {
       has3DBackground: false, hasParallax: false, hasTiltCards: true, hasMagneticHover: true, hasAnimatedOrbs: true, hasGradientText: false, supportsVideoBackground: false, maxLinks: 10, maxProofPoints: 6, performanceBudget: 'medium',
+      maxBundleSizeKB: 75, maxRenderMs: 110,
     },
     persona: 'the-visionary',
   },
@@ -181,6 +191,7 @@ export const TEMPLATE_REGISTRY: TemplateMeta[] = [
     thumbnail: '/templates/previews/the-hustler.svg',
     features: {
       has3DBackground: false, hasParallax: false, hasTiltCards: true, hasMagneticHover: true, hasAnimatedOrbs: false, hasGradientText: true, supportsVideoBackground: false, maxLinks: 15, maxProofPoints: 7, performanceBudget: 'medium',
+      maxBundleSizeKB: 70, maxRenderMs: 115,
     },
     persona: 'the-hustler',
   },
@@ -199,6 +210,7 @@ export const TEMPLATE_REGISTRY: TemplateMeta[] = [
     thumbnail: '/templates/previews/the-aesthete.svg',
     features: {
       has3DBackground: false, hasParallax: true, hasTiltCards: false, hasMagneticHover: true, hasAnimatedOrbs: false, hasGradientText: false, supportsVideoBackground: false, maxLinks: 10, maxProofPoints: 4, performanceBudget: 'light',
+      maxBundleSizeKB: 50, maxRenderMs: 90,
     },
     persona: 'the-aesthete',
   },
@@ -215,6 +227,7 @@ export const TEMPLATE_REGISTRY: TemplateMeta[] = [
     thumbnail: '/templates/previews/the-creator.svg',
     features: {
       has3DBackground: true, hasParallax: true, hasTiltCards: true, hasMagneticHover: true, hasAnimatedOrbs: true, hasGradientText: true, supportsVideoBackground: true, maxLinks: 12, maxProofPoints: 6, performanceBudget: 'heavy',
+      maxBundleSizeKB: 130, maxRenderMs: 210,
     },
     persona: 'the-creator',
   },
@@ -231,6 +244,7 @@ export const TEMPLATE_REGISTRY: TemplateMeta[] = [
     thumbnail: '/templates/previews/the-voice.svg',
     features: {
       has3DBackground: false, hasParallax: false, hasTiltCards: false, hasMagneticHover: true, hasAnimatedOrbs: false, hasGradientText: false, supportsVideoBackground: false, maxLinks: 10, maxProofPoints: 5, performanceBudget: 'light',
+      maxBundleSizeKB: 55, maxRenderMs: 85,
     },
     persona: 'the-voice',
   },
@@ -249,6 +263,7 @@ export const TEMPLATE_REGISTRY: TemplateMeta[] = [
     thumbnail: '/templates/previews/the-studio.svg',
     features: {
       has3DBackground: true, hasParallax: true, hasTiltCards: true, hasMagneticHover: true, hasAnimatedOrbs: true, hasGradientText: true, supportsVideoBackground: false, maxLinks: 15, maxProofPoints: 8, performanceBudget: 'heavy',
+      maxBundleSizeKB: 150, maxRenderMs: 250,
     },
     persona: 'the-studio',
   },
