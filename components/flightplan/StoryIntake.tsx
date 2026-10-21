@@ -25,37 +25,75 @@ const FOLLOW_UP_QUESTIONS: FollowUpQuestion[] = [
   { id: 'oneRealNumber', question: 'One real number that proves it', placeholder: '+$47k MRR, -23% churn, 12→3 min onboarding...', required: false },
 ];
 
+const DEFAULT_SAMPLE = {
+  coreStory: 'We spent 18 months building for enterprise. Last month, we stripped it down to a $29/mo self-serve tool. 3 pilot customers became 47 in 3 weeks.',
+  whatChanged: 'Stripped enterprise tool down to a $29/mo self-serve plan',
+  whatWentWrong: 'Enterprise sales took months with 35% signup drop-off',
+  oneRealNumber: '3 pilot customers became 47 in 3 weeks',
+};
+
+const ALTERNATIVE_SAMPLE = {
+  coreStory: 'Eight months ago we were chasing enterprise deals that took weeks to close. Then we noticed 35% of new accounts quit before ever publishing. We scrapped sales calls, built a $29 self-serve plan, and rebuilt onboarding around a single question.',
+  whatChanged: 'Scrapped sales calls and launched $29 self-serve tier',
+  whatWentWrong: '35% of new signups churned before publishing first post',
+  oneRealNumber: '35% drop-off eliminated, onboarding cut to 3 minutes',
+};
+
+function parseLocalDate(dateStr: string): Date {
+  if (!dateStr) return startOfWeek(new Date(), { weekStartsOn: 1 });
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    const [y, m, d] = parts.map(Number);
+    if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+      return new Date(y, m - 1, d);
+    }
+  }
+  return new Date(dateStr);
+}
+
 const ARC_BEATS = ['Hook', 'Context', 'Challenge', 'Turning Point', 'Resolution', 'Proof', 'CTA'];
 
 export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: StoryIntakeProps) {
   const { draft, saveDraft, clearDraft, hasDraft } = useFlightPlanDraft();
+  const userEditedRef = React.useRef(false);
 
-  const [formData, setFormData] = useState<StoryIntakeData>({
-    coreStory: '',
-    whatChanged: '',
-    whatWentWrong: '',
-    oneRealNumber: '',
+  const [formData, setFormData] = useState<StoryIntakeData>(() => ({
+    coreStory: DEFAULT_SAMPLE.coreStory,
+    whatChanged: DEFAULT_SAMPLE.whatChanged,
+    whatWentWrong: DEFAULT_SAMPLE.whatWentWrong,
+    oneRealNumber: DEFAULT_SAMPLE.oneRealNumber,
     weekStartDate: format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd'),
     selectedPlatforms: connectedPlatforms.length > 0 ? connectedPlatforms : (['instagram', 'facebook', 'linkedin', 'threads', 'x'] as PlatformType[]),
     audienceTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-  });
+  }));
 
   const [activeStep, setActiveStep] = useState<0 | 1 | 2>(0); // 0=CoreStory 1=Insights 2=Platforms
   const [activeFollowUp, setActiveFollowUp] = useState(0);
   const [showPlatformSelector, setShowPlatformSelector] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
-  const [characterCounts, setCharacterCounts] = useState<Record<string, number>>({});
+  const [characterCounts, setCharacterCounts] = useState<Record<string, number>>(() => ({
+    coreStory: DEFAULT_SAMPLE.coreStory.length,
+    whatChanged: DEFAULT_SAMPLE.whatChanged.length,
+    whatWentWrong: DEFAULT_SAMPLE.whatWentWrong.length,
+    oneRealNumber: DEFAULT_SAMPLE.oneRealNumber.length,
+  }));
 
-  // Initialize from draft
+  // Initialize from draft if present and user has not typed yet
   useEffect(() => {
-    if (draft && !formData.coreStory) {
+    if (draft && !userEditedRef.current) {
       setFormData(prev => ({ ...prev, ...draft }));
-      // Restore platform selection from draft or use connected
       if (draft.selectedPlatforms?.length) {
         setFormData(prev => ({ ...prev, selectedPlatforms: draft.selectedPlatforms }));
       }
     }
   }, [draft]);
+
+  // Keep selectedPlatforms aligned with connectedPlatforms if user hasn't made custom selection
+  useEffect(() => {
+    if (connectedPlatforms.length > 0 && !draft?.selectedPlatforms?.length && !userEditedRef.current) {
+      setFormData(prev => ({ ...prev, selectedPlatforms: connectedPlatforms }));
+    }
+  }, [connectedPlatforms, draft]);
 
   // Auto-save draft
   useEffect(() => {
@@ -76,6 +114,7 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
   }, [formData]);
 
   const handleChange = useCallback((field: keyof StoryIntakeData, value: string | PlatformType[] | string) => {
+    userEditedRef.current = true;
     setFormData(prev => ({ ...prev, [field]: value }));
     // Clear validation error on change
     if (validationErrors[field]) {
@@ -84,6 +123,7 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
   }, [validationErrors]);
 
   const togglePlatform = useCallback((platform: PlatformType) => {
+    userEditedRef.current = true;
     setFormData(prev => ({
       ...prev,
       selectedPlatforms: prev.selectedPlatforms.includes(platform)
@@ -127,8 +167,8 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
   const allPlatforms = Object.keys(PLATFORM_META) as PlatformType[];
   const connectedSet = new Set(connectedPlatforms);
 
-  const weekStart = startOfWeek(new Date(formData.weekStartDate), { weekStartsOn: 1 });
-  const weekEnd = addDays(weekStart, 6);
+  const weekStart = useMemo(() => parseLocalDate(formData.weekStartDate), [formData.weekStartDate]);
+  const weekEnd = useMemo(() => addDays(weekStart, 6), [weekStart]);
 
   return (
     <motion.div
@@ -208,8 +248,8 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
           value={formData.coreStory}
           onChange={e => handleChange('coreStory', e.target.value)}
           rows={5}
-          placeholder="We spent 18 months building for enterprise. Last month, we stripped it down to a $29/mo self-serve tool. 3 pilot customers became 47 in 3 weeks."
-          className="resize-y rounded-xl text-sm"
+          placeholder="Describe your week's core story or turning point here (e.g. what shifted, the struggle or pivot, and the outcome)..."
+          className="resize-y rounded-xl text-sm placeholder:text-[#A69279]/60 placeholder:italic placeholder:font-normal"
           style={{
             backgroundColor: B.card,
             borderColor: validationErrors.coreStory ? B.danger : B.border,
@@ -223,22 +263,77 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
             <AlertCircle className="w-3 h-3" /> {validationErrors.coreStory}
           </p>
         )}
-          <div className="flex items-center justify-between text-xs" style={{ color: B.textMuted }}>
+          <div className="flex items-center justify-between text-xs flex-wrap gap-2" style={{ color: B.textMuted }}>
             <div className="flex items-center gap-2">
-              <span>{characterCounts.coreStory || 0} characters</span>
+              <span className="font-medium" style={{ color: characterCounts.coreStory ? B.text : B.textMuted }}>
+                {characterCounts.coreStory || 0} characters
+              </span>
               <span>•</span>
-              <span style={{ color: (characterCounts.coreStory || 0) >= 150 && (characterCounts.coreStory || 0) <= 600 ? B.success : B.textMuted }}>
-                {(characterCounts.coreStory || 0) >= 150 && (characterCounts.coreStory || 0) <= 600 ? 'Good length' : 'Target: 200–500 chars'}
+              <span style={{
+                color: (characterCounts.coreStory || 0) >= 80 && (characterCounts.coreStory || 0) <= 600
+                  ? B.success
+                  : B.textMuted
+              }}>
+                {(characterCounts.coreStory || 0) >= 80 && (characterCounts.coreStory || 0) <= 600
+                  ? 'Good length for narrative arc'
+                  : 'Target: 150–500 chars'}
               </span>
             </div>
-            <button
-              type="button"
-              onClick={() => handleChange('coreStory', 'Eight months ago we were chasing enterprise deals that took weeks to close. Then we noticed 35% of new accounts quit before ever publishing. We scrapped sales calls, built a $29 self-serve plan, and rebuilt onboarding around a single question.')}
-              className="text-xs font-semibold hover:underline"
-              style={{ color: B.accentHover }}
-            >
-              Use an example
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[11px] font-medium" style={{ color: B.textMuted }}>Starters:</span>
+              <button
+                type="button"
+                onClick={() => {
+                  userEditedRef.current = true;
+                  setFormData(prev => ({
+                    ...prev,
+                    coreStory: DEFAULT_SAMPLE.coreStory,
+                    whatChanged: DEFAULT_SAMPLE.whatChanged,
+                    whatWentWrong: DEFAULT_SAMPLE.whatWentWrong,
+                    oneRealNumber: DEFAULT_SAMPLE.oneRealNumber,
+                  }));
+                }}
+                className="text-xs font-semibold hover:underline"
+                style={{ color: B.accentHover }}
+              >
+                Enterprise pivot ($29/mo)
+              </button>
+              <span style={{ color: B.border }}>•</span>
+              <button
+                type="button"
+                onClick={() => {
+                  userEditedRef.current = true;
+                  setFormData(prev => ({
+                    ...prev,
+                    coreStory: ALTERNATIVE_SAMPLE.coreStory,
+                    whatChanged: ALTERNATIVE_SAMPLE.whatChanged,
+                    whatWentWrong: ALTERNATIVE_SAMPLE.whatWentWrong,
+                    oneRealNumber: ALTERNATIVE_SAMPLE.oneRealNumber,
+                  }));
+                }}
+                className="text-xs font-semibold hover:underline"
+                style={{ color: B.accentHover }}
+              >
+                Onboarding shift
+              </button>
+              <span style={{ color: B.border }}>•</span>
+              <button
+                type="button"
+                onClick={() => {
+                  userEditedRef.current = true;
+                  setFormData(prev => ({
+                    ...prev,
+                    coreStory: '',
+                    whatChanged: '',
+                    whatWentWrong: '',
+                    oneRealNumber: '',
+                  }));
+                }}
+                className="text-xs font-medium hover:underline text-stone-500 hover:text-stone-700"
+              >
+                Clear text
+              </button>
+            </div>
           </div>
 
           {/* Navigation buttons */}
@@ -316,7 +411,7 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
                 onChange={e => handleChange('whatChanged', e.target.value)}
                 rows={2}
                 placeholder="New feature, milestone, pivot, hire, metric..."
-                className="resize-y rounded-xl text-sm"
+                className="resize-y rounded-xl text-sm placeholder:text-[#A69279]/60 placeholder:italic placeholder:font-normal"
                 style={{ backgroundColor: B.card, borderColor: B.border, color: B.text }}
               />
               <div className="flex items-center gap-1.5 flex-wrap pt-1">
@@ -346,7 +441,7 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
                 onChange={e => handleChange('whatWentWrong', e.target.value)}
                 rows={2}
                 placeholder="The bottleneck, churn spike, bug, hard lesson..."
-                className="resize-y rounded-xl text-sm"
+                className="resize-y rounded-xl text-sm placeholder:text-[#A69279]/60 placeholder:italic placeholder:font-normal"
                 style={{ backgroundColor: B.card, borderColor: B.border, color: B.text }}
               />
               <div className="flex items-center gap-1.5 flex-wrap pt-1">
@@ -376,7 +471,7 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
                 onChange={e => handleChange('oneRealNumber', e.target.value)}
                 rows={2}
                 placeholder="+$47k MRR, -23% churn, 12→3 min onboarding..."
-                className="resize-y rounded-xl text-sm"
+                className="resize-y rounded-xl text-sm placeholder:text-[#A69279]/60 placeholder:italic placeholder:font-normal"
                 style={{ backgroundColor: B.card, borderColor: B.border, color: B.text }}
               />
               <div className="flex items-center gap-1.5 flex-wrap pt-1">
@@ -437,38 +532,60 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
             </div>
 
             <div className="space-y-3">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-medium" style={{ color: B.textMuted }}>Connected:</span>
-                {connectedPlatforms.map(p => {
-                  const meta = PLATFORM_META[p];
-                  return (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => togglePlatform(p)}
-                      className={cn(
-                        "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors transition-transform border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
-                        formData.selectedPlatforms.includes(p)
-                          ? "shadow-sm"
-                          : "opacity-50 hover:opacity-75"
-                      )}
-                      style={{
-                        backgroundColor: formData.selectedPlatforms.includes(p) ? meta.bg : B.bgElevated,
-                        borderColor: formData.selectedPlatforms.includes(p) ? `${meta.color}40` : B.border,
-                        color: formData.selectedPlatforms.includes(p) ? meta.color : B.textMuted,
-                        focusRingColor: formData.selectedPlatforms.includes(p) ? meta.color : B.accent,
-                        focusRingOffsetColor: B.card,
-                      }}
-                    >
-                      <PlatformBrandLogo platform={p as SupportedPlatformType} size={14} />
-                      <span className="hidden sm:inline">{meta.name}</span>
-                    </button>
-                  );
-                })}
-              </div>
+              {connectedPlatforms.length === 0 && (
+                <div
+                  className="p-3 rounded-xl border text-xs flex items-center justify-between gap-3"
+                  style={{ backgroundColor: B.accentBg, borderColor: B.accentBorder, color: B.textSecondary }}
+                >
+                  <span>
+                    No social channels connected yet. Select any platforms below to preview your generated weekly plan, or connect accounts in Settings.
+                  </span>
+                  <a
+                    href="/dashboard/settings"
+                    className="px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap border hover:opacity-80 transition-opacity"
+                    style={{ backgroundColor: B.card, borderColor: B.border, color: B.text }}
+                  >
+                    Settings →
+                  </a>
+                </div>
+              )}
+
+              {connectedPlatforms.length > 0 && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-medium" style={{ color: B.textMuted }}>Connected:</span>
+                  {connectedPlatforms.map(p => {
+                    const meta = PLATFORM_META[p];
+                    return (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => togglePlatform(p)}
+                        className={cn(
+                          "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors transition-transform border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
+                          formData.selectedPlatforms.includes(p)
+                            ? "shadow-sm"
+                            : "opacity-50 hover:opacity-75"
+                        )}
+                        style={{
+                          backgroundColor: formData.selectedPlatforms.includes(p) ? meta.bg : B.bgElevated,
+                          borderColor: formData.selectedPlatforms.includes(p) ? `${meta.color}40` : B.border,
+                          color: formData.selectedPlatforms.includes(p) ? meta.color : B.textMuted,
+                          focusRingColor: formData.selectedPlatforms.includes(p) ? meta.color : B.accent,
+                          focusRingOffsetColor: B.card,
+                        }}
+                      >
+                        <PlatformBrandLogo platform={p as SupportedPlatformType} size={14} />
+                        <span className="hidden sm:inline">{meta.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
 
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-medium" style={{ color: B.textMuted }}>Available:</span>
+                <span className="text-xs font-medium" style={{ color: B.textMuted }}>
+                  {connectedPlatforms.length > 0 ? 'Available:' : 'Platforms to plan for:'}
+                </span>
                 {allPlatforms.filter(p => !connectedSet.has(p)).map(p => {
                   const meta = PLATFORM_META[p];
                   return (
@@ -503,7 +620,7 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
             )}
 
             <div className="flex items-center gap-2 pt-2">
-              <label className="flex items-center gap-2 text-sm" style={{ color: B.text }}>
+              <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: B.text }}>
                 <input
                   type="checkbox"
                   checked={formData.selectedPlatforms.length === allPlatforms.length}
@@ -532,7 +649,7 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
                 onChange={e => handleChange('weekStartDate', e.target.value)}
                 min={format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')}
                 className="w-full max-w-xs px-3 py-2 rounded-xl border text-sm"
-                style={{ backgroundColor: B.card, borderColor: B.border, color: B.text }}
+                style={{ backgroundColor: B.card, borderColor: B.border, color: B.text, colorScheme: 'light' }}
               />
               <p className="text-xs mt-1" style={{ color: B.textMuted }}>
                 {format(weekStart, 'EEEE, MMM d')} – {format(weekEnd, 'EEEE, MMM d, yyyy')}
@@ -541,7 +658,8 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
 
             <div className="flex items-center justify-end gap-3 pt-4">
               <button
-                onClick={() => { setActiveStep(1); setActiveFollowUp(FOLLOW_UP_QUESTIONS.length - 1); }}
+                type="button"
+                onClick={() => setActiveStep(1)}
                 className="px-4 py-2 rounded-xl text-sm font-medium border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
                 style={{ borderColor: B.border, color: B.textSecondary, backgroundColor: B.card, focusRingColor: B.accent, focusRingOffsetColor: B.card }}
               >

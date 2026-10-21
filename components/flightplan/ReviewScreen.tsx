@@ -49,6 +49,18 @@ const QUICK_PRESETS = [
   { label: '+1h', minutes: 60, icon: null },
 ];
 
+function parseLocalDate(dateStr: string): Date {
+  if (!dateStr) return startOfWeek(new Date(), { weekStartsOn: 1 });
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    const [y, m, d] = parts.map(Number);
+    if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+      return new Date(y, m - 1, d);
+    }
+  }
+  return new Date(dateStr);
+}
+
 export function ReviewScreen({
   arc,
   weekStartDate,
@@ -217,7 +229,7 @@ export function ReviewScreen({
   const totalVariants = activePosts.reduce((sum, post) =>
     sum + post.platforms.filter(p => p.enabled !== false).length, 0);
 
-  const monday = weekStartDate ? new Date(weekStartDate) : startOfWeek(new Date(), { weekStartsOn: 1 });
+  const monday = weekStartDate ? parseLocalDate(weekStartDate) : startOfWeek(new Date(), { weekStartsOn: 1 });
 
   return (
     <motion.div

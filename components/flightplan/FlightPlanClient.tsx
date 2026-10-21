@@ -191,16 +191,22 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
   };
 
   const handleApprove = async (approvedArc: WeekArc) => {
-    if (isPreviewOnly) {
-      studioToast.success('Weekly flight plan drafts generated! Connect social accounts in Settings to publish automatically.');
-      setView('canvas');
-      setArc(null);
-      return;
-    }
-
     try {
-      const success = await approveArc(approvedArc, storyData || { coreStory: '', whatChanged: '', whatWentWrong: '', oneRealNumber: '', weekStartDate: '', selectedPlatforms: [] });
+      const success = await approveArc(
+        approvedArc,
+        storyData || {
+          coreStory: '',
+          whatChanged: '',
+          whatWentWrong: '',
+          oneRealNumber: '',
+          weekStartDate: format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd'),
+          selectedPlatforms: [],
+        }
+      );
       if (success) {
+        if (isPreviewOnly) {
+          studioToast.success('Weekly flight plan scheduled! Connect social accounts in Settings whenever you are ready to publish automatically.');
+        }
         setView('canvas');
         setArc(null);
         loadCanvas(0);

@@ -387,7 +387,7 @@
     outline: none;
     transition: color 150ms, background-color 150ms, border-color 150ms;
   }
-  .input::placeholder { color: var(--muted-foreground); }
+  .input::placeholder { color: var(--input-placeholder, var(--muted-foreground, #8B7355)); opacity: 0.65; }
   .input:focus-visible {
     outline: none;
     ring: 2px;
@@ -412,7 +412,7 @@
     font-size: clamp(0.81rem, 0.78rem + 0.15vw, 0.875rem);
     outline: none;
   }
-  .textarea::placeholder { color: var(--muted-foreground); }
+  .textarea::placeholder { color: var(--input-placeholder, var(--muted-foreground, #8B7355)); opacity: 0.65; }
   .textarea:focus-visible {
     outline: none;
     ring: 2px;
