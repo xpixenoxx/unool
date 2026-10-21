@@ -65,10 +65,13 @@
 - **Note:** the-club and the-studio use their own consolidated icon systems (ClubBrandIcons, SocialBrandIcons)
 - **Verification:** `npx tsc --noEmit` — zero type errors in updated files (pre-existing dependency errors remain in unrelated files)
 
-### [ ] **P1-T2: Unify RecentActivitySection Variants** (15 variants → config-driven)
-- **File:** `components/profile/RecentActivitySection.tsx` (968 lines)
-- **Approach:** Extract variant configs into `components/profile/templates/activityVariants.ts`
+### [x] **P1-T2: Unify RecentActivitySection Variants** (15 variants → config-driven)
+- **File:** `components/profile/RecentActivitySection.tsx` (968 lines → ~240 lines)
+- **Approach:** Extract variant configs into `components/profile/templates/activityVariants.tsx`
 - **Benefit:** Single component, easier to maintain, consistent behavior
+- **Created:** `components/profile/templates/activityVariants.tsx` with 15 variant configs + shared render helpers
+- **Refactored:** `components/profile/RecentActivitySection.tsx` now uses config-driven rendering
+- **Verification:** `npx tsc --noEmit` — zero new type errors (pre-existing dependency errors remain in unrelated files)
 
 ### [ ] **P1-T3: Add Input Validation to Avatar Upload**
 - **File:** `app/api/profile/avatar/route.ts`
@@ -136,6 +139,7 @@
 | 2026-10-21 | P0-T4 | Complete | Upstash Redis rate limiting (60 req/min) added to public profile endpoint |
 | 2026-10-21 | P0-T5 | Complete | Email field stripped from public profile response |
 | 2026-10-21 | P1-T1 | Complete | Created shared socialIcons.tsx utility; updated 13 template files; consolidated duplicate social icon logic |
+| 2026-10-21 | P1-T2 | Complete | Extracted 15 variants into config-driven activityVariants.tsx; reduced RecentActivitySection.tsx from 968 to ~240 lines; shared render helpers for pulse, platforms, footer |
 | | | | |
 
 ---
