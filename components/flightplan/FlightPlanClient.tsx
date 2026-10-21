@@ -24,7 +24,7 @@ interface FlightPlanInnerProps {
   workspaceId: string;
 }
 
-function WritingWeekView({ platforms }: { platforms: PlatformType[] }) {
+function WritingWeekView({ platforms = [] }: { platforms?: PlatformType[] }) {
   const [step, setStep] = useState(0);
 
   useEffect(() => {
@@ -36,8 +36,9 @@ function WritingWeekView({ platforms }: { platforms: PlatformType[] }) {
     };
   }, []);
 
-  const platNames = platforms.length > 0
-    ? platforms.map(p => PLATFORM_META[p]?.name || p).join(', ')
+  const safePlatforms = Array.isArray(platforms) ? platforms : [];
+  const platNames = safePlatforms.length > 0
+    ? safePlatforms.map(p => PLATFORM_META[p]?.name || p).join(', ')
     : 'Instagram, Facebook, LinkedIn, Threads, X';
 
   const steps = [
@@ -293,7 +294,7 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
           style={{ backgroundColor: B.glass, borderColor: B.glassBorder }}
         >
           <InstagramStoryBar
-            posts={arc.weekPosts.filter(p => !p.deleted)}
+            posts={(arc?.weekPosts || []).filter(p => !p.deleted)}
             currentIndex={activeStoryIndex}
             onSelectIndex={setActiveStoryIndex}
           />
@@ -313,7 +314,7 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
         {isGenerating && (
           <WritingWeekView
             key="generating"
-            platforms={storyData?.selectedPlatforms || connectedPlatforms}
+            platforms={storyData?.selectedPlatforms || connectedPlatforms || []}
           />
         )}
         {!isGenerating && view === 'story' && (

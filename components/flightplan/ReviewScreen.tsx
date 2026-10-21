@@ -50,7 +50,7 @@ const QUICK_PRESETS = [
 ];
 
 function parseLocalDate(dateStr: string): Date {
-  if (!dateStr) return startOfWeek(new Date(), { weekStartsOn: 1 });
+  if (!dateStr) return new Date();
   const parts = dateStr.split('-');
   if (parts.length === 3) {
     const [y, m, d] = parts.map(Number);
@@ -72,30 +72,33 @@ export function ReviewScreen({
   onStoryIndexChange,
   onStoryHoverChange,
 }: ReviewScreenProps) {
-  const sanitizeArcContent = useCallback((rawArc: WeekArc): WeekArc => ({
-    ...rawArc,
-    weekPosts: rawArc.weekPosts.map(post => ({
-      ...post,
-      platforms: post.platforms.map(pf => {
-        const config = PLATFORM_CONFIG[pf.platform as PlatformType];
-        let content = pf.content || '';
-        if (config && content.length > config.maxChars) {
-          const maxAllowed = config.maxChars - 3;
-          const trimmed = content.slice(0, maxAllowed);
-          const lastSpace = trimmed.lastIndexOf(' ');
-          content = (lastSpace > config.maxChars * 0.8 ? trimmed.slice(0, lastSpace) : trimmed) + '...';
-          if (content.length > config.maxChars) {
-            content = content.slice(0, config.maxChars);
+  const sanitizeArcContent = useCallback((rawArc: WeekArc): WeekArc => {
+    if (!rawArc || !Array.isArray(rawArc.weekPosts)) return rawArc;
+    return {
+      ...rawArc,
+      weekPosts: rawArc.weekPosts.map(post => ({
+        ...post,
+        platforms: (post?.platforms || []).map(pf => {
+          const config = PLATFORM_CONFIG[pf.platform as PlatformType];
+          let content = pf.content || '';
+          if (config && content.length > config.maxChars) {
+            const maxAllowed = config.maxChars - 3;
+            const trimmed = content.slice(0, maxAllowed);
+            const lastSpace = trimmed.lastIndexOf(' ');
+            content = (lastSpace > config.maxChars * 0.8 ? trimmed.slice(0, lastSpace) : trimmed) + '...';
+            if (content.length > config.maxChars) {
+              content = content.slice(0, config.maxChars);
+            }
           }
-        }
-        return {
-          ...pf,
-          content,
-          characterCount: content.length,
-        };
-      }),
-    })),
-  }), []);
+          return {
+            ...pf,
+            content,
+            characterCount: content.length,
+          };
+        }),
+      })),
+    };
+  }, []);
 
   const [editedArc, setEditedArc] = useState<WeekArc>(() => sanitizeArcContent(arc));
   const [expandedPost, setExpandedPost] = useState<number>(-1);
@@ -104,12 +107,16 @@ export function ReviewScreen({
   const [isUploadingImage, setIsUploadingImage] = useState<Record<number, boolean>>({});
   const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
+  const scheduleStartDate = useMemo(() => {
+    return weekStartDate ? parseLocalDate(weekStartDate) : new Date();
+  }, [weekStartDate]);
+
   // Sync with prop changes
   useEffect(() => {
     setEditedArc(sanitizeArcContent(arc));
   }, [arc, sanitizeArcContent]);
 
-  const activePosts = useMemo(() => editedArc.weekPosts.filter(p => !p.deleted), [editedArc]);
+  const activePosts = useMemo(() => (editedArc?.weekPosts || []).filter(p => !p.deleted), [editedArc]);
 
   const handleImageUpload = useCallback(async (postIdx: number, urls: string[]) => {
     setEditedArc(prev => ({
@@ -267,9 +274,7 @@ export function ReviewScreen({
   }, [activePosts, editedArc, onApprove, scheduleStartDate]);
 
   const totalVariants = activePosts.reduce((sum, post) =>
-    sum + post.platforms.filter(p => p.enabled !== false).length, 0);
-
-  const scheduleStartDate = weekStartDate ? parseLocalDate(weekStartDate) : new Date();
+    sum + (post.platforms || []).filter(p => p.enabled !== false).length, 0);
 
   return (
     <motion.div

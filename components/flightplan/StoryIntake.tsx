@@ -40,7 +40,7 @@ const ALTERNATIVE_SAMPLE = {
 };
 
 function parseLocalDate(dateStr: string): Date {
-  if (!dateStr) return startOfWeek(new Date(), { weekStartsOn: 1 });
+  if (!dateStr) return new Date();
   const parts = dateStr.split('-');
   if (parts.length === 3) {
     const [y, m, d] = parts.map(Number);
