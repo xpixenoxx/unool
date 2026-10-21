@@ -38,61 +38,7 @@ import {
 import { SocialIcon, normalizeSocialPlatform, BRAND_SVGS } from '@/components/profile/SocialBrandIcons';
 import { OpenToBadges, type OpenToIntentId } from '@/components/profile/OpenToBadges';
 import { RecentActivitySection, type RecentActivityData } from '@/components/profile/RecentActivitySection';
-
-/* ────────────────────────── Type Definitions ────────────────────────── */
-
-interface PublicProfile {
-  id: string;
-  subdomain: string;
-  name: string;
-  headline: string;
-  bio: string;
-  role?: string;
-  company?: string;
-  avatarUrl: string;
-  links: ProfileLink[];
-  proofs: ProfileProof[];
-  theme: {
-    template: string;
-    preset: string;
-    accentColor: string;
-    customCss: string | null;
-  };
-  socialHandles: Record<string, string>;
-  openTo?: string[];
-  seo: {
-    title: string;
-    description: string;
-    image: string | null;
-  };
-}
-
-interface ProfileLink {
-  id: string;
-  label: string;
-  url: string;
-  icon: string | null;
-  clicks: number;
-  order: number;
-  isVisible: boolean;
-}
-
-interface ProfileProof {
-  id: string;
-  type: 'metric' | 'testimonial' | 'badge' | 'certification';
-  title: string;
-  value: string;
-  description: string | null;
-  icon: string | null;
-  order: number;
-}
-
-interface TemplateProps {
-  profile: PublicProfile;
-  accentColor?: string;
-  isPreview?: boolean;
-  onLinkClick?: (link: ProfileLink) => void;
-}
+import type { TemplateProps, PublicProfile, ProfileLink, ProfileProof } from '@/components/profile/templates/types';
 
 interface ProjectDrawerProps {
   project: NonNullable<PublicProfile['links']>[0];

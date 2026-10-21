@@ -4,11 +4,9 @@ import { useState, useRef } from 'react';
 import { BadgeCheck, Send, Bookmark, ArrowRight, Users, Eye } from 'lucide-react';
 import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
 import { getLinkIcon as getSharedLinkIcon } from '@/components/profile/templates/utils/socialIcons';
+import type { TemplateProps } from '@/components/profile/templates/types';
 
-interface HumanTemplateProps {
-  profile: any;
-  accentColor?: string;
-}
+interface HumanTemplateProps extends TemplateProps {}
 
 export function HumanTemplate({ profile, accentColor }: HumanTemplateProps) {
   const accent = accentColor || '#E2B746';

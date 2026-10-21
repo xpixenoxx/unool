@@ -2,11 +2,9 @@
 
 import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
 import { getAestheteSocialIcon } from '@/components/profile/templates/utils/socialIcons';
+import type { TemplateProps } from '@/components/profile/templates/types';
 
-interface BuilderTemplateProps {
-  profile: any;
-  accentColor?: string;
-}
+interface BuilderTemplateProps extends TemplateProps {}
 
 export function BuilderTemplate({ profile }: BuilderTemplateProps) {
   const name = profile?.name || "";

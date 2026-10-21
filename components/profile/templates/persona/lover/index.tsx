@@ -3,11 +3,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
 import { getLinkIcon as getSharedLinkIcon } from '@/components/profile/templates/utils/socialIcons';
+import type { TemplateProps } from '@/components/profile/templates/types';
 
-interface LoverTemplateProps {
-  profile: any;
-  accentColor?: string;
-}
+interface LoverTemplateProps extends TemplateProps {}
 
 export function LoverTemplate({ profile, accentColor }: LoverTemplateProps) {
   const accent = accentColor || '#E85D75';

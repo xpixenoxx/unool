@@ -3,11 +3,9 @@
 import { useState, useRef } from 'react';
 import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
 import { getLinkIcon as getSharedLinkIcon } from '@/components/profile/templates/utils/socialIcons';
+import type { TemplateProps } from '@/components/profile/templates/types';
 
-interface HustlerTemplateProps {
-  profile: any;
-  accentColor?: string;
-}
+interface HustlerTemplateProps extends TemplateProps {}
 
 export function HustlerTemplate({ profile, accentColor }: HustlerTemplateProps) {
   const accent = accentColor || '#00D4AA';

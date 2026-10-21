@@ -3,11 +3,9 @@
 import { useState, useRef } from 'react';
 import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
 import { getLinkIcon as getSharedLinkIcon } from '@/components/profile/templates/utils/socialIcons';
+import type { TemplateProps } from '@/components/profile/templates/types';
 
-interface MachineTemplateProps {
-  profile: any;
-  accentColor?: string;
-}
+interface MachineTemplateProps extends TemplateProps {}
 
 export function MachineTemplate({ profile, accentColor }: MachineTemplateProps) {
   const accent = accentColor || '#FF3366';

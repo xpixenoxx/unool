@@ -3,11 +3,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
 import { getLinkIcon as getSharedLinkIcon } from '@/components/profile/templates/utils/socialIcons';
+import type { TemplateProps } from '@/components/profile/templates/types';
 
-interface AestheteTemplateProps {
-  profile: any;
-  accentColor?: string;
-}
+interface AestheteTemplateProps extends TemplateProps {}
 
 export function AestheteTemplate({ profile, accentColor }: AestheteTemplateProps) {
   const accent = accentColor || '#8B5CF6';

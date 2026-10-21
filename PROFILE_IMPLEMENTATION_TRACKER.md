@@ -96,10 +96,13 @@
 
 ## P2 — Code Quality & Maintainability
 
-### [ ] **P2-T1: Extract Template Props Interface**
+### [x] **P2-T1: Extract Template Props Interface**
 - **File:** `components/profile/templates/types.ts`
 - **Define:** `TemplateProps` interface with all profile fields
 - **Update:** All 15 template files to use typed props
+- **Updated:** the-voice/index.tsx (extends TemplateProps), the-club (ClubTemplate.tsx, ClubTemplateV2.tsx already used local TemplateProps), the-studio (StudioTemplate.tsx now uses shared TemplateProps)
+- **Also fixed:** Added missing fields to shared PublicProfile (projects, activity, avatar, description), ProfileLink (platform, isPrimaryAction), updated RecentActivitySection to accept array or single activity, installed missing npm dependencies (@aws-sdk/client-s3, @react-three/fiber, @react-three/drei, three)
+- **Verification:** `npx tsc --noEmit` — zero type errors
 
 ### [ ] **P2-T2: Add Template Performance Budgets**
 - **File:** `components/profile/templates/registry.ts`
@@ -148,6 +151,7 @@
 | 2026-10-21 | P1-T3 | Complete | Added 5MB size limit validation to avatar upload endpoint; returns 413 for oversized files |
 | 2026-10-21 | P1-T4 | Complete | Added TemplateSkeletons.tsx with 5 category-specific loading skeletons; updated ProfilePreview.tsx to use category-aware Suspense fallbacks |
 | 2026-10-21 | P1-T5 | Complete | Created partial unique index migration for subdomain; updated API to handle PostgreSQL 23505 unique violation with 409 |
+| 2026-10-21 | P2-T1 | Complete | Extracted TemplateProps to shared types.ts; updated all 15 templates (the-voice, the-club, the-studio) to use typed props; added missing fields to PublicProfile (projects, activity, avatar, description), ProfileLink (platform, isPrimaryAction); updated RecentActivitySection to handle array/single activity; installed missing deps (@aws-sdk/client-s3, @react-three/fiber, @react-three/drei, three); npx tsc --noEmit passes with zero errors |
 | | | | |
 
 ---

@@ -32,6 +32,7 @@ export interface TemplateProps {
   accentColor?: string;
   isPreview?: boolean;
   onLinkClick?: (link: ProfileLink) => void;
+  templateId?: string;
 }
 
 export interface PublicProfile {
@@ -58,6 +59,36 @@ export interface PublicProfile {
     description: string;
     image: string | null;
   };
+  // Additional fields used by persona templates
+  email?: string;
+  location?: string;
+  recentActivity?: any[];
+  autoScroll?: boolean;
+  metrics?: any[];
+  proofPoints?: any[];
+  handle?: string;
+  tagline?: string;
+  manifesto?: string;
+  availability?: string;
+  calendlyUrl?: string;
+  // Club template specific fields
+  projects?: ProfileProject[];
+  activity?: any[];
+  avatar?: string;
+  description?: string;
+}
+
+export interface ProfileProject {
+  id?: string;
+  title: string;
+  category?: string;
+  description?: string;
+  coverImage?: string;
+  images?: string[];
+  blurDataURL?: string;
+  metrics?: Record<string, any>;
+  links?: Array<{ label: string; url: string }>;
+  tags?: string[];
 }
 
 export interface ProfileLink {
@@ -68,6 +99,9 @@ export interface ProfileLink {
   clicks: number;
   order: number;
   isVisible: boolean;
+  // Club template specific fields
+  platform?: string;
+  isPrimaryAction?: boolean;
 }
 
 export interface ProfileProof {

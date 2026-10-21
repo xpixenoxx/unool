@@ -2,13 +2,9 @@
 
 import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
 import { getPlatformIcon as getSharedPlatformIcon } from '@/components/profile/templates/utils/socialIcons';
-import type { ProfileLink } from '@/components/profile/templates/types';
+import type { TemplateProps } from '@/components/profile/templates/types';
 
-interface VisionaryTemplateProps {
-  profile: any;
-  onLinkClick?: (link: ProfileLink) => void;
-  accentColor?: string;
-}
+interface VisionaryTemplateProps extends TemplateProps {}
 
 export function VisionaryTemplate({ profile, onLinkClick, accentColor }: VisionaryTemplateProps) {
   const name = profile?.name || "Aria Mehta";

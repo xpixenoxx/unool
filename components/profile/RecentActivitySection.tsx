@@ -20,7 +20,7 @@ export interface RecentActivityData {
 }
 
 export interface RecentActivitySectionProps {
-  activity: RecentActivityData | null;
+  activity: RecentActivityData | RecentActivityData[] | null | undefined;
   /** Template style variant */
   variant?:
     | 'lover'
@@ -111,7 +111,11 @@ export function RecentActivitySection({
 
   if (!activity) return null;
 
-  const published = (activity.platforms || []).filter(p => p && p.url?.startsWith('http'));
+  // Handle both single activity object and array of activities
+  const activityItem = Array.isArray(activity) ? activity[0] : activity;
+  if (!activityItem) return null;
+
+  const published = (activityItem.platforms || []).filter(p => p && p.url?.startsWith('http'));
   if (published.length === 0) return null;
 
   const accent = accentColor || (isDark ? '#FFFFFF' : '#222222');
@@ -172,9 +176,9 @@ export function RecentActivitySection({
               New Post Shared With You
             </span>
           </div>
-          {activity.publishedAt && (
+          {activityItem.publishedAt && (
             <span style={{ fontSize: 11, color: labelCol }} className="font-mono">
-              {timeAgo(activity.publishedAt)}
+              {timeAgo(activityItem.publishedAt)}
             </span>
           )}
         </div>
@@ -190,7 +194,7 @@ export function RecentActivitySection({
             overflow: 'hidden',
           }}
         >
-          "{excerpt(activity.content, 140)}"
+          "{excerpt(activityItem.content, 140)}"
         </p>
 
         {renderPlatformButtons(published, config, true, isDark, accent)}
@@ -218,7 +222,7 @@ export function RecentActivitySection({
   const customPlatformButton = config.customRender?.platformButton;
 
   // Build content
-  const contentExcerpt = excerpt(activity.content, config.excerptMaxLength ?? 140);
+  const contentExcerpt = excerpt(activityItem.content, config.excerptMaxLength ?? 140);
   const contentNode = customContent
     ? customContent(contentExcerpt)
     : (
@@ -260,12 +264,12 @@ export function RecentActivitySection({
           {config.title}
         </span>
       </div>
-      {activity.publishedAt && (
+      {activityItem.publishedAt && (
         <span
           className={`${config.timestampClassName} font-mono`}
           style={timestampStyle}
         >
-          {timeAgo(activity.publishedAt)}
+          {timeAgo(activityItem.publishedAt)}
         </span>
       )}
     </div>

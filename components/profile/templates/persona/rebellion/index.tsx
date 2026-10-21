@@ -3,11 +3,9 @@
 import { useState, useRef } from 'react';
 import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
 import { getLinkIcon as getSharedLinkIcon } from '@/components/profile/templates/utils/socialIcons';
+import type { TemplateProps } from '@/components/profile/templates/types';
 
-interface RebellionTemplateProps {
-  profile: any;
-  accentColor?: string;
-}
+interface RebellionTemplateProps extends TemplateProps {}
 
 export function RebellionTemplate({ profile, accentColor }: RebellionTemplateProps) {
   const accent = accentColor || '#C8102E';

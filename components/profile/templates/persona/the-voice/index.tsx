@@ -3,11 +3,9 @@
 import { useState, useRef } from 'react';
 import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
 import { getLinkIcon as getSharedLinkIcon } from '@/components/profile/templates/utils/socialIcons';
+import type { TemplateProps } from '@/components/profile/templates/types';
 
-interface VoiceTemplateProps {
-  profile: any;
-  accentColor?: string;
-}
+interface VoiceTemplateProps extends TemplateProps {}
 
 export function VoiceTemplate({ profile, accentColor }: VoiceTemplateProps) {
   const accent = accentColor || '#8B5CF6';

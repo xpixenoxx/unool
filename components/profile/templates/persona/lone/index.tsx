@@ -3,11 +3,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
 import { getLinkIcon as getSharedLinkIcon } from '@/components/profile/templates/utils/socialIcons';
+import type { TemplateProps } from '@/components/profile/templates/types';
 
-interface LoneTemplateProps {
-  profile: any;
-  accentColor?: string;
-}
+interface LoneTemplateProps extends TemplateProps {}
 
 export function LoneTemplate({ profile, accentColor }: LoneTemplateProps) {
   const accent = accentColor || '#3B82F6';

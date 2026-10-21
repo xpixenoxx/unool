@@ -3,11 +3,9 @@
 import { useState, useRef } from 'react';
 import { RecentActivitySection } from '@/components/profile/RecentActivitySection';
 import { getLinkIcon as getSharedLinkIcon } from '@/components/profile/templates/utils/socialIcons';
+import type { TemplateProps } from '@/components/profile/templates/types';
 
-interface VisionTemplateProps {
-  profile: any;
-  accentColor?: string;
-}
+interface VisionTemplateProps extends TemplateProps {}
 
 export function VisionTemplate({ profile, accentColor }: VisionTemplateProps) {
   const accent = accentColor || '#FF007A';
