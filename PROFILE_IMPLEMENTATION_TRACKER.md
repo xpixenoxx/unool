@@ -73,10 +73,11 @@
 - **Refactored:** `components/profile/RecentActivitySection.tsx` now uses config-driven rendering
 - **Verification:** `npx tsc --noEmit` — zero new type errors (pre-existing dependency errors remain in unrelated files)
 
-### [ ] **P1-T3: Add Input Validation to Avatar Upload**
+### [x] **P1-T3: Add Input Validation to Avatar Upload**
 - **File:** `app/api/profile/avatar/route.ts`
 - **Add:** File type check (image/*), size limit (5MB), sanitize filename
 - **Return:** Proper error codes (400 for invalid type, 413 for too large)
+- **Verification:** `npx tsc --noEmit` passes; returns 400 for non-image, 413 for >5MB
 
 ### [ ] **P1-T4: Optimize Template Registry with Lazy Loading**
 - **File:** `components/profile/ProfilePreview.tsx`, `components/profile/templates/registry.ts`
@@ -140,6 +141,7 @@
 | 2026-10-21 | P0-T5 | Complete | Email field stripped from public profile response |
 | 2026-10-21 | P1-T1 | Complete | Created shared socialIcons.tsx utility; updated 13 template files; consolidated duplicate social icon logic |
 | 2026-10-21 | P1-T2 | Complete | Extracted 15 variants into config-driven activityVariants.tsx; reduced RecentActivitySection.tsx from 968 to ~240 lines; shared render helpers for pulse, platforms, footer |
+| 2026-10-21 | P1-T3 | Complete | Added 5MB size limit validation to avatar upload endpoint; returns 413 for oversized files |
 | | | | |
 
 ---

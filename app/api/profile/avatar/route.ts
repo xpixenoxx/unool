@@ -26,6 +26,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate file size (5MB limit)
+    const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+    if (file.size > MAX_SIZE) {
+      return NextResponse.json(
+        { error: 'File too large. Maximum size is 5MB.' },
+        { status: 413 }
+      );
+    }
+
     const safeFilename = `${auth.userId}-${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.\-_]/g, '')}`;
     const key = `avatars/${safeFilename}`;
     const arrayBuffer = await file.arrayBuffer();
