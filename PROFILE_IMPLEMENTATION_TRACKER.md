@@ -87,9 +87,10 @@
 - **Updated:** `components/profile/ProfilePreview.tsx` to use category-aware skeletons via `getSkeletonCategory()`
 - **Verification:** `npx tsc --noEmit` passes
 
-### [ ] **P1-T5: Add Subdomain Uniqueness Check at DB Level**
-- **Migration:** Add unique index on `profiles.subdomain` where `deleted_at IS NULL`
-- **API:** `app/api/profile/route.ts` — handle unique violation with 409 error
+### [x] **P1-T5: Add Subdomain Uniqueness Check at DB Level**
+- **Migration:** `supabase/migrations/20261021000002_unique_subdomain_partial_index.sql` - partial unique index on `profiles.subdomain` where `deleted_at IS NULL`
+- **API:** `app/api/profile/route.ts` — handle unique violation (PostgreSQL 23505) with 409 error
+- **Verification:** `npx tsc --noEmit` passes
 
 ---
 
@@ -146,6 +147,7 @@
 | 2026-10-21 | P1-T2 | Complete | Extracted 15 variants into config-driven activityVariants.tsx; reduced RecentActivitySection.tsx from 968 to ~240 lines; shared render helpers for pulse, platforms, footer |
 | 2026-10-21 | P1-T3 | Complete | Added 5MB size limit validation to avatar upload endpoint; returns 413 for oversized files |
 | 2026-10-21 | P1-T4 | Complete | Added TemplateSkeletons.tsx with 5 category-specific loading skeletons; updated ProfilePreview.tsx to use category-aware Suspense fallbacks |
+| 2026-10-21 | P1-T5 | Complete | Created partial unique index migration for subdomain; updated API to handle PostgreSQL 23505 unique violation with 409 |
 | | | | |
 
 ---

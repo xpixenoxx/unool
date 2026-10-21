@@ -169,6 +169,11 @@ export async function PUT(request: NextRequest) {
     if (err.message === 'VERSION_CONFLICT') {
       return NextResponse.json({ error: 'Profile was modified, please refresh and try again' }, { status: 409 });
     }
+    // Handle PostgreSQL unique constraint violation (23505)
+    const pgError = error as any;
+    if (pgError?.code === '23505' && pgError?.constraint === 'profiles_subdomain_active_unique') {
+      return NextResponse.json({ error: 'Subdomain already taken' }, { status: 409 });
+    }
     logger.error('Update profile failed', { error: err });
     return NextResponse.json({ error: 'Failed to update profile' }, { status: 500 });
   }
