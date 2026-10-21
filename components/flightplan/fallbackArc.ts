@@ -1,4 +1,6 @@
 import type { StoryIntakeData, WeekArc, ArcPost, PlatformType } from '@/types/flightplan';
+import { PLATFORM_CONFIG } from '@/types/flightplan';
+import { addDays, format, isToday } from 'date-fns';
 
 const BEAT_TEMPLATES = [
   {
@@ -90,7 +92,36 @@ export function generateClientFallbackArc(data: StoryIntakeData): WeekArc {
 
   const titleSnippet = data.coreStory.split('.')[0]?.trim().slice(0, 60) || 'Weekly Narrative Arc';
 
+  const now = new Date();
+  const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  let startDate: Date;
+  if (data.weekStartDate) {
+    const parts = data.weekStartDate.split('-');
+    if (parts.length === 3) {
+      startDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    } else {
+      startDate = new Date(data.weekStartDate);
+    }
+    if (isNaN(startDate.getTime()) || startDate.getTime() < todayMidnight.getTime()) {
+      startDate = new Date(todayMidnight);
+    }
+  } else {
+    startDate = new Date(todayMidnight);
+  }
+
   const weekPosts: ArcPost[] = BEAT_TEMPLATES.map((tmpl, idx) => {
+    const targetDate = addDays(startDate, idx);
+    const dayLabel = format(targetDate, 'EEEE');
+
+    let scheduledHour = tmpl.scheduledHour;
+    let scheduledMinute = tmpl.scheduledMinute;
+
+    if (isToday(targetDate) && (now.getHours() > scheduledHour || (now.getHours() === scheduledHour && now.getMinutes() >= scheduledMinute))) {
+      scheduledHour = Math.min(23, now.getHours() + 1);
+      scheduledMinute = 0;
+    }
+
     let baseCopy = '';
     if (idx === 0) {
       baseCopy = data.coreStory;
@@ -113,8 +144,19 @@ export function generateClientFallbackArc(data: StoryIntakeData): WeekArc {
     const platformDrafts = platforms.map(p => {
       const suffix = (tmpl.suffix as any)[p] || '';
       let copy = `${baseCopy}${suffix}`;
-      if (p === 'x' && copy.length > 275) copy = copy.slice(0, 270) + '...';
-      if (p === 'bluesky' && copy.length > 295) copy = copy.slice(0, 290) + '...';
+
+      // Strictly enforce platform character limits during generation
+      const config = PLATFORM_CONFIG[p];
+      const maxChars = config?.maxChars || 3000;
+      if (copy.length > maxChars) {
+        const maxAllowed = maxChars - 3;
+        const trimmed = copy.slice(0, maxAllowed);
+        const lastSpace = trimmed.lastIndexOf(' ');
+        copy = (lastSpace > maxChars * 0.8 ? trimmed.slice(0, lastSpace) : trimmed) + '...';
+        if (copy.length > maxChars) {
+          copy = copy.slice(0, maxChars);
+        }
+      }
 
       return {
         platform: p,
@@ -129,12 +171,12 @@ export function generateClientFallbackArc(data: StoryIntakeData): WeekArc {
     });
 
     return {
-      day: tmpl.day,
-      dayLabel: tmpl.dayLabel,
+      day: idx,
+      dayLabel,
       arcBeat: tmpl.beat,
       arcBeatReason: `Beat ${idx + 1}: ${tmpl.beat} drives strategic progression for the weekly narrative.`,
-      scheduledHour: tmpl.scheduledHour,
-      scheduledMinute: tmpl.scheduledMinute,
+      scheduledHour,
+      scheduledMinute,
       platforms: platformDrafts,
     };
   });

@@ -72,7 +72,32 @@ export function ReviewScreen({
   onStoryIndexChange,
   onStoryHoverChange,
 }: ReviewScreenProps) {
-  const [editedArc, setEditedArc] = useState<WeekArc>(arc);
+  const sanitizeArcContent = useCallback((rawArc: WeekArc): WeekArc => ({
+    ...rawArc,
+    weekPosts: rawArc.weekPosts.map(post => ({
+      ...post,
+      platforms: post.platforms.map(pf => {
+        const config = PLATFORM_CONFIG[pf.platform as PlatformType];
+        let content = pf.content || '';
+        if (config && content.length > config.maxChars) {
+          const maxAllowed = config.maxChars - 3;
+          const trimmed = content.slice(0, maxAllowed);
+          const lastSpace = trimmed.lastIndexOf(' ');
+          content = (lastSpace > config.maxChars * 0.8 ? trimmed.slice(0, lastSpace) : trimmed) + '...';
+          if (content.length > config.maxChars) {
+            content = content.slice(0, config.maxChars);
+          }
+        }
+        return {
+          ...pf,
+          content,
+          characterCount: content.length,
+        };
+      }),
+    })),
+  }), []);
+
+  const [editedArc, setEditedArc] = useState<WeekArc>(() => sanitizeArcContent(arc));
   const [expandedPost, setExpandedPost] = useState<number>(-1);
   const [activePlatformTab, setActivePlatformTab] = useState<Record<number, number>>({});
   const [isDraggingPost, setIsDraggingPost] = useState<Record<number, boolean>>({});
@@ -81,8 +106,8 @@ export function ReviewScreen({
 
   // Sync with prop changes
   useEffect(() => {
-    setEditedArc(arc);
-  }, [arc]);
+    setEditedArc(sanitizeArcContent(arc));
+  }, [arc, sanitizeArcContent]);
 
   const activePosts = useMemo(() => editedArc.weekPosts.filter(p => !p.deleted), [editedArc]);
 
@@ -215,7 +240,7 @@ export function ReviewScreen({
         }
         const config = PLATFORM_CONFIG[platform.platform as PlatformType];
         if (config && platform.characterCount > config.maxChars) {
-          studioToast.generationFailed(`Content for ${config.name} exceeds the character limit of ${config.maxChars}.`, {
+          studioToast.generationFailed(`Content for ${config.name} exceeds the maximum character limit of ${config.maxChars} (${platform.characterCount}/${config.maxChars}). Please shorten before scheduling.`, {
             platforms: [platform.platform],
             knowMoreUrl: '/terms',
           });
@@ -223,13 +248,28 @@ export function ReviewScreen({
         }
       }
     }
-    onApprove(editedArc);
-  }, [activePosts, editedArc, onApprove]);
+
+    // Ensure no post is scheduled in the past at approval time
+    const now = new Date();
+    const updatedWeekPosts = editedArc.weekPosts.map(post => {
+      if (post.deleted) return post;
+      const targetDay = addDays(scheduleStartDate, post.day);
+      const postDateTime = new Date(targetDay);
+      postDateTime.setHours(post.scheduledHour, post.scheduledMinute, 0, 0);
+      if (postDateTime.getTime() <= now.getTime()) {
+        const nextHour = Math.min(23, now.getHours() + 1);
+        return { ...post, scheduledHour: nextHour, scheduledMinute: 0 };
+      }
+      return post;
+    });
+
+    onApprove({ ...editedArc, weekPosts: updatedWeekPosts });
+  }, [activePosts, editedArc, onApprove, scheduleStartDate]);
 
   const totalVariants = activePosts.reduce((sum, post) =>
     sum + post.platforms.filter(p => p.enabled !== false).length, 0);
 
-  const monday = weekStartDate ? parseLocalDate(weekStartDate) : startOfWeek(new Date(), { weekStartsOn: 1 });
+  const scheduleStartDate = weekStartDate ? parseLocalDate(weekStartDate) : new Date();
 
   return (
     <motion.div
@@ -320,7 +360,7 @@ export function ReviewScreen({
               );
             }
 
-            const targetDay = addDays(monday, post.day);
+            const targetDay = addDays(scheduleStartDate, post.day);
             const isTodayPost = isToday(targetDay);
             const postDateTime = new Date(targetDay);
             postDateTime.setHours(post.scheduledHour, post.scheduledMinute, 0, 0);

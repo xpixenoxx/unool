@@ -109,45 +109,31 @@ export function getUpcomingDaysForArc(weekStartDate?: string): Array<{ day: numb
   const now = new Date();
   const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-  let startMonday: Date;
+  let startDate: Date;
   if (weekStartDate) {
     const parts = weekStartDate.split('-');
     if (parts.length === 3) {
-      startMonday = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+      startDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
     } else {
-      startMonday = new Date(weekStartDate);
+      startDate = new Date(weekStartDate);
     }
-    if (isNaN(startMonday.getTime())) {
-      startMonday = new Date(todayMidnight);
+    if (isNaN(startDate.getTime()) || startDate.getTime() < todayMidnight.getTime()) {
+      startDate = new Date(todayMidnight);
     }
   } else {
-    startMonday = new Date(todayMidnight);
-    const dayOfWeek = (startMonday.getDay() + 6) % 7; // Monday = 0
-    startMonday.setDate(startMonday.getDate() - dayOfWeek);
+    startDate = new Date(todayMidnight);
   }
 
-  // Filter only days that are today or in the future
+  // Rolling 7 upcoming days starting from startDate (today or chosen start date)
   const upcoming: Array<{ day: number; dayLabel: string; isToday: boolean }> = [];
   for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
-    const d = new Date(startMonday.getFullYear(), startMonday.getMonth(), startMonday.getDate() + dayOffset);
-    if (d.getTime() >= todayMidnight.getTime()) {
-      upcoming.push({
-        day: dayOffset,
-        dayLabel: DAY_NAMES[dayOffset] || 'Day',
-        isToday: d.getTime() === todayMidnight.getTime(),
-      });
-    }
-  }
-
-  // Fallback: If all days in weekStartDate have already passed, advance to next upcoming week
-  if (upcoming.length === 0) {
-    for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
-      upcoming.push({
-        day: dayOffset,
-        dayLabel: DAY_NAMES[dayOffset] || 'Day',
-        isToday: false,
-      });
-    }
+    const d = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + dayOffset);
+    const dayOfWeek = (d.getDay() + 6) % 7; // Monday = 0, ..., Sunday = 6
+    upcoming.push({
+      day: dayOffset,
+      dayLabel: DAY_NAMES[dayOfWeek] || 'Day',
+      isToday: d.getTime() === todayMidnight.getTime(),
+    });
   }
 
   return upcoming;
@@ -252,9 +238,13 @@ export function synthesizeFactGroundedArc(params: {
       const filteredHashtags = ContentGuard.filterHashtags(hashtags, { maxCount: 10 });
       const spec = PLATFORM_SPECS[platform];
       if (spec?.maxChars && sanitizedContent.length > spec.maxChars) {
-        const trimmed = sanitizedContent.slice(0, spec.maxChars - 3);
+        const maxAllowed = spec.maxChars - 3;
+        const trimmed = sanitizedContent.slice(0, maxAllowed);
         const lastSpace = trimmed.lastIndexOf(' ');
         sanitizedContent = (lastSpace > spec.maxChars * 0.8 ? trimmed.slice(0, lastSpace) : trimmed) + '...';
+        if (sanitizedContent.length > spec.maxChars) {
+          sanitizedContent = sanitizedContent.slice(0, spec.maxChars);
+        }
       }
 
       return {
@@ -386,7 +376,8 @@ RULES (critical):
 6. arcBeatReason must explain in ONE clear sentence why this beat works on this day for this story type.
 7. scheduledHour values are in ${audienceTimezone} local time (24h).
 8. CRITICAL: Every post MUST generate native content for EVERY connected platform: ${activePlatforms.join(', ')}.
-9. CRITICAL: Do NOT schedule any post on a past day. Strictly use the day indices and labels provided in the structure above.
+9. CRITICAL: Strictly obey platform character limits during generation (Threads: max 500 chars, X: max 280 chars, Bluesky: max 300 chars, Instagram: max 2200 chars, LinkedIn: max 3000 chars). The content must NEVER exceed these character limits.
+10. CRITICAL: Do NOT schedule any post on a past day. Strictly use the day indices and labels provided in the structure above.
 
 Return a JSON object matching this exact structure:
 {
@@ -438,7 +429,7 @@ Write ONLY the JSON. No markdown code blocks. No explanation.`;
       const processedPosts = result.value.weekPosts.map((post, idx) => {
         const slot = upcomingDays[idx] || upcomingDays[upcomingDays.length - 1];
         const day = validUpcomingDayNumbers.has(post.day) ? post.day : slot.day;
-        const dayLabel = DAY_NAMES[day] || slot.dayLabel;
+        const dayLabel = slot.dayLabel;
         let scheduledHour = post.scheduledHour;
         if (slot.isToday && now.getHours() >= scheduledHour) {
           scheduledHour = Math.min(23, now.getHours() + 1);
@@ -452,9 +443,13 @@ Write ONLY the JSON. No markdown code blocks. No explanation.`;
           if (existing) {
             let cleanContent = ContentGuard.sanitizeOutput(existing.content);
             if (spec?.maxChars && cleanContent.length > spec.maxChars) {
-              const trimmed = cleanContent.slice(0, spec.maxChars - 3);
+              const maxAllowed = spec.maxChars - 3;
+              const trimmed = cleanContent.slice(0, maxAllowed);
               const lastSpace = trimmed.lastIndexOf(' ');
               cleanContent = (lastSpace > spec.maxChars * 0.8 ? trimmed.slice(0, lastSpace) : trimmed) + '...';
+              if (cleanContent.length > spec.maxChars) {
+                cleanContent = cleanContent.slice(0, spec.maxChars);
+              }
             }
             return {
               ...existing,
@@ -466,9 +461,13 @@ Write ONLY the JSON. No markdown code blocks. No explanation.`;
           }
           let fallbackContent = ContentGuard.sanitizeOutput(post.platforms[0]?.content || coreStory.slice(0, 280));
           if (spec?.maxChars && fallbackContent.length > spec.maxChars) {
-            const trimmed = fallbackContent.slice(0, spec.maxChars - 3);
+            const maxAllowed = spec.maxChars - 3;
+            const trimmed = fallbackContent.slice(0, maxAllowed);
             const lastSpace = trimmed.lastIndexOf(' ');
             fallbackContent = (lastSpace > spec.maxChars * 0.8 ? trimmed.slice(0, lastSpace) : trimmed) + '...';
+            if (fallbackContent.length > spec.maxChars) {
+              fallbackContent = fallbackContent.slice(0, spec.maxChars);
+            }
           }
           return {
             platform,

@@ -62,7 +62,7 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
     whatChanged: DEFAULT_SAMPLE.whatChanged,
     whatWentWrong: DEFAULT_SAMPLE.whatWentWrong,
     oneRealNumber: DEFAULT_SAMPLE.oneRealNumber,
-    weekStartDate: format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd'),
+    weekStartDate: format(new Date(), 'yyyy-MM-dd'),
     selectedPlatforms: connectedPlatforms.length > 0 ? connectedPlatforms : (['instagram', 'facebook', 'linkedin', 'threads', 'x'] as PlatformType[]),
     audienceTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   }));
@@ -81,7 +81,11 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
   // Initialize from draft if present and user has not typed yet
   useEffect(() => {
     if (draft && !userEditedRef.current) {
-      setFormData(prev => ({ ...prev, ...draft }));
+      const todayStr = format(new Date(), 'yyyy-MM-dd');
+      const validStartDate = draft.weekStartDate && draft.weekStartDate >= todayStr
+        ? draft.weekStartDate
+        : todayStr;
+      setFormData(prev => ({ ...prev, ...draft, weekStartDate: validStartDate }));
       if (draft.selectedPlatforms?.length) {
         setFormData(prev => ({ ...prev, selectedPlatforms: draft.selectedPlatforms }));
       }
@@ -157,7 +161,9 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
     const finalData: StoryIntakeData = {
       ...formData,
       selectedPlatforms: finalPlatforms,
-      weekStartDate: formData.weekStartDate || format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd'),
+      weekStartDate: formData.weekStartDate && formData.weekStartDate >= format(new Date(), 'yyyy-MM-dd')
+        ? formData.weekStartDate
+        : format(new Date(), 'yyyy-MM-dd'),
     };
 
     clearDraft();
@@ -167,8 +173,8 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
   const allPlatforms = Object.keys(PLATFORM_META) as PlatformType[];
   const connectedSet = new Set(connectedPlatforms);
 
-  const weekStart = useMemo(() => parseLocalDate(formData.weekStartDate), [formData.weekStartDate]);
-  const weekEnd = useMemo(() => addDays(weekStart, 6), [weekStart]);
+  const scheduleStartDate = useMemo(() => parseLocalDate(formData.weekStartDate), [formData.weekStartDate]);
+  const scheduleEndDate = useMemo(() => addDays(scheduleStartDate, 6), [scheduleStartDate]);
 
   return (
     <motion.div
@@ -638,21 +644,21 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
               </label>
             </div>
 
-            {/* Week start date */}
+            {/* Schedule start date */}
             <div className="pt-4 border-t" style={{ borderColor: B.border }}>
               <label className="block text-sm font-medium mb-2" style={{ color: B.text }}>
-                Week Starting (Monday)
+                Start scheduling from
               </label>
               <input
                 type="date"
                 value={formData.weekStartDate}
                 onChange={e => handleChange('weekStartDate', e.target.value)}
-                min={format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')}
+                min={format(new Date(), 'yyyy-MM-dd')}
                 className="w-full max-w-xs px-3 py-2 rounded-xl border text-sm"
                 style={{ backgroundColor: B.card, borderColor: B.border, color: B.text, colorScheme: 'light' }}
               />
               <p className="text-xs mt-1" style={{ color: B.textMuted }}>
-                {format(weekStart, 'EEEE, MMM d')} – {format(weekEnd, 'EEEE, MMM d, yyyy')}
+                {format(scheduleStartDate, 'EEEE, MMM d')} – {format(scheduleEndDate, 'EEEE, MMM d, yyyy')}
               </p>
             </div>
 

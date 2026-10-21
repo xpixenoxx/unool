@@ -328,7 +328,7 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
           <ReviewScreen
             key="review"
             arc={arc}
-            weekStartDate={storyData?.weekStartDate || format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')}
+            weekStartDate={storyData?.weekStartDate || format(new Date(), 'yyyy-MM-dd')}
             isPreviewOnly={isPreviewOnly}
             onApprove={handleApprove}
             onBack={() => setView('story')}
