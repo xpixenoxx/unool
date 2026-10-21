@@ -395,6 +395,7 @@ export interface TimeSelectorProps {
   onHourChange: (h: number) => void;
   onMinuteChange: (m: number) => void;
   isPastTime?: boolean;
+  isToday?: boolean;
   quickPresets?: Array<{ label: string; minutes: number; icon?: React.ReactNode; isPrimary?: boolean }>;
   onQuickPreset?: (minutes: number) => void;
   disabled?: boolean;

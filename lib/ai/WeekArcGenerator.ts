@@ -139,6 +139,23 @@ export function getUpcomingDaysForArc(weekStartDate?: string): Array<{ day: numb
   return upcoming;
 }
 
+export function getNowInTimezone(timezone: string = 'UTC'): { hour: number; minute: number } {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      hour: 'numeric',
+      minute: 'numeric',
+      hourCycle: 'h23',
+    }).formatToParts(new Date());
+    const hour = parseInt(parts.find(p => p.type === 'hour')?.value ?? '0', 10);
+    const minute = parseInt(parts.find(p => p.type === 'minute')?.value ?? '0', 10);
+    return { hour, minute };
+  } catch {
+    const now = new Date();
+    return { hour: now.getHours(), minute: now.getMinutes() };
+  }
+}
+
 // ─── Fact-Grounded Algorithmic Synthesizer (Fallback when AI Provider is offline) ─────
 
 export function synthesizeFactGroundedArc(params: {
@@ -149,7 +166,7 @@ export function synthesizeFactGroundedArc(params: {
   userFirstName: string;
   weekStartDate?: string;
 }): WeekArc | null {
-  const { coreStory, followUps, connectedPlatforms, weekStartDate } = params;
+  const { coreStory, followUps, connectedPlatforms, audienceTimezone, weekStartDate } = params;
 
   // Enforce ContentGuard quality & safety rules: never synthesize un-generatable content
   const guard = ContentGuard.validateInput(coreStory, { route: 'weekarc/synthesize' });
@@ -170,7 +187,7 @@ export function synthesizeFactGroundedArc(params: {
   const detectedType = detectStoryType(coreStory);
   const arcBeats = ARC_BEATS[detectedType];
   const upcomingDays = getUpcomingDaysForArc(weekStartDate);
-  const now = new Date();
+  const { hour: currentTzHour, minute: currentTzMinute } = getNowInTimezone(audienceTimezone);
 
   const storyClean = guard.sanitizedContent;
   const num = followUps.oneRealNumber.trim();
@@ -184,8 +201,8 @@ export function synthesizeFactGroundedArc(params: {
     // Map beat to a future/today slot, never a past day
     const daySlot = upcomingDays[i] || upcomingDays[upcomingDays.length - 1];
     let scheduledHour = b.scheduledHour;
-    if (daySlot.isToday && now.getHours() >= scheduledHour) {
-      scheduledHour = Math.min(23, now.getHours() + 1);
+    if (daySlot.isToday && (currentTzHour > scheduledHour || (currentTzHour === scheduledHour && currentTzMinute >= 0))) {
+      scheduledHour = Math.min(23, currentTzHour + 1);
     }
 
     const platforms = activePlatforms.map((platform) => {
@@ -326,7 +343,7 @@ export async function generateWeekArc(params: {
   const detectedType = detectStoryType(coreStory);
   const arcBeats = ARC_BEATS[detectedType];
   const upcomingDays = getUpcomingDaysForArc(weekStartDate);
-  const now = new Date();
+  const { hour: currentTzHour, minute: currentTzMinute } = getNowInTimezone(audienceTimezone);
 
   // Generate for ALL connected platforms (fallback to default 3)
   const activePlatforms = connectedPlatforms.length > 0 ? connectedPlatforms : (['linkedin', 'threads', 'x'] as PlatformType[]);
@@ -346,8 +363,8 @@ export async function generateWeekArc(params: {
   const beatsDescription = arcBeats.map((b, i) => {
     const daySlot = upcomingDays[i] || upcomingDays[upcomingDays.length - 1];
     let hour = b.scheduledHour;
-    if (daySlot.isToday && now.getHours() >= hour) {
-      hour = Math.min(23, now.getHours() + 1);
+    if (daySlot.isToday && (currentTzHour > hour || (currentTzHour === hour && currentTzMinute >= 0))) {
+      hour = Math.min(23, currentTzHour + 1);
     }
     return `Post ${i + 1}: "${b.beat}" — ${daySlot.dayLabel} (day: ${daySlot.day}) at ~${hour}:00, generate variants for ALL connected platforms: ${activePlatforms.join(', ')}`;
   }).join('\n');
@@ -377,7 +394,7 @@ RULES (critical):
 7. scheduledHour values are in ${audienceTimezone} local time (24h).
 8. CRITICAL: Every post MUST generate native content for EVERY connected platform: ${activePlatforms.join(', ')}.
 9. CRITICAL: Strictly obey platform character limits during generation (Threads: max 500 chars, X: max 280 chars, Bluesky: max 300 chars, Instagram: max 2200 chars, LinkedIn: max 3000 chars). The content must NEVER exceed these character limits.
-10. CRITICAL: Do NOT schedule any post on a past day. Strictly use the day indices and labels provided in the structure above.
+10. CRITICAL: Do NOT schedule any post on a past day, and for today (${upcomingDays[0]?.dayLabel || 'today'}) do NOT schedule for an hour that has already passed in ${audienceTimezone} (current local time is ~${currentTzHour.toString().padStart(2, '0')}:${currentTzMinute.toString().padStart(2, '0')}). Today's posts MUST be scheduled strictly in the future.
 
 Return a JSON object matching this exact structure:
 {
@@ -431,8 +448,8 @@ Write ONLY the JSON. No markdown code blocks. No explanation.`;
         const day = validUpcomingDayNumbers.has(post.day) ? post.day : slot.day;
         const dayLabel = slot.dayLabel;
         let scheduledHour = post.scheduledHour;
-        if (slot.isToday && now.getHours() >= scheduledHour) {
-          scheduledHour = Math.min(23, now.getHours() + 1);
+        if (slot.isToday && (currentTzHour > scheduledHour || (currentTzHour === scheduledHour && currentTzMinute >= (post.scheduledMinute ?? 0)))) {
+          scheduledHour = Math.min(23, currentTzHour + 1);
         }
 
         // Ensure all active platforms are present, sanitized, and enabled

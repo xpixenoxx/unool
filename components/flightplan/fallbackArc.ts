@@ -118,8 +118,20 @@ export function generateClientFallbackArc(data: StoryIntakeData): WeekArc {
     let scheduledMinute = tmpl.scheduledMinute;
 
     if (isToday(targetDate) && (now.getHours() > scheduledHour || (now.getHours() === scheduledHour && now.getMinutes() >= scheduledMinute))) {
-      scheduledHour = Math.min(23, now.getHours() + 1);
-      scheduledMinute = 0;
+      if (now.getHours() >= 23 && now.getMinutes() >= 45) {
+        scheduledHour = 23;
+        scheduledMinute = 59;
+      } else if (now.getMinutes() >= 45) {
+        scheduledHour = Math.min(23, now.getHours() + 1);
+        scheduledMinute = 0;
+      } else {
+        scheduledHour = now.getHours();
+        scheduledMinute = Math.ceil((now.getMinutes() + 10) / 5) * 5;
+        if (scheduledMinute >= 60) {
+          scheduledHour = Math.min(23, scheduledHour + 1);
+          scheduledMinute = 0;
+        }
+      }
     }
 
     let baseCopy = '';

@@ -72,44 +72,77 @@ export function ReviewScreen({
   onStoryIndexChange,
   onStoryHoverChange,
 }: ReviewScreenProps) {
+  const scheduleStartDate = useMemo(() => {
+    return weekStartDate ? parseLocalDate(weekStartDate) : new Date();
+  }, [weekStartDate]);
+
   const sanitizeArcContent = useCallback((rawArc: WeekArc): WeekArc => {
     if (!rawArc || !Array.isArray(rawArc.weekPosts)) return rawArc;
+    const now = new Date();
     return {
       ...rawArc,
-      weekPosts: rawArc.weekPosts.map(post => ({
-        ...post,
-        platforms: (post?.platforms || []).map(pf => {
-          const config = PLATFORM_CONFIG[pf.platform as PlatformType];
-          let content = pf.content || '';
-          if (config && content.length > config.maxChars) {
-            const maxAllowed = config.maxChars - 3;
-            const trimmed = content.slice(0, maxAllowed);
-            const lastSpace = trimmed.lastIndexOf(' ');
-            content = (lastSpace > config.maxChars * 0.8 ? trimmed.slice(0, lastSpace) : trimmed) + '...';
-            if (content.length > config.maxChars) {
-              content = content.slice(0, config.maxChars);
+      weekPosts: rawArc.weekPosts.map(post => {
+        let scheduledHour = post.scheduledHour;
+        let scheduledMinute = post.scheduledMinute;
+
+        const targetDay = addDays(scheduleStartDate, post.day);
+        if (isToday(targetDay)) {
+          const postDateTime = new Date(targetDay);
+          postDateTime.setHours(scheduledHour, scheduledMinute, 0, 0);
+          if (postDateTime.getTime() <= now.getTime()) {
+            const currentHour = now.getHours();
+            const currentMinute = now.getMinutes();
+            if (currentHour >= 23 && currentMinute >= 45) {
+              scheduledHour = 23;
+              scheduledMinute = 59;
+            } else if (currentMinute >= 45) {
+              scheduledHour = Math.min(23, currentHour + 1);
+              scheduledMinute = 0;
+            } else {
+              scheduledHour = currentHour;
+              scheduledMinute = Math.ceil((currentMinute + 10) / 5) * 5;
+              if (scheduledMinute >= 60) {
+                scheduledHour = Math.min(23, scheduledHour + 1);
+                scheduledMinute = 0;
+              }
             }
           }
-          return {
-            ...pf,
-            content,
-            characterCount: content.length,
-          };
-        }),
-      })),
+        }
+
+        return {
+          ...post,
+          scheduledHour,
+          scheduledMinute,
+          platforms: (post?.platforms || []).map(pf => {
+            const config = PLATFORM_CONFIG[pf.platform as PlatformType];
+            let content = pf.content || '';
+            if (config && content.length > config.maxChars) {
+              const maxAllowed = config.maxChars - 3;
+              const trimmed = content.slice(0, maxAllowed);
+              const lastSpace = trimmed.lastIndexOf(' ');
+              content = (lastSpace > config.maxChars * 0.8 ? trimmed.slice(0, lastSpace) : trimmed) + '...';
+              if (content.length > config.maxChars) {
+                content = content.slice(0, config.maxChars);
+              }
+            }
+            return {
+              ...pf,
+              content,
+              characterCount: content.length,
+            };
+          }),
+        };
+      }),
     };
-  }, []);
+  }, [scheduleStartDate]);
 
   const [editedArc, setEditedArc] = useState<WeekArc>(() => sanitizeArcContent(arc));
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [expandedPost, setExpandedPost] = useState<number>(-1);
   const [activePlatformTab, setActivePlatformTab] = useState<Record<number, number>>({});
   const [isDraggingPost, setIsDraggingPost] = useState<Record<number, boolean>>({});
   const [isUploadingImage, setIsUploadingImage] = useState<Record<number, boolean>>({});
   const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
-
-  const scheduleStartDate = useMemo(() => {
-    return weekStartDate ? parseLocalDate(weekStartDate) : new Date();
-  }, [weekStartDate]);
 
   // Sync with prop changes
   useEffect(() => {
@@ -170,22 +203,40 @@ export function ReviewScreen({
   const setPostToQuickTime = useCallback((postIdx: number, minutesFromNow: number) => {
     const now = new Date();
     const target = new Date(now.getTime() + minutesFromNow * 60 * 1000);
-    const roundedMinutes = Math.ceil(target.getMinutes() / 5) * 5;
-    const newHour = target.getHours() + (roundedMinutes >= 60 ? 1 : 0);
-    const newMinute = roundedMinutes % 60;
-    setPostHour(postIdx, newHour);
-    setPostMinute(postIdx, newMinute);
-  }, [setPostHour, setPostMinute]);
+    let targetMinutes = Math.ceil(target.getMinutes() / 5) * 5;
+    let targetHours = target.getHours();
+    if (targetMinutes >= 60) {
+      targetHours = (targetHours + 1) % 24;
+      targetMinutes = 0;
+    }
+    setEditedArc(prev => ({
+      ...prev,
+      weekPosts: prev.weekPosts.map((post, idx) =>
+        idx === postIdx ? { ...post, scheduledHour: targetHours, scheduledMinute: targetMinutes } : post
+      ),
+    }));
+  }, []);
 
   const moveTime = useCallback((postIdx: number, minutes: number) => {
     const post = editedArc.weekPosts[postIdx];
     if (!post) return;
-    const date = new Date();
+    const targetDay = addDays(scheduleStartDate, post.day);
+    const date = new Date(targetDay);
     date.setHours(post.scheduledHour, post.scheduledMinute, 0, 0);
     date.setMinutes(date.getMinutes() + minutes);
-    setPostHour(postIdx, date.getHours());
-    setPostMinute(postIdx, date.getMinutes());
-  }, [editedArc, setPostHour, setPostMinute]);
+
+    if (isToday(targetDay) && date.getTime() <= Date.now()) {
+      studioToast.generationFailed('Cannot schedule for a time that has already passed for today.');
+      return;
+    }
+
+    setEditedArc(prev => ({
+      ...prev,
+      weekPosts: prev.weekPosts.map((p, idx) =>
+        idx === postIdx ? { ...p, scheduledHour: date.getHours(), scheduledMinute: date.getMinutes() } : p
+      ),
+    }));
+  }, [editedArc, scheduleStartDate]);
 
   const togglePlatformEnabled = useCallback((postIdx: number, platformIdx: number) => {
     setEditedArc(prev => ({
@@ -258,19 +309,29 @@ export function ReviewScreen({
 
     // Ensure no post is scheduled in the past at approval time
     const now = new Date();
-    const updatedWeekPosts = editedArc.weekPosts.map(post => {
-      if (post.deleted) return post;
+    for (let i = 0; i < editedArc.weekPosts.length; i++) {
+      const post = editedArc.weekPosts[i];
+      if (post.deleted) continue;
       const targetDay = addDays(scheduleStartDate, post.day);
-      const postDateTime = new Date(targetDay);
-      postDateTime.setHours(post.scheduledHour, post.scheduledMinute, 0, 0);
-      if (postDateTime.getTime() <= now.getTime()) {
-        const nextHour = Math.min(23, now.getHours() + 1);
-        return { ...post, scheduledHour: nextHour, scheduledMinute: 0 };
+      if (isToday(targetDay)) {
+        const postDateTime = new Date(targetDay);
+        postDateTime.setHours(post.scheduledHour, post.scheduledMinute, 0, 0);
+        if (postDateTime.getTime() <= now.getTime()) {
+          studioToast.generationFailed(
+            `"${post.arcBeat}" is scheduled for a time that has already passed today (${post.scheduledHour.toString().padStart(2, '0')}:${post.scheduledMinute.toString().padStart(2, '0')}). Please choose a future time or click "Reschedule to in 5 mins".`
+          );
+          setExpandedPost(i);
+          return;
+        }
       }
-      return post;
-    });
+    }
 
-    onApprove({ ...editedArc, weekPosts: updatedWeekPosts });
+    setIsSubmitting(true);
+    try {
+      await onApprove(editedArc);
+    } finally {
+      setIsSubmitting(false);
+    }
   }, [activePosts, editedArc, onApprove, scheduleStartDate]);
 
   const totalVariants = activePosts.reduce((sum, post) =>
@@ -496,15 +557,21 @@ export function ReviewScreen({
                   <div className="flex items-center gap-1 flex-shrink-0">
                     <button
                       onClick={e => { e.stopPropagation(); moveTime(postIdx, -60); }}
-                      className="p-1.5 rounded-lg hover:opacity-70 transition-opacity text-xs font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                      disabled={isTodayPost && (postDateTime.getTime() - 60 * 60 * 1000 <= now.getTime())}
+                      className={cn(
+                        "p-1.5 rounded-lg transition-opacity text-xs font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
+                        isTodayPost && (postDateTime.getTime() - 60 * 60 * 1000 <= now.getTime())
+                          ? "opacity-30 cursor-not-allowed"
+                          : "hover:opacity-70 cursor-pointer"
+                      )}
                       style={{ color: B.textMuted, focusRingColor: B.accent, focusRingOffsetColor: B.card }}
-                      title="Move 1 hour earlier"
+                      title={isTodayPost && (postDateTime.getTime() - 60 * 60 * 1000 <= now.getTime()) ? "Cannot move into the past for today" : "Move 1 hour earlier"}
                     >
                       -1h
                     </button>
                     <button
                       onClick={e => { e.stopPropagation(); moveTime(postIdx, 60); }}
-                      className="p-1.5 rounded-lg hover:opacity-70 transition-opacity text-xs font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                      className="p-1.5 rounded-lg hover:opacity-70 transition-opacity text-xs font-mono cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
                       style={{ color: B.textMuted, focusRingColor: B.accent, focusRingOffsetColor: B.card }}
                       title="Move 1 hour later"
                     >
@@ -512,15 +579,21 @@ export function ReviewScreen({
                     </button>
                     <button
                       onClick={e => { e.stopPropagation(); moveTime(postIdx, -1); }}
-                      className="p-1.5 rounded-lg hover:opacity-70 transition-opacity text-xs font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                      disabled={isTodayPost && (postDateTime.getTime() - 60 * 1000 <= now.getTime())}
+                      className={cn(
+                        "p-1.5 rounded-lg transition-opacity text-xs font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
+                        isTodayPost && (postDateTime.getTime() - 60 * 1000 <= now.getTime())
+                          ? "opacity-30 cursor-not-allowed"
+                          : "hover:opacity-70 cursor-pointer"
+                      )}
                       style={{ color: B.textMuted, focusRingColor: B.accent, focusRingOffsetColor: B.card }}
-                      title="Move 1 minute earlier"
+                      title={isTodayPost && (postDateTime.getTime() - 60 * 1000 <= now.getTime()) ? "Cannot move into the past for today" : "Move 1 minute earlier"}
                     >
                       -1m
                     </button>
                     <button
                       onClick={e => { e.stopPropagation(); moveTime(postIdx, 1); }}
-                      className="p-1.5 rounded-lg hover:opacity-70 transition-opacity text-xs font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                      className="p-1.5 rounded-lg hover:opacity-70 transition-opacity text-xs font-mono cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
                       style={{ color: B.textMuted, focusRingColor: B.accent, focusRingOffsetColor: B.card }}
                       title="Move 1 minute later"
                     >
@@ -560,6 +633,7 @@ export function ReviewScreen({
                           onHourChange={h => setPostHour(postIdx, h)}
                           onMinuteChange={m => setPostMinute(postIdx, m)}
                           isPastTime={isPastTime}
+                          isToday={isTodayPost}
                           quickPresets={QUICK_PRESETS}
                           onQuickPreset={m => setPostToQuickTime(postIdx, m)}
                         />
@@ -743,13 +817,17 @@ export function ReviewScreen({
             </p>
           </div>
           <button
+            type="button"
             onClick={handleApproveWithValidation}
-            disabled={isScheduling || activePosts.length === 0}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+            disabled={isScheduling || isSubmitting || activePosts.length === 0}
+            className={cn(
+              "flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
+              (isScheduling || isSubmitting) ? "opacity-75 cursor-not-allowed" : "hover:brightness-105 active:scale-98 cursor-pointer"
+            )}
             style={{ backgroundColor: B.success, color: '#fff', boxShadow: `0 4px 16px ${B.success}40`, focusRingColor: B.success, focusRingOffsetColor: B.card }}
           >
-            {isScheduling ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            {isScheduling ? 'Scheduling…' : 'Schedule All'}
+            {(isScheduling || isSubmitting) ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            {(isScheduling || isSubmitting) ? `Scheduling ${activePosts.length} posts…` : 'Schedule All'}
           </button>
         </motion.div>
       )}

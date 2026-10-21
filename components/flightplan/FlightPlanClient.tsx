@@ -119,7 +119,7 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
   const [view, setView] = useState<ViewMode>('canvas');
   const [arc, setArc] = useState<WeekArc | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isScheduling] = useState(false);
+  const [isScheduling, setIsScheduling] = useState(false);
   const [isPreviewOnly, setIsPreviewOnly] = useState(false);
   const [storyData, setStoryData] = useState<StoryIntakeData | null>(null);
   const [postCount, setPostCount] = useState<number>(0);
@@ -192,6 +192,7 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
   };
 
   const handleApprove = async (approvedArc: WeekArc) => {
+    setIsScheduling(true);
     try {
       const success = await approveArc(
         approvedArc,
@@ -200,7 +201,7 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
           whatChanged: '',
           whatWentWrong: '',
           oneRealNumber: '',
-          weekStartDate: format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd'),
+          weekStartDate: format(new Date(), 'yyyy-MM-dd'),
           selectedPlatforms: [],
         }
       );
@@ -214,6 +215,8 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
       }
     } catch {
       // Error handled in hook
+    } finally {
+      setIsScheduling(false);
     }
   };
 

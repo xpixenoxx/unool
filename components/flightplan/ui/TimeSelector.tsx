@@ -17,11 +17,16 @@ export function TimeSelector({
   onHourChange,
   onMinuteChange,
   isPastTime,
+  isToday,
   quickPresets,
   onQuickPreset,
   disabled,
   minuteOptions,
 }: TimeSelectorInternalProps) {
+  const now = new Date();
+  const currentHour = now.getHours();
+  const currentMinute = now.getMinutes();
+
   const baseMinutes = Array.from({ length: 60 }, (_, m) => m);
   const options = minuteOptions && minuteOptions.length > 0
     ? minuteOptions
@@ -40,6 +45,25 @@ export function TimeSelector({
     onQuickPreset?.(minutes);
   };
 
+  const handleHourSelect = (newHour: number) => {
+    if (isToday && newHour < currentHour) {
+      return; // prevent selecting past hour
+    }
+    onHourChange(newHour);
+    // If selecting current hour and the minute is in the past, bump minute to future
+    if (isToday && newHour === currentHour && minute <= currentMinute) {
+      const nextMinute = Math.min(55, Math.ceil((currentMinute + 5) / 5) * 5);
+      onMinuteChange(nextMinute);
+    }
+  };
+
+  const handleMinuteSelect = (newMinute: number) => {
+    if (isToday && hour === currentHour && newMinute <= currentMinute) {
+      return; // prevent selecting past minute
+    }
+    onMinuteChange(newMinute);
+  };
+
   return (
     <div className="flex items-center justify-between flex-wrap gap-2">
       <div className="flex items-center gap-2 flex-wrap">
@@ -50,7 +74,7 @@ export function TimeSelector({
         <div className="flex items-center gap-1">
           <select
             value={hour}
-            onChange={e => onHourChange(parseInt(e.target.value, 10))}
+            onChange={e => handleHourSelect(parseInt(e.target.value, 10))}
             disabled={disabled}
             className={cn(
               "text-xs font-mono font-medium px-2 py-1 rounded-lg border bg-transparent cursor-pointer",
@@ -60,21 +84,24 @@ export function TimeSelector({
             style={{ borderColor: B.border, color: B.text, focusRingColor: B.accent, focusRingOffsetColor: B.card }}
             aria-label="Schedule hour"
           >
-            {Array.from({ length: 24 }, (_, h) => (
-              <option
-                key={h}
-                value={h}
-                disabled={isPastTime && h < new Date().getHours()}
-                className="bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100"
-              >
-                {h.toString().padStart(2, '0')}:00
-              </option>
-            ))}
+            {Array.from({ length: 24 }, (_, h) => {
+              const isPastHour = Boolean(isToday && h < currentHour);
+              return (
+                <option
+                  key={h}
+                  value={h}
+                  disabled={isPastHour}
+                  className="bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100"
+                >
+                  {h.toString().padStart(2, '0')}:00{isPastHour ? ' (passed)' : ''}
+                </option>
+              );
+            })}
           </select>
           <span className="text-xs font-bold font-mono" style={{ color: B.textMuted }}>:</span>
           <select
             value={minute}
-            onChange={e => onMinuteChange(parseInt(e.target.value, 10))}
+            onChange={e => handleMinuteSelect(parseInt(e.target.value, 10))}
             disabled={disabled}
             className={cn(
               "text-xs font-mono font-medium px-2 py-1 rounded-lg border bg-transparent cursor-pointer",
@@ -84,16 +111,19 @@ export function TimeSelector({
             style={{ borderColor: B.border, color: B.text, focusRingColor: B.accent, focusRingOffsetColor: B.card }}
             aria-label="Schedule minute"
           >
-            {options.map(m => (
-              <option
-                key={m}
-                value={m}
-                disabled={isPastTime && hour === new Date().getHours() && m <= new Date().getMinutes()}
-                className="bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100"
-              >
-                {m.toString().padStart(2, '0')}
-              </option>
-            ))}
+            {options.map(m => {
+              const isPastMinute = Boolean(isToday && hour === currentHour && m <= currentMinute);
+              return (
+                <option
+                  key={m}
+                  value={m}
+                  disabled={isPastMinute}
+                  className="bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100"
+                >
+                  {m.toString().padStart(2, '0')}{isPastMinute ? ' (passed)' : ''}
+                </option>
+              );
+            })}
           </select>
         </div>
 
