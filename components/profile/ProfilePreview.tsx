@@ -6,27 +6,28 @@ import { cn } from '@/lib/utils';
 import type { TemplateProps } from '@/components/profile/templates/types';
 
 // Map template IDs to their components for dynamic loading
+// Each template is now in its own file for better code-splitting and maintainability
 const templateComponents: Record<string, React.LazyExoticComponent<React.ComponentType<TemplateProps & { templateId: string }>>> = {
   // Individual
-  'lover': React.lazy(() => import('@/components/profile/templates/persona/IdentityTemplate').then(m => ({ default: m.IdentityTemplate }))),
-  'lone': React.lazy(() => import('@/components/profile/templates/persona/IdentityTemplate').then(m => ({ default: m.IdentityTemplate }))),
-  'energy': React.lazy(() => import('@/components/profile/templates/persona/IdentityTemplate').then(m => ({ default: m.IdentityTemplate }))),
+  'lover': React.lazy(() => import('@/components/profile/templates/persona/lover').then(m => ({ default: m.LoverTemplate }))),
+  'lone': React.lazy(() => import('@/components/profile/templates/persona/lone').then(m => ({ default: m.LoneTemplate }))),
+  'energy': React.lazy(() => import('@/components/profile/templates/persona/energy').then(m => ({ default: m.EnergyTemplate }))),
   // Startup
-  'rebellion': React.lazy(() => import('@/components/profile/templates/persona/IdentityTemplate').then(m => ({ default: m.IdentityTemplate }))),
-  'vision': React.lazy(() => import('@/components/profile/templates/persona/IdentityTemplate').then(m => ({ default: m.IdentityTemplate }))),
-  'human': React.lazy(() => import('@/components/profile/templates/persona/IdentityTemplate').then(m => ({ default: m.IdentityTemplate }))),
+  'rebellion': React.lazy(() => import('@/components/profile/templates/persona/rebellion').then(m => ({ default: m.RebellionTemplate }))),
+  'vision': React.lazy(() => import('@/components/profile/templates/persona/vision').then(m => ({ default: m.VisionTemplate }))),
+  'human': React.lazy(() => import('@/components/profile/templates/persona/human').then(m => ({ default: m.HumanTemplate }))),
   // Agency
-  'the-studio': React.lazy(() => import('@/components/profile/templates/persona/IdentityTemplate').then(m => ({ default: m.IdentityTemplate }))),
-  'the-machine': React.lazy(() => import('@/components/profile/templates/persona/IdentityTemplate').then(m => ({ default: m.IdentityTemplate }))),
-  'the-club': React.lazy(() => import('@/components/profile/templates/persona/IdentityTemplate').then(m => ({ default: m.IdentityTemplate }))),
+  'the-studio': React.lazy(() => import('@/components/profile/templates/persona/the-studio').then(m => ({ default: m.StudioTemplate }))),
+  'the-machine': React.lazy(() => import('@/components/profile/templates/persona/the-machine').then(m => ({ default: m.MachineTemplate }))),
+  'the-club': React.lazy(() => import('@/components/profile/templates/persona/the-club').then(m => ({ default: m.ClubTemplate }))),
   // Entrepreneur
-  'the-builder': React.lazy(() => import('@/components/profile/templates/persona/IdentityTemplate').then(m => ({ default: m.IdentityTemplate }))),
-  'the-visionary': React.lazy(() => import('@/components/profile/templates/persona/IdentityTemplate').then(m => ({ default: m.IdentityTemplate }))),
-  'the-hustler': React.lazy(() => import('@/components/profile/templates/persona/IdentityTemplate').then(m => ({ default: m.IdentityTemplate }))),
+  'the-builder': React.lazy(() => import('@/components/profile/templates/persona/the-builder').then(m => ({ default: m.BuilderTemplate }))),
+  'the-visionary': React.lazy(() => import('@/components/profile/templates/persona/the-visionary').then(m => ({ default: m.VisionaryTemplate }))),
+  'the-hustler': React.lazy(() => import('@/components/profile/templates/persona/the-hustler').then(m => ({ default: m.HustlerTemplate }))),
   // Influencer
-  'the-aesthete': React.lazy(() => import('@/components/profile/templates/persona/IdentityTemplate').then(m => ({ default: m.IdentityTemplate }))),
-  'the-creator': React.lazy(() => import('@/components/profile/templates/persona/IdentityTemplate').then(m => ({ default: m.IdentityTemplate }))),
-  'the-voice': React.lazy(() => import('@/components/profile/templates/persona/IdentityTemplate').then(m => ({ default: m.IdentityTemplate }))),
+  'the-aesthete': React.lazy(() => import('@/components/profile/templates/persona/the-aesthete').then(m => ({ default: m.AestheteTemplate }))),
+  'the-creator': React.lazy(() => import('@/components/profile/templates/persona/the-creator').then(m => ({ default: m.CreatorTemplate }))),
+  'the-voice': React.lazy(() => import('@/components/profile/templates/persona/the-voice').then(m => ({ default: m.VoiceTemplate }))),
 };
 
 interface ProfilePreviewProps {
