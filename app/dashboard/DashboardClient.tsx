@@ -377,49 +377,58 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           {/* Platform badges */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {(() => {
-              // Ensure manual is always positioned at the very end of the list
-              const nonManual = SUPPORTED_PLATFORMS.filter((p) => p !== 'manual');
-              const sortedNonManual = nonManual
-                .map((platformId) => {
-                  const config = PLATFORM_CONFIG[platformId];
-                  const connected = data.connections[platformId]?.status === 'connected';
-                  return {
-                    id: platformId as Platform,
-                    name: config.name,
-                    color: config.color,
-                    connected,
-                  };
-                })
-                .sort((a, b) => (a.connected === b.connected ? 0 : a.connected ? -1 : 1))
-                .slice(0, 7);
+              // 1. Fixed default order of the 8 main platforms
+              const defaultOrder: Platform[] = [
+                'linkedin',
+                'x',
+                'threads',
+                'instagram',
+                'facebook',
+                'youtube',
+                'pinterest',
+                'bluesky',
+              ];
 
-              const manualConfig = PLATFORM_CONFIG['manual'];
-              const manualConnected = data.connections['manual']?.status === 'connected';
-              const manualPlatform = {
-                id: 'manual' as Platform,
-                name: manualConfig?.name || 'Manual / Other',
-                color: manualConfig?.color || 'bg-neutral-500',
-                connected: manualConnected,
-              };
+              // 2. Connected platforms appear first (excluding 'manual')
+              const connectedPlatforms = (SUPPORTED_PLATFORMS.filter(
+                (p) => p !== 'manual' && data.connections[p]?.status === 'connected'
+              ) as Platform[]);
 
-              return [...sortedNonManual, manualPlatform];
+              // 3. Remaining platforms in exact default order
+              const remainingDefaults = defaultOrder.filter(
+                (p) => !connectedPlatforms.includes(p)
+              );
+
+              // 4. Combine: connected first, followed by remaining defaults (manual is NOT in broadcast)
+              const displayIds = [
+                ...connectedPlatforms,
+                ...remainingDefaults,
+              ].slice(0, Math.max(8, connectedPlatforms.length));
+
+              return displayIds.map((platformId) => {
+                const config = PLATFORM_CONFIG[platformId];
+                const connected = data.connections[platformId]?.status === 'connected';
+                return {
+                  id: platformId,
+                  name: platformId === 'facebook' ? 'Facebook' : (config?.shortName || config?.name || platformId),
+                  color: config?.color || 'bg-neutral-500',
+                  connected,
+                };
+              });
             })()
               .map((platform) => {
                 const isLinkedinAnalytics = platform.id === 'linkedin' && platform.connected;
-                const isManual = platform.id === 'manual';
                 return (
                 <div
-                  key={platform.name}
+                  key={platform.id}
                   onClick={() => {
                     if (isLinkedinAnalytics) {
                       window.location.href = '/analytics/linkedin';
-                    } else if (isManual) {
-                      setManualDialogOpen(true);
                     }
                   }}
                   className={cn(
                     "flex items-center gap-3 p-3 rounded-xl transition-all",
-                    (isLinkedinAnalytics || isManual) && "cursor-pointer hover:scale-[1.02] shadow-sm group"
+                    isLinkedinAnalytics && "cursor-pointer hover:scale-[1.02] shadow-sm group"
                   )}
                   style={{
                     backgroundColor: platform.connected ? B.cardAlt : B.bg,
@@ -436,7 +445,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                     <PlatformBrandLogo platform={platform.id} size={28} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium" style={{ color: B.text }}>
+                    <p className="text-sm font-medium truncate" style={{ color: B.text }}>
                       {platform.name}
                     </p>
                     <p className="text-xs" style={{ color: platform.connected ? B.success : B.textLight }}>
@@ -450,8 +459,6 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                         e.stopPropagation();
                         if (platform.id === 'bluesky') {
                           setBlueskyDialogOpen(true);
-                        } else if (platform.id === 'manual') {
-                          setManualDialogOpen(true);
                         } else {
                           setConnectingPlatform(platform.id);
                           window.location.href = `/api/auth/platform/connect?platform=${platform.id}&workspaceId=${data.workspaceId}&userId=${data.userId}`;
