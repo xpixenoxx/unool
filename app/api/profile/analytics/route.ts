@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { config } from '@/lib/config/schema';
-
-const adminClient = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+import { getCurrentAuth } from '@/lib/auth/server';
+import { supabaseAdmin } from '@/lib/supabase/admin';
+import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseProfileRepository';
 
 interface AnalyticsEvent {
   event_type: string;
@@ -36,53 +35,100 @@ const TEMPLATE_NAMES: Record<string, string> = {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const days = parseInt(searchParams.get('days') || '30');
+    const days = parseInt(searchParams.get('days') || '30', 10);
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
-    // Get the user's profile from auth context
-    // In a real app, you'd get this from the session
-    const supabase = createClient(
-      config.SUPABASE_URL,
-      config.SUPABASE_ANON_KEY,
-      {
-        global: {
-          headers: {
-            cookie: request.headers.get('cookie') || '',
-          },
-        },
-      }
-    );
+    const generateEmptyDailyArray = () => Array.from({ length: days }, (_, i) => {
+      const date = new Date(startDate);
+      date.setDate(date.getDate() + i);
+      const dateStr = date.toISOString().split('T')[0];
+      return { date: dateStr, count: 0 };
+    });
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const emptyResponse = {
+      templateUsage: [],
+      currentTemplateStats: {
+        views: 0,
+        linkClicks: 0,
+        ctaClicks: 0,
+        conversionRate: 0,
+        avgSessionDuration: 0,
+        viewsByDay: generateEmptyDailyArray(),
+        clicksByDay: generateEmptyDailyArray(),
+        topLinks: [],
+        topReferrers: [],
+        deviceBreakdown: [],
+      },
+      templateComparison: [],
+    };
+
+    // Authenticate user
+    let auth = null;
+    try {
+      auth = await getCurrentAuth(request);
+    } catch (authErr) {
+      console.warn('[Analytics API] getCurrentAuth error:', authErr);
+    }
+
+    const queryWorkspaceId = searchParams.get('workspaceId');
+    const effectiveWorkspaceId = auth?.workspaceId || queryWorkspaceId;
+    const effectiveUserId = auth?.userId;
+
+    if (!effectiveWorkspaceId && !effectiveUserId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get user's profile
-    const { data: profile } = await adminClient
-      .from('profiles')
-      .select('id, workspace_id, theme')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile) {
-      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    // Retrieve profile
+    const profileRepository = new SupabaseProfileRepository();
+    let profile = null;
+    if (effectiveWorkspaceId) {
+      try {
+        profile = await profileRepository.findByWorkspaceId(effectiveWorkspaceId);
+      } catch (err) {
+        console.warn('[Analytics API] findByWorkspaceId failed:', err);
+      }
+    }
+    if (!profile && effectiveUserId) {
+      try {
+        profile = await profileRepository.findByUserId(effectiveUserId);
+      } catch (err) {
+        console.warn('[Analytics API] findByUserId failed:', err);
+      }
     }
 
-    const workspaceId = profile.workspace_id;
-    const currentTemplate = profile.theme?.template || 'lone';
+    if (!profile) {
+      return NextResponse.json(emptyResponse);
+    }
 
-    // Fetch analytics events for this profile
-    const { data: events, error: eventsError } = await adminClient
-      .from('analytics_events')
-      .select('event_type, event_data, created_at, workspace_id, profile_id, referrer, user_agent')
-      .eq('profile_id', profile.id)
-      .gte('created_at', startDate.toISOString());
+    const workspaceId = profile.workspaceId || effectiveWorkspaceId;
+    const currentTemplate = (profile.theme as any)?.template || 'lone';
 
-    if (eventsError) throw eventsError;
+    // Fetch analytics events for this profile and/or workspace
+    let typedEvents: AnalyticsEvent[] = [];
+    try {
+      let query = supabaseAdmin
+        .from('analytics_events')
+        .select('event_type, event_data, created_at, workspace_id, profile_id, referrer, user_agent')
+        .gte('created_at', startDate.toISOString());
 
-    const typedEvents = events as AnalyticsEvent[];
+      if (profile.id && workspaceId) {
+        query = query.or(`profile_id.eq.${profile.id},workspace_id.eq.${workspaceId}`);
+      } else if (profile.id) {
+        query = query.eq('profile_id', profile.id);
+      } else if (workspaceId) {
+        query = query.eq('workspace_id', workspaceId);
+      }
+
+      const { data: events, error: eventsError } = await query;
+      if (eventsError) {
+        console.warn('[Analytics API] Failed to query events, using empty array:', eventsError);
+      } else if (events) {
+        typedEvents = events as AnalyticsEvent[];
+      }
+    } catch (err) {
+      console.warn('[Analytics API] Exception querying analytics_events:', err);
+    }
 
     // Aggregate current template stats
     let views = 0;
@@ -94,15 +140,16 @@ export async function GET(request: NextRequest) {
     const referrersMap: Record<string, number> = {};
     const deviceMap: Record<string, number> = {};
 
-    typedEvents?.forEach((e) => {
-      const day = e.created_at.split('T')[0];
+    typedEvents.forEach((e) => {
+      const day = e.created_at ? e.created_at.split('T')[0] : '';
+      if (!day) return;
 
       if (e.event_type === 'profile_view') {
         views++;
         viewsByDay[day] = (viewsByDay[day] || 0) + 1;
 
         // Track referrer
-        const referrer = e.event_data?.utm_source as string || e.referrer || 'direct';
+        const referrer = (e.event_data?.utm_source as string) || e.referrer || 'direct';
         referrersMap[referrer] = (referrersMap[referrer] || 0) + 1;
 
         // Track device (from user agent)
@@ -117,9 +164,9 @@ export async function GET(request: NextRequest) {
         linkClicks++;
         clicksByDay[day] = (clicksByDay[day] || 0) + 1;
 
-        const linkType = e.event_data?.link_type as string || 'unknown';
-        const linkUrl = e.event_data?.link_url as string || 'unknown';
-        const linkText = e.event_data?.link_text as string || linkType;
+        const linkType = (e.event_data?.link_type as string) || 'unknown';
+        const linkUrl = (e.event_data?.link_url as string) || 'unknown';
+        const linkText = (e.event_data?.link_text as string) || linkType;
         const key = `${linkText}:${linkUrl}`;
         linkClicksMap[key] = (linkClicksMap[key] || 0) + 1;
       }
@@ -131,39 +178,45 @@ export async function GET(request: NextRequest) {
     });
 
     // Template usage across workspace (for comparison)
-    const { data: workspaceProfiles } = await adminClient
-      .from('profiles')
-      .select('id, theme')
-      .eq('workspace_id', workspaceId);
-
     const templateUsageMap: Record<string, { views: number; clicks: number; ctaClicks: number }> = {};
+    templateUsageMap[currentTemplate] = { views, clicks: linkClicks, ctaClicks };
 
-    if (workspaceProfiles) {
-      const profileIds = workspaceProfiles.map(p => p.id);
+    if (workspaceId) {
+      try {
+        const { data: workspaceProfiles, error: wpErr } = await supabaseAdmin
+          .from('profiles')
+          .select('id, theme')
+          .eq('workspace_id', workspaceId);
 
-      if (profileIds.length > 0) {
-        const { data: workspaceEvents } = await adminClient
-          .from('analytics_events')
-          .select('event_type, event_data, profile_id')
-          .in('profile_id', profileIds)
-          .gte('created_at', startDate.toISOString());
+        if (!wpErr && workspaceProfiles && workspaceProfiles.length > 0) {
+          const profileIds = workspaceProfiles.map(p => p.id);
+          const { data: workspaceEvents, error: weErr } = await supabaseAdmin
+            .from('analytics_events')
+            .select('event_type, event_data, profile_id')
+            .in('profile_id', profileIds)
+            .gte('created_at', startDate.toISOString());
 
-        workspaceEvents?.forEach((e) => {
-          const template = workspaceProfiles.find(p => p.id === e.profile_id)?.theme?.template || 'lone';
-          if (!templateUsageMap[template]) {
-            templateUsageMap[template] = { views: 0, clicks: 0, ctaClicks: 0 };
-          }
+          if (!weErr && workspaceEvents) {
+            workspaceEvents.forEach((e) => {
+              const template = (workspaceProfiles.find(p => p.id === e.profile_id)?.theme as any)?.template || 'lone';
+              if (!templateUsageMap[template]) {
+                templateUsageMap[template] = { views: 0, clicks: 0, ctaClicks: 0 };
+              }
 
-          if (e.event_type === 'profile_view') {
-            templateUsageMap[template].views++;
+              if (e.event_type === 'profile_view') {
+                templateUsageMap[template].views++;
+              }
+              if (e.event_type === 'link_click') {
+                templateUsageMap[template].clicks++;
+              }
+              if (e.event_type === 'profile_cta_click') {
+                templateUsageMap[template].ctaClicks++;
+              }
+            });
           }
-          if (e.event_type === 'link_click') {
-            templateUsageMap[template].clicks++;
-          }
-          if (e.event_type === 'profile_cta_click') {
-            templateUsageMap[template].ctaClicks++;
-          }
-        });
+        }
+      } catch (err) {
+        console.warn('[Analytics API] Error fetching workspace comparison:', err);
       }
     }
 

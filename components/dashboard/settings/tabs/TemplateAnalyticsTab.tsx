@@ -109,8 +109,13 @@ export function TemplateAnalyticsTab({ userId, workspaceId, currentTemplate }: T
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/profile/analytics?days=${days}`, { credentials: 'include' });
-      if (!res.ok) throw new Error('Failed to fetch analytics');
+      const params = new URLSearchParams({ days: String(days) });
+      if (workspaceId) params.set('workspaceId', workspaceId);
+      const res = await fetch(`/api/profile/analytics?${params.toString()}`, { credentials: 'include' });
+      if (!res.ok) {
+        const errorJson = await res.json().catch(() => null);
+        throw new Error(errorJson?.error || 'Failed to fetch analytics');
+      }
       const json = await res.json();
       setData(json);
     } catch (err) {
@@ -122,7 +127,7 @@ export function TemplateAnalyticsTab({ userId, workspaceId, currentTemplate }: T
 
   useEffect(() => {
     fetchAnalytics();
-  }, [days]);
+  }, [days, workspaceId]);
 
   if (loading && !data) {
     return (
