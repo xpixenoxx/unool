@@ -43,6 +43,15 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const fetchUserContext = async () => {
     try {
       const res = await fetch('/api/user/context', { credentials: 'include' });
+      if (res.status === 401) {
+        setUser(null);
+        setProfile(null);
+        setWorkspace(null);
+        if (typeof window !== 'undefined' && window.location.pathname.startsWith('/dashboard')) {
+          window.location.replace('/signin');
+        }
+        return;
+      }
       if (res.ok) {
         const data = await res.json();
         setUser(data.user);

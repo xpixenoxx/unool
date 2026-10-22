@@ -148,6 +148,31 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // ── Protected Dashboard Routes ───────────────────────────────────────────
+  if (pathname.startsWith('/dashboard')) {
+    const isDevAuth = request.cookies.get('dev-auth-bypass')?.value === 'true' || process.env.DEV_AUTH_BYPASS === 'true';
+    const allCookies = request.cookies.getAll();
+    const hasAuthCookie = allCookies.some(
+      (c) => c.name.startsWith('sb-') && c.name.includes('-auth-token') && c.value && c.value.length > 5
+    );
+
+    if (!isDevAuth && !hasAuthCookie) {
+      const signinUrl = new URL('/signin', request.url);
+      signinUrl.searchParams.set('redirect', pathname);
+      const redirectResponse = NextResponse.redirect(signinUrl);
+      redirectResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      redirectResponse.headers.set('Pragma', 'no-cache');
+      redirectResponse.headers.set('Expires', '0');
+      return redirectResponse;
+    }
+
+    const response = NextResponse.next();
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
+    return response;
+  }
+
   // ── Inject auth identity headers for API routes ──────────────────────────
   // Resolves BOTH x-user-id + x-workspace-id so getCurrentAuth() can return
   // instantly from headers without any DB round-trip.

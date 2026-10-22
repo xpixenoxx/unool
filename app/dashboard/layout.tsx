@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -88,8 +88,12 @@ function DashboardSidebar({
   const router = useRouter();
 
   const handleSignOut = async () => {
-    const res = await fetch('/api/auth/signout', { method: 'POST' });
-    if (res.ok) router.push('/signup');
+    try {
+      await fetch('/api/auth/signout', { method: 'POST' });
+    } catch {
+      // Ignore
+    }
+    window.location.replace('/signin');
   };
 
   const displayName = profile?.name || user?.fullName || 'User';
@@ -281,6 +285,17 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Bust browser bfcache (Back/Forward Cache) on post-logout browser back button
+  useEffect(() => {
+    const handlePageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        window.location.reload();
+      }
+    };
+    window.addEventListener('pageshow', handlePageShow);
+    return () => window.removeEventListener('pageshow', handlePageShow);
+  }, []);
 
   return (
     <UserProvider>
