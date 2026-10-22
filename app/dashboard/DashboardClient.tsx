@@ -11,9 +11,10 @@ import {
   CalendarDays, Wifi, WifiOff, ArrowUpRight, MoreHorizontal
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { PlatformConnections, SUPPORTED_PLATFORMS, PLATFORM_CONFIG } from '@/components/dashboard/PlatformConnections';
+import { PlatformConnections, SUPPORTED_PLATFORMS, PLATFORM_CONFIG, type Platform } from '@/components/dashboard/PlatformConnections';
 import { BlueskyConnectDialog } from '@/components/dashboard/BlueskyConnectDialog';
-import { PlatformBrandLogo, type SupportedPlatformType } from '@/components/dashboard/previews/PlatformMobilePreview';
+import { ManualIntegrationDialog } from '@/components/dashboard/ManualIntegrationDialog';
+import { PlatformBrandLogo } from '@/components/dashboard/PlatformLogos';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogTrigger, DialogTitle } from '@/components/ui/dialog';
 
@@ -180,6 +181,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
 
   const searchParams = useSearchParams();
   const [blueskyDialogOpen, setBlueskyDialogOpen] = useState(searchParams.get('connect') === 'bluesky');
+  const [manualDialogOpen, setManualDialogOpen] = useState(false);
   const { insights, loadingInsights } = useAnalyticsInsights();
 
 
@@ -373,35 +375,50 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
 
           {/* Platform badges */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {SUPPORTED_PLATFORMS
-              // Map to platform objects with connection status and config
-              .map((platformId) => {
-                const config = PLATFORM_CONFIG[platformId];
-                const connected = data.connections[platformId]?.status === 'connected';
-                return {
-                  id: platformId as SupportedPlatformType,
-                  name: config.name,
-                  color: config.color,
-                  connected,
-                };
-              })
-              // Sort: connected platforms first, preserving their relative order
-              .sort((a, b) => (a.connected === b.connected ? 0 : a.connected ? -1 : 1))
-              // Limit to exactly 8 platforms for the dashboard grid
-              .slice(0, 8)
+            {(() => {
+              // Ensure manual is always positioned at the very end of the list
+              const nonManual = SUPPORTED_PLATFORMS.filter((p) => p !== 'manual');
+              const sortedNonManual = nonManual
+                .map((platformId) => {
+                  const config = PLATFORM_CONFIG[platformId];
+                  const connected = data.connections[platformId]?.status === 'connected';
+                  return {
+                    id: platformId as Platform,
+                    name: config.name,
+                    color: config.color,
+                    connected,
+                  };
+                })
+                .sort((a, b) => (a.connected === b.connected ? 0 : a.connected ? -1 : 1))
+                .slice(0, 7);
+
+              const manualConfig = PLATFORM_CONFIG['manual'];
+              const manualConnected = data.connections['manual']?.status === 'connected';
+              const manualPlatform = {
+                id: 'manual' as Platform,
+                name: manualConfig?.name || 'Manual / Other',
+                color: manualConfig?.color || 'bg-neutral-500',
+                connected: manualConnected,
+              };
+
+              return [...sortedNonManual, manualPlatform];
+            })()
               .map((platform) => {
                 const isLinkedinAnalytics = platform.id === 'linkedin' && platform.connected;
+                const isManual = platform.id === 'manual';
                 return (
                 <div
                   key={platform.name}
                   onClick={() => {
                     if (isLinkedinAnalytics) {
                       window.location.href = '/analytics/linkedin';
+                    } else if (isManual) {
+                      setManualDialogOpen(true);
                     }
                   }}
                   className={cn(
                     "flex items-center gap-3 p-3 rounded-xl transition-all",
-                    isLinkedinAnalytics && "cursor-pointer hover:scale-[1.02] shadow-sm group"
+                    (isLinkedinAnalytics || isManual) && "cursor-pointer hover:scale-[1.02] shadow-sm group"
                   )}
                   style={{
                     backgroundColor: platform.connected ? B.cardAlt : B.bg,
@@ -431,11 +448,13 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                         e.stopPropagation();
                         if (platform.id === 'bluesky') {
                           setBlueskyDialogOpen(true);
+                        } else if (platform.id === 'manual') {
+                          setManualDialogOpen(true);
                         } else {
                           window.location.href = `/api/auth/platform/connect?platform=${platform.id}&workspaceId=${data.workspaceId}`;
                         }
                       }}
-                      className="text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
+                      className="text-xs font-medium px-3 py-1.5 rounded-lg transition-colors hover:opacity-90"
                       style={{ backgroundColor: B.accentBg, color: B.accent }}
                     >
                       Connect
@@ -556,6 +575,11 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
         onClose={() => setBlueskyDialogOpen(false)}
         workspaceId={data.workspaceId}
         onSuccess={() => window.location.reload()}
+      />
+      <ManualIntegrationDialog
+        open={manualDialogOpen}
+        onClose={() => setManualDialogOpen(false)}
+        workspaceId={data.workspaceId}
       />
     </motion.div>
   );

@@ -30,6 +30,7 @@ import { LemmyConnectDialog } from './LemmyConnectDialog';
 import { ListmonkConnectDialog } from './ListmonkConnectDialog';
 import { HashnodeConnectDialog } from './HashnodeConnectDialog';
 import { DevtoConnectDialog } from './DevtoConnectDialog';
+import { ManualIntegrationDialog } from './ManualIntegrationDialog';
 
 export const SUPPORTED_PLATFORMS = ['linkedin', 'x', 'threads', 'manual', 'facebook', 'instagram', 'youtube', 'pinterest', 'bluesky', 'reddit', 'mastodon', 'slack', 'twitch', 'telegram', 'discord', 'dribbble', 'skool', 'whop', 'kick', 'warpcast', 'mewe', 'nostr', 'medium', 'lemmy', 'listmonk', 'hashnode', 'devto'] as const;
 export type Platform = typeof SUPPORTED_PLATFORMS[number];
@@ -376,19 +377,26 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
   const [connections, setConnections] =
     useState<Record<Platform, PlatformConnection>>(initialConnections);
 
-  // Sort platforms: connected first, preserving relative order
+  // Sort platforms: connected first, preserving relative order, manual ALWAYS at the end
   const sortedPlatforms = useMemo(
-    () =>
-      [...connectablePlatforms].sort((a, b) => {
+    () => {
+      const nonManual = connectablePlatforms.filter((p) => p !== 'manual');
+      const sorted: Platform[] = [...nonManual].sort((a, b) => {
         const aConn = connections[a]?.status === 'connected';
         const bConn = connections[b]?.status === 'connected';
         return aConn === bConn ? 0 : aConn ? -1 : 1;
-      }),
+      });
+      if (connectablePlatforms.includes('manual')) {
+        sorted.push('manual');
+      }
+      return sorted;
+    },
     [connectablePlatforms, connections]
   );
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState<Platform | null>(null);
   const [disconnecting, setDisconnecting] = useState<Platform | null>(null);
+  const [manualDialogOpen, setManualDialogOpen] = useState(false);
   const [blueskyDialogOpen, setBlueskyDialogOpen] = useState(false);
   const [mastodonDialogOpen, setMastodonDialogOpen] = useState(false);
   const [slackDialogOpen, setSlackDialogOpen] = useState(false);
@@ -432,6 +440,10 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
 
   const handleConnect = useCallback((platform: Platform) => {
     const cfg = PLATFORM_CONFIG[platform];
+    if (platform === 'manual') {
+      setManualDialogOpen(true);
+      return;
+    }
     if (platform === 'bluesky') {
       setBlueskyDialogOpen(true);
       return;
@@ -735,6 +747,11 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
           }));
           window.location.reload();
         }}
+      />
+      <ManualIntegrationDialog
+        open={manualDialogOpen}
+        onClose={() => setManualDialogOpen(false)}
+        workspaceId={workspaceId}
       />
 
       <Card className="border-border/60">
