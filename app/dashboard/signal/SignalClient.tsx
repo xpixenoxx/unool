@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -229,6 +229,7 @@ export function SignalClient() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'feed' | 'dna' | 'analytics'>('feed');
   const [profileSubdomain, setProfileSubdomain] = useState<string | null>(null);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'active' | 'draft' | 'failed'>('all');
   const [showDNAInfo, setShowDNAInfo] = useState(true);
@@ -240,6 +241,9 @@ export function SignalClient() {
     pendingFlagged: number;
   } | null>(null);
 
+  const hasLoadedOnce = useRef(false);
+  const prevPendingPostIds = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     async function fetchSub() {
       try {
@@ -248,7 +252,6 @@ export function SignalClient() {
           const data = await res.json();
           if (data?.profile?.subdomain) {
             setProfileSubdomain(data.profile.subdomain);
-            return;
           }
         }
       } catch {}
@@ -259,13 +262,19 @@ export function SignalClient() {
           if (ctxData?.profile?.subdomain) {
             setProfileSubdomain(ctxData.profile.subdomain);
           }
+          if (ctxData?.workspace?.id) {
+            setWorkspaceId(ctxData.workspace.id);
+          }
         }
       } catch {}
     }
     fetchSub();
   }, []);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (silent = false) => {
+    if (!silent && !hasLoadedOnce.current) {
+      setLoading(true);
+    }
     try {
       const [postsRes, resonanceRes] = await Promise.all([
         fetch('/api/signal/posts', { credentials: 'include' }),
@@ -282,6 +291,7 @@ export function SignalClient() {
     } catch {
       // silent
     } finally {
+      hasLoadedOnce.current = true;
       setLoading(false);
     }
   }, []);
@@ -316,22 +326,133 @@ export function SignalClient() {
     loadData();
   }, [loadData]);
 
+  // ── Auto-Detect Transitions & Celebrate When Live ─────────────────────────────
+  useEffect(() => {
+    const currentPending = new Set<string>();
+    posts.forEach(p => {
+      const hasUnfinishedVariants = p.variants.some(v => v.status === 'draft' || v.status === 'pending');
+      const isUnfinishedPost = p.status === 'draft' || p.status === 'scheduled';
+      if (isUnfinishedPost && hasUnfinishedVariants) {
+        currentPending.add(p.id);
+      }
+    });
+
+    if (prevPendingPostIds.current.size > 0) {
+      prevPendingPostIds.current.forEach(id => {
+        if (!currentPending.has(id)) {
+          const updatedPost = posts.find(p => p.id === id);
+          if (updatedPost && (updatedPost.status === 'published' || updatedPost.variants.some(v => v.status === 'published'))) {
+            toast.success('Post published live across all platforms!', {
+              description: 'Updated automatically from Drafts to live stream.',
+            });
+          }
+        }
+      });
+    }
+
+    prevPendingPostIds.current = currentPending;
+  }, [posts]);
+
+  // ── Smart Dynamic Polling ───────────────────────────────────────────────────
+  // Active fast polling (2.5s) if recent pending drafts exist; background heartbeat (25s) otherwise
+  const hasActiveOrPendingPosts = useMemo(() => {
+    return posts.some(p => {
+      const isRecent = (Date.now() - new Date(p.createdAt).getTime()) < 20 * 60 * 1000;
+      const hasPendingVariants = p.variants.some(v => v.status === 'draft' || v.status === 'pending');
+      const isPendingStatus = p.status === 'draft' || p.status === 'scheduled';
+      return isRecent && (hasPendingVariants || isPendingStatus);
+    });
+  }, [posts]);
+
+  useEffect(() => {
+    const pollInterval = hasActiveOrPendingPosts ? 2500 : 25000;
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        loadData(true);
+      }
+    }, pollInterval);
+
+    return () => clearInterval(interval);
+  }, [hasActiveOrPendingPosts, loadData]);
+
+  // ── Window Focus & Tab Re-entry Synchronization ──────────────────────────────
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        loadData(true);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleVisibility);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleVisibility);
+    };
+  }, [loadData]);
+
+  // ── Cross-Component Global Event Bus Listeners ───────────────────────────────
+  useEffect(() => {
+    const handleGlobalPublish = () => {
+      loadData(true);
+    };
+
+    window.addEventListener('signal-strip-publish', handleGlobalPublish);
+    window.addEventListener('signal-posts-updated', handleGlobalPublish);
+
+    return () => {
+      window.removeEventListener('signal-strip-publish', handleGlobalPublish);
+      window.removeEventListener('signal-posts-updated', handleGlobalPublish);
+    };
+  }, [loadData]);
+
+  // ── Supabase Realtime Push Synchronization ──────────────────────────────────
+  useEffect(() => {
+    if (!workspaceId) return;
+    let channel: any = null;
+    (async () => {
+      try {
+        const { getSupabaseBrowserClient } = await import('@/lib/supabase/browser');
+        const supabase = getSupabaseBrowserClient();
+        channel = supabase.channel(`signal-live-${workspaceId}`)
+          .on(
+            'postgres_changes' as any,
+            { event: '*', schema: 'public', table: 'posts', filter: `workspace_id=eq.${workspaceId}` },
+            () => { loadData(true); }
+          )
+          .on(
+            'postgres_changes' as any,
+            { event: '*', schema: 'public', table: 'post_variants' },
+            () => { loadData(true); }
+          )
+          .subscribe();
+      } catch (err) {
+        console.warn('[Signal] Realtime subscription notice', err);
+      }
+    })();
+
+    return () => {
+      if (channel) {
+        import('@/lib/supabase/browser').then(({ getSupabaseBrowserClient }) => {
+          getSupabaseBrowserClient().removeChannel(channel!);
+        }).catch(() => {});
+      }
+    };
+  }, [workspaceId, loadData]);
+
   // ── Fetch automation stats for the metrics card (best-effort) ─────────────────
   useEffect(() => {
     const fetchAutomationStats = async () => {
       try {
-        // Get workspace from user context
         const ctxRes = await fetch('/api/user/context', { credentials: 'include' });
         if (!ctxRes.ok) return;
         const ctxData = await ctxRes.json();
-        const workspaceId = ctxData?.workspace?.id;
-        if (!workspaceId) return;
+        const wsId = ctxData?.workspace?.id || workspaceId;
+        if (!wsId) return;
 
-        // Check if automation is enabled
         const [configRes, commentsRes, flaggedRes] = await Promise.all([
-          fetch(`/api/instagram/automation?workspaceId=${workspaceId}`, { credentials: 'include' }),
-          fetch(`/api/instagram/comments?workspaceId=${workspaceId}&limit=100`, { credentials: 'include' }),
-          fetch(`/api/instagram/flagged?workspaceId=${workspaceId}&status=pending`, { credentials: 'include' }),
+          fetch(`/api/instagram/automation?workspaceId=${wsId}`, { credentials: 'include' }),
+          fetch(`/api/instagram/comments?workspaceId=${wsId}&limit=100`, { credentials: 'include' }),
+          fetch(`/api/instagram/flagged?workspaceId=${wsId}&status=pending`, { credentials: 'include' }),
         ]);
 
         if (!configRes.ok) return;
@@ -341,7 +462,6 @@ export function SignalClient() {
           return;
         }
 
-        // Build today's stats from comment logs
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
@@ -373,18 +493,7 @@ export function SignalClient() {
       }
     };
     fetchAutomationStats();
-  }, []);
-
-
-  // Poll every 3 seconds only if any active post has actively pending in-flight publishing
-  useEffect(() => {
-    const hasPending = posts.some(p =>
-      p.variants.some(v => v.status === 'pending')
-    );
-    if (!hasPending) return;
-    const t = setInterval(loadData, 3000);
-    return () => clearInterval(t);
-  }, [posts, loadData]);
+  }, [workspaceId]);
 
   // Filtered posts for feed
   const filteredPosts = useMemo(() => {

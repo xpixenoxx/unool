@@ -208,7 +208,7 @@ function PublishContentInner() {
       }
 
       // Update draft statuses based on results
-      const results: Record<string, { success: boolean; platformUrl?: string; error?: string }> = {};
+      let results: Record<string, { success: boolean; platformUrl?: string; error?: string }> = {};
       if (data.results) {
         for (const [platform, result] of Object.entries(data.results)) {
           const r = result as { success: boolean; platformUrl?: string; error?: string };
@@ -219,8 +219,54 @@ function PublishContentInner() {
             toast.error(`${platform}: Failed`, { description: r.error });
           }
         }
+      } else {
+        // Poll background publishing resolution
+        let attempts = 0;
+        while (attempts < 20) {
+          await new Promise(r => setTimeout(r, 2000));
+          attempts++;
+          try {
+            const statusRes = await fetch(`/api/publish/${postId}`, { credentials: 'include' });
+            if (statusRes.ok) {
+              const statusData = await statusRes.json();
+              const variants: any[] = statusData.variants || [];
+              const allDone = variants.length > 0 && variants.every(v => v.status === 'published' || v.status === 'failed');
+
+              setDrafts(prevDrafts => prevDrafts.map(d => {
+                const matched = variants.find(v => v.platform === d.platform);
+                if (matched) {
+                  return {
+                    ...d,
+                    status: matched.status === 'published' ? 'published' : matched.status === 'failed' ? 'failed' : d.status,
+                    error: matched.error?.message || d.error,
+                  };
+                }
+                return d;
+              }));
+
+              if (allDone) {
+                variants.forEach(v => {
+                  results[v.platform] = {
+                    success: v.status === 'published',
+                    platformUrl: v.platformUrl,
+                    error: v.error?.message,
+                  };
+                });
+                break;
+              }
+            }
+          } catch {
+            // continue polling
+          }
+        }
       }
+
       setPublishResults(results);
+
+      // Dispatch global completion event so Signal and other components sync immediately
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('signal-posts-updated', { detail: { postId } }));
+      }
 
       // Update local draft statuses
       setDrafts(d => d.map(d => {

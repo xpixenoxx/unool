@@ -91,6 +91,10 @@ export function SignalStrip() {
           };
         });
         setPost(prev => prev ? { ...prev, platforms: updatedPlatforms } : prev);
+        const allCompleted = updatedPlatforms.every(p => p.status === 'published' || p.status === 'failed');
+        if (allCompleted && typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('signal-posts-updated', { detail: { postId: post.postId } }));
+        }
       } catch {
         // silent
       }
