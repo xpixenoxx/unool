@@ -984,14 +984,16 @@
 }
 
 .unool-signin-page .lg {
-  height: 38px;
-  width: auto;
+  height: 36px;
+  width: 36px;
+  object-fit: contain;
   display: block;
 }
 
 .unool-signin-page .core img {
   width: 36px;
-  height: auto;
+  height: 36px;
+  object-fit: contain;
   display: block;
 }
 

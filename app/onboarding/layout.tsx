@@ -15,7 +15,7 @@ export default function OnboardingLayout({ children }: { children: React.ReactNo
           
           {/* Logo left */}
           <div className="flex items-center">
-            <img src="/logo.png" alt="Unool Logo" className="w-[65px] h-[65px] object-contain" />
+            <img src="/unool-logo.png" alt="Unool Logo" className="h-[44px] w-auto object-contain" />
           </div>
 
           {/* Progress indicator center */}

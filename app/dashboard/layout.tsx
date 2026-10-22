@@ -162,7 +162,7 @@ function DashboardSidebar({
         <div className="flex h-full flex-col">
           <div className="flex h-16 items-center px-4" style={{ borderBottom: `1px solid ${biscuit.sidebarBorder}` }}>
             <Link href="/dashboard" className="flex items-center gap-2">
-              <img src="/logo.png" alt="Unool Logo" className="w-[48px] h-[48px] object-contain" />
+              <img src="/unool-icon.png" alt="Unool Logo" className="w-[36px] h-[36px] object-contain" />
             </Link>
           </div>
           {navContent}
@@ -189,7 +189,7 @@ function DashboardSidebar({
           style={{ borderBottom: `1px solid ${biscuit.sidebarBorder}` }}
         >
           <Link href="/dashboard" className="flex items-center gap-2.5">
-            <img src="/logo.png" alt="Unool Logo" className="w-[48px] h-[48px] object-contain" />
+            <img src="/unool-icon.png" alt="Unool Logo" className="w-[36px] h-[36px] object-contain" />
             <span
               className="text-lg font-bold tracking-tight"
               style={{ color: biscuit.text }}

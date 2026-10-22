@@ -295,10 +295,10 @@ function SignUpComponent() {
     <div className="unool-signup-page">
       <div className="frame">
         <header>
-          <div className="mark">
-            <div className="dot">U</div>
+          <Link href="/" className="mark">
+            <img className="lg" src="/unool-icon.png" alt="Unool" />
             Unool
-          </div>
+          </Link>
           <p>
             Already have an account? <Link href="/signin">Sign in</Link>
           </p>

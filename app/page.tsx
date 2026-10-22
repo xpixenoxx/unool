@@ -1530,7 +1530,7 @@ export default function HomePage() {
       <nav id="nav">
         <div className="ni">
           <Link href="#overview" className="lg" aria-label="UNOOL Home">
-            <img src="/unool-logo.png" alt="UNOOL" className="lg-img" />
+            <img src="/unool-logo-white.png" alt="UNOOL" className="lg-img" />
           </Link>
           <div className="nl">
             <a href="#overview">Overview</a>
@@ -1605,7 +1605,7 @@ export default function HomePage() {
           <div className="stage" id="stage" ref={stageRef}>
             <div className="sp" id="sp" ref={spRef}>
               <div className="core">
-                <img src="/unool-logo.png" alt="UNOOL" className="core-img" />
+                <img src="/unool-icon.png" alt="UNOOL" className="core-img" />
               </div>
             </div>
           </div>

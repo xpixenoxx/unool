@@ -83,23 +83,32 @@
 }
 
 .unool-home-page .lg {
-  background: #fff;
-  color: var(--ink);
-  width: 75px;
-  height: 66px;
-  display: flex;
+  background: transparent;
+  color: inherit;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 8px;
+  padding: 0;
   text-decoration: none;
   box-sizing: border-box;
+  transition: opacity .2s ease, transform .2s ease;
 }
 
-.unool-home-page .lg .lg-img {
-  width: 50px;
-  height: 48px;
+.unool-home-page .lg:hover {
+  opacity: .88;
+}
+
+.unool-home-page nav .lg {
+  height: 100%;
+}
+
+.unool-home-page nav .lg .lg-img {
+  width: auto;
+  height: 42px;
+  max-height: 44px;
   object-fit: contain;
   display: block;
+  filter: brightness(0) invert(1);
 }
 
 .unool-home-page .nl {
@@ -1955,19 +1964,21 @@
 }
 
 .unool-home-page footer .lg {
-  height: 50px;
-  width: 60px;
-  box-shadow: 0 4px 16px -6px rgba(0, 0, 0, .2);
-  border-radius: 6px;
-  display: flex;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+  height: auto;
+  width: auto;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 4px;
+  padding: 0;
 }
 
 .unool-home-page footer .lg .lg-img {
-  width: 40px;
-  height: 38px;
+  width: auto;
+  height: 36px;
+  max-height: 38px;
   object-fit: contain;
   display: block;
 }

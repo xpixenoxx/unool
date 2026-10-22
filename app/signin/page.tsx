@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { getSupabaseBrowserClient } from '@/lib/supabase/browser';
 import './signin.css';
 
-const UNOOL_LOGO_BASE64 = 'data:image/png;base64,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';
 
 const NAMES = ['LinkedIn', 'Instagram', 'Bluesky', 'Facebook', 'YouTube', 'Slack'];
 const PM: Record<string, string[]> = {
@@ -720,10 +719,10 @@ function SignInComponent() {
     <div className="unool-signin-page" ref={rootRef}>
       <div className="frame">
         <header>
-          <div className="mark">
-            <img className="lg" src={UNOOL_LOGO_BASE64} alt="Unool" />
+          <Link href="/" className="mark">
+            <img className="lg" src="/unool-icon.png" alt="Unool" />
             Unool
-          </div>
+          </Link>
           <p>
             New to Unool? <Link href="/signup">Create an account</Link>
           </p>
@@ -756,7 +755,7 @@ function SignInComponent() {
                 <div className="orb" aria-hidden="true">
                   <div className="o3">
                     <div className="core done" id="core" ref={coreRef}>
-                      <img src={UNOOL_LOGO_BASE64} alt="Unool Core" />
+                      <img src="/unool-icon.png" alt="Unool Core" />
                     </div>
                     <div className="ring">
                       <i style={{ '--k': 0 } as React.CSSProperties}>in</i>

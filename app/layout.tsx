@@ -13,6 +13,10 @@ const plusJakarta = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['400', '500
 export const metadata: Metadata = {
   title: 'Unool — One Link + One Click',
   description: 'Create your professional presence and publish everywhere from one place.',
+  icons: {
+    icon: '/icon.png',
+    apple: '/icon.png',
+  },
 };
 
 function ErrorFallback({ error, resetError }: { error: unknown; componentStack: string; eventId: string; resetError: () => void }) {

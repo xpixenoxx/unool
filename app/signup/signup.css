@@ -55,6 +55,13 @@
   text-decoration: none;
 }
 
+.unool-signup-page .mark .lg {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  display: block;
+}
+
 .unool-signup-page .dot {
   width: 42px;
   height: 42px;
