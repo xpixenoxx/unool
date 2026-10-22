@@ -4,8 +4,26 @@ import React, { useState, useRef, useEffect, Suspense, KeyboardEvent, ClipboardE
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { getSupabaseBrowserClient } from '@/lib/supabase/browser';
-import { Eye, EyeOff, ArrowRight, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import './signin.css';
+
+interface PlatformTileData {
+  key: string;
+  ic: string;
+  name: string;
+  readyText: string;
+  liveText: string;
+  isMore?: boolean;
+}
+
+const TILES: PlatformTileData[] = [
+  { key: 'linkedin', ic: 'in', name: 'LinkedIn', readyText: 'Ready', liveText: 'Live' },
+  { key: 'instagram', ic: 'Ig', name: 'Instagram', readyText: 'Ready', liveText: 'Live' },
+  { key: 'bluesky', ic: 'Bs', name: 'Bluesky', readyText: 'Ready', liveText: 'Live' },
+  { key: 'facebook', ic: 'f', name: 'Facebook', readyText: 'Ready', liveText: 'Live' },
+  { key: 'youtube', ic: '▶', name: 'YouTube', readyText: 'Ready', liveText: 'Live' },
+  { key: 'slack', ic: '#', name: 'Slack', readyText: 'Ready', liveText: 'Live' },
+  { key: 'more', ic: '…', name: 'So on', readyText: 'and more', liveText: 'More every month', isMore: true },
+];
 
 function SignInComponent() {
   const router = useRouter();
@@ -15,10 +33,8 @@ function SignInComponent() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
   const [stage, setStage] = useState<'form' | 'otp'>('form');
   const [busy, setBusy] = useState(false);
-  const [success, setSuccess] = useState(false);
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState(
     searchParams.get('error') ? decodeURIComponent(searchParams.get('error')!) : ''
@@ -31,6 +47,12 @@ function SignInComponent() {
   const [resendLoading, setResendLoading] = useState(false);
   const [otpError, setOtpError] = useState('');
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  // Right-side Platform Tiles Live state
+  const [liveTiles, setLiveTiles] = useState<Record<number, boolean>>({});
+
+  // DOM Refs
+  const goBtnRef = useRef<HTMLButtonElement>(null);
 
   // Cooldown timer for OTP
   useEffect(() => {
@@ -62,6 +84,16 @@ function SignInComponent() {
       setPasswordError('Failed to initiate Google sign in.');
       setBusy(false);
     }
+  };
+
+  // Trigger celebration on right-side tiles then navigate
+  const triggerCelebration = (onComplete: () => void) => {
+    TILES.forEach((_, i) => {
+      setTimeout(() => {
+        setLiveTiles((prev) => ({ ...prev, [i]: true }));
+      }, i * 75);
+    });
+    setTimeout(onComplete, TILES.length * 75 + 350);
   };
 
   // Submit password authentication
@@ -96,7 +128,7 @@ function SignInComponent() {
       const data = await res.json();
 
       if (!res.ok) {
-        setPasswordError(data.message || 'Invalid email or password.');
+        setPasswordError(data.message || 'Invalid credentials.');
         setBusy(false);
       } else if (data.session?.access_token) {
         const uid = data.userId || data.session?.user?.id;
@@ -122,16 +154,15 @@ function SignInComponent() {
           });
         } catch {}
 
-        setSuccess(true);
-        setTimeout(() => {
+        triggerCelebration(() => {
           router.push(data.redirectTo || '/dashboard');
-        }, 300);
+        });
       } else {
         // OTP required by backend
         setNextResendAt(data.nextResendAt);
         setStage('otp');
         setBusy(false);
-        setTimeout(() => otpRefs.current[0]?.focus(), 150);
+        setTimeout(() => otpRefs.current[0]?.focus(), 250);
       }
     } catch {
       setPasswordError('Network error. Please try again.');
@@ -179,7 +210,7 @@ function SignInComponent() {
       const data = await res.json();
 
       if (!res.ok) {
-        setOtpError(data.message || 'Invalid verification code.');
+        setOtpError(data.message || 'Invalid code.');
         setOtp(['', '', '', '', '', '']);
         setBusy(false);
         setTimeout(() => otpRefs.current[0]?.focus(), 50);
@@ -209,13 +240,12 @@ function SignInComponent() {
           } catch {}
         }
 
-        setSuccess(true);
-        setTimeout(() => {
+        triggerCelebration(() => {
           router.push(data.redirectTo || '/dashboard');
-        }, 300);
+        });
       }
     } catch {
-      setOtpError('Network error. Please try again.');
+      setOtpError('Network error.');
       setBusy(false);
     }
   };
@@ -239,298 +269,283 @@ function SignInComponent() {
 
   return (
     <div className="unool-signin-page">
-      <div className="signin-shell">
-        {/* Header / Brand */}
-        <header className="signin-header">
-          <Link href="/" className="signin-brand" aria-label="Unool Home">
-            <img src="/unool-icon.png" alt="Unool Logo" className="brand-icon" />
-            <span className="brand-text">unool</span>
+      <div className="frame">
+        {/* Top Header */}
+        <header>
+          <Link href="/" className="mark" aria-label="Unool Home">
+            <img className="lg" src="/unool-icon.png" alt="Unool" />
+            Unool
           </Link>
+          <p>
+            New to Unool? <Link href="/signup">Create an account</Link>
+          </p>
         </header>
 
-        {/* Centered Auth Card Container */}
-        <main className="signin-main">
-          <div className="auth-card">
-            {stage === 'form' ? (
-              <>
-                <div className="card-top">
-                  <span className="welcome-tag">Welcome back</span>
-                  <h1 className="card-title">Sign in to your account</h1>
-                  <p className="card-desc">
-                    Enter your email and password, or continue with Google.
-                  </p>
-                </div>
+        {/* Scene Container: Form (Left/Center) + Platform Tiles (Right) */}
+        <div className="wrap" id="wrap">
+          <div className="scene" id="scene">
+            {/* Center Column: Form Card */}
+            <main className="sc">
+              <div className="fc" id="fc">
+                {stage === 'form' ? (
+                  <>
+                    <span className="tag" id="tag">
+                      Welcome back
+                    </span>
+                    <h1>
+                      <span>One link.</span>
+                      <br />
+                      One click<em>.</em>
+                    </h1>
+                    <p className="sub">Raw idea in, posts out. Everywhere, one click.</p>
 
-                {/* Google OAuth Button */}
-                <button
-                  type="button"
-                  className="btn-google"
-                  onClick={handleGoogleSignIn}
-                  disabled={busy || success}
-                >
-                  <svg className="google-icon" width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
-                    <path
-                      fill="#EA4335"
-                      d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"
-                    />
-                    <path
-                      fill="#4285F4"
-                      d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z"
-                    />
-                    <path
-                      fill="#FBBC05"
-                      d="M10.5 28.7A14.5 14.5 0 0 1 9.5 24c0-1.6.3-3.2.8-4.7l-7.9-6.1A24 24 0 0 0 0 24c0 3.9.9 7.5 2.6 10.8l7.9-6.1z"
-                    />
-                    <path
-                      fill="#34A853"
-                      d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.8 2.3-8.4 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"
-                    />
-                  </svg>
-                  <span>Continue with Google</span>
-                </button>
+                    <button className="g" type="button" onClick={handleGoogleSignIn} disabled={busy}>
+                      <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+                        <path
+                          fill="#EA4335"
+                          d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"
+                        />
+                        <path
+                          fill="#4285F4"
+                          d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z"
+                        />
+                        <path
+                          fill="#FBBC05"
+                          d="M10.5 28.7A14.5 14.5 0 0 1 9.5 24c0-1.6.3-3.2.8-4.7l-7.9-6.1A24 24 0 0 0 0 24c0 3.9.9 7.5 2.6 10.8l7.9-6.1z"
+                        />
+                        <path
+                          fill="#34A853"
+                          d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.8 2.3-8.4 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"
+                        />
+                      </svg>
+                      Continue with Google
+                    </button>
 
-                <div className="auth-divider">
-                  <span className="divider-line" />
-                  <span className="divider-text">or with email</span>
-                  <span className="divider-line" />
-                </div>
+                    <div className="or">
+                      <i></i>or<i></i>
+                    </div>
 
-                {/* Email & Password Form */}
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    submitAuth();
-                  }}
-                  noValidate
-                >
-                  <div className="form-group">
-                    <label htmlFor="signin-email" className="input-label">
-                      Email address
-                    </label>
+                    <label htmlFor="em">Email address</label>
                     <input
-                      id="signin-email"
+                      id="em"
                       type="email"
                       inputMode="email"
                       autoComplete="username"
                       placeholder="name@company.com"
                       value={email}
-                      disabled={busy || success}
+                      disabled={busy}
                       onChange={(e) => {
                         setEmail(e.target.value);
                         setEmailError('');
                       }}
-                      className={`text-input ${emailError ? 'input-error' : ''}`}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          submitAuth();
+                        }
+                      }}
                     />
-                    {emailError && (
-                      <p className="field-error" role="alert">
-                        {emailError}
-                      </p>
-                    )}
-                  </div>
+                    <p className="err" id="emerr" role="alert">
+                      {emailError}
+                    </p>
 
-                  <div className="form-group">
-                    <div className="password-header">
-                      <label htmlFor="signin-password" className="input-label">
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'baseline',
+                        margin: '12px 0 5px',
+                      }}
+                    >
+                      <label htmlFor="pw" style={{ margin: 0 }}>
                         Password
                       </label>
-                      <Link href="/forgot-password" className="forgot-link">
+                      <Link href="/forgot-password" className="lnk">
                         Forgot password?
                       </Link>
                     </div>
-                    <div className="password-input-wrap">
+
+                    <div className="f">
                       <input
-                        id="signin-password"
+                        id="pw"
                         type={showPassword ? 'text' : 'password'}
                         autoComplete="current-password"
-                        placeholder="••••••••"
+                        style={{ paddingRight: '64px' }}
                         value={password}
-                        disabled={busy || success}
+                        disabled={busy}
                         onChange={(e) => {
                           setPassword(e.target.value);
                           setPasswordError('');
                         }}
-                        className={`text-input password-input ${passwordError ? 'input-error' : ''}`}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            submitAuth();
+                          }
+                        }}
                       />
                       <button
+                        className="eye"
                         type="button"
-                        className="password-toggle-btn"
-                        onClick={() => setShowPassword((p) => !p)}
+                        id="eye"
                         aria-label={showPassword ? 'Hide password' : 'Show password'}
-                        tabIndex={-1}
+                        onClick={() => setShowPassword((p) => !p)}
                       >
-                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        {showPassword ? 'Hide' : 'Show'}
                       </button>
                     </div>
-                    {passwordError && (
-                      <p className="field-error" role="alert">
-                        {passwordError}
-                      </p>
-                    )}
-                  </div>
+                    <p className="err" id="pwerr" role="alert">
+                      {passwordError}
+                    </p>
 
-                  <div className="remember-row">
-                    <label className="checkbox-label">
-                      <input
-                        type="checkbox"
-                        checked={rememberMe}
-                        onChange={(e) => setRememberMe(e.target.checked)}
-                        disabled={busy || success}
-                      />
-                      <span>Keep me signed in</span>
+                    <label className="ck">
+                      <input type="checkbox" defaultChecked />
+                      Keep me signed in on this device
                     </label>
-                  </div>
 
-                  <button
-                    type="submit"
-                    className={`btn-primary ${success ? 'btn-success' : ''}`}
-                    disabled={busy || success}
-                  >
-                    {success ? (
-                      <>
-                        <CheckCircle2 size={18} className="btn-icon" />
-                        <span>Welcome back! Opening workspace…</span>
-                      </>
-                    ) : busy ? (
-                      <>
-                        <span className="spinner" />
-                        <span>Signing in…</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>Sign in to workspace</span>
-                        <ArrowRight size={16} className="btn-icon" />
-                      </>
-                    )}
-                  </button>
-                </form>
-
-                <div className="signup-switch">
-                  <span>Don’t have an account?</span>{' '}
-                  <Link href="/signup" className="signup-switch-link">
-                    Create account →
-                  </Link>
-                </div>
-              </>
-            ) : (
-              /* OTP Verification Stage */
-              <div className="otp-view">
-                <div className="card-top">
-                  <span className="welcome-tag security">
-                    <ShieldCheck size={13} style={{ display: 'inline', marginRight: 4 }} />
-                    Security Check
-                  </span>
-                  <h1 className="card-title">Confirm verification code</h1>
-                  <p className="card-desc">
-                    We sent a 6-digit code to <strong>{email}</strong>. Enter it below to access your workspace.
-                  </p>
-                </div>
-
-                <div className="otp-grid">
-                  {otp.map((digit, i) => (
-                    <input
-                      key={i}
-                      ref={(el) => {
-                        otpRefs.current[i] = el;
-                      }}
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={1}
-                      value={digit}
-                      onChange={(e) => handleOtpChange(i, e.target.value)}
-                      onKeyDown={(e) => {
-                        handleOtpKeyDown(i, e);
-                        if (e.key === 'Enter') verifyOtp();
-                      }}
-                      onPaste={i === 0 ? handleOtpPaste : undefined}
-                      disabled={busy || success}
-                      className="otp-box"
-                      autoFocus={i === 0}
-                    />
-                  ))}
-                </div>
-
-                {otpError && (
-                  <p className="field-error text-center" role="alert">
-                    {otpError}
-                  </p>
-                )}
-
-                <button
-                  type="button"
-                  className={`btn-primary ${success ? 'btn-success' : ''}`}
-                  disabled={busy || success || otp.join('').length < 6}
-                  onClick={verifyOtp}
-                >
-                  {success ? (
-                    <>
-                      <CheckCircle2 size={18} className="btn-icon" />
-                      <span>Code confirmed! Opening workspace…</span>
-                    </>
-                  ) : busy ? (
-                    <>
-                      <span className="spinner" />
-                      <span>Verifying…</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Confirm & open workspace</span>
-                      <ArrowRight size={16} className="btn-icon" />
-                    </>
-                  )}
-                </button>
-
-                <div className="otp-actions">
-                  {cooldown > 0 ? (
-                    <span className="otp-cooldown">Resend code in {cooldown}s</span>
-                  ) : (
                     <button
+                      className="btn"
                       type="button"
-                      className="otp-link-btn"
-                      onClick={handleResend}
-                      disabled={resendLoading}
+                      id="go"
+                      ref={goBtnRef}
+                      disabled={busy}
+                      onClick={submitAuth}
                     >
-                      {resendLoading ? 'Sending new code…' : 'Resend code'}
+                      {busy ? (
+                        <>
+                          <span className="spin"></span>Signing in…
+                        </>
+                      ) : (
+                        'Open my workspace →'
+                      )}
                     </button>
-                  )}
+                  </>
+                ) : (
+                  <div className="otp-container">
+                    <span className="tag">Security check</span>
+                    <h1>
+                      <span>
+                        Confirm code<em>.</em>
+                      </span>
+                    </h1>
+                    <p className="sub">
+                      We just sent a 6-digit verification code to <b>{email}</b>. Enter it below to access your workspace.
+                    </p>
 
-                  <button
-                    type="button"
-                    className="otp-link-btn"
-                    onClick={() => {
-                      setStage('form');
-                      setOtp(['', '', '', '', '', '']);
-                      setOtpError('');
+                    <div className="otp-grid">
+                      {otp.map((digit, i) => (
+                        <input
+                          key={i}
+                          ref={(el) => {
+                            otpRefs.current[i] = el;
+                          }}
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={1}
+                          value={digit}
+                          onChange={(e) => handleOtpChange(i, e.target.value)}
+                          onKeyDown={(e) => {
+                            handleOtpKeyDown(i, e);
+                            if (e.key === 'Enter') verifyOtp();
+                          }}
+                          onPaste={i === 0 ? handleOtpPaste : undefined}
+                          disabled={busy}
+                          className="otp-box"
+                        />
+                      ))}
+                    </div>
+
+                    <p className="err" role="alert">
+                      {otpError}
+                    </p>
+
+                    <button
+                      className="btn"
+                      type="button"
+                      disabled={busy || otp.join('').length < 6}
+                      onClick={verifyOtp}
+                    >
+                      {busy ? (
+                        <>
+                          <span className="spin"></span>Verifying…
+                        </>
+                      ) : (
+                        'Confirm & enter workspace →'
+                      )}
+                    </button>
+
+                    <div className="otp-meta">
+                      {cooldown > 0 ? (
+                        <span style={{ fontSize: '13px', color: 'var(--mute)' }}>
+                          Resend in {cooldown}s
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="lnk"
+                          onClick={handleResend}
+                          disabled={resendLoading}
+                        >
+                          {resendLoading ? 'Sending...' : 'Resend code'}
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        className="lnk"
+                        onClick={() => {
+                          setStage('form');
+                          setOtp(['', '', '', '', '', '']);
+                          setOtpError('');
+                        }}
+                      >
+                        ← Back
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </main>
+
+            {/* Right Column: Platform Tiles */}
+            <aside className="sr" id="sr" aria-label="Connected Platforms">
+              {TILES.map((tile, i) => {
+                const isLive = liveTiles[i];
+                return (
+                  <div
+                    key={tile.key}
+                    className={`tl ${tile.isMore ? 'more' : ''} ${isLive ? 'live' : ''}`}
+                    onMouseMove={(e) => {
+                      const r = e.currentTarget.getBoundingClientRect();
+                      const x = (e.clientX - r.left) / r.width - 0.5;
+                      const y = (e.clientY - r.top) / r.height - 0.5;
+                      e.currentTarget.style.setProperty('--ry', `${x * 12}deg`);
+                      e.currentTarget.style.setProperty('--rx', `${-y * 10}deg`);
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.setProperty('--rx', '0deg');
+                      e.currentTarget.style.setProperty('--ry', '0deg');
                     }}
                   >
-                    ← Back to login
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Card Bottom Legal */}
-            <div className="auth-card-footer">
-              <span>By continuing, you agree to Unool’s</span>{' '}
-              <Link href="/terms" className="footer-legal-link">
-                Terms
-              </Link>{' '}
-              <span>&</span>{' '}
-              <Link href="/privacy" className="footer-legal-link">
-                Privacy Policy
-              </Link>
-              .
-            </div>
+                    <span className="ic">{tile.ic}</span>
+                    <div>
+                      <b>{tile.name}</b>
+                      <em>{isLive ? tile.liveText : tile.readyText}</em>
+                    </div>
+                    <span className="ok">✓</span>
+                  </div>
+                );
+              })}
+            </aside>
           </div>
-        </main>
+        </div>
 
-        {/* Global Footer */}
-        <footer className="signin-footer">
-          <p>© {new Date().getFullYear()} Unool. All rights reserved.</p>
-          <div className="footer-links">
-            <Link href="/">Home</Link>
-            <Link href="/terms">Terms</Link>
-            <Link href="/privacy">Privacy</Link>
-          </div>
+        {/* Footer */}
+        <footer>
+          <span>Every post, every network, one calm queue.</span>
+          <span>
+            <Link href="/terms">Terms</Link> · <Link href="/privacy">Privacy</Link>
+          </span>
         </footer>
       </div>
     </div>
@@ -539,7 +554,30 @@ function SignInComponent() {
 
 export default function SignInPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense
+      fallback={
+        <div
+          style={{
+            minHeight: '100vh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: '#FBF8F3',
+          }}
+        >
+          <div
+            style={{
+              width: '28px',
+              height: '28px',
+              border: '2px solid #D2C5B8',
+              borderTopColor: '#5A1020',
+              borderRadius: '50%',
+              animation: 'sp 0.7s linear infinite',
+            }}
+          />
+        </div>
+      }
+    >
       <SignInComponent />
     </Suspense>
   );
