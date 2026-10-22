@@ -54,7 +54,17 @@ export class RedisConfigError extends Error {
 }
 
 /**
- * Stores OAuth state in Redis with TTL
+ * Timeout helper to prevent slow Redis network calls from blocking OAuth redirects
+ */
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`Redis timeout after ${ms}ms`)), ms)),
+  ]);
+}
+
+/**
+ * Stores OAuth state in Redis with TTL (with 350ms timeout guard)
  */
 export async function storeOAuthState(state: string, workspaceId: string, userId: string, platform: string, returnUrl?: string): Promise<void> {
   const key = `${STATE_PREFIX}${state}`;
@@ -69,18 +79,18 @@ export async function storeOAuthState(state: string, workspaceId: string, userId
   try {
     const r = getRedis();
     if (r) {
-      await r.set(key, JSON.stringify(data), { ex: STATE_TTL_SECONDS });
+      await withTimeout(r.set(key, JSON.stringify(data), { ex: STATE_TTL_SECONDS }), 350);
       logger.debug('OAuth state stored in Redis', { state: state.slice(0, 8) + '...', workspaceId, platform });
     }
   } catch (error) {
-    logger.warn('Redis unavailable. Falling back to signed cookie state propagation only.');
-    // We intentionally do not throw here anymore.
+    logger.warn('Redis unavailable or timed out. Falling back to signed cookie state propagation only.');
+    // We intentionally do not throw here.
     // The OAuth connect/callback routes will fallback to state encoded in the cookie.
   }
 }
 
 /**
- * Verifies and consumes OAuth state (deletes after verification)
+ * Verifies and consumes OAuth state (deletes after verification, with 350ms timeout guard)
  * Returns workspaceId, userId and platform if valid
  */
 export async function verifyAndConsumeOAuthState(state: string, cookieHeader?: string | null): Promise<{ workspaceId: string; userId: string; platform: string; returnUrl?: string } | null> {
@@ -91,16 +101,17 @@ export async function verifyAndConsumeOAuthState(state: string, cookieHeader?: s
   try {
     const r = getRedis();
     if (r) {
-      const stored = await r.get(key);
+      const stored = await withTimeout(r.get(key), 350);
       if (stored) {
-        await r.del(key);
+        // Fire-and-forget deletion so it doesn't block verification response
+        void r.del(key).catch(() => {});
         data = typeof stored === 'string' 
           ? JSON.parse(stored) as OAuthStateData 
           : stored as unknown as OAuthStateData;
       }
     }
   } catch {
-    // Redis unavailable, fallback to cookie
+    // Redis unavailable or timed out, fallback to cookie
   }
 
   // Fallback to purely cookie-based state extraction
@@ -183,7 +194,10 @@ export function parseAndConsumePKCECookie(cookieHeader: string | null, state: st
 }
 
 function base64urlEncode(bytes: Uint8Array): string {
-  return btoa(String.fromCharCode(...bytes))
+  if (typeof Buffer !== 'undefined') {
+    return Buffer.from(bytes).toString('base64url');
+  }
+  return btoa(Array.from(bytes).map((b) => String.fromCharCode(b)).join(''))
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
     .replace(/=/g, '');

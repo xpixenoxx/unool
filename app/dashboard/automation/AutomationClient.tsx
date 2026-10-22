@@ -1541,7 +1541,7 @@ export default function AutomationClient({
                     <div style={{ color: '#B91C1C', fontWeight: 700, fontSize: 14 }}>Instagram Account Not Linked</div>
                     <div style={{ color: '#7F1D1D', fontSize: 12.5, marginTop: 2 }}>Connect an Instagram Professional or Creator account to enable real-time webhooks and comment parsing.</div>
                   </div>
-                  <a href={`/api/auth/platform/connect?platform=instagram&workspaceId=${workspaceId || ''}`} className="un-btn un-btn-primary" style={{ fontSize: 12.5 }}>Connect Account</a>
+                  <a href={`/api/auth/platform/connect?platform=instagram&workspaceId=${workspaceId || ''}&userId=${userId || ''}`} className="un-btn un-btn-primary" style={{ fontSize: 12.5 }}>Connect Account</a>
                 </div>
               )}
 

@@ -10,6 +10,30 @@ import { logger } from '@/lib/logger';
 export const dynamic = 'force-dynamic';
 
 /**
+ * Platforms that use a custom (non-OAuth-redirect) connect flow.
+ * These are handled entirely on the frontend via dialogs and never
+ * need a server-side OAuth redirect — so we skip the expensive
+ * adapter.getAuthUrl() probe and redirect to dashboard immediately.
+ */
+const CUSTOM_FLOW_PLATFORMS = new Set([
+  'bluesky',
+  'mastodon',
+  'slack',
+  'twitch',
+  'telegram',
+  'skool',
+  'warpcast',
+  'mewe',
+  'nostr',
+  'medium',
+  'lemmy',
+  'listmonk',
+  'hashnode',
+  'devto',
+  'manual',
+]);
+
+/**
  * Resolve workspaceId + userId using the fastest available method.
  * Priority:
  *  1. x-user-id header injected by middleware (fastest — no extra DB call)
@@ -86,10 +110,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL(`${errorRedirect}?error=unsupported_platform&platform=${platform}`, request.url));
   }
 
-  // Platforms with custom connect flows (e.g. Bluesky uses app-password, not OAuth).
-  const testAuthResult = await Promise.resolve(adapter.getAuthUrl('test'));
-  const resolvedTestUrl = typeof testAuthResult === 'string' ? testAuthResult : (testAuthResult?.url || '');
-  if (!resolvedTestUrl) {
+  // Platforms with custom connect flows are handled entirely on the frontend.
+  // Using a static set avoids a wasteful double adapter.getAuthUrl() probe call.
+  if (CUSTOM_FLOW_PLATFORMS.has(platform)) {
     logger.info('Platform connect: custom flow platform, redirecting to dashboard', { platform });
     const dashboardUrl = new URL('/dashboard', request.url);
     dashboardUrl.searchParams.set('connect', platform);
@@ -99,7 +122,7 @@ export async function GET(request: NextRequest) {
   // Generate cryptographically secure state
   const state = generateOAuthState(workspaceId, platform);
 
-  // Store in Redis + build cookie in parallel
+  // Store OAuth state in Redis + generate auth URL in parallel (zero wasted round-trips)
   const [, authUrlResult] = await Promise.all([
     storeOAuthState(state, workspaceId, userId, platform, returnUrl),
     Promise.resolve(adapter.getAuthUrl(state)),

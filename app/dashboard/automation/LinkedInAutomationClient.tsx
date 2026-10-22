@@ -401,7 +401,7 @@ export default function LinkedInAutomationClient({
                   </button>
                 </div>
               ) : (
-                <a href={`/api/auth/platform/connect?platform=linkedin&workspaceId=${workspaceId || ''}`} className="un-btn un-btn-primary" style={{ padding: '6px 14px', fontSize: 12.5, background: '#0A66C2' }}>
+                <a href={`/api/auth/platform/connect?platform=linkedin&workspaceId=${workspaceId || ''}&userId=${userId || ''}`} className="un-btn un-btn-primary" style={{ padding: '6px 14px', fontSize: 12.5, background: '#0A66C2' }}>
                   Connect LinkedIn
                 </a>
               )}
@@ -444,7 +444,7 @@ export default function LinkedInAutomationClient({
                   <div style={{ color: '#1E40AF', fontWeight: 700, fontSize: 14 }}>LinkedIn Account Not Linked</div>
                   <div style={{ color: '#1E3A8A', fontSize: 12.5, marginTop: 2 }}>Connect your LinkedIn profile or company page to enable autonomous post comment analysis and B2B InMail routing.</div>
                 </div>
-                <a href={`/api/auth/platform/connect?platform=linkedin&workspaceId=${workspaceId || ''}`} className="un-btn un-btn-primary" style={{ fontSize: 12.5, background: '#0A66C2' }}>Connect Account</a>
+                <a href={`/api/auth/platform/connect?platform=linkedin&workspaceId=${workspaceId || ''}&userId=${userId || ''}`} className="un-btn un-btn-primary" style={{ fontSize: 12.5, background: '#0A66C2' }}>Connect Account</a>
               </div>
             )}
 

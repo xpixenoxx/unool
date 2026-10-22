@@ -46,6 +46,7 @@ interface PlatformConnection {
 
 interface PlatformConnectionsProps {
   workspaceId: string;
+  userId?: string;
 }
 
 /* ─── Platform display config ──────────────────────────────── */
@@ -354,7 +355,7 @@ export const PLATFORM_CONFIG: Record<
 
 /* ─── Component ────────────────────────────────────────────── */
 
-export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
+export function PlatformConnections({ workspaceId, userId: initialUserId }: PlatformConnectionsProps) {
   const connectablePlatforms = useMemo(
     () =>
       SUPPORTED_PLATFORMS.filter(
@@ -412,7 +413,13 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
   const [listmonkDialogOpen, setListmonkDialogOpen] = useState(false);
   const [hashnodeDialogOpen, setHashnodeDialogOpen] = useState(false);
   const [devtoDialogOpen, setDevtoDialogOpen] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(initialUserId || null);
+
+  useEffect(() => {
+    if (initialUserId) {
+      setUserId(initialUserId);
+    }
+  }, [initialUserId]);
 
   useEffect(() => {
     loadConnections();
@@ -502,11 +509,12 @@ export function PlatformConnections({ workspaceId }: PlatformConnectionsProps) {
     }
     // Show spinner immediately — gives instant visual feedback before the redirect
     setConnecting(platform);
+    const effectiveUserId = userId || initialUserId;
     const params = new URLSearchParams({ platform, workspaceId });
-    if (userId) params.set('userId', userId);
+    if (effectiveUserId) params.set('userId', effectiveUserId);
     // Use window.location for the OAuth redirect (router.push doesn't handle external URLs)
     window.location.href = `/api/auth/platform/connect?${params.toString()}`;
-  }, [workspaceId, userId]);
+  }, [workspaceId, userId, initialUserId]);
 
   const handleDisconnect = async (platform: Platform) => {
     const cfg = PLATFORM_CONFIG[platform];

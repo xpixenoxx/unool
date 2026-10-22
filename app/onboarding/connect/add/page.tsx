@@ -42,70 +42,24 @@ export default function AddAccountsPage() {
     setIsConnecting(acc.id);
     
     try {
-      // Strategy 1: Read session from sessionStorage (set during OTP verification)
-      let accessToken: string | null = null;
+      // Fast path: Read session from sessionStorage (set during OTP verification)
       let storedUserId: string | null = null;
-      
       try {
         const stored = sessionStorage.getItem('unool_session');
         if (stored) {
           const parsed = JSON.parse(stored);
-          accessToken = parsed.access_token || null;
           storedUserId = parsed.userId || null;
         }
       } catch { /* ignore */ }
-      
-      // Strategy 2: Try browser Supabase client
-      if (!accessToken) {
-        try {
-          accessToken = await getAccessToken();
-        } catch { /* ignore */ }
-      }
-      
-      // Strategy 3: Try /api/auth/me with Bearer token if we have one
-      let workspaceId: string | null = null;
-      
-      if (accessToken) {
-        try {
-          const res = await fetch('/api/auth/me', {
-            headers: { 'Authorization': `Bearer ${accessToken}` },
-          });
-          if (res.ok) {
-            const data = await res.json();
-            workspaceId = data?.user?.workspaceId || null;
-            storedUserId = data?.user?.id || storedUserId;
-          }
-        } catch { /* ignore */ }
-      }
-      
-      // Strategy 4: Try /api/auth/me without Bearer (cookies)
-      if (!workspaceId) {
-        try {
-          const res = await fetch('/api/auth/me');
-          if (res.ok) {
-            const data = await res.json();
-            workspaceId = data?.user?.workspaceId || null;
-            storedUserId = data?.user?.id || storedUserId;
-          }
-        } catch { /* ignore */ }
-      }
-      
-      // Strategy 5: Use stored userId directly as workspaceId fallback
-      if (!workspaceId && storedUserId) {
-        workspaceId = storedUserId;
-      }
-      
-      if (workspaceId && storedUserId) {
-        const url = `/api/auth/platform/connect?platform=${acc.id}&returnUrl=/onboarding/connect&workspaceId=${workspaceId}&userId=${storedUserId}`;
+
+      if (storedUserId) {
+        const url = `/api/auth/platform/connect?platform=${acc.id}&returnUrl=/onboarding/connect&workspaceId=${storedUserId}&userId=${storedUserId}`;
         window.location.href = url;
-      } else if (workspaceId) {
-        // Fallback if userId is missing for some reason
-        const url = `/api/auth/platform/connect?platform=${acc.id}&returnUrl=/onboarding/connect&workspaceId=${workspaceId}&userId=${workspaceId}`;
-        window.location.href = url;
-      } else {
-        alert('Your session has expired or is invalid. Please sign in again.');
-        window.location.href = '/signin';
+        return;
       }
+
+      // Fallback: server will resolve workspace and user via cookies directly in middleware
+      window.location.href = `/api/auth/platform/connect?platform=${acc.id}&returnUrl=/onboarding/connect`;
     } catch (e) {
       console.error('Failed to initiate platform connection', e);
       alert('Network error while preparing the connection. Please try again.');

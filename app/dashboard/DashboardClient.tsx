@@ -8,7 +8,7 @@ import {
   Globe, PenTool, ExternalLink, TrendingUp,
   Activity, Plus, ArrowRight, Eye, MousePointerClick,
   FileText, Radio, ChevronRight, Zap, Send, Star,
-  CalendarDays, Wifi, WifiOff, ArrowUpRight, MoreHorizontal
+  CalendarDays, Wifi, WifiOff, ArrowUpRight, MoreHorizontal, Loader2
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { PlatformConnections, SUPPORTED_PLATFORMS, PLATFORM_CONFIG, type Platform } from '@/components/dashboard/PlatformConnections';
@@ -182,6 +182,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   const searchParams = useSearchParams();
   const [blueskyDialogOpen, setBlueskyDialogOpen] = useState(searchParams.get('connect') === 'bluesky');
   const [manualDialogOpen, setManualDialogOpen] = useState(false);
+  const [connectingPlatform, setConnectingPlatform] = useState<string | null>(null);
   const { insights, loadingInsights } = useAnalyticsInsights();
 
 
@@ -444,6 +445,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                   </div>
                   {!platform.connected && (
                     <button
+                      disabled={connectingPlatform === platform.id}
                       onClick={(e) => {
                         e.stopPropagation();
                         if (platform.id === 'bluesky') {
@@ -451,13 +453,21 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                         } else if (platform.id === 'manual') {
                           setManualDialogOpen(true);
                         } else {
-                          window.location.href = `/api/auth/platform/connect?platform=${platform.id}&workspaceId=${data.workspaceId}`;
+                          setConnectingPlatform(platform.id);
+                          window.location.href = `/api/auth/platform/connect?platform=${platform.id}&workspaceId=${data.workspaceId}&userId=${data.userId}`;
                         }
                       }}
-                      className="text-xs font-medium px-3 py-1.5 rounded-lg transition-colors hover:opacity-90"
+                      className="text-xs font-medium px-3 py-1.5 rounded-lg transition-colors hover:opacity-90 inline-flex items-center gap-1.5"
                       style={{ backgroundColor: B.accentBg, color: B.accent }}
                     >
-                      Connect
+                      {connectingPlatform === platform.id ? (
+                        <>
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          <span>Connecting…</span>
+                        </>
+                      ) : (
+                        'Connect'
+                      )}
                     </button>
                   )}
                   {platform.connected && (
@@ -519,7 +529,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             </DialogTrigger>
             <DialogContent className="sm:max-w-[800px] bg-[#F7F3ED] border-none max-h-[85vh] overflow-y-auto">
               <DialogTitle className="sr-only">Manage Platforms</DialogTitle>
-              <PlatformConnections workspaceId={data.workspaceId} />
+              <PlatformConnections workspaceId={data.workspaceId} userId={data.userId} />
             </DialogContent>
           </Dialog>
         </motion.div>

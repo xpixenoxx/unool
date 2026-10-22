@@ -147,52 +147,44 @@ export async function GET(request: NextRequest) {
     const { createClient } = await import('@supabase/supabase-js');
     const { config } = await import('@/lib/config/schema');
     const adminSupabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
-    
-    // Check 1: Does the workspaceId exist as an actual workspace?
-    const { data: existingWorkspace } = await adminSupabase
-      .from('workspaces')
-      .select('id')
-      .eq('id', workspaceId)
-      .single();
-    
-    if (!existingWorkspace) {
-      // workspaceId is NOT a valid workspace — it might be a userId.
-      // Look up the user's actual workspace from workspace_members.
-      const { data: member } = await adminSupabase
-        .from('workspace_members')
-        .select('workspace_id')
-        .eq('user_id', workspaceId)
+
+    // Run workspace existence check + member lookup in PARALLEL (saves one DB round-trip)
+    const [workspaceResult, memberResult] = await Promise.all([
+      adminSupabase.from('workspaces').select('id').eq('id', workspaceId).single(),
+      adminSupabase.from('workspace_members').select('workspace_id').eq('user_id', workspaceId).single(),
+    ]);
+
+    if (workspaceResult.data) {
+      // workspaceId is already a valid workspace — nothing to do
+      logger.debug('WorkspaceId verified as existing workspace', { workspaceId: finalWorkspaceId });
+    } else if (memberResult.data?.workspace_id) {
+      // workspaceId was actually the userId — resolved via membership
+      finalWorkspaceId = memberResult.data.workspace_id;
+      logger.info('Resolved workspaceId from userId (workspaceId was not a valid workspace)', {
+        userId: workspaceId,
+        workspaceId: finalWorkspaceId,
+      });
+    } else {
+      // Last resort: check if there's a workspace owned by this user
+      const { data: ownedWorkspace } = await adminSupabase
+        .from('workspaces')
+        .select('id')
+        .eq('owner_id', workspaceId)
         .single();
-      
-      if (member?.workspace_id) {
-        finalWorkspaceId = member.workspace_id;
-        logger.info('Resolved workspaceId from userId (workspaceId was not a valid workspace)', {
+
+      if (ownedWorkspace?.id) {
+        finalWorkspaceId = ownedWorkspace.id;
+        logger.info('Resolved workspaceId from owned workspace', {
           userId: workspaceId,
           workspaceId: finalWorkspaceId,
         });
       } else {
-        // Last resort: check if there's a workspace owned by this user
-        const { data: ownedWorkspace } = await adminSupabase
-          .from('workspaces')
-          .select('id')
-          .eq('owner_id', workspaceId)
-          .single();
-        
-        if (ownedWorkspace?.id) {
-          finalWorkspaceId = ownedWorkspace.id;
-          logger.info('Resolved workspaceId from owned workspace', {
-            userId: workspaceId,
-            workspaceId: finalWorkspaceId,
-          });
-        } else {
-          logger.warn('Could not resolve valid workspaceId — using original value', {
-            workspaceId,
-          });
-        }
+        logger.warn('Could not resolve valid workspaceId — using original value', {
+          workspaceId,
+        });
       }
-    } else {
-      logger.debug('WorkspaceId verified as existing workspace', { workspaceId: finalWorkspaceId });
     }
+
 
     // Preserve existing Kick stream settings if reconnecting
     let finalAccessTokenToEncrypt = tokenResponse.accessToken;
@@ -245,24 +237,26 @@ export async function GET(request: NextRequest) {
 
     // For Instagram: subscribe the user's account to our webhook fields
     // so that comments and messages from their account are sent to our endpoint.
+    // Non-blocking: runs in background so the user is redirected immediately.
     if (platform === 'instagram') {
-      try {
-        const { InstagramCommentAutomation } = await import('@/lib/services/InstagramCommentAutomation');
-        const subscribed = await InstagramCommentAutomation.subscribeAccountToWebhook(
-          tokenResponse.accessToken,
-          profile.platformUserId
-        );
-        logger.info('Instagram webhook subscription', {
-          platformUserId: profile.platformUserId,
-          subscribed,
-        });
-      } catch (webhookError) {
-        // Non-fatal: log but don't block the connection flow
-        logger.warn('Failed to subscribe Instagram account to webhook', {
-          error: webhookError instanceof Error ? webhookError : new Error(String(webhookError)),
-          platformUserId: profile.platformUserId,
-        });
-      }
+      void (async () => {
+        try {
+          const { InstagramCommentAutomation } = await import('@/lib/services/InstagramCommentAutomation');
+          const subscribed = await InstagramCommentAutomation.subscribeAccountToWebhook(
+            tokenResponse.accessToken,
+            profile.platformUserId
+          );
+          logger.info('Instagram webhook subscription', {
+            platformUserId: profile.platformUserId,
+            subscribed,
+          });
+        } catch (webhookError) {
+          logger.warn('Failed to subscribe Instagram account to webhook', {
+            error: webhookError instanceof Error ? webhookError : new Error(String(webhookError)),
+            platformUserId: profile.platformUserId,
+          });
+        }
+      })();
     }
 
     // Build success redirect URL

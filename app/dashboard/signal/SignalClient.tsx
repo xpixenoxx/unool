@@ -759,7 +759,7 @@ export function SignalClient() {
                     </button>
                   ))}
                   <button
-                    onClick={loadData}
+                    onClick={() => { void loadData(); }}
                     className="p-1.5 rounded-lg border border-[#E8E0D4] bg-[#FAF7F2] text-[#8B7355] hover:text-[#3D2B1F] cursor-pointer"
                     title="Refresh feed"
                   >

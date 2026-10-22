@@ -199,12 +199,17 @@ export async function middleware(request: NextRequest) {
               try {
                 const { createClient: createSbClient } = await import('@supabase/supabase-js');
                 const admin = createSbClient(supabaseUrl, supabaseServiceKey);
-                const { data: member } = await admin
+                // Use a short timeout (1.5s) so a slow DB never blocks the API call
+                const workspacePromise = admin
                   .from('workspace_members')
                   .select('workspace_id')
                   .eq('user_id', user.id)
                   .single();
-                const workspaceId = member?.workspace_id || user.id;
+                const timeoutPromise = new Promise<{ data: null; error: Error }>(
+                  (resolve) => setTimeout(() => resolve({ data: null, error: new Error('timeout') }), 1500)
+                );
+                const result = await Promise.race([workspacePromise, timeoutPromise]);
+                const workspaceId = result.data?.workspace_id || user.id;
                 requestHeaders.set('x-workspace-id', workspaceId);
               } catch {
                 // workspace lookup failed — getCurrentAuth will resolve it
