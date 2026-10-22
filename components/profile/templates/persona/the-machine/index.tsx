@@ -310,8 +310,8 @@ export function MachineTemplate({ profile, accentColor }: MachineTemplateProps) 
         <div className="m-info-col">
 
           <div className="m-avatar-container">
-            {profile?.avatarUrl ? (
-              <img src={profile.avatarUrl} alt={name} className="m-avatar-img" />
+            {profile?.avatarUrl || (profile as any)?.avatar_url || (profile as any)?.avatar ? (
+              <img src={profile?.avatarUrl || (profile as any)?.avatar_url || (profile as any)?.avatar} alt={name} className="m-avatar-img" />
             ) : (
               <div className="m-avatar-img flex items-center justify-center bg-white text-[var(--m-accent)] text-6xl font-bold">
                 {name[0]}

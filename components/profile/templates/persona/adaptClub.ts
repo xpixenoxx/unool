@@ -266,7 +266,7 @@ export function adaptPublicProfileToClub(profile: PublicProfile): ClubTemplateDa
     tagline: profile.tagline || 'We shape culture.',
     bio: profile.bio || 'Culture isn\'t borrowed. It\'s built. Every campaign, every collaboration, every pixel — intentional. We don\'t follow trends. We originate them.',
     manifesto: profile.manifesto || 'A collective of strategists, designers, and cultural architects. We partner with brands that want to matter. Not just sell. Matter. Our work lives at the intersection of culture, technology, and human truth. We build worlds, not just campaigns.',
-    avatar: profile.avatar,
+    avatar: profile.avatar || profile.avatarUrl || (profile as any).avatar_url,
     availability: (profile.availability as any) || 'selective',
 
     // Data

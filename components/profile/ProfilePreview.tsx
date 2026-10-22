@@ -142,7 +142,12 @@ export function ProfilePreview({
     >
       <TemplateWrapper
         templateId={templateId}
-        profile={profile}
+        profile={profile ? {
+          ...profile,
+          avatarUrl: profile.avatarUrl || profile.avatar_url || profile.avatar || '',
+          avatar_url: profile.avatarUrl || profile.avatar_url || profile.avatar || '',
+          avatar: profile.avatarUrl || profile.avatar_url || profile.avatar || '',
+        } : profile}
         accentColor={effectiveAccentColor}
         isPreview={isPreview}
         onLinkClick={onLinkClick || ((link) => {

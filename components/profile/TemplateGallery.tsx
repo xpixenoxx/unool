@@ -222,23 +222,29 @@ export function TemplateGallery({
 
   const activeTemplate = templates.find(t => t.id === previewTemplateId) || filteredTemplates[0];
 
-  const previewProfile = React.useMemo(() => ({
-    id: 'preview',
-    subdomain: profileData?.subdomain || 'preview',
-    name: profileData?.name || 'Your Name',
-    headline: profileData?.headline || 'Your headline goes here',
-    bio: profileData?.bio || 'This is a preview of your profile.',
-    role: profileData?.role || '',
-    company: profileData?.company || '',
-    avatarUrl: profileData?.avatarUrl || '',
-    email: profileData?.email || '',
-    links: profileData?.links || [],
-    proofs: profileData?.proofs || [],
-    openTo: profileData?.openTo || [],
-    theme: { template: '', preset: 'minimal', accentColor: accentColor || '#C4A265', customCss: null },
-    socialHandles: profileData?.socialHandles || {},
-    seo: { title: profileData?.name || 'Profile', description: '', image: null },
-  }), [profileData, accentColor]);
+  const previewProfile = React.useMemo(() => {
+    const avatar = profileData?.avatarUrl || profileData?.avatar_url || profileData?.avatar || '';
+    return {
+      id: 'preview',
+      subdomain: profileData?.subdomain || 'preview',
+      name: profileData?.name || 'Your Name',
+      headline: profileData?.headline || 'Your headline goes here',
+      bio: profileData?.bio || 'This is a preview of your profile.',
+      role: profileData?.role || '',
+      company: profileData?.company || '',
+      avatarUrl: avatar,
+      avatar_url: avatar,
+      avatar: avatar,
+      email: profileData?.email || '',
+      links: profileData?.links || [],
+      proofs: profileData?.proofs || [],
+      proofPoints: profileData?.proofPoints || profileData?.proofs || [],
+      openTo: profileData?.openTo || profileData?.open_to || [],
+      theme: { template: '', preset: 'minimal', accentColor: accentColor || '#C4A265', customCss: null },
+      socialHandles: profileData?.socialHandles || {},
+      seo: { title: profileData?.name || 'Profile', description: '', image: null },
+    };
+  }, [profileData, accentColor]);
 
   if (!isOpen || !activeTemplate) return null;
 
