@@ -119,7 +119,7 @@ export function useFlightPlanActions(): UseFlightPlanActionsResult {
           const allImages = [...(p.imageUrls || (p.imageUrl ? [p.imageUrl] : []))];
           const mediaObjects = allImages.map(u => ({
             url: u,
-            type: (/\.(mp4|mov|webm)$/i.test(u) ? 'video' : /\.(pdf|ppt|pptx)$/i.test(u) ? 'document' : 'image') as const,
+            type: (/\.(mp4|mov|webm)$/i.test(u) ? 'video' : /\.(pdf|ppt|pptx)$/i.test(u) ? 'document' : 'image') as 'video' | 'document' | 'image',
           }));
           const enabledPlatforms = p.platforms.filter(pf => pf.enabled !== false);
           return {

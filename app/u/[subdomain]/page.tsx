@@ -212,49 +212,58 @@ export default function PublicProfilePage({ params }: { params: Promise<{ subdom
   }
 
   // Get template from profile theme - map old templates to new persona-driven ones
-  const rawTemplateId = profile.theme?.template || profile.theme?.preset || 'minimalist';
+  const rawTemplateId = profile.theme?.template || profile.theme?.preset || 'lone';
 
   // Migration map for old template IDs to new persona-driven templates
   const templateMigrationMap: Record<string, string> = {
-    // New persona-driven templates (identity mappings)
-    'student': 'student',
-    'founder': 'founder',
-    'creator': 'creator',
-    'developer': 'developer',
-    'minimalist': 'minimalist',
-    'ngo': 'ngo',
-    'premium-opaque': 'premium-opaque',
-    'glossy-premium': 'glossy-premium',
+    // Old template names mapped to new persona templates
+    'student': 'lone',
+    'founder': 'the-visionary',
+    'creator': 'the-creator',
+    'developer': 'the-builder',
+    'minimalist': 'lone',
+    'ngo': 'human',
+    'premium-opaque': 'the-studio',
+    'glossy-premium': 'the-club',
+    // Short names without "the-" prefix
+    'club': 'the-club',
+    'studio': 'the-studio',
+    'builder': 'the-builder',
+    'visionary': 'the-visionary',
+    'hustler': 'the-hustler',
+    'aesthete': 'the-aesthete',
+    'voice': 'the-voice',
+    'machine': 'the-machine',
     // Old essential templates
-    'essential-minimal': 'minimalist',
-    'essential-light': 'minimalist',
-    'essential-standard': 'minimalist',
-    'essential-bold': 'founder',
-    'essential-max': 'founder',
+    'essential-minimal': 'lone',
+    'essential-light': 'lone',
+    'essential-standard': 'lone',
+    'essential-bold': 'the-visionary',
+    'essential-max': 'the-visionary',
     // Old professional templates
-    'professional-minimal': 'minimalist',
-    'professional-light': 'minimalist',
-    'professional-standard': 'founder',
-    'professional-bold': 'founder',
-    'professional-max': 'founder',
+    'professional-minimal': 'lone',
+    'professional-light': 'lone',
+    'professional-standard': 'the-visionary',
+    'professional-bold': 'the-visionary',
+    'professional-max': 'the-visionary',
     // Old creative templates
-    'creative-minimal': 'creator',
-    'creative-light': 'creator',
-    'creative-standard': 'creator',
-    'creative-bold': 'creator',
-    'creative-max': 'creator',
+    'creative-minimal': 'the-creator',
+    'creative-light': 'the-creator',
+    'creative-standard': 'the-creator',
+    'creative-bold': 'the-creator',
+    'creative-max': 'the-creator',
     // Old technical templates
-    'technical-minimal': 'developer',
-    'technical-light': 'developer',
-    'technical-standard': 'developer',
-    'technical-bold': 'developer',
-    'technical-max': 'developer',
+    'technical-minimal': 'the-builder',
+    'technical-light': 'the-builder',
+    'technical-standard': 'the-builder',
+    'technical-bold': 'the-builder',
+    'technical-max': 'the-builder',
     // Old social templates
-    'social-minimal': 'minimalist',
-    'social-light': 'creator',
-    'social-standard': 'creator',
-    'social-bold': 'creator',
-    'social-max': 'creator',
+    'social-minimal': 'lone',
+    'social-light': 'the-creator',
+    'social-standard': 'the-creator',
+    'social-bold': 'the-creator',
+    'social-max': 'the-creator',
   };
 
   const templateId = templateMigrationMap[rawTemplateId] || rawTemplateId;

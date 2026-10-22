@@ -5,9 +5,10 @@ import { logger } from '@/lib/logger';
 import { analytics, extractTrackingFromRequest } from '@/lib/analytics/track';
 import { SupabasePostRepository } from '@/lib/repositories/supabase/SupabasePostRepository';
 import { SupabasePlatformRepository } from '@/lib/repositories/supabase/SupabasePlatformRepository';
+import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseProfileRepository';
 
-// Create a public Supabase client with ANON_KEY that respects RLS
-const supabasePublic = createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
+const profileRepository = new SupabaseProfileRepository();
+const supabaseAdmin = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
 
 // Upstash Redis for rate limiting (optional - gracefully degrades if not configured)
 async function checkRateLimit(request: NextRequest): Promise<{ limited: boolean; headers: Record<string, string> }> {
@@ -73,24 +74,21 @@ export async function GET(
       );
     }
 
-    // Use the public (ANON_KEY) client which respects RLS
-    // Only profiles with visibility = 'public' will be returned
-    const { data: profile, error } = await supabasePublic
-      .from('profiles')
-      .select('*')
-      .eq('subdomain', subdomain)
-      .single();
+    // Fetch profile using repository with service_role key to ensure reliability
+    const profile = await profileRepository.findBySubdomain(subdomain);
 
-    if (error || !profile) {
-      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    if (!profile) {
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404, headers: rateLimitHeaders });
     }
 
-    // At this point, RLS guarantees the profile is public (visibility = 'public')
-    // No need for additional visibility checks
+    // Enforce visibility check: private profiles return 404 for public requests
+    if (profile.visibility === 'private') {
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404, headers: rateLimitHeaders });
+    }
 
     // Increment view count async (fire-and-forget, fallback to ignoring errors)
     try {
-      await supabasePublic.rpc('increment_profile_views', { profile_id: profile.id });
+      await supabaseAdmin.rpc('increment_profile_views', { profile_id: profile.id });
     } catch {
       // Ignore view count errors
     }
@@ -99,9 +97,9 @@ export async function GET(
     const { ipHash, referrer, userAgent } = extractTrackingFromRequest(request);
     const resolvedIpHash = await ipHash;
     analytics.profileView({
-      workspaceId: profile.workspace_id,
+      workspaceId: profile.workspaceId,
       profileId: profile.id,
-      userId: profile.user_id,
+      userId: profile.userId,
       sessionId: request.headers.get('x-session-id') || undefined,
       referrer: referrer || undefined,
       userAgent: userAgent || undefined,
@@ -115,8 +113,8 @@ export async function GET(
       const platformRepo = new SupabasePlatformRepository();
 
       let recentPosts = await postRepo.findByProfileId(profile.id, { status: 'published', limit: 1 });
-      if (recentPosts.length === 0 && profile.workspace_id) {
-        recentPosts = await postRepo.findByWorkspaceId(profile.workspace_id, { status: 'published', limit: 1 });
+      if (recentPosts.length === 0 && profile.workspaceId) {
+        recentPosts = await postRepo.findByWorkspaceId(profile.workspaceId, { status: 'published', limit: 1 });
       }
       const latestPost = recentPosts[0] ?? null;
 
@@ -147,23 +145,37 @@ export async function GET(
     // The email field is never included in the public profile response
     const response = {
       id: profile.id,
-      workspaceId: profile.workspace_id,
-      userId: profile.user_id,
+      workspaceId: profile.workspaceId,
+      workspace_id: profile.workspaceId,
+      userId: profile.userId,
+      user_id: profile.userId,
       subdomain: profile.subdomain,
       name: profile.name,
       headline: profile.headline,
       bio: profile.bio,
       role: profile.role,
       company: profile.company,
-      avatarUrl: profile.avatar_url,
+      avatarUrl: profile.avatarUrl,
+      avatar_url: profile.avatarUrl,
       links: profile.links || [],
-      proofs: profile.proof_points || [],
-      openTo: profile.open_to || [],
-      theme: profile.theme || { preset: 'minimal' },
-      visibility: profile.visibility,
+      proofPoints: profile.proofPoints || [],
+      proof_points: profile.proofPoints || [],
+      proofs: profile.proofPoints || [],
+      openTo: profile.openTo || [],
+      open_to: profile.openTo || [],
+      theme: {
+        template: (profile.theme as any)?.template || (profile.theme as any)?.preset || 'lone',
+        preset: (profile.theme as any)?.preset || 'minimal',
+        accentColor: (profile.theme as any)?.accentColor || 'var(--color-primary)',
+        customCss: (profile.theme as any)?.customCss || null,
+        ...profile.theme,
+      },
+      visibility: profile.visibility || 'public',
       recentActivity,
-      createdAt: profile.created_at,
-      updatedAt: profile.updated_at,
+      createdAt: profile.createdAt,
+      created_at: profile.createdAt,
+      updatedAt: profile.updatedAt,
+      updated_at: profile.updatedAt,
     };
 
     return NextResponse.json(response, { headers: rateLimitHeaders });

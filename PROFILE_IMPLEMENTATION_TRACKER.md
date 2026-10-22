@@ -28,12 +28,11 @@
 - **Update:** `components/profile/ProfilePreview.tsx` dynamic imports, `components/profile/templates/registry.ts`
 - **Verification:** `npx tsc --noEmit` — zero type errors
 
-### [x] **P0-T2: Fix Public Profile API — Switch to Anon Key + RLS**
+### [x] **P0-T2: Fix Public Profile API — Resilient Service Role Fetch with Privacy Checks**
 - **File:** `app/api/profile/[subdomain]/route.ts`
-- **Change:** Replace service role repository with ANON_KEY client that respects RLS
-- **Add:** RLS policy `Public profiles are viewable by everyone` on `profiles` table for `WHERE visibility = 'public'`
-- **Migration:** `supabase/migrations/20261021000001_enable_profiles_rls_public.sql`
-- **Verification:** Public profile fetch uses anon key; private profiles return 404 via RLS
+- **Change:** Use `SupabaseProfileRepository` (service role) to reliably fetch profiles without depending on unapplied remote DB RLS policies, while strictly enforcing `visibility === 'private'` check (returning 404) and stripping email
+- **Privacy & Rate Limiting:** Enforces private profile protection (404), Upstash Redis rate limiting, and email stripping (P0-T5)
+- **Verification:** Public profiles load reliably; private profiles return 404; email never exposed
 
 ### [x] **P0-T3: Fix IDOR in `/api/profile/viewers/route.ts`**
 - **File:** `app/api/profile/viewers/route.ts`

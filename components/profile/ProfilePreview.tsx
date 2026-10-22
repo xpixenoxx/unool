@@ -45,7 +45,17 @@ interface TemplateWrapperProps extends TemplateProps {
 }
 
 function TemplateWrapper({ templateId, profile, accentColor, isPreview, onLinkClick }: TemplateWrapperProps) {
-  const Component = templateComponents[templateId];
+  // Normalize templateId: handle aliases with or without "the-" prefix, and fallback safely
+  const resolvedTemplateId = templateComponents[templateId]
+    ? templateId
+    : (templateComponents[`the-${templateId}`]
+      ? `the-${templateId}`
+      : (templateId?.startsWith('the-') && templateComponents[templateId.replace(/^the-/, '')]
+        ? templateId.replace(/^the-/, '')
+        : 'lone'));
+
+  const Component = templateComponents[resolvedTemplateId] || templateComponents['lone'];
+  const effectiveTemplateId = templateComponents[resolvedTemplateId] ? resolvedTemplateId : 'lone';
 
   if (!Component) {
     return (
@@ -55,12 +65,12 @@ function TemplateWrapper({ templateId, profile, accentColor, isPreview, onLinkCl
     );
   }
 
-  const skeletonCategory = getSkeletonCategory(templateId);
+  const skeletonCategory = getSkeletonCategory(effectiveTemplateId);
 
   return (
     <React.Suspense fallback={<TemplateSkeleton category={skeletonCategory} />}>
       <Component
-        templateId={templateId}
+        templateId={effectiveTemplateId}
         profile={profile}
         accentColor={accentColor}
         isPreview={isPreview}
