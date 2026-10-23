@@ -1,4 +1,4 @@
-export type PostStatus = 'draft' | 'scheduled' | 'published' | 'failed';
+export type PostStatus = 'draft' | 'scheduled' | 'publishing' | 'published' | 'failed';
 export type Platform = 'linkedin' | 'x' | 'threads' | 'manual' | 'facebook' | 'instagram' | 'youtube' | 'pinterest' | 'bluesky' | 'reddit' | 'mastodon' | 'slack' | 'twitch' | 'telegram' | 'discord' | 'dribbble' | 'skool' | 'whop' | 'kick' | 'warpcast' | 'mewe' | 'nostr' | 'medium' | 'lemmy' | 'listmonk' | 'hashnode' | 'devto';
 export type ScheduleStrategy = 'simultaneous' | 'cascading';
 export type StoryType = 'shipped' | 'learned' | 'milestone' | 'opinion';
@@ -56,7 +56,7 @@ export interface PostVariant {
   updatedAt: Date;
 }
 
-export type PostVariantStatus = 'draft' | 'scheduled' | 'published' | 'failed';
+export type PostVariantStatus = 'draft' | 'scheduled' | 'publishing' | 'published' | 'failed';
 
 export interface PostMedia {
   url: string;

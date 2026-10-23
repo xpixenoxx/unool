@@ -64,6 +64,9 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      // Transition post status to 'publishing' immediately so it is never shown as a draft in Signal while publishing
+      await postRepository.updateStatus(postId, 'publishing');
+
       // If edited drafts were provided from the composer, save updates before publishing
       if (Array.isArray(drafts) && drafts.length > 0) {
         for (const d of drafts) {
@@ -71,7 +74,7 @@ export async function POST(request: NextRequest) {
             const targetVariant = existingVariants.find(v => v.platform === d.platform);
             if (targetVariant) {
               await postRepository.updateVariant(targetVariant.id, {
-                status: 'draft',
+                status: 'publishing',
                 error: null,
                 adaptedContent: d.content,
                 characterCount: d.content.length,
@@ -79,6 +82,13 @@ export async function POST(request: NextRequest) {
               });
             }
           }
+        }
+      } else {
+        for (const v of existingVariants) {
+          await postRepository.updateVariant(v.id, {
+            status: 'publishing',
+            error: null,
+          });
         }
       }
 

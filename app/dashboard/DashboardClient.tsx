@@ -70,7 +70,7 @@ interface Profile {
 interface Post {
   id: string;
   content: string;
-  status: 'draft' | 'scheduled' | 'published' | 'failed';
+  status: 'draft' | 'scheduled' | 'published' | 'failed' | 'publishing';
   createdAt: string;
   updatedAt: string;
 }
@@ -150,6 +150,7 @@ const STATUS_STYLE: Record<Post['status'], {
   draft: { label: 'Draft', bg: B.warningBg, text: B.warning, dot: B.warning },
   scheduled: { label: 'Scheduled', bg: B.infoBg, text: B.info, dot: B.info },
   failed: { label: 'Failed', bg: B.dangerBg, text: B.danger, dot: B.danger },
+  publishing: { label: 'Publishing', bg: '#f0f9ff', text: '#0284c7', dot: '#0284c7' },
 };
 
 /* ═══════════════════════════════════════════════════════════════

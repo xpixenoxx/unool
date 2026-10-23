@@ -21,6 +21,14 @@ const SIGNAL_STRIP_EVENT = 'signal-strip-publish';
 
 export function emitSignalStrip(data: SignalStripPost) {
   if (typeof window !== 'undefined') {
+    try {
+      sessionStorage.setItem(`unool_publishing_${data.postId}`, JSON.stringify({
+        postId: data.postId,
+        content: data.content,
+        timestamp: Date.now(),
+        platforms: data.platforms,
+      }));
+    } catch {}
     window.dispatchEvent(new CustomEvent(SIGNAL_STRIP_EVENT, { detail: data }));
   }
 }
@@ -93,6 +101,9 @@ export function SignalStrip() {
         setPost(prev => prev ? { ...prev, platforms: updatedPlatforms } : prev);
         const allCompleted = updatedPlatforms.every(p => p.status === 'published' || p.status === 'failed');
         if (allCompleted && typeof window !== 'undefined') {
+          try {
+            sessionStorage.removeItem(`unool_publishing_${post.postId}`);
+          } catch {}
           window.dispatchEvent(new CustomEvent('signal-posts-updated', { detail: { postId: post.postId } }));
         }
       } catch {

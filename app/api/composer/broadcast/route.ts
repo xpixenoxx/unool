@@ -99,16 +99,17 @@ export async function POST(request: NextRequest) {
 
       const rawContent = guard.sanitizedContent;
 
-      // Create or reuse post in database
+      // Create or reuse post in database with 'publishing' status
       let post;
       if (incomingPostId) {
         const existing = await postRepository.findById(incomingPostId);
         if (existing && existing.workspaceId === workspaceId) {
           post = await postRepository.update(existing.id, {
             content: rawContent,
-            status: 'draft',
+            status: 'publishing',
             adaptationPromptVersion: 'direct-broadcast',
           });
+          await postRepository.updateStatus(existing.id, 'publishing');
           const admin = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
           await admin.from('post_variants').delete().eq('post_id', existing.id);
         }
@@ -121,9 +122,10 @@ export async function POST(request: NextRequest) {
           content: rawContent,
           adaptationPromptVersion: 'direct-broadcast', // Special marker indicating no AI
         });
+        await postRepository.updateStatus(post.id, 'publishing');
       }
 
-      // Create identical variants for ACTIVE platforms only
+      // Create identical variants for ACTIVE platforms only with 'publishing' status
       for (const platform of activePlatforms) {
         // Normalize mediaItems to PostMedia objects with {url, type}
         const normalizedMedia = (mediaItems || []).map((m: any) => {
@@ -134,7 +136,7 @@ export async function POST(request: NextRequest) {
         }).filter((m: any) => Boolean(m.url));
 
         // Media validation
-        let status: 'draft' | 'failed' | 'published' = 'draft';
+        let status: 'draft' | 'failed' | 'published' | 'publishing' = 'publishing';
         let errorObj: any = null;
 
         const hasVideo = normalizedMedia.some((m: any) => m.type === 'video');
@@ -153,7 +155,6 @@ export async function POST(request: NextRequest) {
           status = 'failed';
           errorObj = { code: 'MEDIA_REQUIRED', message: 'Dribbble requires an image to publish a Shot.' };
         }
-        // You can add more platform media validations here as needed.
         
         const finalMedia = await optimizeMediaForPlatform(normalizedMedia, platform);
 

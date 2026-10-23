@@ -24,7 +24,7 @@ async function getDashboardData(): Promise<{
   recentPosts: Array<{
     id: string;
     content: string;
-    status: 'draft' | 'scheduled' | 'published' | 'failed';
+    status: 'draft' | 'scheduled' | 'published' | 'failed' | 'publishing';
     createdAt: string;
     updatedAt: string;
   }>;

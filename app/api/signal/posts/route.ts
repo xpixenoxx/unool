@@ -25,12 +25,12 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Fetch last 50 posts (published, scheduled, draft, failed with variants)
+  // Fetch last 50 posts (published, scheduled, draft, failed, publishing with variants)
   const { data: posts, error: postsError } = await admin
     .from('posts')
     .select('*')
     .eq('workspace_id', workspaceId)
-    .in('status', ['published', 'scheduled', 'draft', 'failed'])
+    .in('status', ['published', 'scheduled', 'draft', 'failed', 'publishing'])
     .order('created_at', { ascending: false })
     .limit(50);
 

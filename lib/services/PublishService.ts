@@ -224,15 +224,18 @@ export class PublishService {
     const post = await postRepository.findById(postId);
     const resolvedWorkspaceId = post?.workspaceId || workspaceId;
 
+    // Ensure parent post status is set to 'publishing' immediately
+    await postRepository.updateStatus(postId, 'publishing');
+
     // Get all variants for this post
     const variants = await postRepository.findVariantsByPostId(postId);
     const results: Record<string, PublishJobResult> = {};
 
-    // Reset any previously failed variants to draft so retrying publishes cleanly
+    // Mark non-published variants as 'publishing' so UI reflects progress in real time
     for (const v of variants) {
-      if (v.status === 'failed') {
-        await postRepository.updateVariant(v.id, { status: 'draft', error: null });
-        v.status = 'draft';
+      if (v.status !== 'published') {
+        await postRepository.updateVariant(v.id, { status: 'publishing', error: null });
+        v.status = 'publishing';
         v.error = null;
       }
     }

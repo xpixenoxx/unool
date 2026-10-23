@@ -267,7 +267,8 @@ export function SignalClient() {
   const [profileSubdomain, setProfileSubdomain] = useState<string | null>(null);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'active' | 'draft' | 'failed'>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'publishing' | 'active' | 'draft' | 'failed'>('all');
+  const [activePublishingPostIds, setActivePublishingPostIds] = useState<Set<string>>(() => new Set());
   const [showDNAInfo, setShowDNAInfo] = useState(true);
   const [automationStats, setAutomationStats] = useState<{
     enabled: boolean;
@@ -279,6 +280,28 @@ export function SignalClient() {
 
   const hasLoadedOnce = useRef(false);
   const prevPendingPostIds = useRef<Set<string>>(new Set());
+
+  // Hydrate active publishing posts from sessionStorage on client mount
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const initialIds = new Set<string>();
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const key = sessionStorage.key(i);
+      if (key && key.startsWith('unool_publishing_')) {
+        try {
+          const item = JSON.parse(sessionStorage.getItem(key) || '{}');
+          if (item?.postId && (Date.now() - (item.timestamp || 0)) < 10 * 60 * 1000) {
+            initialIds.add(item.postId);
+          } else if (item?.postId) {
+            sessionStorage.removeItem(key);
+          }
+        } catch {}
+      }
+    }
+    if (initialIds.size > 0) {
+      setActivePublishingPostIds(initialIds);
+    }
+  }, []);
 
   useEffect(() => {
     async function fetchSub() {
@@ -366,10 +389,21 @@ export function SignalClient() {
   useEffect(() => {
     const currentPending = new Set<string>();
     posts.forEach(p => {
-      const hasUnfinishedVariants = p.variants.some(v => v.status === 'draft' || v.status === 'pending');
-      const isUnfinishedPost = p.status === 'draft' || p.status === 'scheduled';
+      const isPostPublishing = p.status === 'publishing' || p.variants.some(v => v.status === 'publishing' || v.status === 'pending') || activePublishingPostIds.has(p.id);
+      const isUnfinishedPost = isPostPublishing || p.status === 'draft' || p.status === 'scheduled';
+      const hasUnfinishedVariants = p.variants.some(v => v.status === 'draft' || v.status === 'pending' || v.status === 'publishing');
       if (isUnfinishedPost && hasUnfinishedVariants) {
         currentPending.add(p.id);
+      } else if (activePublishingPostIds.has(p.id)) {
+        // Post has completed all variants!
+        setActivePublishingPostIds(prev => {
+          const next = new Set(prev);
+          next.delete(p.id);
+          return next;
+        });
+        try {
+          sessionStorage.removeItem(`unool_publishing_${p.id}`);
+        } catch {}
       }
     });
 
@@ -379,7 +413,7 @@ export function SignalClient() {
           const updatedPost = posts.find(p => p.id === id);
           if (updatedPost && (updatedPost.status === 'published' || updatedPost.variants.some(v => v.status === 'published'))) {
             toast.success('Post published live across all platforms!', {
-              description: 'Updated automatically from Drafts to live stream.',
+              description: 'Updated automatically to live stream.',
             });
           }
         }
@@ -387,18 +421,19 @@ export function SignalClient() {
     }
 
     prevPendingPostIds.current = currentPending;
-  }, [posts]);
+  }, [posts, activePublishingPostIds]);
 
   // ── Smart Dynamic Polling ───────────────────────────────────────────────────
-  // Active fast polling (2.5s) if recent pending drafts exist; background heartbeat (25s) otherwise
+  // Active fast polling (2.5s) if recent pending/publishing posts exist; background heartbeat (25s) otherwise
   const hasActiveOrPendingPosts = useMemo(() => {
     return posts.some(p => {
       const isRecent = (Date.now() - new Date(p.createdAt).getTime()) < 20 * 60 * 1000;
-      const hasPendingVariants = p.variants.some(v => v.status === 'draft' || v.status === 'pending');
-      const isPendingStatus = p.status === 'draft' || p.status === 'scheduled';
-      return isRecent && (hasPendingVariants || isPendingStatus);
+      const hasPendingVariants = p.variants.some(v => v.status === 'draft' || v.status === 'pending' || v.status === 'publishing');
+      const isPendingStatus = p.status === 'draft' || p.status === 'scheduled' || p.status === 'publishing';
+      const isActivePublishing = activePublishingPostIds.has(p.id);
+      return isRecent && (hasPendingVariants || isPendingStatus || isActivePublishing);
     });
-  }, [posts]);
+  }, [posts, activePublishingPostIds]);
 
   useEffect(() => {
     const pollInterval = hasActiveOrPendingPosts ? 2500 : 25000;
@@ -428,16 +463,35 @@ export function SignalClient() {
 
   // ── Cross-Component Global Event Bus Listeners ───────────────────────────────
   useEffect(() => {
-    const handleGlobalPublish = () => {
+    const handleGlobalPublish = (e: Event) => {
+      const detail = (e as CustomEvent)?.detail;
+      if (detail?.postId) {
+        setActivePublishingPostIds(prev => new Set([...prev, detail.postId]));
+      }
+      loadData(true);
+    };
+
+    const handleGlobalUpdated = (e: Event) => {
+      const detail = (e as CustomEvent)?.detail;
+      if (detail?.postId) {
+        setActivePublishingPostIds(prev => {
+          const next = new Set(prev);
+          next.delete(detail.postId);
+          return next;
+        });
+        try {
+          sessionStorage.removeItem(`unool_publishing_${detail.postId}`);
+        } catch {}
+      }
       loadData(true);
     };
 
     window.addEventListener('signal-strip-publish', handleGlobalPublish);
-    window.addEventListener('signal-posts-updated', handleGlobalPublish);
+    window.addEventListener('signal-posts-updated', handleGlobalUpdated);
 
     return () => {
       window.removeEventListener('signal-strip-publish', handleGlobalPublish);
-      window.removeEventListener('signal-posts-updated', handleGlobalPublish);
+      window.removeEventListener('signal-posts-updated', handleGlobalUpdated);
     };
   }, [loadData]);
 
@@ -534,17 +588,24 @@ export function SignalClient() {
   // Filtered posts for feed
   const filteredPosts = useMemo(() => {
     return posts.filter(post => {
+      const isPublishing = post.status === 'publishing' || post.variants.some(v => v.status === 'publishing' || v.status === 'pending') || activePublishingPostIds.has(post.id);
+
       // Status filter
       if (filterStatus === 'published') {
         if (!post.variants.some(v => v.status === 'published')) return false;
+      } else if (filterStatus === 'publishing') {
+        if (!isPublishing) return false;
       } else if (filterStatus === 'active') {
         if (getPostAge(post.createdAt) !== 'active' || !post.variants.some(v => v.status === 'published')) return false;
       } else if (filterStatus === 'draft') {
+        // While publishing, a post MUST NOT be shown as a draft!
+        if (isPublishing) return false;
         const isFailed = post.status === 'failed' || (post.variants.some(v => v.status === 'failed') && !post.variants.some(v => v.status === 'published'));
         if (isFailed) return false;
         const isDraft = post.status === 'draft' || !post.variants.some(v => v.status === 'published');
         if (!isDraft) return false;
       } else if (filterStatus === 'failed') {
+        if (isPublishing) return false;
         const isFailed = post.status === 'failed' || post.variants.some(v => v.status === 'failed');
         if (!isFailed) return false;
       }
@@ -560,11 +621,12 @@ export function SignalClient() {
 
       return true;
     });
-  }, [posts, filterStatus, searchQuery]);
+  }, [posts, filterStatus, searchQuery, activePublishingPostIds]);
 
   // Live overview metrics
   const liveStats = useMemo(() => {
     const total = posts.length;
+    const publishing = posts.filter(p => p.status === 'publishing' || p.variants.some(v => v.status === 'publishing' || v.status === 'pending') || activePublishingPostIds.has(p.id)).length;
     const published = posts.filter(p => p.variants.some(v => v.status === 'published')).length;
     const active = posts.filter(p => getPostAge(p.createdAt) === 'active' && p.variants.some(v => v.status === 'published')).length;
     const platformReach = new Set(posts.flatMap(p => p.variants.filter(v => v.status === 'published').map(v => v.platform))).size;
@@ -573,8 +635,8 @@ export function SignalClient() {
     const deliveryRate = totalVariants > 0 ? Math.round((liveVariants / totalVariants) * 100) : 100;
     const totalInteractions = posts.reduce((sum, p) => sum + (p.engagement?.total || 0), 0);
 
-    return { total, published, active, platformReach, deliveryRate, totalInteractions };
-  }, [posts]);
+    return { total, publishing, published, active, platformReach, deliveryRate, totalInteractions };
+  }, [posts, activePublishingPostIds]);
 
   if (loading) {
     return (
@@ -782,6 +844,9 @@ export function SignalClient() {
                   {[
                     { id: 'all', label: 'All' },
                     { id: 'published', label: 'Live' },
+                    ...(liveStats.publishing > 0
+                      ? [{ id: 'publishing', label: `Publishing (${liveStats.publishing})` }]
+                      : []),
                     { id: 'active', label: 'Golden Hour' },
                     { id: 'draft', label: 'Drafts' },
                     { id: 'failed', label: 'Failed' },
@@ -789,13 +854,18 @@ export function SignalClient() {
                     <button
                       key={f.id}
                       onClick={() => setFilterStatus(f.id as any)}
-                      className={`px-3 py-1 text-xs font-semibold rounded-full border transition-all cursor-pointer ${
+                      className={`px-3 py-1 text-xs font-semibold rounded-full border transition-all cursor-pointer flex items-center gap-1.5 ${
                         filterStatus === f.id
-                          ? 'bg-[#3D2B1F] text-white border-[#3D2B1F]'
+                          ? f.id === 'publishing'
+                            ? 'bg-sky-600 text-white border-sky-600'
+                            : 'bg-[#3D2B1F] text-white border-[#3D2B1F]'
+                          : f.id === 'publishing'
+                          ? 'bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100 dark:bg-sky-950/40 dark:border-sky-800 dark:text-sky-300'
                           : 'bg-white text-[#8B7355] border-[#E8E0D4] hover:bg-[#F7F3ED]'
                       }`}
                     >
-                      {f.label}
+                      {f.id === 'publishing' && <Loader2 className="w-3 h-3 animate-spin text-current" />}
+                      <span>{f.label}</span>
                     </button>
                   ))}
                   <button
@@ -837,6 +907,7 @@ export function SignalClient() {
                       onDelete={(id) => setPosts(prev => prev.filter(p => p.id !== id))}
                       profileSubdomain={profileSubdomain}
                       isMostRecentPublished={post.id === mostRecentPublishedPostId}
+                      isPublishingTracked={activePublishingPostIds.has(post.id)}
                     />
                   ))}
                 </div>
@@ -959,26 +1030,36 @@ export function SignalClient() {
 /* ── Post Card ──────────────────────────────────────────────────────────────── */
 function PostCard({
   post,
-  delay,
+  delay = 0,
   onRefresh,
   onDelete,
   profileSubdomain,
   isMostRecentPublished = false,
+  isPublishingTracked = false,
 }: {
   post: SignalPost;
-  delay: number;
+  delay?: number;
   onRefresh: () => void;
   onDelete?: (postId: string) => void;
   profileSubdomain?: string | null;
   isMostRecentPublished?: boolean;
+  isPublishingTracked?: boolean;
 }) {
   const age = getPostAge(post.createdAt);
   const goldenRemaining = getGoldenHourRemaining(post.createdAt);
   const publishedVariants = post.variants.filter(v => v.status === 'published');
-  const pendingVariants = post.variants.filter(v => v.status === 'draft' || v.status === 'pending');
+  const publishingVariants = post.variants.filter(v => v.status === 'publishing' || v.status === 'pending');
+  const pendingVariants = publishingVariants;
   const failedVariants = post.variants.filter(v => v.status === 'failed');
-  const isFailedPost = post.status === 'failed' || (failedVariants.length > 0 && publishedVariants.length === 0 && pendingVariants.length === 0);
-  const isDraft = !isFailedPost && (post.status === 'draft' || publishedVariants.length === 0);
+  const draftVariants = post.variants.filter(v => v.status === 'draft');
+
+  // Active publishing detection: post is in progress of publishing to networks
+  const isActivelyPublishing = post.status === 'publishing' || publishingVariants.length > 0 || (isPublishingTracked && publishedVariants.length < post.variants.length);
+
+  const isFailedPost = !isActivelyPublishing && (post.status === 'failed' || (failedVariants.length > 0 && publishedVariants.length === 0 && publishingVariants.length === 0 && draftVariants.length === 0));
+
+  // A post is a draft ONLY IF it is not currently publishing, not failed, and has no live dispatches
+  const isDraft = !isFailedPost && !isActivelyPublishing && (post.status === 'draft' || publishedVariants.length === 0);
 
   // Deduplicate variants by platform for clean display (defensive against duplicate platform rows)
   const displayVariants = useMemo(() => {
@@ -1057,7 +1138,9 @@ function PostCard({
       transition={{ delay, duration: 0.22 }}
       className="bg-white rounded-2xl border overflow-hidden transition-all shadow-xs"
       style={{
-        borderColor: isFailedPost
+        borderColor: isActivelyPublishing
+          ? '#7dd3fc'
+          : isFailedPost
           ? '#fecdd3'
           : isDraft
           ? '#fed7aa'
@@ -1066,7 +1149,9 @@ function PostCard({
           : age === 'settling'
           ? '#e5e7eb'
           : '#f3f4f6',
-        boxShadow: isFailedPost
+        boxShadow: isActivelyPublishing
+          ? '0 0 0 1px #38bdf830, 0 4px 20px #0284c715'
+          : isFailedPost
           ? '0 1px 6px #f43f5e10'
           : isDraft
           ? '0 1px 6px #f9731610'
@@ -1075,15 +1160,25 @@ function PostCard({
           : '0 1px 4px #0000000a',
       }}
     >
+      {/* Active Publishing glowing progress bar */}
+      {isActivelyPublishing && (
+        <div className="h-1 bg-gradient-to-r from-sky-400 via-indigo-500 to-sky-400 animate-pulse" />
+      )}
+
       {/* Active Golden Hour glowing top strip */}
-      {age === 'active' && !isDraft && (
+      {age === 'active' && !isDraft && !isActivelyPublishing && (
         <div className="h-1 bg-gradient-to-r from-amber-500 via-orange-400 to-amber-500 animate-pulse" />
       )}
 
       {/* Card header: age badge + time */}
       <div className="flex items-center justify-between px-5 pt-4 pb-2 flex-wrap gap-2">
         <div className="flex items-center gap-2">
-          {isFailedPost ? (
+          {isActivelyPublishing ? (
+            <span className="flex items-center gap-1.5 text-xs font-bold text-sky-800 bg-sky-50 dark:bg-sky-950/40 dark:text-sky-300 px-3 py-1 rounded-full border border-sky-300 dark:border-sky-800 shadow-xs">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-sky-600 dark:text-sky-400" />
+              <span>Publishing in progress&hellip;</span>
+            </span>
+          ) : isFailedPost ? (
             <span className="flex items-center gap-1.5 text-xs font-semibold text-rose-700 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200">
               <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
               <span>Delivery Failed</span>
@@ -1123,6 +1218,35 @@ function PostCard({
       <p className="px-5 py-2 text-[15px] text-[#3D2B1F] leading-relaxed line-clamp-3">
         {post.content}
       </p>
+
+      {/* Live Publishing Progress Meter */}
+      {isActivelyPublishing && (
+        <div className="mx-5 my-2.5 p-3.5 rounded-xl bg-gradient-to-r from-sky-50/80 via-indigo-50/40 to-sky-50/80 border border-sky-200/90 dark:from-sky-950/40 dark:to-indigo-950/30 dark:border-sky-900/60 shadow-xs">
+          <div className="flex items-center justify-between text-xs font-semibold text-sky-900 dark:text-sky-200 mb-2">
+            <span className="flex items-center gap-1.5">
+              <Radio className="w-3.5 h-3.5 text-sky-600 animate-pulse" />
+              Live Dispatch in Progress
+            </span>
+            <span className="font-mono text-[11px] px-2 py-0.5 rounded-full bg-white dark:bg-sky-900/60 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800">
+              {publishedVariants.length} of {displayVariants.length} published
+            </span>
+          </div>
+          <div className="w-full bg-sky-200/60 dark:bg-sky-900/60 rounded-full h-1.5 overflow-hidden">
+            <motion.div
+              className="bg-gradient-to-r from-sky-500 to-indigo-600 h-1.5 rounded-full"
+              initial={{ width: '15%' }}
+              animate={{
+                width: `${Math.max(15, Math.round((publishedVariants.length / (displayVariants.length || 1)) * 100))}%`
+              }}
+              transition={{ duration: 0.5, ease: 'easeOut' }}
+            />
+          </div>
+          <p className="text-[11px] text-sky-700/80 dark:text-sky-300/80 mt-2 flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-sky-500 animate-ping inline-block" />
+            Live dispatch active. Links will update automatically as each network confirms.
+          </p>
+        </div>
+      )}
 
       {/* Live Audience Engagement Metrics */}
       {post.engagement && post.engagement.hasRealData && (
@@ -1165,7 +1289,7 @@ function PostCard({
             const cfg = getPlatformConfig(variant.platform);
             const Logo = cfg.logo;
             const isLive = variant.status === 'published';
-            const isPending = variant.status === 'draft' || variant.status === 'pending';
+            const isVariantPublishing = variant.status === 'publishing' || variant.status === 'pending' || (isActivelyPublishing && variant.status === 'draft');
             const isFailed = variant.status === 'failed';
 
             return (
@@ -1189,9 +1313,21 @@ function PostCard({
                     )}
                     <ExternalLink className="w-3 h-3 text-gray-300 group-hover:text-gray-500 transition-colors" />
                   </a>
+                ) : isVariantPublishing ? (
+                  <motion.div
+                    animate={{ opacity: [1, 0.6, 1] }}
+                    transition={{ repeat: Infinity, duration: 1.2 }}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl border bg-sky-50/70 border-sky-200 text-sky-800 dark:bg-sky-950/40 dark:border-sky-800 dark:text-sky-300"
+                    title={`Publishing to ${cfg.name}...`}
+                  >
+                    <Logo size={16} />
+                    <span className="text-xs font-semibold">{cfg.name}</span>
+                    <Loader2 className="w-3 h-3 animate-spin text-sky-600 dark:text-sky-400" />
+                    <span className="text-[10px] text-sky-600 dark:text-sky-400 font-medium">publishing&hellip;</span>
+                  </motion.div>
                 ) : (
                   <motion.div
-                    animate={isPending ? { opacity: [1, 0.5, 1] } : {}}
+                    animate={isVariantPublishing ? { opacity: [1, 0.5, 1] } : {}}
                     transition={{ repeat: Infinity, duration: 1.4 }}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border ${
                       isFailed ? 'bg-red-50 border-red-200 cursor-pointer hover:bg-red-100 transition-colors' : 'bg-gray-50 border-gray-200'
@@ -1204,7 +1340,6 @@ function PostCard({
                       {cfg.name}
                     </span>
                     {isFailed && <span className="w-2 h-2 rounded-full bg-[#B85450] inline-block" aria-hidden="true" />}
-                    {isPending && <span className="text-[10px] text-gray-400 ml-0.5">sending…</span>}
                   </motion.div>
                 )}
               </div>
@@ -1231,31 +1366,47 @@ function PostCard({
       {/* Summary footer */}
       <div className="px-5 py-3 bg-gray-50/60 border-t border-gray-100 flex items-center justify-between gap-3 text-xs text-gray-500 flex-wrap">
         <div className="flex items-center gap-3 flex-wrap">
-          {publishedVariants.length > 0 && (
-            <span className="text-green-600 font-medium flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-[#4A8C5C]" aria-hidden="true" />
-              {publishedVariants.length} live
+          {isActivelyPublishing ? (
+            <span className="text-sky-700 font-semibold flex items-center gap-1.5">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-sky-600" />
+              Broadcasting ({publishedVariants.length}/{displayVariants.length} published)
             </span>
-          )}
-          {pendingVariants.length > 0 && (
-            <span className="text-amber-600 font-medium flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-[#C49B3C]" aria-hidden="true" />
-              {pendingVariants.length} pending
-            </span>
-          )}
-          {failedVariants.length > 0 && (
-            <span className="text-red-500 font-medium flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-[#B85450]" aria-hidden="true" />
-              {failedVariants.length} failed
-            </span>
+          ) : (
+            <>
+              {publishedVariants.length > 0 && (
+                <span className="text-green-600 font-medium flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-[#4A8C5C]" aria-hidden="true" />
+                  {publishedVariants.length} live
+                </span>
+              )}
+              {pendingVariants.length > 0 && (
+                <span className="text-amber-600 font-medium flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-[#C49B3C]" aria-hidden="true" />
+                  {pendingVariants.length} pending
+                </span>
+              )}
+              {failedVariants.length > 0 && (
+                <span className="text-red-500 font-medium flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-[#B85450]" aria-hidden="true" />
+                  {failedVariants.length} failed
+                </span>
+              )}
+            </>
           )}
           <span className="text-gray-400">
             {post.wordCount || post.content.split(/\s+/).filter(Boolean).length} words
           </span>
         </div>
 
-        {/* Action buttons for drafts and failed posts: Review & edit, Remove */}
-        {(isDraft || isFailedPost) ? (
+        {/* Action buttons: When publishing, show active status instead of draft/review buttons */}
+        {isActivelyPublishing ? (
+          <div className="flex items-center gap-2 ml-auto">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-sky-50 text-sky-800 border border-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800 shadow-xs">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-sky-600 dark:text-sky-400" />
+              <span>Publishing in progress</span>
+            </span>
+          </div>
+        ) : (isDraft || isFailedPost) ? (
           <div className="flex items-center gap-2 ml-auto">
             {(() => {
               const redirect = getDraftRedirect(post);
