@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
     const rawStudioProfile: any = clientStudioProfile || profile?.studioProfile || profile?.onboardingAnswers;
     const isCompleted = Boolean(
       (rawStudioProfile && (rawStudioProfile.role || rawStudioProfile.persona) && (rawStudioProfile.completedAt || profile?.onboardingCompleted)) ||
-      (profile && (profile.onboardingCompleted || (profile.studioProfile && (profile.studioProfile.role || profile.studioProfile.persona))))
+      (profile && (profile.onboardingCompleted || (profile.studioProfile && profile.studioProfile.role)))
     );
 
     if (!isCompleted || !rawStudioProfile) {

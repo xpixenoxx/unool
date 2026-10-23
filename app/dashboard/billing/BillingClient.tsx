@@ -230,39 +230,40 @@ export default function BillingClient() {
   const isFreeTier = currentPlan?.isFreeTier !== false;
 
   return (
-    <div style={{ padding: '32px 24px', maxWidth: 1200, margin: '0 auto' }}>
+    <div style={{ padding: '32px 24px', maxWidth: 1200, margin: '0 auto', color: '#1A1612' }}>
       {/* ── Header ──────────────────────────────────────────── */}
       <div style={{ marginBottom: 32 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 700, color: '#F8FAFC', margin: 0 }}>
-          Billing
+        <h1 style={{ fontSize: 28, fontWeight: 800, color: '#1A1612', margin: 0, letterSpacing: '-0.02em' }}>
+          Plans &amp; Billing
         </h1>
-        <p style={{ fontSize: 15, color: '#94A3B8', marginTop: 6 }}>
-          Manage your subscription and billing preferences
+        <p style={{ fontSize: 15, color: '#7A7265', marginTop: 6 }}>
+          Manage your subscription, plan limits, and Cashfree billing preferences
         </p>
       </div>
 
       {/* ── Current Plan Card ────────────────────────────────── */}
       <div style={{
-        background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%)',
-        border: '1px solid rgba(139, 92, 246, 0.2)',
+        background: '#FFFFFF',
+        border: '1px solid #E8E0D5',
         borderRadius: 16,
         padding: 24,
         marginBottom: 32,
+        boxShadow: '0 4px 20px -4px rgba(42, 36, 30, 0.05)',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{
-                fontSize: 13, fontWeight: 600, color: '#8B5CF6',
-                background: 'rgba(139, 92, 246, 0.15)', padding: '4px 12px',
+                fontSize: 12, fontWeight: 700, color: '#8B5CF6',
+                background: 'rgba(139, 92, 246, 0.1)', padding: '4px 12px',
                 borderRadius: 20, textTransform: 'uppercase', letterSpacing: '0.05em',
               }}>
                 Current Plan
               </span>
               {currentPlan?.subscription?.status && (
                 <span style={{
-                  fontSize: 12, fontWeight: 500,
-                  color: currentPlan.subscription.status === 'active' ? '#10B981' : '#F59E0B',
+                  fontSize: 12, fontWeight: 600,
+                  color: currentPlan.subscription.status === 'active' ? '#059669' : '#D97706',
                   background: currentPlan.subscription.status === 'active' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
                   padding: '3px 10px', borderRadius: 12,
                 }}>
@@ -270,48 +271,48 @@ export default function BillingClient() {
                 </span>
               )}
             </div>
-            <h2 style={{ fontSize: 24, fontWeight: 700, color: '#F8FAFC', marginTop: 10 }}>
+            <h2 style={{ fontSize: 24, fontWeight: 800, color: '#1A1612', marginTop: 10, letterSpacing: '-0.01em' }}>
               {currentPlan?.plan?.name || 'Spark'} {isFreeTier ? '(Free)' : ''}
             </h2>
-            <p style={{ fontSize: 14, color: '#94A3B8', marginTop: 4 }}>
+            <p style={{ fontSize: 14, color: '#7A7265', marginTop: 4 }}>
               {currentPlan?.plan?.tagline}
             </p>
           </div>
 
           {!isFreeTier && currentPlan?.subscription && (
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 14, color: '#94A3B8' }}>Next billing</div>
-              <div style={{ fontSize: 16, fontWeight: 600, color: '#F8FAFC', marginTop: 2 }}>
+              <div style={{ fontSize: 13, color: '#7A7265', fontWeight: 500 }}>Next billing</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#1A1612', marginTop: 2 }}>
                 {currentPlan.subscription.currentPeriodEnd
                   ? new Date(currentPlan.subscription.currentPeriodEnd).toLocaleDateString('en-IN', {
                       day: 'numeric', month: 'long', year: 'numeric',
                     })
                   : '—'}
               </div>
-              <div style={{ fontSize: 14, color: '#8B5CF6', marginTop: 2 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#8B5CF6', marginTop: 2 }}>
                 {currentPlan.subscription.amount}/{currentPlan.subscription.billingCycle === 'annual' ? 'year' : 'month'}
               </div>
               {!currentPlan.subscription.cancelAtPeriodEnd && (
                 <button
                   onClick={() => setShowCancelModal(true)}
                   style={{
-                    marginTop: 12, fontSize: 13, color: '#EF4444',
-                    background: 'none', border: '1px solid rgba(239, 68, 68, 0.3)',
+                    marginTop: 12, fontSize: 13, fontWeight: 600, color: '#DC2626',
+                    background: '#FEF2F2', border: '1px solid #FECACA',
                     padding: '6px 16px', borderRadius: 8, cursor: 'pointer',
                     transition: 'all 0.2s',
                   }}
                   onMouseEnter={e => {
-                    (e.target as HTMLElement).style.background = 'rgba(239, 68, 68, 0.1)';
+                    (e.target as HTMLElement).style.background = '#FEE2E2';
                   }}
                   onMouseLeave={e => {
-                    (e.target as HTMLElement).style.background = 'none';
+                    (e.target as HTMLElement).style.background = '#FEF2F2';
                   }}
                 >
                   Cancel Subscription
                 </button>
               )}
               {currentPlan.subscription.cancelAtPeriodEnd && (
-                <div style={{ marginTop: 8, fontSize: 13, color: '#F59E0B' }}>
+                <div style={{ marginTop: 8, fontSize: 13, fontWeight: 600, color: '#D97706' }}>
                   ⚠ Cancels at end of period
                 </div>
               )}
@@ -325,14 +326,14 @@ export default function BillingClient() {
         <div style={{
           padding: 16, borderRadius: 12, marginBottom: 24,
           background: paymentResult.status === 'PAID'
-            ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+            ? '#ECFDF5' : '#FEF2F2',
           border: `1px solid ${paymentResult.status === 'PAID'
-            ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
-          color: paymentResult.status === 'PAID' ? '#10B981' : '#EF4444',
+            ? '#A7F3D0' : '#FECACA'}`,
+          color: paymentResult.status === 'PAID' ? '#065F46' : '#991B1B',
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         }}>
           <div>
-            <div style={{ fontWeight: 600 }}>
+            <div style={{ fontWeight: 700 }}>
               {paymentResult.status === 'PAID' ? '✓ Payment Successful' : '✗ Payment Issue'}
             </div>
             <div style={{ fontSize: 14, marginTop: 2, opacity: 0.9 }}>
@@ -351,62 +352,76 @@ export default function BillingClient() {
       {verifying && (
         <div style={{
           padding: 16, borderRadius: 12, marginBottom: 24,
-          background: 'rgba(59, 130, 246, 0.1)',
-          border: '1px solid rgba(59, 130, 246, 0.3)',
-          color: '#60A5FA', display: 'flex', alignItems: 'center', gap: 12,
+          background: '#EFF6FF',
+          border: '1px solid #BFDBFE',
+          color: '#1D4ED8', display: 'flex', alignItems: 'center', gap: 12,
+          fontWeight: 600,
         }}>
           <div style={{
             width: 20, height: 20,
-            border: '2px solid rgba(96, 165, 250, 0.3)',
-            borderTopColor: '#60A5FA',
+            border: '2px solid rgba(29, 78, 216, 0.3)',
+            borderTopColor: '#1D4ED8',
             borderRadius: '50%',
             animation: 'spin 0.8s linear infinite',
           }} />
-          Verifying payment...
+          Verifying payment with Cashfree...
         </div>
       )}
 
       {/* ── Billing Cycle Toggle ──────────────────────────────── */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        gap: 12, marginBottom: 32,
+        marginBottom: 36,
       }}>
-        <button
-          onClick={() => setBillingCycle('monthly')}
-          style={{
-            padding: '10px 24px', borderRadius: 10, fontSize: 14, fontWeight: 600,
-            border: 'none', cursor: 'pointer', transition: 'all 0.2s',
-            background: billingCycle === 'monthly' ? '#8B5CF6' : 'rgba(148, 163, 184, 0.1)',
-            color: billingCycle === 'monthly' ? 'white' : '#94A3B8',
-          }}
-        >
-          Monthly
-        </button>
-        <button
-          onClick={() => setBillingCycle('annual')}
-          style={{
-            padding: '10px 24px', borderRadius: 10, fontSize: 14, fontWeight: 600,
-            border: 'none', cursor: 'pointer', transition: 'all 0.2s',
-            background: billingCycle === 'annual' ? '#8B5CF6' : 'rgba(148, 163, 184, 0.1)',
-            color: billingCycle === 'annual' ? 'white' : '#94A3B8',
-          }}
-        >
-          Annual
-          <span style={{
-            marginLeft: 8, fontSize: 11, fontWeight: 700,
-            background: 'rgba(16, 185, 129, 0.15)', color: '#10B981',
-            padding: '2px 8px', borderRadius: 6,
-          }}>
-            Save 2 months
-          </span>
-        </button>
+        <div style={{
+          display: 'inline-flex',
+          background: '#EAE3D9',
+          padding: 4,
+          borderRadius: 14,
+          border: '1px solid #E0D6C8',
+          gap: 4,
+        }}>
+          <button
+            onClick={() => setBillingCycle('monthly')}
+            style={{
+              padding: '10px 24px', borderRadius: 10, fontSize: 14, fontWeight: 600,
+              border: 'none', cursor: 'pointer', transition: 'all 0.2s',
+              background: billingCycle === 'monthly' ? '#1A1612' : 'transparent',
+              color: billingCycle === 'monthly' ? '#FFFFFF' : '#7A7265',
+              boxShadow: billingCycle === 'monthly' ? '0 2px 8px rgba(0,0,0,0.12)' : 'none',
+            }}
+          >
+            Monthly
+          </button>
+          <button
+            onClick={() => setBillingCycle('annual')}
+            style={{
+              padding: '10px 24px', borderRadius: 10, fontSize: 14, fontWeight: 600,
+              border: 'none', cursor: 'pointer', transition: 'all 0.2s',
+              background: billingCycle === 'annual' ? '#1A1612' : 'transparent',
+              color: billingCycle === 'annual' ? '#FFFFFF' : '#7A7265',
+              boxShadow: billingCycle === 'annual' ? '0 2px 8px rgba(0,0,0,0.12)' : 'none',
+              display: 'flex', alignItems: 'center',
+            }}
+          >
+            Annual
+            <span style={{
+              marginLeft: 8, fontSize: 11, fontWeight: 700,
+              background: billingCycle === 'annual' ? 'rgba(16, 185, 129, 0.25)' : '#D1FAE5',
+              color: billingCycle === 'annual' ? '#10B981' : '#065F46',
+              padding: '2px 8px', borderRadius: 6,
+            }}>
+              Save 2 months
+            </span>
+          </button>
+        </div>
       </div>
 
       {/* ── Plan Cards ────────────────────────────────────────── */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-        gap: 20,
+        gap: 24,
       }}>
         {plans.map(plan => {
           const isCurrentPlan = plan.id === currentPlanId;
@@ -421,24 +436,32 @@ export default function BillingClient() {
               key={plan.id}
               style={{
                 position: 'relative',
-                background: isPopular
-                  ? 'linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(59, 130, 246, 0.05) 100%)'
-                  : 'rgba(15, 23, 42, 0.6)',
-                border: `1px solid ${isPopular ? 'rgba(139, 92, 246, 0.4)' : isCurrentPlan ? 'rgba(16, 185, 129, 0.4)' : 'rgba(148, 163, 184, 0.1)'}`,
-                borderRadius: 16,
-                padding: 24,
+                background: '#FFFFFF',
+                border: isPopular
+                  ? '2px solid #8B5CF6'
+                  : isCurrentPlan
+                    ? '2px solid #10B981'
+                    : '1px solid #E8E0D5',
+                borderRadius: 20,
+                padding: '32px 24px',
                 display: 'flex', flexDirection: 'column',
-                transition: 'all 0.3s',
+                transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+                boxShadow: isPopular
+                  ? '0 20px 40px -12px rgba(139, 92, 246, 0.2)'
+                  : isCurrentPlan
+                    ? '0 12px 32px -8px rgba(16, 185, 129, 0.15)'
+                    : '0 4px 20px -4px rgba(42, 36, 30, 0.05)',
               }}
             >
               {/* Popular badge */}
               {isPopular && (
                 <div style={{
-                  position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)',
+                  position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)',
                   background: 'linear-gradient(135deg, #8B5CF6, #6366F1)',
                   color: 'white', fontSize: 11, fontWeight: 700,
                   padding: '4px 16px', borderRadius: 12,
-                  textTransform: 'uppercase', letterSpacing: '0.05em',
+                  textTransform: 'uppercase', letterSpacing: '0.06em',
+                  boxShadow: '0 4px 12px rgba(139, 92, 246, 0.35)',
                 }}>
                   Most Popular
                 </div>
@@ -446,33 +469,33 @@ export default function BillingClient() {
 
               {/* Plan header */}
               <div>
-                <h3 style={{ fontSize: 20, fontWeight: 700, color: '#F8FAFC', margin: 0 }}>
+                <h3 style={{ fontSize: 22, fontWeight: 800, color: '#1A1612', margin: 0, letterSpacing: '-0.01em' }}>
                   {plan.name}
                 </h3>
-                <p style={{ fontSize: 13, color: '#94A3B8', marginTop: 4 }}>
+                <p style={{ fontSize: 13, color: '#7A7265', marginTop: 6, minHeight: 38, lineHeight: 1.4 }}>
                   {plan.tagline}
                 </p>
               </div>
 
               {/* Price */}
-              <div style={{ marginTop: 20 }}>
+              <div style={{ marginTop: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                  <span style={{ fontSize: 36, fontWeight: 800, color: '#F8FAFC' }}>
+                  <span style={{ fontSize: 38, fontWeight: 800, color: '#1A1612', letterSpacing: '-0.03em' }}>
                     {plan.isFreeTier ? 'Free' : price}
                   </span>
                   {!plan.isFreeTier && (
-                    <span style={{ fontSize: 14, color: '#64748B' }}>/mo</span>
+                    <span style={{ fontSize: 14, color: '#7A7265', fontWeight: 500 }}>/mo</span>
                   )}
                 </div>
                 {!plan.isFreeTier && billingCycle === 'annual' && (
-                  <div style={{ fontSize: 12, color: '#10B981', marginTop: 4 }}>
+                  <div style={{ fontSize: 12, color: '#059669', fontWeight: 600, marginTop: 4 }}>
                     Billed {plan.pricing.annualDisplay}/year
                   </div>
                 )}
               </div>
 
               {/* Features */}
-              <ul style={{ listStyle: 'none', padding: 0, margin: '20px 0', flex: 1 }}>
+              <ul style={{ listStyle: 'none', padding: 0, margin: '24px 0', flex: 1 }}>
                 <FeatureItem text={`${plan.limits.channels === -1 ? 'Unlimited' : plan.limits.channels} channels`} />
                 <FeatureItem text={`${plan.limits.posts_per_month === -1 ? 'Unlimited' : plan.limits.posts_per_month} posts/mo`} />
                 <FeatureItem text={`${plan.limits.ai_credits_per_month === -1 ? 'Unlimited' : plan.limits.ai_credits_per_month} AI credits/mo`} />
@@ -491,8 +514,8 @@ export default function BillingClient() {
                   disabled
                   style={{
                     padding: '12px 24px', borderRadius: 10, fontSize: 14, fontWeight: 600,
-                    background: 'rgba(16, 185, 129, 0.1)', color: '#10B981',
-                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    background: '#ECFDF5', color: '#065F46',
+                    border: '1px solid #A7F3D0',
                     cursor: 'default',
                   }}
                 >
@@ -503,8 +526,8 @@ export default function BillingClient() {
                   disabled
                   style={{
                     padding: '12px 24px', borderRadius: 10, fontSize: 14, fontWeight: 600,
-                    background: 'rgba(148, 163, 184, 0.05)', color: '#64748B',
-                    border: '1px solid rgba(148, 163, 184, 0.1)',
+                    background: '#F4EFEA', color: '#7A7265',
+                    border: '1px solid #E8E0D5',
                     cursor: 'default',
                   }}
                 >
@@ -515,14 +538,19 @@ export default function BillingClient() {
                   onClick={() => handleSelectPlan(plan.id)}
                   disabled={!!paymentLoading || !isUpgrade}
                   style={{
-                    padding: '12px 24px', borderRadius: 10, fontSize: 14, fontWeight: 600,
+                    padding: '12px 24px', borderRadius: 10, fontSize: 14, fontWeight: 700,
                     background: isUpgrade
-                      ? (isPopular ? 'linear-gradient(135deg, #8B5CF6, #6366F1)' : '#8B5CF6')
-                      : 'rgba(148, 163, 184, 0.05)',
-                    color: isUpgrade ? 'white' : '#64748B',
+                      ? (isPopular ? 'linear-gradient(135deg, #8B5CF6, #6366F1)' : '#1A1612')
+                      : '#F4EFEA',
+                    color: isUpgrade ? 'white' : '#7A7265',
                     border: 'none', cursor: isUpgrade ? 'pointer' : 'default',
                     transition: 'all 0.2s',
                     opacity: paymentLoading === plan.id ? 0.7 : 1,
+                    boxShadow: isUpgrade && isPopular
+                      ? '0 4px 14px rgba(139, 92, 246, 0.35)'
+                      : isUpgrade
+                        ? '0 4px 12px rgba(26, 22, 18, 0.15)'
+                        : 'none',
                   }}
                 >
                   {paymentLoading === plan.id ? 'Processing...' : isUpgrade ? `Upgrade to ${plan.name}` : 'Current or lower tier'}
@@ -537,18 +565,19 @@ export default function BillingClient() {
       {showCancelModal && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 1000,
-          background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+          background: 'rgba(26, 22, 18, 0.6)', backdropFilter: 'blur(4px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <div style={{
-            background: '#0F172A', borderRadius: 16,
-            border: '1px solid rgba(148, 163, 184, 0.15)',
+            background: '#FFFFFF', borderRadius: 18,
+            border: '1px solid #E8E0D5',
             padding: 32, maxWidth: 440, width: '90%',
+            boxShadow: '0 24px 48px -12px rgba(0, 0, 0, 0.25)',
           }}>
-            <h3 style={{ fontSize: 20, fontWeight: 700, color: '#F8FAFC', margin: 0 }}>
+            <h3 style={{ fontSize: 20, fontWeight: 800, color: '#1A1612', margin: 0 }}>
               Cancel Subscription?
             </h3>
-            <p style={{ fontSize: 14, color: '#94A3B8', marginTop: 12 }}>
+            <p style={{ fontSize: 14, color: '#7A7265', marginTop: 12, lineHeight: 1.5 }}>
               Your plan features will remain active until the end of your current billing period.
               After that, you will be downgraded to the Spark (free) plan.
             </p>
@@ -557,8 +586,8 @@ export default function BillingClient() {
                 onClick={() => handleCancel(false)}
                 style={{
                   flex: 1, padding: '10px 16px', borderRadius: 10,
-                  background: 'rgba(239, 68, 68, 0.1)', color: '#EF4444',
-                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  background: '#FEF2F2', color: '#DC2626',
+                  border: '1px solid #FECACA',
                   fontSize: 14, fontWeight: 600, cursor: 'pointer',
                 }}
               >
@@ -568,8 +597,8 @@ export default function BillingClient() {
                 onClick={() => setShowCancelModal(false)}
                 style={{
                   flex: 1, padding: '10px 16px', borderRadius: 10,
-                  background: 'rgba(148, 163, 184, 0.1)', color: '#94A3B8',
-                  border: '1px solid rgba(148, 163, 184, 0.15)',
+                  background: '#F4EFEA', color: '#1A1612',
+                  border: '1px solid #E8E0D5',
                   fontSize: 14, fontWeight: 600, cursor: 'pointer',
                 }}
               >
@@ -589,10 +618,11 @@ function FeatureItem({ text, highlight }: { text: string; highlight?: boolean })
   return (
     <li style={{
       display: 'flex', alignItems: 'center', gap: 8,
-      fontSize: 13, color: highlight ? '#8B5CF6' : '#CBD5E1',
-      padding: '4px 0',
+      fontSize: 13, color: highlight ? '#8B5CF6' : '#2D241E',
+      fontWeight: highlight ? 600 : 400,
+      padding: '5px 0',
     }}>
-      <span style={{ color: highlight ? '#8B5CF6' : '#10B981', fontSize: 12 }}>✓</span>
+      <span style={{ color: highlight ? '#8B5CF6' : '#10B981', fontSize: 13, fontWeight: 700 }}>✓</span>
       {text}
     </li>
   );

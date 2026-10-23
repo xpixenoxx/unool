@@ -2760,7 +2760,7 @@
 }
 
 .unool-home-page .pc {
-  width: min(410px, 100%);
+  width: min(370px, 100%);
   text-align: left;
   background: #fff;
   border-radius: 28px;
@@ -2776,6 +2776,22 @@
   box-shadow: 0 30px 70px -24px rgba(200, 75, 49, .45);
 }
 
+.unool-home-page .pc-badge {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--terra);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 16px;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  box-shadow: 0 4px 12px rgba(200, 75, 49, .35);
+}
+
 .unool-home-page .pc h3 {
   font: 800 28px 'Bricolage Grotesque', sans-serif;
   transform: translateZ(30px);
@@ -2787,13 +2803,13 @@
 }
 
 .unool-home-page .pc .pr {
-  font: 800 62px 'Bricolage Grotesque', sans-serif;
+  font: 800 52px 'Bricolage Grotesque', sans-serif;
   letter-spacing: -.04em;
   transform: translateZ(50px);
 }
 
 .unool-home-page .pc .pr small {
-  font: 500 17px 'DM Sans', sans-serif;
+  font: 500 15px 'DM Sans', sans-serif;
   color: var(--mut);
 }
 
@@ -2823,6 +2839,24 @@
 
 .unool-home-page .pc:not(.pro) .btn {
   background: var(--ink);
+}
+
+.unool-home-page .pricing-more-cta {
+  margin-top: 48px;
+  text-align: center;
+}
+
+.unool-home-page .pricing-more-cta a {
+  color: var(--terra);
+  font-weight: 700;
+  font-size: 16px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  transition: opacity .2s;
+}
+
+.unool-home-page .pricing-more-cta a:hover {
+  opacity: .85;
 }
 
 
