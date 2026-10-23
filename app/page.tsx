@@ -331,7 +331,7 @@ const UA_VIDEO_HTML = `
             <div class="sub" data-k="b1">
               <div class="card" style="left:24px;top:20px;width:640px;height:400px">
                 <div style="position:absolute;left:16px;top:12px;font-weight:600">Flight plan <span style="color:var(--dim);font-weight:500;font-size:13px">· this week</span></div>
-                <div data-k="cal"></div>
+                <div data-k="cal"><div class="dy" style="left:16px">MON</div><div class="dy" style="left:137.6px">TUE</div><div class="dy" style="left:259.2px">WED</div><div class="dy" style="left:380.8px">THU</div><div class="dy" style="left:502.4px">FRI</div><div class="cal"><div class="sl"><em>9:00</em><div class="q"><span class="pi sm ig"></span>Queued post</div></div><div class="sl" data-k="best"><em>9:00</em><div class="bt" data-k="bt">Best time · 9:40</div><div class="chip" data-k="dc" style="left:8px;top:22px;width:auto;right:8px;opacity:0"><div class="art"><svg viewBox="0 0 200 300"><use href="#ua-dress"/></svg></div><div>Linen Wrap Dress<small>IG + LI</small></div></div></div><div class="sl"><em>9:00</em></div><div class="sl"><em>9:00</em><div class="q"><span class="pi sm ig"></span>Queued post</div></div><div class="sl"><em>9:00</em></div><div class="sl"><em>12:30</em></div><div class="sl"><em>12:30</em></div><div class="sl"><em>12:30</em><div class="q"><span class="pi sm li">in</span>Queued post</div></div><div class="sl"><em>12:30</em></div><div class="sl"><em>12:30</em></div><div class="sl"><em>17:00</em></div><div class="sl"><em>17:00</em></div><div class="sl"><em>17:00</em></div><div class="sl"><em>17:00</em></div><div class="sl"><em>17:00</em><div class="q"><span class="pi sm li">in</span>Queued post</div></div></div></div>
               </div>
               <div class="card" style="left:684px;top:20px;width:252px;height:400px;padding:16px">
                 <div class="lbl">Ready to schedule</div>
@@ -352,12 +352,12 @@ const UA_VIDEO_HTML = `
                 <div class="stub"><i></i><span>Boarding pass<br>issued by Unool</span></div>
               </div>
               <div class="card" style="left:468px;top:24px;width:464px;height:404px;padding:20px">
-                <div class="lbl">Publishing</div><div data-k="steps" style="margin-top:6px"></div>
+                <div class="lbl">Publishing</div><div data-k="steps" style="margin-top:6px"><div class="stp p"><span class="dot"></span><div><b>Departure time reached</b><small>Tue 9:40 · queue checked</small></div></div><div class="stp p"><span class="dot"></span><div><b>Preparing media</b><small>Resized for 4:5 and 1.91:1</small></div></div><div class="stp p"><span class="dot"></span><div><b>Publishing to Instagram</b><small>Container created → published</small></div></div><div class="stp p"><span class="dot"></span><div><b>Publishing to LinkedIn</b><small>Post shared to your profile</small></div></div></div>
                 <div class="live2" data-k="lv"><div><span class="pi sm ig"></span>Instagram · Live</div><div><span class="pi sm li">in</span>LinkedIn · Live</div></div>
               </div>
             </div>
           </div>
-          <div class="ua-cap"><span class="st" data-k="st"></span><b data-k="cb"></b><span data-k="ct"></span></div>
+          <div class="ua-cap"><span class="st" data-k="st">STEP 3</span><b data-k="cb">Flight plan</b><span data-k="ct">Drop it on the best time — Unool suggests when your audience is online.</span></div>
           <svg class="cur" data-k="cur" viewBox="0 0 22 22"><path d="M3 2l14 8-6.2 1.6L8 18z" fill="#2A1E17" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>
         </div>
         <div class="end" data-k="end"><div><b>Live on both platforms.</b><div class="eb"><button data-k="replay">↻ Replay</button></div></div></div>
@@ -373,8 +373,10 @@ const UA_VIDEO_HTML = `
 </div>
 `;
 
-function initUaPlayer(): () => void {
-  const root = document.getElementById('ua-player');
+function initUaPlayer(containerEl?: HTMLElement | null): () => void {
+  const root = containerEl
+    ? (containerEl.querySelector<HTMLElement>('#ua-player') || containerEl)
+    : document.getElementById('ua-player');
   if (!root) return () => {};
   const cache: Record<string, HTMLElement | null> = {};
   const $ = function(k: string): HTMLElement | null {
@@ -389,7 +391,8 @@ function initUaPlayer(): () => void {
 
   function fit() {
     if (viewport && stage) {
-      stage.style.transform = 'scale(' + viewport.clientWidth / 960 + ')';
+      const w = viewport.clientWidth || 640;
+      stage.style.transform = 'scale(' + (w / 960) + ')';
     }
   }
 
@@ -404,7 +407,8 @@ function initUaPlayer(): () => void {
   }
   fit();
 
-  (function() {
+  const calEl = $('cal');
+  if (calEl && calEl.children.length === 0) {
     const T = ['9:00', '12:30', '17:00'];
     const P: Record<string, string> = { '0-0': 'ig', '2-1': 'li', '3-0': 'ig', '4-2': 'li' };
     let h = '';
@@ -436,9 +440,8 @@ function initUaPlayer(): () => void {
           '</div>';
       }
     }
-    const calEl = $('cal');
-    if (calEl) calEl.innerHTML = h + '</div>';
-  })();
+    calEl.innerHTML = h + '</div>';
+  }
 
   const STEPS: [string, string, number, number][] = [
     ['Departure time reached', 'Tue 9:40 · queue checked', 7, 7.6],
@@ -447,7 +450,7 @@ function initUaPlayer(): () => void {
     ['Publishing to LinkedIn', 'Post shared to your profile', 10.4, 12.1]
   ];
   const stepsEl = $('steps');
-  if (stepsEl) {
+  if (stepsEl && stepsEl.children.length === 0) {
     stepsEl.innerHTML = STEPS.map(function(s) {
       return (
         '<div class="stp p"><span class="dot"></span><div><b>' +
@@ -681,10 +684,12 @@ function initUaPlayer(): () => void {
     io = new IntersectionObserver(
       function(es) {
         if (es[0].isIntersecting) {
-          if (!manual && !ended && !reduce) setPlay(true);
-        } else if (playing) setPlay(false);
+          if (!manual && !reduce) setPlay(true);
+        } else if (playing) {
+          setPlay(false);
+        }
       },
-      { threshold: 0.55 }
+      { threshold: 0.15 }
     );
     io.observe(viewport);
   } else if (!reduce) {
@@ -693,14 +698,17 @@ function initUaPlayer(): () => void {
 
   let animId = 0;
   function loop(n: number) {
-    const d = Math.max(0, (n - last) / 1000);
+    const d = Math.max(0, Math.min(0.1, (n - last) / 1000));
     last = n;
     if (playing) {
       t += d;
-      if (t >= DUR) {
-        t = DUR;
-        setPlay(false);
+      if (t >= DUR + 1.8) {
+        t = 0;
+        setEnd(false);
+      } else if (t >= DUR) {
         setEnd(true);
+      } else if (ended) {
+        setEnd(false);
       }
       dirty = true;
     }
@@ -710,9 +718,10 @@ function initUaPlayer(): () => void {
     }
     animId = requestAnimationFrame(loop);
   }
+  render(0);
   animId = requestAnimationFrame(loop);
 
-  const sec = document.getElementById('unool-automation');
+  const sec = containerEl || document.getElementById('unool-automation');
   const handlePointerMove = function(e: PointerEvent) {
     if (!sec) return;
     const r = sec.getBoundingClientRect();
@@ -728,6 +737,81 @@ function initUaPlayer(): () => void {
     if (io && viewport) io.disconnect();
     if (sec) sec.removeEventListener('pointermove', handlePointerMove as EventListener);
   };
+}
+
+function BentoVideoPlayer() {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [height, setHeight] = useState<number>(610);
+
+  useEffect(() => {
+    function handleMessage(e: MessageEvent) {
+      if (e.data && e.data.type === 'unool-video-resize' && typeof e.data.height === 'number') {
+        if (e.data.height > 200) {
+          setHeight(Math.ceil(e.data.height));
+        }
+      }
+    }
+
+    function checkDirect() {
+      try {
+        const doc = iframeRef.current?.contentDocument;
+        if (doc) {
+          const wrap = (doc.querySelector('.ua-wrap') || doc.body) as HTMLElement;
+          const h = wrap ? (wrap.offsetHeight || wrap.scrollHeight) : 0;
+          if (h > 200) {
+            setHeight(Math.ceil(h));
+          }
+        }
+      } catch (err) {}
+    }
+
+    window.addEventListener('message', handleMessage);
+    const interval = setInterval(checkDirect, 500);
+
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      clearInterval(interval);
+    };
+  }, []);
+
+  return (
+    <div
+      style={{
+        width: '100%',
+        position: 'relative',
+        overflow: 'hidden',
+        lineHeight: 0,
+      }}
+    >
+      <iframe
+        ref={iframeRef}
+        src="/unool-video-2-flight-plan.html"
+        title="Flight plan & publish interactive walkthrough"
+        style={{
+          width: '100%',
+          height: `${height}px`,
+          border: 'none',
+          display: 'block',
+          background: 'transparent',
+          overflow: 'hidden',
+        }}
+        loading="eager"
+        scrolling="no"
+        onLoad={() => {
+          try {
+            const doc = iframeRef.current?.contentDocument;
+            if (doc) {
+              const wrap = (doc.querySelector('.ua-wrap') || doc.body) as HTMLElement;
+              const h = wrap ? (wrap.offsetHeight || wrap.scrollHeight) : 0;
+              if (h > 200) {
+                setHeight(Math.ceil(h));
+              }
+            }
+          } catch (err) {}
+        }}
+      />
+    </div>
+  );
 }
 
 function renderPhoneMockups(root: HTMLElement, rawText: string) {
@@ -2241,10 +2325,7 @@ export default function HomePage() {
       io.observe(e);
     });
 
-    const cleanupUa = initUaPlayer();
-
     return () => {
-      if (cleanupUa) cleanupUa();
       window.removeEventListener('scroll', handleScroll);
       clearInterval(c1);
       clearInterval(nameInterval);
@@ -2648,11 +2729,7 @@ export default function HomePage() {
           </div>
 
           <div className="bt w8 rv ua-bento-card">
-            <div
-              className="ua"
-              id="unool-automation"
-              dangerouslySetInnerHTML={{ __html: UA_VIDEO_HTML }}
-            />
+            <BentoVideoPlayer />
           </div>
 
           <div className="bt w12 dk an rv">
