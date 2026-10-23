@@ -84,8 +84,8 @@ export interface CashfreeWebhookPayload {
 // ── API Client ──────────────────────────────────────────────────
 
 function getHeaders(): Record<string, string> {
-  const appId = config.CASHFREE_APP_ID;
-  const secretKey = config.CASHFREE_SECRET_KEY;
+  const appId = config.CASHFREE_APP_ID || process.env.CASHFREE_APP_ID;
+  const secretKey = config.CASHFREE_SECRET_KEY || process.env.CASHFREE_SECRET_KEY;
 
   if (!appId || !secretKey) {
     throw new Error('Cashfree API credentials not configured. Set CASHFREE_APP_ID and CASHFREE_SECRET_KEY.');
@@ -100,7 +100,7 @@ function getHeaders(): Record<string, string> {
 }
 
 function getBaseUrl(): string {
-  return config.CASHFREE_API_URL;
+  return config.CASHFREE_API_URL || process.env.CASHFREE_API_URL || 'https://sandbox.cashfree.com/pg';
 }
 
 /**

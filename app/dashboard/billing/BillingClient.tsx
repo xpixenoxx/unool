@@ -156,8 +156,9 @@ export default function BillingClient() {
       });
 
       if (!res.ok) {
-        const err = await res.json();
-        setPaymentResult({ status: 'ERROR', message: err.error || 'Failed to create order' });
+        const err = await res.json().catch(() => ({}));
+        setPaymentResult({ status: 'ERROR', message: err.error || 'Failed to create payment order.' });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
         return;
       }
 
@@ -166,7 +167,8 @@ export default function BillingClient() {
       // Load Cashfree SDK and open checkout
       const cashfree = await loadCashfreeSDK();
       if (!cashfree) {
-        setPaymentResult({ status: 'ERROR', message: 'Payment system failed to load. Please refresh.' });
+        setPaymentResult({ status: 'ERROR', message: 'Payment gateway failed to load. Please check your connection and refresh.' });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
         return;
       }
 
@@ -176,13 +178,30 @@ export default function BillingClient() {
         redirectTarget: '_modal' as const,
       };
 
-      cashfree.checkout(checkoutOptions).then(() => {
+      cashfree.checkout(checkoutOptions).then((result: any) => {
+        if (result?.error) {
+          console.error('Cashfree checkout modal error:', result.error);
+          setPaymentResult({
+            status: 'ERROR',
+            message: result.error.message || 'Payment window encountered an error.',
+          });
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          return;
+        }
         // Modal closed — start polling for verification
         pollVerification(cfOrderId);
+      }).catch((err: any) => {
+        console.error('Cashfree checkout error:', err);
+        setPaymentResult({
+          status: 'ERROR',
+          message: err?.message || 'Payment window could not be opened.',
+        });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       });
     } catch (err) {
       console.error('Payment error:', err);
-      setPaymentResult({ status: 'ERROR', message: 'Something went wrong. Please try again.' });
+      setPaymentResult({ status: 'ERROR', message: 'Something went wrong while initiating checkout. Please try again.' });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setPaymentLoading(null);
     }

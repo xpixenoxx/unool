@@ -79,16 +79,42 @@ export async function POST(request: NextRequest) {
 
     // ── Create Cashfree order ────────────────────────────────
     const orderId = generateOrderId();
-    const appUrl = config.NEXT_PUBLIC_APP_URL;
+    
+    // Dynamically resolve origin for return_url (supports custom domains & preview deployments)
+    const host = request.headers.get('x-forwarded-host') || request.headers.get('host');
+    const proto = request.headers.get('x-forwarded-proto') || 'https';
+    const appUrl = host ? `${proto}://${host}` : (config.NEXT_PUBLIC_APP_URL || 'https://unool.co');
+
+    // Resolve customer email, phone, and name (Cashfree requires customer_phone to be min 10 digits)
+    let customerEmail = 'customer@unool.co';
+    let customerPhone = '9999999999';
+    let customerName = 'Unool Creator';
+
+    try {
+      const { createClient: createSbClient } = await import('@supabase/supabase-js');
+      const adminClient = createSbClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+      const { data: userData } = await adminClient.auth.admin.getUserById(auth.userId);
+      if (userData?.user?.email) customerEmail = userData.user.email;
+      if (userData?.user?.phone && userData.user.phone.replace(/\D/g, '').length >= 10) {
+        customerPhone = userData.user.phone.replace(/\D/g, '').slice(-10);
+      }
+      customerName = userData?.user?.user_metadata?.full_name || userData?.user?.user_metadata?.name || 'Unool Creator';
+    } catch {
+      // Fallback defaults if auth lookup fails
+    }
+
+    // Cashfree customer_id must only contain alphanumeric characters, underscores, and hyphens
+    const sanitizedCustomerId = auth.userId.replace(/[^a-zA-Z0-9_-]/g, '') || 'unool_user';
 
     const cfOrder = await createCashfreeOrder({
       order_id: orderId,
       order_amount: amountDecimal,
       order_currency: currency,
       customer_details: {
-        customer_id: auth.userId,
-        customer_email: 'customer@unool.co', // Will be resolved from user profile
-        customer_phone: '',
+        customer_id: sanitizedCustomerId,
+        customer_name: customerName,
+        customer_email: customerEmail,
+        customer_phone: customerPhone,
       },
       order_meta: {
         return_url: `${appUrl}/dashboard/billing?order_id=${orderId}&status={order_status}`,
@@ -132,8 +158,9 @@ export async function POST(request: NextRequest) {
     const err = error instanceof Error ? error : new Error(String(error));
     logger.error('Create order failed', { error: err });
     return NextResponse.json(
-      { error: 'Failed to create payment order' },
+      { error: err.message || 'Failed to create payment order' },
       { status: 500 }
     );
   }
 }
+
