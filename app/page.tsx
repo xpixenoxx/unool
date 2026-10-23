@@ -277,9 +277,462 @@ function xm(a: [string, string][]) {
   );
 }
 
+const UA_VIDEO_HTML = `
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="ud-s" x1="0" x2="1"><stop offset="0" stop-color="#7C3321"/><stop offset=".26" stop-color="#C4653F"/><stop offset=".5" stop-color="#DE8F66"/><stop offset=".74" stop-color="#B85A38"/><stop offset="1" stop-color="#712C1B"/></linearGradient>
+<linearGradient id="ud-b" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#D67B53"/><stop offset=".55" stop-color="#BC5D3A"/><stop offset="1" stop-color="#8A3822"/></linearGradient>
+<linearGradient id="ud-t" x1="1" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E08A62"/><stop offset=".6" stop-color="#C46440"/><stop offset="1" stop-color="#9A4429"/></linearGradient>
+<linearGradient id="ud-w" x1="0" x2="1"><stop offset="0" stop-color="#8E3A24"/><stop offset=".5" stop-color="#C46440"/><stop offset="1" stop-color="#8E3A24"/></linearGradient>
+<radialGradient id="ud-f"><stop offset="0" stop-color="#3A190C" stop-opacity=".4"/><stop offset="1" stop-color="#3A190C" stop-opacity="0"/></radialGradient>
+<filter id="ud-lin" x="0" y="0" width="1" height="1"><feTurbulence type="fractalNoise" baseFrequency=".9 .05" numOctaves="2" seed="4"/><feColorMatrix values="0 0 0 0 .25 0 0 0 0 .1 0 0 0 0 .05 0 0 0 .55 -.14"/><feComposite in2="SourceGraphic" operator="in"/></filter>
+<filter id="ud-bl" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="1.8"/></filter>
+<clipPath id="ud-skc"><path d="M78 126C70 170 46 232 29 282C50 293 76 289 100 293C124 289 150 293 171 282C154 232 130 170 122 126Z"/></clipPath><symbol id="ua-dress" viewBox="0 0 200 300">
+<ellipse cx="100" cy="290" rx="78" ry="8" fill="url(#ud-f)"/>
+<g id="ud-all">
+<path d="M72 38C60 40 46 50 33 78C46 86 61 82 71 71L75 52Z" fill="url(#ud-b)"/>
+<path d="M128 38C140 40 154 50 167 78C154 86 139 82 129 71L125 52Z" fill="url(#ud-t)"/>
+<path d="M78 126C70 170 46 232 29 282C50 293 76 289 100 293C124 289 150 293 171 282C154 232 130 170 122 126Z" fill="url(#ud-s)"/>
+<path d="M96 132C92 190 80 240 70 291L100 293C124 289 150 293 171 282C154 232 130 170 122 126Z" fill="#F5C09A" opacity=".1"/>
+<g clip-path="url(#ud-skc)"><path d="M86 131C80 190 62 240 44 285M106 134C107 190 104 240 100 291M117 132C124 190 142 240 158 284M132 150C142 200 150 245 164 281M66 196C58 226 48 252 38 280" fill="none" stroke="#45190B" stroke-opacity=".3" stroke-width="5" filter="url(#ud-bl)"/>
+<path d="M95 134C92 190 88 240 80 291M112 134C115 190 120 240 126 291M146 190C152 224 160 252 166 280M58 206C54 232 48 256 42 280" fill="none" stroke="#F8C7A2" stroke-opacity=".34" stroke-width="4" filter="url(#ud-bl)"/>
+</g><path d="M96 132C92 190 80 240 70 291" fill="none" stroke="#3E1708" stroke-opacity=".38" stroke-width="2.2"/>
+<path d="M98 132C94 190 82 240 73 291" fill="none" stroke="#F4B890" stroke-opacity=".5" stroke-width="1.2"/>
+<path d="M29 282C50 293 76 289 100 293C124 289 150 293 171 282" fill="none" stroke="#F2B58E" stroke-opacity=".55" stroke-width="1.4"/>
+<path d="M92 34L101 78L88 128L78 128C74 104 70 70 72 38C80 33 86 32 92 34Z" fill="url(#ud-b)"/>
+<path d="M92 34C98 27 108 27 114 33L101 78Z" fill="#5E2415"/>
+<path d="M92 34L101 78L110 90L122 128L88 128Z" fill="#B3563A"/>
+<path d="M128 38C124 34 119 32 114 33L101 78L88 128L122 128C126 104 130 70 128 38Z" fill="url(#ud-t)"/>
+<path d="M114 33L101 78L88 128" fill="none" stroke="#3E1708" stroke-opacity=".3" stroke-width="3" filter="url(#ud-bl)"/>
+<path d="M114 33C108 56 104 66 101 78C96 96 92 112 88 128" fill="none" stroke="#F6BC96" stroke-opacity=".6" stroke-width="1.3"/>
+<path d="M92 34L101 78M92 34C98 27 108 27 114 33" fill="none" stroke="#E9A57F" stroke-opacity=".55" stroke-width="1.2"/>
+<path d="M122 124C112 116 104 108 98 98M80 124C86 114 90 106 94 100" fill="none" stroke="#45190B" stroke-opacity=".3" stroke-width="3" filter="url(#ud-bl)"/>
+<path d="M77 123C92 128 108 128 123 123L124 134C108 139 92 139 76 134Z" fill="url(#ud-w)"/>
+<path d="M77 124C92 129 108 129 123 124" fill="none" stroke="#F5BE98" stroke-opacity=".5" stroke-width="1"/>
+<path d="M86 134C80 156 74 172 66 192L77 195C85 176 91 156 93 136Z" fill="url(#ud-b)" stroke="#6A2815" stroke-opacity=".35" stroke-width=".8"/>
+<path d="M88 134C95 158 100 176 102 198L113 194C108 174 101 154 95 135Z" fill="url(#ud-t)" stroke="#6A2815" stroke-opacity=".35" stroke-width=".8"/>
+<path d="M88 131C72 114 61 128 75 137Z" fill="url(#ud-t)" stroke="#6A2815" stroke-opacity=".4" stroke-width=".8"/>
+<path d="M88 131C104 114 115 128 101 137Z" fill="url(#ud-b)" stroke="#6A2815" stroke-opacity=".4" stroke-width=".8"/>
+<ellipse cx="88" cy="132" rx="5.5" ry="6" fill="#A44A2B" stroke="#5B2312" stroke-opacity=".4" stroke-width=".8"/>
+</g>
+<use href="#ud-all" filter="url(#ud-lin)"/>
+</symbol></defs></svg>
+<div class="ua-wrap">
+  <div class="vid in">
+    <div class="vh">
+      <span class="vn">02</span>
+      <div class="vt"><h3>Flight plan &amp; publish</h3><p>Drop the post on the best time in your weekly plan, switch on auto-publish and watch it take off on both platforms.</p></div>
+      <div class="vc"><span>Schedule</span><span>Auto-publish</span><span>Live</span></div>
+    </div>
+    <div class="ua-player" id="ua-player">
+      <div class="ua-viewport" data-k="viewport" role="img" aria-label="Video 2: schedule the dress post on the best time and publish it automatically to Instagram and LinkedIn">
+        <div class="ua-stage" data-k="stage">
+          <div class="ua-chrome"><i></i><i></i><i></i><span class="ua-url">🔒 app.unool.co/automation</span><span class="nv"><span>Compose</span><span class="on">Flight plan</span><span>Inbox</span></span><span class="ua-live">LIVE DEMO</span></div>
+          <div class="ua-body">
+            <!-- PART 2a · flight plan -->
+            <div class="sub" data-k="b1">
+              <div class="card" style="left:24px;top:20px;width:640px;height:400px">
+                <div style="position:absolute;left:16px;top:12px;font-weight:600">Flight plan <span style="color:var(--dim);font-weight:500;font-size:13px">· this week</span></div>
+                <div data-k="cal"></div>
+              </div>
+              <div class="card" style="left:684px;top:20px;width:252px;height:400px;padding:16px">
+                <div class="lbl">Ready to schedule</div>
+                <div data-k="src" class="chip" style="position:relative;margin-top:14px;width:auto;height:84px;padding:12px"><div class="art" style="width:46px;height:58px;border-radius:8px"><svg viewBox="0 0 200 300"><use href="#ua-dress"/></svg></div><div>Linen Wrap Dress<small>Instagram + LinkedIn</small></div></div>
+                <div data-k="done" style="margin-top:16px;padding:12px;border-radius:12px;background:rgba(79,138,91,.12);color:var(--good);font-weight:600;font-size:13.5px;line-height:1.4">✓ Scheduled · Tue 9:40<small style="display:block;font-weight:500;color:var(--muted)">Your audience is most active then</small></div>
+                <div class="tg2" style="left:16px;bottom:18px"><span class="sw" data-k="sw"></span><span data-k="swl">Auto-publish</span></div>
+              </div>
+              <div class="chip" data-k="dg"><div class="art"><svg viewBox="0 0 200 300"><use href="#ua-dress"/></svg></div><div>Linen Wrap Dress<small>IG + LI</small></div></div>
+            </div>
+            <!-- PART 2b · publish -->
+            <div class="sub" data-k="b2">
+              <div class="card bp">
+                <div style="display:flex;align-items:center;gap:12px"><span class="pi brand">ᘐ</span><div><div class="lbl">Flight UN-204</div><b style="font-size:15px">Auto-publish</b></div></div>
+                <div class="rt"><div><small>FROM</small>Queue</div><div style="text-align:right"><small>TO</small>Live</div></div>
+                <div class="bar2"><span data-k="pl">✈</span></div>
+                <div style="font-size:19px;font-weight:600;margin-top:22px">Linen Wrap Dress drop</div>
+                <div class="grid3"><div class="lbl">Platforms<b>IG + LI</b></div><div class="lbl">Departs<b>Tue 9:40</b></div><div class="lbl">Status<b data-k="fs" style="color:var(--accent2)">Scheduled</b></div></div>
+                <div class="stub"><i></i><span>Boarding pass<br>issued by Unool</span></div>
+              </div>
+              <div class="card" style="left:468px;top:24px;width:464px;height:404px;padding:20px">
+                <div class="lbl">Publishing</div><div data-k="steps" style="margin-top:6px"></div>
+                <div class="live2" data-k="lv"><div><span class="pi sm ig"></span>Instagram · Live</div><div><span class="pi sm li">in</span>LinkedIn · Live</div></div>
+              </div>
+            </div>
+          </div>
+          <div class="ua-cap"><span class="st" data-k="st"></span><b data-k="cb"></b><span data-k="ct"></span></div>
+          <svg class="cur" data-k="cur" viewBox="0 0 22 22"><path d="M3 2l14 8-6.2 1.6L8 18z" fill="#2A1E17" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="end" data-k="end"><div><b>Live on both platforms.</b><div class="eb"><button data-k="replay">↻ Replay</button></div></div></div>
+      </div>
+      <div class="ua-ctrl">
+        <button class="ua-pb" data-k="play" aria-label="Play or pause"><svg viewBox="0 0 24 24"><path data-k="pp" d="M6 4h4v16h-4zM14 4h4v16h-4z"/></svg></button>
+        <div class="ua-bar" data-k="bar" role="slider" aria-label="Seek walkthrough" tabindex="0"><i data-k="fill"></i><b data-k="knob"></b></div>
+        <span class="ua-time" data-k="time">0:00 / 0:15</span>
+      </div>
+    </div>
+  </div>
+  <p class="ua-note">Demo data is simulated. Connect real accounts to see your own numbers.</p>
+</div>
+`;
+
+function initUaPlayer(): () => void {
+  const root = document.getElementById('ua-player');
+  if (!root) return () => {};
+  const cache: Record<string, HTMLElement | null> = {};
+  const $ = function(k: string): HTMLElement | null {
+    if (cache[k] !== undefined) return cache[k];
+    const el = root.querySelector<HTMLElement>('[data-k="' + k + '"]');
+    cache[k] = el;
+    return el;
+  };
+  const viewport = $('viewport');
+  const stage = $('stage');
+  if (!viewport || !stage) return () => {};
+
+  function fit() {
+    if (viewport && stage) {
+      stage.style.transform = 'scale(' + viewport.clientWidth / 960 + ')';
+    }
+  }
+
+  let ro: ResizeObserver | null = null;
+  if (typeof window !== 'undefined') {
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(fit);
+      ro.observe(viewport);
+    } else {
+      window.addEventListener('resize', fit);
+    }
+  }
+  fit();
+
+  (function() {
+    const T = ['9:00', '12:30', '17:00'];
+    const P: Record<string, string> = { '0-0': 'ig', '2-1': 'li', '3-0': 'ig', '4-2': 'li' };
+    let h = '';
+    const D = ['MON', 'TUE', 'WED', 'THU', 'FRI'];
+    D.forEach(function(d, i) {
+      h += '<div class="dy" style="left:' + (16 + i * 121.6) + 'px">' + d + '</div>';
+    });
+    h += '<div class="cal">';
+    for (let r = 0; r < 3; r++) {
+      for (let c = 0; c < 5; c++) {
+        const k = c + '-' + r;
+        const b = c === 1 && r === 0;
+        h +=
+          '<div class="sl' +
+          (b ? '" data-k="best' : '') +
+          '"><em>' +
+          T[r] +
+          '</em>' +
+          (P[k]
+            ? '<div class="q"><span class="pi sm ' +
+              P[k] +
+              '">' +
+              (P[k] === 'li' ? 'in' : '') +
+              '</span>Queued post</div>'
+            : '') +
+          (b
+            ? '<div class="bt" data-k="bt">Best time · 9:40</div><div class="chip" data-k="dc" style="left:8px;top:22px;width:auto;right:8px"><div class="art"><svg viewBox="0 0 200 300"><use href="#ua-dress"/></svg></div><div>Linen Wrap Dress<small>IG + LI</small></div></div>'
+            : '') +
+          '</div>';
+      }
+    }
+    const calEl = $('cal');
+    if (calEl) calEl.innerHTML = h + '</div>';
+  })();
+
+  const STEPS: [string, string, number, number][] = [
+    ['Departure time reached', 'Tue 9:40 · queue checked', 7, 7.6],
+    ['Preparing media', 'Resized for 4:5 and 1.91:1', 7.6, 9],
+    ['Publishing to Instagram', 'Container created → published', 9, 10.6],
+    ['Publishing to LinkedIn', 'Post shared to your profile', 10.4, 12.1]
+  ];
+  const stepsEl = $('steps');
+  if (stepsEl) {
+    stepsEl.innerHTML = STEPS.map(function(s) {
+      return (
+        '<div class="stp p"><span class="dot"></span><div><b>' +
+        s[0] +
+        '</b><small>' +
+        s[1] +
+        '</small></div></div>'
+      );
+    }).join('');
+  }
+  const stEls = Array.from(root.querySelectorAll<HTMLElement>('.stp'));
+
+  const DUR = 15;
+  const clamp = function(v: number, a: number, b: number) {
+    a = a == null ? 0 : a;
+    b = b == null ? 1 : b;
+    return Math.min(b, Math.max(a, v));
+  };
+  const prog = function(t: number, a: number, b: number) {
+    return clamp((t - a) / (b - a), 0, 1);
+  };
+  const sm = function(x: number) {
+    return x * x * (3 - 2 * x);
+  };
+
+  const F = [
+    [0, 700, 300, 0],
+    [0.4, 700, 300, 0],
+    [1, 810, 142, 1],
+    [1.6, 810, 142, 1],
+    [3.3, 222, 160, 1],
+    [3.8, 260, 210, 1],
+    [4.4, 720, 431, 1],
+    [5.4, 760, 400, 0],
+    [15, 760, 400, 0]
+  ];
+  const CK = [1.5, 3.3, 4.5];
+
+  function cur(t: number) {
+    let i = 0;
+    while (i < F.length - 2 && t > F[i + 1][0]) i++;
+    const a = F[i];
+    const b = F[i + 1];
+    const p = sm(prog(t, a[0], b[0]));
+    return [a[1] + (b[1] - a[1]) * p, a[2] + (b[2] - a[2]) * p, a[3] + (b[3] - a[3]) * p];
+  }
+
+  function vis(el: HTMLElement | null, t: number, a: number, b: number, dy?: number) {
+    if (!el) return;
+    let o = sm(prog(t, a, a + 0.45)) * (1 - sm(prog(t, b - 0.35, b)));
+    if (a <= 0) o = 1 - sm(prog(t, b - 0.35, b));
+    el.style.opacity = String(o);
+    el.style.visibility = o > 0.01 ? 'visible' : 'hidden';
+    if (dy) el.style.transform = 'translateY(' + (1 - sm(prog(t, a, a + 0.6))) * dy + 'px)';
+  }
+
+  function put(id: string, s: string) {
+    const e = $(id) as (HTMLElement & { _h?: string }) | null;
+    if (e && e._h !== s) {
+      e.innerHTML = s;
+      e._h = s;
+    }
+  }
+
+  const CAPS: [number, string, string, string][] = [
+    [0, 'STEP 3', 'Flight plan', 'Drop it on the best time — Unool suggests when your audience is online.'],
+    [6.5, 'STEP 4', 'Publish', 'At the scheduled minute it goes live everywhere, hands-free.']
+  ];
+
+  function render(t: number) {
+    vis($('b1'), t, 0, 6.5);
+    vis($('b2'), t, 6.5, 999);
+
+    const bestEl = $('best');
+    if (bestEl) bestEl.className = 'sl' + (t >= 0.5 && t < 3.3 ? ' best' : '');
+    const cp = cur(t);
+    const drag = t >= 1.5 && t < 3.3;
+    const srcEl = $('src');
+    if (srcEl) srcEl.style.opacity = t < 1.5 ? '1' : '0';
+    const dcEl = $('dc');
+    if (dcEl) dcEl.style.opacity = t >= 3.3 ? '1' : '0';
+    const dg = $('dg');
+    if (dg) {
+      dg.style.opacity = drag ? '1' : '0';
+      dg.style.left = cp[0] - 75 + 'px';
+      dg.style.top = cp[1] - 40 - 24 + 'px';
+      dg.style.transform = 'rotate(' + (drag ? -3 : 0) + 'deg)';
+    }
+    const doneEl = $('done');
+    if (doneEl) doneEl.style.opacity = String(sm(prog(t, 3.4, 3.9)));
+    const sw = t >= 4.5;
+    const swEl = $('sw');
+    if (swEl) swEl.className = 'sw' + (sw ? ' on' : '');
+    put('swl', sw ? 'Auto-publish ON' : 'Auto-publish');
+
+    const fs = t < 7 ? 'Scheduled' : t < 9 ? 'Boarding' : t < 12.2 ? 'In flight' : 'Landed · Live';
+    const fsEl = $('fs');
+    if (fsEl) fsEl.textContent = fs;
+    const plEl = $('pl');
+    if (plEl) plEl.style.left = prog(t, 7, 12.2) * 92 + '%';
+
+    STEPS.forEach(function(s, i) {
+      const e = stEls[i];
+      if (!e) return;
+      const d = t >= s[3];
+      const a = t >= s[2] && !d;
+      e.className = 'stp ' + (d ? 'd' : a ? 'a' : 'p');
+      const dot = e.querySelector('.dot');
+      if (dot) dot.textContent = d ? '✓' : '';
+    });
+
+    const lvEl = $('lv');
+    if (lvEl) {
+      lvEl.style.opacity = String(sm(prog(t, 12.4, 13)));
+      lvEl.style.transform = 'translateY(' + (1 - sm(prog(t, 12.4, 13))) * 10 + 'px)';
+    }
+
+    const cu = $('cur');
+    const press = CK.some(function(c) {
+      return Math.abs(t - c) < 0.12;
+    });
+    if (cu) {
+      cu.style.opacity = String(cp[2]);
+      cu.style.transform = 'translate(' + cp[0] + 'px,' + cp[1] + 'px) scale(' + (press ? 0.82 : 1) + ')';
+    }
+
+    let ci = 0;
+    CAPS.forEach(function(c, i) {
+      if (t >= c[0]) ci = i;
+    });
+    const c = CAPS[ci];
+    const stEl = $('st');
+    if (stEl) stEl.textContent = c[1];
+    const cbEl = $('cb');
+    if (cbEl) cbEl.textContent = c[2];
+    const ctEl = $('ct');
+    if (ctEl) ctEl.textContent = c[3];
+
+    const pc = (t / DUR) * 100 + '%';
+    const fillEl = $('fill');
+    if (fillEl) fillEl.style.width = pc;
+    const knobEl = $('knob');
+    if (knobEl) knobEl.style.left = pc;
+    const m = function(s: number) {
+      s = Math.floor(s);
+      return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2);
+    };
+    const timeEl = $('time');
+    if (timeEl) timeEl.textContent = m(t) + ' / ' + m(DUR);
+  }
+
+  let t = 0;
+  let playing = false;
+  let manual = false;
+  let ended = false;
+  let dirty = true;
+  let last = performance.now();
+  const pp = $('pp');
+  const endEl = $('end');
+  const reduce = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+
+  function setPlay(v: boolean) {
+    playing = v;
+    if (pp) pp.setAttribute('d', v ? 'M6 4h4v16H6zM14 4h4v16h-4z' : 'M7 4l13 8-13 8z');
+    last = performance.now();
+    dirty = true;
+  }
+  function setEnd(v: boolean) {
+    ended = v;
+    if (endEl) endEl.classList.toggle('on', v);
+  }
+  function restart() {
+    t = 0;
+    setEnd(false);
+    setPlay(true);
+  }
+  function toggle() {
+    if (ended) {
+      manual = false;
+      restart();
+      return;
+    }
+    manual = playing;
+    setPlay(!playing);
+  }
+
+  if (endEl) endEl.onclick = function(e) { e.stopPropagation(); };
+  const playBtn = $('play');
+  if (playBtn) playBtn.onclick = toggle;
+  if (viewport) viewport.onclick = toggle;
+  const replayBtn = $('replay');
+  if (replayBtn) {
+    replayBtn.onclick = function(e) {
+      e.stopPropagation();
+      manual = false;
+      restart();
+    };
+  }
+
+  const bar = $('bar');
+  let dragging = false;
+  function seek(e: PointerEvent | KeyboardEvent) {
+    if (!bar || !('clientX' in e)) return;
+    const r = bar.getBoundingClientRect();
+    t = clamp((e.clientX - r.left) / r.width, 0, 1) * (DUR - 0.05);
+    setEnd(false);
+    dirty = true;
+  }
+
+  if (bar) {
+    bar.onpointerdown = function(e: PointerEvent) {
+      dragging = true;
+      bar.setPointerCapture(e.pointerId);
+      seek(e);
+    };
+    bar.onpointermove = function(e: PointerEvent) {
+      if (dragging) seek(e);
+    };
+    bar.onpointerup = function() {
+      dragging = false;
+    };
+    bar.onkeydown = function(e: KeyboardEvent) {
+      if (e.key === 'ArrowRight') t = Math.min(DUR - 0.05, t + 2);
+      if (e.key === 'ArrowLeft') t = Math.max(0, t - 2);
+      dirty = true;
+    };
+  }
+
+  let io: IntersectionObserver | null = null;
+  if (typeof window !== 'undefined' && 'IntersectionObserver' in window && viewport) {
+    io = new IntersectionObserver(
+      function(es) {
+        if (es[0].isIntersecting) {
+          if (!manual && !ended && !reduce) setPlay(true);
+        } else if (playing) setPlay(false);
+      },
+      { threshold: 0.55 }
+    );
+    io.observe(viewport);
+  } else if (!reduce) {
+    setPlay(true);
+  }
+
+  let animId = 0;
+  function loop(n: number) {
+    const d = Math.max(0, (n - last) / 1000);
+    last = n;
+    if (playing) {
+      t += d;
+      if (t >= DUR) {
+        t = DUR;
+        setPlay(false);
+        setEnd(true);
+      }
+      dirty = true;
+    }
+    if (dirty) {
+      dirty = false;
+      render(t);
+    }
+    animId = requestAnimationFrame(loop);
+  }
+  animId = requestAnimationFrame(loop);
+
+  const sec = document.getElementById('unool-automation');
+  const handlePointerMove = function(e: PointerEvent) {
+    if (!sec) return;
+    const r = sec.getBoundingClientRect();
+    sec.style.setProperty('--mx', e.clientX - r.left + 'px');
+    sec.style.setProperty('--my', e.clientY - r.top + 'px');
+  };
+  if (sec) sec.addEventListener('pointermove', handlePointerMove as EventListener);
+
+  return function cleanup() {
+    cancelAnimationFrame(animId);
+    if (ro && viewport) ro.disconnect();
+    if (typeof window !== 'undefined') window.removeEventListener('resize', fit);
+    if (io && viewport) io.disconnect();
+    if (sec) sec.removeEventListener('pointermove', handlePointerMove as EventListener);
+  };
+}
+
 function renderPhoneMockups(root: HTMLElement, rawText: string) {
   const CD = root.querySelectorAll<HTMLElement>('.cd');
-  if (CD.length < 3) return;
+  if (CD.length < 2) return;
 
   const text = (rawText || '').trim();
   const isDress =
@@ -294,8 +747,61 @@ function renderPhoneMockups(root: HTMLElement, rawText: string) {
     const brandAvatar =
       '<div class="px-av"><span style="font-family:\'DM Serif Display\',Georgia,serif;font-style:italic">P</span></div>';
 
-    // 0: LinkedIn — pixel-perfect native feed post
+    // 0: Instagram — pixel-perfect authentic iOS feed post
     CD[0].innerHTML =
+      SB +
+      // Instagram header bar — wordmark + actions
+      '<div class="ig-header">' +
+      '<span class="ig-wordmark">Instagram</span>' +
+      '<div class="ig-header-actions">' +
+      '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#fff" stroke-width="1.8"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>' +
+      '<div class="ig-dm-btn">' +
+      '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#fff" stroke-width="1.8"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>' +
+      '</div>' +
+      '</div>' +
+      '</div>' +
+      // Feed body
+      '<div class="fd">' +
+      // Post header row
+      '<div class="ig-post-header">' +
+      '<div class="ig-story-ring">' +
+      brandAvatarSm +
+      '</div>' +
+      '<div class="ig-author-meta">' +
+      '<div class="ig-author-name">pixenox.atelier <svg viewBox="0 0 24 24" width="13" height="13" fill="#0095f6"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg></div>' +
+      '<span class="ig-location">Paris, France • Original audio</span>' +
+      '</div>' +
+      '<span class="ig-more">···</span>' +
+      '</div>' +
+      // Post media — full-bleed 1080x1350 vertical dress image
+      '<div class="ig-media"><img src="/linen-wrap-dress.jpg" alt="Linen Wrap Dress" /></div>' +
+      // Instagram engagement action row
+      '<div class="ig-action-bar">' +
+      '<div class="ig-action-left">' +
+      '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#fff" stroke-width="1.8"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>' +
+      '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#fff" stroke-width="1.8"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>' +
+      '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#fff" stroke-width="1.8"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>' +
+      '</div>' +
+      '<div class="ig-dots"><span class="active"></span><span></span><span></span></div>' +
+      '<div class="ig-bookmark">' +
+      '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#fff" stroke-width="1.8"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>' +
+      '</div>' +
+      '</div>' +
+      // Instagram caption & social proof
+      '<div class="ig-post-info">' +
+      '<div class="ig-likes-row">Liked by <b>clara.style</b> and <b>2,842 others</b></div>' +
+      '<div class="ig-caption"><b>pixenox.atelier</b> Meet the Linen Wrap Dress 🌿 Hand-woven terracotta linen, crafted for warm days. Sizes XS–XL.<br>First 50 orders get <b>20% off</b> this week only ✨</div>' +
+      '<div class="ig-tags">#sustainablefashion #slowfashion #linendress #atelier</div>' +
+      '<div class="ig-comments-link">View all 64 comments</div>' +
+      '<div class="ig-timestamp">2 HOURS AGO</div>' +
+      '</div>' +
+      '</div>' +
+      // Instagram bottom nav
+      tb([['home'], ['search'], ['plus'], ['heart'], ['user']], 0) +
+      HI;
+
+    // 1: LinkedIn — pixel-perfect native feed post
+    CD[1].innerHTML =
       SB +
       // LinkedIn header bar — avatar + search + messaging
       '<div class="lh">' +
@@ -367,81 +873,6 @@ function renderPhoneMockups(root: HTMLElement, rawText: string) {
       ) +
       HI;
 
-    // 1: X (Twitter) — authentic dark feed with tweet + thread indicator
-    CD[1].innerHTML =
-      SB +
-      // X header — profile pic, logo, settings
-      '<div class="x-header">' +
-      '<div class="px-av sm"><span style="font-family:\'DM Serif Display\',Georgia,serif;font-style:italic">P</span></div>' +
-      '<svg viewBox="0 0 24 24" width="20" height="20" fill="#fff"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>' +
-      '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#71767b" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>' +
-      '</div>' +
-      // For you / Following tabs
-      '<div class="x-tabs-row"><span class="x-tab active">For you</span><span class="x-tab">Following</span></div>' +
-      // Feed body
-      '<div class="fd">' +
-      // Main tweet
-      '<div class="x-tweet-row">' +
-      '<div class="x-tweet-side">' +
-      '<div class="px-av sm" style="width:36px;height:36px;font-size:16px"><span style="font-family:\'DM Serif Display\',Georgia,serif;font-style:italic">P</span></div>' +
-      '<u class="x-thread-line"></u>' +
-      '</div>' +
-      '<div class="x-tweet-content">' +
-      '<div class="x-author-line"><b>Pixenox</b> ' + VB + ' <span class="x-author-handle">@pixenox · now</span><span class="x-more">···</span></div>' +
-      '<p class="x-text">Meet the Linen Wrap Dress 🌿<br>Hand-woven terracotta, made for warm golden days. Sizes XS–XL.<br>First 50 orders get <b style="color:#fff">20% off</b> this week only ✨</p>' +
-      // Tweet image — rounded 16px corners (X style)
-      '<div class="x-media-card"><img src="/linen-wrap-dress.jpg" alt="Linen Wrap Dress" /></div>' +
-      '<p class="x-thread-hint">🧵 Thread on fabric sourcing &amp; styling tips 👇</p>' +
-      // Tweet metrics
-      '<div class="x-metrics-bar">' +
-      '<span class="x-metric-item">' + ic('chat', 15) + '54</span>' +
-      '<span class="x-metric-item">' + ic('rep', 15) + '380</span>' +
-      '<span class="x-metric-item">' + ic('heart', 15) + '1.6K</span>' +
-      '<span class="x-metric-item">' + ic('eye', 15) + '52K</span>' +
-      '<span class="x-metric-item">' + ic('up', 15) + '</span>' +
-      '</div>' +
-      '</div></div>' +
-      '</div>' +
-      // FAB button
-      '<span class="x-fab-btn"><svg viewBox="0 0 24 24" width="22" height="22" fill="#fff"><path d="M11 11V5h2v6h6v2h-6v6h-2v-6H5v-2z"/></svg></span>' +
-      // X bottom nav
-      tb([['home'], ['search'], ['bell'], ['mail']], 0) +
-      HI;
-
-    // 2: Threads — casual dark feed with thread reply line
-    CD[2].innerHTML =
-      SB +
-      // Threads header logo
-      '<div class="t-header">' +
-      svg(PLATFORMS[2], 28) +
-      '</div>' +
-      // For you / Following tabs
-      '<div class="t-tabs-row"><span class="t-tab active">For you</span><span class="t-tab">Following</span></div>' +
-      // Feed body
-      '<div class="fd">' +
-      '<div class="t-post-row">' +
-      '<div class="t-post-side">' +
-      '<div class="px-av sm" style="width:34px;height:34px;font-size:15px"><span style="font-family:\'DM Serif Display\',Georgia,serif;font-style:italic">P</span></div>' +
-      '<u class="t-thread-line"></u>' +
-      '</div>' +
-      '<div class="t-post-content">' +
-      '<div class="t-author-line"><b>pixenox</b> ' + VB + ' <span class="t-time">2m</span><span class="t-more">···</span></div>' +
-      '<p class="t-text">okay so we spent 6 months perfecting the drape on this terracotta wrap dress and she is finally here 🌿<br><br>100% hand-woven linen that gets softer with every wash. sizes xs–xl, first 50 pieces are 20% off this week ✨</p>' +
-      // Thread post image — rounded 12px (Threads style)
-      '<div class="t-media-card"><img src="/linen-wrap-dress.jpg" alt="Linen Wrap Dress" /></div>' +
-      // Threads engagement icons
-      '<div class="t-actions-row">' +
-      ic('heart', 20, 1.6) +
-      ic('chat', 20, 1.6) +
-      ic('rep', 20, 1.6) +
-      ic('send', 20, 1.6) +
-      '</div>' +
-      '<div class="t-meta-line">142 replies · 489 likes</div>' +
-      '</div></div>' +
-      '</div>' +
-      // Threads bottom nav (Instagram-like)
-      tb([['home'], ['search'], ['plus'], ['heart'], ['user']], 0) +
-      HI;
     return;
   }
 
@@ -497,25 +928,27 @@ function renderPhoneMockups(root: HTMLElement, rawText: string) {
       HI;
 
     // 2: Threads
-    CD[2].innerHTML =
-      SB +
-      '<div class="hd">' +
-      svg(PLATFORMS[2], 28) +
-      '</div><div class="xt"><span class="on">For you</span><span>Following</span></div><div class="fd"><div class="xp"><div class="col"><span class="av">P</span><u class="thl"></u></div><div class="bx"><div><b>pixenox</b> ' +
-      VB +
-      ' <span class="g">2m</span><span class="g r">···</span></div><p>okay so we’ve been quietly working on something at pixenox and i’m finally allowed to talk about it</p><p>we built an AI design system that does in hours what used to take our team weeks</p><p>the biggest lesson? AI doesn’t make designers obsolete — it makes them dangerous (in the best way) 🔥</p><div class="tx">' +
-      ic('heart', 20, 1.6) +
-      ic('chat', 20, 1.6) +
-      ic('rep', 20, 1.6) +
-      ic('send', 20, 1.6) +
-      '</div><div class="g">89 replies · 234 likes</div></div></div><div class="xp"><span class="av" style="background:#2a7f78">M</span><div class="bx"><div><b>maya.builds</b> <span class="g">1m</span></div><p>wait, this is huge. how are you handling token drift across brands?</p><div class="tx">' +
-      ic('heart', 20, 1.6) +
-      ic('chat', 20, 1.6) +
-      ic('rep', 20, 1.6) +
-      ic('send', 20, 1.6) +
-      '</div></div></div></div>' +
-      tb([['home'], ['search'], ['plus'], ['heart'], ['user']], 0) +
-      HI;
+    if (CD[2]) {
+      CD[2].innerHTML =
+        SB +
+        '<div class="hd">' +
+        svg(PLATFORMS[2], 28) +
+        '</div><div class="xt"><span class="on">For you</span><span>Following</span></div><div class="fd"><div class="xp"><div class="col"><span class="av">P</span><u class="thl"></u></div><div class="bx"><div><b>pixenox</b> ' +
+        VB +
+        ' <span class="g">2m</span><span class="g r">···</span></div><p>okay so we’ve been quietly working on something at pixenox and i’m finally allowed to talk about it</p><p>we built an AI design system that does in hours what used to take our team weeks</p><p>the biggest lesson? AI doesn’t make designers obsolete — it makes them dangerous (in the best way) 🔥</p><div class="tx">' +
+        ic('heart', 20, 1.6) +
+        ic('chat', 20, 1.6) +
+        ic('rep', 20, 1.6) +
+        ic('send', 20, 1.6) +
+        '</div><div class="g">89 replies · 234 likes</div></div></div><div class="xp"><span class="av" style="background:#2a7f78">M</span><div class="bx"><div><b>maya.builds</b> <span class="g">1m</span></div><p>wait, this is huge. how are you handling token drift across brands?</p><div class="tx">' +
+        ic('heart', 20, 1.6) +
+        ic('chat', 20, 1.6) +
+        ic('rep', 20, 1.6) +
+        ic('send', 20, 1.6) +
+        '</div></div></div></div>' +
+        tb([['home'], ['search'], ['plus'], ['heart'], ['user']], 0) +
+        HI;
+    }
     return;
   }
 
@@ -622,22 +1055,24 @@ function renderPhoneMockups(root: HTMLElement, rawText: string) {
     HI;
 
   // 2: Dynamic Threads
-  CD[2].innerHTML =
-    SB +
-    '<div class="hd">' +
-    svg(PLATFORMS[2], 28) +
-    '</div><div class="xt"><span class="on">For you</span><span>Following</span></div><div class="fd"><div class="xp"><div class="col"><span class="av">U</span><u class="thl"></u></div><div class="bx"><div><b>you</b> ' +
-    VB +
-    ' <span class="g">now</span><span class="g r">···</span></div><p>okay so i wanted to share something we’ve been working on...</p><p>' +
-    thText +
-    '</p><p>the biggest lesson? speed and consistency compound faster than anything else ✨</p><div class="tx">' +
-    ic('heart', 20, 1.6) +
-    ic('chat', 20, 1.6) +
-    ic('rep', 20, 1.6) +
-    ic('send', 20, 1.6) +
-    '</div><div class="g">124 replies · 410 likes</div></div></div></div>' +
-    tb([['home'], ['search'], ['plus'], ['heart'], ['user']], 0) +
-    HI;
+  if (CD[2]) {
+    CD[2].innerHTML =
+      SB +
+      '<div class="hd">' +
+      svg(PLATFORMS[2], 28) +
+      '</div><div class="xt"><span class="on">For you</span><span>Following</span></div><div class="fd"><div class="xp"><div class="col"><span class="av">U</span><u class="thl"></u></div><div class="bx"><div><b>you</b> ' +
+      VB +
+      ' <span class="g">now</span><span class="g r">···</span></div><p>okay so i wanted to share something we’ve been working on...</p><p>' +
+      thText +
+      '</p><p>the biggest lesson? speed and consistency compound faster than anything else ✨</p><div class="tx">' +
+      ic('heart', 20, 1.6) +
+      ic('chat', 20, 1.6) +
+      ic('rep', 20, 1.6) +
+      ic('send', 20, 1.6) +
+      '</div><div class="g">124 replies · 410 likes</div></div></div></div>' +
+      tb([['home'], ['search'], ['plus'], ['heart'], ['user']], 0) +
+      HI;
+  }
 }
 
 interface ProfilePreviewTemplate {
@@ -1196,25 +1631,20 @@ export default function HomePage() {
         setFlowStep(2);
       }, 3100);
     } else if (flowStep === 2) {
-      // Step 3: Phone Deck cycling & auto-loop
+      // Step 3: Phone Deck cycling & auto-loop (Instagram & LinkedIn only)
       const tabs = rootRef.current?.querySelectorAll<HTMLElement>('#tabs button[data-i]');
       if (tabs && tabs[0]) tabs[0].click();
 
-      // Switch to X phone
+      // Switch to LinkedIn phone
       timer1 = setTimeout(() => {
         if (tabs && tabs[1]) tabs[1].click();
-      }, 2200);
-
-      // Switch to Threads phone
-      timer2 = setTimeout(() => {
-        if (tabs && tabs[2]) tabs[2].click();
-      }, 4400);
+      }, 3000);
 
       // Loop back to Step 0 (Connect)
-      timer3 = setTimeout(() => {
+      timer2 = setTimeout(() => {
         if (tabs && tabs[0]) tabs[0].click();
         setFlowStep(0);
-      }, 6600);
+      }, 6000);
     }
 
     return () => {
@@ -1261,7 +1691,7 @@ export default function HomePage() {
   useEffect(() => {
     if (!rootRef.current) return;
     renderPhoneMockups(rootRef.current, thought);
-  }, [thought]);
+  }, [thought, flowStep]);
 
   useEffect(() => {
     if (!rootRef.current) return;
@@ -1331,11 +1761,17 @@ export default function HomePage() {
         ' more</span>';
     }
 
-    // Tab buttons with mini icons
+    // Tab buttons with mini icons (matched by platform name)
     $$('#tabs button[data-i]').forEach(b => {
-      const idx = Number(b.dataset.i);
-      if (!isNaN(idx) && P[idx]) {
-        b.insertAdjacentHTML('afterbegin', mini(P[idx], 14, 22));
+      const label = b.textContent?.trim().toLowerCase() || '';
+      const platform = P.find(p => p[0].toLowerCase() === label);
+      if (platform) {
+        b.insertAdjacentHTML('afterbegin', mini(platform, 14, 22));
+      } else {
+        const idx = Number(b.dataset.i);
+        if (!isNaN(idx) && P[idx]) {
+          b.insertAdjacentHTML('afterbegin', mini(P[idx], 14, 22));
+        }
       }
     });
 
@@ -1682,9 +2118,8 @@ export default function HomePage() {
     const cds = $$('.cd');
     const tbBtns = $$('#tabs button[data-i]');
     const cps = [
-      'LinkedIn · Long-form · 3,000 chars',
-      'X · Thread format · 280 chars each',
-      'Threads · Conversational · 500 chars'
+      'Instagram · Visual narrative · 2,200 chars',
+      'LinkedIn · Professional authority · 3,000 chars'
     ];
     let act = 0;
     let deckHov = 0;
@@ -1693,18 +2128,27 @@ export default function HomePage() {
 
     function setDeck(a: number) {
       act = a;
+      const total = cds.length;
       cds.forEach(function(c, i) {
-        const d = (i - a + 3) % 3;
-        const p = d === 0 ? 0 : d === 1 ? 1 : -1;
-        c.style.setProperty('--p', String(p));
-        c.style.setProperty('--a', String(Math.abs(p)));
-        c.style.zIndex = d === 0 ? '3' : '1';
-        c.classList.toggle('cur', d === 0);
+        if (total === 2) {
+          const p = i === a ? 0 : (i === 1 ? 1 : -1);
+          c.style.setProperty('--p', String(p));
+          c.style.setProperty('--a', String(Math.abs(p)));
+          c.style.zIndex = i === a ? '3' : '1';
+          c.classList.toggle('cur', i === a);
+        } else {
+          const d = (i - a + total) % total;
+          const p = d === 0 ? 0 : d === 1 ? 1 : -1;
+          c.style.setProperty('--p', String(p));
+          c.style.setProperty('--a', String(Math.abs(p)));
+          c.style.zIndex = d === 0 ? '3' : '1';
+          c.classList.toggle('cur', d === 0);
+        }
       });
       tbBtns.forEach(function(b, i) {
         b.classList.toggle('on', i === a);
       });
-      if (cap) cap.textContent = cps[a];
+      if (cap && cps[a]) cap.textContent = cps[a];
     }
 
     cds.forEach(function(c, i) {
@@ -1736,7 +2180,7 @@ export default function HomePage() {
     }
 
     const deckInterval = setInterval(function() {
-      if (!deckHov) setDeck((act + 1) % 3);
+      if (!deckHov && cds.length > 0) setDeck((act + 1) % cds.length);
     }, 5000);
 
     // Smart Scheduling Calendar dots
@@ -1774,7 +2218,7 @@ export default function HomePage() {
       });
     }
 
-    $$('.bt').forEach(function(e) {
+    $$('.bt:not(.ua-bento-card)').forEach(function(e) {
       tilt(e, 8);
     });
     $$('.pc').forEach(function(e) {
@@ -1797,7 +2241,10 @@ export default function HomePage() {
       io.observe(e);
     });
 
+    const cleanupUa = initUaPlayer();
+
     return () => {
+      if (cleanupUa) cleanupUa();
       window.removeEventListener('scroll', handleScroll);
       clearInterval(c1);
       clearInterval(nameInterval);
@@ -1919,13 +2366,6 @@ export default function HomePage() {
 
           {/* Interactive Flow Step Switcher */}
           <div className="flow-steps-nav rv">
-            <div className="flow-steps-lead">
-              <span className="flow-steps-badge">
-                <span className="flow-live-dot" style={{ display: 'inline-block', marginRight: '6px' }}></span>
-                {isPlaying ? 'Auto-playing demo video' : 'Demo paused'}
-              </span>
-              <span className="flow-steps-desc">Connect · Write · Adapt</span>
-            </div>
             <div className="flow-step-pills">
               <button
                 type="button"
@@ -1950,14 +2390,6 @@ export default function HomePage() {
               >
                 <span className="flow-step-num">3</span>
                 <span>Adapt</span>
-              </button>
-              <button
-                type="button"
-                className="flow-play-toggle"
-                onClick={() => setIsPlaying((p) => !p)}
-                title={isPlaying ? 'Pause video loop' : 'Play video loop'}
-              >
-                {isPlaying ? '❚❚ Pause' : '▶ Play'}
               </button>
             </div>
           </div>
@@ -2161,57 +2593,18 @@ export default function HomePage() {
 
           {/* STEP 3: Phone Deck (Mobile View in Original Respective Platforms) */}
           <div className={`flow-adapt-stage rv ${flowStep !== 2 ? 'flow-hidden' : ''}`}>
-            <div className="flow-adapt-banner">
-              <div className="flow-adapt-banner-info">
-                <span className="flow-adapt-tag">✓ Adapted natively</span>
-                <span className="flow-adapt-summary">
-                  See how Unool formats the Linen Wrap Dress for LinkedIn, X, and Threads.
-                </span>
-              </div>
-              <div className="flow-banner-actions">
-                <button
-                  type="button"
-                  className="flow-play-toggle"
-                  onClick={() => setIsPlaying((p) => !p)}
-                >
-                  {isPlaying ? '❚❚ Pause loop' : '▶ Play video loop'}
-                </button>
-                <button
-                  type="button"
-                  className="flow-replay-btn"
-                  onClick={() => {
-                    setFlowStep(0);
-                    setIsPlaying(true);
-                  }}
-                >
-                  ↺ Replay from start
-                </button>
-              </div>
-            </div>
-
             <div className="deck" id="deck">
+              <div className="cd ig"></div>
               <div className="cd li"></div>
-              <div className="cd x"></div>
-              <div className="cd t"></div>
             </div>
 
             <div className="tabs" id="tabs">
               <button className="on" data-i="0">
-                LinkedIn
+                Instagram
               </button>
-              <button data-i="1">X</button>
-              <button data-i="2">Threads</button>
-              <button
-                className="more"
-                onClick={() => {
-                  const sp = document.getElementById('sp');
-                  if (sp) sp.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }}
-              >
-                +17 more ↺
-              </button>
+              <button data-i="1">LinkedIn</button>
             </div>
-            <p id="cap">LinkedIn · Long-form · 3,000 chars</p>
+            <p id="cap">Instagram · Visual narrative · 2,200 chars</p>
           </div>
         </section>
       </div>
@@ -2254,28 +2647,12 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="bt rv">
-            <div className="ib">⚡</div>
-            <h3>One-Click Publish</h3>
-            <p>OAuth-connected accounts. One tap, every platform, live status.</p>
-            <div className="pub">
-              <b
-                onClick={() => {
-                  const pub = document.getElementById('pub');
-                  if (pub) pub.click();
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-              >
-                ⚡
-              </b>
-            </div>
-          </div>
-
-          <div className="bt rv">
-            <div className="ib">◷</div>
-            <h3>Smart Scheduling</h3>
-            <p>Timezone-aware queues, recurring posts, calendar view.</p>
-            <div className="cal" id="cal"></div>
+          <div className="bt w8 rv ua-bento-card">
+            <div
+              className="ua"
+              id="unool-automation"
+              dangerouslySetInnerHTML={{ __html: UA_VIDEO_HTML }}
+            />
           </div>
 
           <div className="bt w12 dk an rv">
