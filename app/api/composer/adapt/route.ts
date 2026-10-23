@@ -157,7 +157,15 @@ export async function POST(request: NextRequest) {
 
       // Create post with variants in database (reuse existing postId if provided on retries)
       let activePostId = existingPostId;
-      if (!activePostId) {
+      if (activePostId) {
+        // Post is being re-adapted/edited: update content and reset status to 'draft'
+        await postRepository.update(activePostId, {
+          content: content.trim(),
+          status: 'draft',
+        });
+        // Clear previous variants for this post so duplicate variants are never created
+        await supabase.from('post_variants').delete().eq('post_id', activePostId);
+      } else {
         const post = await postRepository.create({
           profileId: resolvedProfileId || '',
           workspaceId,

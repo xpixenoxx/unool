@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, Suspense, useMemo, useRef } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Transition } from 'framer-motion';
@@ -80,8 +80,11 @@ import {
   Share2,
   Lightbulb,
   CheckCircle,
+  Sparkles,
   PenTool,
   Edit3,
+  ArrowLeft,
+  Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { studioToast } from '@/components/dashboard/StudioToast';
@@ -91,7 +94,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Box, Flex, Text, Display } from '@/components/ui/layout';
 import { MotionBox, spring } from '@/components/ui/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { cn } from '@/lib/utils';
+import { cn, formatPlatformError } from '@/lib/utils';
 // Note: Supabase browser client no longer needed for storage (using Cloudflare R2 via presigned PUT)
 import { useUserContext } from '@/lib/hooks/use-user-context';
 import { PLATFORM_LIMITS, getPlatformLimit } from '@/lib/config/platformLimits';
@@ -762,10 +765,13 @@ function IPhonePreview({
    ───────────────────────────────────────────────────────────── */
 
 export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const urlMode = searchParams?.get('mode') || null;
   const targetPostId = searchParams?.get('postId') || null;
   const hasLoadedTargetPost = useRef<string | null>(null);
+  const [confirmDiscardDraft, setConfirmDiscardDraft] = useState(false);
+  const [isDiscardingDraft, setIsDiscardingDraft] = useState(false);
 
   const reducedMotion = useReducedMotion();
   const { user, profile: userCtxProfile } = useUserContext();
@@ -788,6 +794,8 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const [drafts, setDrafts] = useState<PlatformDraft[]>([]);
   const [generatingType, setGeneratingType] = useState<'selected' | 'all' | null>(null);
   const isGenerating = generatingType !== null;
+  const [isPublishing, setIsPublishing] = useState(false);
+  const reviewSectionRef = useRef<HTMLDivElement | null>(null);
   const [postId, setPostId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<PlatformType>('linkedin');
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -864,8 +872,8 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           setMedia(collectedMedia);
         }
 
-        // Set selected platforms from variants
-        const postPlatforms = variants.map((v: any) => v.platform as PlatformType);
+        // Set selected platforms from variants (deduplicated)
+        const postPlatforms: PlatformType[] = Array.from(new Set<PlatformType>(variants.map((v: any) => v.platform as PlatformType)));
         if (postPlatforms.length > 0) {
           setSelectedPlatforms(postPlatforms);
         }
@@ -878,20 +886,31 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           setMode('ai');
           setSourceContent(targetPost.content || '');
 
-          const loadedDrafts: PlatformDraft[] = variants.map((v: any) => ({
+          // Deduplicate variants by platform in case DB has multiple variant records for the same platform
+          const seenPlatforms = new Set<string>();
+          const uniqueVariants = variants.filter((v: any) => {
+            if (seenPlatforms.has(v.platform)) return false;
+            seenPlatforms.add(v.platform);
+            return true;
+          });
+
+          const loadedDrafts: PlatformDraft[] = uniqueVariants.map((v: any) => ({
             platform: v.platform as PlatformType,
             content: v.adaptedContent || '',
             characterCount: typeof v.characterCount === 'number' ? v.characterCount : (v.adaptedContent || '').length,
             hashtags: Array.isArray(v.hashtagStrategy) ? v.hashtagStrategy : [],
             firstCommentHint: v.firstCommentHint || undefined,
             status: (v.status === 'failed' ? 'error' : 'ready') as 'ready' | 'error',
-            error: v.status === 'failed' ? (v.error?.message || 'Variant failed') : undefined,
+            error: v.status === 'failed' ? formatPlatformError(v.error?.message) : undefined,
           }));
 
           setDrafts(loadedDrafts);
           if (loadedDrafts.length > 0) {
             setActiveTab(loadedDrafts[0].platform);
             setPreviewPlatform(loadedDrafts[0].platform);
+            setTimeout(() => {
+              reviewSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 250);
           }
           studioToast.info('Loaded draft into AI Composer');
         }
@@ -906,6 +925,53 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       isMounted = false;
     };
   }, [targetPostId, urlMode]);
+  
+  // ── Cancel review without making changes ──────────────────────────────────
+  const handleCancelReview = () => {
+    setPostId(null);
+    setSourceContent('');
+    setQuickContent('');
+    setDrafts([]);
+    setMedia([]);
+    hasLoadedTargetPost.current = null;
+    router.push('/dashboard/signal');
+    studioToast.info('Exited draft review without changes');
+  };
+
+  // ── Cancel & discard draft completely ─────────────────────────────────────
+  const handleDiscardDraft = async () => {
+    if (!postId) return;
+    setIsDiscardingDraft(true);
+    try {
+      const res = await fetch(`/api/publish/${postId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        const fallback = await fetch(`/api/signal/posts?postId=${postId}`, {
+          method: 'DELETE',
+          credentials: 'include',
+        });
+        if (!fallback.ok) {
+          const errData = await fallback.json().catch(() => ({}));
+          throw new Error(errData.error || 'Failed to cancel draft');
+        }
+      }
+      studioToast.success('Draft cancelled and removed');
+      setPostId(null);
+      setSourceContent('');
+      setQuickContent('');
+      setDrafts([]);
+      setMedia([]);
+      hasLoadedTargetPost.current = null;
+      setConfirmDiscardDraft(false);
+      router.push('/dashboard/signal');
+    } catch (err) {
+      studioToast.error(err instanceof Error ? err.message : 'Failed to cancel draft');
+    } finally {
+      setIsDiscardingDraft(false);
+    }
+  };
 
   // ── Effective Studio Profile for AI ideas & persona ─────────────────────────
   const effectiveStudioProfile = useMemo(() => {
@@ -1383,6 +1449,11 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       }
       setDrafts(allDrafts);
 
+      // Auto-scroll to Review & Edit Drafts section so user immediately sees generated content
+      setTimeout(() => {
+        reviewSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 150);
+
       if (failedPlatforms.length > 0) {
         studioToast.success(
           `Drafts ready for ${succeededPlatforms.length} platform${succeededPlatforms.length !== 1 ? 's' : ''}. ${failedPlatforms.length} failed — check the error tab${failedPlatforms.length !== 1 ? 's' : ''}.`,
@@ -1502,6 +1573,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       return;
     }
 
+    setIsPublishing(true);
     try {
       const res = await fetch('/api/publish', {
         method: 'POST',
@@ -1571,6 +1643,8 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Publish failed';
       studioToast.error(errorMsg);
+    } finally {
+      setIsPublishing(false);
     }
   };
 
@@ -1797,6 +1871,81 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
             Plan Entire Week (Flight Plan)
           </Link>
         </div>
+
+        {/* Active Draft Review & Cancellation Banner */}
+        <AnimatePresence>
+          {postId && (
+            <MotionBox key="draft-review-banner" variant="slide-up">
+              <div className="flex items-center justify-between px-4 py-3 rounded-2xl bg-[#FAF6EE] border border-[#E8DFC8] text-[#3D2B1F] shadow-2xs flex-wrap gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-8 h-8 rounded-xl bg-[#F5EFE2] border border-[#E0D5BE] flex items-center justify-center shrink-0">
+                    <FileText className="w-4 h-4 text-[#A87932]" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-bold leading-tight">Reviewing Draft</span>
+                      <span className="text-[10px] font-semibold bg-[#EDE4CF] text-[#63481D] px-2 py-0.5 rounded-full">
+                        {mode === 'quick' ? 'Quick Broadcast Draft' : 'AI Composer Draft'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[#8B7355] mt-0.5 truncate">
+                      Reviewing existing draft. You can publish directly, or cancel without making changes.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 ml-auto">
+                  {/* Cancel Review CTA */}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCancelReview}
+                    className="h-8 text-xs font-semibold bg-white hover:bg-[#F5EFE2] border-[#D4C8B0] text-[#3D2B1F] cursor-pointer shadow-2xs"
+                    title="Exit review without making changes and return to Signal"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5 mr-1" />
+                    Cancel Review
+                  </Button>
+
+                  {/* Cancel/Discard Draft CTA */}
+                  {confirmDiscardDraft ? (
+                    <div className="inline-flex items-center gap-1.5 bg-red-100/90 px-2 py-1 rounded-xl border border-red-300">
+                      <span className="text-[11px] text-red-800 font-semibold">Discard draft?</span>
+                      <button
+                        type="button"
+                        onClick={handleDiscardDraft}
+                        disabled={isDiscardingDraft}
+                        className="px-2 py-0.5 rounded-lg text-xs font-semibold bg-red-600 text-white hover:bg-red-700 cursor-pointer disabled:opacity-50"
+                      >
+                        {isDiscardingDraft ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Yes'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDiscardDraft(false)}
+                        disabled={isDiscardingDraft}
+                        className="px-1.5 py-0.5 rounded-lg text-xs text-gray-600 hover:text-gray-800 cursor-pointer"
+                      >
+                        No
+                      </button>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setConfirmDiscardDraft(true)}
+                      className="h-8 text-xs font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 cursor-pointer"
+                      title="Cancel and discard this draft completely"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 mr-1" />
+                      Cancel Draft
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </MotionBox>
+          )}
+        </AnimatePresence>
 
         {/* Plan error banner */}
         <AnimatePresence>
@@ -2399,7 +2548,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                         ) : (
                           <FileText className="mr-2 h-4 w-4" />
                         )}
-                        Draft for Selected
+                        Draft Selected
                       </Button>
                       <Button
                         onClick={() => generateDrafts(false)}
@@ -2410,7 +2559,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                         ) : (
                           <FileText className="mr-2 h-4 w-4" />
                         )}
-                        Draft for All
+                        Draft All
                       </Button>
                     </div>
                   </div>
@@ -2480,11 +2629,12 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
             </MotionBox>
 
             {/* Step 2 — Platform Drafts */}
-            <AnimatePresence mode="wait">
-              {drafts.some(d => d.status !== 'idle') && (
-                <MotionBox key="drafts" variant="slide-up" delay={0.1}>
-                  <Card>
-                    <CardHeader className="pb-3">
+            <div ref={reviewSectionRef} id="review-and-edit-section" className="scroll-mt-24">
+              <AnimatePresence mode="wait">
+                {drafts.some(d => d.status !== 'idle') && (
+                  <MotionBox key="drafts" variant="slide-up" delay={0.1}>
+                    <Card>
+                      <CardHeader className="pb-3">
                       <div className="flex items-center justify-between flex-wrap gap-2">
                         <div className="flex items-center gap-2">
                           <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold flex-shrink-0">2</span>
@@ -2590,8 +2740,12 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                                         <AlertTriangle className="w-3.5 h-3.5 text-[#B85450]" />
                                       </div>
                                       <div>
-                                        <p className="font-semibold text-xs text-[#9E2A2B] leading-tight">{draft.error}</p>
-                                        <p className="text-[11px] text-[#8B7355] mt-0.5">Could not generate draft for this network. Review criteria or retry.</p>
+                                        <p className="font-semibold text-xs text-[#9E2A2B] leading-tight">{formatPlatformError(draft.error)}</p>
+                                        <p className="text-[11px] text-[#8B7355] mt-0.5">
+                                          {/duplicate/i.test(draft.error)
+                                            ? 'Please edit the wording slightly so LinkedIn accepts the update.'
+                                            : 'Could not publish draft to this network. Review criteria, edit content, or reconnect account.'}
+                                        </p>
                                       </div>
                                     </div>
                                     <div className="flex items-center gap-2 ml-auto">
@@ -2703,36 +2857,71 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                 </MotionBox>
               )}
             </AnimatePresence>
+            </div>
 
             {/* Step 3 — Publish bar */}
             <AnimatePresence mode="wait">
               {readyCount > 0 && (
                 <MotionBox key="publish" variant="slide-up" delay={0.1}>
-                  <div className="flex items-center justify-between flex-wrap gap-4 px-5 py-4 rounded-xl border border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/40">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                        <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  <div className="relative overflow-hidden flex items-center justify-between flex-wrap gap-4 px-5 py-4 rounded-2xl border border-[#E2D5BE] dark:border-[#382E24] bg-gradient-to-r from-[#FAF8F5] via-[#FFFDFB] to-[#F5EFE6] dark:from-[#1A1612] dark:via-[#1E1914] dark:to-[#16120E] shadow-[0_8px_30px_rgba(61,43,31,0.06)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
+                    {/* Top luxury hairline accent */}
+                    <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#C4A265]/70 to-transparent" />
+
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div className="relative flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-br from-[#2D2319] via-[#382C1F] to-[#1F1710] border border-[#C4A265]/40 shadow-[0_2px_10px_rgba(45,35,25,0.2)] shrink-0">
+                        <Sparkles className="w-5 h-5 text-[#E5C77A]" />
                       </div>
-                      <div>
-                        <p className="text-sm font-semibold text-green-800 dark:text-green-200">Ready to Publish</p>
-                        <p className="text-xs text-green-700 dark:text-green-300">
-                          {readyCount} platform draft{readyCount > 1 ? 's' : ''} reviewed and ready
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-bold tracking-tight text-[#2D2319] dark:text-[#FAF7F2]">
+                            Ready to Publish
+                          </p>
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-[#C4A265]/15 text-[#8A6726] dark:text-[#E5C77A] border border-[#C4A265]/30">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#C4A265] animate-pulse" />
+                            Primed
+                          </span>
+                        </div>
+                        <p className="text-xs text-[#8B7355] dark:text-[#A89886] mt-0.5 font-medium">
+                          {readyCount} platform draft{readyCount > 1 ? 's' : ''} reviewed and verified for publishing
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+
+                    <div className="flex items-center gap-2.5 ml-auto sm:ml-0">
                       <Button
+                        type="button"
                         variant="outline"
                         onClick={() => setScheduleDialogOpen(true)}
-                        disabled={isGenerating || isSchedulingPost}
-                        className="bg-white border-green-300 text-green-900 hover:bg-green-100/50"
+                        disabled={isGenerating || isSchedulingPost || isPublishing}
+                        className="relative group/schedule h-10 px-4 rounded-xl text-xs font-semibold cursor-pointer transition-all duration-200 bg-white dark:bg-[#251E17] text-[#3D2B1F] dark:text-[#FAF7F2] border border-[#D8C7A5] dark:border-[#423527] shadow-[0_2px_6px_rgba(61,43,31,0.06)] hover:shadow-md hover:border-[#C4A265] hover:bg-[#FAF6EE] dark:hover:bg-[#2E261E] active:scale-[0.98] disabled:opacity-50 flex items-center gap-2"
                       >
-                        <Clock className="mr-2 h-4 w-4 text-amber-600" />
-                        Schedule
+                        <span className="flex items-center justify-center w-5 h-5 rounded-lg bg-[#FAF4E6] dark:bg-[#34291F] text-[#B87A1E] dark:text-[#E5C77A] border border-[#EADBBD] dark:border-[#4B3B2B] group-hover/schedule:rotate-12 transition-transform duration-200">
+                          <Clock className="w-3.5 h-3.5" />
+                        </span>
+                        <span>Schedule</span>
                       </Button>
-                      <Button onClick={handlePublish} disabled={isGenerating || isSchedulingPost}>
-                        <ArrowUpRight className="mr-2 h-4 w-4" />
-                        Publish All
+
+                      <Button
+                        type="button"
+                        onClick={handlePublish}
+                        disabled={isGenerating || isSchedulingPost || isPublishing}
+                        className="relative group/publish overflow-hidden h-10 px-5 rounded-xl text-xs font-bold tracking-wide cursor-pointer transition-all duration-300 bg-gradient-to-r from-[#201912] via-[#2E241B] to-[#3D2B1F] hover:from-[#15100B] hover:via-[#241B13] hover:to-[#2F2116] text-[#FAF7F2] border border-[#C4A265]/50 shadow-[0_4px_16px_rgba(45,35,25,0.28)] hover:shadow-[0_6px_24px_rgba(45,35,25,0.42)] hover:border-[#E5C77A]/80 active:scale-[0.98] disabled:opacity-50 flex items-center gap-2.5"
+                      >
+                        {/* Shimmer light reflection sweep */}
+                        <div className="absolute inset-0 -translate-x-full group-hover/publish:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/15 to-transparent pointer-events-none" />
+
+                        {isPublishing ? (
+                          <Loader2 className="w-4 h-4 animate-spin text-[#E5C77A]" />
+                        ) : (
+                          <span className="flex items-center justify-center w-5 h-5 rounded-lg bg-white/10 text-[#E5C77A] group-hover/publish:scale-110 transition-transform duration-200">
+                            <Send className="w-3.5 h-3.5" />
+                          </span>
+                        )}
+                        <span>{isPublishing ? 'Publishing...' : 'Publish All'}</span>
+                        <span className="px-1.5 py-0.5 rounded-md text-[10px] font-black bg-[#C4A265]/30 text-[#E5C77A] border border-[#C4A265]/40 leading-none">
+                          {readyCount}
+                        </span>
+                        <ArrowUpRight className="w-3.5 h-3.5 text-[#C4A265] group-hover/publish:translate-x-0.5 group-hover/publish:-translate-y-0.5 transition-transform" />
                       </Button>
                     </div>
                   </div>

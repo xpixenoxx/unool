@@ -327,6 +327,38 @@ export class LinkedInAdapter implements PlatformAdapter {
         });
       };
 
+function parseLinkedInPublishError(status: number, statusText: string, rawBody: string): string {
+  try {
+    const parsed = typeof rawBody === 'string' ? JSON.parse(rawBody) : rawBody;
+    const inputErrors = parsed.errorDetails?.inputErrors;
+    const isDuplicate =
+      inputErrors?.some((e: any) => e.code === 'DUPLICATE_POST' || e.description?.toLowerCase().includes('duplicate')) ||
+      parsed.message?.toLowerCase().includes('duplicate') ||
+      parsed.code === 'DUPLICATE_POST';
+
+    if (isDuplicate) {
+      return 'LinkedIn duplicate post detected. LinkedIn does not allow publishing identical content within a short period. Please edit your post slightly before retrying.';
+    }
+
+    if (Array.isArray(inputErrors) && inputErrors.length > 0 && inputErrors[0]?.description) {
+      return `LinkedIn rejected post: ${inputErrors[0].description}`;
+    }
+
+    if (parsed.message) {
+      const cleanMsg = parsed.message.replace(/^[a-zA-Z0-9_.]+(?:Exception|Error):\s*/, '');
+      return `LinkedIn rejected post: ${cleanMsg}`;
+    }
+  } catch {
+    // not valid JSON
+  }
+
+  if (rawBody && rawBody.length < 200 && !rawBody.startsWith('{') && !rawBody.startsWith('<')) {
+    return `LinkedIn publish failed: ${status} ${statusText} - ${rawBody}`;
+  }
+
+  return `LinkedIn publish failed: ${status} ${statusText}`;
+}
+
       let response = await sendPost(authorUrn);
 
       // If 422 Unprocessable Entity, it could be an author URN mismatch with the token.
@@ -335,15 +367,18 @@ export class LinkedInAdapter implements PlatformAdapter {
         const errorText = await response.text();
         logger.warn('LinkedIn: 422 Unprocessable Entity on /posts', { errorText, authorUrn });
 
-        try {
-          const freshUrn = await this.getAuthorUrn(accessToken);
-          if (freshUrn && freshUrn !== authorUrn) {
-            logger.info('Retrying LinkedIn /posts with fresh author URN from userinfo', { freshUrn });
-            authorUrn = freshUrn;
-            response = await sendPost(freshUrn);
+        const isDuplicate = errorText.includes('DUPLICATE_POST') || errorText.toLowerCase().includes('duplicate');
+        if (!isDuplicate) {
+          try {
+            const freshUrn = await this.getAuthorUrn(accessToken);
+            if (freshUrn && freshUrn !== authorUrn) {
+              logger.info('Retrying LinkedIn /posts with fresh author URN from userinfo', { freshUrn });
+              authorUrn = freshUrn;
+              response = await sendPost(freshUrn);
+            }
+          } catch (urnErr) {
+            logger.warn('Could not refresh author URN for LinkedIn 422 retry', { error: urnErr });
           }
-        } catch (urnErr) {
-          logger.warn('Could not refresh author URN for LinkedIn 422 retry', { error: urnErr });
         }
 
         if (!response.ok) {
@@ -351,7 +386,7 @@ export class LinkedInAdapter implements PlatformAdapter {
           if (response.status === 401 || response.status === 403) {
             throw new TokenExpiredError('Token expired or invalid', 'linkedin');
           }
-          throw new Error(`LinkedIn publish failed: ${response.status} ${response.statusText} - ${finalError || errorText}`);
+          throw new Error(parseLinkedInPublishError(response.status, response.statusText, finalError || errorText));
         }
       } else if (!response.ok) {
         const error = await response.text();
@@ -360,7 +395,7 @@ export class LinkedInAdapter implements PlatformAdapter {
         if (response.status === 401 || response.status === 403) {
           throw new TokenExpiredError('Token expired or invalid', 'linkedin');
         }
-        throw new Error(`LinkedIn publish failed: ${response.status} ${response.statusText} - ${error}`);
+        throw new Error(parseLinkedInPublishError(response.status, response.statusText, error));
       }
 
       // The /posts API returns 201 Created with an empty body and the ID in the x-restli-id header
