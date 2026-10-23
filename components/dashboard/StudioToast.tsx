@@ -99,15 +99,15 @@ export function StudioToastCard({
   return (
     <div
       role="alert"
-      className="relative w-full max-w-[420px] rounded-2xl p-4 border overflow-hidden backdrop-blur-xl transition-all select-none"
+      className="relative w-[calc(100vw-2rem)] sm:w-[calc(100vw-4rem)] max-w-5xl rounded-2xl p-4 sm:p-5 border overflow-hidden backdrop-blur-2xl transition-all select-none shadow-[0_24px_60px_-12px_rgba(45,35,25,0.22),0_0_0_1px_rgba(196,162,101,0.18)]"
       style={{
         backgroundColor: isError ? '#FFFDFB' : isSuccess ? '#FBFCFA' : '#FAF8F5',
         borderColor: isError ? '#F2DEDE' : isSuccess ? '#D8EADF' : '#EADBCA',
         boxShadow: isError
-          ? '0 16px 36px -6px rgba(184, 84, 80, 0.16), 0 4px 12px -2px rgba(45, 35, 25, 0.05)'
+          ? '0 20px 48px -8px rgba(184, 84, 80, 0.2), 0 4px 16px -2px rgba(45, 35, 25, 0.06)'
           : isSuccess
-          ? '0 16px 36px -6px rgba(46, 125, 70, 0.14), 0 4px 12px -2px rgba(45, 35, 25, 0.05)'
-          : '0 16px 36px -6px rgba(196, 162, 101, 0.16), 0 4px 12px -2px rgba(45, 35, 25, 0.05)',
+          ? '0 20px 48px -8px rgba(46, 125, 70, 0.18), 0 4px 16px -2px rgba(45, 35, 25, 0.06)'
+          : '0 20px 48px -8px rgba(196, 162, 101, 0.2), 0 4px 16px -2px rgba(45, 35, 25, 0.06)',
       }}
     >
       {/* Architectural ambient gradient crown */}
@@ -122,16 +122,16 @@ export function StudioToastCard({
         }}
       />
 
-      <div className="flex items-start gap-3.5 pt-0.5">
+      <div className="flex items-start sm:items-center gap-4">
         {/* Custom insignia */}
-        <div className="flex-shrink-0 mt-0.5">
+        <div className="flex-shrink-0 mt-0.5 sm:mt-0">
           {isError ? <StudioAlertInsignia /> : isSuccess ? <StudioSuccessInsignia /> : <StudioInfoInsignia />}
         </div>
 
         {/* Content body */}
-        <div className="flex-1 min-w-0 pr-6">
+        <div className="flex-1 min-w-0 pr-8">
           {/* Eyebrow status chip */}
-          <div className="flex items-center gap-2 mb-1.5">
+          <div className="flex items-center gap-2 mb-1">
             <span
               className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md"
               style={{
@@ -158,13 +158,13 @@ export function StudioToastCard({
           </div>
 
           {/* Primary message */}
-          <p className="text-sm font-semibold leading-snug" style={{ color: '#2D2319' }}>
+          <p className="text-sm sm:text-base font-semibold leading-snug" style={{ color: '#2D2319' }}>
             {message}
           </p>
 
           {/* Optional secondary description */}
           {description && (
-            <p className="text-xs text-[#8B7355] mt-1 leading-normal">
+            <p className="text-xs sm:text-[13px] text-[#8B7355] mt-1 leading-normal">
               {description}
             </p>
           )}
@@ -175,7 +175,7 @@ export function StudioToastCard({
               {platforms.map(p => (
                 <span
                   key={p}
-                  className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full border shadow-2xs"
+                  className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-0.5 rounded-full border shadow-2xs"
                   style={{
                     backgroundColor: '#FFFFFF',
                     borderColor: '#E8E0D4',
@@ -192,47 +192,60 @@ export function StudioToastCard({
               ))}
             </div>
           )}
-
-          {/* Dedicated "Know More" action banner when generation is blocked */}
-          {knowMoreUrl && (
-            <div className="mt-3 pt-2.5 flex items-center justify-between gap-3 border-t border-black/5">
-              <span className="text-[11px] text-[#8B7355] leading-tight">
-                Review acceptable use & platform criteria
-              </span>
-              <a
-                href={knowMoreUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-2xs group flex-shrink-0"
-                style={{
-                  backgroundColor: '#2D2319',
-                  color: '#FAF7F2',
-                }}
-              >
-                {/* Handcrafted Know More glyph */}
-                <svg viewBox="0 0 16 16" fill="none" className="w-3.5 h-3.5 text-[#C4A265]" stroke="currentColor" strokeWidth="1.75">
-                  <circle cx="8" cy="8" r="7" stroke="currentColor" strokeOpacity="0.8" />
-                  <line x1="8" y1="7.5" x2="8" y2="11.5" stroke="currentColor" strokeLinecap="round" />
-                  <circle cx="8" cy="4.5" r="0.85" fill="currentColor" stroke="none" />
-                </svg>
-                <span>{knowMoreLabel}</span>
-                <ArrowUpRight className="w-3 h-3 opacity-70 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-              </a>
-            </div>
-          )}
         </div>
+
+        {/* Action shortcut banner (desktop) */}
+        {knowMoreUrl && (
+          <div className="hidden md:flex flex-shrink-0 items-center gap-3 pr-8">
+            <span className="text-xs text-[#8B7355] leading-tight max-w-[180px] text-right">
+              Review acceptable use &amp; platform criteria
+            </span>
+            <a
+              href={knowMoreUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs group flex-shrink-0 bg-[#2D2319] hover:bg-black text-[#FAF7F2] border border-[#C4A265]/40 hover:scale-105 active:scale-95"
+            >
+              <svg viewBox="0 0 16 16" fill="none" className="w-3.5 h-3.5 text-[#C4A265]" stroke="currentColor" strokeWidth="1.75">
+                <circle cx="8" cy="8" r="7" stroke="currentColor" strokeOpacity="0.8" />
+                <line x1="8" y1="7.5" x2="8" y2="11.5" stroke="currentColor" strokeLinecap="round" />
+                <circle cx="8" cy="4.5" r="0.85" fill="currentColor" stroke="none" />
+              </svg>
+              <span>{knowMoreLabel}</span>
+              <ArrowUpRight className="w-3 h-3 opacity-70 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+            </a>
+          </div>
+        )}
 
         {/* Minimalist dismiss button */}
         <button
           type="button"
           onClick={() => toast.dismiss(id)}
-          className="absolute top-3 right-3 p-1 rounded-lg text-[#8B7355] hover:text-[#2D2319] hover:bg-black/5 transition-colors cursor-pointer"
+          className="absolute top-3 right-3 p-1.5 rounded-xl text-[#8B7355] hover:text-[#2D2319] hover:bg-black/5 transition-colors cursor-pointer"
           title="Dismiss notification"
           aria-label="Dismiss"
         >
           <X className="w-4 h-4" />
         </button>
       </div>
+
+      {/* Mobile action row */}
+      {knowMoreUrl && (
+        <div className="mt-3 pt-2.5 md:hidden flex items-center justify-between gap-3 border-t border-black/5">
+          <span className="text-[11px] text-[#8B7355] leading-tight">
+            Review acceptable use & platform criteria
+          </span>
+          <a
+            href={knowMoreUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer shadow-2xs bg-[#2D2319] text-[#FAF7F2]"
+          >
+            <span>{knowMoreLabel}</span>
+            <ArrowUpRight className="w-3 h-3 opacity-70" />
+          </a>
+        </div>
+      )}
     </div>
   );
 }

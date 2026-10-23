@@ -64,8 +64,16 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Transition post status to 'publishing' immediately so it is never shown as a draft in Signal while publishing
+      // Transition post status to 'publishing' immediately and refresh timestamps so it appears at top
+      const primaryDraftContent = Array.isArray(drafts) && drafts.length > 0 ? drafts[0]?.content : null;
       await postRepository.updateStatus(postId, 'publishing');
+      if (primaryDraftContent) {
+        try {
+          await postRepository.update(postId, { content: primaryDraftContent });
+        } catch {
+          // non-blocking
+        }
+      }
 
       // If edited drafts were provided from the composer, save updates before publishing
       if (Array.isArray(drafts) && drafts.length > 0) {

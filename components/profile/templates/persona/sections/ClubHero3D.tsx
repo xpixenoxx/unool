@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, Component } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html, OrbitControls, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
@@ -293,6 +293,39 @@ interface ClubHero3DProps {
   onLoad?: () => void;
 }
 
+function checkWebGLAvailable(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const canvas = document.createElement('canvas');
+    return !!(
+      window.WebGLRenderingContext &&
+      (canvas.getContext('webgl') || canvas.getContext('experimental-webgl'))
+    );
+  } catch {
+    return false;
+  }
+}
+
+class SafeCanvasErrorBoundary extends Component<
+  { fallback: React.ReactNode; children: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { fallback: React.ReactNode; children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(err: any) {
+    console.warn('Canvas 3D context failure, falling back to CSS visual:', err);
+  }
+  render() {
+    if (this.state.hasError) return this.props.fallback;
+    return this.props.children;
+  }
+}
+
 export function ClubHero3D({
   intensity = 1,
   geometry = 'icosphere',
@@ -300,10 +333,15 @@ export function ClubHero3D({
   onLoad,
 }: ClubHero3DProps) {
   const [isLoaded, setIsLoaded] = useState(false);
+  const [canRender3D, setCanRender3D] = useState(false);
   const mouseRef = useRef(new THREE.Vector2(0, 0));
   const scrollRef = useRef(0);
   const timeRef = useRef(0);
   const prefersReduced = false; // Will be overridden by parent context
+
+  useEffect(() => {
+    setCanRender3D(checkWebGLAvailable());
+  }, []);
 
   // Track mouse position
   useEffect(() => {
@@ -339,54 +377,60 @@ export function ClubHero3D({
 
   const effectiveIntensity = prefersReduced ? 0 : intensity;
 
+  if (!canRender3D) {
+    return <ClubHero3DFallback />;
+  }
+
   return (
-    <Canvas
-      camera={{ position: [0, 0, 5], fov: 40 }}
-      gl={{ antialias: true, alpha: true, preserveDrawingBuffer: false }}
-      style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}
-      onCreated={({ gl }) => {
-        gl.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        setIsLoaded(true);
-        onLoad?.();
-      }}
-    >
-      <color attach="background" args={['#000000']} />
-      <fog attach="fog" args={[0x06100e, 5, 15]} />
+    <SafeCanvasErrorBoundary fallback={<ClubHero3DFallback />}>
+      <Canvas
+        camera={{ position: [0, 0, 5], fov: 40 }}
+        gl={{ antialias: true, alpha: true, preserveDrawingBuffer: false, powerPreference: 'low-power' }}
+        style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}
+        onCreated={({ gl }) => {
+          gl.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+          setIsLoaded(true);
+          onLoad?.();
+        }}
+      >
+        <color attach="background" args={['#000000']} />
+        <fog attach="fog" args={[0x06100e, 5, 15]} />
 
-      {/* Main Icosphere */}
-      <group>
-        {geometry === 'icosphere' && (
-          <Icosphere
-            uTime={timeRef.current}
-            uMouse={mouseRef.current}
-            uScrollProgress={scrollRef.current}
-            uIntensity={effectiveIntensity}
-            subdivisions={subdivisions}
-            rotation={{ x: -0.2, y: 0.3 }}
+        {/* Main Icosphere */}
+        <group>
+          {geometry === 'icosphere' && (
+            <Icosphere
+              uTime={timeRef.current}
+              uMouse={mouseRef.current}
+              uScrollProgress={scrollRef.current}
+              uIntensity={effectiveIntensity}
+              subdivisions={subdivisions}
+              rotation={{ x: -0.2, y: 0.3 }}
+            />
+          )}
+
+          {/* Ambient Particles */}
+          <AmbientParticles uTime={timeRef.current} uIntensity={effectiveIntensity} />
+
+          {/* Subtle orbit controls for desktop */}
+          <OrbitControls
+            enablePan={false}
+            enableZoom={false}
+            enableRotate={!prefersReduced}
+            autoRotate={!prefersReduced}
+            autoRotateSpeed={0.2}
+            maxPolarAngle={Math.PI / 2}
+            minPolarAngle={0}
           />
-        )}
+        </group>
 
-        {/* Ambient Particles */}
-        <AmbientParticles uTime={timeRef.current} uIntensity={effectiveIntensity} />
-
-        {/* Subtle orbit controls for desktop */}
-        <OrbitControls
-          enablePan={false}
-          enableZoom={false}
-          enableRotate={!prefersReduced}
-          autoRotate={!prefersReduced}
-          autoRotateSpeed={0.2}
-          maxPolarAngle={Math.PI / 2}
-          minPolarAngle={0}
-        />
-      </group>
-
-      {/* Lighting */}
-      <ambientLight intensity={0.3} color="#00ffff" />
-      <directionalLight position={[5, 10, 7]} intensity={0.5} color="#ffffff" />
-      <pointLight position={[-3, 5, 3]} intensity={0.3} color="#00ffff" decay={2} />
-      <pointLight position={[3, -5, -3]} intensity={0.2} color="#a855f7" decay={2} />
-    </Canvas>
+        {/* Lighting */}
+        <ambientLight intensity={0.3} color="#00ffff" />
+        <directionalLight position={[5, 10, 7]} intensity={0.5} color="#ffffff" />
+        <pointLight position={[-3, 5, 3]} intensity={0.3} color="#00ffff" decay={2} />
+        <pointLight position={[3, -5, -3]} intensity={0.2} color="#a855f7" decay={2} />
+      </Canvas>
+    </SafeCanvasErrorBoundary>
   );
 }
 

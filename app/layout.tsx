@@ -39,7 +39,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Sentry.ErrorBoundary fallback={ErrorFallback}>
           {children}
         </Sentry.ErrorBoundary>
-        <Toaster position="top-center" />
+        <Toaster
+          position="top-center"
+          style={{
+            '--width': 'min(92vw, 1100px)',
+          } as React.CSSProperties}
+          toastOptions={{
+            className: '!w-full !max-w-[min(92vw,1100px)]',
+          }}
+        />
       </body>
     </html>
   );
