@@ -1,0 +1,397 @@
+/* ============================================================
+   UNOOL LUXURY CHECKOUT MODAL STYLES
+   Custom Bespoke Payment Interface with Non-Generic Transitions
+   ============================================================ */
+
+/* ── Backdrop Overlay ─────────────────────────────────────── */
+.unool-checkout-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(14, 12, 10, 0.78);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: unoolBackdropFade 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes unoolBackdropFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ── Modal Outer Wrapper ──────────────────────────────────── */
+.unool-checkout-dialog {
+  position: relative;
+  width: 100%;
+  max-width: 960px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: row;
+  border-radius: 24px;
+  overflow: hidden;
+  background: #141210;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 
+    0 24px 60px -12px rgba(0, 0, 0, 0.65),
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 0 80px -20px rgba(139, 92, 246, 0.25);
+  animation: unoolModalSpring 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes unoolModalSpring {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* ── Left Showcase Panel ──────────────────────────────────── */
+.unool-checkout-left {
+  width: 42%;
+  min-width: 340px;
+  background: linear-gradient(165deg, #181512 0%, #12100E 100%);
+  padding: 36px 32px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  color: #FAF8F5;
+  overflow-y: auto;
+}
+
+.unool-checkout-left::before {
+  content: '';
+  position: absolute;
+  top: -60px;
+  left: -60px;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.22) 0%, transparent 70%);
+  filter: blur(40px);
+  pointer-events: none;
+}
+
+/* Brand Bar */
+.unool-brand-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 28px;
+}
+
+.unool-brand-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #FAF8F5;
+}
+
+.unool-brand-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #8B5CF6;
+  box-shadow: 0 0 12px #8B5CF6;
+}
+
+.unool-plan-badge {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: rgba(139, 92, 246, 0.16);
+  border: 1px solid rgba(139, 92, 246, 0.35);
+  color: #A78BFA;
+}
+
+/* Plan Details */
+.unool-plan-name {
+  font-size: 28px;
+  font-weight: 800;
+  color: #FFFFFF;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.unool-plan-tagline {
+  font-size: 13px;
+  color: #A39B8E;
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
+/* Pricing Section */
+.unool-price-box {
+  margin: 24px 0;
+  padding: 20px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.unool-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.unool-price-amount {
+  font-size: 34px;
+  font-weight: 800;
+  color: #FFFFFF;
+  letter-spacing: -0.03em;
+}
+
+.unool-price-period {
+  font-size: 14px;
+  color: #A39B8E;
+  font-weight: 500;
+}
+
+.unool-savings-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #10B981;
+  background: rgba(16, 185, 129, 0.12);
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+/* Feature List */
+.unool-features-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 24px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.unool-feature-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: #D6CFC7;
+}
+
+.unool-feature-check {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(139, 92, 246, 0.2);
+  color: #A78BFA;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+/* Bottom Guarantees */
+.unool-trust-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.unool-trust-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #8E867B;
+}
+
+.unool-trust-item svg {
+  color: #8B5CF6;
+  flex-shrink: 0;
+}
+
+/* ── Right Payment Container Panel ───────────────────────── */
+.unool-checkout-right {
+  width: 58%;
+  background: #FFFFFF;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Header with Close Button */
+.unool-right-header {
+  padding: 20px 28px 16px;
+  border-bottom: 1px solid #F0ECE4;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #FFFFFF;
+}
+
+.unool-right-header-text {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1A1612;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.unool-ssl-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: #059669;
+  background: #ECFDF5;
+  padding: 3px 8px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.unool-close-btn {
+  background: #F4EFEA;
+  border: 1px solid #E5DED5;
+  color: #5A5245;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.unool-close-btn:hover {
+  background: #1A1612;
+  color: #FFFFFF;
+  border-color: #1A1612;
+  transform: rotate(90deg);
+}
+
+/* Embed Mount Area */
+.unool-cashfree-mount {
+  flex: 1;
+  width: 100%;
+  min-height: 520px;
+  max-height: 75vh;
+  overflow-y: auto;
+  position: relative;
+  background: #FFFFFF;
+}
+
+/* Loading Placeholder inside mount */
+.unool-mount-skeleton {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #FFFFFF;
+  gap: 16px;
+  color: #7A7265;
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 10;
+}
+
+.unool-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(139, 92, 246, 0.18);
+  border-top-color: #8B5CF6;
+  border-radius: 50%;
+  animation: unoolSpin 0.75s linear infinite;
+}
+
+@keyframes unoolSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Footer fallback in right panel */
+.unool-right-footer {
+  padding: 14px 28px;
+  background: #FAF8F5;
+  border-top: 1px solid #EFEAE2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #7A7265;
+}
+
+.unool-verify-btn {
+  background: #1A1612;
+  color: #FAF8F5;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.unool-verify-btn:hover {
+  background: #8B5CF6;
+}
+
+/* ── Responsive Mobile Layout ────────────────────────────── */
+@media (max-width: 860px) {
+  .unool-checkout-dialog {
+    flex-direction: column;
+    max-height: 94vh;
+    overflow-y: auto;
+    border-radius: 20px;
+  }
+
+  .unool-checkout-left {
+    width: 100%;
+    min-width: unset;
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 24px 20px;
+  }
+
+  .unool-checkout-right {
+    width: 100%;
+  }
+
+  .unool-cashfree-mount {
+    min-height: 480px;
+  }
+}

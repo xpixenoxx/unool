@@ -2,13 +2,22 @@
 // The package doesn't ship TypeScript declarations, so we define the minimal surface we use.
 
 declare module '@cashfreepayments/cashfree-js' {
+  export interface CashfreeCheckoutResult {
+    error?: {
+      message: string;
+      code?: string;
+    };
+    redirect?: boolean;
+    paymentDetails?: Record<string, unknown>;
+  }
+
   export interface CashfreeCheckoutOptions {
     paymentSessionId: string;
-    redirectTarget?: '_self' | '_blank' | '_modal';
+    redirectTarget?: '_self' | '_blank' | '_modal' | HTMLElement;
   }
 
   export interface CashfreeInstance {
-    checkout(options: CashfreeCheckoutOptions): Promise<void>;
+    checkout(options: CashfreeCheckoutOptions): Promise<CashfreeCheckoutResult | void>;
   }
 
   export interface CashfreeLoadOptions {

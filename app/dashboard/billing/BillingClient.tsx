@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { CashfreeInstance } from '@cashfreepayments/cashfree-js';
+import { UnoolCheckoutModal } from '@/components/billing/UnoolCheckoutModal';
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -59,6 +60,11 @@ export default function BillingClient() {
   const [verifying, setVerifying] = useState(false);
   const [paymentResult, setPaymentResult] = useState<{ status: string; message: string } | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [checkoutData, setCheckoutData] = useState<{
+    plan: PlanData;
+    paymentSessionId: string;
+    cfOrderId: string;
+  } | null>(null);
 
   // ── Fetch data ─────────────────────────────────────────────
   useEffect(() => {
@@ -163,43 +169,21 @@ export default function BillingClient() {
       }
 
       const { paymentSessionId, cfOrderId } = await res.json();
+      const selectedPlan = plans.find(p => p.id === planId);
 
-      // Load Cashfree SDK and open checkout
-      const cashfree = await loadCashfreeSDK();
-      if (!cashfree) {
-        setPaymentResult({ status: 'ERROR', message: 'Payment gateway failed to load. Please check your connection and refresh.' });
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (!selectedPlan) {
+        setPaymentResult({ status: 'ERROR', message: 'Plan details not found.' });
         return;
       }
 
-      // Open Cashfree Drop-in checkout modal
-      const checkoutOptions = {
+      // Open our bespoke Unool Checkout Modal!
+      setCheckoutData({
+        plan: selectedPlan,
         paymentSessionId,
-        redirectTarget: '_modal' as const,
-      };
-
-      cashfree.checkout(checkoutOptions).then((result: any) => {
-        if (result?.error) {
-          console.error('Cashfree checkout modal error:', result.error);
-          setPaymentResult({
-            status: 'ERROR',
-            message: result.error.message || 'Payment window encountered an error.',
-          });
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-          return;
-        }
-        // Modal closed — start polling for verification
-        pollVerification(cfOrderId);
-      }).catch((err: any) => {
-        console.error('Cashfree checkout error:', err);
-        setPaymentResult({
-          status: 'ERROR',
-          message: err?.message || 'Payment window could not be opened.',
-        });
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        cfOrderId,
       });
     } catch (err) {
-      console.error('Payment error:', err);
+      console.error('Payment order creation error:', err);
       setPaymentResult({ status: 'ERROR', message: 'Something went wrong while initiating checkout. Please try again.' });
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
@@ -626,6 +610,36 @@ export default function BillingClient() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Bespoke Unool Checkout Modal ───────────────────── */}
+      {checkoutData && (
+        <UnoolCheckoutModal
+          isOpen={!!checkoutData}
+          onClose={() => {
+            const orderIdToPoll = checkoutData.cfOrderId;
+            setCheckoutData(null);
+            if (orderIdToPoll) {
+              pollVerification(orderIdToPoll);
+            }
+          }}
+          plan={checkoutData.plan}
+          billingCycle={billingCycle}
+          paymentSessionId={checkoutData.paymentSessionId}
+          cfOrderId={checkoutData.cfOrderId}
+          onPaymentSuccess={() => {
+            const orderIdToPoll = checkoutData.cfOrderId;
+            setCheckoutData(null);
+            if (orderIdToPoll) {
+              pollVerification(orderIdToPoll);
+            }
+          }}
+          onPaymentFailed={(msg) => {
+            setCheckoutData(null);
+            setPaymentResult({ status: 'ERROR', message: msg });
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+        />
       )}
     </div>
   );
