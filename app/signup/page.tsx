@@ -679,8 +679,10 @@ function SignUpComponent() {
         </div>
 
         <footer>
-          <span>Every post, every network, one calm queue.</span>
-          <span>Terms · Privacy</span>
+          <span>&copy; {new Date().getFullYear()} Pixenox Solutions · Unool</span>
+          <span>
+            <Link href="/terms">Terms</Link> · <Link href="/privacy">Privacy</Link> · <Link href="/refund">Refunds</Link> · <Link href="/contact">Contact</Link>
+          </span>
         </footer>
       </div>
     </div>

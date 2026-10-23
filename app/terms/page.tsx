@@ -1,20 +1,57 @@
 'use client';
 
 import Link from 'next/link';
-import { motion, useScroll, useTransform } from 'framer-motion';
-import { ArrowLeft, FileText, Zap, Shield, PenTool } from 'lucide-react';
+import { motion, useScroll } from 'framer-motion';
+import { ArrowLeft, FileText, Zap, Shield, PenTool, CreditCard, Scale, Building2 } from 'lucide-react';
 import { useRef } from 'react';
 
 export default function TermsOfServicePage() {
   const containerRef = useRef(null);
-  const { scrollYProgress } = useScroll({ target: containerRef, offset: ["start start", "end end"] });
-  const opacity = useTransform(scrollYProgress, [0, 0.05], [1, 0]);
+  useScroll({ target: containerRef, offset: ["start start", "end end"] });
 
   const sections = [
-    { id: 'acceptance', icon: FileText, title: 'Acceptance of Terms', content: 'By accessing or using Unool, you agree to these Terms. We may update them occasionally, and material changes will be posted here. Continued use constitutes your acceptance.' },
-    { id: 'service', icon: Zap, title: 'The Service', content: 'Unool provides a professional profile and social publishing platform. You get one link for your public profile, and AI tools to adapt and publish content to connected platforms like LinkedIn and X.' },
-    { id: 'ai', icon: PenTool, title: 'AI & Content', content: 'You retain full ownership of your content. Our AI adapts your drafts, but you always review and approve before publishing. You are responsible for the accuracy and legality of everything you post.' },
-    { id: 'conduct', icon: Shield, title: 'Acceptable Use', content: 'Do not violate laws, spam, scrape, impersonate others, or attempt to reverse-engineer our systems. We reserve the right to suspend or terminate accounts that violate these rules.' }
+    {
+      id: 'entity',
+      icon: Building2,
+      title: 'Company & Ownership',
+      content: 'Unool (including unool.co and all subdomains) is an online software platform fully owned, operated, and maintained by Pixenox Solutions ("Company", "we", "us", or "our"), with its principal corporate website located at www.pixenox.com. By accessing or using Unool, you enter into a legally binding agreement with Pixenox Solutions.'
+    },
+    {
+      id: 'acceptance',
+      icon: FileText,
+      title: 'Acceptance of Terms',
+      content: 'By creating an account, browsing, or subscribing to Unool, you acknowledge that you have read, understood, and agree to be bound by these Terms of Service. If you are using Unool on behalf of an organization, you represent and warrant that you possess the authority to bind that entity.'
+    },
+    {
+      id: 'service',
+      icon: Zap,
+      title: 'Description of Service',
+      content: 'Unool is a cloud Software-as-a-Service (SaaS) platform providing unified personal branding links, multi-theme public portfolio profiles, and multi-network social content creation, adaptation, and scheduling across supported platforms.'
+    },
+    {
+      id: 'billing',
+      icon: CreditCard,
+      title: 'Subscriptions & Payments',
+      content: 'Paid tiers (including Unool Pro) are billed in advance on a recurring monthly or annual basis via our secure payment partners (such as Cashfree). Prices are displayed in INR and USD. You may cancel your subscription at any time via Account Settings. Cancellations take effect at the conclusion of the current prepaid billing period.'
+    },
+    {
+      id: 'ai',
+      icon: PenTool,
+      title: 'Content Ownership & Intellectual Property',
+      content: 'You retain 100% intellectual property ownership of all content, copy, media, and credentials you upload or publish via Unool. You grant Pixenox Solutions only the limited license necessary to host, process, and transmit your content at your direction. The Unool design system, software, code, and trademarks remain the exclusive property of Pixenox Solutions.'
+    },
+    {
+      id: 'conduct',
+      icon: Shield,
+      title: 'Acceptable Use Policy',
+      content: 'You agree not to use Unool for unlawful activities, defamatory campaigns, distribution of malware, unsolicited spam, impersonation of third parties, or any attempt to reverse-engineer or circumvent security protocols. Violation may result in immediate suspension or termination of your workspace.'
+    },
+    {
+      id: 'governing',
+      icon: Scale,
+      title: 'Governing Law & Dispute Resolution',
+      content: 'These Terms and any non-contractual obligations arising from them are governed exclusively by the laws of India. Any legal action, suit, or proceeding shall be instituted exclusively in the competent courts of Bengaluru, Karnataka, India.'
+    }
   ];
 
   return (
@@ -32,6 +69,9 @@ export default function TermsOfServicePage() {
             </div>
             <span className="font-bold tracking-tight">Back to Unool</span>
           </Link>
+          <div className="text-xs text-white/40 hidden sm:block">
+            Legal Entity: <span className="text-white/80 font-medium">Pixenox Solutions</span>
+          </div>
         </div>
       </nav>
 
@@ -40,18 +80,29 @@ export default function TermsOfServicePage() {
         {/* Left Column: Hero & Index */}
         <div className="lg:col-span-5 lg:sticky lg:top-40 h-fit">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease: "easeOut" }}>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-[#D4B896] mb-4">
+              Pixenox Solutions • Legal Agreement
+            </div>
             <h1 className="text-5xl lg:text-7xl font-extrabold tracking-tighter leading-[1.1] mb-6">
               Terms of <br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-[#C84B31] to-[#8C2A25]">Service.</span>
             </h1>
             <p className="text-xl text-white/50 font-medium leading-relaxed max-w-md">
-              The rules of the road. We keep it simple, fair, and designed to protect both you and the Unool community.
+              The rules and operating terms governing the Unool platform and your relationship with Pixenox Solutions.
             </p>
+
+            <div className="mt-8 p-4 rounded-xl bg-white/[0.03] border border-white/10 text-sm text-white/60">
+              <p className="font-semibold text-white/90 mb-1">Corporate Details</p>
+              <p>Pixenox Solutions</p>
+              <p className="text-xs text-white/40">Official Portal: <a href="https://www.pixenox.com" target="_blank" rel="noopener noreferrer" className="text-[#C84B31] hover:underline">www.pixenox.com</a></p>
+              <p className="text-xs text-white/40 mt-1">Platform: Unool (https://unool.co)</p>
+              <p className="text-xs text-white/40">Contact: connect@pixenox.com</p>
+            </div>
           </motion.div>
         </div>
 
         {/* Right Column: Content */}
         <div className="lg:col-span-7">
-          <div className="space-y-12 lg:space-y-24">
+          <div className="space-y-12 lg:space-y-20">
             {sections.map((section, idx) => (
               <motion.div 
                 key={section.id}
@@ -66,8 +117,8 @@ export default function TermsOfServicePage() {
                     <section.icon className="w-6 h-6 text-white/80 group-hover:text-[#C84B31] transition-colors" />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-bold mb-4 tracking-tight text-white/90">{section.title}</h2>
-                    <p className="text-lg text-white/50 leading-relaxed font-medium">
+                    <h2 className="text-2xl font-bold mb-3 tracking-tight text-white/90">{section.title}</h2>
+                    <p className="text-base text-white/60 leading-relaxed font-medium">
                       {section.content}
                     </p>
                   </div>
@@ -81,13 +132,33 @@ export default function TermsOfServicePage() {
               whileInView={{ opacity: 1 }}
               viewport={{ once: true }}
               transition={{ duration: 1 }}
-              className="pt-12 border-t border-white/10"
+              className="pt-12 border-t border-white/10 space-y-6"
             >
-              <h3 className="text-xl font-bold mb-6 text-white/70">The Fine Print</h3>
-              <div className="prose prose-invert prose-p:text-white/40 prose-p:leading-relaxed prose-a:text-[#C84B31] prose-a:no-underline hover:prose-a:underline max-w-none font-medium">
-                <p><strong>Disclaimers:</strong> The service is provided "AS IS" without warranties of any kind. We do not guarantee uptime, uninterrupted access, or platform API availability. Third-party platform changes may break features without notice.</p>
-                <p><strong>Limitation of Liability:</strong> To the maximum extent permitted by law, Unool and its affiliates are not liable for indirect, incidental, special, consequential, or punitive damages. Our total liability is limited to the fees you paid us in the preceding 12 months (or $100 if on a free tier).</p>
-                <p><strong>Governing Law:</strong> These terms are governed by the laws of India, where Pixenox is based. Exclusive jurisdiction for disputes lies in the courts of Bengaluru, Karnataka. We encourage informal resolution first—please reach out to us at <a href="mailto:connect@pixenox.com">connect@pixenox.com</a>.</p>
+              <h3 className="text-xl font-bold text-white/80">Additional Terms &amp; Conditions</h3>
+              
+              <div className="prose prose-invert prose-p:text-white/50 prose-p:leading-relaxed prose-a:text-[#C84B31] prose-a:no-underline hover:prose-a:underline max-w-none text-sm space-y-4">
+                <p>
+                  <strong>Disclaimer of Warranties:</strong> Unool and all associated software, features, and content are provided on an &quot;AS IS&quot; and &quot;AS AVAILABLE&quot; basis without warranties of any kind, whether express or implied. Pixenox Solutions disclaims all warranties including, without limitation, merchantability, fitness for a particular purpose, and non-infringement.
+                </p>
+                <p>
+                  <strong>Limitation of Liability:</strong> Under no legal theory shall Pixenox Solutions, its directors, employees, or partners be liable for indirect, incidental, punitive, or consequential damages resulting from your use of the platform. Total liability is capped at the total amount paid by you to Pixenox Solutions for Unool during the three (3) months preceding the event giving rise to liability.
+                </p>
+                <p>
+                  <strong>Taxes &amp; Compliance:</strong> Subscription fees are exclusive of applicable Goods and Services Tax (GST) or relevant local indirect taxes, which will be charged in accordance with prevailing Indian statutory regulations. Tax invoices are electronically generated and issued upon transaction settlement.
+                </p>
+                <p>
+                  <strong>Contact &amp; Notices:</strong> Legal notices and communications should be addressed to:
+                  <br />
+                  <strong>Pixenox Solutions</strong>
+                  <br />
+                  Attn: Legal &amp; Compliance Department
+                  <br />
+                  Email: <a href="mailto:connect@pixenox.com">connect@pixenox.com</a> | <a href="mailto:support@unool.co">support@unool.co</a>
+                  <br />
+                  Corporate Portal: <a href="https://www.pixenox.com" target="_blank" rel="noopener noreferrer">www.pixenox.com</a>
+                  <br />
+                  Jurisdiction: Bengaluru, Karnataka, India
+                </p>
               </div>
             </motion.div>
 

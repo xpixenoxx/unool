@@ -582,7 +582,7 @@ function IPhonePreview({
 
         {/* Hardware Button - Right: Power / Side Button */}
         <div
-          className="absolute -right-[5px] top-38 w-[5px] h-16 rounded-r-md"
+          className="absolute -right-[5px] top-40 w-[5px] h-16 rounded-r-md"
           style={{
             background: 'linear-gradient(to left, #6E747B, #9CA3AF, #6E747B)',
             boxShadow: 'inset 1px 0 2px rgba(0,0,0,0.5)',

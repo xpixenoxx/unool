@@ -1,27 +1,51 @@
 'use client';
 
 import Link from 'next/link';
-import { motion, useScroll, useTransform } from 'framer-motion';
-import { ArrowLeft, Mail, Database, Lock, Eye, CheckCircle2 } from 'lucide-react';
+import { motion, useScroll } from 'framer-motion';
+import { ArrowLeft, Database, Lock, Eye, CheckCircle2, ShieldCheck, Building2 } from 'lucide-react';
 import { useRef } from 'react';
-
-const C = {
-  oxblood: '#3A0B1A',
-  terracotta: '#8C2A25',
-  clay: '#C84B31',
-  sand: '#D4B896',
-};
 
 export default function PrivacyPolicyPage() {
   const containerRef = useRef(null);
-  const { scrollYProgress } = useScroll({ target: containerRef, offset: ["start start", "end end"] });
-  const opacity = useTransform(scrollYProgress, [0, 0.05], [1, 0]);
+  useScroll({ target: containerRef, offset: ["start start", "end end"] });
 
   const sections = [
-    { id: 'data', icon: Database, title: 'Data We Collect', content: 'We collect what is strictly necessary. Your email for authentication, profile data for your public page, and OAuth tokens when you explicitly connect platforms like LinkedIn or X.' },
-    { id: 'usage', icon: Eye, title: 'How We Use Data', content: 'Your data powers your Unool experience. We authenticate you, host your public profile, and use your approval to publish to connected networks. Our AI features use anonymized prompts—never your PII.' },
-    { id: 'security', icon: Lock, title: 'Ironclad Security', content: 'All data is encrypted in transit and at rest. We do not store passwords. OAuth tokens are symmetrically encrypted before entering our databases.' },
-    { id: 'rights', icon: CheckCircle2, title: 'Your Digital Rights', content: 'You own your data. You can export it, modify it, or completely erase your account and all associated data with a single click in your settings.' }
+    {
+      id: 'entity',
+      icon: Building2,
+      title: 'Data Controller & Entity',
+      content: 'This Privacy Policy is issued by Pixenox Solutions ("Company", "we", "us", or "our"), the legal entity owning and operating the Unool web platform (unool.co) with its primary corporate portal at www.pixenox.com. We serve as the Data Controller responsible for personal information processed under this policy.'
+    },
+    {
+      id: 'data',
+      icon: Database,
+      title: 'Information We Collect',
+      content: 'We collect information you provide directly: your name, email address, workspace identifiers, and connected social network credentials via secure OAuth. For payment transactions, payment details are collected and processed directly by our PCI-DSS Level 1 compliant gateway partner (Cashfree). We do not store sensitive credit card numbers or banking PINs on our servers.'
+    },
+    {
+      id: 'usage',
+      icon: Eye,
+      title: 'How We Utilize Your Data',
+      content: 'We use your data solely to deliver the Unool service: authenticating your login, hosting your public profile pages, scheduling your approved social media posts, and issuing tax invoices. We never sell, rent, or monetize your personal information to third-party data brokers.'
+    },
+    {
+      id: 'security',
+      icon: Lock,
+      title: 'Data Security & Encryption',
+      content: 'All data transmitted between your browser and Unool is encrypted in transit using TLS 1.3. Stored database records and OAuth authentication tokens are symmetrically encrypted at rest with AES-256-GCM encryption standards.'
+    },
+    {
+      id: 'compliance',
+      icon: ShieldCheck,
+      title: 'Statutory Compliance',
+      content: 'Our data protection practices adhere to the Information Technology Act, 2000, the Digital Personal Data Protection Act (DPDP Act, 2023) of India, and internationally recognized privacy principles (including GDPR standards for global users).'
+    },
+    {
+      id: 'rights',
+      icon: CheckCircle2,
+      title: 'Your Data Subject Rights',
+      content: 'You have full autonomy over your data. You may request a complete export of your personal information, update your profile details, or permanently delete your account and all associated workspace data at any time via Account Settings.'
+    }
   ];
 
   return (
@@ -39,6 +63,9 @@ export default function PrivacyPolicyPage() {
             </div>
             <span className="font-bold tracking-tight">Back to Unool</span>
           </Link>
+          <div className="text-xs text-white/40 hidden sm:block">
+            Legal Entity: <span className="text-white/80 font-medium">Pixenox Solutions</span>
+          </div>
         </div>
       </nav>
 
@@ -47,18 +74,29 @@ export default function PrivacyPolicyPage() {
         {/* Left Column: Hero & Index */}
         <div className="lg:col-span-5 lg:sticky lg:top-40 h-fit">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease: "easeOut" }}>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-[#D4B896] mb-4">
+              Pixenox Solutions • Privacy Commitment
+            </div>
             <h1 className="text-5xl lg:text-7xl font-extrabold tracking-tighter leading-[1.1] mb-6">
               Privacy <br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-[#C84B31] to-[#8C2A25]">Policy.</span>
             </h1>
             <p className="text-xl text-white/50 font-medium leading-relaxed max-w-md">
-              We believe privacy is a fundamental human right. Our policy is designed to be transparent, human-readable, and fiercely protective of your data.
+              We treat your data with absolute reverence. Transparent, human-readable, and rigorously secure.
             </p>
+
+            <div className="mt-8 p-4 rounded-xl bg-white/[0.03] border border-white/10 text-sm text-white/60">
+              <p className="font-semibold text-white/90 mb-1">Corporate Details</p>
+              <p>Pixenox Solutions</p>
+              <p className="text-xs text-white/40">Official Portal: <a href="https://www.pixenox.com" target="_blank" rel="noopener noreferrer" className="text-[#C84B31] hover:underline">www.pixenox.com</a></p>
+              <p className="text-xs text-white/40 mt-1">Platform: Unool (https://unool.co)</p>
+              <p className="text-xs text-white/40">Privacy Desk: connect@pixenox.com</p>
+            </div>
           </motion.div>
         </div>
 
         {/* Right Column: Content */}
         <div className="lg:col-span-7">
-          <div className="space-y-12 lg:space-y-24">
+          <div className="space-y-12 lg:space-y-20">
             {sections.map((section, idx) => (
               <motion.div 
                 key={section.id}
@@ -73,8 +111,8 @@ export default function PrivacyPolicyPage() {
                     <section.icon className="w-6 h-6 text-white/80 group-hover:text-[#C84B31] transition-colors" />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-bold mb-4 tracking-tight text-white/90">{section.title}</h2>
-                    <p className="text-lg text-white/50 leading-relaxed font-medium">
+                    <h2 className="text-2xl font-bold mb-3 tracking-tight text-white/90">{section.title}</h2>
+                    <p className="text-base text-white/60 leading-relaxed font-medium">
                       {section.content}
                     </p>
                   </div>
@@ -82,19 +120,30 @@ export default function PrivacyPolicyPage() {
               </motion.div>
             ))}
 
-            {/* Detailed Legal Section */}
+            {/* Grievance & Contact Section */}
             <motion.div 
               initial={{ opacity: 0 }}
               whileInView={{ opacity: 1 }}
               viewport={{ once: true }}
               transition={{ duration: 1 }}
-              className="pt-12 border-t border-white/10"
+              className="pt-12 border-t border-white/10 space-y-6"
             >
-              <h3 className="text-xl font-bold mb-6 text-white/70">The Fine Print</h3>
-              <div className="prose prose-invert prose-p:text-white/40 prose-p:leading-relaxed prose-a:text-[#C84B31] prose-a:no-underline hover:prose-a:underline max-w-none font-medium">
-                <p>We do not sell your personal data. We share information only with trusted service providers (like our hosting platform Vercel, or database provider Supabase) who are bound by strict confidentiality agreements. When you use our AI features, prompts sent to providers like Anthropic or OpenAI are stripped of personal identifiers.</p>
-                <p>Our servers are located in the United States. By using Unool, you consent to the transfer and processing of your data in the US. We employ standard contractual clauses and rigorous security measures to protect international transfers.</p>
-                <p>If you have any questions, concerns, or wish to exercise your data rights (including GDPR or CCPA requests), our Data Protection Officer is ready to help at <a href="mailto:connect@pixenox.com">connect@pixenox.com</a>.</p>
+              <h3 className="text-xl font-bold text-white/80">Data Protection Officer &amp; Grievances</h3>
+              
+              <div className="prose prose-invert prose-p:text-white/50 prose-p:leading-relaxed prose-a:text-[#C84B31] prose-a:no-underline hover:prose-a:underline max-w-none text-sm space-y-3">
+                <p>
+                  If you have questions regarding this Privacy Policy, wish to exercise your data subject rights, or wish to report a privacy concern, please contact our appointed Grievance Officer:
+                </p>
+                <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 text-xs text-white/70 space-y-1">
+                  <p><strong>Designation:</strong> Data Protection &amp; Grievance Officer</p>
+                  <p><strong>Entity:</strong> Pixenox Solutions</p>
+                  <p><strong>Email:</strong> <a href="mailto:connect@pixenox.com" className="text-[#C84B31]">connect@pixenox.com</a> | <a href="mailto:support@unool.co" className="text-[#C84B31]">support@unool.co</a></p>
+                  <p><strong>Corporate Portal:</strong> <a href="https://www.pixenox.com" target="_blank" rel="noopener noreferrer">www.pixenox.com</a></p>
+                  <p><strong>Location:</strong> Bengaluru, Karnataka, India</p>
+                </div>
+                <p className="text-xs text-white/40">
+                  Last updated: October 2026. This policy may be updated periodically. Notice of material revisions will be published here.
+                </p>
               </div>
             </motion.div>
 

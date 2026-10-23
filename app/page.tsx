@@ -1989,7 +1989,7 @@ export default function HomePage() {
             <h3>Pro</h3>
             <div className="for">For growing creators &amp; teams</div>
             <div className="pr">
-              $19<small>/month</small>
+              $19<small>/mo (₹1,499)</small>
             </div>
             <ul>
               <li>Everything in Free, plus:</li>
@@ -2021,12 +2021,49 @@ export default function HomePage() {
 
       {/* Footer */}
       <footer>
-        <Link href="#overview" className="lg" aria-label="UNOOL Home">
-          <img src="/unool-logo.png" alt="UNOOL" className="lg-img" />
-        </Link>
-        <div>
-          <Link href="/terms">Terms</Link>
-          <Link href="/privacy">Privacy</Link>
+        <div className="footer-inner">
+          <div className="footer-brand">
+            <Link href="#overview" className="lg" aria-label="UNOOL Home">
+              <img src="/unool-logo.png" alt="UNOOL" className="lg-img" />
+            </Link>
+            <p className="footer-legal-text">
+              Unool is a personal branding and publishing platform owned and operated by{' '}
+              <a href="https://www.pixenox.com" target="_blank" rel="noopener noreferrer">
+                Pixenox Solutions
+              </a>
+              . Built to help founders, creators, and teams own their professional narrative.
+            </p>
+            <p className="footer-legal-text" style={{ fontSize: '12px', marginTop: '6px', opacity: 0.8 }}>
+              Corporate Portal:{' '}
+              <a href="https://www.pixenox.com" target="_blank" rel="noopener noreferrer">
+                www.pixenox.com
+              </a>{' '}
+              · Bengaluru, Karnataka, India
+            </p>
+          </div>
+
+          <div className="footer-links-group">
+            <span className="footer-heading">Legal &amp; Policies</span>
+            <Link href="/terms">Terms of Service</Link>
+            <Link href="/privacy">Privacy Policy</Link>
+            <Link href="/refund">Refund &amp; Cancellation</Link>
+            <Link href="/shipping">Shipping &amp; Delivery</Link>
+          </div>
+
+          <div className="footer-links-group">
+            <span className="footer-heading">Support &amp; Contact</span>
+            <Link href="/contact">Contact Us</Link>
+            <a href="mailto:connect@pixenox.com">connect@pixenox.com</a>
+            <a href="mailto:support@unool.co">support@unool.co</a>
+            <span style={{ fontSize: '12px', color: 'var(--mut)', marginTop: '4px' }}>
+              Support Hours: Mon-Fri 9AM-6PM IST
+            </span>
+          </div>
+        </div>
+
+        <div className="footer-bottom">
+          <span>&copy; {new Date().getFullYear()} Pixenox Solutions. All rights reserved.</span>
+          <span>Unool &trade; is a registered trademark of Pixenox Solutions.</span>
         </div>
       </footer>
     </div>
