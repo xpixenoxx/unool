@@ -282,6 +282,81 @@ function renderPhoneMockups(root: HTMLElement, rawText: string) {
   if (CD.length < 3) return;
 
   const text = (rawText || '').trim();
+  const isDress =
+    text.includes('Linen Wrap Dress') ||
+    text.includes('terracotta') ||
+    text.includes('linen') ||
+    text.includes('dress');
+
+  if (isDress) {
+    // 0: LinkedIn - Artisan Brand Announcement
+    CD[0].innerHTML =
+      SB +
+      '<div class="lh"><span class="av" style="background:#c84b31">P</span><div class="srch">' +
+      ic('search', 15, 2) +
+      'Search</div>' +
+      ic('chat', 23, 1.7) +
+      '</div><div class="fd"><div class="lp"><div class="ph"><span class="av" style="background:#c84b31">P</span><div><b>Pixenox Atelier</b> • 1st<small>Sustainable Artisan Apparel</small><small>2h • 🌐</small></div><span class="fl">+ Follow</span></div>' +
+      '<p><b>🌿 Introducing the Linen Wrap Dress:</b></p>' +
+      '<p>Hand-woven terracotta linen, crafted for warm days and effortless movement. Sizes XS–XL.</p>' +
+      '<p>→ 100% breathable organic European linen<br>→ Hand-dyed natural terracotta hue<br>→ Tailored zero-waste silhouette</p>' +
+      '<p>First 50 pieces: <b>20% off this week only.</b></p>' +
+      '<p><i>#SustainableFashion #SlowFashion #LinenDress #Atelier</i></p>' +
+      '<div style="margin:8px 0;border-radius:14px;overflow:hidden;border:1px solid rgba(0,0,0,0.08);box-shadow:0 3px 12px rgba(0,0,0,0.06);"><img src="/linen-wrap-dress.jpg" alt="Linen Wrap Dress" style="width:100%;height:148px;object-fit:cover;display:block;" /></div>' +
+      '<div class="rx"><span>👍❤️💡 1,420</span><span>98 comments • 34 reposts</span></div>' +
+      '<div class="ar"><span>' +
+      ic('like', 19) +
+      'Like</span><span>' +
+      ic('chat', 19) +
+      'Comment</span><span>' +
+      ic('rep', 19) +
+      'Repost</span><span>' +
+      ic('send', 19) +
+      'Send</span></div></div></div>' +
+      tb(
+        [
+          ['home', 'Home'],
+          ['net', 'My Network'],
+          ['plus', 'Post'],
+          ['bell', 'Notifications'],
+          ['job', 'Jobs']
+        ],
+        0,
+        1
+      ) +
+      HI;
+
+    // 1: X (Twitter) - Drop Announcement & Thread
+    CD[1].innerHTML =
+      SB +
+      '<div class="hd xh"><span class="av" style="width:28px;height:28px;font-size:12px;background:#c84b31">P</span>' +
+      svg(PLATFORMS[1], 20) +
+      '<span></span></div><div class="xt"><span class="on">For you</span><span>Following</span></div><div class="fd"><div class="xp"><div class="col"><span class="av" style="background:#c84b31">P</span><u class="thl"></u></div><div class="bx"><div><b>Pixenox</b> ' +
+      VB +
+      ' <span class="g">@pixenox · now</span></div><p>Meet the Linen Wrap Dress 🌿</p><p>Hand-woven terracotta, made for warm golden days. Sizes XS–XL.</p><p>First 50 orders get <b>20% off</b> this week only ✨</p><div style="margin:8px 0;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,0.1);"><img src="/linen-wrap-dress.jpg" alt="Linen Wrap Dress" style="width:100%;height:136px;object-fit:cover;display:block;" /></div><p class="g">Thread on fabric sourcing &amp; styling tips 🧵👇</p>' +
+      xm([['chat', '54'], ['rep', '380'], ['heart', '1.6K'], ['eye', '52K'], ['up', '']]) +
+      '</div></div></div><span class="fab">+</span>' +
+      tb([['home'], ['search'], ['bell'], ['mail']], 0) +
+      HI;
+
+    // 2: Threads - Casual Behind-the-Scenes
+    CD[2].innerHTML =
+      SB +
+      '<div class="hd">' +
+      svg(PLATFORMS[2], 28) +
+      '</div><div class="xt"><span class="on">For you</span><span>Following</span></div><div class="fd"><div class="xp"><div class="col"><span class="av" style="background:#c84b31">P</span><u class="thl"></u></div><div class="bx"><div><b>pixenox</b> ' +
+      VB +
+      ' <span class="g">2m</span><span class="g r">···</span></div><p>okay so we spent 6 months perfecting the drape on this terracotta wrap dress and she is finally here 🌿</p><p>100% hand-woven linen that gets softer with every wash. sizes xs–xl, first 50 pieces are 20% off this week ✨</p><div style="margin:8px 0;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,0.1);"><img src="/linen-wrap-dress.jpg" alt="Linen Wrap Dress" style="width:100%;height:144px;object-fit:cover;display:block;" /></div><div class="tx">' +
+      ic('heart', 20, 1.6) +
+      ic('chat', 20, 1.6) +
+      ic('rep', 20, 1.6) +
+      ic('send', 20, 1.6) +
+      '</div><div class="g">142 replies · 489 likes</div></div></div></div>' +
+      tb([['home'], ['search'], ['plus'], ['heart'], ['user']], 0) +
+      HI;
+    return;
+  }
+
   const isDefault =
     text.includes('At Pixenox, we just shipped') ||
     text === 'At Pixenox, we just shipped our AI-powered design system that reduces brand iteration time by 80%. Here’s what we learned building it.';
@@ -969,10 +1044,10 @@ export default function HomePage() {
   const currentTpl = PROFILE_PREVIEW_TEMPLATES[activeProfileTpl] || PROFILE_PREVIEW_TEMPLATES[0];
 
   const [thought] = useState(
-    'At Pixenox, we just shipped our AI-powered design system that reduces brand iteration time by 80%. Here’s what we learned building it.'
+    'Meet the Linen Wrap Dress 🌿 Hand-woven terracotta, made for warm days. Sizes XS–XL. First 50 pieces: 20% off this week.'
   );
 
-  // 3-step interactive flow: 0 = Connect accounts, 1 = Write post, 2 = Adapt (Mobile view)
+  // 3-step auto-playing video flow: 0 = Connect accounts, 1 = Write post, 2 = Adapt (Mobile view)
   const [flowStep, setFlowStep] = useState<0 | 1 | 2>(0);
   const [connectedAccounts, setConnectedAccounts] = useState({
     instagram: false,
@@ -981,6 +1056,86 @@ export default function HomePage() {
   const [isInstagramConnecting, setIsInstagramConnecting] = useState(true);
   const [isLinkedInConnecting, setIsLinkedInConnecting] = useState(false);
   const [isAdapted, setIsAdapted] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true);
+
+  // Auto-play like a video: transitions through connect -> write -> adapt without waiting for user input
+  useEffect(() => {
+    if (!isPlaying) return;
+
+    let timer1: NodeJS.Timeout;
+    let timer2: NodeJS.Timeout;
+    let timer3: NodeJS.Timeout;
+    let timer4: NodeJS.Timeout;
+
+    if (flowStep === 0) {
+      // Step 1: Connect accounts sequence
+      setConnectedAccounts({ instagram: false, linkedin: false });
+      setIsInstagramConnecting(true);
+      setIsLinkedInConnecting(false);
+
+      // Instagram finishes connecting
+      timer1 = setTimeout(() => {
+        setConnectedAccounts((prev) => ({ ...prev, instagram: true }));
+        setIsInstagramConnecting(false);
+      }, 1200);
+
+      // LinkedIn starts connecting
+      timer2 = setTimeout(() => {
+        setIsLinkedInConnecting(true);
+      }, 1800);
+
+      // LinkedIn finishes connecting
+      timer3 = setTimeout(() => {
+        setConnectedAccounts((prev) => ({ ...prev, linkedin: true }));
+        setIsLinkedInConnecting(false);
+      }, 2700);
+
+      // Auto-advance to Step 2 (Write post)
+      timer4 = setTimeout(() => {
+        setFlowStep(1);
+      }, 3700);
+    } else if (flowStep === 1) {
+      // Step 2: Write post & auto-click Adapt
+      setIsAdapted(false);
+
+      // Auto-click Adapt button
+      timer1 = setTimeout(() => {
+        setIsAdapted(true);
+      }, 2000);
+
+      // Auto-advance to Step 3 (Mobile phone deck)
+      timer2 = setTimeout(() => {
+        setFlowStep(2);
+      }, 3100);
+    } else if (flowStep === 2) {
+      // Step 3: Phone Deck cycling & auto-loop
+      const tabs = rootRef.current?.querySelectorAll<HTMLElement>('#tabs button[data-i]');
+      if (tabs && tabs[0]) tabs[0].click();
+
+      // Switch to X phone
+      timer1 = setTimeout(() => {
+        if (tabs && tabs[1]) tabs[1].click();
+      }, 2200);
+
+      // Switch to Threads phone
+      timer2 = setTimeout(() => {
+        if (tabs && tabs[2]) tabs[2].click();
+      }, 4400);
+
+      // Loop back to Step 0 (Connect)
+      timer3 = setTimeout(() => {
+        if (tabs && tabs[0]) tabs[0].click();
+        setFlowStep(0);
+      }, 6600);
+    }
+
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      clearTimeout(timer3);
+      clearTimeout(timer4);
+    };
+  }, [flowStep, isPlaying]);
 
   const handleConnectInstagram = () => {
     if (connectedAccounts.instagram) {
@@ -1677,7 +1832,10 @@ export default function HomePage() {
           {/* Interactive Flow Step Switcher */}
           <div className="flow-steps-nav rv">
             <div className="flow-steps-lead">
-              <span className="flow-steps-badge">Interactive Live Demo</span>
+              <span className="flow-steps-badge">
+                <span className="flow-live-dot" style={{ display: 'inline-block', marginRight: '6px' }}></span>
+                {isPlaying ? 'Auto-playing demo video' : 'Demo paused'}
+              </span>
               <span className="flow-steps-desc">Connect · Write · Adapt</span>
             </div>
             <div className="flow-step-pills">
@@ -1704,6 +1862,14 @@ export default function HomePage() {
               >
                 <span className="flow-step-num">3</span>
                 <span>Adapt</span>
+              </button>
+              <button
+                type="button"
+                className="flow-play-toggle"
+                onClick={() => setIsPlaying((p) => !p)}
+                title={isPlaying ? 'Pause video loop' : 'Play video loop'}
+              >
+                {isPlaying ? '❚❚ Pause' : '▶ Play'}
               </button>
             </div>
           </div>
@@ -1852,21 +2018,21 @@ export default function HomePage() {
                   {/* Attached Media */}
                   <div className="flow-media-card">
                     <img
-                      src="/pixenox-design-system.png"
-                      alt="pixenox-design-system.png"
+                      src="/linen-wrap-dress.jpg"
+                      alt="linen-wrap-dress.jpg"
                       className="flow-media-thumb"
                     />
                     <div className="flow-media-meta">
-                      <span className="flow-media-filename">pixenox-design-system.png</span>
+                      <span className="flow-media-filename">linen-wrap-dress.jpg</span>
                       <span className="flow-media-specs">1080 × 1350 · attached</span>
                     </div>
                     <span className="flow-media-badge">Attached</span>
                   </div>
 
-                  {/* Post Draft Box (fixed to Pixenox) */}
+                  {/* Post Draft Box (Linen Wrap Dress) */}
                   <div className="flow-draft-box">
                     <p className="flow-draft-content">
-                      At Pixenox, we just shipped our AI-powered design system that reduces brand iteration time by 80%. Here’s what we learned building it.
+                      Meet the Linen Wrap Dress 🌿 Hand-woven terracotta, made for warm days. Sizes XS–XL. First 50 pieces: 20% off this week.
                     </p>
                   </div>
 
@@ -1911,16 +2077,28 @@ export default function HomePage() {
               <div className="flow-adapt-banner-info">
                 <span className="flow-adapt-tag">✓ Adapted natively</span>
                 <span className="flow-adapt-summary">
-                  See how Unool formats the Pixenox thought for LinkedIn, X, and Threads.
+                  See how Unool formats the Linen Wrap Dress for LinkedIn, X, and Threads.
                 </span>
               </div>
-              <button
-                type="button"
-                className="flow-replay-btn"
-                onClick={() => setFlowStep(0)}
-              >
-                ↺ Replay demo flow
-              </button>
+              <div className="flow-banner-actions">
+                <button
+                  type="button"
+                  className="flow-play-toggle"
+                  onClick={() => setIsPlaying((p) => !p)}
+                >
+                  {isPlaying ? '❚❚ Pause loop' : '▶ Play video loop'}
+                </button>
+                <button
+                  type="button"
+                  className="flow-replay-btn"
+                  onClick={() => {
+                    setFlowStep(0);
+                    setIsPlaying(true);
+                  }}
+                >
+                  ↺ Replay from start
+                </button>
+              </div>
             </div>
 
             <div className="deck" id="deck">

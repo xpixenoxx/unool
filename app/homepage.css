@@ -1095,6 +1095,31 @@
   font-weight: 500;
 }
 
+.unool-home-page .flow-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.unool-home-page .flow-play-toggle {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--cream);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 6px 14px;
+  border-radius: 999px;
+  font: 700 12px/1 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.unool-home-page .flow-play-toggle:hover {
+  background: rgba(255, 255, 255, 0.24);
+  color: #ffffff;
+}
+
 .unool-home-page .flow-replay-btn {
   background: transparent;
   color: var(--blush);
