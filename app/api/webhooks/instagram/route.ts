@@ -22,6 +22,7 @@ import { humanizedSleep } from '@/lib/services/automation/jitter';
 import { velocityThrottle } from '@/lib/services/automation/velocity';
 import { lexicalEntropyGuard } from '@/lib/services/automation/lexical';
 import { createClient } from '@supabase/supabase-js';
+import { handleFollowWebhookEvent } from '@/lib/follow-gate/service';
 
 const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
 
@@ -174,6 +175,26 @@ export async function POST(request: NextRequest) {
                   });
                 })
               );
+            }
+          } else if (change.field === 'follow' || change.field === 'follows') {
+            // ── Follow-Gate: real-time follow detection ───────────────────────
+            // Meta sends this when someone follows the creator's IG account.
+            // field: "follow", value: { follower_id, follower_username }
+            const value = change.value as Record<string, unknown>;
+            if (value) {
+              const followerIgUserId = (value.follower_id || value.from_id || (value.from as any)?.id) as string;
+              const followerIgUsername = (value.follower_username || value.username || (value.from as any)?.username || '') as string;
+              if (followerIgUserId) {
+                tasks.push(
+                  handleFollowWebhookEvent(igUserId, followerIgUserId, followerIgUsername).catch((err) => {
+                    logger.error('Error processing Instagram follow event for FollowGate', {
+                      igUserId,
+                      followerIgUserId,
+                      error: err instanceof Error ? err : new Error(String(err)),
+                    });
+                  })
+                );
+              }
             }
           }
         }

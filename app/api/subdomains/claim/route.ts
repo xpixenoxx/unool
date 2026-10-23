@@ -26,9 +26,49 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid format' }, { status: 400 });
     }
 
-    const reserved = ['www', 'api', 'admin', 'app', 'dashboard', 'settings', 'profile', 'u', 'auth', 'signup', 'login', 'signin', 'logout', 'signout', 'pricing', 'features', 'about', 'contact', 'help', 'docs', 'blog', 'status', 'support', 'legal', 'privacy', 'terms', 'security', 'enterprise', 'pro', 'free', 'trial', 'demo', 'test', 'staging', 'dev', 'local'];
+    // System reserved paths
+    const systemReserved = [
+      'www', 'api', 'admin', 'app', 'dashboard', 'settings', 'profile', 'u', 's',
+      'auth', 'signup', 'login', 'signin', 'logout', 'signout', 'pricing', 'features',
+      'about', 'contact', 'help', 'docs', 'blog', 'status', 'support', 'legal',
+      'privacy', 'terms', 'security', 'enterprise', 'pro', 'free', 'trial', 'demo',
+      'test', 'staging', 'dev', 'local', 'cdn', 'static', 'assets', 'media',
+      'images', 'mail', 'email', 'smtp', 'ftp', 'ssh', 'vpn', 'billing', 'pay',
+      'checkout', 'unool', 'pixenox',
+    ];
+
+    // Major brand/trademark names — cannot be claimed as subdomains
+    const trademarkReserved = [
+      // Meta / Social Media
+      'meta', 'facebook', 'instagram', 'whatsapp', 'threads', 'messenger',
+      // Google
+      'google', 'gmail', 'youtube', 'android', 'googlepay', 'gpay',
+      // Apple
+      'apple', 'iphone', 'icloud', 'appstore', 'itunes',
+      // Microsoft
+      'microsoft', 'windows', 'xbox', 'outlook', 'bing', 'azure', 'linkedin',
+      // Amazon / AWS
+      'amazon', 'aws', 'alexa', 'kindle', 'prime',
+      // Twitter / X
+      'twitter', 'x', 'xcom',
+      // Other major tech
+      'netflix', 'spotify', 'airbnb', 'uber', 'ola', 'zomato', 'swiggy',
+      'paytm', 'phonepe', 'razorpay', 'cashfree', 'stripe', 'paypal',
+      'shopify', 'notion', 'slack', 'discord', 'telegram', 'snapchat',
+      'tiktok', 'bytedance', 'pinterest', 'reddit', 'quora', 'medium',
+      'github', 'gitlab', 'openai', 'chatgpt', 'anthropic', 'gemini',
+      // Indian brands
+      'reliance', 'tata', 'jio', 'hdfc', 'icici', 'sbi', 'axis', 'kotak',
+      'flipkart', 'myntra', 'nykaa', 'meesho', 'zepto', 'blinkit',
+      'byju', 'unacademy', 'vedantu',
+      // Creator economy platforms
+      'linktree', 'beacons', 'later', 'buffer', 'hootsuite', 'manychat',
+      'zorcha', 'taplio', 'stan',
+    ];
+
+    const reserved = [...systemReserved, ...trademarkReserved];
     if (reserved.includes(subdomain)) {
-      return NextResponse.json({ error: 'Reserved subdomain' }, { status: 400 });
+      return NextResponse.json({ error: 'This name is reserved and cannot be claimed' }, { status: 400 });
     }
 
     // Check if subdomain is taken

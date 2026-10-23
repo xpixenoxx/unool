@@ -152,6 +152,22 @@ const configSchema = z.object({
   // Public CDN base URLs for R2 (each bucket has a unique URL)
   CF_R2_MEDIA_PUBLIC_URL: z.string().url().optional(),
   CF_R2_AVATARS_PUBLIC_URL: z.string().url().optional(),
+
+  // -------------------------------------------------------------------
+  // Cashfree Payment Gateway
+  // Sandbox: https://sandbox.cashfree.com/pg
+  // Production: https://api.cashfree.com/pg
+  // -------------------------------------------------------------------
+  CASHFREE_APP_ID: z.string().optional(),
+  CASHFREE_SECRET_KEY: z.string().optional(),
+  CASHFREE_WEBHOOK_SECRET: z.string().optional(),
+  CASHFREE_API_URL: z.string().url().optional().default('https://sandbox.cashfree.com/pg'),
+  CASHFREE_MODE: z.enum(['sandbox', 'production']).optional().default('sandbox'),
+
+  // Vercel API (for custom domain management)
+  VERCEL_TOKEN: z.string().optional(),
+  VERCEL_PROJECT_ID: z.string().optional(),
+  VERCEL_TEAM_ID: z.string().optional(),
 });
 
 export type Config = z.infer<typeof configSchema>;

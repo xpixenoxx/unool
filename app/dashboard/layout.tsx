@@ -1,15 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Globe, PenTool, Settings, LogOut, ChevronLeft, Menu, LayoutDashboard, Radio, Network, BarChart3, Bell, CalendarDays, Zap } from 'lucide-react';
+import { Globe, PenTool, Settings, LogOut, ChevronLeft, Menu, LayoutDashboard, Radio, Network, BarChart3, Bell, CalendarDays, Zap, CreditCard, Lock, Gift } from 'lucide-react';
 import { UserProvider, useUserContext } from '@/lib/hooks/use-user-context';
 import { SignalStrip } from './signal/SignalStrip';
+import { SubdomainClaimPopup } from '@/components/onboarding/SubdomainClaimPopup';
 
 /* ─── Biscuit color palette ───────────────────────────────── */
 const biscuit = {
@@ -63,10 +64,28 @@ const navigation = [
     description: 'Instagram comment automation',
   },
   {
+    name: 'Unlock Gates',
+    href: '/dashboard/follow-gates',
+    icon: Lock,
+    description: 'Follow-to-unlock content gates',
+  },
+  {
+    name: 'Referrals',
+    href: '/dashboard/referrals',
+    icon: Gift,
+    description: 'Earn rewards for referrals',
+  },
+  {
     name: 'Profile',
     href: '/dashboard/presence',
     icon: Globe,
     description: 'Your public page',
+  },
+  {
+    name: 'Billing',
+    href: '/dashboard/billing',
+    icon: CreditCard,
+    description: 'Plans & subscription',
   },
   {
     name: 'Settings',
@@ -279,6 +298,34 @@ function DashboardMobileMenuButton({
   );
 }
 
+/**
+ * DashboardOnboarding
+ * Reads user context and renders the SubdomainClaimPopup after 30s
+ * if the user has no subdomain yet and hasn't dismissed it before.
+ */
+function DashboardOnboarding() {
+  const { profile, loading } = useUserContext();
+  const [refreshSubdomain, setRefreshSubdomain] = useState<string | undefined | null>(undefined);
+
+  // After a successful claim, refresh the displayed subdomain
+  const handleClaimed = useCallback((sub: string) => {
+    setRefreshSubdomain(sub);
+  }, []);
+
+  // Don't render until user context is loaded
+  if (loading) return null;
+
+  // Effective subdomain: either freshly claimed or from profile
+  const effectiveSubdomain = refreshSubdomain ?? profile?.subdomain;
+
+  return (
+    <SubdomainClaimPopup
+      currentSubdomain={effectiveSubdomain}
+      onClaimed={handleClaimed}
+    />
+  );
+}
+
 export default function DashboardLayout({
   children,
 }: {
@@ -326,6 +373,8 @@ export default function DashboardLayout({
           </div>
         </main>
         <SignalStrip />
+        {/* Onboarding: subdomain claim popup (30s after first dashboard visit) */}
+        <DashboardOnboarding />
       </div>
     </UserProvider>
   );

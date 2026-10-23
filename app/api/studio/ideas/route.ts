@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     const sanitizedAlreadyShown = sanitizeAlreadyShown(rawAlreadyShown);
     const clientStudioProfile = body?.studioProfile;
 
-    // 4. Load profile server-side, with safe fallback defaults so users are never blocked
+    // 4. Load profile server-side
     let profile = null;
     try {
       profile = await profileRepository.findByWorkspaceId(workspaceId);
@@ -82,6 +82,21 @@ export async function POST(request: NextRequest) {
     }
 
     const rawStudioProfile: any = clientStudioProfile || profile?.studioProfile || profile?.onboardingAnswers;
+    const isCompleted = Boolean(
+      (rawStudioProfile && (rawStudioProfile.role || rawStudioProfile.persona) && (rawStudioProfile.completedAt || profile?.onboardingCompleted)) ||
+      (profile && (profile.onboardingCompleted || (profile.studioProfile && (profile.studioProfile.role || profile.studioProfile.persona))))
+    );
+
+    if (!isCompleted || !rawStudioProfile) {
+      return NextResponse.json(
+        {
+          error: 'Studio profile not completed. Complete onboarding first.',
+          code: 'PROFILE_INCOMPLETE',
+        },
+        { status: 400 }
+      );
+    }
+
     const studioProfile = {
       role: rawStudioProfile?.role || rawStudioProfile?.persona || profile?.role || 'Founder & Creator',
       businessStage: rawStudioProfile?.businessStage || 'Growing & Scaling',
