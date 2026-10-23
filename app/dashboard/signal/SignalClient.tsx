@@ -1131,6 +1131,8 @@ function PostCard({
     }
   };
 
+
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -1406,55 +1408,91 @@ function PostCard({
               <span>Publishing in progress</span>
             </span>
           </div>
-        ) : (isDraft || isFailedPost) ? (
-          <div className="flex items-center gap-2 ml-auto">
-            {(() => {
-              const redirect = getDraftRedirect(post);
-              return (
-                <Link
-                  href={redirect.href}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold ${
-                    isFailedPost ? 'bg-rose-900 text-white hover:bg-rose-950' : 'bg-gray-900 text-white hover:bg-black'
-                  } transition-colors shadow-xs cursor-pointer`}
-                  title={isFailedPost ? 'Review and fix failed post' : redirect.title}
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                  <span>{isFailedPost ? 'Review & fix' : 'Review & edit'}</span>
-                </Link>
-              );
-            })()}
-
-            {confirmDelete ? (
-              <div className="inline-flex items-center gap-1.5 bg-red-50/90 px-2.5 py-1 rounded-xl border border-red-200">
-                <span className="text-[11px] text-red-700 font-medium">{isFailedPost ? 'Dismiss?' : 'Cancel draft?'}</span>
+        ) : isFailedPost ? (
+          /* ── Failed post: Review & fix + Dismiss ── */
+          <div className="flex flex-col gap-1.5 ml-auto items-end">
+            <div className="flex items-center gap-2">
+              <Link
+                href={getDraftRedirect(post).href}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-rose-900 text-white hover:bg-rose-950 transition-colors shadow-xs cursor-pointer"
+                title="Review and fix failed post"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                <span>Review &amp; fix</span>
+              </Link>
+              {confirmDelete ? (
                 <button
                   type="button"
                   onClick={handleDelete}
                   disabled={isDeleting}
-                  className="px-2 py-0.5 rounded-lg text-xs font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors cursor-pointer disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors cursor-pointer disabled:opacity-50"
                 >
-                  {isDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Yes'}
+                  {isDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <><X className="w-3 h-3" /><span>Confirm dismiss</span></>}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200/60 transition-colors cursor-pointer"
+                  title="Dismiss this failed dispatch"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Dismiss</span>
+                </button>
+              )}
+            </div>
+            {confirmDelete && (
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(false)}
+                className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors cursor-pointer underline underline-offset-2"
+              >
+                Keep it
+              </button>
+            )}
+          </div>
+        ) : isDraft ? (
+          /* ── Draft post: Cancel draft + Review & edit (primary) ── */
+          <div className="flex items-center gap-2 ml-auto flex-wrap">
+            {confirmDelete ? (
+              <div className="inline-flex items-center gap-1.5 bg-red-50 dark:bg-red-950/40 px-2.5 py-1 rounded-xl border border-red-200 dark:border-red-900/50">
+                <span className="text-[11px] font-medium text-red-700 dark:text-red-300">Cancel draft?</span>
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                  className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg text-xs font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  {isDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                  <span>Yes, cancel</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setConfirmDelete(false)}
-                  disabled={isDeleting}
-                  className="px-1.5 py-0.5 rounded-lg text-xs text-gray-500 hover:text-gray-700 cursor-pointer"
+                  className="text-xs text-gray-500 hover:text-gray-700 transition-colors cursor-pointer underline underline-offset-2 ml-1"
                 >
-                  No
+                  Keep
                 </button>
               </div>
             ) : (
               <button
                 type="button"
                 onClick={() => setConfirmDelete(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200/60 transition-colors cursor-pointer"
-                title={isFailedPost ? 'Dismiss this failed dispatch' : 'Cancel and discard this draft'}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
+                title="Cancel and remove this draft"
               >
-                <X className="w-3.5 h-3.5" />
-                <span>{isFailedPost ? 'Dismiss' : 'Cancel draft'}</span>
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Cancel draft</span>
               </button>
             )}
+            <Link
+              href={getDraftRedirect(post).href}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-gray-900 text-white hover:bg-black transition-colors shadow-xs cursor-pointer"
+              title="Review context, edit, or publish this draft"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              <span>Review &amp; edit</span>
+            </Link>
           </div>
         ) : (
           publishedVariants.length > 0 && (

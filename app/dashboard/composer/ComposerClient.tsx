@@ -35,6 +35,7 @@ import {
   Repeat2,
   Share,
   Bookmark,
+  BookmarkPlus,
   MoreHorizontal,
   ThumbsUp,
   Globe,
@@ -770,8 +771,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const urlMode = searchParams?.get('mode') || null;
   const targetPostId = searchParams?.get('postId') || null;
   const hasLoadedTargetPost = useRef<string | null>(null);
-  const [confirmDiscardDraft, setConfirmDiscardDraft] = useState(false);
-  const [isDiscardingDraft, setIsDiscardingDraft] = useState(false);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
 
   const reducedMotion = useReducedMotion();
   const { user, profile: userCtxProfile } = useUserContext();
@@ -926,50 +926,69 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
     };
   }, [targetPostId, urlMode]);
   
-  // ── Cancel review without making changes ──────────────────────────────────
-  const handleCancelReview = () => {
-    setPostId(null);
-    setSourceContent('');
-    setQuickContent('');
-    setDrafts([]);
-    setMedia([]);
-    hasLoadedTargetPost.current = null;
-    router.push('/dashboard/signal');
-    studioToast.info('Exited draft review without changes');
-  };
 
-  // ── Cancel & discard draft completely ─────────────────────────────────────
-  const handleDiscardDraft = async () => {
-    if (!postId) return;
-    setIsDiscardingDraft(true);
-    try {
-      const res = await fetch(`/api/publish/${postId}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-      if (!res.ok) {
-        const fallback = await fetch(`/api/signal/posts?postId=${postId}`, {
-          method: 'DELETE',
-          credentials: 'include',
-        });
-        if (!fallback.ok) {
-          const errData = await fallback.json().catch(() => ({}));
-          throw new Error(errData.error || 'Failed to cancel draft');
-        }
-      }
-      studioToast.success('Draft cancelled and removed');
+
+  // ── Save post as draft in Signal and clear composer to start fresh ─────────
+  const handleSaveDraftAndClear = async () => {
+    const currentContent = mode === 'quick' ? quickContent : sourceContent;
+    const hasAnyContent = Boolean(currentContent.trim() || drafts.length > 0 || media.length > 0);
+
+    if (!hasAnyContent && !postId) {
       setPostId(null);
       setSourceContent('');
       setQuickContent('');
       setDrafts([]);
       setMedia([]);
       hasLoadedTargetPost.current = null;
-      setConfirmDiscardDraft(false);
-      router.push('/dashboard/signal');
+      if (typeof window !== 'undefined') {
+        window.history.replaceState({}, '', '/dashboard/composer');
+      }
+      studioToast.info('Composer cleared');
+      return;
+    }
+
+    setIsSavingDraft(true);
+    try {
+      const res = await fetch('/api/composer/save-draft', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          postId: postId || undefined,
+          content: currentContent || (drafts[0]?.content ?? ''),
+          mode,
+          drafts: drafts.filter(d => d.status === 'ready' || d.status === 'idle').map(d => ({
+            platform: d.platform,
+            content: d.content,
+            hashtags: d.hashtags,
+            firstCommentHint: d.firstCommentHint,
+          })),
+          mediaItems: media,
+          selectedPlatforms,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to save draft');
+      }
+
+      studioToast.success('Saved as draft in Signal! Composer ready for your next post.');
+
+      // Clear post details right away so the user can create a new post
+      setPostId(null);
+      setSourceContent('');
+      setQuickContent('');
+      setDrafts([]);
+      setMedia([]);
+      hasLoadedTargetPost.current = null;
+      if (typeof window !== 'undefined') {
+        window.history.replaceState({}, '', '/dashboard/composer');
+      }
     } catch (err) {
-      studioToast.error(err instanceof Error ? err.message : 'Failed to cancel draft');
+      studioToast.error(err instanceof Error ? err.message : 'Failed to save draft');
     } finally {
-      setIsDiscardingDraft(false);
+      setIsSavingDraft(false);
     }
   };
 
@@ -1573,6 +1592,10 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       return;
     }
 
+    if (postId) {
+      studioToast.info(`Publishing draft directly across ${readyDrafts.length} platform${readyDrafts.length > 1 ? 's' : ''}...`);
+    }
+
     setIsPublishing(true);
     try {
       const res = await fetch('/api/publish', {
@@ -1731,6 +1754,10 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
     setPlanError(null);
     setBroadcastingType(useSelectedOnly ? 'selected' : 'all');
 
+    if (postId) {
+      studioToast.info(`Publishing draft directly to ${platformsToUse.length} platform${platformsToUse.length > 1 ? 's' : ''}...`);
+    }
+
     try {
       const res = await fetch('/api/composer/broadcast', {
         method: 'POST',
@@ -1872,7 +1899,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           </Link>
         </div>
 
-        {/* Active Draft Review & Cancellation Banner */}
+        {/* Active Draft Review Header Banner */}
         <AnimatePresence>
           {postId && (
             <MotionBox key="draft-review-banner" variant="slide-up">
@@ -1887,60 +1914,15 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                       <span className="text-[10px] font-semibold bg-[#EDE4CF] text-[#63481D] px-2 py-0.5 rounded-full">
                         {mode === 'quick' ? 'Quick Broadcast Draft' : 'AI Composer Draft'}
                       </span>
+                      <span className="text-[10px] font-medium bg-emerald-100/80 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-200/80 dark:border-emerald-800 inline-flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3 text-emerald-600" />
+                        Edits optional · Ready to publish
+                      </span>
                     </div>
-                    <p className="text-[11px] text-[#8B7355] mt-0.5 truncate">
-                      Reviewing existing draft. You can publish directly, or cancel without making changes.
+                    <p className="text-[11px] text-[#8B7355] mt-0.5">
+                      Draft loaded from Signal. You can publish directly without making changes, or fine-tune content below.
                     </p>
                   </div>
-                </div>
-                <div className="flex items-center gap-2 ml-auto">
-                  {/* Cancel Review CTA */}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleCancelReview}
-                    className="h-8 text-xs font-semibold bg-white hover:bg-[#F5EFE2] border-[#D4C8B0] text-[#3D2B1F] cursor-pointer shadow-2xs"
-                    title="Exit review without making changes and return to Signal"
-                  >
-                    <ArrowLeft className="w-3.5 h-3.5 mr-1" />
-                    Cancel Review
-                  </Button>
-
-                  {/* Cancel/Discard Draft CTA */}
-                  {confirmDiscardDraft ? (
-                    <div className="inline-flex items-center gap-1.5 bg-red-100/90 px-2 py-1 rounded-xl border border-red-300">
-                      <span className="text-[11px] text-red-800 font-semibold">Discard draft?</span>
-                      <button
-                        type="button"
-                        onClick={handleDiscardDraft}
-                        disabled={isDiscardingDraft}
-                        className="px-2 py-0.5 rounded-lg text-xs font-semibold bg-red-600 text-white hover:bg-red-700 cursor-pointer disabled:opacity-50"
-                      >
-                        {isDiscardingDraft ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Yes'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setConfirmDiscardDraft(false)}
-                        disabled={isDiscardingDraft}
-                        className="px-1.5 py-0.5 rounded-lg text-xs text-gray-600 hover:text-gray-800 cursor-pointer"
-                      >
-                        No
-                      </button>
-                    </div>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setConfirmDiscardDraft(true)}
-                      className="h-8 text-xs font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 cursor-pointer"
-                      title="Cancel and discard this draft completely"
-                    >
-                      <Trash2 className="w-3.5 h-3.5 mr-1" />
-                      Cancel Draft
-                    </Button>
-                  )}
                 </div>
               </div>
             </MotionBox>
@@ -2289,7 +2271,21 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                     {quickContent.length} characters
                     {quickContent.length > 280 && ' · exceeds X/Twitter limit (280)'}
                   </span>
-                  <div className="flex gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {(quickContent.trim() || postId) && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        type="button"
+                        onClick={handleSaveDraftAndClear}
+                        disabled={isSavingDraft}
+                        className="h-9 text-xs font-semibold flex items-center gap-1.5 px-3 bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 hover:bg-[#FAF6EE] text-[#3D2B1F] dark:text-zinc-200 cursor-pointer shadow-2xs"
+                        title="Save this post as a draft in Signal and clear composer to create a new one"
+                      >
+                        {isSavingDraft ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BookmarkPlus className="w-3.5 h-3.5 text-[#C4A265]" />}
+                        <span>Save as draft &amp; clear</span>
+                      </Button>
+                    )}
                     <Button
                       variant="outline"
                       onClick={() => handleDirectBroadcast(true)}
@@ -2640,12 +2636,26 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                           <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold flex-shrink-0">2</span>
                           <CardTitle className="text-base">Review & Edit Drafts</CardTitle>
                         </div>
-                        {readyCount > 0 && (
-                          <Badge variant="secondary" className="text-xs">{readyCount} of {drafts.length} ready</Badge>
-                        )}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {readyCount > 0 && (
+                            <Badge variant="secondary" className="text-xs">{readyCount} of {drafts.length} ready</Badge>
+                          )}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={handleSaveDraftAndClear}
+                            disabled={isSavingDraft}
+                            className="h-7 text-xs font-semibold bg-white hover:bg-muted border-border cursor-pointer flex items-center gap-1.5 px-3 shadow-2xs"
+                            title="Save this draft in Signal and clear composer to create a new post"
+                          >
+                            {isSavingDraft ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BookmarkPlus className="w-3.5 h-3.5 text-primary" />}
+                            <span>Save as draft &amp; clear</span>
+                          </Button>
+                        </div>
                       </div>
                       <Text size="sm" color="muted">
-                        Each platform draft is independently editable. Tweak before publishing.
+                        Each platform draft is independently editable. Tweak before publishing, or publish directly as-is.
                       </Text>
                     </CardHeader>
                     <CardContent>
@@ -2882,12 +2892,29 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                           </span>
                         </div>
                         <p className="text-xs text-[#8B7355] dark:text-[#A89886] mt-0.5 font-medium">
-                          {readyCount} platform draft{readyCount > 1 ? 's' : ''} reviewed and verified for publishing
+                          {postId
+                            ? `${readyCount} platform draft${readyCount > 1 ? 's' : ''} ready to publish · edits optional`
+                            : `${readyCount} platform draft${readyCount > 1 ? 's' : ''} reviewed and verified for publishing`}
                         </p>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2.5 ml-auto sm:ml-0">
+                    <div className="flex items-center gap-2.5 ml-auto sm:ml-0 flex-wrap">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleSaveDraftAndClear}
+                        disabled={isGenerating || isSchedulingPost || isPublishing || isSavingDraft}
+                        className="h-10 px-3.5 rounded-xl text-xs font-semibold cursor-pointer transition-all bg-white dark:bg-[#251E17] text-[#3D2B1F] dark:text-[#FAF7F2] border border-[#D8C7A5] dark:border-[#423527] shadow-xs hover:border-[#C4A265] flex items-center gap-1.5"
+                        title="Save draft in Signal and clear composer to start a new post"
+                      >
+                        {isSavingDraft ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <BookmarkPlus className="w-3.5 h-3.5 text-[#C4A265]" />
+                        )}
+                        <span>Save as draft &amp; clear</span>
+                      </Button>
                       <Button
                         type="button"
                         variant="outline"
