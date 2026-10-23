@@ -1289,7 +1289,14 @@
 .unool-home-page .fd {
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.unool-home-page .fd::-webkit-scrollbar {
+  display: none;
 }
 
 .unool-home-page .tb {
@@ -1325,270 +1332,534 @@
   float: right;
 }
 
-/* LinkedIn card */
+/* Authentic Brand Avatar */
+.unool-home-page .px-av {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #a3482d 0%, #6e2716 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 19px;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18), inset 0 1px 1px rgba(255, 255, 255, 0.3);
+  border: 1.5px solid rgba(255, 255, 255, 0.9);
+  flex: none;
+  letter-spacing: -0.5px;
+}
+.unool-home-page .px-av.sm {
+  width: 28px;
+  height: 28px;
+  font-size: 13px;
+  border-width: 1px;
+}
+
+/* ==========================================================
+   LinkedIn Mobile App Authentic Styling
+   ========================================================== */
 .unool-home-page .li {
   background: #f3f2ef;
   color: #191919;
+  font-family: -apple-system, system-ui, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
-
-.unool-home-page .lh {
+.unool-home-page .li .sb {
+  background: #fff;
+  color: #000;
+  border-bottom: 1px solid #f0f0f0;
+}
+.unool-home-page .lh,
+.unool-home-page .li-header {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 0 12px 8px;
   background: #fff;
   flex: none;
+  border-bottom: 1px solid #e8e8e8;
 }
-
-.unool-home-page .lh .av {
+.unool-home-page .lh .av,
+.unool-home-page .li-header .av {
   width: 30px;
   height: 30px;
   font-size: 13px;
 }
-
-.unool-home-page .srch {
+.unool-home-page .srch,
+.unool-home-page .li-search-box {
   flex: 1;
-  height: 32px;
-  border-radius: 6px;
+  height: 34px;
+  border-radius: 4px;
   background: #edf3f8;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   padding: 0 10px;
   color: #56687a;
+  font-size: 13px;
 }
-
-.unool-home-page .lp {
+.unool-home-page .li-msg-btn {
+  position: relative;
+  color: #56687a;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+.unool-home-page .li-msg-btn:after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #0a66c2;
+  border: 1.5px solid #fff;
+}
+.unool-home-page .lp,
+.unool-home-page .li-card {
   background: #fff;
   margin-top: 6px;
   padding: 10px 12px 0;
+  border-top: 1px solid #e8e8e8;
+  border-bottom: 1px solid #e8e8e8;
 }
-
-.unool-home-page .lp p {
-  margin: 7px 0;
-}
-
-.unool-home-page .ph {
+.unool-home-page .ph,
+.unool-home-page .li-author-row {
   display: flex;
-  gap: 8px;
+  gap: 9px;
   align-items: flex-start;
-  line-height: 1.3;
+  line-height: 1.25;
 }
-
-.unool-home-page .ph .av {
-  width: 42px;
-  height: 42px;
+.unool-home-page .li-author-meta {
+  flex: 1;
+  min-width: 0;
 }
-
-.unool-home-page .ph small {
+.unool-home-page .li-author-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #191919;
+}
+.unool-home-page .li-author-name small {
+  font-weight: 400;
+  color: #666;
+  font-size: 11.5px;
+  margin-left: 3px;
+}
+.unool-home-page .li-author-sub {
   display: block;
   font-size: 11px;
-  opacity: .6;
+  color: #666;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-
-.unool-home-page .fl {
+.unool-home-page .li-author-time {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10.5px;
+  color: #666;
+  margin-top: 2px;
+}
+.unool-home-page .fl,
+.unool-home-page .li-follow-btn {
   margin-left: auto;
   color: #0a66c2;
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 12.5px;
+  cursor: pointer;
   white-space: nowrap;
-}
-
-.unool-home-page .li .gfx {
-  margin: 8px -12px 0;
-  border-radius: 0;
-  height: 92px;
-}
-
-.unool-home-page .rx {
   display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.unool-home-page .li-more-btn {
+  color: #666;
+  font-size: 15px;
+  margin-left: 8px;
+  cursor: pointer;
+  font-weight: bold;
+}
+.unool-home-page .li-body {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.38;
+  color: #191919;
+}
+.unool-home-page .li-body p {
+  margin: 2.5px 0;
+}
+.unool-home-page .li-tags {
+  color: #0a66c2;
+  font-weight: 600;
+  font-size: 11.5px;
+  margin-top: 3px !important;
+}
+.unool-home-page .li-media {
+  margin: 6px -12px 0;
+  width: calc(100% + 24px);
+  overflow: hidden;
+  position: relative;
+}
+.unool-home-page .li-media img {
+  width: 100%;
+  height: 135px;
+  object-fit: cover;
+  display: block;
+}
+.unool-home-page .rx,
+.unool-home-page .li-reactions-row {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid #e0dfdc;
   font-size: 11px;
   color: #666;
-  padding: 9px 0;
-  border-bottom: 1px solid #e0dfdc;
 }
-
-.unool-home-page .ar {
+.unool-home-page .li-rx-left {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.unool-home-page .li-rx-stack {
+  display: flex;
+  align-items: center;
+}
+.unool-home-page .li-rx-icon {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 0 0 1.5px #fff;
+  margin-right: -3px;
+}
+.unool-home-page .li-rx-like { background: #0a66c2; }
+.unool-home-page .li-rx-love { background: #df704d; }
+.unool-home-page .li-rx-bulb { background: #44883e; }
+.unool-home-page .ar,
+.unool-home-page .li-action-bar {
   display: flex;
   justify-content: space-between;
-  padding: 6px 4px;
+  padding: 6px 2px;
 }
-
-.unool-home-page .ar span {
-  display: grid;
-  justify-items: center;
-  gap: 1px;
-  font-size: 10.5px;
+.unool-home-page .ar span,
+.unool-home-page .li-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
   font-weight: 600;
   color: #5e5e5e;
+  padding: 4px 6px;
+  border-radius: 4px;
 }
-
 .unool-home-page .li .tb {
   background: #fff;
   border-top: 1px solid #e0dfdc;
   color: #666;
+  padding-bottom: 24px;
 }
-
 .unool-home-page .li .tb .on {
-  color: #000;
+  color: #191919;
 }
 
-/* X + Threads */
+/* ==========================================================
+   X (Twitter) Mobile App Authentic Styling
+   ========================================================== */
 .unool-home-page .x {
   background: #000;
   color: #e7e9ea;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
-
-.unool-home-page .t {
-  background: #101010;
-  color: #f3f5f7;
+.unool-home-page .x .sb {
+  background: #000;
+  color: #fff;
 }
-
-.unool-home-page .xh {
+.unool-home-page .xh,
+.unool-home-page .x-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 0 14px;
+  justify-content: space-between;
+  padding: 0 14px 6px;
+  background: #000;
+  flex: none;
 }
-
-.unool-home-page .xh span:last-child {
-  width: 28px;
-}
-
-.unool-home-page .xt {
+.unool-home-page .xt,
+.unool-home-page .x-tabs-row {
   display: flex;
   border-bottom: 1px solid #2f3336;
   flex: none;
 }
-
-.unool-home-page .xt span {
+.unool-home-page .xt span,
+.unool-home-page .x-tab {
   flex: 1;
   text-align: center;
   padding: 8px 0 10px;
   font-weight: 600;
+  font-size: 14.5px;
   color: #71767b;
   position: relative;
 }
-
-.unool-home-page .xt .on {
+.unool-home-page .xt .on,
+.unool-home-page .x-tab.active {
   color: #e7e9ea;
+  font-weight: 700;
 }
-
-.unool-home-page .xt .on:after {
+.unool-home-page .xt .on:after,
+.unool-home-page .x-tab.active:after {
   content: "";
   position: absolute;
   left: 50%;
   bottom: 0;
-  width: 52px;
-  margin-left: -26px;
-  height: 4px;
-  border-radius: 4px;
+  width: 54px;
+  margin-left: -27px;
+  height: 3.5px;
+  border-radius: 3px;
   background: #1d9bf0;
 }
-
-.unool-home-page .t .xt {
-  border-color: #2a2a2a;
-}
-
-.unool-home-page .t .xt .on:after {
-  width: 100%;
-  left: 0;
-  margin: 0;
-  height: 1.5px;
-  background: #fff;
-}
-
-.unool-home-page .xp {
+.unool-home-page .xp,
+.unool-home-page .x-tweet-row {
   display: flex;
-  gap: 9px;
-  padding: 11px 12px 9px;
+  gap: 10px;
+  padding: 10px 12px 8px;
   border-bottom: 1px solid #2f3336;
 }
-
-.unool-home-page .t .xp {
-  border-color: #2a2a2a;
-}
-
-.unool-home-page .xp .col {
+.unool-home-page .xp .col,
+.unool-home-page .x-tweet-side {
   display: flex;
   flex-direction: column;
   align-items: center;
 }
-
-.unool-home-page .xp .bx {
+.unool-home-page .thl,
+.unool-home-page .x-thread-line {
+  display: block;
+  width: 2px;
+  flex: 1;
+  background: #333639;
+  border-radius: 2px;
+  margin-top: 6px;
+  text-decoration: none;
+}
+.unool-home-page .xp .bx,
+.unool-home-page .x-tweet-content {
   flex: 1;
   min-width: 0;
 }
-
-.unool-home-page .xp p {
-  margin: 3px 0;
+.unool-home-page .x-author-line {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  line-height: 1.3;
 }
-
-.unool-home-page .thl {
+.unool-home-page .x-author-name {
+  font-weight: 700;
+  color: #e7e9ea;
+}
+.unool-home-page .x-author-handle {
+  color: #71767b;
+  font-size: 13.5px;
+}
+.unool-home-page .x-more {
+  margin-left: auto;
+  color: #71767b;
+  font-size: 13px;
+}
+.unool-home-page .x-text {
+  font-size: 13.5px;
+  line-height: 1.42;
+  color: #e7e9ea;
+  margin: 4px 0 6px;
+}
+.unool-home-page .x-media-card {
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid #2f3336;
+  margin: 6px 0;
+  position: relative;
+}
+.unool-home-page .x-media-card img {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
   display: block;
-  flex: 1;
-  width: 2px;
-  margin-top: 5px;
-  background: #333639;
-  border-radius: 2px;
-  text-decoration: none;
 }
-
-.unool-home-page .bl {
-  color: #1d9bf0;
+.unool-home-page .x-thread-hint {
+  font-size: 12px;
+  color: #71767b;
+  margin: 4px 0 8px;
 }
-
-.unool-home-page .xm {
+.unool-home-page .xm,
+.unool-home-page .x-metrics-bar {
   display: flex;
   justify-content: space-between;
   color: #71767b;
   font-size: 11.5px;
-  margin-top: 9px;
-  padding-right: 6px;
+  margin-top: 8px;
+  padding-right: 4px;
 }
-
-.unool-home-page .xm span {
+.unool-home-page .xm span,
+.unool-home-page .x-metric-item {
   display: flex;
-  gap: 4px;
   align-items: center;
+  gap: 5px;
 }
-
-.unool-home-page .tx {
-  display: flex;
-  gap: 15px;
-  margin: 9px 0 5px;
-  color: #f3f5f7;
-}
-
-.unool-home-page .fab {
+.unool-home-page .fab,
+.unool-home-page .x-fab-btn {
   position: absolute;
   right: 14px;
-  bottom: 80px;
-  width: 46px;
-  height: 46px;
+  bottom: 74px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   background: #1d9bf0;
   color: #fff;
   display: grid;
   place-items: center;
-  font: 300 30px/1 system-ui;
-  box-shadow: 0 6px 18px rgba(29, 155, 240, .4);
+  box-shadow: 0 4px 14px rgba(29, 155, 240, 0.45);
+  font: 300 28px/1 system-ui;
 }
-
 .unool-home-page .x .tb {
+  background: #000;
   border-top: 1px solid #2f3336;
-  padding-top: 11px;
+  color: #71767b;
+  padding-bottom: 24px;
 }
-
-.unool-home-page .t .tb {
-  color: #777;
-  padding-top: 11px;
-}
-
-.unool-home-page .t .tb .on {
+.unool-home-page .x .tb .on {
   color: #fff;
 }
 
+/* ==========================================================
+   Threads Mobile App Authentic Styling
+   ========================================================== */
+.unool-home-page .t {
+  background: #101010;
+  color: #f3f5f7;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+.unool-home-page .t .sb {
+  background: #101010;
+  color: #fff;
+}
+.unool-home-page .t-header {
+  height: 38px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  background: #101010;
+}
+.unool-home-page .t-tabs-row {
+  display: flex;
+  border-bottom: 1px solid #242424;
+  flex: none;
+}
+.unool-home-page .t-tab {
+  flex: 1;
+  text-align: center;
+  padding: 8px 0 9px;
+  font-weight: 600;
+  font-size: 14px;
+  color: #777;
+  position: relative;
+}
+.unool-home-page .t-tab.active {
+  color: #f3f5f7;
+  font-weight: 700;
+}
+.unool-home-page .t-tab.active:after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1.5px;
+  background: #fff;
+}
+.unool-home-page .t-post-row {
+  display: flex;
+  gap: 10px;
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid #242424;
+}
+.unool-home-page .t-post-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.unool-home-page .t-thread-line {
+  width: 2px;
+  flex: 1;
+  background: #2a2a2a;
+  border-radius: 2px;
+  margin-top: 6px;
+}
+.unool-home-page .t-post-content {
+  flex: 1;
+  min-width: 0;
+}
+.unool-home-page .t-author-line {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+}
+.unool-home-page .t-author-name {
+  font-weight: 700;
+  color: #f3f5f7;
+}
+.unool-home-page .t-time {
+  color: #777;
+  font-size: 12.5px;
+  margin-left: 2px;
+}
+.unool-home-page .t-more {
+  margin-left: auto;
+  color: #777;
+}
+.unool-home-page .t-text {
+  font-size: 13px;
+  line-height: 1.45;
+  color: #f3f5f7;
+  margin: 5px 0 6px;
+}
+.unool-home-page .t-media-card {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  margin: 6px 0;
+}
+.unool-home-page .t-media-card img {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  display: block;
+}
+.unool-home-page .tx,
+.unool-home-page .t-actions-row {
+  display: flex;
+  gap: 14px;
+  margin: 8px 0 4px;
+  color: #f3f5f7;
+}
+.unool-home-page .t-meta-line {
+  font-size: 11.5px;
+  color: #777;
+  margin-top: 4px;
+}
+.unool-home-page .t .tb {
+  background: #101010;
+  border-top: 1px solid #242424;
+  color: #777;
+  padding-bottom: 24px;
+}
+.unool-home-page .t .tb .on {
+  color: #fff;
+}
 .unool-home-page .t .tb span:nth-child(3) svg {
   background: #1e1e1e;
   border-radius: 10px;

@@ -289,30 +289,71 @@ function renderPhoneMockups(root: HTMLElement, rawText: string) {
     text.includes('dress');
 
   if (isDress) {
-    // 0: LinkedIn - Artisan Brand Announcement
+    const brandAvatarSm =
+      '<div class="px-av sm"><span style="font-family:\'DM Serif Display\',Georgia,serif;font-style:italic">P</span></div>';
+    const brandAvatar =
+      '<div class="px-av"><span style="font-family:\'DM Serif Display\',Georgia,serif;font-style:italic">P</span></div>';
+
+    // 0: LinkedIn — pixel-perfect native feed post
     CD[0].innerHTML =
       SB +
-      '<div class="lh"><span class="av" style="background:#c84b31">P</span><div class="srch">' +
+      // LinkedIn header bar — avatar + search + messaging
+      '<div class="lh">' +
+      brandAvatarSm +
+      '<div class="srch">' +
       ic('search', 15, 2) +
-      'Search</div>' +
-      ic('chat', 23, 1.7) +
-      '</div><div class="fd"><div class="lp"><div class="ph"><span class="av" style="background:#c84b31">P</span><div><b>Pixenox Atelier</b> • 1st<small>Sustainable Artisan Apparel</small><small>2h • 🌐</small></div><span class="fl">+ Follow</span></div>' +
+      '<span>Search</span>' +
+      '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" class="li-qr-icon"><path d="M3 3h6v6H3V3zm2 2v2h2V5H5zm10-2h6v6h-6V3zm2 2v2h2V5h-2zM3 15h6v6H3v-6zm2 2v2h2v-2H5zm10 0h2v2h-2v-2zm4 0h2v4h-4v-2h2v-2zm0-4h2v2h-2v-2zm-4 4h-2v-4h4v2h-2v2z"/></svg>' +
+      '</div>' +
+      '<div class="li-msg-btn">' +
+      ic('chat', 22, 1.7) +
+      '</div>' +
+      '</div>' +
+      // Feed body
+      '<div class="fd">' +
+      '<div class="li-card">' +
+      // Post header row
+      '<div class="li-author-row">' +
+      brandAvatar +
+      '<div class="li-author-meta">' +
+      '<div class="li-author-name">Pixenox Atelier <small>• 1st</small></div>' +
+      '<span class="li-author-sub">Sustainable Artisan Apparel &amp; Design</span>' +
+      '<div class="li-author-time">2h • <svg viewBox="0 0 16 16" width="11" height="11" fill="currentColor"><path d="M8 0a8 8 0 100 16A8 8 0 008 0zm0 14.5a6.5 6.5 0 110-13 6.5 6.5 0 010 13zM1.5 8h3a11.5 11.5 0 00.7 4H2.4A6.5 6.5 0 011.5 8zm0-1a6.5 6.5 0 01.9-3h2.8a11.5 11.5 0 00-.7 3h-3zm6.5-5.5a10 10 0 011.9 4.5h-3.8A10 10 0 018 1.5zm0 13a10 10 0 01-1.9-4.5h3.8A10 10 0 018 14.5zm0-5.5H5.1A10.8 10.8 0 015 8c0-.3 0-.7.1-1h5.8c.1.3.1.7.1 1 0 .3 0 .7-.1 1H8zm2.8 4a11.5 11.5 0 00.7-3h3a6.5 6.5 0 01-.9 3h-2.8zm.7-4a11.5 11.5 0 00-.7-3h2.8a6.5 6.5 0 01.9 3h-3z"/></svg></div>' +
+      '</div>' +
+      '<span class="li-follow-btn">+ Follow</span>' +
+      '<span class="li-more-btn">···</span>' +
+      '</div>' +
+      // Post body — formatted for LinkedIn
+      '<div class="li-body">' +
       '<p><b>🌿 Introducing the Linen Wrap Dress:</b></p>' +
       '<p>Hand-woven terracotta linen, crafted for warm days and effortless movement. Sizes XS–XL.</p>' +
       '<p>→ 100% breathable organic European linen<br>→ Hand-dyed natural terracotta hue<br>→ Tailored zero-waste silhouette</p>' +
       '<p>First 50 pieces: <b>20% off this week only.</b></p>' +
-      '<p><i>#SustainableFashion #SlowFashion #LinenDress #Atelier</i></p>' +
-      '<div style="margin:8px 0;border-radius:14px;overflow:hidden;border:1px solid rgba(0,0,0,0.08);box-shadow:0 3px 12px rgba(0,0,0,0.06);"><img src="/linen-wrap-dress.jpg" alt="Linen Wrap Dress" style="width:100%;height:148px;object-fit:cover;display:block;" /></div>' +
-      '<div class="rx"><span>👍❤️💡 1,420</span><span>98 comments • 34 reposts</span></div>' +
-      '<div class="ar"><span>' +
-      ic('like', 19) +
-      'Like</span><span>' +
-      ic('chat', 19) +
-      'Comment</span><span>' +
-      ic('rep', 19) +
-      'Repost</span><span>' +
-      ic('send', 19) +
-      'Send</span></div></div></div>' +
+      '<p class="li-tags">#SustainableFashion #SlowFashion #LinenDress #Atelier</p>' +
+      '</div>' +
+      // Full-bleed post image (LinkedIn style — extends edge-to-edge)
+      '<div class="li-media"><img src="/linen-wrap-dress.jpg" alt="Linen Wrap Dress" /></div>' +
+      // Reactions row with authentic LinkedIn badge icons
+      '<div class="li-reactions-row">' +
+      '<div class="li-rx-left">' +
+      '<div class="li-rx-stack">' +
+      '<span class="li-rx-icon li-rx-like"><svg viewBox="0 0 16 16" width="9" height="9" fill="#fff"><path d="M4.5 7v7H2V7h2.5zm1.5 7h5.8c.8 0 1.5-.6 1.7-1.4l1.1-4.6c.2-1-.6-1.9-1.6-1.9H9.4V3c0-.8-.7-1.5-1.5-1.5-.5 0-.9.2-1.2.6L6 7v7z"/></svg></span>' +
+      '<span class="li-rx-icon li-rx-love"><svg viewBox="0 0 16 16" width="9" height="9" fill="#fff"><path d="M8 13.8s-5.2-3.4-5.2-7.5C2.8 3.8 4.8 2 7 2c1.2 0 2.2.6 2.8 1.5C10.4 2.6 11.4 2 12.6 2c2.2 0 4.2 1.8 4.2 4.3 0 4.1-5.2 7.5-5.2 7.5L8 13.8z"/></svg></span>' +
+      '<span class="li-rx-icon li-rx-bulb"><svg viewBox="0 0 16 16" width="9" height="9" fill="#fff"><path d="M8 1.5a4.5 4.5 0 00-2.8 8c.5.4.8 1 .8 1.5v.5h4v-.5c0-.6.3-1.1.8-1.5a4.5 4.5 0 00-2.8-8zM6.5 13h3v1h-3z"/></svg></span>' +
+      '</div>' +
+      '<span style="font-weight:600;margin-left:3px">1,420</span>' +
+      '</div>' +
+      '<span>98 comments • 34 reposts</span>' +
+      '</div>' +
+      // Action buttons row
+      '<div class="li-action-bar">' +
+      '<span class="li-action-btn">' + ic('like', 17) + 'Like</span>' +
+      '<span class="li-action-btn">' + ic('chat', 17) + 'Comment</span>' +
+      '<span class="li-action-btn">' + ic('rep', 17) + 'Repost</span>' +
+      '<span class="li-action-btn">' + ic('send', 17) + 'Send</span>' +
+      '</div>' +
+      '</div></div>' +
+      // LinkedIn bottom nav
       tb(
         [
           ['home', 'Home'],
@@ -326,32 +367,79 @@ function renderPhoneMockups(root: HTMLElement, rawText: string) {
       ) +
       HI;
 
-    // 1: X (Twitter) - Drop Announcement & Thread
+    // 1: X (Twitter) — authentic dark feed with tweet + thread indicator
     CD[1].innerHTML =
       SB +
-      '<div class="hd xh"><span class="av" style="width:28px;height:28px;font-size:12px;background:#c84b31">P</span>' +
-      svg(PLATFORMS[1], 20) +
-      '<span></span></div><div class="xt"><span class="on">For you</span><span>Following</span></div><div class="fd"><div class="xp"><div class="col"><span class="av" style="background:#c84b31">P</span><u class="thl"></u></div><div class="bx"><div><b>Pixenox</b> ' +
-      VB +
-      ' <span class="g">@pixenox · now</span></div><p>Meet the Linen Wrap Dress 🌿</p><p>Hand-woven terracotta, made for warm golden days. Sizes XS–XL.</p><p>First 50 orders get <b>20% off</b> this week only ✨</p><div style="margin:8px 0;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,0.1);"><img src="/linen-wrap-dress.jpg" alt="Linen Wrap Dress" style="width:100%;height:136px;object-fit:cover;display:block;" /></div><p class="g">Thread on fabric sourcing &amp; styling tips 🧵👇</p>' +
-      xm([['chat', '54'], ['rep', '380'], ['heart', '1.6K'], ['eye', '52K'], ['up', '']]) +
-      '</div></div></div><span class="fab">+</span>' +
+      // X header — profile pic, logo, settings
+      '<div class="x-header">' +
+      '<div class="px-av sm"><span style="font-family:\'DM Serif Display\',Georgia,serif;font-style:italic">P</span></div>' +
+      '<svg viewBox="0 0 24 24" width="20" height="20" fill="#fff"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>' +
+      '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#71767b" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>' +
+      '</div>' +
+      // For you / Following tabs
+      '<div class="x-tabs-row"><span class="x-tab active">For you</span><span class="x-tab">Following</span></div>' +
+      // Feed body
+      '<div class="fd">' +
+      // Main tweet
+      '<div class="x-tweet-row">' +
+      '<div class="x-tweet-side">' +
+      '<div class="px-av sm" style="width:36px;height:36px;font-size:16px"><span style="font-family:\'DM Serif Display\',Georgia,serif;font-style:italic">P</span></div>' +
+      '<u class="x-thread-line"></u>' +
+      '</div>' +
+      '<div class="x-tweet-content">' +
+      '<div class="x-author-line"><b>Pixenox</b> ' + VB + ' <span class="x-author-handle">@pixenox · now</span><span class="x-more">···</span></div>' +
+      '<p class="x-text">Meet the Linen Wrap Dress 🌿<br>Hand-woven terracotta, made for warm golden days. Sizes XS–XL.<br>First 50 orders get <b style="color:#fff">20% off</b> this week only ✨</p>' +
+      // Tweet image — rounded 16px corners (X style)
+      '<div class="x-media-card"><img src="/linen-wrap-dress.jpg" alt="Linen Wrap Dress" /></div>' +
+      '<p class="x-thread-hint">🧵 Thread on fabric sourcing &amp; styling tips 👇</p>' +
+      // Tweet metrics
+      '<div class="x-metrics-bar">' +
+      '<span class="x-metric-item">' + ic('chat', 15) + '54</span>' +
+      '<span class="x-metric-item">' + ic('rep', 15) + '380</span>' +
+      '<span class="x-metric-item">' + ic('heart', 15) + '1.6K</span>' +
+      '<span class="x-metric-item">' + ic('eye', 15) + '52K</span>' +
+      '<span class="x-metric-item">' + ic('up', 15) + '</span>' +
+      '</div>' +
+      '</div></div>' +
+      '</div>' +
+      // FAB button
+      '<span class="x-fab-btn"><svg viewBox="0 0 24 24" width="22" height="22" fill="#fff"><path d="M11 11V5h2v6h6v2h-6v6h-2v-6H5v-2z"/></svg></span>' +
+      // X bottom nav
       tb([['home'], ['search'], ['bell'], ['mail']], 0) +
       HI;
 
-    // 2: Threads - Casual Behind-the-Scenes
+    // 2: Threads — casual dark feed with thread reply line
     CD[2].innerHTML =
       SB +
-      '<div class="hd">' +
+      // Threads header logo
+      '<div class="t-header">' +
       svg(PLATFORMS[2], 28) +
-      '</div><div class="xt"><span class="on">For you</span><span>Following</span></div><div class="fd"><div class="xp"><div class="col"><span class="av" style="background:#c84b31">P</span><u class="thl"></u></div><div class="bx"><div><b>pixenox</b> ' +
-      VB +
-      ' <span class="g">2m</span><span class="g r">···</span></div><p>okay so we spent 6 months perfecting the drape on this terracotta wrap dress and she is finally here 🌿</p><p>100% hand-woven linen that gets softer with every wash. sizes xs–xl, first 50 pieces are 20% off this week ✨</p><div style="margin:8px 0;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,0.1);"><img src="/linen-wrap-dress.jpg" alt="Linen Wrap Dress" style="width:100%;height:144px;object-fit:cover;display:block;" /></div><div class="tx">' +
+      '</div>' +
+      // For you / Following tabs
+      '<div class="t-tabs-row"><span class="t-tab active">For you</span><span class="t-tab">Following</span></div>' +
+      // Feed body
+      '<div class="fd">' +
+      '<div class="t-post-row">' +
+      '<div class="t-post-side">' +
+      '<div class="px-av sm" style="width:34px;height:34px;font-size:15px"><span style="font-family:\'DM Serif Display\',Georgia,serif;font-style:italic">P</span></div>' +
+      '<u class="t-thread-line"></u>' +
+      '</div>' +
+      '<div class="t-post-content">' +
+      '<div class="t-author-line"><b>pixenox</b> ' + VB + ' <span class="t-time">2m</span><span class="t-more">···</span></div>' +
+      '<p class="t-text">okay so we spent 6 months perfecting the drape on this terracotta wrap dress and she is finally here 🌿<br><br>100% hand-woven linen that gets softer with every wash. sizes xs–xl, first 50 pieces are 20% off this week ✨</p>' +
+      // Thread post image — rounded 12px (Threads style)
+      '<div class="t-media-card"><img src="/linen-wrap-dress.jpg" alt="Linen Wrap Dress" /></div>' +
+      // Threads engagement icons
+      '<div class="t-actions-row">' +
       ic('heart', 20, 1.6) +
       ic('chat', 20, 1.6) +
       ic('rep', 20, 1.6) +
       ic('send', 20, 1.6) +
-      '</div><div class="g">142 replies · 489 likes</div></div></div></div>' +
+      '</div>' +
+      '<div class="t-meta-line">142 replies · 489 likes</div>' +
+      '</div></div>' +
+      '</div>' +
+      // Threads bottom nav (Instagram-like)
       tb([['home'], ['search'], ['plus'], ['heart'], ['user']], 0) +
       HI;
     return;
