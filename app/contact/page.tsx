@@ -77,7 +77,7 @@ export default function ContactUsPage() {
                 <MapPin className="w-5 h-5 text-[#C84B31] shrink-0 mt-0.5" />
                 <div>
                   <h4 className="text-sm font-semibold text-white/90">Operational &amp; Registered Office</h4>
-                  <p className="text-sm text-white/60">Bengaluru, Karnataka, 560001, India</p>
+                  <p className="text-sm text-white/60">Prathipadu, Kakinada District, Andhra Pradesh, India</p>
                 </div>
               </div>
 
@@ -206,7 +206,7 @@ export default function ContactUsPage() {
               <p><strong>Designation:</strong> Grievance Redressal Officer, Pixenox Solutions</p>
               <p><strong>Email:</strong> <a href="mailto:connect@pixenox.com" className="text-[#C84B31]">connect@pixenox.com</a> (Attn: Grievance Officer)</p>
               <p><strong>Response SLA:</strong> Acknowledgment within 48 hours; resolution within 15 working days.</p>
-              <p><strong>Jurisdiction:</strong> Bengaluru, Karnataka, India.</p>
+              <p><strong>Jurisdiction:</strong> Courts in Prathipadu, Kakinada District, Andhra Pradesh, India.</p>
             </div>
           </div>
         </div>

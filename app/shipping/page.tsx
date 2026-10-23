@@ -129,7 +129,7 @@ export default function ShippingPolicyPage() {
                   <li>Our operational team will manually provision your plan within 2 business hours</li>
                 </ul>
                 <p className="text-sm text-white/40 pt-4 border-t border-white/5">
-                  Legal Business Name: Pixenox Solutions • Main Portal: <a href="https://www.pixenox.com" target="_blank" rel="noopener noreferrer">www.pixenox.com</a> • Headquartered in Bengaluru, Karnataka, India.
+                  Legal Business Name: Pixenox Solutions • Main Portal: <a href="https://www.pixenox.com" target="_blank" rel="noopener noreferrer">www.pixenox.com</a> • Headquartered in Prathipadu, Kakinada District, Andhra Pradesh, India.
                 </p>
               </div>
             </motion.div>

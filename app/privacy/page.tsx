@@ -139,7 +139,7 @@ export default function PrivacyPolicyPage() {
                   <p><strong>Entity:</strong> Pixenox Solutions</p>
                   <p><strong>Email:</strong> <a href="mailto:connect@pixenox.com" className="text-[#C84B31]">connect@pixenox.com</a> | <a href="mailto:support@unool.co" className="text-[#C84B31]">support@unool.co</a></p>
                   <p><strong>Corporate Portal:</strong> <a href="https://www.pixenox.com" target="_blank" rel="noopener noreferrer">www.pixenox.com</a></p>
-                  <p><strong>Location:</strong> Bengaluru, Karnataka, India</p>
+                  <p><strong>Location:</strong> Prathipadu, Kakinada District, Andhra Pradesh, India</p>
                 </div>
                 <p className="text-xs text-white/40">
                   Last updated: October 2026. This policy may be updated periodically. Notice of material revisions will be published here.

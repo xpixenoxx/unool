@@ -2038,7 +2038,7 @@ export default function HomePage() {
               <a href="https://www.pixenox.com" target="_blank" rel="noopener noreferrer">
                 www.pixenox.com
               </a>{' '}
-              · Bengaluru, Karnataka, India
+              · Prathipadu, Kakinada District, Andhra Pradesh, India
             </p>
           </div>
 

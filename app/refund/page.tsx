@@ -134,7 +134,7 @@ export default function RefundPolicyPage() {
                   <strong>Resolution Timeframe:</strong> Our billing team will review and respond within 24 to 48 business hours. Approved refunds are credited directly back to the original source account via Cashfree within 5 to 7 business days.
                 </p>
                 <p className="text-sm text-white/40 pt-4 border-t border-white/5">
-                  Legal Entity: Pixenox Solutions • Main Website: <a href="https://www.pixenox.com" target="_blank" rel="noopener noreferrer">www.pixenox.com</a> • Governing Jurisdiction: Bengaluru, Karnataka, India.
+                  Legal Entity: Pixenox Solutions • Main Website: <a href="https://www.pixenox.com" target="_blank" rel="noopener noreferrer">www.pixenox.com</a> • Governing Jurisdiction: Courts in Prathipadu, Kakinada District, Andhra Pradesh, India.
                 </p>
               </div>
             </motion.div>

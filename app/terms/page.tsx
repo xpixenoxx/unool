@@ -50,7 +50,7 @@ export default function TermsOfServicePage() {
       id: 'governing',
       icon: Scale,
       title: 'Governing Law & Dispute Resolution',
-      content: 'These Terms and any non-contractual obligations arising from them are governed exclusively by the laws of India. Any legal action, suit, or proceeding shall be instituted exclusively in the competent courts of Bengaluru, Karnataka, India.'
+      content: 'These Terms and any non-contractual obligations arising from them are governed exclusively by the laws of India. Any legal action, suit, or proceeding shall be instituted exclusively in the competent courts of Prathipadu, Kakinada District, Andhra Pradesh, India.'
     }
   ];
 
@@ -157,7 +157,7 @@ export default function TermsOfServicePage() {
                   <br />
                   Corporate Portal: <a href="https://www.pixenox.com" target="_blank" rel="noopener noreferrer">www.pixenox.com</a>
                   <br />
-                  Jurisdiction: Bengaluru, Karnataka, India
+                  Jurisdiction: Courts in Prathipadu, Kakinada District, Andhra Pradesh, India
                 </p>
               </div>
             </motion.div>
