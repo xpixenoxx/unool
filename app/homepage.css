@@ -470,66 +470,676 @@
   color: var(--blush);
 }
 
-.unool-home-page .th {
-  max-width: 720px;
-  margin: 34px auto 0;
-  padding: 24px 34px;
-  border-radius: 22px;
-  background: rgba(255, 255, 255, .07);
-  border: 1px solid rgba(255, 255, 255, .14);
-  font: italic 20px/1.55 'Instrument Serif', Georgia, serif;
-  transition: border-color .25s ease, box-shadow .25s ease;
-  position: relative;
+/* =========================================================================
+   Interactive Flow: 1. Connect -> 2. Write -> 3. Adapt
+   ========================================================================= */
+
+.unool-home-page .flow-hidden {
+  display: none !important;
 }
 
-.unool-home-page .th:focus-within {
-  border-color: rgba(246, 195, 88, .6);
-  box-shadow: 0 0 28px rgba(246, 195, 88, .15);
-}
-
-.unool-home-page .th small,
-.unool-home-page .th .th-gold-heading {
-  display: block;
-  font: 700 13px/1.4 'DM Sans', sans-serif;
-  color: #f6c358;
-  letter-spacing: .02em;
-  text-transform: none;
-  margin-bottom: 12px;
-}
-
-.unool-home-page .th-edit-wrap {
+.unool-home-page .flow-steps-nav {
   display: flex;
-  align-items: flex-start;
-  position: relative;
-  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 860px;
+  margin: 32px auto 0;
+  padding: 12px 24px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  backdrop-filter: blur(12px);
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.unool-home-page .flow-steps-lead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+}
+
+.unool-home-page .flow-steps-badge {
+  font: 700 11px/1 'DM Sans', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: rgba(246, 195, 88, 0.2);
+  color: #f6c358;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(246, 195, 88, 0.4);
+}
+
+.unool-home-page .flow-steps-desc {
+  font-size: 13px;
+  color: var(--blush);
+  font-weight: 500;
+}
+
+.unool-home-page .flow-step-pills {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.unool-home-page .flow-step-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--cream);
+  padding: 8px 18px;
+  border-radius: 999px;
+  font: 600 13px/1 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.unool-home-page .flow-step-pill:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.unool-home-page .flow-step-pill.active {
+  background: #fdf6ee;
+  color: #1c0b09;
+  border-color: #fdf6ee;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
+  font-weight: 700;
+}
+
+.unool-home-page .flow-step-num {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.2);
+  color: inherit;
+}
+
+.unool-home-page .flow-step-pill.active .flow-step-num {
+  background: var(--terra);
+  color: #ffffff;
+}
+
+/* Browser Mockup Window */
+.unool-home-page .flow-browser-window {
+  max-width: 860px;
+  margin: 32px auto 0;
+  background: #f6efe6;
+  border-radius: 26px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 32px 80px -20px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  text-align: left;
+  font-family: 'DM Sans', sans-serif;
+  animation: flowFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes flowFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.unool-home-page .flow-browser-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 22px;
+  background: #eae0d2;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  gap: 16px;
+}
+
+.unool-home-page .flow-window-dots {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 60px;
+}
+
+.unool-home-page .flow-window-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.unool-home-page .flow-window-dot.red { background: #ff5f56; }
+.unool-home-page .flow-window-dot.yellow { background: #ffbd2e; }
+.unool-home-page .flow-window-dot.green { background: #27c93f; }
+
+.unool-home-page .flow-url-pill {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 999px;
+  padding: 5px 18px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #5c4a45;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.unool-home-page .flow-browser-subnav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.unool-home-page .flow-subnav-tab {
+  font-size: 13px;
+  font-weight: 500;
+  color: #7a6862;
+  padding: 5px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.unool-home-page .flow-subnav-tab:hover {
+  color: #1c0b09;
+}
+
+.unool-home-page .flow-subnav-tab.active {
+  background: #fdf6ee;
+  color: var(--terra);
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.unool-home-page .flow-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #1b7a43;
+  letter-spacing: 0.06em;
+}
+
+.unool-home-page .flow-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.25);
+  animation: livePulse 2s infinite;
+}
+
+@keyframes livePulse {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+
+/* STEP 1: Connect Accounts */
+.unool-home-page .flow-step-connect {
+  padding: 44px 36px 48px;
+  text-align: center;
+}
+
+.unool-home-page .flow-step-title {
+  font-family: 'DM Sans', sans-serif;
+  font-size: clamp(24px, 3.4vw, 34px);
+  font-weight: 800;
+  color: #1c0b09;
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+}
+
+.unool-home-page .flow-step-subtitle {
+  font-size: 15px;
+  line-height: 1.5;
+  color: #735b54;
+  max-width: 540px;
+  margin: 0 auto 36px;
+}
+
+.unool-home-page .flow-account-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  max-width: 680px;
+  margin: 0 auto;
+  text-align: left;
+}
+
+@media (max-width: 640px) {
+  .unool-home-page .flow-account-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.unool-home-page .flow-account-card {
+  background: #ffffff;
+  border-radius: 22px;
+  padding: 24px 22px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.unool-home-page .flow-account-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+  border-color: rgba(200, 75, 49, 0.3);
+}
+
+.unool-home-page .flow-account-card.connected {
+  border-color: rgba(33, 107, 63, 0.3);
+}
+
+.unool-home-page .flow-account-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.unool-home-page .flow-account-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.unool-home-page .flow-account-icon.ig-gradient {
+  background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+}
+
+.unool-home-page .flow-account-icon.li-blue {
+  background: #0A66C2;
+}
+
+.unool-home-page .flow-account-info {
+  display: flex;
+  flex-direction: column;
   gap: 2px;
 }
 
-.unool-home-page .th-quote {
-  font: italic 26px/1.2 'Instrument Serif', Georgia, serif;
-  color: #f6c358;
-  opacity: .85;
-  user-select: none;
+.unool-home-page .flow-account-name {
+  font-size: 17px;
+  font-weight: 700;
+  color: #1c0b09;
+}
+
+.unool-home-page .flow-account-sub {
+  font-size: 13px;
+  color: #8c7871;
+}
+
+.unool-home-page .flow-account-status {
+  font-size: 13px;
+  min-height: 20px;
+}
+
+.unool-home-page .flow-account-status .status-idle {
+  color: #8c7871;
+}
+
+.unool-home-page .flow-account-status .status-connected {
+  color: #216b3f;
+  font-weight: 600;
+}
+
+.unool-home-page .flow-connect-btn {
+  width: 100%;
+  padding: 12px 18px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #f1e8dc;
+  color: #5c4a45;
+  transition: all 0.2s ease;
+}
+
+.unool-home-page .flow-connect-btn:hover {
+  background: #e8ddcf;
+  color: #1c0b09;
+}
+
+.unool-home-page .flow-connect-btn.li-btn {
+  background: var(--terra);
+  color: #ffffff;
+}
+
+.unool-home-page .flow-connect-btn.li-btn:hover {
+  background: #b53e26;
+}
+
+.unool-home-page .flow-connect-btn.connected {
+  background: #e2ede5;
+  color: #216b3f;
+  border: 1px solid rgba(33, 107, 63, 0.25);
+  font-weight: 700;
+}
+
+.unool-home-page .flow-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(92, 74, 69, 0.3);
+  border-top-color: #5c4a45;
+  border-radius: 50%;
+  animation: flowSpin 0.75s linear infinite;
+  display: inline-block;
+}
+
+@keyframes flowSpin {
+  to { transform: rotate(360deg); }
+}
+
+.unool-home-page .flow-step-actions {
+  margin-top: 36px;
+  display: flex;
+  justify-content: center;
+}
+
+.unool-home-page .flow-next-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: #1c0b09;
+  color: #fdf6ee;
+  padding: 13px 32px;
+  border-radius: 999px;
+  font: 700 14px/1 'DM Sans', sans-serif;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.unool-home-page .flow-next-btn:hover {
+  transform: translateY(-2px);
+  background: #000;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+/* STEP 2: Write Post */
+.unool-home-page .flow-step-write {
+  padding: 38px 28px 46px;
+  display: flex;
+  justify-content: center;
+}
+
+.unool-home-page .flow-post-container {
+  width: 100%;
+  max-width: 490px;
+  background: #ffffff;
+  border-radius: 22px;
+  padding: 24px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.05);
+}
+
+.unool-home-page .flow-post-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #8c7871;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+
+.unool-home-page .flow-media-card {
+  background: #f8f3ed;
+  border: 1px solid rgba(0, 0, 0, 0.07);
+  border-radius: 14px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.unool-home-page .flow-media-thumb {
+  width: 52px;
+  height: 52px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: #e8a595;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
   flex-shrink: 0;
 }
 
-.unool-home-page .th-textarea {
+.unool-home-page .flow-media-meta {
   flex: 1;
-  width: 100%;
-  background: transparent;
-  border: none;
-  outline: none;
-  color: var(--cream);
-  font: italic 21px/1.55 'Instrument Serif', Georgia, serif;
-  resize: vertical;
-  min-height: 65px;
-  padding: 0 4px;
-  font-family: 'Instrument Serif', Georgia, serif;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
 }
 
-.unool-home-page .th-textarea::placeholder {
-  color: rgba(253, 246, 238, .35);
-  font-style: italic;
+.unool-home-page .flow-media-filename {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1c0b09;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.unool-home-page .flow-media-specs {
+  font-size: 12px;
+  color: #8c7871;
+}
+
+.unool-home-page .flow-media-badge {
+  font-size: 11px;
+  font-weight: 700;
+  background: #e2ede5;
+  color: #216b3f;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(33, 107, 63, 0.2);
+}
+
+.unool-home-page .flow-draft-box {
+  background: #faf5ee;
+  border: 1.5px solid rgba(200, 75, 49, 0.42);
+  border-radius: 14px;
+  padding: 16px 18px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(200, 75, 49, 0.05);
+}
+
+.unool-home-page .flow-draft-content {
+  font-size: 15px;
+  line-height: 1.55;
+  color: #1c0b09;
+  font-weight: 400;
+  margin: 0;
+}
+
+.unool-home-page .flow-destinations-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+  padding: 2px 4px;
+}
+
+.unool-home-page .flow-platform-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.unool-home-page .flow-platform-chips .chip {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.unool-home-page .flow-platform-chips .chip.ig-gradient {
+  background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
+}
+
+.unool-home-page .flow-platform-chips .chip.li-blue {
+  background: #0A66C2;
+}
+
+.unool-home-page .flow-destinations-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: #735b54;
+}
+
+.unool-home-page .flow-adapt-cta {
+  width: 100%;
+  padding: 13px 20px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--terra);
+  color: #ffffff;
+  transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  box-shadow: 0 4px 16px rgba(200, 75, 49, 0.25);
+}
+
+.unool-home-page .flow-adapt-cta:hover {
+  background: #b53e26;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(200, 75, 49, 0.35);
+}
+
+.unool-home-page .flow-adapt-cta.adapted {
+  background: #e2ede5;
+  color: #216b3f;
+  border: 1.5px solid rgba(33, 107, 63, 0.25);
+  box-shadow: none;
+  transform: scale(0.99);
+}
+
+/* STEP 3: Adapt / Mobile View Stage */
+.unool-home-page .flow-adapt-stage {
+  margin-top: 28px;
+  animation: flowFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.unool-home-page .flow-adapt-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 820px;
+  margin: 0 auto 12px;
+  padding: 14px 22px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  backdrop-filter: blur(8px);
+  gap: 16px;
+  flex-wrap: wrap;
+  text-align: left;
+}
+
+.unool-home-page .flow-adapt-banner-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.unool-home-page .flow-adapt-tag {
+  font: 700 11px/1 'DM Sans', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: #216b3f;
+  color: #e2ede5;
+  padding: 5px 10px;
+  border-radius: 999px;
+}
+
+.unool-home-page .flow-adapt-summary {
+  font-size: 14px;
+  color: var(--cream);
+  font-weight: 500;
+}
+
+.unool-home-page .flow-replay-btn {
+  background: transparent;
+  color: var(--blush);
+  border: 1px solid rgba(232, 165, 149, 0.3);
+  padding: 6px 14px;
+  border-radius: 999px;
+  font: 600 12px/1 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.unool-home-page .flow-replay-btn:hover {
+  background: rgba(232, 165, 149, 0.15);
+  color: #ffffff;
+  border-color: rgba(232, 165, 149, 0.6);
+}
+
+@media (max-width: 768px) {
+  .unool-home-page .flow-steps-nav {
+    flex-direction: column;
+    align-items: stretch;
+    border-radius: 20px;
+  }
+  .unool-home-page .flow-step-pills {
+    justify-content: center;
+  }
+  .unool-home-page .flow-browser-subnav {
+    display: none;
+  }
+  .unool-home-page .flow-browser-topbar {
+    padding: 10px 14px;
+  }
+  .unool-home-page .flow-step-connect {
+    padding: 24px 16px 32px;
+  }
+  .unool-home-page .flow-account-grid {
+    grid-template-columns: 1fr;
+  }
+  .unool-home-page .flow-step-write {
+    padding: 24px 16px 32px;
+  }
+  .unool-home-page .flow-adapt-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 
 .unool-home-page .deck {
