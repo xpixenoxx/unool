@@ -2885,44 +2885,72 @@ export default function HomePage() {
           Start free. <em>Scale when you’re ready.</em>
         </h2>
         <div className="pl">
+          {/* Spark (Free) */}
           <div className="pc rv">
-            <h3>Free</h3>
-            <div className="for">Perfect for solo founders</div>
+            <h3>Spark</h3>
+            <div className="for">Perfect for solo creators &amp; founders</div>
             <div className="pr">
-              $0<small>/month</small>
+              $0<small>/mo (Free forever)</small>
             </div>
             <ul>
               <li>1 profile at yourname.unool.co</li>
-              <li>12 posts/month</li>
-              <li>30+ platforms</li>
-              <li>AI adaptation</li>
-              <li>5 themes</li>
-              <li>Magic link auth</li>
+              <li>15 scheduled posts/month</li>
+              <li>2 connected platforms</li>
+              <li>5 persona templates</li>
+              <li>Follow-to-Unlock gates</li>
+              <li>250 automated IG comments/mo</li>
             </ul>
             <Link className="btn" href="/signup">
-              Free trial
+              Get Started Free
             </Link>
           </div>
 
-          <div className="pc pro rv">
-            <h3>Pro</h3>
-            <div className="for">For growing creators &amp; teams</div>
+          {/* Creator */}
+          <div className="pc rv">
+            <h3>Creator</h3>
+            <div className="for">For growing creators &amp; personal brands</div>
             <div className="pr">
-              $19<small>/mo (₹1,499)</small>
+              ₹799<small>/mo ($9)</small>
             </div>
             <ul>
-              <li>Everything in Free, plus:</li>
-              <li>300 posts/month</li>
-              <li>10 connected accounts</li>
-              <li>100 scheduled posts</li>
-              <li>5 team members</li>
-              <li>Advanced analytics</li>
-              <li>Priority support</li>
+              <li>Everything in Spark, plus:</li>
+              <li>Unlimited posts/month</li>
+              <li>4 connected platforms</li>
+              <li>All 16 persona templates</li>
+              <li>No "Made with Unool" badge</li>
+              <li>Basic DM Concierge &amp; 90-day analytics</li>
             </ul>
-            <Link className="btn" href="/signup">
+            <Link className="btn" href="/signup?plan=creator">
+              Start 14-day trial
+            </Link>
+          </div>
+
+          {/* Pro */}
+          <div className="pc pro rv">
+            <div className="pc-badge">Most Popular</div>
+            <h3>Pro</h3>
+            <div className="for">The full engine for serious creators &amp; teams</div>
+            <div className="pr">
+              ₹1,999<small>/mo ($24)</small>
+            </div>
+            <ul>
+              <li>Everything in Creator, plus:</li>
+              <li>8 connected platforms</li>
+              <li>Custom domain (yourdomain.com)</li>
+              <li>Full DM Concierge + Knowledge Base</li>
+              <li>FlightPlan AI &amp; Lead Scoring</li>
+              <li>3 team seats &amp; priority support</li>
+            </ul>
+            <Link className="btn" href="/signup?plan=pro">
               Get Pro →
             </Link>
           </div>
+        </div>
+
+        <div className="pricing-more-cta rv">
+          <Link href="/pricing">
+            Compare all 4 plans &amp; full features (including Studio for agencies) →
+          </Link>
         </div>
       </section>
 

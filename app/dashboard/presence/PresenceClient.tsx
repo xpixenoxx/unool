@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Globe, PenTool, Loader2, Trash2, Palette, Link as LinkIcon, ExternalLink, Plus, CheckCircle, AlertCircle, Trash, ArrowRight, Shield, Activity, CalendarDays, MousePointerClick, UploadCloud, Image as ImageIcon, X } from 'lucide-react';
+import { Globe, PenTool, Loader2, Trash2, Palette, Link as LinkIcon, ExternalLink, Plus, CheckCircle, AlertCircle, Trash, ArrowRight, ArrowUpRight, Shield, Activity, CalendarDays, MousePointerClick, UploadCloud, Image as ImageIcon, X } from 'lucide-react';
 import { OpenToSelector } from '@/components/profile/OpenToBadges';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -824,97 +824,115 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
       {/* ═══ NON-OVERLAPPING PERSONA THEME APPLIED ALERT ═══ */}
       {/* Positioned at bottom-center so it never blocks or overlaps the top-right "View Live" button */}
       <AnimatePresence>
-        {appliedTemplateAlert && (
-          <motion.div
-            initial={{ opacity: 0, y: 32, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 24, scale: 0.96 }}
-            transition={{ type: 'spring', stiffness: 450, damping: 32 }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[calc(100vw-2rem)] max-w-lg pointer-events-auto"
-            role="status"
-            aria-live="polite"
-          >
-            <div
-              className="relative overflow-hidden rounded-2xl p-4 sm:p-4.5 shadow-2xl border"
-              style={{
-                background: 'linear-gradient(135deg, rgba(28, 25, 23, 0.96), rgba(18, 16, 15, 0.98))',
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                borderColor: 'rgba(255, 255, 255, 0.14)',
-                boxShadow: '0 20px 50px -10px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.08)',
-              }}
+        {appliedTemplateAlert && (() => {
+          const activeSubdomain = claimedSubdomain || (profile.subdomain && !profile.subdomain.startsWith('user-') ? profile.subdomain : null);
+          const resolvedLiveUrl = liveUrl || (activeSubdomain ? (process.env.NODE_ENV === 'development' ? `/u/${activeSubdomain}` : `https://${activeSubdomain}.unool.co`) : (profile.subdomain ? `/u/${profile.subdomain}` : null));
+          const handleLabel = activeSubdomain ? `u/${activeSubdomain}` : 'u/profile';
+
+          return (
+            <motion.div
+              initial={{ opacity: 0, y: 32, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 24, scale: 0.96 }}
+              transition={{ type: 'spring', stiffness: 450, damping: 32 }}
+              className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[calc(100vw-2rem)] max-w-lg pointer-events-auto"
+              role="status"
+              aria-live="polite"
             >
-              {/* Subtle decorative glow */}
-              <div 
-                className="absolute -top-12 -left-12 w-28 h-28 rounded-full blur-2xl opacity-35 pointer-events-none"
-                style={{ background: '#C4A265' }}
-              />
+              <div
+                className="relative overflow-hidden rounded-2xl p-4 sm:p-4.5 shadow-2xl border"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(20, 16, 14, 0.96), rgba(12, 10, 9, 0.98))',
+                  backdropFilter: 'blur(24px)',
+                  WebkitBackdropFilter: 'blur(24px)',
+                  borderColor: 'rgba(196, 162, 101, 0.32)',
+                  boxShadow: '0 24px 55px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(196, 162, 101, 0.15)',
+                }}
+              >
+                {/* Subtle top gold rim accent */}
+                <div
+                  className="absolute top-0 left-0 right-0 h-[1px] pointer-events-none"
+                  style={{
+                    background: 'linear-gradient(90deg, transparent, rgba(196, 162, 101, 0.65), transparent)',
+                  }}
+                />
 
-              <div className="relative z-10 flex items-start gap-3.5">
-                {/* Persona Icon Badge */}
-                <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/10 flex items-center justify-center text-xl shrink-0 shadow-inner">
-                  {appliedTemplateAlert.icon || '★'}
-                </div>
+                {/* Subtle warm ambient glow in top-left */}
+                <div 
+                  className="absolute -top-12 -left-12 w-28 h-28 rounded-full blur-2xl opacity-25 pointer-events-none"
+                  style={{ background: '#C4A265' }}
+                />
 
-                {/* Text & Context */}
-                <div className="flex-1 min-w-0 pr-1">
-                  <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                    <span className="font-serif text-sm font-bold text-white tracking-tight">
-                      {appliedTemplateAlert.name}
-                    </span>
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold uppercase tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                      Live on Profile
-                    </span>
+                <div className="relative z-10 flex items-start gap-3.5">
+                  {/* Persona Icon Badge */}
+                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#2A221B] to-[#171310] border border-[#C4A265]/40 flex items-center justify-center text-xl shrink-0 shadow-inner">
+                    {appliedTemplateAlert.icon || '★'}
                   </div>
 
-                  {appliedTemplateAlert.tagline && (
-                    <p className="text-xs text-[#E7E5E4] font-medium leading-snug italic">
-                      "{appliedTemplateAlert.tagline}"
+                  {/* Text & Context */}
+                  <div className="flex-1 min-w-0 pr-1">
+                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                      <span className="font-serif text-[15px] font-bold text-amber-50 tracking-tight">
+                        {appliedTemplateAlert.name}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold uppercase tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+                        Theme Applied
+                      </span>
+                    </div>
+
+                    {appliedTemplateAlert.tagline && (
+                      <p className="text-xs text-stone-300 font-serif italic leading-snug">
+                        "{appliedTemplateAlert.tagline}"
+                      </p>
+                    )}
+
+                    <p className="text-[11px] text-stone-400 mt-0.5 line-clamp-1 leading-normal">
+                      {appliedTemplateAlert.description || 'Changes auto-saved to your public link.'}
                     </p>
-                  )}
+                  </div>
 
-                  <p className="text-[11px] text-stone-400 mt-1 line-clamp-1 leading-normal">
-                    {appliedTemplateAlert.description || 'Changes auto-saved to your public link.'}
-                  </p>
-                </div>
-
-                {/* Actions: View Live shortcut & Close */}
-                <div className="flex items-center gap-1.5 shrink-0 self-center">
-                  {liveUrl && (
-                    <Link
-                      href={liveUrl}
-                      target="_blank"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-white/10 hover:bg-white/20 active:scale-95 transition-all border border-white/15 shadow-sm whitespace-nowrap no-underline"
-                      title="Open your public profile in a new tab"
+                  {/* Actions: Custom handle link & Close */}
+                  <div className="flex items-center gap-2 shrink-0 self-center">
+                    {resolvedLiveUrl && (
+                      <Link
+                        href={resolvedLiveUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-amber-100 bg-[#C4A265]/12 hover:bg-[#C4A265]/24 active:scale-95 transition-all border border-[#C4A265]/35 hover:border-[#C4A265]/60 shadow-sm whitespace-nowrap no-underline"
+                        title={`Open ${handleLabel} in a new tab`}
+                      >
+                        <span className="font-mono text-[11px] text-[#EAD8B1] group-hover:text-white transition-colors">
+                          {handleLabel}
+                        </span>
+                        <ArrowUpRight className="w-3.5 h-3.5 text-[#C4A265] group-hover:text-amber-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
+                      </Link>
+                    )}
+                    <button
+                      onClick={() => {
+                        if (alertTimerRef.current) clearTimeout(alertTimerRef.current);
+                        setAppliedTemplateAlert(null);
+                      }}
+                      className="w-7 h-7 rounded-xl flex items-center justify-center text-stone-400 hover:text-white hover:bg-white/10 transition-colors"
+                      title="Dismiss notification"
+                      aria-label="Dismiss notification"
                     >
-                      <span>View Live</span>
-                      <ExternalLink className="w-3 h-3 text-stone-300" />
-                    </Link>
-                  )}
-                  <button
-                    onClick={() => {
-                      if (alertTimerRef.current) clearTimeout(alertTimerRef.current);
-                      setAppliedTemplateAlert(null);
-                    }}
-                    className="w-7 h-7 rounded-xl flex items-center justify-center text-stone-400 hover:text-white hover:bg-white/10 transition-colors"
-                    title="Dismiss notification"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
-              </div>
 
-              {/* Subtle timer progress bar */}
-              <motion.div
-                initial={{ width: '100%' }}
-                animate={{ width: '0%' }}
-                transition={{ duration: 5, ease: 'linear' }}
-                className="absolute bottom-0 left-0 h-[2px] bg-gradient-to-r from-emerald-400 via-amber-300 to-emerald-400 opacity-60"
-              />
-            </div>
-          </motion.div>
-        )}
+                {/* Subtle timer progress bar */}
+                <motion.div
+                  initial={{ width: '100%' }}
+                  animate={{ width: '0%' }}
+                  transition={{ duration: 5, ease: 'linear' }}
+                  className="absolute bottom-0 left-0 h-[2px] bg-gradient-to-r from-emerald-400 via-[#C4A265] to-emerald-400 opacity-70"
+                />
+              </div>
+            </motion.div>
+          );
+        })()}
       </AnimatePresence>
 
     </motion.div>

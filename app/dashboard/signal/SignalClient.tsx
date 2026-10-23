@@ -49,6 +49,7 @@ export type SignalPost = {
   wordCount: number | null;
   hasMedia: boolean;
   createdAt: string;
+  updatedAt?: string;
   publishedAt: string | null;
   origin?: 'flightplan' | 'quick-broadcast' | 'ai-composer';
   arcId?: string | null;
@@ -385,6 +386,19 @@ export function SignalClient() {
     loadData();
   }, [loadData]);
 
+  // Listen to broadcast/publishing events so Signal feed updates immediately
+  useEffect(() => {
+    const handleSignalUpdate = () => {
+      loadData(true);
+    };
+    window.addEventListener('signal-posts-updated', handleSignalUpdate);
+    window.addEventListener('signal-strip-publish', handleSignalUpdate);
+    return () => {
+      window.removeEventListener('signal-posts-updated', handleSignalUpdate);
+      window.removeEventListener('signal-strip-publish', handleSignalUpdate);
+    };
+  }, [loadData]);
+
   // ── Auto-Detect Transitions & Celebrate When Live ─────────────────────────────
   useEffect(() => {
     const currentPending = new Set<string>();
@@ -587,7 +601,7 @@ export function SignalClient() {
 
   // Filtered posts for feed
   const filteredPosts = useMemo(() => {
-    return posts.filter(post => {
+    const list = posts.filter(post => {
       const isPublishing = post.status === 'publishing' || post.variants.some(v => v.status === 'publishing' || v.status === 'pending') || activePublishingPostIds.has(post.id);
 
       // Status filter
@@ -620,6 +634,18 @@ export function SignalClient() {
       }
 
       return true;
+    });
+
+    // Ensure published and actively publishing posts float to top
+    return list.sort((a: SignalPost, b: SignalPost) => {
+      const aPublishing = a.status === 'publishing' || a.variants.some((v: PostVariant) => v.status === 'publishing' || v.status === 'pending') || activePublishingPostIds.has(a.id);
+      const bPublishing = b.status === 'publishing' || b.variants.some((v: PostVariant) => v.status === 'publishing' || v.status === 'pending') || activePublishingPostIds.has(b.id);
+      if (aPublishing && !bPublishing) return -1;
+      if (!aPublishing && bPublishing) return 1;
+
+      const timeA = new Date(a.publishedAt || a.updatedAt || a.createdAt).getTime();
+      const timeB = new Date(b.publishedAt || b.updatedAt || b.createdAt).getTime();
+      return timeB - timeA;
     });
   }, [posts, filterStatus, searchQuery, activePublishingPostIds]);
 

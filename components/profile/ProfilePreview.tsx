@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import type { TemplateProps } from '@/components/profile/templates/types';
 import { TemplateSkeleton, getSkeletonCategory } from '@/components/profile/templates/TemplateSkeletons';
+import { MadeWithUnoolCTA } from '@/components/profile/MadeWithUnoolCTA';
 
 // Map template IDs to their components for dynamic loading
 // Each template is now in its own file for better code-splitting and maintainability
@@ -20,7 +21,7 @@ const templateComponents: Record<string, React.LazyExoticComponent<React.Compone
   // Agency
   'the-studio': React.lazy(() => import('@/components/profile/templates/persona/the-studio').then(m => ({ default: m.StudioTemplate }))),
   'the-machine': React.lazy(() => import('@/components/profile/templates/persona/the-machine').then(m => ({ default: m.MachineTemplate }))),
-  'the-club': React.lazy(() => import('@/components/profile/templates/persona/the-club').then(m => ({ default: m.ClubTemplate }))),
+  'the-club': React.lazy(() => import('@/components/profile/templates/persona/the-club').then(m => ({ default: m.ClubTemplateV2 || m.ClubTemplate }))),
   // Entrepreneur
   'the-builder': React.lazy(() => import('@/components/profile/templates/persona/the-builder').then(m => ({ default: m.BuilderTemplate }))),
   'the-visionary': React.lazy(() => import('@/components/profile/templates/persona/the-visionary').then(m => ({ default: m.VisionaryTemplate }))),
@@ -80,6 +81,41 @@ function TemplateWrapper({ templateId, profile, accentColor, isPreview, onLinkCl
   );
 }
 
+class TemplateErrorBoundary extends React.Component<
+  {
+    resetKey?: any;
+    onError?: (err: Error) => void;
+    fallback: (error: Error, retry: () => void) => React.ReactNode;
+    children: React.ReactNode;
+  },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Template rendering error:', error, errorInfo);
+    this.props.onError?.(error);
+  }
+  componentDidUpdate(prevProps: any) {
+    if (prevProps.resetKey !== this.props.resetKey && this.state.hasError) {
+      this.setState({ hasError: false, error: null });
+    }
+  }
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback(this.state.error || new Error('Template error'), () => {
+        this.setState({ hasError: false, error: null });
+      });
+    }
+    return this.props.children;
+  }
+}
+
 export function ProfilePreview({
   templateId,
   profile,
@@ -131,31 +167,53 @@ export function ProfilePreview({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.2 }}
-      className={cn('w-full h-full min-h-[400px]', className)}
+      className={cn('relative w-full h-full min-h-[400px]', className)}
       style={{
         '--profile-accent': effectiveAccentColor,
         fontFamily: 'var(--font-geist)',
       } as React.CSSProperties}
       role="region"
       aria-label={`Template preview: ${templateId}`}
-      onError={() => setLoadError(true)}
     >
-      <TemplateWrapper
-        templateId={templateId}
-        profile={profile ? {
-          ...profile,
-          avatarUrl: profile.avatarUrl || profile.avatar_url || profile.avatar || '',
-          avatar_url: profile.avatarUrl || profile.avatar_url || profile.avatar || '',
-          avatar: profile.avatarUrl || profile.avatar_url || profile.avatar || '',
-        } : profile}
-        accentColor={effectiveAccentColor}
-        isPreview={isPreview}
-        onLinkClick={onLinkClick || ((link) => {
-          if (isPreview) {
-            console.log('Preview link click:', link.label, link.url);
-          }
-        })}
-      />
+      {!isPreview && <MadeWithUnoolCTA />}
+      <TemplateErrorBoundary
+        resetKey={templateId}
+        onError={() => setLoadError(true)}
+        fallback={(_err, retry) => (
+          <div className={cn('flex flex-col items-center justify-center h-full min-h-[400px] p-8 text-center', className)} role="alert">
+            <svg className="h-12 w-12 text-muted-foreground/50 mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="15" y1="9" x2="9" y2="15" />
+              <line x1="9" y1="9" x2="15" y2="15" />
+            </svg>
+            <p className="text-lg font-medium text-foreground mb-2">Failed to load template</p>
+            <p className="text-muted-foreground text-sm mb-4">The template "{templateId}" could not be loaded. Please try again later.</p>
+            <button
+              onClick={() => { setLoadError(false); retry(); }}
+              className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+      >
+        <TemplateWrapper
+          templateId={templateId}
+          profile={profile ? {
+            ...profile,
+            avatarUrl: profile.avatarUrl || profile.avatar_url || profile.avatar || '',
+            avatar_url: profile.avatarUrl || profile.avatar_url || profile.avatar || '',
+            avatar: profile.avatarUrl || profile.avatar_url || profile.avatar || '',
+          } : profile}
+          accentColor={effectiveAccentColor}
+          isPreview={isPreview}
+          onLinkClick={onLinkClick || ((link) => {
+            if (isPreview) {
+              console.log('Preview link click:', link.label, link.url);
+            }
+          })}
+        />
+      </TemplateErrorBoundary>
     </motion.div>
   );
 }

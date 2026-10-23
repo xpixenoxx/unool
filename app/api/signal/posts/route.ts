@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     .select('*')
     .eq('workspace_id', workspaceId)
     .in('status', ['published', 'scheduled', 'draft', 'failed', 'publishing'])
-    .order('created_at', { ascending: false })
+    .order('updated_at', { ascending: false, nullsFirst: false })
     .limit(50);
 
   if (postsError) {
@@ -128,6 +128,7 @@ export async function GET(request: NextRequest) {
       wordCount: p.word_count || null,
       hasMedia: p.has_media || false,
       createdAt: p.created_at,
+      updatedAt: p.updated_at || p.created_at,
       publishedAt: p.published_at || null,
       adaptationPromptVersion: p.adaptation_prompt_version || null,
       arcId: p.arc_id || null,
@@ -142,6 +143,18 @@ export async function GET(request: NextRequest) {
         hasRealData,
       },
     };
+  });
+
+  // Sort posts: active publishing posts always on top, then by most recent publishedAt/updatedAt/createdAt
+  result.sort((a, b) => {
+    const aPublishing = a.status === 'publishing' || a.variants.some((v: any) => v.status === 'publishing' || v.status === 'pending');
+    const bPublishing = b.status === 'publishing' || b.variants.some((v: any) => v.status === 'publishing' || v.status === 'pending');
+    if (aPublishing && !bPublishing) return -1;
+    if (!aPublishing && bPublishing) return 1;
+
+    const timeA = new Date(a.publishedAt || a.updatedAt || a.createdAt).getTime();
+    const timeB = new Date(b.publishedAt || b.updatedAt || b.createdAt).getTime();
+    return timeB - timeA;
   });
 
   return NextResponse.json({ posts: result });

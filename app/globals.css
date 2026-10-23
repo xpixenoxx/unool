@@ -537,3 +537,28 @@
   .line-clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
   .line-clamp-4 { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 }
+
+/* ── Screen-Spanning Wide Toast System ────────────────────────────────────── */
+[data-sonner-toaster] {
+  --width: min(92vw, 1100px) !important;
+  width: min(92vw, 1100px) !important;
+  max-width: 92vw !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  z-index: 99999999 !important;
+}
+
+[data-sonner-toast] {
+  --width: min(92vw, 1100px) !important;
+  width: min(92vw, 1100px) !important;
+  max-width: 92vw !important;
+}
+
+[data-sonner-toast][data-styled='true'] {
+  width: 100% !important;
+  max-width: 100% !important;
+  padding: 14px 22px !important;
+  border-radius: 18px !important;
+  font-size: 14px !important;
+  box-shadow: 0 20px 50px -10px rgba(45, 35, 25, 0.22), 0 0 0 1px rgba(196, 162, 101, 0.15) !important;
+}
