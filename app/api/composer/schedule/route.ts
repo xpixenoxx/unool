@@ -166,6 +166,7 @@ export async function POST(request: NextRequest) {
       profileId: profile.id,
       baseScheduledAt: scheduledAt,
       strategy: (singlePost.strategy ?? 'simultaneous') as ScheduleStrategy,
+      postId: singlePost.postId,
       platforms: (singlePost.platforms ?? []).map((p: any) => {
         const rawContent = p.content || '';
         const validation = ContentGuard.validateForBroadcast(rawContent, { route: 'composer/schedule/single' });

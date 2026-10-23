@@ -8,6 +8,8 @@ import { planEnforcement } from '@/lib/middleware/plan-enforcement-middleware';
 import { publishService } from '@/lib/services/PublishService';
 import { optimizeMediaForPlatform } from '@/lib/media/ImageOptimizer';
 import { ContentGuard } from '@/lib/ai/ContentGuard';
+import { createClient } from '@supabase/supabase-js';
+import { config } from '@/lib/config/schema';
 
 const postRepository = new SupabasePostRepository();
 const profileRepository = new SupabaseProfileRepository();
@@ -29,7 +31,7 @@ export async function POST(request: NextRequest) {
       const { workspaceId } = auth;
 
       const body = await request.json();
-      const { content, profileId, mediaItems, selectedPlatforms, studioProfile: clientStudioProfile } = body;
+      const { content, profileId, mediaItems, selectedPlatforms, studioProfile: clientStudioProfile, postId: incomingPostId } = body;
 
       if (!content || typeof content !== 'string' || !content.trim()) {
         return NextResponse.json({ error: 'Content is required' }, { status: 400 });
@@ -97,13 +99,29 @@ export async function POST(request: NextRequest) {
 
       const rawContent = guard.sanitizedContent;
 
-      // Create post in database
-      const post = await postRepository.create({
-        profileId: resolvedProfileId,
-        workspaceId,
-        content: rawContent,
-        adaptationPromptVersion: 'direct-broadcast', // Special marker indicating no AI
-      });
+      // Create or reuse post in database
+      let post;
+      if (incomingPostId) {
+        const existing = await postRepository.findById(incomingPostId);
+        if (existing && existing.workspaceId === workspaceId) {
+          post = await postRepository.update(existing.id, {
+            content: rawContent,
+            status: 'draft',
+            adaptationPromptVersion: 'direct-broadcast',
+          });
+          const admin = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+          await admin.from('post_variants').delete().eq('post_id', existing.id);
+        }
+      }
+
+      if (!post) {
+        post = await postRepository.create({
+          profileId: resolvedProfileId,
+          workspaceId,
+          content: rawContent,
+          adaptationPromptVersion: 'direct-broadcast', // Special marker indicating no AI
+        });
+      }
 
       // Create identical variants for ACTIVE platforms only
       for (const platform of activePlatforms) {
@@ -159,7 +177,6 @@ export async function POST(request: NextRequest) {
 
       // Enqueue a background job in QStash if configured, otherwise use direct background publish
       let enqueued = false;
-      const { config } = await import('@/lib/config/schema');
       if (config.QSTASH_TOKEN) {
         try {
           const { queueService } = await import('@/lib/services/QueueService');

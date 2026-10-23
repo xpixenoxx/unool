@@ -112,6 +112,14 @@ export async function GET(request: NextRequest) {
 
     const totalInteractions = postLikes + postComments + postShares;
 
+    const isFlightPlan = Boolean(p.arc_id || p.adaptation_prompt_version === 'schedule-engine-v1');
+    const isQuickBroadcast = p.adaptation_prompt_version === 'direct-broadcast';
+    const origin: 'flightplan' | 'quick-broadcast' | 'ai-composer' = isFlightPlan
+      ? 'flightplan'
+      : isQuickBroadcast
+      ? 'quick-broadcast'
+      : 'ai-composer';
+
     return {
       id: p.id,
       content: p.content,
@@ -121,6 +129,9 @@ export async function GET(request: NextRequest) {
       hasMedia: p.has_media || false,
       createdAt: p.created_at,
       publishedAt: p.published_at || null,
+      adaptationPromptVersion: p.adaptation_prompt_version || null,
+      arcId: p.arc_id || null,
+      origin,
       variants: pVariants,
       engagement: {
         likes: postLikes,

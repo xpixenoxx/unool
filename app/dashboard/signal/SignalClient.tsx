@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -40,7 +40,7 @@ type PostVariant = {
   };
 };
 
-type SignalPost = {
+export type SignalPost = {
   id: string;
   content: string;
   status: string;
@@ -49,6 +49,9 @@ type SignalPost = {
   hasMedia: boolean;
   createdAt: string;
   publishedAt: string | null;
+  origin?: 'flightplan' | 'quick-broadcast' | 'ai-composer';
+  arcId?: string | null;
+  adaptationPromptVersion?: string | null;
   variants: PostVariant[];
   engagement?: {
     likes: number;
@@ -59,6 +62,38 @@ type SignalPost = {
     hasRealData: boolean;
   };
 };
+
+export function getDraftOrigin(post: SignalPost): 'flightplan' | 'quick-broadcast' | 'ai-composer' {
+  if (post.origin) return post.origin;
+  if (post.arcId || post.adaptationPromptVersion === 'schedule-engine-v1') return 'flightplan';
+  if (post.adaptationPromptVersion === 'direct-broadcast') return 'quick-broadcast';
+  return 'ai-composer';
+}
+
+export function getDraftRedirect(post: SignalPost): { href: string; title: string; label: string } {
+  const origin = getDraftOrigin(post);
+  switch (origin) {
+    case 'flightplan':
+      return {
+        href: `/dashboard/flightplan?postId=${post.id}`,
+        title: 'Review, edit, and schedule in Flight Plan',
+        label: 'Flight Plan Draft',
+      };
+    case 'quick-broadcast':
+      return {
+        href: `/dashboard/composer?mode=quick&postId=${post.id}`,
+        title: 'Review, edit, and publish in Quick Broadcast',
+        label: 'Quick Broadcast Draft',
+      };
+    case 'ai-composer':
+    default:
+      return {
+        href: `/dashboard/composer?mode=ai&postId=${post.id}`,
+        title: 'Review, edit, and publish in AI Composer',
+        label: 'AI Composer Draft',
+      };
+  }
+}
 
 type ResonanceData = {
   hasData: boolean;
@@ -1016,7 +1051,7 @@ function PostCard({
           {isDraft ? (
             <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
               <FileText className="w-3.5 h-3.5 text-amber-600" />
-              Draft Dispatch
+              <span>{getDraftRedirect(post).label}</span>
             </span>
           ) : age === 'active' ? (
             <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
@@ -1182,14 +1217,19 @@ function PostCard({
         {/* Action buttons for drafts: Review & edit, Remove */}
         {isDraft ? (
           <div className="flex items-center gap-2 ml-auto">
-            <Link
-              href={`/dashboard/flightplan?postId=${post.id}`}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-gray-900 text-white hover:bg-black transition-colors shadow-xs cursor-pointer"
-              title="Review, edit, and schedule in Flight Plan"
-            >
-              <Pencil className="w-3.5 h-3.5" />
-              <span>Review & edit</span>
-            </Link>
+            {(() => {
+              const redirect = getDraftRedirect(post);
+              return (
+                <Link
+                  href={redirect.href}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-gray-900 text-white hover:bg-black transition-colors shadow-xs cursor-pointer"
+                  title={redirect.title}
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  <span>Review & edit</span>
+                </Link>
+              );
+            })()}
 
             {confirmDelete ? (
               <div className="inline-flex items-center gap-1.5 bg-red-50/90 px-2.5 py-1 rounded-xl border border-red-200">

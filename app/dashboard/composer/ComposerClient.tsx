@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback, Suspense, useMemo } from 'react';
+import { useState, useEffect, useCallback, Suspense, useMemo, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Transition } from 'framer-motion';
@@ -761,11 +762,27 @@ function IPhonePreview({
    ───────────────────────────────────────────────────────────── */
 
 export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
+  const searchParams = useSearchParams();
+  const urlMode = searchParams?.get('mode') || null;
+  const targetPostId = searchParams?.get('postId') || null;
+  const hasLoadedTargetPost = useRef<string | null>(null);
+
   const reducedMotion = useReducedMotion();
   const { user, profile: userCtxProfile } = useUserContext();
   const [sourceContent, setSourceContent] = useState('');
   const [quickContent, setQuickContent] = useState('');
-  const [mode, setMode] = useState<'ai' | 'quick'>('ai');
+  const [mode, setMode] = useState<'ai' | 'quick'>(() => {
+    if (urlMode === 'quick') return 'quick';
+    return 'ai';
+  });
+
+  useEffect(() => {
+    if (urlMode === 'quick') {
+      setMode('quick');
+    } else if (urlMode === 'ai') {
+      setMode('ai');
+    }
+  }, [urlMode]);
   const [broadcastingType, setBroadcastingType] = useState<'selected' | 'all' | null>(null);
   const isBroadcasting = broadcastingType !== null;
   const [drafts, setDrafts] = useState<PlatformDraft[]>([]);
@@ -802,6 +819,93 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const [attachedBrandSlug, setAttachedBrandSlug] = useState<string | null>(null);
   const [attachedBrandUrl, setAttachedBrandUrl] = useState<string | null>(null);
   const springConfig: Transition = reducedMotion ? { type: 'tween', duration: 0.01 } : spring.snappy;
+
+  // ── Auto-load draft if targetPostId is passed in URL ─────────────────────────
+  useEffect(() => {
+    if (!targetPostId || hasLoadedTargetPost.current === targetPostId) return;
+
+    let isMounted = true;
+    async function fetchTargetDraft() {
+      try {
+        const res = await fetch(`/api/publish/${targetPostId}`, { credentials: 'include' });
+        if (!res.ok) {
+          if (res.status === 404) {
+            studioToast.error('Draft not found');
+          }
+          return;
+        }
+        const data = await res.json();
+        if (!isMounted || !data?.post) return;
+
+        hasLoadedTargetPost.current = targetPostId;
+        const targetPost = data.post;
+        const variants = data.variants || [];
+
+        // Check whether post originated from direct-broadcast (Quick Broadcast) or AI Composer
+        const isQuick = urlMode === 'quick' || targetPost.origin === 'quick-broadcast' || targetPost.adaptationPromptVersion === 'direct-broadcast';
+
+        setPostId(targetPost.id);
+
+        // Normalize media if present across any variants
+        const collectedMedia: { url: string; type: 'image' | 'video' | 'document'; sizeInBytes?: number }[] = [];
+        for (const v of variants) {
+          if (Array.isArray(v.mediaUrls)) {
+            for (const m of v.mediaUrls) {
+              if (m?.url && !collectedMedia.some(existing => existing.url === m.url)) {
+                collectedMedia.push({
+                  url: m.url,
+                  type: (m.type || (/\.(mp4|mov|webm)$/i.test(m.url) ? 'video' : /\.(pdf|ppt|pptx)$/i.test(m.url) ? 'document' : 'image')) as any,
+                });
+              }
+            }
+          }
+        }
+        if (collectedMedia.length > 0) {
+          setMedia(collectedMedia);
+        }
+
+        // Set selected platforms from variants
+        const postPlatforms = variants.map((v: any) => v.platform as PlatformType);
+        if (postPlatforms.length > 0) {
+          setSelectedPlatforms(postPlatforms);
+        }
+
+        if (isQuick) {
+          setMode('quick');
+          setQuickContent(targetPost.content || '');
+          studioToast.info('Loaded draft into Quick Broadcast');
+        } else {
+          setMode('ai');
+          setSourceContent(targetPost.content || '');
+
+          const loadedDrafts: PlatformDraft[] = variants.map((v: any) => ({
+            platform: v.platform as PlatformType,
+            content: v.adaptedContent || '',
+            characterCount: typeof v.characterCount === 'number' ? v.characterCount : (v.adaptedContent || '').length,
+            hashtags: Array.isArray(v.hashtagStrategy) ? v.hashtagStrategy : [],
+            firstCommentHint: v.firstCommentHint || undefined,
+            status: (v.status === 'failed' ? 'error' : 'ready') as 'ready' | 'error',
+            error: v.status === 'failed' ? (v.error?.message || 'Variant failed') : undefined,
+          }));
+
+          setDrafts(loadedDrafts);
+          if (loadedDrafts.length > 0) {
+            setActiveTab(loadedDrafts[0].platform);
+            setPreviewPlatform(loadedDrafts[0].platform);
+          }
+          studioToast.info('Loaded draft into AI Composer');
+        }
+      } catch (err) {
+        console.error('Failed to load target draft into composer:', err);
+      }
+    }
+
+    fetchTargetDraft();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [targetPostId, urlMode]);
 
   // ── Effective Studio Profile for AI ideas & persona ─────────────────────────
   const effectiveStudioProfile = useMemo(() => {
@@ -1493,6 +1597,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         body: JSON.stringify({
           scheduleMode: 'single',
           posts: [{
+            postId: postId || undefined,
             scheduledAt: scheduledDateObj.toISOString(),
             strategy: scheduleStrategy,
             platforms: readyDrafts.map(d => ({
@@ -1563,6 +1668,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           mediaItems: media,
           selectedPlatforms: platformsToUse,
           studioProfile: profile.studioProfile || null,
+          postId: postId || undefined,
         }),
       });
 

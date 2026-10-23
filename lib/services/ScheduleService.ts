@@ -10,6 +10,8 @@ import type {
 } from '@/lib/repositories/interfaces/IPostRepository';
 import type { PlatformType } from '@/lib/ai/PostAdapter';
 import { optimizeMediaForPlatform } from '@/lib/media/ImageOptimizer';
+import { createClient } from '@supabase/supabase-js';
+import { config } from '@/lib/config/schema';
 
 const postRepository = new SupabasePostRepository();
 
@@ -30,6 +32,7 @@ export interface SchedulePostInput {
     schedulingOffsetMinutes?: number;  // For cascading: offset from base time
   }>;
   arcId?: string;            // Link post to a content arc
+  postId?: string;           // Reuse existing post if scheduling from draft
 }
 
 export interface ScheduleArcInput {
@@ -142,13 +145,31 @@ export class ScheduleService {
    * If strategy is 'simultaneous', all variants fire at exactly baseScheduledAt.
    */
   async schedulePost(input: SchedulePostInput): Promise<ScheduleResult> {
-    // 1. Create the parent post record
-    const post = await postRepository.create({
-      profileId: input.profileId,
-      workspaceId: input.workspaceId,
-      content: input.platforms[0]?.content ?? '',
-      adaptationPromptVersion: 'schedule-engine-v1',
-    });
+    // 1. Create or update the parent post record
+    let post: Post | null = null;
+    if (input.postId) {
+      const existing = await postRepository.findById(input.postId);
+      if (existing && existing.workspaceId === input.workspaceId) {
+        post = await postRepository.update(existing.id, {
+          content: input.platforms[0]?.content ?? existing.content,
+          status: 'scheduled',
+          scheduledAt: input.baseScheduledAt,
+          scheduleStrategy: input.strategy,
+          arcId: input.arcId ?? existing.arcId,
+        });
+        const admin = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+        await admin.from('post_variants').delete().eq('post_id', existing.id);
+      }
+    }
+
+    if (!post) {
+      post = await postRepository.create({
+        profileId: input.profileId,
+        workspaceId: input.workspaceId,
+        content: input.platforms[0]?.content ?? '',
+        adaptationPromptVersion: input.arcId ? 'schedule-engine-v1' : 'schedule-engine-v1',
+      });
+    }
 
     const variantResults: ScheduleResult['variantResults'] = [];
 

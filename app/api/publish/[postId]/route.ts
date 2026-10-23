@@ -50,6 +50,14 @@ export async function GET(
 
     logger.info('Post with variants fetched', { traceId, postId, variantCount: allVariants.length });
 
+    const isFlightPlan = Boolean(post.arcId || post.adaptationPromptVersion === 'schedule-engine-v1');
+    const isQuickBroadcast = post.adaptationPromptVersion === 'direct-broadcast';
+    const origin: 'flightplan' | 'quick-broadcast' | 'ai-composer' = isFlightPlan
+      ? 'flightplan'
+      : isQuickBroadcast
+      ? 'quick-broadcast'
+      : 'ai-composer';
+
     return NextResponse.json({
       post: {
         id: post.id,
@@ -60,6 +68,8 @@ export async function GET(
         scheduledAt: post.scheduledAt?.toISOString() ?? null,
         scheduleStrategy: post.scheduleStrategy,
         arcId: post.arcId,
+        adaptationPromptVersion: post.adaptationPromptVersion ?? null,
+        origin,
         createdAt: post.createdAt.toISOString(),
         updatedAt: post.updatedAt.toISOString(),
       },
