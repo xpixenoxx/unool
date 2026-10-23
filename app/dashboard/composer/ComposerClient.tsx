@@ -82,6 +82,7 @@ import {
   Lightbulb,
   CheckCircle,
   Sparkles,
+  Rocket,
   PenTool,
   Edit3,
   ArrowLeft,
@@ -2879,7 +2880,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
 
                     <div className="flex items-center gap-3.5 min-w-0">
                       <div className="relative flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-br from-[#2D2319] via-[#382C1F] to-[#1F1710] border border-[#C4A265]/40 shadow-[0_2px_10px_rgba(45,35,25,0.2)] shrink-0">
-                        <Sparkles className="w-5 h-5 text-[#E5C77A]" />
+                        <Rocket className="w-5 h-5 text-[#E5C77A]" />
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">

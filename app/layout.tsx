@@ -39,7 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Sentry.ErrorBoundary fallback={ErrorFallback}>
           {children}
         </Sentry.ErrorBoundary>
-        <Toaster position="top-right" />
+        <Toaster position="top-center" />
       </body>
     </html>
   );
