@@ -1,6 +1,7 @@
 import { logger } from '@/lib/logger';
 import { SupabasePostRepository } from '@/lib/repositories/supabase/SupabasePostRepository';
 import { queueService } from '@/lib/services/QueueService';
+import { publishService } from '@/lib/services/PublishService';
 import type {
   Post,
   PostVariant,
@@ -428,12 +429,121 @@ export class ScheduleService {
   }
 
   /**
+   * Scans the database for any posts or variants scheduled in the past that have
+   * not yet been published, and immediately dispatches them via PublishService.
+   * Self-heals when QStash is unconfigured, delayed, or missed.
+   */
+  async processDueScheduledPosts(workspaceId?: string): Promise<{
+    processed: number;
+    succeeded: number;
+    failed: number;
+    errors: Array<{ postId: string; error: string }>;
+  }> {
+    const now = new Date();
+    const results = {
+      processed: 0,
+      succeeded: 0,
+      failed: 0,
+      errors: [] as Array<{ postId: string; error: string }>,
+    };
+
+    try {
+      // 1. Process posts whose scheduled_at has arrived
+      const duePosts = await postRepository.findDueScheduledPosts(now, workspaceId);
+
+      for (const post of duePosts) {
+        // Prevent concurrent double-execution: atomically transition to 'publishing'
+        try {
+          await postRepository.updateStatus(post.id, 'publishing');
+        } catch {
+          continue; // Another worker or request picked it up
+        }
+
+        results.processed++;
+        logger.info('Publishing due scheduled post', {
+          postId: post.id,
+          scheduledAt: post.scheduledAt?.toISOString(),
+          workspaceId: post.workspaceId,
+        });
+
+        try {
+          const publishResult = await publishService.publishToAllPlatforms(post.id, post.workspaceId);
+          const anySuccess = Object.values(publishResult).some((r: any) => r.success);
+          if (anySuccess) {
+            results.succeeded++;
+            logger.info('Due scheduled post published successfully', { postId: post.id });
+          } else {
+            results.failed++;
+            const errStr = Object.values(publishResult).map((r: any) => r.error).filter(Boolean).join('; ') || 'All platform publishes failed';
+            results.errors.push({ postId: post.id, error: errStr });
+            logger.error('Due scheduled post failed across all platforms', { postId: post.id, error: new Error(errStr) });
+          }
+        } catch (publishErr) {
+          results.failed++;
+          const message = publishErr instanceof Error ? publishErr.message : String(publishErr);
+          results.errors.push({ postId: post.id, error: message });
+          await postRepository.updateStatus(post.id, 'failed');
+          logger.error('Exception publishing due scheduled post', {
+            postId: post.id,
+            error: publishErr instanceof Error ? publishErr : new Error(String(publishErr)),
+          });
+        }
+      }
+
+      // 2. Also check for any standalone scheduled variants (e.g. cascading offsets) whose parent post is not already handled
+      const dueVariants = await postRepository.findDueScheduledVariants(now, workspaceId);
+      for (const variant of dueVariants) {
+        if (variant.status !== 'scheduled') continue;
+
+        // Find parent post to get workspaceId
+        const parentPost = await postRepository.findById(variant.postId);
+        if (!parentPost) continue;
+        if (parentPost.status === 'published' && variant.status === 'scheduled') {
+          // Cascading variant that was delayed after initial post publish
+          try {
+            await postRepository.updateVariant(variant.id, { status: 'publishing' });
+            results.processed++;
+            const variantRes = await publishService.publishPost({
+              postVariantId: variant.id,
+              platform: variant.platform,
+              workspaceId: parentPost.workspaceId,
+            });
+            if (variantRes.ok && variantRes.value.success) {
+              results.succeeded++;
+            } else {
+              results.failed++;
+              const err = variantRes.ok ? variantRes.value.error : variantRes.error?.message;
+              results.errors.push({ postId: variant.postId, error: err || 'Variant publish failed' });
+            }
+          } catch (varErr) {
+            results.failed++;
+            const msg = varErr instanceof Error ? varErr.message : String(varErr);
+            results.errors.push({ postId: variant.postId, error: msg });
+          }
+        }
+      }
+    } catch (err) {
+      logger.error('Failed while processing due scheduled posts', {
+        error: err instanceof Error ? err : new Error(String(err)),
+      });
+    }
+
+    return results;
+  }
+
+  /**
    * Gets the scheduled posts for a workspace in a date range (for the Week Canvas).
+   * Automatically processes any overdue posts first so the canvas stays accurate.
    */
   async getWeekCanvas(workspaceId: string, weekStart: Date): Promise<{
     post: Post;
     variants: PostVariant[];
   }[]> {
+    // Self-heal: process any scheduled posts that have become due
+    await this.processDueScheduledPosts(workspaceId).catch(err => {
+      logger.warn('Non-fatal error self-healing due posts in getWeekCanvas', { error: String(err) });
+    });
+
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekEnd.getDate() + 7);
 
@@ -455,3 +565,4 @@ export class ScheduleService {
 }
 
 export const scheduleService = new ScheduleService();
+

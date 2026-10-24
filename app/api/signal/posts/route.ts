@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import { extractNormalizedEngagement } from '@/lib/services/analytics/normalize';
 import { syncWorkspaceEngagement } from '@/lib/services/analytics/syncEngagement';
+import { scheduleService } from '@/lib/services/ScheduleService';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,6 +16,11 @@ export async function GET(request: NextRequest) {
 
   const { workspaceId } = auth;
   const shouldSync = request.nextUrl.searchParams.get('sync') === 'true';
+
+  // Self-heal: process any scheduled posts that have become due
+  await scheduleService.processDueScheduledPosts(workspaceId).catch(() => {});
+
+  // Trigger live engagement sync if requested
 
   // Trigger live engagement sync if requested
   if (shouldSync) {

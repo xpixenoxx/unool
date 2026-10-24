@@ -53,15 +53,118 @@ function parseLocalDate(dateStr: string): Date {
 
 const ARC_BEATS = ['Hook', 'Context', 'Challenge', 'Turning Point', 'Resolution', 'Proof', 'CTA'];
 
+/* ─── Interactive Section Info Mark & Popover Guide ─────────────────────── */
+function SectionInfoTooltip({
+  title,
+  subtitle,
+  bullets,
+  example,
+}: {
+  title: string;
+  subtitle: string;
+  bullets: Array<{ bold: string; text: string }>;
+  example?: { bad: string; good: string };
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  const handleMouseEnter = () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    setIsOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    timeoutRef.current = setTimeout(() => setIsOpen(false), 220);
+  };
+
+  return (
+    <div
+      className="relative inline-flex items-center"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      <button
+        type="button"
+        onClick={() => setIsOpen(prev => !prev)}
+        aria-label={`Guide: ${title}`}
+        className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border transition-all duration-200 hover:scale-105 focus-visible:outline-none focus-visible:ring-2"
+        style={{
+          backgroundColor: isOpen ? B.accentBg : B.card,
+          borderColor: isOpen ? B.accent : B.border,
+          color: isOpen ? B.accentHover : B.textSecondary,
+          boxShadow: isOpen ? `0 0 0 2px ${B.accentGlow}` : 'none',
+        }}
+      >
+        <Info className="w-3.5 h-3.5" style={{ color: B.accentHover }} />
+        <span>How it works</span>
+      </button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 6, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 4, scale: 0.96 }}
+            transition={{ duration: 0.16 }}
+            className="absolute right-0 sm:right-auto sm:left-0 top-full mt-2 w-80 sm:w-96 p-4 rounded-2xl border shadow-xl z-50 text-left"
+            style={{
+              backgroundColor: B.card,
+              borderColor: B.accentBorder,
+              boxShadow: '0 12px 32px rgba(61,43,31,0.18)',
+            }}
+          >
+            <div className="flex items-start justify-between gap-2 pb-2.5 mb-2.5 border-b" style={{ borderColor: B.border }}>
+              <div>
+                <h4 className="font-semibold text-xs text-stone-900">{title}</h4>
+                <p className="text-[11px] text-stone-500 mt-0.5">{subtitle}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                className="p-1 rounded-md text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors"
+                aria-label="Close guide"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <ul className="space-y-2 text-xs text-stone-700 mb-3">
+              {bullets.map((b, i) => (
+                <li key={i} className="flex items-start gap-1.5 leading-snug">
+                  <span className="text-amber-700 font-bold">•</span>
+                  <span>
+                    <strong className="text-stone-900 font-semibold">{b.bold}:</strong> {b.text}
+                  </span>
+                </li>
+              ))}
+            </ul>
+
+            {example && (
+              <div className="rounded-xl p-2.5 text-[11px] space-y-1.5 border" style={{ backgroundColor: B.accentBg, borderColor: B.accentBorder }}>
+                <div className="text-red-700">
+                  <span className="font-semibold">✕ Avoid:</span> {example.bad}
+                </div>
+                <div className="text-emerald-800">
+                  <span className="font-semibold">✓ Try:</span> {example.good}
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: StoryIntakeProps) {
   const { draft, saveDraft, clearDraft, hasDraft } = useFlightPlanDraft();
   const userEditedRef = React.useRef(false);
 
   const [formData, setFormData] = useState<StoryIntakeData>(() => ({
-    coreStory: DEFAULT_SAMPLE.coreStory,
-    whatChanged: DEFAULT_SAMPLE.whatChanged,
-    whatWentWrong: DEFAULT_SAMPLE.whatWentWrong,
-    oneRealNumber: DEFAULT_SAMPLE.oneRealNumber,
+    coreStory: '',
+    whatChanged: '',
+    whatWentWrong: '',
+    oneRealNumber: '',
     weekStartDate: format(new Date(), 'yyyy-MM-dd'),
     selectedPlatforms: connectedPlatforms.length > 0 ? connectedPlatforms : (['instagram', 'facebook', 'linkedin', 'threads', 'x'] as PlatformType[]),
     audienceTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -72,15 +175,23 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
   const [showPlatformSelector, setShowPlatformSelector] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [characterCounts, setCharacterCounts] = useState<Record<string, number>>(() => ({
-    coreStory: DEFAULT_SAMPLE.coreStory.length,
-    whatChanged: DEFAULT_SAMPLE.whatChanged.length,
-    whatWentWrong: DEFAULT_SAMPLE.whatWentWrong.length,
-    oneRealNumber: DEFAULT_SAMPLE.oneRealNumber.length,
+    coreStory: 0,
+    whatChanged: 0,
+    whatWentWrong: 0,
+    oneRealNumber: 0,
   }));
 
   // Initialize from draft if present and user has not typed yet
   useEffect(() => {
     if (draft && !userEditedRef.current) {
+      // Purge legacy hardcoded sample text
+      if (
+        draft.coreStory?.includes('We spent 18 months building for enterprise') ||
+        draft.coreStory?.includes('Eight months ago we were chasing enterprise deals')
+      ) {
+        clearDraft();
+        return;
+      }
       const todayStr = format(new Date(), 'yyyy-MM-dd');
       const validStartDate = draft.weekStartDate && draft.weekStartDate >= todayStr
         ? draft.weekStartDate
@@ -90,7 +201,7 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
         setFormData(prev => ({ ...prev, selectedPlatforms: draft.selectedPlatforms }));
       }
     }
-  }, [draft]);
+  }, [draft, clearDraft]);
 
   // Keep selectedPlatforms aligned with connectedPlatforms if user hasn't made custom selection
   useEffect(() => {
@@ -99,9 +210,9 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
     }
   }, [connectedPlatforms, draft]);
 
-  // Auto-save draft
+  // Auto-save draft only when user has actively edited
   useEffect(() => {
-    if (formData.coreStory || formData.whatChanged || formData.whatWentWrong || formData.oneRealNumber) {
+    if (userEditedRef.current && (formData.coreStory || formData.whatChanged || formData.whatWentWrong || formData.oneRealNumber)) {
       saveDraft(formData);
     }
   }, [formData, saveDraft]);
@@ -238,91 +349,108 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
             transition={MOTION.spring.standard}
             className="space-y-4"
           >
-        <div className="flex items-center gap-3 p-4 rounded-2xl" style={{ backgroundColor: B.accentBg, border: `1px solid ${B.accentBorder}` }}>
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: B.accentBorder }}>
-            <Lightbulb className="w-5 h-5" style={{ color: B.accentHover }} />
+        <div className="flex items-center justify-between gap-3 p-4 rounded-2xl flex-wrap sm:flex-nowrap" style={{ backgroundColor: B.accentBg, border: `1px solid ${B.accentBorder}` }}>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: B.accentBorder }}>
+              <Lightbulb className="w-5 h-5" style={{ color: B.accentHover }} />
+            </div>
+            <div>
+              <h3 className="font-semibold text-sm" style={{ color: B.text }}>Step 1 of 3: Your Core Story</h3>
+              <p className="text-xs mt-0.5" style={{ color: B.textMuted }}>
+                One paragraph. The moment everything shifted. No marketing speak.
+              </p>
+            </div>
           </div>
-          <div>
-            <h3 className="font-semibold text-sm" style={{ color: B.text }}>Step 1 of 3: Your Core Story</h3>
-            <p className="text-xs mt-0.5" style={{ color: B.textMuted }}>
-              One paragraph. The moment everything shifted. No marketing speak.
-            </p>
-          </div>
+          <SectionInfoTooltip
+            title="Writing Your Core Story"
+            subtitle="The 3-part founder narrative formula that drives high engagement"
+            bullets={[
+              { bold: 'The Catalyst', text: 'Start with what shifted: a pivot, customer realization, bug, or unexpected hurdle.' },
+              { bold: 'The Friction', text: 'Be transparent about what was hard or almost broke. Vulnerability builds instant credibility.' },
+              { bold: 'The Proof', text: 'Anchor your turnaround with a real number, date, or tangible result (e.g., 3 to 47 customers).' },
+            ]}
+            example={{
+              bad: '"Excited to announce our new self-serve tier! Check our website to learn more."',
+              good: '"We spent 18 months chasing enterprise deals. Last month we stripped it to $29/mo self-serve. 3 pilot customers became 47 in 3 weeks."',
+            }}
+          />
         </div>
 
-        <Textarea
-          value={formData.coreStory}
-          onChange={e => handleChange('coreStory', e.target.value)}
-          rows={5}
-          placeholder="Describe your week's core story or turning point here (e.g. what shifted, the struggle or pivot, and the outcome)..."
-          className="resize-y rounded-xl text-sm placeholder:text-[#A69279]/60 placeholder:italic placeholder:font-normal"
-          style={{
-            backgroundColor: B.card,
-            borderColor: validationErrors.coreStory ? B.danger : B.border,
-            color: B.text,
-          }}
-          aria-invalid={!!validationErrors.coreStory}
-          aria-describedby={validationErrors.coreStory ? 'coreStory-error' : undefined}
-        />
-        {validationErrors.coreStory && (
-          <p id="coreStory-error" className="text-xs flex items-center gap-1" style={{ color: B.danger }}>
-            <AlertCircle className="w-3 h-3" /> {validationErrors.coreStory}
-          </p>
-        )}
-          <div className="flex items-center justify-between text-xs flex-wrap gap-2" style={{ color: B.textMuted }}>
-            <div className="flex items-center gap-2">
-              <span className="font-medium" style={{ color: characterCounts.coreStory ? B.text : B.textMuted }}>
-                {characterCounts.coreStory || 0} characters
-              </span>
-              <span>•</span>
-              <span style={{
-                color: (characterCounts.coreStory || 0) >= 80 && (characterCounts.coreStory || 0) <= 600
-                  ? B.success
-                  : B.textMuted
-              }}>
-                {(characterCounts.coreStory || 0) >= 80 && (characterCounts.coreStory || 0) <= 600
-                  ? 'Good length for narrative arc'
-                  : 'Target: 150–500 chars'}
-              </span>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[11px] font-medium" style={{ color: B.textMuted }}>Starters:</span>
-              <button
-                type="button"
-                onClick={() => {
-                  userEditedRef.current = true;
-                  setFormData(prev => ({
-                    ...prev,
-                    coreStory: DEFAULT_SAMPLE.coreStory,
-                    whatChanged: DEFAULT_SAMPLE.whatChanged,
-                    whatWentWrong: DEFAULT_SAMPLE.whatWentWrong,
-                    oneRealNumber: DEFAULT_SAMPLE.oneRealNumber,
-                  }));
-                }}
-                className="text-xs font-semibold hover:underline"
-                style={{ color: B.accentHover }}
-              >
-                Enterprise pivot ($29/mo)
-              </button>
-              <span style={{ color: B.border }}>•</span>
-              <button
-                type="button"
-                onClick={() => {
-                  userEditedRef.current = true;
-                  setFormData(prev => ({
-                    ...prev,
-                    coreStory: ALTERNATIVE_SAMPLE.coreStory,
-                    whatChanged: ALTERNATIVE_SAMPLE.whatChanged,
-                    whatWentWrong: ALTERNATIVE_SAMPLE.whatWentWrong,
-                    oneRealNumber: ALTERNATIVE_SAMPLE.oneRealNumber,
-                  }));
-                }}
-                className="text-xs font-semibold hover:underline"
-                style={{ color: B.accentHover }}
-              >
-                Onboarding shift
-              </button>
-              <span style={{ color: B.border }}>•</span>
+        <div className="space-y-1.5">
+          <Textarea
+            value={formData.coreStory}
+            onChange={e => handleChange('coreStory', e.target.value)}
+            rows={6}
+            placeholder={"Describe the core turning point of your week here...\n\nSuggested structure to guide you:\n• What happened or shifted? (e.g. launched, pivoted, or hit a wall)\n• What was the bottleneck or hard lesson learned?\n• What was the proof or outcome? (e.g. 3 pilot customers became 47 in 3 weeks)\n\nTip: Write naturally like talking to a fellow founder. Or click an example starter below →"}
+            className="resize-y rounded-xl text-sm placeholder:text-[#A69279]/65 placeholder:font-normal leading-relaxed p-4"
+            style={{
+              backgroundColor: B.card,
+              borderColor: validationErrors.coreStory ? B.danger : B.border,
+              color: B.text,
+            }}
+            aria-invalid={!!validationErrors.coreStory}
+            aria-describedby={validationErrors.coreStory ? 'coreStory-error' : undefined}
+          />
+          {validationErrors.coreStory && (
+            <p id="coreStory-error" className="text-xs flex items-center gap-1" style={{ color: B.danger }}>
+              <AlertCircle className="w-3 h-3" /> {validationErrors.coreStory}
+            </p>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between text-xs flex-wrap gap-2" style={{ color: B.textMuted }}>
+          <div className="flex items-center gap-2">
+            <span className="font-medium" style={{ color: characterCounts.coreStory ? B.text : B.textMuted }}>
+              {characterCounts.coreStory || 0} characters
+            </span>
+            <span>•</span>
+            <span style={{
+              color: (characterCounts.coreStory || 0) >= 80 && (characterCounts.coreStory || 0) <= 600
+                ? B.success
+                : B.textMuted
+            }}>
+              {(characterCounts.coreStory || 0) >= 80 && (characterCounts.coreStory || 0) <= 600
+                ? 'Good length for narrative arc'
+                : 'Target: 150–500 chars'}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[11px] font-medium" style={{ color: B.textMuted }}>Load an example:</span>
+            <button
+              type="button"
+              onClick={() => {
+                userEditedRef.current = true;
+                setFormData(prev => ({
+                  ...prev,
+                  coreStory: DEFAULT_SAMPLE.coreStory,
+                  whatChanged: DEFAULT_SAMPLE.whatChanged,
+                  whatWentWrong: DEFAULT_SAMPLE.whatWentWrong,
+                  oneRealNumber: DEFAULT_SAMPLE.oneRealNumber,
+                }));
+              }}
+              className="text-xs font-semibold hover:underline px-2 py-0.5 rounded-lg border transition-colors"
+              style={{ backgroundColor: B.accentBg, borderColor: B.border, color: B.accentHover }}
+            >
+              Enterprise pivot ($29/mo)
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                userEditedRef.current = true;
+                setFormData(prev => ({
+                  ...prev,
+                  coreStory: ALTERNATIVE_SAMPLE.coreStory,
+                  whatChanged: ALTERNATIVE_SAMPLE.whatChanged,
+                  whatWentWrong: ALTERNATIVE_SAMPLE.whatWentWrong,
+                  oneRealNumber: ALTERNATIVE_SAMPLE.oneRealNumber,
+                }));
+              }}
+              className="text-xs font-semibold hover:underline px-2 py-0.5 rounded-lg border transition-colors"
+              style={{ backgroundColor: B.accentBg, borderColor: B.border, color: B.accentHover }}
+            >
+              Onboarding shift
+            </button>
+            {formData.coreStory ? (
               <button
                 type="button"
                 onClick={() => {
@@ -335,12 +463,13 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
                     oneRealNumber: '',
                   }));
                 }}
-                className="text-xs font-medium hover:underline text-stone-500 hover:text-stone-700"
+                className="text-xs font-medium hover:underline text-stone-500 hover:text-stone-700 ml-1"
               >
                 Clear text
               </button>
-            </div>
+            ) : null}
           </div>
+        </div>
 
           {/* Navigation buttons */}
           <div className="flex items-center justify-between pt-2">
@@ -394,16 +523,27 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
             transition={MOTION.spring.standard}
             className="space-y-5"
           >
-            <div className="flex items-center gap-3 p-4 rounded-2xl" style={{ backgroundColor: B.successBg, border: `1px solid ${B.successBorder}` }}>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: B.successBorder }}>
-                <Target className="w-5 h-5" style={{ color: B.success }} />
+            <div className="flex items-center justify-between gap-3 p-4 rounded-2xl flex-wrap sm:flex-nowrap" style={{ backgroundColor: B.successBg, border: `1px solid ${B.successBorder}` }}>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: B.successBorder }}>
+                  <Target className="w-5 h-5" style={{ color: B.success }} />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-sm" style={{ color: B.text }}>Step 2 of 3: Add a Few Details</h3>
+                  <p className="text-xs mt-0.5" style={{ color: B.textMuted }}>
+                    Specifics make the posts sound like you. Skip any you do not have.
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold text-sm" style={{ color: B.text }}>Step 2 of 3: Add a Few Details</h3>
-                <p className="text-xs mt-0.5" style={{ color: B.textMuted }}>
-                  Specifics make the posts sound like you. Skip any you do not have.
-                </p>
-              </div>
+              <SectionInfoTooltip
+                title="Guided Insights & Calibration"
+                subtitle="Why specific details make AI sound authentically like you"
+                bullets={[
+                  { bold: 'Authentic Voice', text: 'Specific metrics, pivots, and challenges prevent AI from sounding generic or robotic.' },
+                  { bold: 'Platform Adaptation', text: 'Each detail is adapted into a distinct format across LinkedIn, X, Threads, and Instagram.' },
+                  { bold: 'Optional', text: 'Fill in whatever you recall, or skip ahead directly to channel selection.' },
+                ]}
+              />
             </div>
 
             {/* Q0: What changed */}
@@ -525,16 +665,27 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
             transition={MOTION.spring.standard}
             className="space-y-4"
           >
-            <div className="flex items-center gap-3 p-4 rounded-2xl" style={{ backgroundColor: B.infoBg, border: `1px solid ${B.infoBorder}` }}>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: B.infoBorder }}>
-                <Globe className="w-5 h-5" style={{ color: B.info }} />
+            <div className="flex items-center justify-between gap-3 p-4 rounded-2xl flex-wrap sm:flex-nowrap" style={{ backgroundColor: B.infoBg, border: `1px solid ${B.infoBorder}` }}>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: B.infoBorder }}>
+                  <Globe className="w-5 h-5" style={{ color: B.info }} />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-sm" style={{ color: B.text }}>Step 3 of 3: Choose Platforms</h3>
+                  <p className="text-xs mt-0.5" style={{ color: B.textMuted }}>
+                    Select where this story goes live. {connectedPlatforms.length} connected, {allPlatforms.length} total available.
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold text-sm" style={{ color: B.text }}>Step 3 of 3: Choose Platforms</h3>
-                <p className="text-xs mt-0.5" style={{ color: B.textMuted }}>
-                  Select where this story goes live. {connectedPlatforms.length} connected, {allPlatforms.length} total available.
-                </p>
-              </div>
+              <SectionInfoTooltip
+                title="Channels & Cadence"
+                subtitle="How Flight Plan coordinates your multi-platform schedule"
+                bullets={[
+                  { bold: 'Cascading Timing', text: 'Each post publishes at peak attention hours for each specific network.' },
+                  { bold: 'Native Formatting', text: 'Carousels for Instagram, threads for X, long-form insights for LinkedIn, and clean snippets for Threads.' },
+                  { bold: 'SignalDM Integration', text: 'Comments on scheduled Instagram/Facebook posts automatically trigger AI DM flows.' },
+                ]}
+              />
             </div>
 
             <div className="space-y-3">

@@ -126,6 +126,8 @@ export interface IPostRepository {
   saveDraft(postId: string, content: string, clientVersion: string): Promise<void>;
   // Scheduling
   findScheduledByWorkspace(workspaceId: string, from: Date, to: Date): Promise<Post[]>;
+  findDueScheduledPosts(beforeDate: Date, workspaceId?: string): Promise<Post[]>;
+  findDueScheduledVariants(beforeDate: Date, workspaceId?: string): Promise<PostVariant[]>;
   findVariantsByPostIds(postIds: string[]): Promise<PostVariant[]>;
   // Content Arcs
   createContentArc(input: CreateContentArcInput): Promise<ContentArc>;
@@ -143,6 +145,7 @@ export interface CreatePostVariantInput {
   hashtagStrategy: string[];
   firstCommentHint?: string | null;
   status?: PostVariantStatus;
+  scheduledAt?: Date | null;
   error?: PostError | null;
 }
 

@@ -165,6 +165,7 @@ export class SupabasePostRepository implements IPostRepository {
         hashtag_strategy: input.hashtagStrategy,
         first_comment_hint: input.firstCommentHint ?? null,
         status: input.status ?? 'draft',
+        scheduled_at: input.scheduledAt ? input.scheduledAt.toISOString() : null,
         error: input.error ?? null,
       })
       .select()
@@ -228,6 +229,38 @@ export class SupabasePostRepository implements IPostRepository {
       .order('scheduled_at', { ascending: true });
     if (error) throw error;
     return data.map(this.mapPostRow.bind(this));
+  }
+
+  async findDueScheduledPosts(beforeDate: Date, workspaceId?: string): Promise<Post[]> {
+    let query = this.supabase
+      .from('posts')
+      .select('*')
+      .eq('status', 'scheduled')
+      .lte('scheduled_at', beforeDate.toISOString())
+      .order('scheduled_at', { ascending: true })
+      .limit(50);
+
+    if (workspaceId) {
+      query = query.eq('workspace_id', workspaceId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return (data || []).map(this.mapPostRow.bind(this));
+  }
+
+  async findDueScheduledVariants(beforeDate: Date, workspaceId?: string): Promise<PostVariant[]> {
+    let query = this.supabase
+      .from('post_variants')
+      .select('*')
+      .eq('status', 'scheduled')
+      .lte('scheduled_at', beforeDate.toISOString())
+      .order('scheduled_at', { ascending: true })
+      .limit(50);
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return (data || []).map(this.mapVariantRow.bind(this));
   }
 
   async findVariantsByPostIds(postIds: string[]): Promise<PostVariant[]> {

@@ -225,7 +225,8 @@ export async function POST(request: NextRequest) {
             characterCount: sanitizedContent.length,
             hashtagStrategy: cleanedHashtags,
             firstCommentHint: dayPost.firstCommentHint || undefined,
-            status: 'draft',
+            status: scheduledAt ? 'scheduled' : 'draft',
+            scheduledAt: scheduledAt || undefined,
           });
 
           dayVariants[platform] = {

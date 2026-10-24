@@ -27,7 +27,14 @@ export function useFlightPlanDraft(): UseFlightPlanDraftResult {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored) as StoryIntakeData & { _meta?: { savedAt: number } };
-        if (parsed.coreStory || parsed.whatChanged || parsed.whatWentWrong || parsed.oneRealNumber) {
+        // Never restore legacy hardcoded starter sample text as user drafts
+        const isLegacySample = parsed.coreStory && (
+          parsed.coreStory.includes('We spent 18 months building for enterprise') ||
+          parsed.coreStory.includes('Eight months ago we were chasing enterprise deals')
+        );
+        if (isLegacySample) {
+          localStorage.removeItem(STORAGE_KEY);
+        } else if (parsed.coreStory || parsed.whatChanged || parsed.whatWentWrong || parsed.oneRealNumber) {
           setDraft(parsed);
           setHasDraft(true);
           setLastSaved(parsed._meta?.savedAt ?? Date.now());
