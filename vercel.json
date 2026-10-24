@@ -17,7 +17,7 @@
     },
     {
       "path": "/api/cron/publish-scheduled",
-      "schedule": "* * * * *"
+      "schedule": "0 1 * * *"
     }
   ],
   "headers": [
