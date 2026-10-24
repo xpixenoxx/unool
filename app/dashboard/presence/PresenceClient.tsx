@@ -139,22 +139,6 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
   // Without this, the empty initial state can be saved over real data if loadProfile() is slow.
   const profileLoaded = useRef(false);
 
-  const [appliedTemplateAlert, setAppliedTemplateAlert] = useState<{
-    id: string;
-    name: string;
-    icon?: string;
-    tagline?: string;
-    description?: string;
-    persona?: string;
-  } | null>(null);
-  const alertTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (alertTimerRef.current) clearTimeout(alertTimerRef.current);
-    };
-  }, []);
-
   const [viewers, setViewers] = useState<ProfileViewer[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<{id: string, email: string, full_name: string}[]>([]);
@@ -172,6 +156,15 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
         if (data.profile.subdomain && !data.profile.subdomain.startsWith('user-')) {
           setClaimedSubdomain(data.profile.subdomain);
           setSubdomain(data.profile.subdomain);
+        } else {
+          try {
+            const desired = sessionStorage.getItem('unool_desired_handle');
+            if (desired) {
+              setSubdomain(desired);
+              checkSubdomainAvailability(desired);
+              sessionStorage.removeItem('unool_desired_handle');
+            }
+          } catch {}
         }
       } else {
         // No profile yet — still mark as loaded so user edits can be saved
@@ -781,20 +774,8 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
                   onSelect={(templateId) => {
                     const tMeta = TEMPLATE_REGISTRY.find(t => t.id === templateId);
                     setProfile(prev => ({ ...prev, theme: { template: templateId } }));
-
                     if (tMeta) {
-                      if (alertTimerRef.current) clearTimeout(alertTimerRef.current);
-                      setAppliedTemplateAlert({
-                        id: tMeta.id,
-                        name: tMeta.name,
-                        icon: tMeta.icon,
-                        tagline: tMeta.tagline,
-                        description: tMeta.description,
-                        persona: tMeta.persona,
-                      });
-                      alertTimerRef.current = setTimeout(() => {
-                        setAppliedTemplateAlert(null);
-                      }, 5000);
+                      toast.success(`${tMeta.name} theme applied`, { duration: 2500 });
                     }
                   }}
                   isOpen={true}
@@ -821,119 +802,7 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
         </AnimatePresence>
       </motion.div>
 
-      {/* ═══ NON-OVERLAPPING PERSONA THEME APPLIED ALERT ═══ */}
-      {/* Positioned at bottom-center so it never blocks or overlaps the top-right "View Live" button */}
-      <AnimatePresence>
-        {appliedTemplateAlert && (() => {
-          const activeSubdomain = claimedSubdomain || (profile.subdomain && !profile.subdomain.startsWith('user-') ? profile.subdomain : null);
-          const resolvedLiveUrl = liveUrl || (activeSubdomain ? (process.env.NODE_ENV === 'development' ? `/u/${activeSubdomain}` : `https://${activeSubdomain}.unool.co`) : (profile.subdomain ? `/u/${profile.subdomain}` : null));
-          const handleLabel = activeSubdomain ? `u/${activeSubdomain}` : 'u/profile';
 
-          return (
-            <motion.div
-              initial={{ opacity: 0, y: 32, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 24, scale: 0.96 }}
-              transition={{ type: 'spring', stiffness: 450, damping: 32 }}
-              className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[calc(100vw-2rem)] max-w-lg pointer-events-auto"
-              role="status"
-              aria-live="polite"
-            >
-              <div
-                className="relative overflow-hidden rounded-2xl p-4 sm:p-4.5 shadow-2xl border"
-                style={{
-                  background: 'linear-gradient(135deg, rgba(20, 16, 14, 0.96), rgba(12, 10, 9, 0.98))',
-                  backdropFilter: 'blur(24px)',
-                  WebkitBackdropFilter: 'blur(24px)',
-                  borderColor: 'rgba(196, 162, 101, 0.32)',
-                  boxShadow: '0 24px 55px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(196, 162, 101, 0.15)',
-                }}
-              >
-                {/* Subtle top gold rim accent */}
-                <div
-                  className="absolute top-0 left-0 right-0 h-[1px] pointer-events-none"
-                  style={{
-                    background: 'linear-gradient(90deg, transparent, rgba(196, 162, 101, 0.65), transparent)',
-                  }}
-                />
-
-                {/* Subtle warm ambient glow in top-left */}
-                <div 
-                  className="absolute -top-12 -left-12 w-28 h-28 rounded-full blur-2xl opacity-25 pointer-events-none"
-                  style={{ background: '#C4A265' }}
-                />
-
-                <div className="relative z-10 flex items-start gap-3.5">
-                  {/* Persona Icon Badge */}
-                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#2A221B] to-[#171310] border border-[#C4A265]/40 flex items-center justify-center text-xl shrink-0 shadow-inner">
-                    {appliedTemplateAlert.icon || '★'}
-                  </div>
-
-                  {/* Text & Context */}
-                  <div className="flex-1 min-w-0 pr-1">
-                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                      <span className="font-serif text-[15px] font-bold text-amber-50 tracking-tight">
-                        {appliedTemplateAlert.name}
-                      </span>
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold uppercase tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-                        Theme Applied
-                      </span>
-                    </div>
-
-                    {appliedTemplateAlert.tagline && (
-                      <p className="text-xs text-stone-300 font-serif italic leading-snug">
-                        "{appliedTemplateAlert.tagline}"
-                      </p>
-                    )}
-
-                    <p className="text-[11px] text-stone-400 mt-0.5 line-clamp-1 leading-normal">
-                      {appliedTemplateAlert.description || 'Changes auto-saved to your public link.'}
-                    </p>
-                  </div>
-
-                  {/* Actions: Custom handle link & Close */}
-                  <div className="flex items-center gap-2 shrink-0 self-center">
-                    {resolvedLiveUrl && (
-                      <Link
-                        href={resolvedLiveUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="group inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-amber-100 bg-[#C4A265]/12 hover:bg-[#C4A265]/24 active:scale-95 transition-all border border-[#C4A265]/35 hover:border-[#C4A265]/60 shadow-sm whitespace-nowrap no-underline"
-                        title={`Open ${handleLabel} in a new tab`}
-                      >
-                        <span className="font-mono text-[11px] text-[#EAD8B1] group-hover:text-white transition-colors">
-                          {handleLabel}
-                        </span>
-                        <ArrowUpRight className="w-3.5 h-3.5 text-[#C4A265] group-hover:text-amber-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
-                      </Link>
-                    )}
-                    <button
-                      onClick={() => {
-                        if (alertTimerRef.current) clearTimeout(alertTimerRef.current);
-                        setAppliedTemplateAlert(null);
-                      }}
-                      className="w-7 h-7 rounded-xl flex items-center justify-center text-stone-400 hover:text-white hover:bg-white/10 transition-colors"
-                      title="Dismiss notification"
-                      aria-label="Dismiss notification"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Subtle timer progress bar */}
-                <motion.div
-                  initial={{ width: '100%' }}
-                  animate={{ width: '0%' }}
-                  transition={{ duration: 5, ease: 'linear' }}
-                  className="absolute bottom-0 left-0 h-[2px] bg-gradient-to-r from-emerald-400 via-[#C4A265] to-emerald-400 opacity-70"
-                />
-              </div>
-            </motion.div>
-          );
-        })()}
-      </AnimatePresence>
 
     </motion.div>
   );

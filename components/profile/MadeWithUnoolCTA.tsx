@@ -2,6 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, ExternalLink, X } from 'lucide-react';
 
@@ -15,44 +16,26 @@ export interface MadeWithUnoolCTAProps {
  * Authentic Unool Geometric Monogram Emblem
  * Exact vector geometry of the interlocking dual-ribbon Unool identity
  */
-function UnoolEmblem({ className = 'w-3.5 h-3.5', glow = false }: { className?: string; glow?: boolean }) {
+function UnoolEmblem({ className = 'w-3.5 h-3.5' }: { className?: string }) {
   return (
-    <span className={`relative inline-flex items-center justify-center shrink-0 ${className}`}>
-      {glow && (
-        <span
-          className="absolute inset-0 rounded-full blur-md bg-amber-400/35 scale-150 pointer-events-none"
-          aria-hidden="true"
-        />
-      )}
-      <svg
-        viewBox="0 0 222 221"
-        fill="currentColor"
-        className="w-full h-full relative z-10 transition-transform duration-300"
-        aria-hidden="true"
-      >
-        <path
-          d="M 44 14 L 45 135 L 48 143 L 55 151 L 62 154 L 114 154 L 121 149 L 150 119 L 153 119 L 153 147 L 149 160 L 143 170 L 132 180 L 116 186 L 59 186 L 40 179 L 30 171 L 23 162 L 18 152 L 15 140 L 15 43 L 43 15 Z M 105 41 L 165 41 L 179 46 L 190 54 L 196 61 L 203 74 L 206 87 L 206 177 L 178 205 L 176 205 L 176 93 L 173 83 L 165 75 L 158 72 L 108 72 L 96 81 L 70 107 L 68 107 L 68 80 L 75 62 L 87 49 L 98 43 L 104 42 Z"
-          fillRule="evenodd"
-        />
-      </svg>
-    </span>
+    <svg
+      viewBox="0 0 222 221"
+      fill="currentColor"
+      className={`shrink-0 transition-transform duration-300 ${className}`}
+      aria-hidden="true"
+    >
+      <path
+        d="M 44 14 L 45 135 L 48 143 L 55 151 L 62 154 L 114 154 L 121 149 L 150 119 L 153 119 L 153 147 L 149 160 L 143 170 L 132 180 L 116 186 L 59 186 L 40 179 L 30 171 L 23 162 L 18 152 L 15 140 L 15 43 L 43 15 Z M 105 41 L 165 41 L 179 46 L 190 54 L 196 61 L 203 74 L 206 87 L 206 177 L 178 205 L 176 205 L 176 93 L 173 83 L 165 75 L 158 72 L 108 72 L 96 81 L 70 107 L 68 107 L 68 80 L 75 62 L 87 49 L 98 43 L 104 42 Z"
+        fillRule="evenodd"
+      />
+    </svg>
   );
 }
 
-// Interconnected creator platforms represented on Unool
-const PLATFORM_CHIPS = [
-  { name: 'Instagram', label: 'IG' },
-  { name: 'LinkedIn', label: 'IN' },
-  { name: 'X / Twitter', label: 'X' },
-  { name: 'Threads', label: 'TH' },
-  { name: 'YouTube', label: 'YT' },
-  { name: 'Bluesky', label: 'BSKY' },
-  { name: 'TikTok', label: 'TK' },
-  { name: 'Substack', label: 'SUB' },
-];
-
 export function MadeWithUnoolCTA({ className, subdomain, hideBadge }: MadeWithUnoolCTAProps) {
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
+  const [handle, setHandle] = useState('');
   const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // If user has badge removal perk or hideBadge is explicitly set
@@ -61,7 +44,6 @@ export function MadeWithUnoolCTA({ className, subdomain, hideBadge }: MadeWithUn
   }
 
   const referralQuery = subdomain ? `?ref=${encodeURIComponent(subdomain)}` : '';
-  const signupUrl = `/signup${referralQuery}`;
   const unoolHomeUrl = `https://unool.co${referralQuery}`;
 
   const handleMouseEnter = () => {
@@ -75,13 +57,32 @@ export function MadeWithUnoolCTA({ className, subdomain, hideBadge }: MadeWithUn
   const handleMouseLeave = () => {
     closeTimeoutRef.current = setTimeout(() => {
       setIsOpen(false);
-    }, 240);
+    }, 280);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       setIsOpen(false);
     }
+  };
+
+  const handleClaimSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanHandle = handle.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+    
+    // Store desired handle in session for downstream onboarding
+    if (cleanHandle) {
+      try {
+        sessionStorage.setItem('unool_desired_handle', cleanHandle);
+      } catch {}
+    }
+
+    const queryParts: string[] = [];
+    if (cleanHandle) queryParts.push(`claim=${encodeURIComponent(cleanHandle)}`);
+    if (subdomain) queryParts.push(`ref=${encodeURIComponent(subdomain)}`);
+
+    const queryString = queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
+    router.push(`/signup${queryString}`);
   };
 
   return (
@@ -91,81 +92,67 @@ export function MadeWithUnoolCTA({ className, subdomain, hideBadge }: MadeWithUn
       onMouseLeave={handleMouseLeave}
       onKeyDown={handleKeyDown}
       role="region"
-      aria-label="Unool Watermark"
+      aria-label="Made with Unool"
     >
-      {/* ═══ Precision Watermark Seal / Hallmark Badge ═══ */}
-      <Link
-        href={unoolHomeUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="Made with UNOOL - Visit unool.co"
-        className="group relative inline-flex items-center gap-2 px-3 py-1.5 rounded-full no-underline transition-all duration-300 shadow-xl overflow-hidden focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
+      {/* ═══ Minimalist Frosted Watermark Pill ═══ */}
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        aria-expanded={isOpen}
+        aria-haspopup="dialog"
+        aria-label="Made with UNOOL - Create your page"
+        className="group relative inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-left transition-all duration-300 shadow-xl overflow-hidden focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
         style={{
           background: 'linear-gradient(135deg, rgba(18, 20, 26, 0.78) 0%, rgba(9, 10, 14, 0.88) 100%)',
           backdropFilter: 'blur(20px) saturate(180%)',
           WebkitBackdropFilter: 'blur(20px) saturate(180%)',
           border: '1px solid rgba(255, 255, 255, 0.12)',
-          boxShadow: '0 8px 28px -4px rgba(0, 0, 0, 0.4), inset 0 1px 0 0 rgba(255, 255, 255, 0.16)',
+          boxShadow: '0 8px 24px -4px rgba(0, 0, 0, 0.35), inset 0 1px 0 0 rgba(255, 255, 255, 0.16)',
         }}
       >
-        {/* Subtle top specular shimmer hairline */}
+        {/* Subtle top specular shimmer */}
         <div
-          className="absolute top-0 left-0 right-0 h-[1px] opacity-60 group-hover:opacity-100 transition-opacity"
+          className="absolute top-0 left-0 right-0 h-[1px] opacity-50 group-hover:opacity-100 transition-opacity"
           style={{
             background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent)',
           }}
           aria-hidden="true"
         />
 
-        {/* Ambient watermark glow on hover */}
-        <div
-          className="absolute -inset-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-sm pointer-events-none"
-          style={{
-            background: 'radial-gradient(circle at 30% 50%, rgba(196, 162, 101, 0.22), transparent 70%)',
-          }}
-          aria-hidden="true"
-        />
-
         {/* Unool Geometric Monogram Mark */}
-        <span className="relative z-10 flex items-center justify-center w-3.5 h-3.5 text-[#C4A265] group-hover:text-amber-200 transition-all duration-300 group-hover:scale-110 group-hover:rotate-6">
-          <UnoolEmblem className="w-3.5 h-3.5" glow={false} />
+        <span className="relative z-10 flex items-center justify-center w-3.5 h-3.5 text-[#C4A265] group-hover:text-amber-200 transition-all duration-300 group-hover:scale-105">
+          <UnoolEmblem className="w-3.5 h-3.5" />
         </span>
 
-        {/* Delicate hairline separator */}
+        {/* Hairline separator */}
         <span className="w-[1px] h-3 bg-white/15 relative z-10" aria-hidden="true" />
 
-        {/* Watermark Bespoke Typography */}
+        {/* Watermark Typography */}
         <div className="relative z-10 flex items-baseline gap-1.5">
-          <span className="font-mono text-[8.5px] uppercase tracking-[0.2em] text-stone-300/80 font-medium">
+          <span className="font-mono text-[8.5px] uppercase tracking-[0.2em] text-white/50 font-medium">
             made with
           </span>
           <span
-            className="font-[family-name:var(--font-syne)] font-extrabold text-[11px] tracking-[0.24em] uppercase text-white group-hover:text-amber-200 transition-colors"
+            className="font-[family-name:var(--font-syne)] font-bold text-[11px] tracking-[0.22em] uppercase text-white group-hover:text-amber-100 transition-colors"
             style={{ fontFamily: 'var(--font-syne), sans-serif' }}
           >
             UNOOL
           </span>
         </div>
+      </button>
 
-        {/* Luminous watermark hallmark beacon */}
-        <span
-          className="relative z-10 w-1.5 h-1.5 rounded-full bg-amber-400/90 shadow-[0_0_8px_rgba(251,191,36,0.8)] group-hover:scale-125 transition-transform"
-          aria-hidden="true"
-        />
-      </Link>
-
-      {/* ═══ Popover Showcase Hallmark Card ═══ */}
+      {/* ═══ Lead Generation Card: Interactive Handle Claimer ═══ */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, y: 8, scale: 0.95 }}
+            initial={{ opacity: 0, y: 8, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 6, scale: 0.95 }}
+            exit={{ opacity: 0, y: 6, scale: 0.96 }}
             transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute top-full right-0 mt-2.5 w-[290px] max-w-[calc(100vw-32px)]"
+            className="absolute top-full right-0 mt-2.5 w-[300px] max-w-[calc(100vw-32px)]"
           >
             <div
-              className="relative overflow-hidden rounded-2xl p-4 shadow-2xl border"
+              className="relative overflow-hidden rounded-2xl p-4 shadow-2xl border text-left"
               style={{
                 background: 'linear-gradient(145deg, rgba(18, 20, 26, 0.96) 0%, rgba(10, 12, 16, 0.98) 100%)',
                 backdropFilter: 'blur(30px) saturate(190%)',
@@ -183,7 +170,7 @@ export function MadeWithUnoolCTA({ className, subdomain, hideBadge }: MadeWithUn
                 aria-hidden="true"
               />
 
-              {/* Close Button for touch accessibility */}
+              {/* Close Button */}
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
@@ -193,68 +180,64 @@ export function MadeWithUnoolCTA({ className, subdomain, hideBadge }: MadeWithUn
                 <X className="w-3.5 h-3.5" />
               </button>
 
-              {/* Header: Unool Emblem Jewel + Identity */}
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-900/10 border border-amber-400/30 flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(196,162,101,0.2)]">
-                  <span className="w-4 h-4 text-[#C4A265]">
-                    <UnoolEmblem className="w-4 h-4" glow={true} />
-                  </span>
-                </div>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <span
-                      className="font-[family-name:var(--font-syne)] font-extrabold text-[13px] tracking-[0.24em] text-white uppercase"
-                      style={{ fontFamily: 'var(--font-syne), sans-serif' }}
-                    >
-                      UNOOL
-                    </span>
-                    <span className="text-[8px] font-mono tracking-[0.16em] uppercase px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-200 border border-amber-400/30">
-                      CREATOR OS
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-stone-400 font-sans mt-0.5 leading-snug">
-                    Unified presence &amp; audience growth
-                  </p>
-                </div>
-              </div>
-
-              {/* Multi-Platform Showcase */}
-              <div className="mb-3.5 p-2 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-                <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-stone-400 mb-1.5 flex items-center justify-between">
-                  <span>Connects 20+ Platforms</span>
-                  <span className="text-amber-300/80">Automated</span>
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {PLATFORM_CHIPS.map((chip) => (
-                    <span
-                      key={chip.name}
-                      title={chip.name}
-                      className="text-[9px] font-mono tracking-tight px-1.5 py-0.5 rounded bg-white/[0.06] text-stone-300 border border-white/[0.08]"
-                    >
-                      {chip.label}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Primary Call to Action */}
-              <Link
-                href={signupUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group/btn flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl transition-all duration-200 no-underline shadow-lg"
-                style={{
-                  background: 'linear-gradient(135deg, #C4A265 0%, #A88748 100%)',
-                  boxShadow: '0 4px 16px rgba(196, 162, 101, 0.35)',
-                }}
-              >
-                <span className="text-xs font-semibold text-stone-950 tracking-tight whitespace-nowrap">
-                  Create your free space
+              {/* Header: Logo + Brand */}
+              <div className="flex items-center gap-2.5 mb-2.5">
+                <span className="w-4 h-4 text-[#C4A265] shrink-0">
+                  <UnoolEmblem className="w-4 h-4" />
                 </span>
-                <ArrowRight className="w-3.5 h-3.5 text-stone-950 group-hover/btn:translate-x-1 transition-transform" />
-              </Link>
+                <span
+                  className="font-[family-name:var(--font-syne)] font-bold text-xs tracking-[0.24em] text-white uppercase"
+                  style={{ fontFamily: 'var(--font-syne), sans-serif' }}
+                >
+                  UNOOL
+                </span>
+              </div>
 
-              {/* Secondary Link & Verification Hallmark */}
+              {/* Hook & Subtitle */}
+              <h3 className="text-sm font-semibold text-white tracking-tight leading-snug">
+                Create a page like this
+              </h3>
+              <p className="text-xs text-stone-400 mt-1 leading-relaxed">
+                Your unified link, portfolio, and publishing hub.
+              </p>
+
+              {/* Interactive Handle Claim Form */}
+              <form onSubmit={handleClaimSubmit} className="mt-3.5 space-y-2.5">
+                <div className="relative flex items-center rounded-xl bg-white/[0.04] hover:bg-white/[0.07] border border-white/15 focus-within:border-[#C4A265] focus-within:ring-1 focus-within:ring-[#C4A265] transition-all px-3 py-1.5">
+                  <span className="text-xs font-mono text-stone-400 select-none shrink-0 font-medium">
+                    unool.co/
+                  </span>
+                  <input
+                    type="text"
+                    value={handle}
+                    onChange={(e) => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                    placeholder="yourname"
+                    className="w-full py-1.5 pl-1 pr-2 text-xs bg-transparent text-white placeholder:text-stone-500 focus:outline-none font-mono tracking-tight"
+                    maxLength={30}
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-semibold text-stone-950 transition-all duration-200 shadow-md hover:brightness-110 active:scale-[0.98]"
+                  style={{
+                    background: 'linear-gradient(135deg, #C4A265 0%, #A88748 100%)',
+                    boxShadow: '0 4px 16px rgba(196, 162, 101, 0.25)',
+                  }}
+                >
+                  <span>Claim your link</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-stone-950" />
+                </button>
+              </form>
+
+              {/* Micro Trust Line */}
+              <p className="text-[10px] text-stone-400 text-center mt-2.5 tracking-tight font-sans">
+                Free forever · Setup in 60 seconds
+              </p>
+
+              {/* Secondary Link to unool.co */}
               <div className="mt-3 pt-2.5 border-t border-white/[0.08] flex items-center justify-between text-[10px]">
                 <Link
                   href={unoolHomeUrl}
@@ -265,9 +248,12 @@ export function MadeWithUnoolCTA({ className, subdomain, hideBadge }: MadeWithUn
                   <span>unool.co</span>
                   <ExternalLink className="w-2.5 h-2.5 opacity-60" />
                 </Link>
-                <span className="text-stone-400 font-mono text-[8.5px] tracking-widest uppercase">
-                  Official Watermark
-                </span>
+                <Link
+                  href={referralQuery ? `/signup${referralQuery}` : '/signup'}
+                  className="text-stone-400 hover:text-white transition-colors no-underline font-sans text-[10px]"
+                >
+                  Sign up free
+                </Link>
               </div>
             </div>
           </motion.div>

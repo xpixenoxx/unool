@@ -47,6 +47,14 @@ function SignUpComponent() {
         if (stored) setRefCode(stored);
       } catch {}
     }
+
+    const urlClaim = searchParams?.get('claim') || searchParams?.get('handle');
+    if (urlClaim) {
+      try {
+        const cleanHandle = urlClaim.toLowerCase().replace(/[^a-z0-9-]/g, '');
+        sessionStorage.setItem('unool_desired_handle', cleanHandle);
+      } catch {}
+    }
   }, [searchParams]);
 
   // Form Fields
