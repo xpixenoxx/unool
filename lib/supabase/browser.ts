@@ -10,7 +10,19 @@ let _client: ReturnType<typeof createBrowserClient> | null = null;
 
 export function getSupabaseBrowserClient() {
   if (!_client) {
-    _client = createBrowserClient(supabaseUrl, supabaseAnonKey);
+    _client = createBrowserClient(supabaseUrl, supabaseAnonKey, {
+      realtime: {
+        accessToken: async () => {
+          if (!_client) return null;
+          try {
+            const { data } = await _client.auth.getSession();
+            return data.session?.access_token ?? null;
+          } catch {
+            return null;
+          }
+        },
+      },
+    });
   }
   return _client;
 }

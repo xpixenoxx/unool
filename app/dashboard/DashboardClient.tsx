@@ -215,7 +215,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           />
 
           <div className="relative">
-            <p className="text-sm font-medium" style={{ color: B.textMuted }}>
+            <p suppressHydrationWarning className="text-sm font-medium" style={{ color: B.textMuted }}>
               {greeting}
             </p>
             <h1
@@ -952,7 +952,7 @@ function RecentBroadcasts({ posts }: { posts: Post[] }) {
                   >
                     {post.content || 'Untitled post'}
                   </p>
-                  <p className="text-xs mt-0.5" style={{ color: B.textLight }}>
+                  <p suppressHydrationWarning className="text-xs mt-0.5" style={{ color: B.textLight }}>
                     {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
                   </p>
                 </div>
