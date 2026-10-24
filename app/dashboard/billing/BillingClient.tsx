@@ -135,13 +135,76 @@ const ALL_OTHER_BANKS = [
   { code: '3054', name: 'UCO Bank' },
 ];
 
+// ── In-Memory SWR Cache for 0ms Route Switching ──────────────────
+let memoryBillingPlans: PlanData[] | null = null;
+let memoryBillingCurrent: CurrentPlan | null = null;
+
+// ── Skeleton Loader ─────────────────────────────────────────────
+function BillingSkeleton() {
+  return (
+    <div style={{ padding: '32px 24px', maxWidth: 1200, margin: '0 auto', color: '#1A1612' }}>
+      <style>{`
+        @keyframes biscuitPulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.45; }
+        }
+      `}</style>
+      {/* Header skeleton */}
+      <div style={{ marginBottom: 32 }}>
+        <div style={{ width: 160, height: 28, borderRadius: 8, background: '#EDE7DD', animation: 'biscuitPulse 1.5s ease-in-out infinite', marginBottom: 10 }} />
+        <div style={{ width: 340, height: 16, borderRadius: 6, background: '#E8E0D4', animation: 'biscuitPulse 1.5s ease-in-out infinite' }} />
+      </div>
+
+      {/* Cycle switcher skeleton */}
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 40 }}>
+        <div style={{ width: 220, height: 42, borderRadius: 24, background: '#EDE7DD', animation: 'biscuitPulse 1.5s ease-in-out infinite' }} />
+      </div>
+
+      {/* 3 cards skeleton */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
+        {[1, 2, 3].map((i) => (
+          <div
+            key={i}
+            style={{
+              background: '#FFFDF9',
+              border: '1px solid #E8E0D4',
+              borderRadius: 20,
+              padding: 28,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 20,
+              boxShadow: '0 4px 20px -2px rgba(61, 43, 31, 0.04)',
+            }}
+          >
+            <div style={{ width: 90, height: 24, borderRadius: 6, background: '#EDE7DD', animation: 'biscuitPulse 1.5s ease-in-out infinite' }} />
+            <div style={{ width: 180, height: 36, borderRadius: 8, background: '#E8E0D4', animation: 'biscuitPulse 1.5s ease-in-out infinite' }} />
+            <div style={{ width: '100%', height: 14, borderRadius: 4, background: '#FAF7F2', animation: 'biscuitPulse 1.5s ease-in-out infinite' }} />
+            <div style={{ height: 1, background: '#EDE7DD', margin: '4px 0' }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {[1, 2, 3, 4, 5].map((j) => (
+                <div key={j} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 16, height: 16, borderRadius: '50%', background: '#EDE7DD', flexShrink: 0 }} />
+                  <div style={{ width: `${65 + ((j * 7) % 30)}%`, height: 12, borderRadius: 4, background: '#FAF7F2' }} />
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: 'auto', paddingTop: 16 }}>
+              <div style={{ width: '100%', height: 44, borderRadius: 12, background: '#EDE7DD', animation: 'biscuitPulse 1.5s ease-in-out infinite' }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Component ───────────────────────────────────────────────────
 
 export default function BillingClient() {
-  const [plans, setPlans] = useState<PlanData[]>([]);
-  const [currentPlan, setCurrentPlan] = useState<CurrentPlan | null>(null);
+  const [plans, setPlans] = useState<PlanData[]>(() => memoryBillingPlans || []);
+  const [currentPlan, setCurrentPlan] = useState<CurrentPlan | null>(() => memoryBillingCurrent || null);
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !memoryBillingPlans || !memoryBillingCurrent);
   const [paymentLoading, setPaymentLoading] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [paymentResult, setPaymentResult] = useState<{ status: string; message: string } | null>(null);
@@ -273,7 +336,7 @@ export default function BillingClient() {
           const planName = upgraded?.name || (targetPlanId ? targetPlanId.charAt(0).toUpperCase() + targetPlanId.slice(1) : 'Pro');
           const planTagline = upgraded?.tagline || '';
 
-          setCurrentPlan({
+          const optimisticPlan = {
             plan: { id: targetPlanId, name: planName, tagline: planTagline },
             subscription: {
               id: 'sub_' + orderId,
@@ -290,7 +353,9 @@ export default function BillingClient() {
               paymentMethod: null,
             },
             isFreeTier: false,
-          });
+          };
+          memoryBillingCurrent = optimisticPlan;
+          setCurrentPlan(optimisticPlan);
 
           window.scrollTo({ top: 0, behavior: 'smooth' });
 
@@ -302,6 +367,7 @@ export default function BillingClient() {
               if (freshPlan && !freshPlan.isFreeTier) {
                 // Ensure we never overwrite the verified upgraded plan with a stale or previous plan
                 if (!targetPlanId || freshPlan.plan?.id === targetPlanId) {
+                  memoryBillingCurrent = freshPlan;
                   setCurrentPlan(freshPlan);
                 }
               }
@@ -342,6 +408,7 @@ export default function BillingClient() {
             .then(res => res.json())
             .then(data => {
               if (data && (!event.data?.planId || data.plan?.id === event.data.planId)) {
+                memoryBillingCurrent = data;
                 setCurrentPlan(data);
               }
               setPaymentResult({ status: 'PAID', message: 'Subscription updated successfully!' });
@@ -428,11 +495,13 @@ export default function BillingClient() {
 
         if (plansRes.ok) {
           const plansData = await plansRes.json();
+          memoryBillingPlans = plansData.plans;
           setPlans(plansData.plans);
         }
 
         if (currentRes.ok) {
           const currentData = await currentRes.json();
+          memoryBillingCurrent = currentData;
           setCurrentPlan(currentData);
         }
       } catch (err) {
@@ -727,7 +796,9 @@ export default function BillingClient() {
         // Refresh current plan
         const currentRes = await fetch(`/api/billing/current?t=${Date.now()}`, { cache: 'no-store' });
         if (currentRes.ok) {
-          setCurrentPlan(await currentRes.json());
+          const fresh = await currentRes.json();
+          memoryBillingCurrent = fresh;
+          setCurrentPlan(fresh);
         }
       }
     } catch (err) {
@@ -737,18 +808,7 @@ export default function BillingClient() {
 
   // ── Loading State ──────────────────────────────────────────
   if (loading) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-        <div style={{
-          width: 40, height: 40,
-          border: '3px solid rgba(139, 92, 246, 0.2)',
-          borderTopColor: '#8B5CF6',
-          borderRadius: '50%',
-          animation: 'spin 0.8s linear infinite',
-        }} />
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      </div>
-    );
+    return <BillingSkeleton />;
   }
 
   const currentPlanId = currentPlan?.plan?.id || 'spark';

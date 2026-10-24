@@ -23,14 +23,17 @@ interface WeekCanvasProps {
   onPostCountChange?: (count: number) => void;
 }
 
+// ── In-Memory SWR Cache for 0ms Route Switching ──────────────────
+const memoryCanvasPostsByWeek = new Map<number, CanvasPost[]>();
+
 export function WeekCanvas({
   workspaceId,
   targetPostId,
   onNewArc,
   onPostCountChange,
 }: WeekCanvasProps) {
-  const [posts, setPosts] = useState<CanvasPost[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [posts, setPosts] = useState<CanvasPost[]>(() => memoryCanvasPostsByWeek.get(0) || []);
+  const [isLoading, setIsLoading] = useState(() => !memoryCanvasPostsByWeek.has(0));
   const [weekOffset, setWeekOffset] = useState(0);
   const [isHolding, setIsHolding] = useState(false);
   const [holdActive, setHoldActive] = useState(false);
@@ -51,9 +54,13 @@ export function WeekCanvas({
   );
 
   const loadWeekCanvas = useCallback(async () => {
-    setIsLoading(true);
+    // Only show loading if we don't have this week cached in memory
+    if (!memoryCanvasPostsByWeek.has(weekOffset)) {
+      setIsLoading(true);
+    }
     try {
       const loadedPosts = await loadCanvas(weekOffset);
+      memoryCanvasPostsByWeek.set(weekOffset, loadedPosts);
       setPosts(loadedPosts);
       onPostCountChange?.(loadedPosts.length);
     } catch {

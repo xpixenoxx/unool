@@ -11,6 +11,8 @@ const supabaseAdmin = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_
 const profileRepository = new SupabaseProfileRepository();
 const postRepository = new SupabasePostRepository();
 
+const overviewMemoryCache = new Map<string, { data: any; expiry: number }>();
+
 async function getDashboardData(): Promise<{
   profile: {
     subdomain: string | null;
@@ -53,6 +55,12 @@ async function getDashboardData(): Promise<{
   }
 
   const { userId, workspaceId } = auth;
+
+  // ── Fast In-Memory Cache (15s TTL) for 0ms Route Switching ──────────────
+  const cached = overviewMemoryCache.get(workspaceId);
+  if (cached && Date.now() < cached.expiry) {
+    return cached.data;
+  }
 
   // ─── All DB fetches in parallel — cuts SSR time by ~70-80% ──────────────
   // Previously these ran one-after-another (sequential waterfall).
@@ -104,13 +112,13 @@ async function getDashboardData(): Promise<{
     }
   }
 
-  return {
+  const result = {
     profile: profile
       ? {
           subdomain: profile.subdomain,
           name: profile.name,
           headline: profile.headline,
-          status: profile.subdomain ? 'published' : 'draft',
+          status: (profile.subdomain ? 'published' : 'draft') as 'published' | 'draft',
           updatedAt: profile.updatedAt.toISOString(),
           links: profile.links,
           proofPoints: profile.proofPoints,
@@ -128,13 +136,18 @@ async function getDashboardData(): Promise<{
     userId,
     workspaceId,
   };
+
+  overviewMemoryCache.set(workspaceId, { data: result, expiry: Date.now() + 15_000 });
+  return result;
 }
+
+import DashboardLoading from './loading';
 
 export default async function DashboardPage() {
   try {
     const data = await getDashboardData();
     return (
-      <Suspense fallback={<div className="p-8 text-center text-muted-foreground animate-pulse">Loading dashboard...</div>}>
+      <Suspense fallback={<DashboardLoading />}>
         <DashboardClient data={data} />
       </Suspense>
     );

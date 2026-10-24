@@ -766,6 +766,10 @@ function IPhonePreview({
    Main Composer Client
    ───────────────────────────────────────────────────────────── */
 
+// ── In-Memory SWR Cache for 0ms Route Switching ──────────────────
+let memoryComposerProfile: Profile | null = null;
+let memoryComposerConnections: PlatformType[] | null = null;
+
 export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -799,13 +803,13 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   const reviewSectionRef = useRef<HTMLDivElement | null>(null);
   const [postId, setPostId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<PlatformType>('linkedin');
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [profileLoading, setProfileLoading] = useState(true);
+  const [profile, setProfile] = useState<Profile | null>(() => memoryComposerProfile);
+  const [profileLoading, setProfileLoading] = useState(() => !memoryComposerProfile);
   const [planError, setPlanError] = useState<string | null>(null);
   const [media, setMedia] = useState<{url: string; type: 'image' | 'video' | 'document'; sizeInBytes?: number}[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [connectedPlatforms, setConnectedPlatforms] = useState<PlatformType[]>([]);
+  const [connectedPlatforms, setConnectedPlatforms] = useState<PlatformType[]>(() => memoryComposerConnections || []);
   const [selectedPlatforms, setSelectedPlatforms] = useState<PlatformType[]>([]);
   const [previewPlatform, setPreviewPlatform] = useState<PlatformType>('linkedin');
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
@@ -1121,6 +1125,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           .map((c: any) => c.platform as PlatformType)
           // Only include platforms that have an AI adaptation spec in the composer
           .filter((p: PlatformType) => p in PLATFORM_CONFIG);
+        memoryComposerConnections = active;
         setConnectedPlatforms(active);
         setSelectedPlatforms([]);
       }
@@ -1270,7 +1275,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       });
       const data = await res.json();
       if (data.profile) {
-        setProfile({
+        const loadedProf: Profile = {
           id: data.profile.id,
           name: data.profile.name || '',
           headline: data.profile.headline || '',
@@ -1279,7 +1284,9 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           company: data.profile.company || '',
           onboardingAnswers: data.profile.onboardingAnswers || null,
           studioProfile: data.profile.studioProfile || null,
-        });
+        };
+        memoryComposerProfile = loadedProf;
+        setProfile(loadedProf);
       }
     } catch {
       // Ignore — profile might not exist yet
@@ -3069,21 +3076,45 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   );
 }
 
+function StudioSkeleton() {
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+      <style>{`
+        @keyframes biscuitPulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.45; }
+        }
+      `}</style>
+      <div className="pb-4 border-b border-[#E8E0D4] space-y-2">
+        <div className="w-28 h-8 rounded-lg bg-[#EDE7DD] animate-[biscuitPulse_1.5s_ease-in-out_infinite]" />
+        <div className="w-80 h-4 rounded-md bg-[#FAF7F2] animate-[biscuitPulse_1.5s_ease-in-out_infinite]" />
+      </div>
+
+      {/* Mode switcher tabs skeleton */}
+      <div className="flex gap-2 p-1 rounded-xl bg-[#EDE7DD]/60 w-fit">
+        <div className="w-28 h-8 rounded-lg bg-[#FFFDF9]" />
+        <div className="w-28 h-8 rounded-lg bg-transparent" />
+      </div>
+
+      {/* Editor card skeleton */}
+      <div className="rounded-2xl border border-[#E8E0D4] bg-[#FFFDF9] p-6 shadow-sm space-y-4">
+        <div className="w-48 h-4 rounded bg-[#FAF7F2] animate-[biscuitPulse_1.5s_ease-in-out_infinite]" />
+        <div className="w-full h-36 rounded-xl bg-[#FAF7F2] border border-[#EDE7DD] animate-[biscuitPulse_1.5s_ease-in-out_infinite]" />
+        <div className="flex items-center justify-between pt-2">
+          <div className="flex gap-2">
+            <div className="w-8 h-8 rounded-lg bg-[#EDE7DD]" />
+            <div className="w-8 h-8 rounded-lg bg-[#EDE7DD]" />
+          </div>
+          <div className="w-32 h-10 rounded-xl bg-[#C4A265]/30 animate-[biscuitPulse_1.5s_ease-in-out_infinite]" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ComposerClientWrapper({ userId, workspaceId }: ComposerClientProps) {
   return (
-    <Suspense fallback={
-      <Box className="max-w-4xl mx-auto px-4 py-8 space-y-6">
-        <div className="pb-4 border-b border-border">
-          <Display size="xl" weight="bold">Studio</Display>
-          <Text size="sm" color="muted" className="mt-1">Write once. AI adapts. You review. One click publishes everywhere.</Text>
-        </div>
-        <Card>
-          <CardContent className="min-h-[300px] flex items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </CardContent>
-        </Card>
-      </Box>
-    }>
+    <Suspense fallback={<StudioSkeleton />}>
       <ComposerClient userId={userId} workspaceId={workspaceId} />
     </Suspense>
   );

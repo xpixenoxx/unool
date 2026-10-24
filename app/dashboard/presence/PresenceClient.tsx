@@ -111,6 +111,11 @@ const staggerContainer = {
 
 const transition = { type: 'spring' as const, stiffness: 400, damping: 30 };
 
+// In-memory module cache for instant (0ms) revisits across sidebar navigation
+let memoryPresenceProfile: Profile | null = null;
+let memoryPresenceClaimedSubdomain: string | null = null;
+let memoryPresenceViewers: ProfileViewer[] | null = null;
+
 /* ═══════════════════════════════════════════════════════════════
    MAIN COMPONENT
    ═══════════════════════════════════════════════════════════════ */
@@ -123,23 +128,22 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [sourceUrl, setSourceUrl] = useState('');
-  const [subdomain, setSubdomain] = useState('');
+  const [subdomain, setSubdomain] = useState(() => memoryPresenceClaimedSubdomain || '');
   const [subdomainAvailable, setSubdomainAvailable] = useState<boolean | null>(null);
-  const [claimedSubdomain, setClaimedSubdomain] = useState<string | null>(null);
+  const [claimedSubdomain, setClaimedSubdomain] = useState<string | null>(() => memoryPresenceClaimedSubdomain);
   const [lastCheckedSubdomain, setLastCheckedSubdomain] = useState<string>('');
 
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  const [profile, setProfile] = useState<Profile>({
+  const [profile, setProfile] = useState<Profile>(() => memoryPresenceProfile || {
     name: '', headline: '', bio: '', role: '', company: '', avatarUrl: '',
     links: [], proofPoints: [], theme: { template: DEFAULT_TEMPLATE }, openTo: [],
   });
 
   // Guard: prevent auto-save from firing before initial data is loaded from the server.
-  // Without this, the empty initial state can be saved over real data if loadProfile() is slow.
-  const profileLoaded = useRef(false);
+  const profileLoaded = useRef(Boolean(memoryPresenceProfile));
 
-  const [viewers, setViewers] = useState<ProfileViewer[]>([]);
+  const [viewers, setViewers] = useState<ProfileViewer[]>(() => memoryPresenceViewers || []);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<{id: string, email: string, full_name: string}[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -152,8 +156,10 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
       const data = await res.json();
       if (data.profile) {
         profileLoaded.current = true; // Mark as loaded BEFORE setProfile to avoid race
+        memoryPresenceProfile = data.profile;
         setProfile(data.profile);
         if (data.profile.subdomain && !data.profile.subdomain.startsWith('user-')) {
+          memoryPresenceClaimedSubdomain = data.profile.subdomain;
           setClaimedSubdomain(data.profile.subdomain);
           setSubdomain(data.profile.subdomain);
         } else {
@@ -177,7 +183,10 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
     try {
       const res = await fetch('/api/profile/viewers', { credentials: 'include' });
       const data = await res.json();
-      if (data.viewers) setViewers(data.viewers);
+      if (data.viewers) {
+        memoryPresenceViewers = data.viewers;
+        setViewers(data.viewers);
+      }
     } catch (error) { console.error('Failed to load viewers:', error); }
   };
 

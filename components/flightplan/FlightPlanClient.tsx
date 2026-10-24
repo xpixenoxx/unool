@@ -113,6 +113,10 @@ function WritingWeekView({ platforms = [] }: { platforms?: PlatformType[] }) {
   );
 }
 
+// ── In-Memory SWR Cache for 0ms Route Switching ──────────────────
+let memoryConnectedPlatforms: PlatformType[] | null = null;
+let memorySignalDmEnabled: boolean | null = null;
+
 function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
   const searchParams = useSearchParams();
   const targetPostId = searchParams?.get('postId') || null;
@@ -123,10 +127,10 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
   const [isPreviewOnly, setIsPreviewOnly] = useState(false);
   const [storyData, setStoryData] = useState<StoryIntakeData | null>(null);
   const [postCount, setPostCount] = useState<number>(0);
-  const [connectedPlatforms, setConnectedPlatforms] = useState<PlatformType[]>([]);
+  const [connectedPlatforms, setConnectedPlatforms] = useState<PlatformType[]>(() => memoryConnectedPlatforms || []);
   const [activeStoryIndex, setActiveStoryIndex] = useState<number>(0);
   const [isStoryPaused, setIsStoryPaused] = useState<boolean>(false);
-  const [signalDmEnabled, setSignalDmEnabled] = useState(false);
+  const [signalDmEnabled, setSignalDmEnabled] = useState(() => memorySignalDmEnabled ?? false);
 
   const { generate: generateArc, approve: approveArc, loadCanvas } = useFlightPlanActions();
 
@@ -140,6 +144,7 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
           const active = Object.values(data.connections)
             .filter((c: any) => c.status === 'connected')
             .map((c: any) => c.platform as PlatformType);
+          memoryConnectedPlatforms = active;
           setConnectedPlatforms(active);
         }
       } catch {
@@ -154,7 +159,12 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
     if (!workspaceId) return;
     fetch(`/api/instagram/automation?workspaceId=${workspaceId}`, { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data?.enabled) setSignalDmEnabled(true); })
+      .then(data => {
+        if (data?.enabled) {
+          memorySignalDmEnabled = true;
+          setSignalDmEnabled(true);
+        }
+      })
       .catch(() => {});
   }, [workspaceId]);
 
