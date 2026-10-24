@@ -141,6 +141,7 @@ function DashboardSidebar({
           <Link
             key={item.name}
             href={item.href}
+            prefetch={true}
             onClick={() => setSidebarOpen(false)}
             className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150"
             style={{
@@ -148,6 +149,7 @@ function DashboardSidebar({
               color: isActive ? biscuit.activeFg : biscuit.text,
             }}
             onMouseEnter={(e) => {
+              try { router.prefetch(item.href); } catch {}
               if (!isActive) {
                 e.currentTarget.style.backgroundColor = biscuit.hoverBg;
               }

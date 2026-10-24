@@ -4,6 +4,10 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '2mb',
     },
+    staleTimes: {
+      dynamic: 30,
+      static: 180,
+    },
   },
   serverExternalPackages: ['argon2', '@ffmpeg-installer/ffmpeg'],
   images: {
