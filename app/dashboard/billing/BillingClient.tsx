@@ -49,6 +49,21 @@ interface CurrentPlan {
 
 type BillingCycle = 'monthly' | 'annual';
 
+function formatSubscriptionDate(dateStr?: string | null): string {
+  if (!dateStr) return '—';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '—';
+    return d.toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+  } catch {
+    return '—';
+  }
+}
+
 // ── Component ───────────────────────────────────────────────────
 
 export default function BillingClient() {
@@ -286,11 +301,7 @@ export default function BillingClient() {
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: 13, color: '#7A7265', fontWeight: 500 }}>Next billing</div>
               <div style={{ fontSize: 16, fontWeight: 700, color: '#1A1612', marginTop: 2 }}>
-                {currentPlan.subscription.currentPeriodEnd
-                  ? new Date(currentPlan.subscription.currentPeriodEnd).toLocaleDateString('en-IN', {
-                      day: 'numeric', month: 'long', year: 'numeric',
-                    })
-                  : '—'}
+                {formatSubscriptionDate(currentPlan.subscription.currentPeriodEnd)}
               </div>
               <div style={{ fontSize: 14, fontWeight: 600, color: '#8B5CF6', marginTop: 2 }}>
                 {currentPlan.subscription.amount}/{currentPlan.subscription.billingCycle === 'annual' ? 'year' : 'month'}
@@ -499,16 +510,16 @@ export default function BillingClient() {
 
               {/* Features */}
               <ul style={{ listStyle: 'none', padding: 0, margin: '24px 0', flex: 1 }}>
-                <FeatureItem text={`${plan.limits.channels === -1 ? 'Unlimited' : plan.limits.channels} channels`} />
-                <FeatureItem text={`${plan.limits.posts_per_month === -1 ? 'Unlimited' : plan.limits.posts_per_month} posts/mo`} />
-                <FeatureItem text={`${plan.limits.ai_credits_per_month === -1 ? 'Unlimited' : plan.limits.ai_credits_per_month} AI credits/mo`} />
-                <FeatureItem text={`${plan.limits.ig_comments_per_month === -1 ? 'Unlimited' : plan.limits.ig_comments_per_month} IG comments/mo`} />
-                <FeatureItem text={`${plan.templateCount} templates`} />
-                <FeatureItem text={`${plan.limits.team_seats} team seat${plan.limits.team_seats > 1 ? 's' : ''}`} />
-                {plan.features.custom_domain && <FeatureItem text="Custom domain" highlight />}
-                {plan.features.dm_concierge_full && <FeatureItem text="Full DM Concierge" highlight />}
-                {plan.features.lead_scoring && <FeatureItem text="Lead scoring" highlight />}
-                {plan.features.white_label && <FeatureItem text="White label" highlight />}
+                <FeatureItem text={`${plan.limits?.channels === -1 ? 'Unlimited' : (plan.limits?.channels ?? 0)} channels`} />
+                <FeatureItem text={`${plan.limits?.posts_per_month === -1 ? 'Unlimited' : (plan.limits?.posts_per_month ?? 0)} posts/mo`} />
+                <FeatureItem text={`${plan.limits?.ai_credits_per_month === -1 ? 'Unlimited' : (plan.limits?.ai_credits_per_month ?? 0)} AI credits/mo`} />
+                <FeatureItem text={`${plan.limits?.ig_comments_per_month === -1 ? 'Unlimited' : (plan.limits?.ig_comments_per_month ?? 0)} IG comments/mo`} />
+                <FeatureItem text={`${plan.templateCount ?? 0} templates`} />
+                <FeatureItem text={`${plan.limits?.team_seats ?? 1} team seat${(plan.limits?.team_seats ?? 1) > 1 ? 's' : ''}`} />
+                {plan.features?.custom_domain && <FeatureItem text="Custom domain" highlight />}
+                {plan.features?.dm_concierge_full && <FeatureItem text="Full DM Concierge" highlight />}
+                {plan.features?.lead_scoring && <FeatureItem text="Lead scoring" highlight />}
+                {plan.features?.white_label && <FeatureItem text="White label" highlight />}
               </ul>
 
               {/* CTA Button */}
