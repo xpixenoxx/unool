@@ -175,7 +175,12 @@ export function ProfilePreview({
       role="region"
       aria-label={`Template preview: ${templateId}`}
     >
-      {!isPreview && <MadeWithUnoolCTA />}
+      {!isPreview && (
+        <MadeWithUnoolCTA
+          subdomain={profile?.subdomain}
+          hideBadge={Boolean(profile?.hideBadge || profile?.plan?.badge_removal || profile?.features?.badge_removal)}
+        />
+      )}
       <TemplateErrorBoundary
         resetKey={templateId}
         onError={() => setLoadError(true)}
