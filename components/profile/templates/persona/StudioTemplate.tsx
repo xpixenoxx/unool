@@ -1983,12 +1983,12 @@ export function StudioTemplate({ profile, accentColor: propAccentColor }: Templa
   const proofPoints = useMemo(() => getProofPoints(profile), [profile.proofs]);
   const openToIntents = (profile.openTo || []) as OpenToIntentId[];
 
-  // Prepare recent activity data
+  // Prepare recent activity data from profile
   const recentActivity = useMemo((): RecentActivityData | null => {
-    // This would typically come from the profile data
-    // For now, return null - the component handles null gracefully
-    return null;
-  }, []);
+    const raw = (profile as any)?.recentActivity;
+    if (!raw) return null;
+    return Array.isArray(raw) ? (raw[0] || null) : raw;
+  }, [profile]);
 
   return (
     <>
@@ -2031,24 +2031,30 @@ export function StudioTemplate({ profile, accentColor: propAccentColor }: Templa
           <PortfolioSection profile={profile} accentColor={accentColor} />
 
           {/* Recent Transmissions / Activity Section */}
-          <section className="w-full pt-4" style={{ borderTop: '1px solid var(--studio-border-subtle)' }}>
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-px" style={{ background: 'var(--accent-citrine)' }} />
-                <span className="font-ui text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--text-dim)' }}>
-                  RECENT TRANSMISSIONS
-                </span>
+          {recentActivity && (
+            <section
+              id="recent-transmissions-section"
+              className="w-full pt-4 scroll-mt-24"
+              style={{ borderTop: '1px solid var(--studio-border-subtle)' }}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-px" style={{ background: 'var(--accent-citrine)' }} />
+                  <span className="font-ui text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--text-dim)' }}>
+                    RECENT TRANSMISSIONS
+                  </span>
+                </div>
+                <span className="font-mono text-xs" style={{ color: 'var(--accent-citrine)' }}>LIVE FEED</span>
               </div>
-              <span className="font-mono text-xs" style={{ color: 'var(--accent-citrine)' }}>LIVE FEED</span>
-            </div>
-            <RecentActivitySection
-              activity={recentActivity}
-              variant="studio"
-              isDark={true}
-              accentColor={accentColor}
-              autoScroll={(profile as any)?.autoScroll}
-            />
-          </section>
+              <RecentActivitySection
+                activity={recentActivity}
+                variant="studio"
+                isDark={true}
+                accentColor={accentColor}
+                autoScroll={(profile as any)?.autoScroll}
+              />
+            </section>
+          )}
 
           {/* Action & Conversion Dock (Single clean contact card) */}
           <ActionDock

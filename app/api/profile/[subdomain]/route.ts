@@ -116,25 +116,55 @@ export async function GET(
       if (recentPosts.length === 0 && profile.workspaceId) {
         recentPosts = await postRepo.findByWorkspaceId(profile.workspaceId, { status: 'published', limit: 1 });
       }
+
+      // If no post has explicit status='published', check for recent posts that have published variants or recent posts
+      if (recentPosts.length === 0) {
+        let candidatePosts = await postRepo.findByProfileId(profile.id, { limit: 5 });
+        if (candidatePosts.length === 0 && profile.workspaceId) {
+          candidatePosts = await postRepo.findByWorkspaceId(profile.workspaceId, { limit: 5 });
+        }
+        for (const p of candidatePosts) {
+          const vs = await postRepo.findVariantsByPostId(p.id);
+          if (vs.some(v => v.status === 'published')) {
+            recentPosts = [p];
+            break;
+          }
+        }
+        // Fallback to the latest candidate post in workspace
+        if (recentPosts.length === 0 && candidatePosts.length > 0) {
+          recentPosts = [candidatePosts[0]];
+        }
+      }
+
       const latestPost = recentPosts[0] ?? null;
 
       if (latestPost) {
         const variants = await postRepo.findVariantsByPostId(latestPost.id);
         const publishedVariants = variants.filter(v => v.status === 'published');
+        const targetVariants = publishedVariants.length > 0 ? publishedVariants : variants;
 
         const platformItems = await Promise.all(
-          publishedVariants.map(async v => {
+          targetVariants.map(async v => {
             const platformPosts = await platformRepo.findPlatformPostsByVariant(v.id);
             const liveUrl = platformPosts[0]?.platformUrl ?? (v as any).platformUrl ?? `https://${v.platform}.com`;
             return { platform: v.platform, url: liveUrl, adaptedContent: v.adaptedContent };
           })
         );
 
+        const effectivePlatforms = platformItems.filter(Boolean);
+        if (effectivePlatforms.length === 0) {
+          effectivePlatforms.push({
+            platform: 'manual',
+            url: `https://unool.co/u/${profile.subdomain}?activity=1`,
+            adaptedContent: latestPost.content,
+          });
+        }
+
         recentActivity = {
           id: latestPost.id,
           content: latestPost.content,
-          publishedAt: latestPost.publishedAt?.toISOString() ?? null,
-          platforms: platformItems.filter(Boolean),
+          publishedAt: latestPost.publishedAt?.toISOString() ?? latestPost.updatedAt?.toISOString() ?? latestPost.createdAt?.toISOString() ?? null,
+          platforms: effectivePlatforms,
         };
       }
     } catch {

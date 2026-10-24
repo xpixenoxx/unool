@@ -95,19 +95,32 @@ export function RecentActivitySection({
 
   useEffect(() => {
     if (!autoScroll) return;
-    const timer = setTimeout(() => {
-      sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      setTimeout(() => {
-        const el = document.getElementById('recent-activity');
-        if (el) {
-          el.classList.remove('ra-highlight');
-          void (el as HTMLElement).offsetWidth;
-          el.classList.add('ra-highlight');
-        }
-      }, 500);
-    }, 350);
-    return () => clearTimeout(timer);
-  }, [autoScroll]);
+
+    const performScroll = () => {
+      const target =
+        sectionRef.current ||
+        document.getElementById('recent-activity') ||
+        document.getElementById('recent-transmissions-section') ||
+        document.getElementById('recent-activity-section');
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        target.classList.remove('ra-highlight');
+        void (target as HTMLElement).offsetWidth;
+        target.classList.add('ra-highlight');
+      }
+    };
+
+    // Multi-phase attempts to ensure scroll occurs reliably across lazy imports and dynamic fonts
+    const t1 = setTimeout(performScroll, 200);
+    const t2 = setTimeout(performScroll, 600);
+    const t3 = setTimeout(performScroll, 1200);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, [autoScroll, activity]);
 
   if (!activity) return null;
 
@@ -115,8 +128,17 @@ export function RecentActivitySection({
   const activityItem = Array.isArray(activity) ? activity[0] : activity;
   if (!activityItem) return null;
 
-  const published = (activityItem.platforms || []).filter(p => p && p.url?.startsWith('http'));
-  if (published.length === 0) return null;
+  const rawPlatforms = activityItem.platforms || [];
+  const published = rawPlatforms.length > 0
+    ? rawPlatforms.map(p => ({
+        ...p,
+        url: p.url && (p.url.startsWith('http://') || p.url.startsWith('https://'))
+          ? p.url
+          : p.platform && p.platform !== 'network'
+          ? `https://${p.platform}.com`
+          : '#',
+      }))
+    : [{ platform: 'network', url: '#', adaptedContent: activityItem.content }];
 
   const accent = accentColor || (isDark ? '#FFFFFF' : '#222222');
 
