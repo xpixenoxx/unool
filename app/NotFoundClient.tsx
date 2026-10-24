@@ -32,6 +32,58 @@ interface Spark {
   ring?: boolean;
 }
 
+function isClientSideAuthed(): boolean {
+  if (typeof window === 'undefined') return false;
+
+  // 1. Check sessionStorage (primary auth storage in Unool)
+  try {
+    const raw = sessionStorage.getItem('unool_session');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed?.userId || parsed?.access_token) return true;
+    }
+  } catch {}
+
+  // 2. Check localStorage
+  try {
+    const raw = localStorage.getItem('unool_session');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed?.userId || parsed?.access_token) return true;
+    }
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('sb-') && key.includes('-auth-token')) {
+        const val = localStorage.getItem(key);
+        if (val && (val.includes('access_token') || val.includes('user'))) {
+          return true;
+        }
+      }
+    }
+  } catch {}
+
+  // 3. Check document.cookie for non-httpOnly auth tokens
+  try {
+    const cookies = document.cookie.split(';');
+    for (const cookie of cookies) {
+      const parts = cookie.trim().split('=');
+      const name = parts[0];
+      const val = parts.slice(1).join('=');
+      if (
+        (name.startsWith('sb-') && name.includes('-auth-token')) ||
+        name === 'dev-auth-bypass' ||
+        name === 'unool_session'
+      ) {
+        if (val && val.length > 5 && val !== 'false' && val !== '""') {
+          return true;
+        }
+      }
+    }
+  } catch {}
+
+  return false;
+}
+
 export function NotFoundClient() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [title, setTitle] = useState<string>('404: this page wandered off.');
@@ -43,74 +95,57 @@ export function NotFoundClient() {
   const router = useRouter();
   const [targetHref, setTargetHref] = useState<string>('/');
 
-  // Route to /dashboard ONLY for users who are logged in AND have an Unool account.
+  // Route to /dashboard ONLY for users who are logged in with an Unool account.
   // Otherwise, strictly route to homepage (/).
   useEffect(() => {
     let isMounted = true;
 
-    async function verifyUnoolAccount() {
+    // Fast initial synchronous check from client-side storage
+    if (isClientSideAuthed()) {
+      setTargetHref('/dashboard');
+    }
+
+    // Fast asynchronous check from server auth status endpoint
+    fetch('/api/auth/status', { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!isMounted) return;
+        if (data?.authenticated) {
+          setTargetHref('/dashboard');
+        } else if (!isClientSideAuthed()) {
+          setTargetHref('/');
+        }
+      })
+      .catch(() => {});
+
+    // Supabase browser client session check
+    const checkSupabase = async () => {
       try {
         const supabase = getSupabaseBrowserClient();
         const {
           data: { session },
-          error: sessionErr,
         } = await supabase.auth.getSession();
-
-        if (sessionErr || !session?.user?.id) {
-          if (isMounted) setTargetHref('/');
+        if (session?.user?.id && isMounted) {
+          setTargetHref('/dashboard');
           return;
         }
-
-        // Verify the user actually has an Unool workspace/account
-        const { data: member, error: memberErr } = await supabase
-          .from('workspace_members')
-          .select('workspace_id')
-          .eq('user_id', session.user.id)
-          .maybeSingle();
-
-        if (isMounted) {
-          if (!memberErr && member?.workspace_id) {
-            setTargetHref('/dashboard');
-          } else {
-            // Also check if user profile exists
-            const { data: userRecord } = await supabase
-              .from('users')
-              .select('id')
-              .eq('id', session.user.id)
-              .maybeSingle();
-
-            setTargetHref(userRecord?.id ? '/dashboard' : '/');
-          }
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (user?.id && isMounted) {
+          setTargetHref('/dashboard');
         }
-      } catch {
-        if (isMounted) setTargetHref('/');
-      }
-    }
-
-    verifyUnoolAccount();
+      } catch {}
+    };
+    checkSupabase();
 
     const supabase = getSupabaseBrowserClient();
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(
-      async (_event: unknown, session: { user?: { id?: string } } | null) => {
-        if (!session?.user?.id) {
-          if (isMounted) setTargetHref('/');
-          return;
-        }
-
-        try {
-          const { data: member } = await supabase
-            .from('workspace_members')
-            .select('workspace_id')
-            .eq('user_id', session.user.id)
-            .maybeSingle();
-
-          if (isMounted) {
-            setTargetHref(member?.workspace_id ? '/dashboard' : '/');
-          }
-        } catch {
-          if (isMounted) setTargetHref('/');
+      (_event: unknown, session: { user?: { id?: string } } | null) => {
+        if (isMounted) {
+          setTargetHref(session?.user?.id || isClientSideAuthed() ? '/dashboard' : '/');
         }
       }
     );
@@ -122,45 +157,56 @@ export function NotFoundClient() {
   }, []);
 
   const handleHomeClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+    // 1. If targetHref has already resolved to dashboard, navigate to /dashboard
+    if (targetHref === '/dashboard') {
+      e.preventDefault();
+      router.push('/dashboard');
+      return;
+    }
+
+    // 2. Fast synchronous check of client storage
+    if (isClientSideAuthed()) {
+      e.preventDefault();
+      setTargetHref('/dashboard');
+      router.push('/dashboard');
+      return;
+    }
+
+    // 3. Quick verification check against /api/auth/status with timeout
     e.preventDefault();
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 600);
+      const res = await fetch('/api/auth/status', {
+        cache: 'no-store',
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.authenticated) {
+          setTargetHref('/dashboard');
+          router.push('/dashboard');
+          return;
+        }
+      }
+    } catch {}
+
+    // 4. Supabase browser client session check
     try {
       const supabase = getSupabaseBrowserClient();
       const {
         data: { session },
-        error: sessionErr,
       } = await supabase.auth.getSession();
-
-      if (sessionErr || !session?.user?.id) {
-        router.push('/');
-        return;
-      }
-
-      // Check if user has an active Unool workspace/account
-      const { data: member, error: memberErr } = await supabase
-        .from('workspace_members')
-        .select('workspace_id')
-        .eq('user_id', session.user.id)
-        .maybeSingle();
-
-      if (!memberErr && member?.workspace_id) {
+      if (session?.user?.id) {
+        setTargetHref('/dashboard');
         router.push('/dashboard');
         return;
       }
+    } catch {}
 
-      const { data: userRecord } = await supabase
-        .from('users')
-        .select('id')
-        .eq('id', session.user.id)
-        .maybeSingle();
-
-      if (userRecord?.id) {
-        router.push('/dashboard');
-      } else {
-        router.push('/');
-      }
-    } catch {
-      router.push('/');
-    }
+    // 5. Strictly a non-user / guest: navigate strictly to homepage
+    router.push('/');
   };
 
   useEffect(() => {
