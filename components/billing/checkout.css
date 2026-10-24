@@ -32,7 +32,8 @@
   position: relative;
   width: 100%;
   max-width: 960px;
-  max-height: 90vh;
+  height: 90vh;
+  max-height: 840px;
   display: flex;
   flex-direction: row;
   border-radius: 24px;
@@ -69,6 +70,7 @@
   position: relative;
   border-right: 1px solid rgba(255, 255, 255, 0.08);
   color: #FAF8F5;
+  height: 100%;
   overflow-y: auto;
 }
 
@@ -244,6 +246,9 @@
   flex-direction: column;
   position: relative;
   overflow: hidden;
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
 }
 
 /* Header with Close Button */
@@ -254,6 +259,7 @@
   align-items: center;
   justify-content: space-between;
   background: #FFFFFF;
+  flex-shrink: 0;
 }
 
 .unool-right-header-text {
@@ -302,13 +308,45 @@
 
 /* Embed Mount Area */
 .unool-cashfree-mount {
-  flex: 1;
+  flex: 1 1 auto;
   width: 100%;
-  min-height: 520px;
-  max-height: 75vh;
+  min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
   position: relative;
   background: #FFFFFF;
+  padding-bottom: 32px;
+  scrollbar-width: thin;
+  scrollbar-color: #C5BCB0 #FAF8F5;
+}
+
+.unool-cashfree-mount::-webkit-scrollbar {
+  width: 8px;
+}
+
+.unool-cashfree-mount::-webkit-scrollbar-track {
+  background: #FAF8F5;
+}
+
+.unool-cashfree-mount::-webkit-scrollbar-thumb {
+  background: #D6CFC7;
+  border-radius: 4px;
+}
+
+.unool-cashfree-mount::-webkit-scrollbar-thumb:hover {
+  background: #A39B8E;
+}
+
+.unool-cf-embed-target {
+  width: 100%;
+  min-height: 780px;
+}
+
+.unool-cf-embed-target > div,
+.unool-cf-embed-target iframe {
+  min-height: 780px !important;
+  width: 100% !important;
 }
 
 /* Loading Placeholder inside mount */
@@ -352,6 +390,7 @@
   justify-content: space-between;
   font-size: 12px;
   color: #7A7265;
+  flex-shrink: 0;
 }
 
 .unool-verify-btn {
@@ -374,6 +413,7 @@
 @media (max-width: 860px) {
   .unool-checkout-dialog {
     flex-direction: column;
+    height: auto;
     max-height: 94vh;
     overflow-y: auto;
     border-radius: 20px;
@@ -385,13 +425,19 @@
     border-right: none;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     padding: 24px 20px;
+    height: auto;
+    overflow-y: visible;
   }
 
   .unool-checkout-right {
     width: 100%;
+    height: auto;
+    overflow: visible;
   }
 
   .unool-cashfree-mount {
-    min-height: 480px;
+    min-height: 720px;
+    overflow-y: visible;
+    padding-bottom: 32px;
   }
 }

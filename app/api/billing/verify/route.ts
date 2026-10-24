@@ -4,6 +4,9 @@ import { getOrderPayments } from '@/lib/billing/cashfree';
 import { findOrderByCfOrderId, markOrderPaid, markOrderFailed } from '@/lib/billing/subscription';
 import { logger } from '@/lib/logger';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 /**
  * GET /api/billing/verify?orderId=xxx
  * Client-side fallback verification.
@@ -40,7 +43,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         status: 'PAID',
         planId: dbOrder.plan_id,
+        billingCycle: dbOrder.billing_cycle,
         message: 'Payment successful! Your plan is now active.',
+      }, {
+        headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' },
       });
     }
 
@@ -72,7 +78,10 @@ export async function GET(request: NextRequest) {
           return NextResponse.json({
             status: 'PAID',
             planId: dbOrder.plan_id,
+            billingCycle: dbOrder.billing_cycle,
             message: 'Payment successful! Your plan is now active.',
+          }, {
+            headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' },
           });
         }
       }

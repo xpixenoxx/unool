@@ -143,14 +143,44 @@ export default function BillingClient() {
           // Broadcast to other tabs
           try {
             const bc = new BroadcastChannel('unool_billing_sync');
-            bc.postMessage({ type: 'CHECKOUT_SUCCESS', orderId });
+            bc.postMessage({ type: 'CHECKOUT_SUCCESS', orderId, planId: data.planId });
             bc.close();
           } catch {}
-          // Refresh current plan
-          const currentRes = await fetch('/api/billing/current');
-          if (currentRes.ok) {
-            setCurrentPlan(await currentRes.json());
+          // Optimistic plan upgrade so the user instantly sees their new plan
+          const targetPlanId = data.planId;
+          const upgraded = plans.find(p => p.id === targetPlanId);
+          const cyc = data.billingCycle || billingCycle;
+          if (upgraded) {
+            setCurrentPlan({
+              plan: { id: upgraded.id, name: upgraded.name, tagline: upgraded.tagline },
+              subscription: {
+                id: 'sub_' + orderId,
+                status: 'active',
+                billingCycle: cyc,
+                amount: cyc === 'annual' ? upgraded.pricing.annualDisplay : upgraded.pricing.monthlyDisplay,
+                amountPaise: cyc === 'annual' ? upgraded.pricing.annual : upgraded.pricing.monthly,
+                currency: upgraded.pricing.currency,
+                currentPeriodStart: new Date().toISOString(),
+                currentPeriodEnd: new Date(Date.now() + (cyc === 'annual' ? 365 : 30) * 86400000).toISOString(),
+                trialEnd: null,
+                cancelAtPeriodEnd: false,
+                cancelledAt: null,
+                paymentMethod: null,
+              },
+              isFreeTier: false,
+            });
           }
+
+          // Refresh current plan with cache buster from server
+          try {
+            const currentRes = await fetch(`/api/billing/current?t=${Date.now()}`, { cache: 'no-store' });
+            if (currentRes.ok) {
+              const freshPlan = await currentRes.json();
+              if (freshPlan && !freshPlan.isFreeTier) {
+                setCurrentPlan(freshPlan);
+              }
+            }
+          } catch {}
           return;
         }
 
@@ -163,15 +193,15 @@ export default function BillingClient() {
 
         // Still pending — poll again
         attempts++;
-        setTimeout(poll, 3000);
+        setTimeout(poll, 2500);
       } catch {
         attempts++;
-        setTimeout(poll, 3000);
+        setTimeout(poll, 2500);
       }
     };
 
     poll();
-  }, []);
+  }, [plans, billingCycle]);
 
   // ── Multi-Tab Sync via BroadcastChannel ─────────────────────
   useEffect(() => {
@@ -182,7 +212,7 @@ export default function BillingClient() {
         if (event.data?.type === 'CHECKOUT_SUCCESS') {
           // Another tab completed payment — refresh subscription & close any modal
           setCheckoutData(null);
-          fetch('/api/billing/current')
+          fetch(`/api/billing/current?t=${Date.now()}`, { cache: 'no-store' })
             .then(res => res.json())
             .then(data => {
               setCurrentPlan(data);
@@ -246,12 +276,42 @@ export default function BillingClient() {
         const ageMs = Date.now() - (parsed.timestamp || 0);
         // If within 15 minutes, check if it was completed or failed
         if (parsed.cfOrderId && ageMs < 15 * 60 * 1000) {
-          fetch(`/api/billing/verify?orderId=${parsed.cfOrderId}`)
+          fetch(`/api/billing/verify?orderId=${parsed.cfOrderId}&t=${Date.now()}`, { cache: 'no-store' })
             .then(res => res.json())
             .then(data => {
               if (data.status === 'PAID') {
                 setPaymentResult({ status: 'PAID', message: data.message });
-                fetch('/api/billing/current').then(r => r.json()).then(setCurrentPlan);
+                const targetPlanId = data.planId || parsed.planId;
+                const upgraded = plans.find(p => p.id === targetPlanId);
+                const cyc = data.billingCycle || parsed.billingCycle || 'monthly';
+                if (upgraded) {
+                  setCurrentPlan({
+                    plan: { id: upgraded.id, name: upgraded.name, tagline: upgraded.tagline },
+                    subscription: {
+                      id: 'sub_' + parsed.cfOrderId,
+                      status: 'active',
+                      billingCycle: cyc,
+                      amount: cyc === 'annual' ? upgraded.pricing.annualDisplay : upgraded.pricing.monthlyDisplay,
+                      amountPaise: cyc === 'annual' ? upgraded.pricing.annual : upgraded.pricing.monthly,
+                      currency: upgraded.pricing.currency,
+                      currentPeriodStart: new Date().toISOString(),
+                      currentPeriodEnd: new Date(Date.now() + (cyc === 'annual' ? 365 : 30) * 86400000).toISOString(),
+                      trialEnd: null,
+                      cancelAtPeriodEnd: false,
+                      cancelledAt: null,
+                      paymentMethod: null,
+                    },
+                    isFreeTier: false,
+                  });
+                }
+                fetch(`/api/billing/current?t=${Date.now()}`, { cache: 'no-store' })
+                  .then(r => r.json())
+                  .then(freshPlan => {
+                    if (freshPlan && !freshPlan.isFreeTier) {
+                      setCurrentPlan(freshPlan);
+                    }
+                  })
+                  .catch(() => {});
               } else if (data.status === 'FAILED') {
                 setPaymentResult({
                   status: 'ERROR',
@@ -274,8 +334,8 @@ export default function BillingClient() {
     async function loadData() {
       try {
         const [plansRes, currentRes] = await Promise.all([
-          fetch('/api/billing/plans?country=IN'),
-          fetch('/api/billing/current'),
+          fetch('/api/billing/plans?country=IN', { cache: 'no-store' }),
+          fetch(`/api/billing/current?t=${Date.now()}`, { cache: 'no-store' }),
         ]);
 
         if (plansRes.ok) {
@@ -368,7 +428,7 @@ export default function BillingClient() {
       if (res.ok) {
         setShowCancelModal(false);
         // Refresh current plan
-        const currentRes = await fetch('/api/billing/current');
+        const currentRes = await fetch(`/api/billing/current?t=${Date.now()}`, { cache: 'no-store' });
         if (currentRes.ok) {
           setCurrentPlan(await currentRes.json());
         }

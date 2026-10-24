@@ -175,7 +175,7 @@ export function UnoolCheckoutModal({
             redirectTarget: container,
             appearance: {
               width: '100%',
-              height: '560px',
+              height: '780px',
             },
           })
           .then((result: any) => {
@@ -407,7 +407,7 @@ export function UnoolCheckoutModal({
               className="unool-cf-embed-target"
               style={{
                 width: '100%',
-                minHeight: '520px',
+                minHeight: '780px',
                 display: initError ? 'none' : 'block',
               }}
             />

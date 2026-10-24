@@ -188,6 +188,29 @@ export async function markOrderPaid(
     order.billing_cycle
   );
 
+  // Activate and persist subscription record on the workspace
+  try {
+    await upsertSubscription({
+      workspaceId: order.workspace_id,
+      userId: order.user_id,
+      planId: order.plan_id as PlanId,
+      billingCycle: order.billing_cycle as BillingCycle,
+      amountPaise: order.amount_paise,
+      currency: order.currency as Currency,
+      cfSubscriptionId: cfPaymentId,
+      status: 'active',
+      currentPeriodStart: new Date().toISOString(),
+      currentPeriodEnd: calculatePeriodEnd(order.billing_cycle as BillingCycle),
+      paymentMethod: paymentMethod || order.payment_method || undefined,
+    });
+  } catch (subErr) {
+    logger.error('Failed to upsert subscription in markOrderPaid', {
+      error: subErr instanceof Error ? subErr : new Error(String(subErr)),
+      workspaceId: order.workspace_id,
+      planId: order.plan_id,
+    });
+  }
+
   // Trigger referral conversion reward if the user was referred
   try {
     const { recordReferralConversion } = await import('@/lib/referrals/service');
@@ -237,6 +260,7 @@ export async function upsertSubscription(params: {
   currentPeriodStart?: string;
   currentPeriodEnd?: string;
   trialEnd?: string;
+  paymentMethod?: string;
 }): Promise<Subscription> {
   const { data, error } = await adminClient
     .from('subscriptions')
@@ -253,6 +277,7 @@ export async function upsertSubscription(params: {
         current_period_start: params.currentPeriodStart || new Date().toISOString(),
         current_period_end: params.currentPeriodEnd || calculatePeriodEnd(params.billingCycle),
         trial_end: params.trialEnd || null,
+        payment_method: params.paymentMethod || null,
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'workspace_id' }
@@ -393,7 +418,7 @@ export async function recordWebhookEvent(
 
 // ── Helpers ─────────────────────────────────────────────────────
 
-function calculatePeriodEnd(billingCycle: BillingCycle): string {
+export function calculatePeriodEnd(billingCycle: BillingCycle): string {
   const now = new Date();
   if (billingCycle === 'annual') {
     now.setFullYear(now.getFullYear() + 1);
