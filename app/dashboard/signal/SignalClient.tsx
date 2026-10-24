@@ -83,14 +83,14 @@ export function getDraftRedirect(post: SignalPost): { href: string; title: strin
       };
     case 'quick-broadcast':
       return {
-        href: `/dashboard/composer?mode=quick&postId=${post.id}`,
+        href: `/dashboard/studio?mode=quick&postId=${post.id}`,
         title: 'Review, edit, and publish in Quick Broadcast',
         label: 'Quick Broadcast Draft',
       };
     case 'ai-composer':
     default:
       return {
-        href: `/dashboard/composer?mode=ai&postId=${post.id}`,
+        href: `/dashboard/studio?mode=ai&postId=${post.id}`,
         title: 'Review, edit, and publish in AI Composer',
         label: 'AI Composer Draft',
       };
@@ -1642,7 +1642,7 @@ function DNAView({
         </p>
         <div className="flex items-center justify-center gap-3">
           <Link
-            href="/dashboard/composer"
+            href="/dashboard/studio"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#3D2B1F] text-white text-sm font-semibold hover:bg-black transition-colors"
           >
             <span>Open Studio</span>
@@ -2059,7 +2059,7 @@ function DNAView({
                   <p className="text-xs text-[#8B7355] leading-relaxed mb-3">{rec.desc}</p>
                 </div>
                 <Link
-                  href="/dashboard/composer"
+                  href="/dashboard/studio"
                   className="inline-flex items-center gap-1 text-xs font-bold text-[#C4A265] hover:text-[#3D2B1F]"
                 >
                   <span>Apply in Studio</span>
@@ -2091,7 +2091,7 @@ function EmptyState() {
       </p>
       <div className="flex items-center justify-center gap-3">
         <Link
-          href="/dashboard/composer"
+          href="/dashboard/studio"
           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#3D2B1F] text-white text-sm font-semibold hover:bg-black transition-colors"
         >
           Open Studio

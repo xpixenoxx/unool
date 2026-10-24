@@ -942,7 +942,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       setMedia([]);
       hasLoadedTargetPost.current = null;
       if (typeof window !== 'undefined') {
-        window.history.replaceState({}, '', '/dashboard/composer');
+        window.history.replaceState({}, '', '/dashboard/studio');
       }
       studioToast.info('Composer cleared');
       return;
@@ -984,7 +984,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       setMedia([]);
       hasLoadedTargetPost.current = null;
       if (typeof window !== 'undefined') {
-        window.history.replaceState({}, '', '/dashboard/composer');
+        window.history.replaceState({}, '', '/dashboard/studio');
       }
     } catch (err) {
       studioToast.error(err instanceof Error ? err.message : 'Failed to save draft');
@@ -1886,7 +1886,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         {/* Header */}
         <div className="pb-4 border-b border-border flex items-start justify-between flex-wrap gap-3">
           <div>
-            <Display size="xl" weight="bold">Composer</Display>
+            <Display size="xl" weight="bold">Studio</Display>
             <Text size="sm" color="muted" className="mt-1">
               Write once. AI adapts. You review. One click publishes everywhere.
             </Text>
@@ -2038,7 +2038,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                       asChild 
                       className="group relative px-3 py-1.5 text-[#8B7355] hover:text-[#3D2B1F] hover:bg-[#F5EFE2] transition-all duration-200 rounded-lg border border-transparent hover:border-[#E8E0D4]"
                     >
-                      <Link href="/dashboard/presence">
+                      <Link href="/dashboard/profile">
                         <span className="flex items-center gap-1.5 font-medium text-sm">
                           <svg className="w-4 h-4 transition-transform group-hover:translate-x-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -2100,7 +2100,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                       boxShadow: '0 2px 8px rgba(196,162,101,0.3)'
                     }}
                   >
-                    <Link href="/dashboard/presence">
+                    <Link href="/dashboard/profile">
                       <span className="flex items-center gap-1.5">
                         Set Up Profile
                         <ArrowUpRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
@@ -3074,7 +3074,7 @@ export default function ComposerClientWrapper({ userId, workspaceId }: ComposerC
     <Suspense fallback={
       <Box className="max-w-4xl mx-auto px-4 py-8 space-y-6">
         <div className="pb-4 border-b border-border">
-          <Display size="xl" weight="bold">Composer</Display>
+          <Display size="xl" weight="bold">Studio</Display>
           <Text size="sm" color="muted" className="mt-1">Write once. AI adapts. You review. One click publishes everywhere.</Text>
         </div>
         <Card>

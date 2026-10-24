@@ -292,7 +292,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
 
             {/* CTA Button */}
             <Link
-              href="/dashboard/composer"
+              href="/dashboard/studio"
               className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:shadow-md"
               style={{
                 backgroundColor: B.text,
@@ -562,7 +562,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             title="Content Studio"
             subtitle="Write once, broadcast everywhere"
             description="AI adapts your content for LinkedIn, X, Threads, and more. Review and publish in one click."
-            href="/dashboard/composer"
+            href="/dashboard/studio"
             buttonLabel="Open Studio"
             badge={usageStats.postsThisMonth > 0 ? `${usageStats.postsThisMonth} Broadcasts` : 'Multi-Publish'}
           />
@@ -573,7 +573,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             title="Your Public Profile"
             subtitle="One link for everything"
             description="Professional landing page with links, credentials, and social proof — all in one place."
-            href={isProfileLive ? `/u/${profile?.subdomain}` : '/dashboard/presence'}
+            href={isProfileLive ? `/u/${profile?.subdomain}` : '/dashboard/profile'}
             buttonLabel={isProfileLive ? 'View Live Profile' : 'Set Up Profile'}
             external={!!isProfileLive}
           />
@@ -911,7 +911,7 @@ function RecentBroadcasts({ posts }: { posts: Post[] }) {
           </div>
         </div>
         <Link
-          href="/dashboard/composer"
+          href="/dashboard/studio"
           className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
           style={{
             backgroundColor: B.accentBg,
@@ -1035,7 +1035,7 @@ function EmptyState() {
         Write your first post and broadcast it across LinkedIn, X, Threads, and more — all at once.
       </p>
       <Link
-        href="/dashboard/composer"
+        href="/dashboard/studio"
         className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-shadow hover:shadow-md"
         style={{
           backgroundColor: B.text,

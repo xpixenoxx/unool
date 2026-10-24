@@ -43,7 +43,7 @@ describe('Draft Redirection Logic in Signal', () => {
     expect(getDraftRedirect(postWithArc).href).toBe('/dashboard/flightplan?postId=fp-post-2');
   });
 
-  it('correctly routes Quick Broadcast drafts to /dashboard/composer?mode=quick&postId=...', () => {
+  it('correctly routes Quick Broadcast drafts to /dashboard/studio?mode=quick&postId=...', () => {
     const quickBroadcastPost: SignalPost = {
       id: 'qb-post-1',
       content: 'Quick broadcast message',
@@ -60,7 +60,7 @@ describe('Draft Redirection Logic in Signal', () => {
 
     expect(getDraftOrigin(quickBroadcastPost)).toBe('quick-broadcast');
     const redirect = getDraftRedirect(quickBroadcastPost);
-    expect(redirect.href).toBe('/dashboard/composer?mode=quick&postId=qb-post-1');
+    expect(redirect.href).toBe('/dashboard/studio?mode=quick&postId=qb-post-1');
     expect(redirect.title).toContain('Quick Broadcast');
     expect(redirect.label).toBe('Quick Broadcast Draft');
   });
@@ -80,10 +80,10 @@ describe('Draft Redirection Logic in Signal', () => {
     };
 
     expect(getDraftOrigin(postWithDirectBroadcast)).toBe('quick-broadcast');
-    expect(getDraftRedirect(postWithDirectBroadcast).href).toBe('/dashboard/composer?mode=quick&postId=qb-post-2');
+    expect(getDraftRedirect(postWithDirectBroadcast).href).toBe('/dashboard/studio?mode=quick&postId=qb-post-2');
   });
 
-  it('correctly routes AI Composer drafts to /dashboard/composer?mode=ai&postId=...', () => {
+  it('correctly routes AI Composer drafts to /dashboard/studio?mode=ai&postId=...', () => {
     const aiComposerPost: SignalPost = {
       id: 'ai-post-1',
       content: 'AI adapted post source content',
@@ -100,7 +100,7 @@ describe('Draft Redirection Logic in Signal', () => {
 
     expect(getDraftOrigin(aiComposerPost)).toBe('ai-composer');
     const redirect = getDraftRedirect(aiComposerPost);
-    expect(redirect.href).toBe('/dashboard/composer?mode=ai&postId=ai-post-1');
+    expect(redirect.href).toBe('/dashboard/studio?mode=ai&postId=ai-post-1');
     expect(redirect.title).toContain('AI Composer');
     expect(redirect.label).toBe('AI Composer Draft');
   });
@@ -119,6 +119,6 @@ describe('Draft Redirection Logic in Signal', () => {
     };
 
     expect(getDraftOrigin(defaultPost)).toBe('ai-composer');
-    expect(getDraftRedirect(defaultPost).href).toBe('/dashboard/composer?mode=ai&postId=unknown-post-1');
+    expect(getDraftRedirect(defaultPost).href).toBe('/dashboard/studio?mode=ai&postId=unknown-post-1');
   });
 });

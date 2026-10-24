@@ -110,7 +110,7 @@ function PublishContentInner() {
       if (!res.ok) {
         if (res.status === 404) {
           toast.error('Post not found');
-          router.push('/dashboard/composer');
+          router.push('/dashboard/studio');
         } else {
           toast.error('Failed to load post');
         }
@@ -141,7 +141,7 @@ function PublishContentInner() {
   useEffect(() => {
     if (!postId) {
       toast.error('No post ID provided');
-      router.push('/dashboard/composer');
+      router.push('/dashboard/studio');
       return;
     }
     loadPost();
@@ -323,7 +323,7 @@ function PublishContentInner() {
             <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
             <Text color="muted">Post not found. Create a new post to get started.</Text>
             <Button asChild className="mt-4">
-              <Link href="/dashboard/composer">Create Post</Link>
+              <Link href="/dashboard/studio">Create Post</Link>
             </Button>
           </CardContent>
         </Card>

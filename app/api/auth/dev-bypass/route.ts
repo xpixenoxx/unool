@@ -5,7 +5,7 @@
  * Only works when NODE_ENV=development or DEV_AUTH_BYPASS=true.
  *
  * Usage: GET /api/auth/dev-bypass
- * Then visit any protected page (e.g., /dashboard/composer)
+ * Then visit any protected page (e.g., /dashboard/studio)
  */
 
 import { NextResponse } from 'next/server';

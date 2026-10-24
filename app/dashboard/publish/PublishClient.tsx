@@ -154,7 +154,7 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
       if (!res.ok) {
         if (res.status === 404 && !isPolling) {
           toast.error('Post not found');
-          router.push('/dashboard/composer');
+          router.push('/dashboard/studio');
         } else if (!isPolling) {
           toast.error('Failed to load post');
         }
@@ -186,7 +186,7 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
   useEffect(() => {
     if (!postId) {
       toast.error('No post ID provided');
-      router.push('/dashboard/composer');
+      router.push('/dashboard/studio');
       return;
     }
     loadPost();
@@ -454,7 +454,7 @@ export function PublishClientInner({ userId, workspaceId }: PublishClientProps) 
             <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
             <Text color="muted">Post not found. Create a new post to get started.</Text>
             <Button asChild className="mt-4">
-              <Link href="/dashboard/composer">Create Post</Link>
+              <Link href="/dashboard/studio">Create Post</Link>
             </Button>
           </CardContent>
         </Card>

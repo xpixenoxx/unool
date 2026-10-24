@@ -1,21 +1,19 @@
-import { getAuthContext } from '@/lib/auth/context';
 import { redirect } from 'next/navigation';
-import PresenceClientWrapper from './PresenceClient';
 
-async function getPresenceData() {
-  const auth = await getAuthContext();
-  if (!auth) {
-    return null;
+export default async function PresenceRedirectPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const resolved = searchParams ? await searchParams : {};
+  const params = new URLSearchParams();
+  for (const [key, val] of Object.entries(resolved || {})) {
+    if (Array.isArray(val)) {
+      for (const v of val) params.append(key, v);
+    } else if (typeof val === 'string') {
+      params.append(key, val);
+    }
   }
-  return { userId: auth.userId, workspaceId: auth.workspaceId };
-}
-
-export default async function PresencePage() {
-  const data = await getPresenceData();
-
-  if (!data) {
-    redirect('/');
-  }
-
-  return <PresenceClientWrapper userId={data.userId} workspaceId={data.workspaceId} />;
+  const query = params.toString();
+  redirect(`/dashboard/profile${query ? `?${query}` : ''}`);
 }

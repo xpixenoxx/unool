@@ -429,7 +429,7 @@ export function AnalyticsDNA({ resonance, posts, onSync, isSyncing = false }: { 
         </div>
         <h3 style={{ fontSize: 18, fontWeight: 800, color: TEXT_PRIMARY, marginBottom: 8 }}>Analytics Engine Ready</h3>
         <p style={{ fontSize: 13, color: TEXT_MUTED, maxWidth: 340, margin: '0 auto 24px', lineHeight: 1.65 }}>Publish your first post. Each dispatch builds real business intelligence — growth curves, ROI matrix, platform breakdown, and audience timing.</p>
-        <Link href="/dashboard/composer" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 22px', borderRadius: 12, background: GOLD, color: '#fff', fontSize: 13, fontWeight: 800, textDecoration: 'none' }}>
+        <Link href="/dashboard/studio" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 22px', borderRadius: 12, background: GOLD, color: '#fff', fontSize: 13, fontWeight: 800, textDecoration: 'none' }}>
           Open Studio <ArrowRight size={14} />
         </Link>
       </div>

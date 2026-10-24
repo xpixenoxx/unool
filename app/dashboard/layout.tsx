@@ -41,7 +41,7 @@ const navigation = [
   },
   {
     name: 'Studio',
-    href: '/dashboard/composer',
+    href: '/dashboard/studio',
     icon: PenTool,
     description: 'Create content',
   },
@@ -65,7 +65,7 @@ const navigation = [
   },
   {
     name: 'Unlock Gates',
-    href: '/dashboard/follow-gates',
+    href: '/dashboard/unlock-gates',
     icon: Lock,
     description: 'Follow-to-unlock content gates',
   },
@@ -77,7 +77,7 @@ const navigation = [
   },
   {
     name: 'Profile',
-    href: '/dashboard/presence',
+    href: '/dashboard/profile',
     icon: Globe,
     description: 'Your public page',
   },

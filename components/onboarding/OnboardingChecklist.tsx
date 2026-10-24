@@ -31,13 +31,13 @@ const categoryConfig: Record<string, {
 /* ─── Step → action URL mapping ────────────────────────────── */
 
 const stepActionUrls: Record<string, string> = {
-  'claim-subdomain': '/dashboard/presence',
-  'complete-profile': '/dashboard/presence',
+  'claim-subdomain': '/dashboard/profile',
+  'complete-profile': '/dashboard/profile',
   'connect-linkedin': '/dashboard',
   'connect-x': '/dashboard',
   'connect-threads': '/dashboard',
-  'write-first-post': '/dashboard/composer',
-  'publish-first-post': '/dashboard/composer',
+  'write-first-post': '/dashboard/studio',
+  'publish-first-post': '/dashboard/studio',
   'view-sync': '/dashboard',
 };
 
