@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>404 – Page not found | Pixenox</title>
+<meta name="robots" content="noindex, follow">
+<meta name="description" content="404 error: the page you were looking for could not be found on Pixenox.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;1,9..144,400&family=JetBrains+Mono:wght@500&family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --night: #0e1420;
+    --lamp: #ffd9a0;
+    --ghost: #8fa3c4;
+    --paper: #f4efe4;
+    --serif: "Fraunces", Georgia, "Times New Roman", serif;
+    --pixel: "Press Start 2P", ui-monospace, Menlo, Consolas, monospace;
+    --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; background: var(--night); color: var(--paper); overflow: hidden; }
+  body { font-family: var(--serif); cursor: none; touch-action: none; -webkit-user-select: none; user-select: none; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+  .copy {
+    position: fixed; left: clamp(20px, 5vw, 64px); top: clamp(20px, 6vh, 56px);
+    max-width: 30rem; pointer-events: none;
+  }
+  .copy h1 {
+    font-weight: 500; font-size: clamp(1.9rem, 4.6vw, 3.4rem); line-height: 1.05;
+    margin: 0 0 .7rem; letter-spacing: -.01em; transition: color .6s;
+  }
+  .copy p { margin: 0; font-style: italic; font-weight: 400; font-size: clamp(1rem, 1.6vw, 1.2rem); line-height: 1.5; color: var(--ghost); max-width: 26rem; }
+  .copy .tally { margin-top: 1.1rem; font-family: var(--mono); font-size: .85rem; color: var(--lamp); font-style: normal; }
+
+  .home {
+    position: fixed; right: clamp(20px, 5vw, 64px); top: clamp(20px, 6vh, 56px);
+    font-family: var(--serif); font-size: 1.05rem; color: var(--paper); text-decoration: none;
+    padding: .65rem 1.1rem; border: 1px solid rgba(244,239,228,.35); border-radius: 999px;
+    cursor: pointer; transition: background .3s, color .3s, border-color .3s, box-shadow .6s;
+  }
+  .home:hover, .home:focus-visible { background: var(--lamp); color: var(--night); border-color: var(--lamp); outline: none; }
+  .home:focus-visible { box-shadow: 0 0 0 3px var(--night), 0 0 0 5px var(--lamp); }
+  body.solved .home { background: var(--lamp); color: var(--night); border-color: var(--lamp); box-shadow: 0 0 40px 6px rgba(255,217,160,.45); }
+  body.solved .copy h1 { color: var(--lamp); }
+
+  @media (max-width: 640px) {
+    .home { top: auto; bottom: 22px; right: 50%; transform: translateX(50%); }
+  }
+  @media (hover: none) { body { cursor: auto; } }
+</style>
+</head>
+<body>
+<canvas id="c" aria-hidden="true"></canvas>
+
+<div class="copy" aria-live="polite">
+  <h1 id="title">404: this page wandered off.</h1>
+  <p id="sub">Page not found. Sweep your light around the dark and catch the letters that spell pixenox.</p>
+  <p class="tally" id="tally"></p>
+</div>
+
+<a class="home" href="/">Take me home</a>
+
+<script>
+(() => {
+  const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+  const titleEl = document.getElementById('title'), subEl = document.getElementById('sub'), tallyEl = document.getElementById('tally');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const speed = reduce ? .25 : 1;
+
+  // The letters to catch spell the site name.
+  const chars = [...'pixenox'];
+  const N = chars.length;
+
+  let W, H, DPR, R;
+  const light = { x: 0, y: 0, tx: 0, ty: 0, active: false };
+  let idleT = 0;
+  const glyphs = [], sparks = [];
+  let found = 0, solved = false, lastTouch = 0;
+
+  function resize() {
+    DPR = Math.min(devicePixelRatio || 1, 2);
+    W = innerWidth; H = innerHeight;
+    cv.width = W * DPR; cv.height = H * DPR;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    R = Math.max(130, Math.min(W, H) * .24);
+  }
+  resize(); addEventListener('resize', resize);
+  try { document.fonts.load('16px "Press Start 2P"'); } catch (e) {}
+  const PX = '"Press Start 2P", ui-monospace, Menlo, monospace';
+  light.x = light.tx = W / 2; light.y = light.ty = H / 2;
+
+  const rand = (a, b) => a + Math.random() * (b - a);
+  chars.forEach((ch, i) => {
+    glyphs.push({
+      ch, i, x: rand(60, W - 60), y: rand(H * .25, H - 140),
+      vx: rand(-.5, .5), vy: rand(-.4, .4), rot: 0, vr: 0,
+      size: rand(34, 56), state: ch === ' ' ? 'done' : 'drift', fx: 0, fy: 0, p: 0
+    });
+  });
+
+  // Tray: slots where letters settle in their correct order.
+  function slot(i) {
+    const w = Math.min(34, (W - 48) / N);
+    return { x: W / 2 - (N * w) / 2 + w * (i + .5), y: H - 70, w };
+  }
+
+  function pointer(e) {
+    const t = e.touches ? e.touches[0] : e;
+    light.tx = t.clientX; light.ty = t.clientY; light.active = true; idleT = 0;
+  }
+  addEventListener('pointermove', pointer);
+  addEventListener('pointerdown', e => {
+    pointer(e); lastTouch = performance.now();
+    // catch the nearest letter that is inside the light
+    let best = null, bd = 1e9;
+    for (const g of glyphs) {
+      if (g.state !== 'drift') continue;
+      const d = Math.hypot(g.x - e.clientX, g.y - e.clientY);
+      if (d < g.size * .9 && d < R && d < bd) { best = g; bd = d; }
+    }
+    if (best) catchGlyph(best);
+    else ring(e.clientX, e.clientY);
+  });
+  // keyboard users: arrow keys steer the light, Space/Enter catches
+  addEventListener('keydown', e => {
+    const k = { ArrowLeft: [-60, 0], ArrowRight: [60, 0], ArrowUp: [0, -60], ArrowDown: [0, 60] }[e.key];
+    if (k) { light.tx = Math.max(0, Math.min(W, light.tx + k[0])); light.ty = Math.max(0, Math.min(H, light.ty + k[1])); light.active = true; idleT = 0; e.preventDefault(); }
+    if (e.key === ' ' && document.activeElement === document.body) {
+      e.preventDefault();
+      let best = null, bd = 1e9;
+      for (const g of glyphs) { if (g.state !== 'drift') continue; const d = Math.hypot(g.x - light.x, g.y - light.y); if (d < R && d < bd) { best = g; bd = d; } }
+      if (best) catchGlyph(best);
+    }
+  });
+
+  const ring = (x, y) => sparks.push({ x, y, r: 6, life: 1, ring: true });
+  function burst(x, y) {
+    for (let k = 0; k < 14; k++) {
+      const a = rand(0, 6.28), s = rand(1, 4);
+      sparks.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 1 });
+    }
+  }
+
+  const lines = [
+    [.25, 'Warmer. It’s hiding close.'],
+    [.5, 'Halfway. The address is coming back together.'],
+    [.8, 'Almost whole.']
+  ];
+  function catchGlyph(g) {
+    g.state = 'flying'; g.fx = g.x; g.fy = g.y; g.p = 0;
+    burst(g.x, g.y);
+    found++;
+    tallyEl.textContent = found + ' of ' + countable() + ' letters caught';
+    const frac = found / countable();
+    if (frac < 1) { for (const [t, m] of lines) if (frac >= t) subEl.textContent = m; }
+    else finish();
+  }
+  const countable = () => glyphs.filter(g => g.ch !== ' ').length;
+
+  function finish() {
+    solved = true; document.body.classList.add('solved');
+    titleEl.textContent = '404: every letter found, still not here.';
+    subEl.textContent = 'Page not found, but you spelled pixenox. The way back is lit.';
+  }
+
+  function frame(t) {
+    // light follows pointer with a little weight; wanders on its own until touched
+    idleT += 1;
+    if (!light.active || idleT > 600) {
+      light.tx = W / 2 + Math.sin(t / 1700) * W * .32;
+      light.ty = H / 2 + Math.cos(t / 2300) * H * .26;
+    }
+    light.x += (light.tx - light.x) * .12; light.y += (light.ty - light.y) * .12;
+
+    ctx.fillStyle = '#0e1420'; ctx.fillRect(0, 0, W, H);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+
+    // giant pixel 404: always readable, blazing amber under the lamp
+    const D = { '4': ['00010','00110','01010','10010','11111','00010','00010'],
+                '0': ['01110','10001','10011','10101','11001','10001','01110'] };
+    const cell = Math.floor(Math.min(W * .82 / 17, H * .46 / 7));
+    const ox = Math.round(W / 2 - (17 * cell) / 2), oy = Math.round(H * .54 - (7 * cell) / 2);
+    ctx.beginPath();
+    [...'404'].forEach((d, di) => D[d].forEach((row, r) => [...row].forEach((v, c) => {
+      if (v === '1') ctx.rect(ox + (di * 6 + c) * cell + 1, oy + r * cell + 1, cell - 2, cell - 2);
+    })));
+    ctx.fillStyle = solved ? '#ffd9a0' : 'rgba(169,189,219,.65)'; ctx.fill();
+    if (!solved) {
+      const gr = ctx.createRadialGradient(light.x, light.y, 0, light.x, light.y, R * 1.3);
+      gr.addColorStop(0, 'rgba(255,225,170,1)'); gr.addColorStop(1, 'rgba(255,217,160,0)');
+      ctx.fillStyle = gr; ctx.fill();
+    }
+
+    // tray placeholders
+    const tf = Math.floor(Math.min(16, slot(0).w - 3));
+    ctx.font = tf + 'px ' + PX;
+    for (let i = 0; i < N; i++) {
+      if (chars[i] === ' ') continue;
+      const s = slot(i);
+      ctx.fillStyle = 'rgba(143,163,196,.35)';
+      ctx.fillRect(s.x - tf / 2, s.y + tf / 2 + 6, tf, 3);
+    }
+
+    // glyphs
+    for (const g of glyphs) {
+      if (g.state === 'drift') {
+        const dx = g.x - light.x, dy = g.y - light.y, d = Math.hypot(dx, dy) || 1;
+        if (d < R * .7) { const f = (1 - d / (R * .7)) * .06; g.vx += (dx / d) * f; g.vy += (dy / d) * f; } // shy of the light
+        g.vx *= .995; g.vy *= .995;
+        const sp = Math.hypot(g.vx, g.vy); if (sp > 1.6) { g.vx *= 1.6 / sp; g.vy *= 1.6 / sp; }
+        g.x += g.vx * speed; g.y += g.vy * speed; g.rot += g.vr * speed;
+        if (g.x < 30 || g.x > W - 30) g.vx *= -1;
+        if (g.y < 30 || g.y > H - 130) g.vy *= -1;
+        const a = Math.max(.05, 1 - d / R);
+        ctx.save(); ctx.translate(g.x, g.y); ctx.rotate(g.rot);
+        ctx.font = Math.round(g.size * .7) + 'px ' + PX;
+        ctx.fillStyle = 'rgba(244,239,228,' + (a * a + .14).toFixed(3) + ')';
+        ctx.fillText(g.ch, 0, 0);
+        ctx.restore();
+      } else if (g.state === 'flying') {
+        g.p = Math.min(1, g.p + .035);
+        const e = 1 - Math.pow(1 - g.p, 3), s = slot(g.i);
+        g.x = g.fx + (s.x - g.fx) * e; g.y = g.fy + (s.y - g.fy) * e;
+        ctx.save(); ctx.translate(g.x, g.y); ctx.rotate(g.rot * (1 - e));
+        ctx.font = Math.round(g.size * .7 + (tf - g.size * .7) * e) + 'px ' + PX;
+        ctx.fillStyle = '#ffd9a0'; ctx.fillText(g.ch, 0, 0); ctx.restore();
+        if (g.p >= 1) g.state = 'done';
+      } else if (g.ch !== ' ') {
+        const s = slot(g.i);
+        ctx.font = tf + 'px ' + PX;
+        ctx.fillStyle = solved ? '#ffd9a0' : '#f4efe4';
+        ctx.fillText(g.ch, s.x, s.y);
+      }
+    }
+
+    // sparks
+    for (let i = sparks.length - 1; i >= 0; i--) {
+      const s = sparks[i]; s.life -= s.ring ? .04 : .03;
+      if (s.life <= 0) { sparks.splice(i, 1); continue; }
+      if (s.ring) { s.r += 3; ctx.strokeStyle = 'rgba(255,217,160,' + s.life * .5 + ')'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 6.28); ctx.stroke(); }
+      else { s.x += s.vx; s.y += s.vy; s.vx *= .94; s.vy *= .94; ctx.fillStyle = 'rgba(255,217,160,' + s.life + ')'; ctx.fillRect(s.x, s.y, 2.5, 2.5); }
+    }
+
+    // the lamp itself: warm bloom + a bright core
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    const pulse = 1 + Math.sin(t / 380) * .03;
+    const bloom = ctx.createRadialGradient(light.x, light.y, 0, light.x, light.y, R * pulse);
+    bloom.addColorStop(0, 'rgba(255,217,160,.22)'); bloom.addColorStop(.5, 'rgba(255,190,120,.07)'); bloom.addColorStop(1, 'rgba(255,190,120,0)');
+    ctx.fillStyle = bloom; ctx.fillRect(0, 0, W, H);
+    ctx.restore();
+    ctx.fillStyle = '#fff3dc'; ctx.fillRect(Math.round(light.x) - 4, Math.round(light.y) - 4, 8, 8);
+
+    requestAnimationFrame(frame);
+  }
+  tallyEl.textContent = '0 of ' + countable() + ' letters caught';
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

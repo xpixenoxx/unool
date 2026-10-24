@@ -1,551 +1,727 @@
 'use client';
 
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { useState } from 'react';
-import { Check, X, Zap, Crown, Building2, Sparkles, ChevronRight, Star } from 'lucide-react';
 import './pricing.css';
 
-// ── Plan definitions ───────────────────────────────────────────────────────────
+// ── Types & Helpers ──────────────────────────────────────────────────────────
 
-const PLANS = [
+const inr = (n: number) => '₹' + n.toLocaleString('en-IN');
+
+interface BillItem {
+  name: string;
+  desc: string;
+  price: number;
+}
+
+const BILLS: [string, string, number][] = [
+  ['Zorcha Pro', 'Instagram DMs only', 1199],
+  ['Buffer', '4 channels', 2000],
+  ['Linktree Pro', 'Profile page', 1250],
+  ['Taplio', 'LinkedIn growth', 3250],
+];
+
+const PLAN_LABELS = [
+  'Workspaces',
+  'Templates',
+  'Publishing channels',
+  'Scheduled posts',
+  'AI credits',
+  'Instagram comments',
+  'LinkedIn comments',
+  'DM Concierge',
+  'Lead scoring',
+  'Brand voices',
+  'Analytics',
+  'Seats',
+  'Domain',
+];
+
+interface PlanData {
+  n: string;
+  t: string;
+  m: [number, number]; // [monthly, annual] in INR
+  u: [number, number]; // [monthly, annual] in USD
+  r: string[];
+}
+
+const PLANS: PlanData[] = [
   {
-    id: 'spark',
-    name: 'Spark',
-    icon: <Sparkles className="h-5 w-5" />,
-    tagline: 'Free forever',
-    monthly_inr: 0,
-    annual_inr: 0,
-    monthly_usd: 0,
-    annual_usd: 0,
-    cta: 'Start for free',
-    ctaHref: '/signup',
-    highlight: false,
-    badge: null,
-    color: '#6366f1',
-    features: [
-      '1 workspace · name.unool.co',
-      '5 premium profile templates',
-      '2 publishing channels',
-      '15 scheduled posts queued',
-      '25 AI credits / month',
-      '250 IG comments automated',
-      '50 LinkedIn comments automated',
-      'Follow-to-Unlock gates',
-      '30-day analytics',
-      '1 user',
+    n: 'Spark',
+    t: 'Free forever',
+    m: [0, 0],
+    u: [0, 0],
+    r: [
+      '1 · name.unool.co',
+      '5 premium',
+      '2',
+      '15 queued',
+      '25 / mo',
+      '250',
+      '50',
+      'None',
+      'None',
+      'None',
+      '30 days',
+      '1',
+      'unool.co address',
     ],
-    missing: [
-      'DM Concierge (AI responder)',
+  },
+  {
+    n: 'Creator',
+    t: 'For serious creators',
+    m: [799, 666],
+    u: [10, 8],
+    r: [
+      '1 · name.unool.co',
+      'All 16',
+      '4',
+      'Unlimited',
+      '150 / mo',
+      '500',
+      '250',
+      'Basic',
+      'None',
+      'None',
+      '90 days',
+      '1',
+      'unool.co address',
+    ],
+  },
+  {
+    n: 'Pro',
+    t: 'Most popular. The full engine',
+    m: [1999, 1666],
+    u: [24, 20],
+    r: [
+      '1',
+      'All 16',
+      '8',
+      'Unlimited + FlightPlan AI',
+      '500 / mo',
+      '3,000',
+      '1,500',
+      'Full + knowledge base',
+      '0–3 triage',
+      '5',
+      '1 year',
+      '3',
       'Custom domain',
-      'Lead scoring',
-      'Team seats',
     ],
   },
   {
-    id: 'creator',
-    name: 'Creator',
-    icon: <Zap className="h-5 w-5" />,
-    tagline: 'For serious creators',
-    monthly_inr: 799,
-    annual_inr: 666,
-    monthly_usd: 9,
-    annual_usd: 7.5,
-    cta: 'Start 14-day trial',
-    ctaHref: '/signup?plan=creator',
-    highlight: false,
-    badge: null,
-    color: '#f59e0b',
-    features: [
-      '1 workspace · name.unool.co',
-      'All 16 persona templates',
-      'No "Made with Unool" badge',
-      '4 publishing channels',
-      'Unlimited scheduled posts',
-      '150 AI credits / month',
-      '500 IG comments automated',
-      '250 LinkedIn comments automated',
-      'Basic DM Concierge',
-      '90-day analytics',
-      '1 user',
+    n: 'Studio',
+    t: 'For agencies and teams',
+    m: [4999, 4166],
+    u: [60, 50],
+    r: [
+      '3 brands or clients',
+      'All 16 + white-label',
+      'Unlimited',
+      'Unlimited',
+      'Unlimited (fair use)',
+      'Unlimited',
+      'Unlimited',
+      'Full + multi-routing',
+      '0–3 triage',
+      'Unlimited',
+      'Lifetime + export',
+      '10 + roles',
+      'White-label',
     ],
-    missing: [
-      'Custom domain',
-      'Lead scoring & triage',
-      'Team seats',
-    ],
-  },
-  {
-    id: 'pro',
-    name: 'Pro',
-    icon: <Crown className="h-5 w-5" />,
-    tagline: 'The full engine',
-    monthly_inr: 1999,
-    annual_inr: 1666,
-    monthly_usd: 24,
-    annual_usd: 20,
-    cta: 'Start 14-day trial',
-    ctaHref: '/signup?plan=pro',
-    highlight: true,
-    badge: 'Most popular',
-    color: '#6366f1',
-    features: [
-      '1 workspace + custom domain',
-      'All 16 persona templates',
-      '8 publishing channels',
-      'Unlimited posts + FlightPlan AI',
-      '500 AI credits / month',
-      '3,000 IG comments automated',
-      '1,500 LinkedIn comments automated',
-      'Full DM Concierge + knowledge base',
-      'Lead scoring 0–3 triage',
-      '1-year analytics',
-      '3 team seats',
-      '5 brand voice personas',
-    ],
-    missing: [],
-  },
-  {
-    id: 'studio',
-    name: 'Studio',
-    icon: <Building2 className="h-5 w-5" />,
-    tagline: 'For agencies & teams',
-    monthly_inr: 4999,
-    annual_inr: 4166,
-    monthly_usd: 59,
-    annual_usd: 49,
-    cta: 'Start 14-day trial',
-    ctaHref: '/signup?plan=studio',
-    highlight: false,
-    badge: 'Agency',
-    color: '#8b5cf6',
-    features: [
-      '3 workspaces (3 brands/clients)',
-      'Full white-label (zero Unool branding)',
-      'Unlimited publishing channels',
-      'Unlimited AI credits (fair use)',
-      'Unlimited IG + LinkedIn automation',
-      'Full DM Concierge + multi-routing',
-      'Lifetime analytics + data export',
-      '10 team seats + granular roles',
-      'Unlimited brand voice personas',
-      'Webhook API + Zapier triggers',
-      'Priority support + onboarding call',
-    ],
-    missing: [],
   },
 ];
 
-// ── Competitor comparison ──────────────────────────────────────────────────────
+const COMPETITOR_NAMES = ['Unool', 'Zorcha', 'Linktree', 'Buffer', 'Taplio'];
+const COMPETITOR_PRICES = ['₹799', '₹1,199', '₹1,250', '₹2,000+', '₹3,250+'];
 
-const COMPARISON_ROWS = [
-  {
-    feature: 'Premium profile page',
-    unool: 'true',
-    zorcha: 'partial',
-    linktree: 'partial',
-    buffer: 'false',
-    taplio: 'false',
-    note: '16 studio-grade templates vs Zorcha\'s 3 basic themes',
-  },
-  {
-    feature: 'IG Comment automation',
-    unool: 'true',
-    zorcha: 'true',
-    linktree: 'false',
-    buffer: 'false',
-    taplio: 'false',
-    note: 'AI semantic intent vs rigid keyword triggers',
-  },
-  {
-    feature: 'Comment-to-DM flows',
-    unool: 'true',
-    zorcha: 'true',
-    linktree: 'false',
-    buffer: 'false',
-    taplio: 'false',
-    note: '',
-  },
-  {
-    feature: 'LinkedIn automation',
-    unool: 'true',
-    zorcha: 'false',
-    linktree: 'false',
-    buffer: 'false',
-    taplio: 'partial',
-    note: 'Taplio schedules only — no auto-reply',
-  },
-  {
-    feature: 'Multi-platform publishing',
-    unool: 'true',
-    zorcha: 'false',
-    linktree: 'false',
-    buffer: 'true',
-    taplio: 'partial',
-    note: 'IG, LinkedIn, X, Threads, Bluesky',
-  },
-  {
-    feature: 'AI content composer',
-    unool: 'true',
-    zorcha: 'false',
-    linktree: 'false',
-    buffer: 'partial',
-    taplio: 'true',
-    note: '',
-  },
-  {
-    feature: 'Follow-to-unlock gates',
-    unool: 'true',
-    zorcha: 'true',
-    linktree: 'false',
-    buffer: 'false',
-    taplio: 'false',
-    note: '',
-  },
-  {
-    feature: 'DM Concierge (AI responder)',
-    unool: 'true',
-    zorcha: 'partial',
-    linktree: 'false',
-    buffer: 'false',
-    taplio: 'false',
-    note: 'Zorcha: rigid FAQ slots. Unool: full knowledge base',
-  },
-  {
-    feature: 'Custom domain',
-    unool: 'true',
-    zorcha: 'false',
-    linktree: 'true',
-    buffer: 'false',
-    taplio: 'false',
-    note: 'Pro+ only on Unool',
-  },
-  {
-    feature: 'UPI / INR billing',
-    unool: 'true',
-    zorcha: 'true',
-    linktree: 'false',
-    buffer: 'false',
-    taplio: 'false',
-    note: 'Buffer/Taplio are USD only — ₹83+ FX markup',
-  },
-  {
-    feature: 'Monthly India price',
-    unool: '₹799',
-    zorcha: '₹1,199',
-    linktree: '₹1,250',
-    buffer: '₹2,000+',
-    taplio: '₹3,250+',
-    note: 'Unool is the cheapest and does the most',
-    isPrice: true,
-  },
+const COMPARISONS: [string, string, string][] = [
+  ['Premium profile page', '16 studio-grade templates vs Zorcha’s 3 basic themes', 'yppnn'],
+  ['IG comment automation', 'AI semantic intent vs rigid keyword triggers', 'yynnn'],
+  ['Comment-to-DM flows', '', 'yynnn'],
+  ['LinkedIn automation', 'Taplio schedules only, no auto-reply', 'ynnnp'],
+  ['Multi-platform publishing', 'IG, LinkedIn, X, Threads, Bluesky', 'ynnyp'],
+  ['AI content composer', '', 'ynnpy'],
+  ['Follow-to-unlock gates', '', 'yynnn'],
+  ['DM Concierge (AI responder)', 'Zorcha: rigid FAQ slots. Unool: full knowledge base', 'ypnnn'],
+  ['Custom domain', 'Pro and above on Unool', 'ynynn'],
+  ['UPI / INR billing', 'Buffer and Taplio are USD only', 'yynnn'],
 ];
 
-// ── Component ──────────────────────────────────────────────────────────────────
+const STATUS_MAP: Record<string, [string, number]> = {
+  y: ['Full', 100],
+  p: ['Partial', 50],
+  n: ['Not offered', 0],
+};
+
+const calcPoints = (toolIdx: number) =>
+  COMPARISONS.reduce((acc, row) => acc + (row[2][toolIdx] === 'y' ? 1 : row[2][toolIdx] === 'p' ? 0.5 : 0), 0);
+
+const FAQS: [string, string][] = [
+  [
+    'Do I need a credit card to start?',
+    'No. Every signup gets a 14-day Pro trial with no card. After that you can stay on Spark for free or pick a paid plan.',
+  ],
+  [
+    'What payment methods do you accept?',
+    'UPI and cards, billed in INR with no FX markup. USD billing is available too.',
+  ],
+  [
+    'Can I switch plans anytime?',
+    'Yes. Move up or down whenever you like. The change applies from your next billing cycle.',
+  ],
+  [
+    'What happens to my data if I downgrade?',
+    'Your content stays. Features beyond the new plan’s limits pause until you upgrade again, and analytics older than the new window are hidden, not deleted.',
+  ],
+  [
+    'Is there GST on top of the prices shown?',
+    'Prices shown are before GST. Applicable GST is added at checkout.',
+  ],
+  [
+    'Can I connect my custom domain on Spark?',
+    'Custom domains start on Pro. Spark and Creator use your name.unool.co address.',
+  ],
+];
+
+// ── Main Component ─────────────────────────────────────────────────────────────
 
 export function PricingPageClient() {
-  const [billing, setBilling] = useState<'monthly' | 'annual'>('annual');
-  const [currency, setCurrency] = useState<'inr' | 'usd'>('inr');
+  // ── Receipt Cancelled Bills State ──
+  const [cancelled, setCancelled] = useState<Set<number>>(new Set());
+  const [displayedTotal, setDisplayedTotal] = useState<number>(7699);
+  const targetTotalRef = useRef<number>(7699);
+  const totalAnimFrameRef = useRef<number | null>(null);
 
-  const getPrice = (plan: typeof PLANS[0]) => {
-    if (plan.monthly_inr === 0) return 'Free';
-    const price = billing === 'annual'
-      ? (currency === 'inr' ? plan.annual_inr : plan.annual_usd)
-      : (currency === 'inr' ? plan.monthly_inr : plan.monthly_usd);
-    return currency === 'inr' ? `₹${price.toLocaleString('en-IN')}` : `$${price}`;
+  // ── Plans Configuration State ──
+  const [cur, setCur] = useState<'INR' | 'USD'>('INR');
+  const [per, setPer] = useState<'m' | 'a'>('a');
+  const [onPlan, setOnPlan] = useState<number>(2); // Pro active by default
+  const [planPrices, setPlanPrices] = useState<number[]>([0, 666, 1666, 4166]);
+  const planAnimFramesRef = useRef<(number | null)[]>([null, null, null, null]);
+
+  // ── Competitor Comparison State ──
+  const [who, setWho] = useState<number>(1); // 1 = Zorcha
+  const [barsFilled, setBarsFilled] = useState<boolean>(false);
+  const sbRef = useRef<HTMLDivElement | null>(null);
+
+  // ── FAQ Accordion State ──
+  const [openFaqs, setOpenFaqs] = useState<Set<number>>(new Set());
+
+  // ── Synchronize Body Background ──
+  useEffect(() => {
+    const origBg = document.body.style.backgroundColor;
+    const origColor = document.body.style.color;
+    document.body.style.backgroundColor = '#0a0a0a';
+    document.body.style.color = '#f5f7fa';
+    return () => {
+      document.body.style.backgroundColor = origBg;
+      document.body.style.color = origColor;
+    };
+  }, []);
+
+  // ── Tweening Total ──
+  const tweenTotalTo = (toVal: number) => {
+    const fromVal = targetTotalRef.current;
+    targetTotalRef.current = toVal;
+    if (fromVal === toVal) return;
+
+    if (totalAnimFrameRef.current) cancelAnimationFrame(totalAnimFrameRef.current);
+
+    const t0 = performance.now();
+    const duration = 700;
+
+    const step = (t: number) => {
+      const k = Math.min(1, (t - t0) / duration);
+      const ease = 1 - Math.pow(1 - k, 3);
+      const current = Math.round(fromVal + (toVal - fromVal) * ease);
+      setDisplayedTotal(current);
+      if (k < 1) {
+        totalAnimFrameRef.current = requestAnimationFrame(step);
+      }
+    };
+    totalAnimFrameRef.current = requestAnimationFrame(step);
   };
 
-  const getAnnualSaving = (plan: typeof PLANS[0]) => {
-    if (plan.monthly_inr === 0) return null;
-    const saving = currency === 'inr'
-      ? (plan.monthly_inr - plan.annual_inr) * 12
-      : (plan.monthly_usd - plan.annual_usd) * 12;
-    return currency === 'inr' ? `Save ₹${saving.toLocaleString('en-IN')}/yr` : `Save $${saving}/yr`;
+  // ── Flip Receipt Bills ──
+  const flip = (index: number, forceState?: boolean) => {
+    setCancelled((prev) => {
+      const next = new Set(prev);
+      if (forceState !== undefined) {
+        if (forceState) next.add(index);
+        else next.delete(index);
+      } else {
+        if (next.has(index)) next.delete(index);
+        else next.add(index);
+      }
+
+      // Compute total
+      let newTotal = next.size ? 1999 : 0;
+      BILLS.forEach((b, i) => {
+        if (!next.has(i)) newTotal += b[2];
+      });
+      tweenTotalTo(newTotal);
+
+      return next;
+    });
   };
+
+  // ── Mount: Sequential Auto-Cancellation ──
+  useEffect(() => {
+    const prefersReducedMotion =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (prefersReducedMotion) {
+      [0, 1, 2, 3].forEach((i) => flip(i, true));
+    } else {
+      const timers = [0, 1, 2, 3].map((i) =>
+        setTimeout(() => {
+          flip(i, true);
+        }, 1100 + i * 550)
+      );
+
+      return () => {
+        timers.forEach((t) => clearTimeout(t));
+        if (totalAnimFrameRef.current) cancelAnimationFrame(totalAnimFrameRef.current);
+      };
+    }
+  }, []);
+
+  // ── Compute Header Message ──
+  const diff = 7699 - displayedTotal;
+  let msgContent: React.ReactNode = null;
+  if (!cancelled.size) {
+    msgContent = 'You pay four companies every month.';
+  } else if (diff > 0) {
+    msgContent = (
+      <>
+        You keep <em>{inr(diff)}</em> a month. That’s {Math.round((diff / 7699) * 100)}% less.
+      </>
+    );
+  } else {
+    msgContent = 'Unool Pro is ₹1,999. Cancel the rest to start saving.';
+  }
+
+  // ── Tween Plan Prices on Cur / Per Change ──
+  useEffect(() => {
+    PLANS.forEach((p, i) => {
+      const targetVal =
+        cur === 'INR' ? p.m[per === 'a' ? 1 : 0] : p.u[per === 'a' ? 1 : 0];
+      const fromVal = planPrices[i] ?? targetVal;
+      if (fromVal === targetVal) return;
+
+      if (planAnimFramesRef.current[i]) {
+        cancelAnimationFrame(planAnimFramesRef.current[i]!);
+      }
+
+      const t0 = performance.now();
+      const duration = 600;
+
+      const step = (t: number) => {
+        const k = Math.min(1, (t - t0) / duration);
+        const ease = 1 - Math.pow(1 - k, 3);
+        const curr = Math.round(fromVal + (targetVal - fromVal) * ease);
+        setPlanPrices((prev) => {
+          const next = [...prev];
+          next[i] = curr;
+          return next;
+        });
+        if (k < 1) {
+          planAnimFramesRef.current[i] = requestAnimationFrame(step);
+        }
+      };
+      planAnimFramesRef.current[i] = requestAnimationFrame(step);
+    });
+
+    return () => {
+      planAnimFramesRef.current.forEach((frame) => {
+        if (frame) cancelAnimationFrame(frame);
+      });
+    };
+  }, [cur, per]);
+
+  const fmtCurrency = (val: number) => (cur === 'INR' ? inr(val) : '$' + val);
+
+  // ── Intersection Observer for Comparison Bars ──
+  useEffect(() => {
+    if (!sbRef.current) return;
+    if (!('IntersectionObserver' in window)) {
+      setBarsFilled(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setBarsFilled(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.4 }
+    );
+
+    observer.observe(sbRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  // ── Toggle FAQ ──
+  const toggleFaq = (index: number) => {
+    setOpenFaqs((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  };
+
+  // ── Competitor Head-to-Head Calculations ──
+  const winsCount = COMPARISONS.filter((r) => r[2][who] !== 'y').length;
+  const tiesCount = 10 - winsCount;
 
   return (
-    <div className="pricing-root">
-      {/* Nav back to home */}
-      <nav className="pricing-nav">
-        <Link href="/" className="pricing-logo">unool</Link>
-        <div className="pricing-nav-links">
-          <Link href="/templates">Templates</Link>
-          <Link href="/signup" className="pricing-nav-cta">Get started free →</Link>
-        </div>
-      </nav>
+    <div className="pricing-page">
+      {/* ── HEADER / HERO ── */}
+      <header className="hero">
+        <div className="w">
+          <nav>
+            <Link className="logo c" href="/">
+              unool
+            </Link>
+            <span>
+              <a href="#plans">Plans</a>
+              <Link href="/templates">Templates</Link>
+              <Link className="btn" href="#start">
+                Start free
+              </Link>
+            </span>
+          </nav>
 
-      {/* Top Screen: Hero + 4 Side-by-Side Plans fitting in one screen */}
-      <div className="pricing-top-screen">
-        {/* Hero */}
-        <section className="pricing-hero">
-          <div className="pricing-hero-badge">
-            <Star className="h-3.5 w-3.5" />
-            14-day Pro trial · No credit card
-          </div>
-          <h1 className="pricing-hero-title">
-            One platform.<br />
-            <span className="pricing-hero-gradient">Not four subscriptions.</span>
+          <h1 className="c">
+            <span className="l1">One</span> <span className="l2">bill.</span>
           </h1>
-          <p className="pricing-hero-subtitle">
-            Unool replaces Zorcha + Buffer + Linktree + Taplio with one flat-price platform.
-            Profile · Publishing · IG Automation · LinkedIn — all in one.
+
+          <div className="hg">
+            <p>
+              Unool replaces Zorcha, Buffer, Linktree and Taplio. Profile page, publishing,
+              Instagram automation and LinkedIn growth, for one flat price.
+            </p>
+            <p>14-day Pro trial on every signup. No credit card.</p>
+          </div>
+
+          <div className="rcs" id="rcs">
+            {BILLS.map((b, i) => {
+              const isCancelled = cancelled.has(i);
+              return (
+                <button
+                  key={b[0]}
+                  className={`rc${isCancelled ? ' x' : ''}`}
+                  aria-pressed={isCancelled}
+                  onClick={() => flip(i)}
+                  type="button"
+                >
+                  <b>{b[0]}</b>
+                  <span>{b[1]}</span>
+                  <br />
+                  <span className="pr c">
+                    {inr(b[2])}
+                    <small>/mo</small>
+                  </span>
+                  <i className="stamp" style={{ fontStyle: 'normal' }}>
+                    Cancelled
+                  </i>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="tot">
+            <div>
+              <p className="lb">Your monthly total</p>
+              <div className="big c" id="tot">
+                {inr(displayedTotal)}
+              </div>
+            </div>
+            <div>
+              <p className="msg" id="msg">
+                {msgContent}
+              </p>
+              <a className="btn" href="#plans">
+                See the plans
+              </a>
+            </div>
+          </div>
+
+          <p className="hint">Tap a bill to cancel it. Tap again to bring it back.</p>
+          <div style={{ height: 'clamp(40px,7vw,90px)' }}></div>
+        </div>
+      </header>
+
+      {/* ── PLANS SECTION ── */}
+      <section className="s paper" id="plans">
+        <div className="w">
+          <div className="ph">
+            <h2 className="d">Pick a size.</h2>
+            <div className="tg">
+              <div id="perSeg">
+                <button
+                  aria-pressed={per === 'm'}
+                  data-v="m"
+                  onClick={() => setPer('m')}
+                  type="button"
+                >
+                  Monthly
+                </button>
+                <button
+                  aria-pressed={per === 'a'}
+                  data-v="a"
+                  onClick={() => setPer('a')}
+                  type="button"
+                >
+                  Annual<i>2 months free</i>
+                </button>
+              </div>
+              <div id="curSeg">
+                <button
+                  aria-pressed={cur === 'INR'}
+                  data-v="INR"
+                  onClick={() => setCur('INR')}
+                  type="button"
+                >
+                  ₹ INR
+                </button>
+                <button
+                  aria-pressed={cur === 'USD'}
+                  data-v="USD"
+                  onClick={() => setCur('USD')}
+                  type="button"
+                >
+                  $ USD
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="cols" id="cols">
+            {PLANS.map((p, i) => {
+              const isSelected = i === onPlan;
+              const isFree = !p.m[0];
+              const saving =
+                (cur === 'INR' ? p.m[0] - p.m[1] : p.u[0] - p.u[1]) * 12;
+              const savingText =
+                isFree || per === 'm'
+                  ? ''
+                  : `Saves ${fmtCurrency(saving)} a year on annual`;
+
+              return (
+                <article
+                  key={p.n}
+                  className={`col${isSelected ? ' on' : ''}`}
+                  onClick={() => setOnPlan(i)}
+                >
+                  <h3>{p.n}</h3>
+                  <p className="tag">{p.t}</p>
+                  <div className="px c">
+                    <span className="pv">
+                      {isFree ? 'Free' : fmtCurrency(planPrices[i] ?? 0)}
+                    </span>
+                    {!isFree && <small>/ month</small>}
+                  </div>
+                  <p className="sv">{savingText}</p>
+                  <div className="det">
+                    <dl>
+                      {PLAN_LABELS.map((l, k) => (
+                        <div key={l}>
+                          <dt>{l}</dt>
+                          <dd>{p.r[k]}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                    <Link
+                      className="btn"
+                      href={i === 0 ? '/signup' : `/signup?plan=${p.n.toLowerCase()}`}
+                    >
+                      {i ? 'Start 14-day trial' : 'Start for free'}
+                    </Link>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* ── COMPARE SECTION ── */}
+      <section className="s">
+        <div className="w">
+          <h2 className="d">Side by side.</h2>
+          <p className="lede">
+            Ten jobs creators hire tools for. This is how many each tool actually does.
           </p>
 
-          {/* Billing toggle */}
-          <div className="pricing-toggles">
-            <div className="pricing-billing-toggle">
-              <button
-                className={billing === 'monthly' ? 'active' : ''}
-                onClick={() => setBilling('monthly')}
-                id="billing-monthly-btn"
-              >Monthly</button>
-              <button
-                className={billing === 'annual' ? 'active' : ''}
-                onClick={() => setBilling('annual')}
-                id="billing-annual-btn"
-              >
-                Annual
-                <span className="pricing-badge-save">2 months free</span>
-              </button>
-            </div>
-            <div className="pricing-currency-toggle">
-              <button
-                className={currency === 'inr' ? 'active' : ''}
-                onClick={() => setCurrency('inr')}
-                id="currency-inr-btn"
-              >₹ INR</button>
-              <button
-                className={currency === 'usd' ? 'active' : ''}
-                onClick={() => setCurrency('usd')}
-                id="currency-usd-btn"
-              >$ USD</button>
+          <div className="sb" id="sb" ref={sbRef}>
+            {COMPETITOR_NAMES.map((name, j) => {
+              const score = calcPoints(j);
+              const isMe = j === 0;
+              return (
+                <div key={name} className={`sr${isMe ? ' me' : ''}`}>
+                  <b>{name}</b>
+                  <div className="tr">
+                    <i
+                      style={{ width: barsFilled ? `${score * 10}%` : '0%' }}
+                      data-w={score * 10}
+                    />
+                  </div>
+                  <div className="sc c">{score}</div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="vh">
+            <h3 className="c">Now, feature by feature.</h3>
+            <div className="pick" id="pick" role="tablist">
+              {COMPETITOR_NAMES.slice(1).map((name, idx) => {
+                const compIndex = idx + 1;
+                return (
+                  <button
+                    key={name}
+                    role="tab"
+                    aria-selected={who === compIndex}
+                    onClick={() => setWho(compIndex)}
+                    type="button"
+                  >
+                    {name}
+                  </button>
+                );
+              })}
             </div>
           </div>
-        </section>
 
-        {/* Plan cards: All 4 plans side by side */}
-        <section className="pricing-cards">
-          {PLANS.map((plan) => (
-            <div
-              key={plan.id}
-              className={`pricing-card ${plan.highlight ? 'pricing-card--highlight' : ''} ${plan.id === 'studio' ? 'pricing-card--studio' : ''}`}
-              id={`pricing-card-${plan.id}`}
-            >
-              {plan.badge && (
-                <div
-                  className="pricing-card-badge"
-                  style={{ background: plan.color }}
-                >
-                  {plan.badge}
+          <div id="vs">
+            <p className="score c">
+              <span>{winsCount}</span> wins, {tiesCount} ties.
+            </p>
+            <div className="hd">
+              <div>Unool vs {COMPETITOR_NAMES[who]}</div>
+              <div>Unool</div>
+              <div>{COMPETITOR_NAMES[who]}</div>
+            </div>
+
+            {COMPARISONS.map((row, rIdx) => {
+              const isWin = row[2][who] !== 'y';
+              const unoolStatus = row[2][0];
+              const compStatus = row[2][who];
+
+              return (
+                <div key={rIdx} className={`lr${isWin ? ' win' : ''}`}>
+                  <div>
+                    {row[0]}
+                    {row[1] && <small>{row[1]}</small>}
+                  </div>
+                  <div className="a1">
+                    <span className="st">{STATUS_MAP[unoolStatus][0]}</span>
+                    <div className="mt">
+                      <i style={{ width: `${STATUS_MAP[unoolStatus][1]}%` }} />
+                    </div>
+                  </div>
+                  <div className={compStatus === 'n' ? 'no' : ''}>
+                    <span className="st">{STATUS_MAP[compStatus][0]}</span>
+                    <div className="mt">
+                      <i style={{ width: `${STATUS_MAP[compStatus][1]}%` }} />
+                    </div>
+                  </div>
                 </div>
-              )}
-              <div
-                className="pricing-card-icon"
+              );
+            })}
+
+            <div className="lr">
+              <div>
+                Monthly price in India
+                <small>Unool is the cheapest and does the most</small>
+              </div>
+              <div className="a1">
+                <span className="pt c">{COMPETITOR_PRICES[0]}</span>
+              </div>
+              <div>
+                <span className="pt c">{COMPETITOR_PRICES[who]}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── FAQ SECTION ── */}
+      <section className="s paper">
+        <div className="w">
+          <h2 className="d" style={{ marginBottom: '46px' }}>
+            Questions.
+          </h2>
+          <div id="faq">
+            {FAQS.map(([q, a], idx) => {
+              const isOpen = openFaqs.has(idx);
+              return (
+                <div
+                  key={q}
+                  className="q"
+                  data-open={isOpen ? 'true' : undefined}
+                  {...({ open: isOpen ? '' : undefined } as Record<string, unknown>)}
+                >
+                  <button
+                    aria-expanded={isOpen}
+                    onClick={() => toggleFaq(idx)}
+                    type="button"
+                  >
+                    {q}
+                  </button>
+                  <div className="a">
+                    <p>{a}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* ── END / CTA SECTION ── */}
+      <section className="s end" id="start">
+        <div className="w">
+          <h2 className="d">Start free.</h2>
+          <div className="row">
+            <p>No credit card. Every signup gets 14 days of full Pro.</p>
+            <span>
+              <Link className="btn" href="/signup">
+                Get started free
+              </Link>{' '}
+              <Link
+                className="btn"
+                href="/templates"
                 style={{
-                  color: plan.color,
-                  background: plan.id === 'studio' ? 'rgba(139, 92, 246, 0.16)' : undefined,
-                  borderColor: plan.id === 'studio' ? 'rgba(139, 92, 246, 0.3)' : undefined
+                  background: 'transparent',
+                  color: 'var(--n)',
+                  boxShadow: 'inset 0 0 0 2px var(--n)',
                 }}
               >
-                {plan.icon}
-              </div>
-              <h2 className="pricing-card-name">{plan.name}</h2>
-              <p className="pricing-card-tagline">{plan.tagline}</p>
-
-              <div className="pricing-card-price">
-                <span className="pricing-card-amount">{getPrice(plan)}</span>
-                {plan.monthly_inr > 0 && (
-                  <span className="pricing-card-period">/ month</span>
-                )}
-              </div>
-
-              {billing === 'annual' && plan.monthly_inr > 0 && (
-                <div className="pricing-card-saving">{getAnnualSaving(plan)}</div>
-              )}
-
-              <Link
-                href={plan.ctaHref}
-                className={`pricing-card-cta ${
-                  plan.highlight
-                    ? 'pricing-card-cta--primary'
-                    : plan.id === 'studio'
-                    ? 'pricing-card-cta--studio'
-                    : 'pricing-card-cta--secondary'
-                }`}
-                id={`pricing-cta-${plan.id}`}
-              >
-                {plan.cta} <ChevronRight className="h-4 w-4" />
+                See all templates
               </Link>
+            </span>
+          </div>
+        </div>
+      </section>
 
-              <ul className="pricing-feature-list">
-                {plan.features.map((f) => (
-                  <li key={f} className="pricing-feature-item pricing-feature-item--yes">
-                    <Check className="h-3.5 w-3.5 flex-shrink-0" />
-                    {f}
-                  </li>
-                ))}
-                {plan.missing.map((f) => (
-                  <li key={f} className="pricing-feature-item pricing-feature-item--no">
-                    <X className="h-3.5 w-3.5 flex-shrink-0" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </section>
+      {/* ── FOOTER ── */}
+      <div className="w">
+        <footer>
+          <span>© 2026 Pixenox Solutions · Prathipadu, Kakinada, AP</span>
+          <nav>
+            <Link href="/terms">Terms</Link>
+            <Link href="/privacy">Privacy</Link>
+            <Link href="/refund">Refund Policy</Link>
+            <Link href="/contact">Contact</Link>
+          </nav>
+        </footer>
       </div>
-
-      {/* Competitor comparison */}
-      <section className="pricing-compare-section">
-        <h2 className="pricing-compare-title">How Unool compares</h2>
-        <p className="pricing-compare-subtitle">
-          Every tool in the market, side by side. Honest comparison.
-        </p>
-
-        <div className="pricing-compare-wrap">
-          <table className="pricing-compare-table">
-            <thead>
-              <tr>
-                <th className="pricing-compare-th pricing-compare-th--feature">Feature</th>
-                <th className="pricing-compare-th pricing-compare-th--unool">Unool</th>
-                <th className="pricing-compare-th">Zorcha</th>
-                <th className="pricing-compare-th">Linktree</th>
-                <th className="pricing-compare-th">Buffer</th>
-                <th className="pricing-compare-th">Taplio</th>
-              </tr>
-            </thead>
-            <tbody>
-              {COMPARISON_ROWS.map((row) => (
-                <tr key={row.feature} className="pricing-compare-row">
-                  <td className="pricing-compare-td pricing-compare-td--feature">
-                    {row.feature}
-                    {row.note && <span className="pricing-compare-note"> — {row.note}</span>}
-                  </td>
-                  {['unool', 'zorcha', 'linktree', 'buffer', 'taplio'].map((tool) => {
-                    const val = row[tool as keyof typeof row] as string;
-                    const isUnool = tool === 'unool';
-                    return (
-                      <td
-                        key={tool}
-                        className={`pricing-compare-td ${isUnool ? 'pricing-compare-td--unool' : ''}`}
-                      >
-                        {row.isPrice ? (
-                          <span className={isUnool ? 'pricing-compare-price--winner' : 'pricing-compare-price'}>{val}</span>
-                        ) : val === 'true' ? (
-                          <Check className={`h-5 w-5 ${isUnool ? 'text-emerald-500' : 'text-emerald-500/70'}`} />
-                        ) : val === 'partial' ? (
-                          <span className="pricing-compare-partial">Partial</span>
-                        ) : (
-                          <X className="h-5 w-5 text-red-400/60" />
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {/* Value proof */}
-      <section className="pricing-math-section">
-        <h2 className="pricing-math-title">The math that makes the decision obvious</h2>
-        <div className="pricing-math-grid">
-          <div className="pricing-math-col pricing-math-col--them">
-            <h3>What creators currently pay separately</h3>
-            <div className="pricing-math-row">
-              <span>Zorcha Pro (IG DMs only)</span><span>₹1,199</span>
-            </div>
-            <div className="pricing-math-row">
-              <span>Buffer (4 channels)</span><span>₹2,000</span>
-            </div>
-            <div className="pricing-math-row">
-              <span>Linktree Pro</span><span>₹1,250</span>
-            </div>
-            <div className="pricing-math-row">
-              <span>Taplio (LinkedIn growth)</span><span>₹3,250</span>
-            </div>
-            <div className="pricing-math-total">
-              <span>Total per month</span><span>₹7,699</span>
-            </div>
-          </div>
-          <div className="pricing-math-vs">vs</div>
-          <div className="pricing-math-col pricing-math-col--us">
-            <h3>Unool Pro — everything above</h3>
-            <div className="pricing-math-highlight">₹1,999<span>/mo</span></div>
-            <div className="pricing-math-saving">You save ₹5,700/mo · 74% cheaper</div>
-            <Link href="/signup?plan=pro" className="pricing-math-cta" id="pricing-math-cta">
-              Start 14-day trial →
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* FAQ */}
-      <section className="pricing-faq-section">
-        <h2 className="pricing-faq-title">Common questions</h2>
-        <div className="pricing-faq-list">
-          {[
-            {
-              q: 'Do I need a credit card to start?',
-              a: 'No. The 14-day Pro trial is completely free with no credit card required. You get full Pro access and automatically downgrade to Spark (free) if you don\'t subscribe.',
-            },
-            {
-              q: 'What payment methods do you accept?',
-              a: 'UPI (GPay, PhonePe, Paytm, BHIM), UPI Autopay for subscriptions, Credit/Debit cards (Visa, Mastercard, RuPay), Netbanking (65+ banks), EMI for annual plans. All powered by Cashfree.',
-            },
-            {
-              q: 'Can I switch plans anytime?',
-              a: 'Yes — upgrade or downgrade anytime. Upgrades take effect immediately. Downgrades take effect at the end of your billing period.',
-            },
-            {
-              q: 'What happens to my data if I downgrade?',
-              a: 'Your data is always safe. If you exceed limits after downgrading, new actions are paused but existing data is preserved.',
-            },
-            {
-              q: 'Is there GST on top of the prices shown?',
-              a: 'Prices shown are all-inclusive for individual creators. GST invoices are available on request for business buyers who need Input Tax Credit.',
-            },
-            {
-              q: 'Can I connect my custom domain on Spark?',
-              a: 'Custom domains (like yourname.com) require the Pro plan (₹1,999/mo). Free users get a name.unool.co subdomain.',
-            },
-          ].map(({ q, a }) => (
-            <details key={q} className="pricing-faq-item">
-              <summary className="pricing-faq-q">{q}</summary>
-              <p className="pricing-faq-a">{a}</p>
-            </details>
-          ))}
-        </div>
-      </section>
-
-      {/* Bottom CTA */}
-      <section className="pricing-bottom-cta">
-        <h2 className="pricing-bottom-title">Start free. No credit card.</h2>
-        <p className="pricing-bottom-sub">
-          Join creators replacing 4 tools with one. 14-day full Pro trial on every signup.
-        </p>
-        <div className="pricing-bottom-actions">
-          <Link href="/signup" className="pricing-bottom-primary" id="pricing-bottom-signup">
-            Get started free
-          </Link>
-          <Link href="/templates" className="pricing-bottom-secondary">
-            See all templates →
-          </Link>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="pricing-footer">
-        <p>© 2026 Pixenox Solutions · Prathipadu, Kakinada, AP</p>
-        <div className="pricing-footer-links">
-          <Link href="/terms">Terms</Link>
-          <Link href="/privacy">Privacy</Link>
-          <Link href="/refund">Refund Policy</Link>
-          <Link href="/contact">Contact</Link>
-        </div>
-      </footer>
     </div>
   );
 }

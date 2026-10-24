@@ -2,22 +2,13 @@ import type { Metadata } from 'next';
 import { PricingPageClient } from './PricingPageClient';
 
 export const metadata: Metadata = {
-  title: 'Pricing — Unool | Plans from ₹799/mo',
+  title: 'Unool pricing: one bill',
   description:
-    'Unool replaces Zorcha, Buffer, and Linktree with one ₹799/mo platform. Profile + Publishing + Instagram Automation + LinkedIn — all in one. Try free, no credit card.',
-  keywords: [
-    'unool pricing',
-    'creator platform india',
-    'instagram automation pricing',
-    'link in bio pricing india',
-    'zorcha alternative',
-    'linktree alternative india',
-    'social media tool india',
-  ],
+    'Unool replaces Zorcha, Buffer, Linktree and Taplio. Profile page, publishing, Instagram automation and LinkedIn growth, for one flat price.',
   openGraph: {
-    title: 'Pricing — Unool | Plans from ₹799/mo',
+    title: 'Unool pricing: one bill',
     description:
-      'Replace Zorcha + Buffer + Linktree with one ₹799/mo platform. 14-day free trial, no credit card.',
+      'Unool replaces Zorcha, Buffer, Linktree and Taplio. Profile page, publishing, Instagram automation and LinkedIn growth, for one flat price.',
     type: 'website',
   },
 };

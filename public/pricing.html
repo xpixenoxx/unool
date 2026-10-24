@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Unool pricing: one bill</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Michroma&display=swap" rel="stylesheet">
+<style>
+:root{--b:#007ba7;--i:#0a0a0a;--n:#f5f7fa;--h:#ff2d95;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px);scroll-behavior:smooth}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--i);color:var(--n);font-family:'Archivo','Helvetica Neue',Arial,sans-serif;line-height:1.45;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;padding:0;text-align:inherit}
+:focus-visible{outline:3px solid var(--h);outline-offset:3px}
+.w{max-width:1280px;margin:0 auto;padding:0 clamp(18px,4vw,48px)}
+.c{font-stretch:62%;font-weight:900;letter-spacing:-.02em;line-height:.85}
+.s{padding:clamp(56px,9vw,120px) 0}
+.btn{display:inline-block;background:var(--n);color:var(--i);font-weight:700;padding:14px 24px;transition:background .2s,color .2s}
+.btn:hover{background:var(--h);color:var(--i)}
+nav{display:flex;justify-content:space-between;align-items:center;padding:22px 0}
+.logo{font-size:34px}
+nav a:not(.logo):not(.btn){margin-right:24px;font-weight:500}
+/* hero */
+.hero{background:radial-gradient(900px 520px at 88% 0,rgba(0,123,167,.34),transparent 70%),radial-gradient(700px 520px at 0 100%,rgba(255,45,149,.2),transparent 70%),var(--i)}
+h1{font-size:clamp(110px,26vw,400px);margin:clamp(20px,5vw,60px) 0 0}
+.hg{display:grid;grid-template-columns:1.2fr 1fr;gap:40px;margin:30px 0 56px;align-items:end}
+.hg p{margin:0;font-size:clamp(18px,2vw,24px);max-width:520px}
+.hg p:last-child{justify-self:end;font-size:16px;opacity:.85}
+.rcs{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.rc{position:relative;background:var(--n);color:var(--i);padding:18px 18px 40px;min-height:210px;
+-webkit-mask:conic-gradient(from -45deg at bottom,#0000,#000 1deg 89deg,#0000 90deg) 50%/14px 100%;mask:conic-gradient(from -45deg at bottom,#0000,#000 1deg 89deg,#0000 90deg) 50%/14px 100%;transition:background .4s,color .4s}
+.rc b{display:block;font-size:19px}
+.rc span{font-size:14px;opacity:.65}
+.rc .pr{position:relative;display:inline-block;margin-top:34px;font-size:clamp(52px,6vw,86px);opacity:1}
+.rc .pr::after{content:"";position:absolute;left:-4px;right:-4px;top:50%;height:7px;background:var(--h);transform:scaleX(0);transform-origin:left;transition:transform .45s cubic-bezier(.7,0,.2,1)}
+.rc small{font-size:16px;font-weight:600;font-stretch:100%;letter-spacing:0;margin-left:3px}
+.stamp{position:absolute;right:12px;top:14px;border:2px solid var(--h);color:var(--h);padding:2px 9px;font-weight:800;opacity:0;transform:rotate(-8deg) scale(1.7);transition:.35s .25s}
+.rc.x{background:rgba(236,234,227,.13);color:var(--n)}
+.rc.x .pr{opacity:.5}.rc.x .pr::after{transform:scaleX(1)}
+.rc.x .stamp{opacity:1;transform:rotate(-8deg) scale(1)}
+.tot{display:grid;grid-template-columns:1.3fr 1fr;gap:34px;align-items:end;margin-top:48px;border-top:2px solid var(--n);padding-top:22px}
+.tot .lb{font-weight:600;margin:0 0 10px}
+.big{font-size:clamp(84px,14vw,210px)}
+.tot .msg{font-size:clamp(22px,2.6vw,34px);font-weight:700;line-height:1.15;margin:0 0 20px}
+.tot .msg em{font-style:normal;color:var(--h);text-shadow:0 0 18px rgba(255,45,149,.7)}
+.hint{margin:22px 0 0;opacity:.8;font-size:15px}
+/* plans */
+.paper{--i:#f5f7fa;--n:#0a0a0a;background:var(--n);color:var(--i)}
+h2{font-size:clamp(56px,10vw,150px);margin:0}
+.ph{display:flex;justify-content:space-between;align-items:end;gap:30px;flex-wrap:wrap;margin-bottom:46px}
+.tg{display:flex;gap:40px;flex-wrap:wrap}
+.tg div button{font-weight:700;opacity:.4;margin-right:20px;padding:4px 0;border-bottom:3px solid transparent}
+.tg div button[aria-pressed=true]{opacity:1;border-color:var(--h)}
+.tg i{font-style:normal;color:var(--h);font-size:13px;margin-left:5px}
+.cols{display:flex;border-top:3px solid var(--i);border-bottom:3px solid var(--i)}
+.col{flex:1;min-width:0;border-left:1px solid var(--i);padding:22px 22px 30px;cursor:pointer;transition:flex .6s cubic-bezier(.7,0,.2,1),background .3s,color .3s}
+.col:first-child{border-left:0}
+.col.on{flex:2.5;background:var(--b);color:#fff;cursor:default;box-shadow:0 0 60px -10px rgba(0,123,167,.8)}
+.col h3{margin:0;font-size:22px}
+.col .tag{margin:0;font-size:14px;opacity:.7;min-height:21px}
+.px{font-size:clamp(50px,6vw,96px);margin:34px 0 4px;white-space:nowrap}
+.px small{font-size:15px;font-weight:600;font-stretch:100%;letter-spacing:0;margin-left:6px;opacity:.7}
+.sv{margin:0 0 20px;font-size:14px;font-weight:600;min-height:21px}
+.col:not(.on) .det{display:none}
+.det{animation:in .6s .25s both}
+@keyframes in{from{opacity:0}}
+dl{margin:0 0 26px}
+dl div{display:flex;justify-content:space-between;gap:14px;padding:9px 0;border-top:1px solid rgba(236,234,227,.35);font-size:14.5px}
+dt{opacity:.75}dd{margin:0;font-weight:700;text-align:right}
+.col .btn{background:var(--h);color:#0a0a0a}
+.col .btn:hover{background:#fff}
+/* compare */
+.lede{font-size:clamp(18px,2vw,24px);max-width:560px;margin:22px 0 48px;opacity:.8}
+.sb{display:grid;gap:10px}
+.sr{display:grid;grid-template-columns:130px 1fr 120px;gap:18px;align-items:center}
+.sr b{font-size:20px}
+.sr .tr{height:36px;background:rgba(242,238,225,.08)}
+.sr .tr i{display:block;height:100%;width:0;background:rgba(242,238,225,.35);transition:width 1.2s cubic-bezier(.7,0,.2,1)}
+.sr.me .tr i{background:var(--h)}.sr.me b{color:var(--h)}
+.sr .sc{font-size:clamp(44px,5.4vw,72px);text-align:right}
+.vh{display:flex;justify-content:space-between;align-items:end;gap:24px;flex-wrap:wrap;margin:clamp(70px,10vw,120px) 0 28px}
+.vh h3{font-size:clamp(36px,5vw,72px);margin:0}
+.pick{display:flex;border:2px solid var(--n)}
+.pick button{padding:12px 20px;font-weight:700;border-left:2px solid var(--n)}
+.pick button:first-child{border-left:0}
+.pick button[aria-selected=true]{background:var(--n);color:var(--i)}
+.score{font-size:clamp(64px,11vw,160px);margin:0 0 26px}
+.score span{color:var(--h)}
+.hd,.lr{display:grid;grid-template-columns:1.5fr 1fr 1fr}
+.hd div{padding:14px 18px;font-weight:800;font-size:20px}
+.hd div:nth-child(2){background:var(--b)}
+.lr{border-top:1px solid rgba(242,238,225,.2)}
+.lr>div{padding:16px 18px}
+.lr>div:first-child{padding-left:0}
+.lr small{display:block;opacity:.6;font-size:13.5px}
+.lr .a1{background:var(--b)}
+.lr.win .a1{box-shadow:inset 5px 0 var(--h)}
+.st{font-weight:700;display:block;margin-bottom:8px}
+.mt{height:5px;background:rgba(242,238,225,.18)}.mt i{display:block;height:100%;background:currentColor}
+.lr .no{opacity:.45}
+.pt{font-size:clamp(34px,4vw,56px);display:block}
+@media(max-width:860px){.sr{grid-template-columns:78px 1fr 66px;gap:10px}.lr>div,.hd div{padding:12px 8px}.hd div{font-size:16px}.st{font-size:14px}.pick{width:100%}.pick button{flex:1;padding:12px 4px}}
+/* faq */
+.q{border-top:2px solid var(--i)}.q:last-child{border-bottom:2px solid var(--i)}
+.q button{width:100%;display:flex;justify-content:space-between;gap:20px;padding:26px 0;font-size:clamp(22px,3vw,34px);font-stretch:75%;font-weight:800;line-height:1.05}
+.q button::after{content:"";flex:none;width:22px;height:22px;margin-top:4px;background:linear-gradient(var(--i),var(--i)) center/100% 3px no-repeat,linear-gradient(var(--i),var(--i)) center/3px 100% no-repeat;transition:transform .35s}
+.q[open] button::after{transform:rotate(90deg);background-size:100% 3px,0 100%}
+.a{display:grid;grid-template-rows:0fr;transition:grid-template-rows .35s}
+.a p{overflow:hidden;margin:0;max-width:640px;font-size:18px}
+.q[open] .a{grid-template-rows:1fr}.q[open] .a p{padding-bottom:28px}
+/* end */
+.end{background:radial-gradient(800px 440px at 82% 100%,rgba(255,45,149,.3),transparent 70%),radial-gradient(700px 440px at 0 0,rgba(0,123,167,.34),transparent 70%),var(--i)}
+.end h2{font-size:clamp(100px,24vw,360px)}
+.end .row{display:flex;justify-content:space-between;align-items:end;gap:24px;flex-wrap:wrap;margin-top:30px}
+.end p{margin:0;font-size:22px;max-width:420px}
+footer{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;padding:26px 0 36px;font-size:14px;opacity:.7}
+footer nav{padding:0}footer a{margin-left:20px}
+@media(max-width:860px){.hg,.tot{grid-template-columns:1fr}.hg p:last-child{justify-self:start}.rcs{grid-template-columns:1fr 1fr}.cols{flex-direction:column}.col{border-left:0;border-top:1px solid var(--i)}.col.on{flex:none}.px{margin-top:14px}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.d{font-family:'Michroma','Archivo',sans-serif;font-weight:400;text-transform:uppercase;line-height:1.04}
+h2.d{font-size:clamp(26px,5.2vw,76px)}
+.end h2.d{font-size:clamp(36px,9vw,140px)}
+.big{text-shadow:none}
+.col.on dt,.col.on .tag,.col.on .px small{opacity:.92}
+.pick button[aria-selected=true]{background:var(--h);color:#0a0a0a}
+.l1{color:var(--b)}
+.l2{color:var(--h)}
+.btn{background:var(--h);color:#0a0a0a}.btn:hover{background:#fff;color:#0a0a0a}
+.paper{background:#071820}
+.col:not(.on):hover{background:rgba(0,123,167,.12)}
+.rc{border-top:7px solid var(--b)}.rc.x{border-top-color:var(--h)}
+.tot{border-image:linear-gradient(90deg,var(--b),var(--h)) 1}
+.sr .tr i{background:rgba(0,123,167,.6)}
+.sr.me .tr i{background:var(--h);box-shadow:0 0 26px rgba(255,45,149,.65)}
+.q,.q:last-child{border-color:rgba(245,247,250,.22)}
+.q button::after{background:linear-gradient(var(--h),var(--h)) center/100% 3px no-repeat,linear-gradient(var(--h),var(--h)) center/3px 100% no-repeat}
+</style>
+</head>
+<body>
+<header class="hero"><div class="w">
+<nav><a class="logo c" href="/">unool</a><span><a href="#plans">Plans</a><a href="/templates">Templates</a><a class="btn" href="#start">Start free</a></span></nav>
+<h1 class="c"><span class="l1">One</span> <span class="l2">bill.</span></h1>
+<div class="hg"><p>Unool replaces Zorcha, Buffer, Linktree and Taplio. Profile page, publishing, Instagram automation and LinkedIn growth, for one flat price.</p><p>14-day Pro trial on every signup. No credit card.</p></div>
+<div class="rcs" id="rcs"></div>
+<div class="tot">
+ <div><p class="lb">Your monthly total</p><div class="big c" id="tot">₹7,699</div></div>
+ <div><p class="msg" id="msg"></p><a class="btn" href="#plans">See the plans</a></div>
+</div>
+<p class="hint">Tap a bill to cancel it. Tap again to bring it back.</p>
+<div style="height:clamp(40px,7vw,90px)"></div>
+</div></header>
+
+<section class="s paper" id="plans"><div class="w">
+<div class="ph"><h2 class="d">Pick a size.</h2>
+<div class="tg"><div id="perSeg"><button aria-pressed="false" data-v="m">Monthly</button><button aria-pressed="true" data-v="a">Annual<i>2 months free</i></button></div><div id="curSeg"><button aria-pressed="true" data-v="INR">₹ INR</button><button aria-pressed="false" data-v="USD">$ USD</button></div></div></div>
+<div class="cols" id="cols"></div>
+</div></section>
+
+<section class="s"><div class="w">
+<h2 class="d">Side by side.</h2>
+<p class="lede">Ten jobs creators hire tools for. This is how many each tool actually does.</p>
+<div class="sb" id="sb"></div>
+<div class="vh"><h3 class="c">Now, feature by feature.</h3><div class="pick" id="pick" role="tablist"></div></div>
+<div id="vs"></div>
+</div></section>
+
+<section class="s paper"><div class="w">
+<h2 class="d" style="margin-bottom:46px">Questions.</h2>
+<div id="faq"></div>
+</div></section>
+
+<section class="s end" id="start"><div class="w">
+<h2 class="d">Start free.</h2>
+<div class="row"><p>No credit card. Every signup gets 14 days of full Pro.</p><span><a class="btn" href="/signup">Get started free</a> <a class="btn" href="/templates" style="background:transparent;color:var(--n);box-shadow:inset 0 0 0 2px var(--n)">See all templates</a></span></div>
+</div></section>
+<div class="w"><footer><span>© 2026 Pixenox Solutions · Prathipadu, Kakinada, AP</span><nav><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/refund">Refund Policy</a><a href="/contact">Contact</a></nav></footer></div>
+
+<script>
+const $=s=>document.querySelector(s),inr=n=>'₹'+n.toLocaleString('en-IN');
+function tween(el,to,fmt,d=800){const f=el._v??0,t0=performance.now();el._v=to;(function s(t){const k=Math.min(1,(t-t0)/d),e=1-Math.pow(1-k,3);el.textContent=fmt(Math.round(f+(to-f)*e));if(k<1)requestAnimationFrame(s)})(t0)}
+function seg(id,fn){const s=$(id);s.onclick=e=>{const b=e.target.closest('button');if(!b)return;s.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));fn(b.dataset.v)}}
+/* bills */
+const B=[['Zorcha Pro','Instagram DMs only',1199],['Buffer','4 channels',2000],['Linktree Pro','Profile page',1250],['Taplio','LinkedIn growth',3250]],X=new Set(),T=$('#tot');
+B.forEach((b,i)=>{const r=document.createElement('button');r.className='rc';r.setAttribute('aria-pressed','false');r.innerHTML=`<b>${b[0]}</b><span>${b[1]}</span><br><span class="pr c">${inr(b[2])}<small>/mo</small></span><i class="stamp" style="font-style:normal">Cancelled</i>`;r.onclick=()=>flip(i);$('#rcs').append(r)});
+function flip(i,force){const r=$('#rcs').children[i];force===undefined?(X.has(i)?X.delete(i):X.add(i)):X.add(i);r.classList.toggle('x',X.has(i));r.setAttribute('aria-pressed',X.has(i));sum()}
+function sum(){let t=X.size?1999:0;B.forEach((b,i)=>{if(!X.has(i))t+=b[2]});tween(T,t,inr,700);const d=7699-t;
+ $('#msg').innerHTML=!X.size?'You pay four companies every month.':d>0?`You keep <em>${inr(d)}</em> a month. That’s ${Math.round(d/7699*100)}% less.`:'Unool Pro is ₹1,999. Cancel the rest to start saving.'}
+T._v=7699;sum();
+if(!matchMedia('(prefers-reduced-motion:reduce)').matches)[0,1,2,3].forEach(i=>setTimeout(()=>flip(i,1),1100+i*550));else[0,1,2,3].forEach(i=>flip(i,1));
+/* plans */
+let cur='INR',per='a',on=2;
+const L=['Workspaces','Templates','Publishing channels','Scheduled posts','AI credits','Instagram comments','LinkedIn comments','DM Concierge','Lead scoring','Brand voices','Analytics','Seats','Domain'];
+const P=[
+{n:'Spark',t:'Free forever',m:[0,0],u:[0,0],r:['1 · name.unool.co','5 premium','2','15 queued','25 / mo','250','50','None','None','None','30 days','1','unool.co address']},
+{n:'Creator',t:'For serious creators',m:[799,666],u:[10,8],r:['1 · name.unool.co','All 16','4','Unlimited','150 / mo','500','250','Basic','None','None','90 days','1','unool.co address']},
+{n:'Pro',t:'Most popular. The full engine',m:[1999,1666],u:[24,20],r:['1','All 16','8','Unlimited + FlightPlan AI','500 / mo','3,000','1,500','Full + knowledge base','0–3 triage','5','1 year','3','Custom domain']},
+{n:'Studio',t:'For agencies and teams',m:[4999,4166],u:[60,50],r:['3 brands or clients','All 16 + white-label','Unlimited','Unlimited','Unlimited (fair use)','Unlimited','Unlimited','Full + multi-routing','0–3 triage','Unlimited','Lifetime + export','10 + roles','White-label']}];
+const fmt=n=>cur==='INR'?inr(n):'$'+n;
+function plans(){const C=$('#cols');
+ if(!C.children.length)P.forEach((p,i)=>{const a=document.createElement('article');a.className='col';a.onclick=()=>{on=i;plans()};a.innerHTML=`<h3>${p.n}</h3><p class="tag">${p.t}</p><div class="px c"><span class="pv"></span><small>/ month</small></div><p class="sv"></p><div class="det"><dl>${L.map((l,k)=>`<div><dt>${l}</dt><dd>${p.r[k]}</dd></div>`).join('')}</dl><a class="btn" href="#start">${i?'Start 14-day trial':'Start for free'}</a></div>`;C.append(a)});
+ [...C.children].forEach((a,i)=>{const p=P[i],v=cur==='INR'?p.m[per==='a'?1:0]:p.u[per==='a'?1:0],free=!p.m[0];a.classList.toggle('on',i===on);
+  const pv=a.querySelector('.pv');a.querySelector('small').style.display=free?'none':'';
+  free?(pv._v=0,pv.textContent='Free'):tween(pv,v,fmt,600);
+  const sv=(cur==='INR'?p.m[0]-p.m[1]:p.u[0]-p.u[1])*12;a.querySelector('.sv').textContent=free||per==='m'?'':'Saves '+fmt(sv)+' a year on annual'})}
+seg('#perSeg',v=>{per=v;plans()});seg('#curSeg',v=>{cur=v;plans()});plans();
+/* compare */
+const N=['Unool','Zorcha','Linktree','Buffer','Taplio'],PR=['₹799','₹1,199','₹1,250','₹2,000+','₹3,250+'];
+const R=[['Premium profile page','16 studio-grade templates vs Zorcha’s 3 basic themes','yppnn'],['IG comment automation','AI semantic intent vs rigid keyword triggers','yynnn'],['Comment-to-DM flows','','yynnn'],['LinkedIn automation','Taplio schedules only, no auto-reply','ynnnp'],['Multi-platform publishing','IG, LinkedIn, X, Threads, Bluesky','ynnyp'],['AI content composer','','ynnpy'],['Follow-to-unlock gates','','yynnn'],['DM Concierge (AI responder)','Zorcha: rigid FAQ slots. Unool: full knowledge base','ypnnn'],['Custom domain','Pro and above on Unool','ynynn'],['UPI / INR billing','Buffer and Taplio are USD only','yynnn']];
+const ST={y:['Full',100],p:['Partial',50],n:['Not offered',0]},pts=j=>R.reduce((a,r)=>a+{y:1,p:.5,n:0}[r[2][j]],0);
+$('#sb').innerHTML=N.map((n,j)=>`<div class="sr${j?'':' me'}"><b>${n}</b><div class="tr"><i data-w="${pts(j)*10}"></i></div><div class="sc c">${pts(j)}</div></div>`).join('');
+const fill=()=>document.querySelectorAll('#sb i').forEach(e=>e.style.width=e.dataset.w+'%');
+'IntersectionObserver' in window?new IntersectionObserver((e,o)=>{if(e[0].isIntersecting){fill();o.disconnect()}},{threshold:.4}).observe($('#sb')):fill();
+let who=1;
+const cell=(c,k)=>`<div class="${k}"><span class="st">${ST[c][0]}</span><div class="mt"><i style="width:${ST[c][1]}%"></i></div></div>`;
+function vs(){const w=R.filter(r=>r[2][who]!=='y').length;
+ [...$('#pick').children].forEach((b,i)=>b.setAttribute('aria-selected',i+1===who));
+ $('#vs').innerHTML=`<p class="score c"><span>${w}</span> wins, ${10-w} ties.</p><div class="hd"><div>Unool vs ${N[who]}</div><div>Unool</div><div>${N[who]}</div></div>`+R.map(r=>`<div class="lr${r[2][who]!=='y'?' win':''}"><div>${r[0]}${r[1]?'<small>'+r[1]+'</small>':''}</div>${cell(r[2][0],'a1')}${cell(r[2][who],r[2][who]==='n'?'no':'')}</div>`).join('')+`<div class="lr"><div>Monthly price in India<small>Unool is the cheapest and does the most</small></div><div class="a1"><span class="pt c">${PR[0]}</span></div><div><span class="pt c">${PR[who]}</span></div></div>`}
+N.slice(1).forEach((n,i)=>{const b=document.createElement('button');b.role='tab';b.textContent=n;b.onclick=()=>{who=i+1;vs()};$('#pick').append(b)});vs();
+/* faq */
+[['Do I need a credit card to start?','No. Every signup gets a 14-day Pro trial with no card. After that you can stay on Spark for free or pick a paid plan.'],['What payment methods do you accept?','UPI and cards, billed in INR with no FX markup. USD billing is available too.'],['Can I switch plans anytime?','Yes. Move up or down whenever you like. The change applies from your next billing cycle.'],['What happens to my data if I downgrade?','Your content stays. Features beyond the new plan’s limits pause until you upgrade again, and analytics older than the new window are hidden, not deleted.'],['Is there GST on top of the prices shown?','Prices shown are before GST. Applicable GST is added at checkout.'],['Can I connect my custom domain on Spark?','Custom domains start on Pro. Spark and Creator use your name.unool.co address.']].forEach(([q,a])=>{const d=document.createElement('div');d.className='q';d.innerHTML=`<button aria-expanded="false">${q}</button><div class="a"><p>${a}</p></div>`;d.firstChild.onclick=()=>{d.toggleAttribute('open');d.firstChild.setAttribute('aria-expanded',d.hasAttribute('open'))};$('#faq').append(d)});
+</script>
+</body>
+</html>
