@@ -132,7 +132,15 @@ export async function middleware(request: NextRequest) {
     if (match) hostSubdomain = match[1];
   }
 
-  if (hostSubdomain && !pathname.startsWith('/u/') && !pathname.startsWith('/api/')) {
+  if (
+    hostSubdomain &&
+    !pathname.startsWith('/u/') &&
+    !pathname.startsWith('/api/') &&
+    !pathname.startsWith('/dashboard') &&
+    !pathname.startsWith('/admin') &&
+    !pathname.startsWith('/signin') &&
+    !pathname.startsWith('/signup')
+  ) {
     const url = request.nextUrl.clone();
     url.pathname = `/u/${hostSubdomain}${pathname === '/' ? '' : pathname}`;
     return NextResponse.rewrite(url);
