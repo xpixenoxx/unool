@@ -501,9 +501,6 @@ export default function BillingClient() {
               <div style={{ fontSize: 16, fontWeight: 700, color: '#1A1612', marginTop: 2 }}>
                 {formatSubscriptionDate(currentPlan.subscription.currentPeriodEnd)}
               </div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#8B5CF6', marginTop: 2 }}>
-                {currentPlan.subscription.amount}/{currentPlan.subscription.billingCycle === 'annual' ? 'year' : 'month'}
-              </div>
               {!currentPlan.subscription.cancelAtPeriodEnd && (
                 <button
                   onClick={() => setShowCancelModal(true)}
