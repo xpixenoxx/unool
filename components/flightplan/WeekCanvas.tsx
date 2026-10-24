@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import {
   ChevronLeft, ChevronRight, Loader2, Calendar, Clock, PauseCircle, PlayCircle,
-  Trash2, MoreHorizontal, Edit3
+  Trash2, MoreHorizontal, Edit3, Film, Play, Sparkles
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, addDays, startOfWeek, isToday, endOfWeek, addWeeks } from 'date-fns';
@@ -40,6 +40,25 @@ export function WeekCanvas({
   const [selectedPost, setSelectedPost] = useState<CanvasPost | null>(null);
   const [hasOpenedTargetPost, setHasOpenedTargetPost] = useState(false);
   const [selectedMobileDay, setSelectedMobileDay] = useState<string | null>(null);
+  const [activePlayheadDay, setActivePlayheadDay] = useState<number | null>(null);
+  const [isPlayingTimeline, setIsPlayingTimeline] = useState(false);
+
+  const handlePlayTimeline = useCallback(() => {
+    if (isPlayingTimeline) return;
+    setIsPlayingTimeline(true);
+    let step = 0;
+    setActivePlayheadDay(0);
+    const interval = setInterval(() => {
+      step++;
+      if (step < 7) {
+        setActivePlayheadDay(step);
+      } else {
+        clearInterval(interval);
+        setIsPlayingTimeline(false);
+        setActivePlayheadDay(null);
+      }
+    }, 450);
+  }, [isPlayingTimeline]);
 
   const { loadCanvas, holdQueue, cancelPost } = useFlightPlanActions();
 
@@ -314,66 +333,181 @@ export function WeekCanvas({
         )}
       </AnimatePresence>
 
-      {/* ─── Hero Arc Ribbon Banner (matches .hero .arc .rib in reference) ─── */}
+      {/* ─── Cinematic 7-Day Video Timeline Master Engine ─── */}
       <div
-        className="rounded-2xl p-5 shadow-lg relative overflow-hidden"
+        className="rounded-2xl p-5 sm:p-6 shadow-xl relative overflow-hidden border border-[#523B2A]"
         style={{
-          background: 'linear-gradient(135deg, #3D2B1F 0%, #4E3828 100%)',
-          boxShadow: '0 10px 30px rgba(61,43,31,0.18)',
+          background: 'linear-gradient(135deg, #1C150F 0%, #291D15 50%, #201710 100%)',
+          boxShadow: '0 16px 40px -8px rgba(28,21,15,0.45)',
         }}
       >
-        <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
-          <span className="font-bold text-base tracking-tight" style={{ color: '#E8D9B5' }}>
-            Weekly Narrative Arc · 5-Beat Engine
-          </span>
-          <div className="text-xs" style={{ color: '#D9C9A6' }}>
-            {holdActive ? (
-              <span className="font-semibold text-amber-300">⏸ Queue paused</span>
-            ) : nextPost ? (
-              <span>
-                Next up <b className="text-white font-semibold">{nextPost.platformName}</b> · {nextPost.dayLabel} {nextPost.timeFormatted}
-              </span>
-            ) : (
-              <span>All posts queued</span>
-            )}
+        {/* Filmstrip top perforation bar */}
+        <div className="flex items-center justify-between gap-2 pb-3 mb-3 border-b border-[#3D2C1F]/80 flex-wrap">
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold tracking-wider uppercase bg-[#C4A265]/15 text-[#E5C77A] border border-[#C4A265]/30">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+              TIMELINE REEL · 7 EPISODES
+            </span>
+            <span className="hidden md:inline-block text-[11px] font-mono text-[#A8917A]">
+              00:07:00 MASTER AIR TIMECODE
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3 flex-wrap">
+            <button
+              type="button"
+              onClick={handlePlayTimeline}
+              disabled={isPlayingTimeline}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-[#C4A265]/20 hover:bg-[#C4A265]/30 text-[#F5E6C4] border border-[#C4A265]/40 transition-all cursor-pointer disabled:opacity-50"
+              title="Preview 7-day story narrative flow"
+            >
+              <Play className="w-3 h-3 text-[#E5C77A] fill-current" />
+              <span>{isPlayingTimeline ? 'Scrubbing Reel…' : 'Preview Reel'}</span>
+            </button>
+            <div className="text-xs font-mono" style={{ color: '#D9C9A6' }}>
+              {holdActive ? (
+                <span className="font-semibold text-amber-300">⏸ Queue paused</span>
+              ) : nextPost ? (
+                <span>
+                  Next on air <b className="text-white font-semibold">{nextPost.platformName}</b> · {nextPost.dayLabel} {nextPost.timeFormatted}
+                </span>
+              ) : (
+                <span className="text-[#A8917A]">All 7 days staged</span>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* 7-Day Connected Arc Dots Ribbon */}
-        <div className="relative pt-3 hidden sm:block">
-          {/* Continuous gradient connector bar */}
-          <div
-            className="absolute left-[7.14%] w-[57.2%] top-[22px] h-[3px] rounded-full z-0 pointer-events-none"
-            style={{
-              background: 'linear-gradient(90deg, #C4A265, #B8794B, #C0554F, #4A9C62, #9A6B8E)',
-            }}
-          />
+        {/* Cinematic Header info */}
+        <div className="flex items-baseline justify-between flex-wrap gap-2 mb-4">
+          <div>
+            <h3 className="font-bold text-base sm:text-lg tracking-tight text-[#FAF7F2] flex items-center gap-2">
+              <Film className="w-4 h-4 text-[#C4A265]" />
+              7-Day Narrative Arc · Video Story Engine
+            </h3>
+            <p className="text-xs text-[#A8917A] mt-0.5">
+              Episodic story progression · Frame-synced broadcast clips from Monday to Sunday
+            </p>
+          </div>
+        </div>
 
-          <div className="grid grid-cols-7 gap-2 relative z-10">
+        {/* Master Video Timeline Tracks (All 7 Days Active) */}
+        <div className="relative pt-2">
+          {/* Timeline timecode ruler */}
+          <div className="hidden sm:grid grid-cols-7 gap-2 mb-2 px-1">
+            {['00:01:00', '00:02:00', '00:03:00', '00:04:00', '00:05:00', '00:06:00', '00:07:00'].map((tc, idx) => (
+              <div key={idx} className="flex items-center justify-between text-[9px] font-mono text-[#8B7355]">
+                <span>{tc}</span>
+                <span className="h-1.5 w-[1px] bg-[#5C4533]" />
+              </div>
+            ))}
+          </div>
+
+          {/* 7-Episode Video Clip Reel Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 relative z-10">
             {weekDays.map((day, idx) => {
-              const beats = ['Hook', 'Context', 'Challenge', 'Proof', 'CTA'];
-              const beat = idx < 5 ? beats[idx] : null;
-              const beatColor = beat ? BEAT_COLORS[beat] : null;
+              const dayKey = format(day, 'yyyy-MM-dd');
+              const dayPosts = postsByDay.get(dayKey) || [];
+              const postCount = dayPosts.length;
+              const isTodayDay = isToday(day);
+              const isScrubbed = activePlayheadDay === idx;
+
+              const beats = [
+                { beat: 'Hook', role: 'The Disruption', ep: '01' },
+                { beat: 'Context', role: 'The Backstory', ep: '02' },
+                { beat: 'Challenge', role: 'The Breakthrough', ep: '03' },
+                { beat: 'Proof', role: 'Evidence & Data', ep: '04' },
+                { beat: 'CTA', role: 'The Direct Call', ep: '05' },
+                { beat: 'Community', role: 'Weekend Dialogue', ep: '06' },
+                { beat: 'Horizon', role: 'The Next Chapter', ep: '07' },
+              ];
+              const info = beats[idx] || { beat: 'Story', role: 'Narrative', ep: `0${idx + 1}` };
+              const beatColor = BEAT_COLORS[info.beat] || '#C4A265';
 
               return (
-                <div key={idx} className="flex flex-col items-center gap-1.5 text-center">
-                  <span
-                    className="w-5 h-5 rounded-full flex items-center justify-center transition-transform hover:scale-110"
-                    style={{
-                      backgroundColor: beatColor ? beatColor : '#3D2B1F',
-                      border: beatColor ? `2px solid ${beatColor}` : '2px dashed #6f5b44',
-                      boxShadow: beatColor ? `0 0 0 4px ${beatColor}35` : 'none',
-                    }}
-                  />
-                  <span
-                    className="text-xs font-semibold"
-                    style={{ color: beatColor || '#8d7a5f' }}
-                  >
-                    {beat || 'Rest'}
-                  </span>
-                  <span className="text-[10px] uppercase tracking-wider text-[#A8917A]">
-                    {format(day, 'EEE')}
-                  </span>
+                <div
+                  key={idx}
+                  onClick={() => {
+                    setSelectedMobileDay(dayKey);
+                    const el = document.getElementById(`day-col-${dayKey}`);
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }}
+                  className={cn(
+                    'group/clip relative flex flex-col rounded-xl p-2.5 transition-all duration-200 cursor-pointer border text-left',
+                    isScrubbed
+                      ? 'bg-[#3A2A1D] border-[#E5C77A] ring-2 ring-[#E5C77A]/40 scale-[1.02] shadow-lg'
+                      : isTodayDay
+                      ? 'bg-[#2E2117] border-[#C4A265]/70 shadow-md'
+                      : 'bg-[#241A13]/90 hover:bg-[#2F2218] border-[#443122] hover:border-[#C4A265]/50'
+                  )}
+                >
+                  {/* Clip Header: EP and Day */}
+                  <div className="flex items-center justify-between gap-1 mb-1.5">
+                    <span className="text-[9px] font-mono font-bold tracking-wider px-1.5 py-0.5 rounded bg-black/40 text-[#D4C3A3]">
+                      EP.{info.ep}
+                    </span>
+                    <span
+                      className={cn(
+                        'text-[10px] font-bold uppercase tracking-wider',
+                        isTodayDay ? 'text-[#E5C77A]' : 'text-[#A8917A]'
+                      )}
+                    >
+                      {format(day, 'EEE d')}
+                    </span>
+                  </div>
+
+                  {/* Narrative Beat & Role */}
+                  <div className="mb-2">
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className="w-2 h-2 rounded-full shrink-0"
+                        style={{
+                          backgroundColor: beatColor,
+                          boxShadow: `0 0 8px ${beatColor}`,
+                        }}
+                      />
+                      <span className="text-xs font-bold tracking-tight text-[#FAF7F2] truncate">
+                        {info.beat}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-[#A8917A] block truncate pl-3.5">
+                      {info.role}
+                    </span>
+                  </div>
+
+                  {/* Scheduled Posts Status Indicator */}
+                  <div className="mt-auto pt-2 border-t border-[#3D2C1F] flex items-center justify-between text-[10px]">
+                    {postCount > 0 ? (
+                      <span className="inline-flex items-center gap-1 text-[#E5C77A] font-semibold">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        {postCount} clip{postCount > 1 ? 's' : ''} staged
+                      </span>
+                    ) : (
+                      <span className="text-[#8B7355] group-hover/clip:text-[#D4C3A3] transition-colors">
+                        + Stage Clip
+                      </span>
+                    )}
+
+                    {isTodayDay && (
+                      <span className="text-[8px] font-mono px-1 py-0.5 rounded bg-[#C4A265]/20 text-[#E5C77A] font-bold uppercase">
+                        Today
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Mini video waveform bar at base */}
+                  <div className="flex items-end gap-[2px] h-1.5 mt-1.5 opacity-60 group-hover/clip:opacity-100 transition-opacity">
+                    {[40, 70, 100, 60, 85, 45, 95].map((h, i) => (
+                      <div
+                        key={i}
+                        className="flex-1 rounded-full transition-all"
+                        style={{
+                          height: `${postCount > 0 ? h : 25}%`,
+                          backgroundColor: postCount > 0 ? beatColor : '#5C4533',
+                        }}
+                      />
+                    ))}
+                  </div>
                 </div>
               );
             })}

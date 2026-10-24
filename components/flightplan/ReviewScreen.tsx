@@ -5,9 +5,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Trash2, AlertCircle, CheckCircle,
+  ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Trash2, AlertCircle,
   ImagePlus, X, Loader2, Send, Clock, Zap, Info, AlertTriangle, ArrowUpRight, RotateCcw,
-  Image as ImageIcon, Check, MoreHorizontal, Film
+  Image as ImageIcon, MoreHorizontal, Film
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, addDays, startOfWeek, isToday, startOfDay } from 'date-fns';

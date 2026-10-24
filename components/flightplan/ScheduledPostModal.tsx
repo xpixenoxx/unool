@@ -4,8 +4,8 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import {
-  Calendar, Clock, ChevronLeft, ChevronRight, Trash2, AlertCircle, CheckCircle,
-  ImagePlus, X, Loader2, Send, Zap, Check, AlertTriangle, ArrowUpRight, RotateCcw,
+  Calendar, Clock, ChevronLeft, ChevronRight, Trash2, AlertCircle,
+  ImagePlus, X, Loader2, Send, Zap, AlertTriangle, ArrowUpRight, RotateCcw,
   Image as ImageIcon, PauseCircle, PlayCircle, Edit3, MoreHorizontal
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -565,7 +565,7 @@ function ScheduledPostModalContent({
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white transition-opacity disabled:opacity-50 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
               style={{ backgroundColor: B.accent, focusRingColor: B.accent, focusRingOffsetColor: B.card }}
             >
-              {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+              {isSaving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               {hasChanges
                 ? (variantsWithChanges.length > 1 ? `Save Changes (${variantsWithChanges.length})` : 'Save Changes')
                 : 'Saved'}

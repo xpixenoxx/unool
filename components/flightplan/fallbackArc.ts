@@ -83,6 +83,38 @@ const BEAT_TEMPLATES = [
       bluesky: '',
     },
   },
+  {
+    beat: 'Community',
+    day: 5,
+    dayLabel: 'Saturday',
+    scheduledHour: 11,
+    scheduledMinute: 0,
+    prefix: 'Weekend conversation: ',
+    suffix: {
+      instagram: '\n\nDrop your thoughts below 👇 #community #weekenddiscussion',
+      facebook: '\n\nHow did your week turn out? Tell us below.',
+      linkedin: '\n\nWould love to hear how other leaders navigate this.',
+      x: '',
+      threads: '',
+      bluesky: '',
+    },
+  },
+  {
+    beat: 'Horizon',
+    day: 6,
+    dayLabel: 'Sunday',
+    scheduledHour: 18,
+    scheduledMinute: 30,
+    prefix: 'Looking ahead to the upcoming week: ',
+    suffix: {
+      instagram: '\n\nReady for week two. #sundayprep #focus',
+      facebook: '\n\nPlanning tomorrow already. What is on your priority list?',
+      linkedin: '\n\nSetting intentions for Monday morning.',
+      x: '',
+      threads: '',
+      bluesky: '',
+    },
+  },
 ];
 
 export function generateClientFallbackArc(data: StoryIntakeData): WeekArc {
@@ -149,8 +181,12 @@ export function generateClientFallbackArc(data: StoryIntakeData): WeekArc {
       baseCopy = data.oneRealNumber
         ? `${tmpl.prefix}${data.oneRealNumber}. Measurable impact in just 3 weeks.`
         : `The numbers: +47 new accounts in 3 weeks, and churn dropped by 35%.`;
-    } else {
+    } else if (idx === 4) {
       baseCopy = `Want to see how this works in practice? Try our new flow free, plan your first week in minutes, and tell us what we should build next.`;
+    } else if (idx === 5) {
+      baseCopy = `Weekend reflection with our community: What was your single biggest realization this week? Let us hear your perspective below.`;
+    } else {
+      baseCopy = `Setting the stage for what is coming next week: Previewing our upcoming focus and what we learned from the last sprint.`;
     }
 
     const platformDrafts = platforms.map(p => {
@@ -198,7 +234,7 @@ export function generateClientFallbackArc(data: StoryIntakeData): WeekArc {
   return {
     arcTitle: titleSnippet,
     storyType: 'shipped',
-    storyTypeReason: 'Synthesized 5-beat story arc tailored to founder momentum and milestone sharing.',
+    storyTypeReason: 'Synthesized 7-episode narrative arc tailored to founder momentum and complete weekly broadcast.',
     weekPosts,
   };
 }

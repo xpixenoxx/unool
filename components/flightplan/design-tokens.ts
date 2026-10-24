@@ -151,6 +151,8 @@ export const BEAT_COLORS: Record<string, string> = {
   Challenge: '#C0554F', // Beat 3: Challenge (Terracotta)
   Proof: '#4A9C62',     // Beat 4: Proof (Emerald / Sage)
   CTA: '#9A6B8E',       // Beat 5: CTA (Mauve / Violet)
+  Community: '#3B82F6', // Beat 6: Community (Cobalt / Ocean)
+  Horizon: '#D97706',   // Beat 7: Horizon (Amber Glow)
 };
 
 export type DesignTokens = typeof B;

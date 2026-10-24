@@ -101,7 +101,7 @@ function WritingWeekView({ platforms = [] }: { platforms?: PlatformType[] }) {
                     boxShadow: isCurrent ? `0 0 0 3px ${B.accentGlow}` : 'none',
                   }}
                 >
-                  {isDone ? '✓' : isCurrent ? '•' : ''}
+                  {idx + 1}
                 </div>
                 <span>{text}</span>
               </li>

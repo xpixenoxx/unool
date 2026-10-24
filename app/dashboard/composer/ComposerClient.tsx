@@ -80,9 +80,8 @@ import {
   Phone,
   Share2,
   Lightbulb,
-  CheckCircle,
+  Radio,
   Sparkles,
-  Rocket,
   PenTool,
   Edit3,
   ArrowLeft,
@@ -1910,30 +1909,59 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         {/* Active Draft Review Header Banner */}
         <AnimatePresence>
           {postId && (
-            <MotionBox key="draft-review-banner" variant="slide-up">
-              <div className="flex items-center justify-between px-4 py-3 rounded-2xl bg-[#FAF6EE] border border-[#E8DFC8] text-[#3D2B1F] shadow-2xs flex-wrap gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-8 h-8 rounded-xl bg-[#F5EFE2] border border-[#E0D5BE] flex items-center justify-center shrink-0">
-                    <FileText className="w-4 h-4 text-[#A87932]" />
+            <motion.div
+              key="draft-review-banner"
+              initial={{ opacity: 0, y: -10, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.98 }}
+              transition={{ type: 'spring', stiffness: 420, damping: 26 }}
+              className="relative overflow-hidden flex items-center justify-between px-5 py-3.5 rounded-2xl bg-gradient-to-r from-[#FAF6EE] via-[#FFFDF9] to-[#F5EFE4] dark:from-[#211A14] dark:via-[#261F18] dark:to-[#1C1610] border border-[#E0D5BE] dark:border-[#3E3225] shadow-[0_4px_20px_rgba(61,43,31,0.06)] flex-wrap gap-4"
+            >
+              <div className="flex items-center gap-3.5 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-[#F0E6D2] dark:bg-[#2D2319] border border-[#D8C7A5] dark:border-[#4B3B2B] flex items-center justify-center shrink-0">
+                  <Radio className="w-4 h-4 text-[#C4A265]" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-bold text-[#2D2319] dark:text-[#FAF7F2] tracking-tight">
+                      Staged from Signal
+                    </span>
+                    <span className="text-[10px] font-bold tracking-wider uppercase bg-[#EDE4CF] dark:bg-[#34291F] text-[#63481D] dark:text-[#D4C3A3] px-2.5 py-0.5 rounded-full border border-[#DCCEB2] dark:border-[#463728]">
+                      {mode === 'quick' ? 'Direct Broadcast' : 'AI Adapted Draft'}
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-[#C4A265]/15 text-[#8A6726] dark:text-[#E5C77A] border border-[#C4A265]/30">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#C4A265] animate-pulse" />
+                      Live Staged
+                    </span>
                   </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-bold leading-tight">Reviewing Draft</span>
-                      <span className="text-[10px] font-semibold bg-[#EDE4CF] text-[#63481D] px-2 py-0.5 rounded-full">
-                        {mode === 'quick' ? 'Quick Broadcast Draft' : 'AI Composer Draft'}
-                      </span>
-                      <span className="text-[10px] font-medium bg-emerald-100/80 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-200/80 dark:border-emerald-800 inline-flex items-center gap-1">
-                        <CheckCircle className="w-3 h-3 text-emerald-600" />
-                        Edits optional · Ready to publish
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-[#8B7355] mt-0.5">
-                      Draft loaded from Signal. You can publish directly without making changes, or fine-tune content below.
-                    </p>
-                  </div>
+                  <p className="text-xs text-[#8B7355] dark:text-[#A89886] mt-0.5 font-medium">
+                    Content is staged from your Signal queue. You can publish directly or fine-tune adaptations per platform below.
+                  </p>
                 </div>
               </div>
-            </MotionBox>
+
+              <div className="flex items-center gap-2 ml-auto sm:ml-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPostId(null);
+                    setSourceContent('');
+                    setQuickContent('');
+                    setDrafts([]);
+                    setMedia([]);
+                    hasLoadedTargetPost.current = null;
+                    if (typeof window !== 'undefined') {
+                      window.history.replaceState({}, '', '/dashboard/studio');
+                    }
+                    studioToast.info('Composer cleared for fresh post');
+                  }}
+                  className="px-3 py-1.5 rounded-xl text-xs font-semibold text-[#8B7355] hover:text-[#2D2319] dark:text-[#A89886] dark:hover:text-[#FAF7F2] bg-white/70 dark:bg-black/30 hover:bg-white dark:hover:bg-black/50 border border-[#DCCEB2] dark:border-[#463728] transition-all cursor-pointer"
+                  title="Clear staged post and start a fresh draft"
+                >
+                  Clear &amp; Start Fresh
+                </button>
+              </div>
+            </motion.div>
           )}
         </AnimatePresence>
 
@@ -2680,7 +2708,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                                 </span>
                                 <span className="hidden sm:inline text-xs font-medium">{cfg.name}</span>
                                 {draft.status === 'generating' && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
-                                {draft.status === 'ready' && <CheckCircle className="h-3 w-3 text-green-500" />}
+                                {draft.status === 'ready' && <span className="w-1.5 h-1.5 rounded-full bg-[#C4A265] shrink-0" />}
                                 {draft.status === 'error' && <X className="h-3 w-3 text-destructive" />}
                               </TabsTrigger>
                             );
@@ -2885,18 +2913,18 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                     {/* Top luxury hairline accent */}
                     <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#C4A265]/70 to-transparent" />
 
-                    <div className="flex items-center gap-3.5 min-w-0">
-                      <div className="relative flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-br from-[#2D2319] via-[#382C1F] to-[#1F1710] border border-[#C4A265]/40 shadow-[0_2px_10px_rgba(45,35,25,0.2)] shrink-0">
-                        <Rocket className="w-5 h-5 text-[#E5C77A]" />
-                      </div>
+                    <div className="flex items-center gap-3 min-w-0">
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm font-bold tracking-tight text-[#2D2319] dark:text-[#FAF7F2]">
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                          <span className="relative flex h-2.5 w-2.5">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#C4A265] opacity-75" />
+                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#C4A265]" />
+                          </span>
+                          <p className="text-base font-bold tracking-tight text-[#2D2319] dark:text-[#FAF7F2]">
                             Ready to Publish
                           </p>
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-[#C4A265]/15 text-[#8A6726] dark:text-[#E5C77A] border border-[#C4A265]/30">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#C4A265] animate-pulse" />
-                            Primed
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-[#C4A265]/15 text-[#8A6726] dark:text-[#E5C77A] border border-[#C4A265]/30">
+                            Staged &amp; Primed
                           </span>
                         </div>
                         <p className="text-xs text-[#8B7355] dark:text-[#A89886] mt-0.5 font-medium">

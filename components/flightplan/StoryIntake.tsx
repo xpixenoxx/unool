@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Check, ChevronRight, X, Loader2, Globe, Calendar, Target, TrendingUp, Lightbulb, Zap, AlertCircle, Info, Sparkles } from 'lucide-react';
+import { ChevronRight, X, Loader2, Globe, Calendar, Target, TrendingUp, Lightbulb, Zap, AlertCircle, Info, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, addDays, startOfWeek } from 'date-fns';
 import { PlatformBrandLogo, type SupportedPlatformType } from '@/components/dashboard/previews/PlatformMobilePreview';
@@ -318,7 +318,7 @@ export function StoryIntake({ onGenerate, isGenerating, connectedPlatforms }: St
                     boxShadow:       active ? `0 0 0 3px ${B.accentGlow}` : 'none',
                   }}
                 >
-                  {done ? <Check className="w-3.5 h-3.5" /> : idx + 1}
+                  {idx + 1}
                 </div>
                 <span
                   className="text-xs font-medium hidden sm:block"
