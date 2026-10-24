@@ -255,6 +255,76 @@
 
     requestAnimationFrame(frame);
   }
+
+
+  function isAuthed() {
+    try {
+      const raw = sessionStorage.getItem('unool_session');
+      if (raw) {
+        const p = JSON.parse(raw);
+        if (p && (p.userId || p.access_token)) return true;
+      }
+    } catch (e) {}
+
+    try {
+      const raw = localStorage.getItem('unool_session');
+      if (raw) {
+        const p = JSON.parse(raw);
+        if (p && (p.userId || p.access_token)) return true;
+      }
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('sb-') && k.includes('-auth-token')) {
+          const v = localStorage.getItem(k);
+          if (v && (v.includes('access_token') || v.includes('user'))) return true;
+        }
+      }
+    } catch (e) {}
+
+    try {
+      const cookies = document.cookie.split(';');
+      for (const cookie of cookies) {
+        const parts = cookie.trim().split('=');
+        const name = parts[0];
+        const val = parts.slice(1).join('=');
+        if (
+          (name.startsWith('sb-') && name.includes('-auth-token')) ||
+          name === 'dev-auth-bypass' ||
+          name === 'unool_session'
+        ) {
+          if (val && val.length > 5 && val !== 'false' && val !== '""') return true;
+        }
+      }
+    } catch (e) {}
+
+    return false;
+  }
+
+  const homeEl = document.querySelector('.home');
+  if (homeEl) {
+    if (isAuthed()) {
+      homeEl.setAttribute('href', '/dashboard');
+    }
+
+    fetch('/api/auth/status', { cache: 'no-store' })
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(d) {
+        if (d && d.authenticated) {
+          homeEl.setAttribute('href', '/dashboard');
+        } else if (!isAuthed()) {
+          homeEl.setAttribute('href', '/');
+        }
+      })
+      .catch(function() {});
+
+    homeEl.addEventListener('click', function(e) {
+      if (homeEl.getAttribute('href') === '/dashboard' || isAuthed()) {
+        homeEl.setAttribute('href', '/dashboard');
+        return;
+      }
+    });
+  }
+
   tallyEl.textContent = '0 of ' + countable() + ' letters caught';
   requestAnimationFrame(frame);
 })();

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { UnlockedContent } from '@/lib/follow-gate/types';
+import './FollowGateCard.css';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
