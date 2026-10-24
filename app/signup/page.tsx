@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback, Suspense, KeyboardEvent, ClipboardEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { getSupabaseBrowserClient } from '@/lib/supabase/browser';
 import './signup.css';
@@ -30,6 +30,24 @@ const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
 function SignUpComponent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const [refCode, setRefCode] = useState('');
+
+  useEffect(() => {
+    const urlRef = searchParams?.get('ref');
+    if (urlRef) {
+      setRefCode(urlRef);
+      try {
+        sessionStorage.setItem('unool_ref', urlRef);
+        document.cookie = `unool_ref=${encodeURIComponent(urlRef)}; path=/; max-age=2592000; SameSite=Lax`;
+      } catch {}
+    } else {
+      try {
+        const stored = sessionStorage.getItem('unool_ref');
+        if (stored) setRefCode(stored);
+      } catch {}
+    }
+  }, [searchParams]);
 
   // Form Fields
   const [name, setName] = useState('');
@@ -48,6 +66,7 @@ function SignUpComponent() {
 
   // OTP Verification States
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [devOtp, setDevOtp] = useState<string | null>(null);
   const [otpError, setOtpError] = useState('');
   const [cooldown, setCooldown] = useState(0);
   const [nextResendAt, setNextResendAt] = useState<string>();
@@ -191,29 +210,40 @@ function SignUpComponent() {
         body: JSON.stringify({
           name: name.trim(),
           email: email.trim().toLowerCase(),
-          password
+          password,
+          ref: refCode || undefined,
         })
       });
       const data = await res.json();
 
       if (!res.ok) {
-        setPasswordError(data.message || 'Something went wrong. Please try again.');
+        if (data.alreadyRegistered) {
+          setEmailError('This email is already registered. Please sign in instead.');
+          if (btnRef.current) btnRef.current.textContent = 'Go to Sign In';
+        } else {
+          setPasswordError(data.message || 'Something went wrong. Please try again.');
+        }
         setBusy(false);
-      } else {
-        // Trigger completion animation on calendar
-        setIsDone(true);
-        if (btnRef.current) btnRef.current.textContent = '✓ You’re in';
-        if (tagRef.current) tagRef.current.textContent = 'Welcome to Unool';
-        if (stRef.current) stRef.current.textContent = 'Account created. Opening your workspace.';
-
-        // Transition to OTP verification if required by backend
-        setTimeout(() => {
-          setNextResendAt(new Date(Date.now() + 60_000).toISOString());
-          setStage('otp');
-          setBusy(false);
-          setTimeout(() => otpRefs.current[0]?.focus(), 300);
-        }, 900);
+        return;
       }
+
+      if (data.devOtp) {
+        setDevOtp(data.devOtp);
+      }
+
+      // Trigger completion animation on calendar
+      setIsDone(true);
+      if (btnRef.current) btnRef.current.textContent = '✓ You’re in';
+      if (tagRef.current) tagRef.current.textContent = 'Welcome to Unool';
+      if (stRef.current) stRef.current.textContent = 'Account created. Opening your workspace.';
+
+      // Transition to OTP verification if required by backend
+      setTimeout(() => {
+        setNextResendAt(new Date(Date.now() + 60_000).toISOString());
+        setStage('otp');
+        setBusy(false);
+        setTimeout(() => otpRefs.current[0]?.focus(), 300);
+      }, 900);
     } catch {
       setPasswordError('Network error. Please try again.');
       setBusy(false);
@@ -278,11 +308,15 @@ function SignUpComponent() {
     if (cooldown > 0 || resendLoading) return;
     setResendLoading(true);
     try {
-      await fetch('/api/auth/resend-otp', {
+      const res = await fetch('/api/auth/resend-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim().toLowerCase(), purpose: 'signup' })
       });
+      const data = await res.json().catch(() => ({}));
+      if (data?.devOtp) {
+        setDevOtp(data.devOtp);
+      }
       setOtp(['', '', '', '', '', '']);
       setCooldown(60);
       otpRefs.current[0]?.focus();
@@ -592,6 +626,62 @@ function SignUpComponent() {
                   We just sent a 6-digit confirmation code to <b>{email}</b>. Enter it below to activate your calendar.
                 </p>
 
+                {devOtp && (
+                  <div
+                    style={{
+                      background: 'rgba(217, 119, 6, 0.08)',
+                      border: '1px solid rgba(217, 119, 6, 0.25)',
+                      borderRadius: '12px',
+                      padding: '12px 16px',
+                      margin: '12px 0 16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '12px',
+                    }}
+                  >
+                    <div style={{ fontSize: '13px', color: '#92400E' }}>
+                      <span
+                        style={{
+                          background: '#FDE68A',
+                          color: '#78350F',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          marginRight: '8px',
+                          textTransform: 'uppercase',
+                        }}
+                      >
+                        Testing Mode
+                      </span>
+                      OTP Code: <strong style={{ fontFamily: 'monospace', fontSize: '16px', letterSpacing: '2px' }}>{devOtp}</strong>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const digits = devOtp.split('').slice(0, 6);
+                        setOtp(digits);
+                        setOtpError('');
+                        setTimeout(() => otpRefs.current[5]?.focus(), 50);
+                      }}
+                      style={{
+                        padding: '5px 12px',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        background: '#92400E',
+                        color: '#FFFFFF',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        transition: 'opacity 0.2s',
+                      }}
+                    >
+                      Autofill
+                    </button>
+                  </div>
+                )}
+
                 <div className="otp-boxes">
                   {otp.map((digit, i) => (
                     <input
@@ -663,6 +753,10 @@ function SignUpComponent() {
                     ← Back to form
                   </button>
                 </div>
+
+                <p style={{ fontSize: '12px', color: '#8C827A', textAlign: 'center', marginTop: '16px', lineHeight: 1.5 }}>
+                  Didn’t receive the email? In local development without configured email domains, the code is also printed in your server terminal.
+                </p>
               </div>
             ) : (
               <div style={{ textAlign: 'center', padding: '24px 0' }}>

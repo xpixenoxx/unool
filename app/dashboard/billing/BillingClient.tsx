@@ -81,6 +81,159 @@ export default function BillingClient() {
     cfOrderId: string;
   } | null>(null);
 
+  // ── Payment Verification Polling ───────────────────────────
+  const pollVerification = useCallback(async (orderId: string) => {
+    setVerifying(true);
+    const maxAttempts = 10; // 30 seconds (3s intervals)
+    let attempts = 0;
+
+    const poll = async () => {
+      if (attempts >= maxAttempts) {
+        setVerifying(false);
+        setPaymentResult({
+          status: 'TIMEOUT',
+          message: 'Payment verification timed out. If payment was deducted, your plan will activate shortly.',
+        });
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/billing/verify?orderId=${orderId}`);
+        const data = await res.json();
+
+        if (data.status === 'PAID') {
+          setVerifying(false);
+          setPaymentResult({ status: 'PAID', message: data.message });
+          // Clear active session
+          try { sessionStorage.removeItem('unool_active_checkout'); } catch {}
+          // Broadcast to other tabs
+          try {
+            const bc = new BroadcastChannel('unool_billing_sync');
+            bc.postMessage({ type: 'CHECKOUT_SUCCESS', orderId });
+            bc.close();
+          } catch {}
+          // Refresh current plan
+          const currentRes = await fetch('/api/billing/current');
+          if (currentRes.ok) {
+            setCurrentPlan(await currentRes.json());
+          }
+          return;
+        }
+
+        if (data.status === 'FAILED') {
+          setVerifying(false);
+          setPaymentResult({ status: 'FAILED', message: data.message });
+          try { sessionStorage.removeItem('unool_active_checkout'); } catch {}
+          return;
+        }
+
+        // Still pending — poll again
+        attempts++;
+        setTimeout(poll, 3000);
+      } catch {
+        attempts++;
+        setTimeout(poll, 3000);
+      }
+    };
+
+    poll();
+  }, []);
+
+  // ── Multi-Tab Sync via BroadcastChannel ─────────────────────
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('BroadcastChannel' in window)) return;
+    try {
+      const channel = new BroadcastChannel('unool_billing_sync');
+      channel.onmessage = (event) => {
+        if (event.data?.type === 'CHECKOUT_SUCCESS') {
+          // Another tab completed payment — refresh subscription & close any modal
+          setCheckoutData(null);
+          fetch('/api/billing/current')
+            .then(res => res.json())
+            .then(data => {
+              setCurrentPlan(data);
+              setPaymentResult({ status: 'PAID', message: 'Subscription updated successfully!' });
+            })
+            .catch(() => {});
+        } else if (event.data?.type === 'CHECKOUT_CANCELLED') {
+          setCheckoutData(null);
+        }
+      };
+      return () => {
+        channel.close();
+      };
+    } catch {
+      // Ignore unsupported browsers
+    }
+  }, []);
+
+  // ── Clean up lingering Cashfree artifacts & handle page refresh / return_url ──────────────
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // 1. Clean DOM artifacts from Cashfree iframes/modals
+    try {
+      const lingeringCf = document.querySelectorAll(
+        '[id*="cashfree"], [class*="cf-"], [id*="cf-"], iframe[src*="cashfree"], .cf-modal, .cf-backdrop, .cf-overlay'
+      );
+      lingeringCf.forEach(el => el.remove());
+    } catch {
+      // Ignore
+    }
+
+    // 2. Handle return_url from Cashfree redirect (?order_id=xxx&status=xxx)
+    const params = new URLSearchParams(window.location.search);
+    const orderIdFromUrl = params.get('order_id');
+    const statusFromUrl = params.get('status');
+
+    if (orderIdFromUrl) {
+      try { sessionStorage.removeItem('unool_active_checkout'); } catch {}
+
+      if (statusFromUrl === 'FAILED' || statusFromUrl === 'CANCELLED' || statusFromUrl === 'USER_DROPPED') {
+        setPaymentResult({
+          status: 'ERROR',
+          message: 'Checkout was canceled or interrupted. No changes were made to your subscription.',
+        });
+      } else {
+        pollVerification(orderIdFromUrl);
+      }
+
+      // Clean query parameters from URL without reloading
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, '', cleanUrl);
+      return;
+    }
+
+    // 3. Handle refresh during active checkout (network interruption recovery)
+    try {
+      const savedCheckout = sessionStorage.getItem('unool_active_checkout');
+      if (savedCheckout) {
+        const parsed = JSON.parse(savedCheckout);
+        const ageMs = Date.now() - (parsed.timestamp || 0);
+        // If within 15 minutes, check if it was completed or interrupted
+        if (parsed.cfOrderId && ageMs < 15 * 60 * 1000) {
+          fetch(`/api/billing/verify?orderId=${parsed.cfOrderId}`)
+            .then(res => res.json())
+            .then(data => {
+              if (data.status === 'PAID') {
+                setPaymentResult({ status: 'PAID', message: data.message });
+                fetch('/api/billing/current').then(r => r.json()).then(setCurrentPlan);
+              } else {
+                setPaymentResult({
+                  status: 'ERROR',
+                  message: 'Checkout was interrupted by page refresh. You are back on the billing page.',
+                });
+              }
+            })
+            .catch(() => {});
+        }
+        sessionStorage.removeItem('unool_active_checkout');
+      }
+    } catch {
+      // Ignore
+    }
+  }, [pollVerification]);
+
   // ── Fetch data ─────────────────────────────────────────────
   useEffect(() => {
     async function loadData() {
@@ -107,55 +260,6 @@ export default function BillingClient() {
     }
 
     loadData();
-  }, []);
-
-  // ── Payment Verification Polling ───────────────────────────
-  const pollVerification = useCallback(async (orderId: string) => {
-    setVerifying(true);
-    const maxAttempts = 10; // 30 seconds (3s intervals)
-    let attempts = 0;
-
-    const poll = async () => {
-      if (attempts >= maxAttempts) {
-        setVerifying(false);
-        setPaymentResult({
-          status: 'TIMEOUT',
-          message: 'Payment verification timed out. If payment was deducted, your plan will activate shortly.',
-        });
-        return;
-      }
-
-      try {
-        const res = await fetch(`/api/billing/verify?orderId=${orderId}`);
-        const data = await res.json();
-
-        if (data.status === 'PAID') {
-          setVerifying(false);
-          setPaymentResult({ status: 'PAID', message: data.message });
-          // Refresh current plan
-          const currentRes = await fetch('/api/billing/current');
-          if (currentRes.ok) {
-            setCurrentPlan(await currentRes.json());
-          }
-          return;
-        }
-
-        if (data.status === 'FAILED') {
-          setVerifying(false);
-          setPaymentResult({ status: 'FAILED', message: data.message });
-          return;
-        }
-
-        // Still pending — poll again
-        attempts++;
-        setTimeout(poll, 3000);
-      } catch {
-        attempts++;
-        setTimeout(poll, 3000);
-      }
-    };
-
-    poll();
   }, []);
 
   // ── Handle Plan Selection ──────────────────────────────────
@@ -190,6 +294,16 @@ export default function BillingClient() {
         setPaymentResult({ status: 'ERROR', message: 'Plan details not found.' });
         return;
       }
+
+      // Persist active checkout in sessionStorage so refresh or interruption can be tracked
+      try {
+        sessionStorage.setItem('unool_active_checkout', JSON.stringify({
+          cfOrderId,
+          planId,
+          billingCycle,
+          timestamp: Date.now(),
+        }));
+      } catch {}
 
       // Open our bespoke Unool Checkout Modal!
       setCheckoutData({
@@ -629,6 +743,12 @@ export default function BillingClient() {
           isOpen={!!checkoutData}
           onClose={() => {
             const orderIdToPoll = checkoutData.cfOrderId;
+            try { sessionStorage.removeItem('unool_active_checkout'); } catch {}
+            try {
+              const bc = new BroadcastChannel('unool_billing_sync');
+              bc.postMessage({ type: 'CHECKOUT_CANCELLED' });
+              bc.close();
+            } catch {}
             setCheckoutData(null);
             if (orderIdToPoll) {
               pollVerification(orderIdToPoll);
@@ -640,12 +760,19 @@ export default function BillingClient() {
           cfOrderId={checkoutData.cfOrderId}
           onPaymentSuccess={() => {
             const orderIdToPoll = checkoutData.cfOrderId;
+            try { sessionStorage.removeItem('unool_active_checkout'); } catch {}
             setCheckoutData(null);
             if (orderIdToPoll) {
               pollVerification(orderIdToPoll);
             }
           }}
           onPaymentFailed={(msg) => {
+            try { sessionStorage.removeItem('unool_active_checkout'); } catch {}
+            try {
+              const bc = new BroadcastChannel('unool_billing_sync');
+              bc.postMessage({ type: 'CHECKOUT_CANCELLED' });
+              bc.close();
+            } catch {}
             setCheckoutData(null);
             setPaymentResult({ status: 'ERROR', message: msg });
             window.scrollTo({ top: 0, behavior: 'smooth' });

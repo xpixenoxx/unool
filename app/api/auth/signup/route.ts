@@ -22,11 +22,13 @@ import { hashPassword, validatePassword } from '@/lib/auth/password';
 import { sendOtpEmail } from '@/lib/auth/email';
 import { checkOtpGenerateLimit, getClientIp } from '@/lib/auth/rate-limits';
 import { logger } from '@/lib/logger';
+import { config } from '@/lib/config/schema';
 
 const bodySchema = z.object({
   name:     z.string().min(1, 'Name is required').max(100),
   email:    z.string().email('Invalid email address'),
   password: z.string(),
+  ref:      z.string().optional(),
 });
 
 // Identical wording whether the email exists or not — prevents account enumeration
@@ -37,6 +39,7 @@ const SUCCESS_RESPONSE = {
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
+  const isDev = config.NODE_ENV !== 'production' || config.DEV_AUTH_BYPASS === true;
 
   try {
     const body   = await request.json().catch(() => ({}));
@@ -49,7 +52,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { name, email, password } = parsed.data;
+    const { name, email, password, ref } = parsed.data;
     const emailLower = email.toLowerCase().trim();
 
     // Rate-limit by IP + email
@@ -67,13 +70,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: pwError }, { status: 400 });
     }
 
-    // Check if email is already a verified account — return generic success to avoid enumeration
+    // Check if email is already a verified account
     const { data: userList } = await supabaseAdmin.auth.admin.listUsers();
     const existingUser = userList?.users?.find(u => u.email === emailLower);
     if (existingUser?.email_confirmed_at) {
-      // Already verified — silently return success (no enumeration)
       logger.info('Signup attempt for already-verified email', { email: emailLower });
-      return NextResponse.json(SUCCESS_RESPONSE, { status: 200 });
+      return NextResponse.json({
+        success: false,
+        alreadyRegistered: true,
+        message: 'This email is already registered. Please sign in instead.',
+      }, { status: 409 });
     }
 
     // If a previous unverified user record exists in Supabase, delete it
@@ -93,13 +99,18 @@ export async function POST(request: NextRequest) {
       email:        emailLower,
       name:         name.trim(),
       passwordHash,
+      referralCode: ref,
     });
 
     // Send OTP email
     await sendOtpEmail({ to: emailLower, otp, purpose: 'signup' });
 
     logger.info('Signup OTP sent (user not yet created)', { email: emailLower });
-    return NextResponse.json(SUCCESS_RESPONSE, { status: 200 });
+    return NextResponse.json({
+      ...SUCCESS_RESPONSE,
+      devOtp: isDev ? otp : undefined,
+      isDev,
+    }, { status: 200 });
 
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);

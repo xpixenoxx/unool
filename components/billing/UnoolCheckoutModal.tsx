@@ -53,6 +53,18 @@ async function getCashfreeInstance(): Promise<CashfreeInstance | null> {
   }
 }
 
+function cleanupCashfreeArtifacts() {
+  if (typeof document === 'undefined') return;
+  try {
+    const cfElements = document.querySelectorAll(
+      '[id*="cashfree"], [class*="cf-"], [id*="cf-"], iframe[src*="cashfree"], .cf-modal, .cf-backdrop, .cf-overlay'
+    );
+    cfElements.forEach(el => el.remove());
+  } catch {
+    // Ignore
+  }
+}
+
 export function UnoolCheckoutModal({
   isOpen,
   onClose,
@@ -67,16 +79,34 @@ export function UnoolCheckoutModal({
   const [loadingGateway, setLoadingGateway] = useState(true);
   const [initError, setInitError] = useState<string | null>(null);
 
+  const handleClose = () => {
+    cleanupCashfreeArtifacts();
+    onClose();
+  };
+
   // Close on Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) {
-        onClose();
+        handleClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen]);
+
+  // Clean Cashfree artifacts on beforeunload / unmount
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleBeforeUnload = () => {
+      cleanupCashfreeArtifacts();
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      cleanupCashfreeArtifacts();
+    };
+  }, [isOpen]);
 
   // Mount Cashfree Checkout inside our custom dialog container
   useEffect(() => {
@@ -115,9 +145,11 @@ export function UnoolCheckoutModal({
 
             if (result?.error) {
               console.warn('[UnoolCheckout] Gateway error or user cancellation:', result.error);
+              cleanupCashfreeArtifacts();
               onPaymentFailed(result.error.message || 'Payment was cancelled.');
             } else {
               // Completed or modal finished
+              cleanupCashfreeArtifacts();
               onPaymentSuccess();
             }
           })
@@ -146,6 +178,7 @@ export function UnoolCheckoutModal({
     return () => {
       isMounted = false;
       clearTimeout(timer);
+      cleanupCashfreeArtifacts();
     };
   }, [isOpen, paymentSessionId, plan, onPaymentSuccess, onPaymentFailed]);
 
@@ -163,7 +196,7 @@ export function UnoolCheckoutModal({
     <div
       className="unool-checkout-backdrop"
       onClick={e => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) handleClose();
       }}
       role="dialog"
       aria-modal="true"
@@ -278,7 +311,7 @@ export function UnoolCheckoutModal({
               </span>
             </div>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="unool-close-btn"
               title="Close (Esc)"
               aria-label="Close checkout"

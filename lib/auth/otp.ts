@@ -59,8 +59,9 @@ export async function issueSignupOtp(opts: {
   email:        string;
   name:         string;
   passwordHash: string;
+  referralCode?: string;
 }): Promise<IssueOtpResult> {
-  const { email, name, passwordHash } = opts;
+  const { email, name, passwordHash, referralCode } = opts;
   const otp          = generateOtp();
   const otpHash      = hashOtp(otp);
   const now          = new Date();
@@ -84,7 +85,11 @@ export async function issueSignupOtp(opts: {
       otp_hash:       otpHash,
       expires_at:     expiresAt.toISOString(),
       next_resend_at: nextResendAt.toISOString(),
-      metadata:       { name, password_hash: passwordHash },
+      metadata:       {
+        name,
+        password_hash: passwordHash,
+        referral_code: referralCode || null,
+      },
     });
 
   if (error) {

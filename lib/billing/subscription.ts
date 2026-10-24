@@ -188,6 +188,14 @@ export async function markOrderPaid(
     order.billing_cycle
   );
 
+  // Trigger referral conversion reward if the user was referred
+  try {
+    const { recordReferralConversion } = await import('@/lib/referrals/service');
+    await recordReferralConversion(order.user_id);
+  } catch (refErr) {
+    logger.warn('Failed to record referral conversion on payment', { error: refErr, userId: order.user_id });
+  }
+
   logger.info('Payment order completed and plan activated', {
     cfOrderId,
     cfPaymentId,

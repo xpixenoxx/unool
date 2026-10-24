@@ -73,7 +73,11 @@ export async function POST(request: NextRequest) {
     }
 
     // ── OTP verified! Now create the Supabase user for the first time ─────────
-    const { name, password_hash } = result.metadata as { name: string; password_hash: string };
+    const { name, password_hash, referral_code } = result.metadata as {
+      name: string;
+      password_hash: string;
+      referral_code?: string;
+    };
 
     if (!name || !password_hash) {
       logger.error('Missing metadata in verified OTP challenge', { email: emailLower });
@@ -114,6 +118,22 @@ export async function POST(request: NextRequest) {
       }
       logger.error('Failed to create user after OTP verification', { error: new Error(createError.message), email: emailLower });
       return NextResponse.json({ success: false, message: `Account creation failed: ${createError.message}` }, { status: 500 });
+    }
+
+    // Record referral attribution if signup was via a referral link
+    if (referral_code && userData?.user?.id) {
+      try {
+        const { recordReferralSignup } = await import('@/lib/referrals/service');
+        await recordReferralSignup(userData.user.id, referral_code);
+        logger.info('Referral signup recorded successfully', {
+          userId: userData.user.id,
+          referralCode: referral_code,
+        });
+      } catch (refErr) {
+        logger.error('Failed to record referral signup', {
+          error: refErr instanceof Error ? refErr : new Error(String(refErr)),
+        });
+      }
     }
 
     logger.info('Signup complete — Supabase user created', {

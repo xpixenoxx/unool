@@ -1941,7 +1941,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   <span>{planError}</span>
                   <div className="flex gap-2 flex-wrap">
                     <Button size="sm" asChild>
-                      <Link href="/dashboard/settings/billing">Upgrade Plan</Link>
+                      <Link href="/dashboard/billing">Upgrade Plan</Link>
                     </Button>
                     <Button size="sm" variant="ghost" onClick={() => setPlanError(null)}>
                       Dismiss

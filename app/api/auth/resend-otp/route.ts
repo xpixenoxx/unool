@@ -7,10 +7,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { issueOtp, isResendCoolingDown } from '@/lib/auth/otp';
+import { issueOtp, issueSignupOtp, isResendCoolingDown } from '@/lib/auth/otp';
 import { sendOtpEmail } from '@/lib/auth/email';
 import { checkOtpGenerateLimit, getClientIp } from '@/lib/auth/rate-limits';
 import { logger } from '@/lib/logger';
+import { config } from '@/lib/config/schema';
 
 const bodySchema = z.object({
   email:   z.string().email(),
@@ -19,6 +20,7 @@ const bodySchema = z.object({
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
+  const isDev = config.NODE_ENV !== 'production' || config.DEV_AUTH_BYPASS === true;
 
   try {
     const body = await request.json().catch(() => ({}));
@@ -40,7 +42,60 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Look up user
+    // ── Handle Signup Resend (user does not exist in Supabase auth yet) ───
+    if (purpose === 'signup') {
+      const { data: challenge } = await supabaseAdmin
+        .from('auth_otp_challenges')
+        .select('*')
+        .eq('email', emailLower)
+        .eq('purpose', 'signup')
+        .is('user_id', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!challenge) {
+        return NextResponse.json({
+          success:      true,
+          message:      'If this email is pending registration, a new code will be sent.',
+          nextResendAt: new Date(Date.now() + 60_000).toISOString(),
+        }, { status: 200 });
+      }
+
+      // Enforce 60-second cooldown
+      if (challenge.next_resend_at && new Date(challenge.next_resend_at) > new Date()) {
+        return NextResponse.json(
+          { success: false, message: 'Please wait 60 seconds before requesting another code.' },
+          { status: 429 }
+        );
+      }
+
+      const metadata = (challenge.metadata || {}) as {
+        name?: string;
+        password_hash?: string;
+        referral_code?: string;
+      };
+
+      const { otp, nextResendAt } = await issueSignupOtp({
+        email:        emailLower,
+        name:         metadata.name || 'User',
+        passwordHash: metadata.password_hash || '',
+        referralCode: metadata.referral_code,
+      });
+
+      await sendOtpEmail({ to: emailLower, otp, purpose: 'signup' });
+      logger.info('Signup OTP resent', { email: emailLower });
+
+      return NextResponse.json({
+        success:      true,
+        message:      'A new verification code has been sent.',
+        nextResendAt: nextResendAt.toISOString(),
+        devOtp:       isDev ? otp : undefined,
+        isDev,
+      }, { status: 200 });
+    }
+
+    // ── Handle Signin Resend (user exists in Supabase auth) ────────────────
     const { data: userList } = await supabaseAdmin.auth.admin.listUsers();
     const foundUser = userList?.users?.find(u => u.email === emailLower);
     if (!foundUser) {
@@ -71,6 +126,8 @@ export async function POST(request: NextRequest) {
       success:      true,
       message:      'A new verification code has been sent.',
       nextResendAt: nextResendAt.toISOString(),
+      devOtp:       isDev ? otp : undefined,
+      isDev,
     }, { status: 200 });
 
   } catch (err) {

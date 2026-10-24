@@ -10,7 +10,7 @@
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
 
-const FROM_ADDRESS = 'noreply@unool.co';
+const FROM_ADDRESS = process.env.RESEND_FROM_EMAIL || 'noreply@unool.co';
 const APP_NAME     = 'Unool';
 
 export async function sendOtpEmail(opts: {
