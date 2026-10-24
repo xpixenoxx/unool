@@ -255,6 +255,17 @@
 
     requestAnimationFrame(frame);
   }
+  try {
+    const hasAuth = document.cookie.split(';').some(c => {
+      const p = c.trim().split('=');
+      return (p[0].startsWith('sb-') && p[0].includes('-auth-token') && p[1] && p[1].length > 5) || p[0] === 'dev-auth-bypass';
+    });
+    const homeEl = document.querySelector('.home');
+    if (homeEl) {
+      homeEl.setAttribute('href', hasAuth ? '/dashboard' : '/');
+    }
+  } catch (e) {}
+
   tallyEl.textContent = '0 of ' + countable() + ' letters caught';
   requestAnimationFrame(frame);
 })();

@@ -2,6 +2,8 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { getSupabaseBrowserClient } from '@/lib/supabase/browser';
 import './not-found.css';
 
 interface Glyph {
@@ -38,6 +40,78 @@ export function NotFoundClient() {
   );
   const [tally, setTally] = useState<string>('0 of 7 letters caught');
   const [solved, setSolved] = useState<boolean>(false);
+  const router = useRouter();
+  const [targetHref, setTargetHref] = useState<string>('/');
+
+  // Check auth session to route to /dashboard (overview) if logged in or / (homepage) if not
+  useEffect(() => {
+    let isMounted = true;
+
+    const updateDestination = (isLoggedIn: boolean) => {
+      if (isMounted) {
+        setTargetHref(isLoggedIn ? '/dashboard' : '/');
+      }
+    };
+
+    async function checkAuthSession() {
+      try {
+        const hasDevCookie =
+          typeof document !== 'undefined' &&
+          document.cookie.includes('dev-auth-bypass=true');
+        if (hasDevCookie) {
+          updateDestination(true);
+          return;
+        }
+
+        const supabase = getSupabaseBrowserClient();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        updateDestination(Boolean(session?.user));
+      } catch {
+        updateDestination(false);
+      }
+    }
+
+    checkAuthSession();
+
+    const supabase = getSupabaseBrowserClient();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(
+      (_event: unknown, session: { user?: unknown } | null) => {
+        updateDestination(Boolean(session?.user));
+      }
+    );
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const handleHomeClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+    try {
+      const hasDevCookie =
+        typeof document !== 'undefined' &&
+        document.cookie.includes('dev-auth-bypass=true');
+      if (hasDevCookie) {
+        e.preventDefault();
+        router.push('/dashboard');
+        return;
+      }
+
+      const supabase = getSupabaseBrowserClient();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const destination = session?.user ? '/dashboard' : '/';
+      e.preventDefault();
+      router.push(destination);
+    } catch {
+      // Fallback to default Link navigation to targetHref
+    }
+  };
 
   useEffect(() => {
     const cv = canvasRef.current;
@@ -409,7 +483,11 @@ export function NotFoundClient() {
         </p>
       </div>
 
-      <Link className="home" href="/">
+      <Link
+        className="home"
+        href={targetHref}
+        onClick={handleHomeClick}
+      >
         Take me home
       </Link>
     </div>
