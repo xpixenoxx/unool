@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import type { Plan } from '@/lib/repositories/interfaces/IAdminRepository';
+import { getPlan, type PlanId } from '@/lib/billing/plans';
 
 const adminClient = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
 
@@ -104,7 +105,25 @@ async function getPlanFromCache(planId: string): Promise<Plan | null> {
     .eq('id', planId)
     .single();
 
-  if (error || !data) return null;
+  if (error || !data) {
+    const planDef = getPlan(planId as PlanId);
+    if (!planDef) return null;
+    const fallbackPlan: Plan = {
+      id: planDef.id,
+      name: planDef.name,
+      description: planDef.tagline,
+      priceMonthlyUsd: (planDef.pricing?.USD?.monthly || 0) / 100,
+      priceYearlyUsd: (planDef.pricing?.USD?.annual || 0) / 100,
+      features: planDef.features as unknown as Record<string, unknown>,
+      limits: planDef.limits as unknown as Record<string, unknown>,
+      isActive: true,
+      sortOrder: planDef.sortOrder,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    planCache.set(planId, { plan: fallbackPlan, cachedAt: Date.now() });
+    return fallbackPlan;
+  }
 
   const plan: Plan = {
     id: data.id,

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
-import { getWorkspaceSubscription, upsertSubscription, calculatePeriodEnd } from '@/lib/billing/subscription';
+import { getWorkspaceSubscription, upsertSubscription, activateWorkspacePlan, calculatePeriodEnd } from '@/lib/billing/subscription';
 import { getPlan, formatPrice } from '@/lib/billing/plans';
-import type { Currency, PlanId } from '@/lib/billing/plans';
+import type { Currency, PlanId, BillingCycle } from '@/lib/billing/plans';
 import { logger } from '@/lib/logger';
 import { createClient as createSbClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
@@ -27,7 +27,85 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const adminClient = createSbClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
+    // 0. Primary ground-truth check: latest PAID order for this workspace
+    const { data: latestPaidOrder } = await adminClient
+      .from('payment_orders')
+      .select('*')
+      .eq('workspace_id', auth.workspaceId)
+      .eq('status', 'PAID')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
     const subscription = await getWorkspaceSubscription(auth.workspaceId);
+
+    const isCancelledAfterOrder = Boolean(
+      subscription?.cancelled_at &&
+      latestPaidOrder?.created_at &&
+      new Date(subscription.cancelled_at) > new Date(latestPaidOrder.created_at)
+    );
+
+    // If there is a paid order that represents an upgrade or newer state than the subscription record
+    if (
+      latestPaidOrder &&
+      !isCancelledAfterOrder &&
+      (!subscription || subscription.status !== 'active' || subscription.plan_id !== latestPaidOrder.plan_id)
+    ) {
+      const plan = getPlan(latestPaidOrder.plan_id as PlanId);
+      const currency = (latestPaidOrder.currency || 'INR') as Currency;
+      const amountPaise = latestPaidOrder.amount_paise;
+      const cycle = (latestPaidOrder.billing_cycle || 'monthly') as BillingCycle;
+      const periodEnd = calculatePeriodEnd(cycle);
+
+      // Auto-heal both subscriptions and workspaces so both tables are immediately synchronized
+      try {
+        await Promise.allSettled([
+          upsertSubscription({
+            workspaceId: auth.workspaceId,
+            userId: latestPaidOrder.user_id || auth.userId,
+            planId: latestPaidOrder.plan_id as PlanId,
+            billingCycle: cycle,
+            amountPaise,
+            currency,
+            cfSubscriptionId: latestPaidOrder.cf_payment_id || undefined,
+            status: 'active',
+            currentPeriodStart: latestPaidOrder.created_at || new Date().toISOString(),
+            currentPeriodEnd: periodEnd,
+            paymentMethod: latestPaidOrder.payment_method || undefined,
+          }),
+          activateWorkspacePlan(auth.workspaceId, latestPaidOrder.plan_id, cycle),
+        ]);
+      } catch (healErr) {
+        logger.warn('Failed to heal subscription from latest paid order', { error: healErr, workspaceId: auth.workspaceId });
+      }
+
+      return NextResponse.json({
+        plan: {
+          id: latestPaidOrder.plan_id,
+          name: plan?.name || latestPaidOrder.plan_id,
+          tagline: plan?.tagline || '',
+        },
+        subscription: {
+          id: subscription?.id || 'sub_' + latestPaidOrder.cf_order_id,
+          status: 'active',
+          billingCycle: cycle,
+          amount: formatPrice(amountPaise, currency),
+          amountPaise,
+          currency,
+          currentPeriodStart: latestPaidOrder.created_at || new Date().toISOString(),
+          currentPeriodEnd: periodEnd,
+          trialEnd: null,
+          cancelAtPeriodEnd: false,
+          cancelledAt: null,
+          paymentMethod: latestPaidOrder.payment_method || null,
+        },
+        isFreeTier: false,
+      }, {
+        headers: NO_CACHE_HEADERS,
+      });
+    }
 
     // 1. If subscription exists and is active, return it
     if (subscription && subscription.status === 'active') {
@@ -61,7 +139,6 @@ export async function GET(request: NextRequest) {
     }
 
     // 2. Direct fallback: check workspace table for active paid plan
-    const adminClient = createSbClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
     const { data: workspace } = await adminClient
       .from('workspaces')
       .select('plan, plan_status, plan_expires_at')

@@ -38,8 +38,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-    // If already processed, return current status
+    // If already processed, ensure workspace and subscription records are in sync and return status
     if (dbOrder.status === 'PAID') {
+      try {
+        await markOrderPaid(
+          orderId,
+          dbOrder.cf_payment_id || 'cf_' + orderId,
+          dbOrder.payment_method || undefined
+        );
+      } catch (syncErr) {
+        logger.warn('Failed to ensure sync for already paid order in verify', { orderId, error: syncErr });
+      }
+
       return NextResponse.json({
         status: 'PAID',
         planId: dbOrder.plan_id,

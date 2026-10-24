@@ -140,7 +140,10 @@ export default function BillingClient() {
             if (currentRes.ok) {
               const freshPlan = await currentRes.json();
               if (freshPlan && !freshPlan.isFreeTier) {
-                setCurrentPlan(freshPlan);
+                // Ensure we never overwrite the verified upgraded plan with a stale or previous plan
+                if (!targetPlanId || freshPlan.plan?.id === targetPlanId) {
+                  setCurrentPlan(freshPlan);
+                }
               }
             }
           } catch {}
@@ -177,7 +180,9 @@ export default function BillingClient() {
           fetch(`/api/billing/current?t=${Date.now()}`, { cache: 'no-store' })
             .then(res => res.json())
             .then(data => {
-              setCurrentPlan(data);
+              if (data && (!event.data?.planId || data.plan?.id === event.data.planId)) {
+                setCurrentPlan(data);
+              }
               setPaymentResult({ status: 'PAID', message: 'Subscription updated successfully!' });
             })
             .catch(() => {});
@@ -268,7 +273,9 @@ export default function BillingClient() {
                   .then(r => r.json())
                   .then(freshPlan => {
                     if (freshPlan && !freshPlan.isFreeTier) {
-                      setCurrentPlan(freshPlan);
+                      if (!targetPlanId || freshPlan.plan?.id === targetPlanId) {
+                        setCurrentPlan(freshPlan);
+                      }
                     }
                   })
                   .catch(() => {});

@@ -155,7 +155,42 @@ export async function markOrderPaid(
   }
 
   if (order.status === 'PAID') {
-    logger.info('Order already paid, skipping', { cfOrderId });
+    logger.info('Order already paid, guaranteeing workspace and subscription sync', { cfOrderId });
+    // Re-verify that the plan is active in both workspaces and subscriptions in case earlier attempt was interrupted
+    try {
+      await activateWorkspacePlan(
+        order.workspace_id,
+        order.plan_id,
+        order.billing_cycle
+      );
+    } catch (wsErr) {
+      logger.error('Failed to activate workspace plan on already paid order', {
+        error: wsErr instanceof Error ? wsErr : new Error(String(wsErr)),
+        workspaceId: order.workspace_id,
+      });
+    }
+
+    try {
+      await upsertSubscription({
+        workspaceId: order.workspace_id,
+        userId: order.user_id,
+        planId: order.plan_id as PlanId,
+        billingCycle: order.billing_cycle as BillingCycle,
+        amountPaise: order.amount_paise,
+        currency: order.currency as Currency,
+        cfSubscriptionId: order.cf_payment_id || cfPaymentId,
+        status: 'active',
+        currentPeriodStart: order.created_at || new Date().toISOString(),
+        currentPeriodEnd: calculatePeriodEnd(order.billing_cycle as BillingCycle),
+        paymentMethod: paymentMethod || order.payment_method || undefined,
+      });
+    } catch (subErr) {
+      logger.error('Failed to upsert subscription on already paid order', {
+        error: subErr instanceof Error ? subErr : new Error(String(subErr)),
+        workspaceId: order.workspace_id,
+      });
+    }
+
     return { success: true, alreadyProcessed: true };
   }
 
@@ -182,11 +217,19 @@ export async function markOrderPaid(
   }
 
   // Activate the plan on the workspace
-  await activateWorkspacePlan(
-    order.workspace_id,
-    order.plan_id,
-    order.billing_cycle
-  );
+  try {
+    await activateWorkspacePlan(
+      order.workspace_id,
+      order.plan_id,
+      order.billing_cycle
+    );
+  } catch (wsErr) {
+    logger.error('Failed to activate workspace plan in markOrderPaid', {
+      error: wsErr instanceof Error ? wsErr : new Error(String(wsErr)),
+      workspaceId: order.workspace_id,
+      planId: order.plan_id,
+    });
+  }
 
   // Activate and persist subscription record on the workspace
   try {
@@ -352,14 +395,14 @@ export async function cancelSubscription(
 /**
  * Activate a plan on a workspace after successful payment.
  */
-async function activateWorkspacePlan(
+export async function activateWorkspacePlan(
   workspaceId: string,
   planId: string,
   billingCycle: string
 ): Promise<void> {
   const periodEnd = calculatePeriodEnd(billingCycle as BillingCycle);
 
-  const { error } = await adminClient
+  let { error } = await adminClient
     .from('workspaces')
     .update({
       plan: planId,
@@ -368,6 +411,19 @@ async function activateWorkspacePlan(
       updated_at: new Date().toISOString(),
     })
     .eq('id', workspaceId);
+
+  // If column updated_at doesn't exist, retry without it
+  if (error && (error.message.includes('updated_at') || error.code === '42703')) {
+    const retry = await adminClient
+      .from('workspaces')
+      .update({
+        plan: planId,
+        plan_status: 'active',
+        plan_expires_at: periodEnd,
+      })
+      .eq('id', workspaceId);
+    error = retry.error;
+  }
 
   if (error) {
     logger.error('Failed to activate workspace plan', {
