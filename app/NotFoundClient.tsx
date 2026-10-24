@@ -43,44 +43,75 @@ export function NotFoundClient() {
   const router = useRouter();
   const [targetHref, setTargetHref] = useState<string>('/');
 
-  // Check auth session to route to /dashboard (overview) if logged in or / (homepage) if not
+  // Route to /dashboard ONLY for users who are logged in AND have an Unool account.
+  // Otherwise, strictly route to homepage (/).
   useEffect(() => {
     let isMounted = true;
 
-    const updateDestination = (isLoggedIn: boolean) => {
-      if (isMounted) {
-        setTargetHref(isLoggedIn ? '/dashboard' : '/');
-      }
-    };
-
-    async function checkAuthSession() {
+    async function verifyUnoolAccount() {
       try {
-        const hasDevCookie =
-          typeof document !== 'undefined' &&
-          document.cookie.includes('dev-auth-bypass=true');
-        if (hasDevCookie) {
-          updateDestination(true);
-          return;
-        }
-
         const supabase = getSupabaseBrowserClient();
         const {
           data: { session },
+          error: sessionErr,
         } = await supabase.auth.getSession();
-        updateDestination(Boolean(session?.user));
+
+        if (sessionErr || !session?.user?.id) {
+          if (isMounted) setTargetHref('/');
+          return;
+        }
+
+        // Verify the user actually has an Unool workspace/account
+        const { data: member, error: memberErr } = await supabase
+          .from('workspace_members')
+          .select('workspace_id')
+          .eq('user_id', session.user.id)
+          .maybeSingle();
+
+        if (isMounted) {
+          if (!memberErr && member?.workspace_id) {
+            setTargetHref('/dashboard');
+          } else {
+            // Also check if user profile exists
+            const { data: userRecord } = await supabase
+              .from('users')
+              .select('id')
+              .eq('id', session.user.id)
+              .maybeSingle();
+
+            setTargetHref(userRecord?.id ? '/dashboard' : '/');
+          }
+        }
       } catch {
-        updateDestination(false);
+        if (isMounted) setTargetHref('/');
       }
     }
 
-    checkAuthSession();
+    verifyUnoolAccount();
 
     const supabase = getSupabaseBrowserClient();
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(
-      (_event: unknown, session: { user?: unknown } | null) => {
-        updateDestination(Boolean(session?.user));
+      async (_event: unknown, session: { user?: { id?: string } } | null) => {
+        if (!session?.user?.id) {
+          if (isMounted) setTargetHref('/');
+          return;
+        }
+
+        try {
+          const { data: member } = await supabase
+            .from('workspace_members')
+            .select('workspace_id')
+            .eq('user_id', session.user.id)
+            .maybeSingle();
+
+          if (isMounted) {
+            setTargetHref(member?.workspace_id ? '/dashboard' : '/');
+          }
+        } catch {
+          if (isMounted) setTargetHref('/');
+        }
       }
     );
 
@@ -91,25 +122,44 @@ export function NotFoundClient() {
   }, []);
 
   const handleHomeClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
     try {
-      const hasDevCookie =
-        typeof document !== 'undefined' &&
-        document.cookie.includes('dev-auth-bypass=true');
-      if (hasDevCookie) {
-        e.preventDefault();
+      const supabase = getSupabaseBrowserClient();
+      const {
+        data: { session },
+        error: sessionErr,
+      } = await supabase.auth.getSession();
+
+      if (sessionErr || !session?.user?.id) {
+        router.push('/');
+        return;
+      }
+
+      // Check if user has an active Unool workspace/account
+      const { data: member, error: memberErr } = await supabase
+        .from('workspace_members')
+        .select('workspace_id')
+        .eq('user_id', session.user.id)
+        .maybeSingle();
+
+      if (!memberErr && member?.workspace_id) {
         router.push('/dashboard');
         return;
       }
 
-      const supabase = getSupabaseBrowserClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const destination = session?.user ? '/dashboard' : '/';
-      e.preventDefault();
-      router.push(destination);
+      const { data: userRecord } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', session.user.id)
+        .maybeSingle();
+
+      if (userRecord?.id) {
+        router.push('/dashboard');
+      } else {
+        router.push('/');
+      }
     } catch {
-      // Fallback to default Link navigation to targetHref
+      router.push('/');
     }
   };
 
