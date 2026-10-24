@@ -2527,13 +2527,20 @@ export default function HomePage() {
     const id = href.replace('#', '');
     const el = document.getElementById(id);
     if (el) {
-      const navOffset = 70;
-      const elementPosition = el.getBoundingClientRect().top;
-      const offsetPosition = elementPosition + window.pageYOffset - navOffset;
-      window.scrollTo({
-        top: offsetPosition,
-        behavior: 'smooth',
-      });
+      if (id === 'overview') {
+        window.scrollTo({
+          top: 0,
+          behavior: 'smooth',
+        });
+      } else {
+        const navOffset = 70;
+        const elementPosition = el.getBoundingClientRect().top;
+        const offsetPosition = Math.max(0, elementPosition + window.pageYOffset - navOffset);
+        window.scrollTo({
+          top: offsetPosition,
+          behavior: 'smooth',
+        });
+      }
       window.history.pushState(null, '', href);
       setActiveSection(id);
     }
@@ -2983,7 +2990,8 @@ export default function HomePage() {
 
       function sizeSphere() {
         if (!st) return;
-        R = Math.min(st.clientWidth * 0.36, 230);
+        const availableR = Math.min(st.clientWidth * 0.40, st.clientHeight * 0.43, 240);
+        R = Math.max(165, Math.round(availableR));
         T.forEach(function(d) {
           d.style.transform = 'rotateY(' + d.a + 'rad) rotateX(' + d.b + 'rad) translateZ(' + R + 'px)';
         });
@@ -3295,7 +3303,14 @@ export default function HomePage() {
       <div className="dark">
         {/* Hero Section */}
         <section id="overview">
-          <div>
+          <div className="hero-content">
+            <div className="hero-pill-badge">
+              <span className="hero-pill-sparkle">✦</span>
+              <span className="hero-pill-tag">Unified Social Engine</span>
+              <span className="hero-pill-sep">·</span>
+              <span className="hero-pill-text">30+ Channels Sync Live</span>
+              <span className="hero-pill-arrow">→</span>
+            </div>
             <h1 className="d">
               <span>
                 <s style={{ '--i': 1 } as React.CSSProperties}>One</s>{' '}
@@ -3329,20 +3344,25 @@ export default function HomePage() {
               </button>
             </div>
             <div id="st">
-              Ready · <b>30 platforms</b> connected
+              <span className="st-pulse-dot"></span>
+              <span>Ready · <b>30 platforms</b> connected live</span>
             </div>
             <div className="stats">
-              <div>
-                <span id="n1">0</span>+<small>Platforms</small>
+              <div className="stat-card">
+                <div className="stat-val"><span id="n1">0</span>+</div>
+                <div className="stat-lbl">Platforms</div>
               </div>
-              <div>
-                1<small>Link</small>
+              <div className="stat-card">
+                <div className="stat-val">1</div>
+                <div className="stat-lbl">Link</div>
               </div>
-              <div>
-                1<small>Click</small>
+              <div className="stat-card">
+                <div className="stat-val">1</div>
+                <div className="stat-lbl">Click</div>
               </div>
-              <div>
-                30s<small>Setup</small>
+              <div className="stat-card">
+                <div className="stat-val">30s</div>
+                <div className="stat-lbl">Setup</div>
               </div>
             </div>
           </div>
@@ -3894,9 +3914,16 @@ export default function HomePage() {
 
       {/* Pricing Section */}
       <section id="pricing">
-        <h2 className="d rv">
-          Start free. <em>Scale when you’re ready.</em>
-        </h2>
+        <div className="pricing-header-wrap">
+          <h2 className="d rv">
+            Start free. <em>Scale when you’re ready.</em>
+          </h2>
+          <div className="pricing-sublink rv">
+            <Link href="/pricing">
+              Compare all 4 plans &amp; full features (including Studio for agencies) →
+            </Link>
+          </div>
+        </div>
         <div className="pl">
           {/* Spark (Free) */}
           <div className="pc rv">
@@ -3958,12 +3985,30 @@ export default function HomePage() {
               Get Pro →
             </Link>
           </div>
-        </div>
 
-        <div className="pricing-more-cta rv">
-          <Link href="/pricing">
-            Compare all 4 plans &amp; full features (including Studio for agencies) →
-          </Link>
+          {/* Studio (Agency) */}
+          <div className="pc studio rv">
+            <div className="pc-badge" style={{ background: '#8b5cf6', boxShadow: '0 4px 12px rgba(139, 92, 246, .35)' }}>
+              Agency
+            </div>
+            <h3>Studio</h3>
+            <div className="for">For agencies &amp; teams</div>
+            <div className="pr">
+              ₹4,166<small>/mo ($49)</small>
+            </div>
+            <ul>
+              <li>Everything in Pro, plus:</li>
+              <li>3 workspaces (3 brands/clients)</li>
+              <li>Full white-label (zero branding)</li>
+              <li>Unlimited channels &amp; AI credits</li>
+              <li>10 team seats + granular roles</li>
+              <li>Webhook API + Zapier triggers</li>
+              <li>Priority support + onboarding call</li>
+            </ul>
+            <Link className="btn" href="/signup?plan=studio" style={{ background: '#8b5cf6' }}>
+              Start 14-day trial →
+            </Link>
+          </div>
         </div>
       </section>
 

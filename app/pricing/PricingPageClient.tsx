@@ -273,106 +273,127 @@ export function PricingPageClient() {
         </div>
       </nav>
 
-      {/* Hero */}
-      <section className="pricing-hero">
-        <div className="pricing-hero-badge">
-          <Star className="h-3.5 w-3.5" />
-          14-day Pro trial · No credit card
-        </div>
-        <h1 className="pricing-hero-title">
-          One platform.<br />
-          <span className="pricing-hero-gradient">Not four subscriptions.</span>
-        </h1>
-        <p className="pricing-hero-subtitle">
-          Unool replaces Zorcha + Buffer + Linktree + Taplio with one flat-price platform.
-          Profile · Publishing · IG Automation · LinkedIn — all in one.
-        </p>
-
-        {/* Billing toggle */}
-        <div className="pricing-toggles">
-          <div className="pricing-billing-toggle">
-            <button
-              className={billing === 'monthly' ? 'active' : ''}
-              onClick={() => setBilling('monthly')}
-              id="billing-monthly-btn"
-            >Monthly</button>
-            <button
-              className={billing === 'annual' ? 'active' : ''}
-              onClick={() => setBilling('annual')}
-              id="billing-annual-btn"
-            >
-              Annual
-              <span className="pricing-badge-save">2 months free</span>
-            </button>
+      {/* Top Screen: Hero + 4 Side-by-Side Plans fitting in one screen */}
+      <div className="pricing-top-screen">
+        {/* Hero */}
+        <section className="pricing-hero">
+          <div className="pricing-hero-badge">
+            <Star className="h-3.5 w-3.5" />
+            14-day Pro trial · No credit card
           </div>
-          <div className="pricing-currency-toggle">
-            <button
-              className={currency === 'inr' ? 'active' : ''}
-              onClick={() => setCurrency('inr')}
-              id="currency-inr-btn"
-            >₹ INR</button>
-            <button
-              className={currency === 'usd' ? 'active' : ''}
-              onClick={() => setCurrency('usd')}
-              id="currency-usd-btn"
-            >$ USD</button>
-          </div>
-        </div>
-      </section>
+          <h1 className="pricing-hero-title">
+            One platform.<br />
+            <span className="pricing-hero-gradient">Not four subscriptions.</span>
+          </h1>
+          <p className="pricing-hero-subtitle">
+            Unool replaces Zorcha + Buffer + Linktree + Taplio with one flat-price platform.
+            Profile · Publishing · IG Automation · LinkedIn — all in one.
+          </p>
 
-      {/* Plan cards */}
-      <section className="pricing-cards">
-        {PLANS.map((plan) => (
-          <div
-            key={plan.id}
-            className={`pricing-card ${plan.highlight ? 'pricing-card--highlight' : ''}`}
-            id={`pricing-card-${plan.id}`}
-          >
-            {plan.badge && (
-              <div className="pricing-card-badge" style={{ background: plan.color }}>
-                {plan.badge}
-              </div>
-            )}
-            <div className="pricing-card-icon" style={{ color: plan.color }}>{plan.icon}</div>
-            <h2 className="pricing-card-name">{plan.name}</h2>
-            <p className="pricing-card-tagline">{plan.tagline}</p>
-
-            <div className="pricing-card-price">
-              <span className="pricing-card-amount">{getPrice(plan)}</span>
-              {plan.monthly_inr > 0 && (
-                <span className="pricing-card-period">/ month</span>
-              )}
+          {/* Billing toggle */}
+          <div className="pricing-toggles">
+            <div className="pricing-billing-toggle">
+              <button
+                className={billing === 'monthly' ? 'active' : ''}
+                onClick={() => setBilling('monthly')}
+                id="billing-monthly-btn"
+              >Monthly</button>
+              <button
+                className={billing === 'annual' ? 'active' : ''}
+                onClick={() => setBilling('annual')}
+                id="billing-annual-btn"
+              >
+                Annual
+                <span className="pricing-badge-save">2 months free</span>
+              </button>
             </div>
-
-            {billing === 'annual' && plan.monthly_inr > 0 && (
-              <div className="pricing-card-saving">{getAnnualSaving(plan)}</div>
-            )}
-
-            <Link
-              href={plan.ctaHref}
-              className={`pricing-card-cta ${plan.highlight ? 'pricing-card-cta--primary' : 'pricing-card-cta--secondary'}`}
-              id={`pricing-cta-${plan.id}`}
-            >
-              {plan.cta} <ChevronRight className="h-4 w-4" />
-            </Link>
-
-            <ul className="pricing-feature-list">
-              {plan.features.map((f) => (
-                <li key={f} className="pricing-feature-item pricing-feature-item--yes">
-                  <Check className="h-3.5 w-3.5 flex-shrink-0" />
-                  {f}
-                </li>
-              ))}
-              {plan.missing.map((f) => (
-                <li key={f} className="pricing-feature-item pricing-feature-item--no">
-                  <X className="h-3.5 w-3.5 flex-shrink-0" />
-                  {f}
-                </li>
-              ))}
-            </ul>
+            <div className="pricing-currency-toggle">
+              <button
+                className={currency === 'inr' ? 'active' : ''}
+                onClick={() => setCurrency('inr')}
+                id="currency-inr-btn"
+              >₹ INR</button>
+              <button
+                className={currency === 'usd' ? 'active' : ''}
+                onClick={() => setCurrency('usd')}
+                id="currency-usd-btn"
+              >$ USD</button>
+            </div>
           </div>
-        ))}
-      </section>
+        </section>
+
+        {/* Plan cards: All 4 plans side by side */}
+        <section className="pricing-cards">
+          {PLANS.map((plan) => (
+            <div
+              key={plan.id}
+              className={`pricing-card ${plan.highlight ? 'pricing-card--highlight' : ''} ${plan.id === 'studio' ? 'pricing-card--studio' : ''}`}
+              id={`pricing-card-${plan.id}`}
+            >
+              {plan.badge && (
+                <div
+                  className="pricing-card-badge"
+                  style={{ background: plan.color }}
+                >
+                  {plan.badge}
+                </div>
+              )}
+              <div
+                className="pricing-card-icon"
+                style={{
+                  color: plan.color,
+                  background: plan.id === 'studio' ? 'rgba(139, 92, 246, 0.16)' : undefined,
+                  borderColor: plan.id === 'studio' ? 'rgba(139, 92, 246, 0.3)' : undefined
+                }}
+              >
+                {plan.icon}
+              </div>
+              <h2 className="pricing-card-name">{plan.name}</h2>
+              <p className="pricing-card-tagline">{plan.tagline}</p>
+
+              <div className="pricing-card-price">
+                <span className="pricing-card-amount">{getPrice(plan)}</span>
+                {plan.monthly_inr > 0 && (
+                  <span className="pricing-card-period">/ month</span>
+                )}
+              </div>
+
+              {billing === 'annual' && plan.monthly_inr > 0 && (
+                <div className="pricing-card-saving">{getAnnualSaving(plan)}</div>
+              )}
+
+              <Link
+                href={plan.ctaHref}
+                className={`pricing-card-cta ${
+                  plan.highlight
+                    ? 'pricing-card-cta--primary'
+                    : plan.id === 'studio'
+                    ? 'pricing-card-cta--studio'
+                    : 'pricing-card-cta--secondary'
+                }`}
+                id={`pricing-cta-${plan.id}`}
+              >
+                {plan.cta} <ChevronRight className="h-4 w-4" />
+              </Link>
+
+              <ul className="pricing-feature-list">
+                {plan.features.map((f) => (
+                  <li key={f} className="pricing-feature-item pricing-feature-item--yes">
+                    <Check className="h-3.5 w-3.5 flex-shrink-0" />
+                    {f}
+                  </li>
+                ))}
+                {plan.missing.map((f) => (
+                  <li key={f} className="pricing-feature-item pricing-feature-item--no">
+                    <X className="h-3.5 w-3.5 flex-shrink-0" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </section>
+      </div>
 
       {/* Competitor comparison */}
       <section className="pricing-compare-section">
