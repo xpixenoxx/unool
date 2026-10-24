@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import {
   Loader2,
-  Phone, CheckCircle, AlertCircle, Unlink2, Link2, Lock, Globe2,
+  Phone, AlertCircle, Unlink2, Link2, Lock, Globe2,
   ArrowRight, Wifi, WifiOff, RefreshCw, ExternalLink, Radio
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -47,6 +47,7 @@ interface PlatformConnection {
 interface PlatformConnectionsProps {
   workspaceId: string;
   userId?: string;
+  initialConnectionsProp?: Record<string, { status: string; username?: string }>;
 }
 
 /* ─── Platform display config ──────────────────────────────── */
@@ -353,9 +354,12 @@ export const PLATFORM_CONFIG: Record<
   },
 };
 
+/* ─── In-memory cache for instant 0ms modal opening ────────────────── */
+const memoryConnectionsCache = new Map<string, Record<Platform, PlatformConnection>>();
+
 /* ─── Component ────────────────────────────────────────────── */
 
-export function PlatformConnections({ workspaceId, userId: initialUserId }: PlatformConnectionsProps) {
+export function PlatformConnections({ workspaceId, userId: initialUserId, initialConnectionsProp }: PlatformConnectionsProps) {
   const connectablePlatforms = useMemo(
     () =>
       SUPPORTED_PLATFORMS.filter(
@@ -365,15 +369,24 @@ export function PlatformConnections({ workspaceId, userId: initialUserId }: Plat
   );
 
   const initialConnections = useMemo(() => {
+    const cached = memoryConnectionsCache.get(workspaceId);
+    if (cached) return cached;
+
     const conn: Record<Platform, PlatformConnection> = {} as Record<
       Platform,
       PlatformConnection
     >;
     connectablePlatforms.forEach((p) => {
-      conn[p] = { platform: p, status: 'not_connected' };
+      const propStatus = (initialConnectionsProp as any)?.[p]?.status;
+      const propUsername = (initialConnectionsProp as any)?.[p]?.username;
+      conn[p] = {
+        platform: p,
+        status: (propStatus as any) || 'not_connected',
+        username: propUsername,
+      };
     });
     return conn;
-  }, [connectablePlatforms]);
+  }, [connectablePlatforms, workspaceId, initialConnectionsProp]);
 
   const [connections, setConnections] =
     useState<Record<Platform, PlatformConnection>>(initialConnections);
@@ -394,7 +407,12 @@ export function PlatformConnections({ workspaceId, userId: initialUserId }: Plat
     },
     [connectablePlatforms, connections]
   );
-  const [loading, setLoading] = useState(true);
+
+  const [loading, setLoading] = useState(() => {
+    const hasCached = memoryConnectionsCache.has(workspaceId);
+    const hasProps = Boolean(initialConnectionsProp && Object.keys(initialConnectionsProp).length > 0);
+    return !hasCached && !hasProps;
+  });
   const [connecting, setConnecting] = useState<Platform | null>(null);
   const [disconnecting, setDisconnecting] = useState<Platform | null>(null);
   const [manualDialogOpen, setManualDialogOpen] = useState(false);
@@ -433,7 +451,11 @@ export function PlatformConnections({ workspaceId, userId: initialUserId }: Plat
       if (res.ok) {
         const data = await res.json();
         if (data.connections) {
-          setConnections((prev) => ({ ...prev, ...data.connections }));
+          setConnections((prev) => {
+            const next = { ...prev, ...data.connections };
+            memoryConnectionsCache.set(workspaceId, next);
+            return next;
+          });
         }
         // Cache the userId returned from the API so we can pass it during connect
         if (data.userId) setUserId(data.userId);
@@ -829,7 +851,7 @@ export function PlatformConnections({ workspaceId, userId: initialUserId }: Plat
                   <div className="mb-3">
                     {isConnected ? (
                       <div className="flex items-center gap-1.5">
-                        <CheckCircle className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />
                         <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400 truncate">
                           {connection.username
                             ? `@${connection.username}`

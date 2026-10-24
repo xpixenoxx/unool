@@ -537,7 +537,11 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             </DialogTrigger>
             <DialogContent className="sm:max-w-[800px] bg-[#F7F3ED] border-none max-h-[85vh] overflow-y-auto">
               <DialogTitle className="sr-only">Manage Platforms</DialogTitle>
-              <PlatformConnections workspaceId={data.workspaceId} userId={data.userId} />
+              <PlatformConnections
+                workspaceId={data.workspaceId}
+                userId={data.userId}
+                initialConnectionsProp={data.connections}
+              />
             </DialogContent>
           </Dialog>
         </motion.div>
