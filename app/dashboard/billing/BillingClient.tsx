@@ -48,6 +48,28 @@ interface CurrentPlan {
 
 type BillingCycle = 'monthly' | 'annual';
 
+interface ActiveCheckout {
+  planId: string;
+  planName: string;
+  priceDisplay: string;
+  billingCycle: BillingCycle;
+  paymentSessionId: string;
+  cfOrderId: string;
+  mode?: 'sandbox' | 'production';
+}
+
+if (typeof window !== 'undefined' && !(window as any).__unool_open_hooked) {
+  (window as any).__unool_open_hooked = true;
+  const originalOpen = window.open;
+  window.open = function (...args: any[]) {
+    const win = originalOpen.apply(this, args as any);
+    if (win) {
+      (window as any).__unool_cf_window = win;
+    }
+    return win;
+  };
+}
+
 function formatSubscriptionDate(dateStr?: string | null): string {
   if (!dateStr) return '—';
   try {
@@ -75,6 +97,55 @@ export default function BillingClient() {
   const [paymentResult, setPaymentResult] = useState<{ status: string; message: string } | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
 
+  // Active Checkout Dialog & UPI ID States
+  const [activeCheckout, setActiveCheckout] = useState<ActiveCheckout | null>(null);
+  const [checkoutTab, setCheckoutTab] = useState<'upi' | 'gateway'>('upi');
+  const [upiIdInput, setUpiIdInput] = useState('');
+  const [upiSubmitting, setUpiSubmitting] = useState(false);
+  const [upiSent, setUpiSent] = useState(false);
+  const [upiError, setUpiError] = useState<string | null>(null);
+
+  // ── Clean & Close Checkout Helper ──────────────────────────
+  const closeAndCleanCashfree = useCallback(() => {
+    // 1. Close any child window or tab opened by Cashfree SDK or 3DS
+    try {
+      const cfWin = (window as any).__unool_cf_window;
+      if (cfWin && !cfWin.closed) {
+        cfWin.close();
+        (window as any).__unool_cf_window = null;
+      }
+    } catch {
+      // Ignore cross-origin close restrictions
+    }
+
+    // 2. Remove all Cashfree injected modals, iframes, backdrops
+    try {
+      const lingeringElements = document.querySelectorAll(
+        '#cashfree-modal-container, [id*="cashfree"], [class*="cf-modal"], .cf-backdrop, .cf-overlay, iframe[src*="cashfree"]'
+      );
+      lingeringElements.forEach((el) => el.remove());
+    } catch {
+      // Ignore DOM removal errors
+    }
+
+    // 3. Restore scrolling on body and html
+    try {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    } catch {
+      // Ignore
+    }
+
+    // 4. Reset active checkout state in UI
+    setActiveCheckout(null);
+    setUpiSubmitting(false);
+    setUpiSent(false);
+    setUpiError(null);
+    try {
+      sessionStorage.removeItem('unool_active_checkout');
+    } catch {}
+  }, []);
+
   // ── Payment Verification Polling ───────────────────────────
   const pollVerification = useCallback(async (orderId: string) => {
     setVerifying(true);
@@ -96,6 +167,7 @@ export default function BillingClient() {
         const data = await res.json();
 
         if (data.status === 'PAID') {
+          closeAndCleanCashfree();
           setVerifying(false);
           setPaymentResult({ status: 'PAID', message: data.message || 'Payment successful! Your plan is now active.' });
           // Clear active session
@@ -151,8 +223,9 @@ export default function BillingClient() {
         }
 
         if (data.status === 'FAILED') {
+          closeAndCleanCashfree();
           setVerifying(false);
-          setPaymentResult({ status: 'FAILED', message: data.message });
+          setPaymentResult({ status: 'FAILED', message: data.message || 'Payment was cancelled or failed.' });
           try { sessionStorage.removeItem('unool_active_checkout'); } catch {}
           return;
         }
@@ -167,7 +240,7 @@ export default function BillingClient() {
     };
 
     poll();
-  }, [plans, billingCycle]);
+  }, [plans, billingCycle, closeAndCleanCashfree]);
 
   // ── Multi-Tab Sync via BroadcastChannel ─────────────────────
   useEffect(() => {
@@ -200,24 +273,22 @@ export default function BillingClient() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    // 1. Clean DOM artifacts from Cashfree iframes/modals directly attached to body
-    try {
-      const lingeringCf = document.querySelectorAll(
-        'body > [id*="cashfree"], body > [class*="cf-modal"], body > .cf-backdrop, body > .cf-overlay'
-      );
-      lingeringCf.forEach(el => el.remove());
-    } catch {
-      // Ignore
-    }
+    // 1. Immediately close any open checkout popup/window and clean lingering DOM elements
+    closeAndCleanCashfree();
 
-    // 2. Handle return_url from Cashfree redirect (?order_id=xxx&status=xxx)
+    // 2. Attach listeners to close popup window and clean up on beforeunload and pagehide
+    const handleUnload = () => {
+      closeAndCleanCashfree();
+    };
+    window.addEventListener('beforeunload', handleUnload);
+    window.addEventListener('pagehide', handleUnload);
+
+    // 3. Handle return_url from Cashfree redirect (?order_id=xxx&status=xxx)
     const params = new URLSearchParams(window.location.search);
     const orderIdFromUrl = params.get('order_id');
     const statusFromUrl = params.get('status');
 
     if (orderIdFromUrl) {
-      try { sessionStorage.removeItem('unool_active_checkout'); } catch {}
-
       if (statusFromUrl === 'FAILED' || statusFromUrl === 'CANCELLED' || statusFromUrl === 'USER_DROPPED') {
         setPaymentResult({
           status: 'ERROR',
@@ -227,74 +298,36 @@ export default function BillingClient() {
         pollVerification(orderIdFromUrl);
       }
 
-      // Clean query parameters from URL without reloading
-      const cleanUrl = window.location.pathname;
-      window.history.replaceState({}, '', cleanUrl);
-      return;
+      // Redirect cleanly to /dashboard/billing without query parameters
+      window.history.replaceState({}, '', '/dashboard/billing');
+      return () => {
+        window.removeEventListener('beforeunload', handleUnload);
+        window.removeEventListener('pagehide', handleUnload);
+      };
     }
 
-    // 3. Handle refresh during active checkout (network interruption recovery)
-    try {
-      const savedCheckout = sessionStorage.getItem('unool_active_checkout');
-      if (savedCheckout) {
-        const parsed = JSON.parse(savedCheckout);
-        const ageMs = Date.now() - (parsed.timestamp || 0);
-        // If within 15 minutes, check if it was completed or failed
-        if (parsed.cfOrderId && ageMs < 15 * 60 * 1000) {
-          fetch(`/api/billing/verify?orderId=${parsed.cfOrderId}&t=${Date.now()}`, { cache: 'no-store' })
-            .then(res => res.json())
-            .then(data => {
-              if (data.status === 'PAID') {
-                setPaymentResult({ status: 'PAID', message: data.message });
-                const targetPlanId = data.planId || parsed.planId;
-                const upgraded = plans.find(p => p.id === targetPlanId);
-                const cyc = data.billingCycle || parsed.billingCycle || 'monthly';
-                const planName = upgraded?.name || (targetPlanId ? targetPlanId.charAt(0).toUpperCase() + targetPlanId.slice(1) : 'Pro');
-                const planTagline = upgraded?.tagline || '';
-                setCurrentPlan({
-                  plan: { id: targetPlanId, name: planName, tagline: planTagline },
-                  subscription: {
-                    id: 'sub_' + parsed.cfOrderId,
-                    status: 'active',
-                    billingCycle: cyc,
-                    amount: cyc === 'annual' ? (upgraded?.pricing?.annualDisplay || '') : (upgraded?.pricing?.monthlyDisplay || ''),
-                    amountPaise: cyc === 'annual' ? (upgraded?.pricing?.annual || 0) : (upgraded?.pricing?.monthly || 0),
-                    currency: upgraded?.pricing?.currency || 'INR',
-                    currentPeriodStart: new Date().toISOString(),
-                    currentPeriodEnd: new Date(Date.now() + (cyc === 'annual' ? 365 : 30) * 86400000).toISOString(),
-                    trialEnd: null,
-                    cancelAtPeriodEnd: false,
-                    cancelledAt: null,
-                    paymentMethod: null,
-                  },
-                  isFreeTier: false,
-                });
-                fetch(`/api/billing/current?t=${Date.now()}`, { cache: 'no-store' })
-                  .then(r => r.json())
-                  .then(freshPlan => {
-                    if (freshPlan && !freshPlan.isFreeTier) {
-                      if (!targetPlanId || freshPlan.plan?.id === targetPlanId) {
-                        setCurrentPlan(freshPlan);
-                      }
-                    }
-                  })
-                  .catch(() => {});
-              } else if (data.status === 'FAILED') {
-                setPaymentResult({
-                  status: 'ERROR',
-                  message: data.message || 'Payment was cancelled or failed.',
-                });
-              }
-              // If PENDING, the user reloaded before paying — do not show an alarming error banner
-            })
-            .catch(() => {});
-        }
-        sessionStorage.removeItem('unool_active_checkout');
-      }
-    } catch {
-      // Ignore
+    // 4. On page refresh during checkout, ensure URL is clean /dashboard/billing
+    if (window.location.search || window.location.hash) {
+      window.history.replaceState({}, '', '/dashboard/billing');
     }
-  }, [pollVerification]);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleUnload);
+      window.removeEventListener('pagehide', handleUnload);
+    };
+  }, [closeAndCleanCashfree, pollVerification]);
+
+  // ── Close Checkout on Escape Key ───────────────────────────
+  useEffect(() => {
+    if (!activeCheckout) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        closeAndCleanCashfree();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeCheckout, closeAndCleanCashfree]);
 
   // ── Fetch data ─────────────────────────────────────────────
   useEffect(() => {
@@ -367,38 +400,116 @@ export default function BillingClient() {
         }));
       } catch {}
 
-      // Open Cashfree Drop-in Checkout Popup directly (_modal mode)
-      const cashfreeMode = mode || (process.env.NEXT_PUBLIC_CASHFREE_MODE as 'sandbox' | 'production') || 'sandbox';
+      // Open custom checkout dialog with UPI ID option & Gateway tab
+      setActiveCheckout({
+        planId,
+        planName: selectedPlan.name,
+        priceDisplay: billingCycle === 'annual' ? selectedPlan.pricing.annualDisplay : selectedPlan.pricing.monthlyDisplay,
+        billingCycle,
+        paymentSessionId,
+        cfOrderId,
+        mode: mode || (process.env.NEXT_PUBLIC_CASHFREE_MODE as 'sandbox' | 'production') || 'sandbox',
+      });
+      setCheckoutTab('upi');
+      setUpiIdInput('');
+      setUpiError(null);
+      setUpiSent(false);
+    } catch (err) {
+      console.error('Payment order creation error:', err);
+      setPaymentResult({ status: 'ERROR', message: 'Something went wrong while initiating checkout. Please try again.' });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } finally {
+      setPaymentLoading(null);
+    }
+  };
+
+  // ── UPI Helpers & Handlers ─────────────────────────────────
+  const handleAppendUpiChip = (handle: string) => {
+    setUpiError(null);
+    if (!upiIdInput) {
+      setUpiIdInput(handle);
+      return;
+    }
+    const atIndex = upiIdInput.indexOf('@');
+    if (atIndex !== -1) {
+      setUpiIdInput(upiIdInput.slice(0, atIndex) + handle);
+    } else {
+      setUpiIdInput(upiIdInput + handle);
+    }
+  };
+
+  const handlePayWithUpi = async () => {
+    if (!activeCheckout) return;
+    const cleanUpi = upiIdInput.trim().toLowerCase();
+    const upiRegex = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z0-9]{2,64}$/;
+    if (!upiRegex.test(cleanUpi)) {
+      setUpiError('Please enter a valid UPI ID (e.g. yourname@okhdfcbank or 9876543210@upi)');
+      return;
+    }
+
+    setUpiSubmitting(true);
+    setUpiError(null);
+
+    try {
+      const res = await fetch('/api/billing/pay-upi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cfOrderId: activeCheckout.cfOrderId,
+          paymentSessionId: activeCheckout.paymentSessionId,
+          upiId: cleanUpi,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setUpiError(data.error || 'Failed to send UPI payment request. Please check your UPI ID and try again.');
+        setUpiSubmitting(false);
+        return;
+      }
+
+      setUpiSent(true);
+      setUpiSubmitting(false);
+      // Start polling for approval verification
+      pollVerification(activeCheckout.cfOrderId);
+    } catch (err) {
+      setUpiError('Failed to communicate with payment gateway. Please try again.');
+      setUpiSubmitting(false);
+    }
+  };
+
+  const handleLaunchGateway = async () => {
+    if (!activeCheckout) return;
+    setPaymentLoading(activeCheckout.planId);
+
+    try {
+      const cashfreeMode = activeCheckout.mode || (process.env.NEXT_PUBLIC_CASHFREE_MODE as 'sandbox' | 'production') || 'sandbox';
       const cashfree = await loadCashfreeSDK(cashfreeMode);
       if (!cashfree) {
         setPaymentResult({
           status: 'ERROR',
-          message: 'Payment gateway failed to load. Please check your connection and refresh.',
+          message: 'Payment gateway failed to load. Please check your connection.',
         });
-        window.scrollTo({ top: 0, behavior: 'smooth' });
         return;
       }
 
       cashfree
         .checkout({
-          paymentSessionId,
+          paymentSessionId: activeCheckout.paymentSessionId,
           redirectTarget: '_modal',
         })
         .then((result: any) => {
           if (result?.error) {
             console.warn('[BillingClient] Cashfree checkout modal closed or error:', result.error);
           }
-          // Modal closed or payment completed — poll for verification
-          pollVerification(cfOrderId);
+          pollVerification(activeCheckout.cfOrderId);
         })
         .catch((err: any) => {
           console.error('[BillingClient] Cashfree checkout error:', err);
-          pollVerification(cfOrderId);
+          pollVerification(activeCheckout.cfOrderId);
         });
     } catch (err) {
-      console.error('Payment order creation error:', err);
-      setPaymentResult({ status: 'ERROR', message: 'Something went wrong while initiating checkout. Please try again.' });
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      console.error('Cashfree launch error:', err);
     } finally {
       setPaymentLoading(null);
     }
@@ -812,6 +923,631 @@ export default function BillingClient() {
                 }}
               >
                 Keep Subscription
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Checkout Dialog with UPI ID & Gateway Tabs ──────────────── */}
+      {activeCheckout && (
+        <div
+          id="unool-checkout-modal"
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1000,
+            background: 'rgba(26, 22, 18, 0.72)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+            overflowY: 'auto',
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              closeAndCleanCashfree();
+            }
+          }}
+        >
+          <style>{`
+            @keyframes unoolSpin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+            @keyframes unoolPulse {
+              0%, 100% { transform: scale(1); opacity: 1; }
+              50% { transform: scale(1.08); opacity: 0.85; }
+            }
+            @keyframes unoolScaleUp {
+              from { opacity: 0; transform: scale(0.96) translateY(8px); }
+              to { opacity: 1; transform: scale(1) translateY(0); }
+            }
+          `}</style>
+          <div
+            style={{
+              background: '#FFFFFF',
+              borderRadius: 20,
+              border: '1px solid #E8E0D5',
+              width: '100%',
+              maxWidth: 480,
+              boxShadow: '0 25px 60px -15px rgba(26, 22, 18, 0.3), 0 0 0 1px rgba(0,0,0,0.04)',
+              overflow: 'hidden',
+              animation: 'unoolScaleUp 0.2s ease-out',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div
+              style={{
+                padding: '20px 24px',
+                borderBottom: '1px solid #F0ECE6',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: 'linear-gradient(180deg, #FAF8F5 0%, #FFFFFF 100%)',
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.06em',
+                      color: '#7C3AED',
+                      background: '#F5F3FF',
+                      padding: '3px 8px',
+                      borderRadius: 6,
+                    }}
+                  >
+                    Checkout
+                  </span>
+                  <span style={{ fontSize: 13, color: '#7A7265' }}>
+                    {activeCheckout.billingCycle === 'annual' ? 'Billed Annually' : 'Billed Monthly'}
+                  </span>
+                </div>
+                <h3 style={{ fontSize: 18, fontWeight: 800, color: '#1A1612', margin: '4px 0 0' }}>
+                  Upgrade to {activeCheckout.planName}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={closeAndCleanCashfree}
+                title="Close checkout (Esc)"
+                aria-label="Close"
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 10,
+                  border: '1px solid #E8E0D5',
+                  background: '#FFFFFF',
+                  color: '#7A7265',
+                  fontSize: 16,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = '#F4EFEA';
+                  (e.currentTarget as HTMLElement).style.color = '#1A1612';
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = '#FFFFFF';
+                  (e.currentTarget as HTMLElement).style.color = '#7A7265';
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Navigation Tabs */}
+            <div
+              style={{
+                display: 'flex',
+                background: '#FAF7F3',
+                padding: '6px 8px',
+                borderBottom: '1px solid #F0ECE6',
+                gap: 6,
+              }}
+            >
+              <button
+                type="button"
+                id="checkout-tab-upi"
+                onClick={() => {
+                  setCheckoutTab('upi');
+                  setUpiError(null);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '9px 12px',
+                  borderRadius: 10,
+                  border: checkoutTab === 'upi' ? '1px solid #DDD6FE' : '1px solid transparent',
+                  background: checkoutTab === 'upi' ? '#FFFFFF' : 'transparent',
+                  color: checkoutTab === 'upi' ? '#7C3AED' : '#6B655B',
+                  fontSize: 13,
+                  fontWeight: checkoutTab === 'upi' ? 700 : 500,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  boxShadow: checkoutTab === 'upi' ? '0 2px 4px rgba(124,58,237,0.08)' : 'none',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <span style={{ fontSize: 15 }}>⚡</span>
+                <span>UPI ID / VPA</span>
+              </button>
+              <button
+                type="button"
+                id="checkout-tab-gateway"
+                onClick={() => {
+                  setCheckoutTab('gateway');
+                  setUpiError(null);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '9px 12px',
+                  borderRadius: 10,
+                  border: checkoutTab === 'gateway' ? '1px solid #E8E0D5' : '1px solid transparent',
+                  background: checkoutTab === 'gateway' ? '#FFFFFF' : 'transparent',
+                  color: checkoutTab === 'gateway' ? '#1A1612' : '#6B655B',
+                  fontSize: 13,
+                  fontWeight: checkoutTab === 'gateway' ? 700 : 500,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  boxShadow: checkoutTab === 'gateway' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <span style={{ fontSize: 14 }}>💳</span>
+                <span>Cards, Netbanking & QR</span>
+              </button>
+            </div>
+
+            {/* Tab Body */}
+            <div style={{ padding: '24px' }}>
+              {checkoutTab === 'upi' ? (
+                <div>
+                  {!upiSent ? (
+                    <div>
+                      <label
+                        htmlFor="upi-id-input"
+                        style={{
+                          display: 'block',
+                          fontSize: 13,
+                          fontWeight: 700,
+                          color: '#1A1612',
+                          marginBottom: 6,
+                        }}
+                      >
+                        Enter UPI ID (Virtual Payment Address)
+                      </label>
+                      <p style={{ fontSize: 12, color: '#7A7265', margin: '0 0 12px', lineHeight: 1.45 }}>
+                        Enter your UPI ID to receive a direct collect request on Google Pay, PhonePe, Paytm, BHIM, or any UPI app.
+                      </p>
+
+                      <div style={{ position: 'relative', marginBottom: 12 }}>
+                        <input
+                          type="text"
+                          id="upi-id-input"
+                          value={upiIdInput}
+                          onChange={(e) => {
+                            setUpiIdInput(e.target.value);
+                            setUpiError(null);
+                          }}
+                          placeholder="e.g. yourname@okhdfcbank or 9876543210@upi"
+                          style={{
+                            width: '100%',
+                            padding: '12px 14px',
+                            borderRadius: 10,
+                            border: upiError ? '1.5px solid #EF4444' : '1.5px solid #E8E0D5',
+                            fontSize: 14,
+                            color: '#1A1612',
+                            background: '#FAF8F5',
+                            outline: 'none',
+                            fontFamily: 'inherit',
+                            transition: 'border-color 0.15s ease',
+                            boxSizing: 'border-box',
+                          }}
+                          onFocus={(e) => {
+                            if (!upiError) e.target.style.borderColor = '#7C3AED';
+                          }}
+                          onBlur={(e) => {
+                            if (!upiError) e.target.style.borderColor = '#E8E0D5';
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handlePayWithUpi();
+                            }
+                          }}
+                          autoFocus
+                        />
+                      </div>
+
+                      {/* Quick handle chips */}
+                      <div style={{ marginBottom: 18 }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: '#8C8476', marginBottom: 6 }}>
+                          Popular UPI Handles (click to append):
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {['@okhdfcbank', '@okaxis', '@oksbi', '@okicici', '@ybl', '@paytm', '@ibl', '@apl'].map((handle) => (
+                            <button
+                              key={handle}
+                              type="button"
+                              onClick={() => handleAppendUpiChip(handle)}
+                              style={{
+                                padding: '4px 8px',
+                                borderRadius: 6,
+                                border: '1px solid #E8E0D5',
+                                background: '#FFFFFF',
+                                color: '#4B4339',
+                                fontSize: 11,
+                                fontWeight: 500,
+                                cursor: 'pointer',
+                                transition: 'all 0.1s ease',
+                              }}
+                              onMouseEnter={(e) => {
+                                (e.currentTarget as HTMLElement).style.background = '#EDE9FE';
+                                (e.currentTarget as HTMLElement).style.borderColor = '#C4B5FD';
+                                (e.currentTarget as HTMLElement).style.color = '#7C3AED';
+                              }}
+                              onMouseLeave={(e) => {
+                                (e.currentTarget as HTMLElement).style.background = '#FFFFFF';
+                                (e.currentTarget as HTMLElement).style.borderColor = '#E8E0D5';
+                                (e.currentTarget as HTMLElement).style.color = '#4B4339';
+                              }}
+                            >
+                              {handle}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {upiError && (
+                        <div
+                          style={{
+                            padding: '10px 12px',
+                            borderRadius: 8,
+                            background: '#FEF2F2',
+                            border: '1px solid #FECACA',
+                            color: '#DC2626',
+                            fontSize: 12,
+                            fontWeight: 500,
+                            marginBottom: 16,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6,
+                          }}
+                        >
+                          <span>⚠️</span>
+                          <span>{upiError}</span>
+                        </div>
+                      )}
+
+                      <button
+                        type="button"
+                        id="submit-upi-pay-btn"
+                        onClick={handlePayWithUpi}
+                        disabled={upiSubmitting || !upiIdInput.trim()}
+                        style={{
+                          width: '100%',
+                          padding: '13px 18px',
+                          borderRadius: 12,
+                          background: upiSubmitting || !upiIdInput.trim()
+                            ? '#C4B5FD'
+                            : 'linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%)',
+                          color: '#FFFFFF',
+                          fontSize: 14,
+                          fontWeight: 700,
+                          border: 'none',
+                          cursor: upiSubmitting || !upiIdInput.trim() ? 'not-allowed' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 8,
+                          boxShadow: upiSubmitting || !upiIdInput.trim() ? 'none' : '0 4px 14px rgba(124,58,237,0.3)',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        {upiSubmitting ? (
+                          <>
+                            <div
+                              style={{
+                                width: 16,
+                                height: 16,
+                                border: '2px solid rgba(255,255,255,0.4)',
+                                borderTopColor: '#FFFFFF',
+                                borderRadius: '50%',
+                                animation: 'unoolSpin 0.8s linear infinite',
+                              }}
+                            />
+                            <span>Sending UPI Request...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>Pay via UPI ID</span>
+                            <span style={{ fontSize: 16 }}>→</span>
+                          </>
+                        )}
+                      </button>
+
+                      <div
+                        style={{
+                          marginTop: 14,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 6,
+                          fontSize: 11,
+                          color: '#8C8476',
+                        }}
+                      >
+                        <span>🔒</span>
+                        <span>Direct Cashfree UPI Collect • Bank-Grade 256-bit Encryption</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: '12px 8px' }}>
+                      <div
+                        style={{
+                          width: 56,
+                          height: 56,
+                          borderRadius: '50%',
+                          background: '#F5F3FF',
+                          border: '2px solid #DDD6FE',
+                          margin: '0 auto 16px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 24,
+                          animation: 'unoolPulse 2s infinite',
+                        }}
+                      >
+                        📲
+                      </div>
+
+                      <h4 style={{ fontSize: 16, fontWeight: 800, color: '#1A1612', margin: '0 0 6px' }}>
+                        Payment Request Dispatched!
+                      </h4>
+
+                      <p style={{ fontSize: 13, color: '#5A5245', margin: '0 0 16px', lineHeight: 1.5 }}>
+                        A collect request has been sent to{' '}
+                        <strong style={{ color: '#7C3AED' }}>{upiIdInput.trim().toLowerCase()}</strong>.
+                      </p>
+
+                      <div
+                        style={{
+                          background: '#FAF7F3',
+                          border: '1px solid #E8E0D5',
+                          borderRadius: 12,
+                          padding: '14px 16px',
+                          textAlign: 'left',
+                          fontSize: 12,
+                          color: '#4B4339',
+                          lineHeight: 1.6,
+                          marginBottom: 18,
+                        }}
+                      >
+                        <div style={{ fontWeight: 700, color: '#1A1612', marginBottom: 6 }}>
+                          Next Steps to Complete Payment:
+                        </div>
+                        <ol style={{ margin: 0, paddingLeft: 18 }}>
+                          <li>Open your UPI app (Google Pay, PhonePe, Paytm, BHIM, etc.).</li>
+                          <li>Approve the pending collect request from Cashfree.</li>
+                          <li>Enter your UPI PIN to finalize payment.</li>
+                        </ol>
+                      </div>
+
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 8,
+                          fontSize: 12,
+                          color: '#7C3AED',
+                          fontWeight: 600,
+                          marginBottom: 16,
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: 14,
+                            height: 14,
+                            border: '2px solid #DDD6FE',
+                            borderTopColor: '#7C3AED',
+                            borderRadius: '50%',
+                            animation: 'unoolSpin 0.8s linear infinite',
+                          }}
+                        />
+                        <span>Waiting for your UPI approval...</span>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUpiSent(false);
+                          setUpiSubmitting(false);
+                        }}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#6B655B',
+                          fontSize: 12,
+                          textDecoration: 'underline',
+                          cursor: 'pointer',
+                          padding: 4,
+                        }}
+                      >
+                        Need to change UPI ID or retry?
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div style={{ padding: '8px 4px' }}>
+                  <div style={{ textAlign: 'center', marginBottom: 20 }}>
+                    <div
+                      style={{
+                        width: 52,
+                        height: 52,
+                        borderRadius: 14,
+                        background: '#FAF8F5',
+                        border: '1px solid #E8E0D5',
+                        margin: '0 auto 12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 22,
+                      }}
+                    >
+                      💳
+                    </div>
+                    <h4 style={{ fontSize: 16, fontWeight: 800, color: '#1A1612', margin: '0 0 6px' }}>
+                      Cards, Netbanking & QR Code
+                    </h4>
+                    <p style={{ fontSize: 13, color: '#7A7265', margin: 0, lineHeight: 1.45 }}>
+                      Pay using Visa, Mastercard, RuPay, 50+ Netbanking banks, or scan dynamic UPI QR code.
+                    </p>
+                  </div>
+
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      justifyContent: 'center',
+                      gap: 8,
+                      marginBottom: 20,
+                    }}
+                  >
+                    {['Cards', 'Netbanking', 'UPI QR Code', 'Wallets'].map((badge) => (
+                      <span
+                        key={badge}
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 600,
+                          color: '#4B4339',
+                          background: '#F4EFEA',
+                          border: '1px solid #E8E0D5',
+                          borderRadius: 6,
+                          padding: '4px 10px',
+                        }}
+                      >
+                        {badge}
+                      </span>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleLaunchGateway}
+                    disabled={paymentLoading === activeCheckout.planId}
+                    style={{
+                      width: '100%',
+                      padding: '13px 18px',
+                      borderRadius: 12,
+                      background: '#1A1612',
+                      color: '#FFFFFF',
+                      fontSize: 14,
+                      fontWeight: 700,
+                      border: 'none',
+                      cursor: paymentLoading === activeCheckout.planId ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      boxShadow: '0 4px 14px rgba(0,0,0,0.15)',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    {paymentLoading === activeCheckout.planId ? (
+                      <>
+                        <div
+                          style={{
+                            width: 16,
+                            height: 16,
+                            border: '2px solid rgba(255,255,255,0.3)',
+                            borderTopColor: '#FFFFFF',
+                            borderRadius: '50%',
+                            animation: 'unoolSpin 0.8s linear infinite',
+                          }}
+                        />
+                        <span>Launching Gateway...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Open Gateway (Cards, Netbanking & QR)</span>
+                        <span style={{ fontSize: 16 }}>→</span>
+                      </>
+                    )}
+                  </button>
+
+                  <div
+                    style={{
+                      marginTop: 14,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      fontSize: 11,
+                      color: '#8C8476',
+                    }}
+                  >
+                    <span>🔒</span>
+                    <span>PCI-DSS Level 1 Compliant • 100% Secure</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div
+              style={{
+                padding: '14px 24px',
+                background: '#FAF8F5',
+                borderTop: '1px solid #F0ECE6',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div style={{ fontSize: 12, color: '#7A7265' }}>
+                Need help? <span style={{ color: '#1A1612', fontWeight: 600 }}>support@unool.com</span>
+              </div>
+              <button
+                type="button"
+                onClick={closeAndCleanCashfree}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#7A7265',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  padding: '4px 8px',
+                  borderRadius: 6,
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.color = '#1A1612';
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.color = '#7A7265';
+                }}
+              >
+                Cancel & Close
               </button>
             </div>
           </div>

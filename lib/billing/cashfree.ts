@@ -189,6 +189,62 @@ export async function getOrder(orderId: string): Promise<CashfreeOrderResponse> 
   return response.json();
 }
 
+/**
+ * Initiate a UPI Collect payment request for an existing order session.
+ * Sends a push request to the user's UPI app (Google Pay, PhonePe, Paytm, etc.).
+ */
+export async function payOrderWithUpi(
+  paymentSessionId: string,
+  upiId: string
+): Promise<{
+  action?: string;
+  cf_payment_id?: string;
+  payment_status?: string;
+  message?: string;
+}> {
+  const url = `${getBaseUrl()}/orders/sessions`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      ...getHeaders(),
+      'x-client-device': 'desktop',
+    },
+    body: JSON.stringify({
+      payment_session_id: paymentSessionId,
+      payment_method: {
+        upi: {
+          channel: 'collect',
+          upi_id: upiId.trim(),
+        },
+      },
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const errorMsg =
+      data.message ||
+      data.error_details?.error_description ||
+      data.error_details?.message ||
+      `UPI payment initiation failed (${response.status})`;
+    logger.error('Cashfree UPI collect payment failed', {
+      status: response.status,
+      errorMsg,
+      data,
+    });
+    throw new Error(errorMsg);
+  }
+
+  logger.info('Cashfree UPI collect payment initiated', {
+    cfPaymentId: data.cf_payment_id,
+    paymentStatus: data.payment_status,
+  });
+
+  return data;
+}
+
 // ── Webhook Signature Verification ──────────────────────────────
 
 /**
