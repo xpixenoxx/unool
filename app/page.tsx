@@ -739,9 +739,329 @@ function initUaPlayer(containerEl?: HTMLElement | null): () => void {
   };
 }
 
+const UNOOL_VIDEO_HTML_DOC = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Unool · Video 2 · Flight plan &amp; publish</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;background:transparent;overflow-x:hidden;padding:0;-webkit-font-smoothing:antialiased}
+@media (min-width: 1px) {
+  body:not(.embedded) {
+    background: #FAF6EF;
+  }
+}
+</style>
+</head>
+<body>
+<!-- UNOOL · VIDEO 2 (Flight plan & publish) -->
+<style>
+.ua{--bg:#F3EBDF;--bg2:#EEE4D5;--surface:#FAF6EF;--surface2:#F0E7DA;--line:rgba(70,45,30,.12);--line2:rgba(70,45,30,.22);
+--text:#2A1E17;--muted:#7B6A5C;--dim:#A19080;--accent:#C2603E;--accent2:#A44A2B;--soft:rgba(194,96,62,.13);--good:#4F8A5B;--warn:#B9812A;--li:#0A66C2;
+--serif:'Instrument Serif',Georgia,serif;--sans:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+position:relative;background:transparent;color:var(--text);font-family:var(--sans);padding:0;overflow:hidden;isolation:isolate;-webkit-font-smoothing:antialiased}
+.ua *,.ua *::before,.ua *::after{box-sizing:border-box}
+.ua::before{display:none}
+.ua-wrap{width:100%;max-width:1120px;margin:0 auto}
+.ua button{font-family:inherit;color:inherit}
+.ua-player{border-radius:18px;border:1px solid var(--line2);background:var(--surface);overflow:hidden;box-shadow:0 30px 70px -25px rgba(120,60,30,.35),0 0 0 5px rgba(70,45,30,.03);transition:box-shadow .5s}
+.ua-player:hover{box-shadow:0 40px 90px -25px rgba(194,96,62,.45),0 0 0 6px rgba(194,96,62,.08)}
+.ua-viewport{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;background:var(--bg2);cursor:pointer}
+.ua-stage{position:absolute;left:0;top:0;width:960px;height:540px;transform-origin:0 0;font-size:15px}
+.ua-chrome{position:absolute;inset:0 auto auto 0;width:960px;height:40px;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 16px;gap:8px}
+.ua-chrome i{width:11px;height:11px;border-radius:50%;background:#D9CBB8}
+.ua-url{margin-left:18px;flex:1;max-width:250px;height:24px;border-radius:7px;background:var(--bg2);color:var(--muted);font-size:12.5px;display:flex;align-items:center;padding:0 12px}
+.ua .nv{display:flex;gap:4px;margin-left:12px}
+.ua .nv span{padding:5px 11px;border-radius:8px;font-size:12px;font-weight:600;color:var(--muted)}
+.ua .nv span.on{background:var(--soft);color:var(--accent2)}
+.ua-live{margin-left:auto;display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:700;letter-spacing:.08em;color:var(--good)}
+.ua-live::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--good);animation:p 1.4s infinite}
+@keyframes p{to{box-shadow:0 0 0 9px rgba(79,138,91,0)}}
+.ua-body{position:absolute;left:0;top:40px;width:960px;height:500px;overflow:hidden;background:radial-gradient(70% 90% at 50% 0,rgba(194,96,62,.09),transparent),var(--bg2)}
+.sub{position:absolute;inset:0;opacity:0;visibility:hidden}
+.card{position:absolute;background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:0 1px 0 rgba(255,255,255,.8) inset,0 14px 30px -18px rgba(90,50,25,.38);overflow:hidden}
+.lbl{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--dim);font-weight:700}
+.pi{display:inline-flex;width:38px;height:38px;border-radius:11px;align-items:center;justify-content:center;flex:none;color:#fff;font-weight:700;font-size:15px}
+.pi.ig{background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2'%3E%3Crect x='3' y='3' width='18' height='18' rx='5.5'/%3E%3Ccircle cx='12' cy='12' r='4.2'/%3E%3Ccircle cx='17.4' cy='6.6' r='1.1' fill='%23fff' stroke='none'/%3E%3C/svg%3E") center/62% no-repeat,radial-gradient(circle at 30% 107%,#fdf497 0,#fdf497 5%,#fd5949 45%,#d6249f 60%,#285AEB 90%)}.pi.ig svg{display:none}.pi.li{background:#0A66C2;font:800 15px/1 Arial,Helvetica,sans-serif;letter-spacing:-.04em}.pi.li.sm{font-size:11px}.pi.brand{background:var(--accent);font-size:12px}
+.pi.sm{width:22px;height:22px;border-radius:7px;font-size:11px}.pi svg{width:55%;height:55%}
+@keyframes sp{to{transform:rotate(360deg)}}
+.art{position:relative;overflow:hidden;background:radial-gradient(90% 70% at 50% 38%,#FBF4EA,#EADBC7 70%,#DCC8B0)}.art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.art svg{position:absolute;left:50%;top:50%;height:94%;width:auto;transform:translate(-50%,-50%)}
+.art em{position:absolute;left:12px;bottom:8px;color:#fff;font:italic 20px var(--serif)}
+.cal{position:absolute;left:16px;top:50px;width:608px;height:300px;display:grid;grid-template-columns:repeat(5,1fr);grid-template-rows:repeat(3,100px)}
+.dy{position:absolute;top:34px;font-size:11px;font-weight:700;letter-spacing:.09em;color:var(--dim);width:121.6px;padding-left:8px}
+.sl{position:relative;border-top:1px solid var(--line);border-left:1px solid var(--line);padding:6px}
+.sl em{position:absolute;right:8px;top:6px;font-style:normal;font-size:11.5px;color:var(--dim)}
+.q{margin-top:22px;display:flex;gap:7px;align-items:center;padding:7px;border-radius:9px;background:var(--surface2);font-size:12px;font-weight:500;line-height:1.15}
+.best{background:repeating-linear-gradient(135deg,rgba(194,96,62,.1) 0 8px,transparent 8px 16px);outline:1.5px dashed rgba(194,96,62,.6);outline-offset:-3px;border-radius:6px}
+.bt{display:none}.best .bt{display:block;position:absolute;left:0;right:0;bottom:10px;text-align:center;font-size:11.5px;font-weight:700;color:var(--accent2)}
+.tg2{position:absolute;display:flex;align-items:center;gap:10px;font-size:14px}
+.sw{width:40px;height:22px;border-radius:99px;background:#D9CBB8;position:relative;flex:none}.sw::after{content:"";position:absolute;left:3px;top:3px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.sw.on{background:var(--accent)}.sw.on::after{left:21px}
+.bp{left:28px;top:24px;width:420px;height:404px;padding:22px}
+.bar2{margin:20px 0 6px;height:34px;position:relative;border-top:2px dotted var(--line2);top:6px}
+.bar2 span{position:absolute;top:-17px;font-size:24px;color:var(--accent)}
+.rt{display:flex;justify-content:space-between;font:italic 34px var(--serif);margin-top:18px}
+.rt small{display:block;font:600 10.5px var(--sans);letter-spacing:.1em;color:var(--dim);font-style:normal}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:18px}.grid3 b{display:block;font-size:14px;margin-top:4px}
+.stub{position:absolute;left:0;right:0;bottom:0;height:78px;border-top:2px dashed var(--line2);background:var(--surface2);display:flex;align-items:center;gap:16px;padding:0 22px;font-size:12.5px;color:var(--muted)}
+.stub i{flex:1;height:36px;background:repeating-linear-gradient(90deg,var(--text) 0 2px,transparent 2px 5px,var(--text) 5px 6px,transparent 6px 10px);opacity:.7;border-radius:3px}
+.stp{display:flex;gap:14px;align-items:center;padding:12px 4px;border-bottom:1px solid var(--line)}.stp b{display:block;font-size:14.5px}.stp small{color:var(--dim);font-size:12.5px}
+.dot{width:24px;height:24px;border-radius:50%;border:2px solid var(--line2);flex:none;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px}
+.stp.a .dot{border-color:var(--accent);border-top-color:transparent;animation:sp .7s linear infinite}.stp.d .dot{background:var(--good);border-color:var(--good)}
+.stp.p{opacity:.5}
+.live2{display:flex;gap:10px;margin-top:14px}.live2 div{flex:1;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:rgba(79,138,91,.12);color:var(--good);font-weight:600;font-size:13.5px}
+.cur{position:absolute;left:0;top:0;width:22px;height:22px;pointer-events:none;z-index:9;opacity:0;filter:drop-shadow(0 2px 3px rgba(0,0,0,.3))}
+
+.vh{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px;flex-wrap:wrap}
+.vn{display:none !important}
+.vt h3{margin:0;font-size:20px;font-weight:600;letter-spacing:-.02em}
+.vt p{margin:4px 0 0;color:var(--muted);font-size:13.5px;max-width:540px;line-height:1.45}
+.vc{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.vc span{padding:5px 10px;border-radius:99px;border:1px solid var(--line2);background:var(--surface);font-size:11.5px;font-weight:600;color:var(--muted)}
+.chip{display:flex;align-items:center;gap:10px;background:var(--surface2);border:1px solid var(--line);border-radius:12px;position:absolute;z-index:8;padding:8px;font-size:13px;font-weight:600;color:var(--text);box-shadow:0 8px 24px -8px rgba(90,50,25,.3)}
+.chip small{display:block;font-size:11px;font-weight:500;color:var(--dim)}
+.vid{opacity:1;transform:none}
+.ua-cap,.ua-ctrl,.ua-note,.end{display:none !important}
+</style>
+
+<section class="ua" id="unool-automation">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="ud-s" x1="0" x2="1"><stop offset="0" stop-color="#7C3321"/><stop offset=".26" stop-color="#C4653F"/><stop offset=".5" stop-color="#DE8F66"/><stop offset=".74" stop-color="#B85A38"/><stop offset="1" stop-color="#712C1B"/></linearGradient>
+<linearGradient id="ud-b" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#D67B53"/><stop offset=".55" stop-color="#BC5D3A"/><stop offset="1" stop-color="#8A3822"/></linearGradient>
+<linearGradient id="ud-t" x1="1" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E08A62"/><stop offset=".6" stop-color="#C46440"/><stop offset="1" stop-color="#9A4429"/></linearGradient>
+<linearGradient id="ud-w" x1="0" x2="1"><stop offset="0" stop-color="#8E3A24"/><stop offset=".5" stop-color="#C46440"/><stop offset="1" stop-color="#8E3A24"/></linearGradient>
+<radialGradient id="ud-f"><stop offset="0" stop-color="#3A190C" stop-opacity=".4"/><stop offset="1" stop-color="#3A190C" stop-opacity="0"/></radialGradient>
+<filter id="ud-lin" x="0" y="0" width="1" height="1"><feTurbulence type="fractalNoise" baseFrequency=".9 .05" numOctaves="2" seed="4"/><feColorMatrix values="0 0 0 0 .25 0 0 0 0 .1 0 0 0 0 .05 0 0 0 .55 -.14"/><feComposite in2="SourceGraphic" operator="in"/></filter>
+<filter id="ud-bl" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="1.8"/></filter>
+<clipPath id="ud-skc"><path d="M78 126C70 170 46 232 29 282C50 293 76 289 100 293C124 289 150 293 171 282C154 232 130 170 122 126Z"/></clipPath><symbol id="ua-dress" viewBox="0 0 200 300">
+<ellipse cx="100" cy="290" rx="78" ry="8" fill="url(#ud-f)"/>
+<g id="ud-all">
+<path d="M72 38C60 40 46 50 33 78C46 86 61 82 71 71L75 52Z" fill="url(#ud-b)"/>
+<path d="M128 38C140 40 154 50 167 78C154 86 139 82 129 71L125 52Z" fill="url(#ud-t)"/>
+<path d="M78 126C70 170 46 232 29 282C50 293 76 289 100 293C124 289 150 293 171 282C154 232 130 170 122 126Z" fill="url(#ud-s)"/>
+<path d="M96 132C92 190 80 240 70 291L100 293C124 289 150 293 171 282C154 232 130 170 122 126Z" fill="#F5C09A" opacity=".1"/>
+<g clip-path="url(#ud-skc)"><path d="M86 131C80 190 62 240 44 285M106 134C107 190 104 240 100 291M117 132C124 190 142 240 158 284M132 150C142 200 150 245 164 281M66 196C58 226 48 252 38 280" fill="none" stroke="#45190B" stroke-opacity=".3" stroke-width="5" filter="url(#ud-bl)"/>
+<path d="M95 134C92 190 88 240 80 291M112 134C115 190 120 240 126 291M146 190C152 224 160 252 166 280M58 206C54 232 48 256 42 280" fill="none" stroke="#F8C7A2" stroke-opacity=".34" stroke-width="4" filter="url(#ud-bl)"/>
+</g><path d="M96 132C92 190 80 240 70 291" fill="none" stroke="#3E1708" stroke-opacity=".38" stroke-width="2.2"/>
+<path d="M98 132C94 190 82 240 73 291" fill="none" stroke="#F4B890" stroke-opacity=".5" stroke-width="1.2"/>
+<path d="M29 282C50 293 76 289 100 293C124 289 150 293 171 282" fill="none" stroke="#F2B58E" stroke-opacity=".55" stroke-width="1.4"/>
+<path d="M92 34L101 78L88 128L78 128C74 104 70 70 72 38C80 33 86 32 92 34Z" fill="url(#ud-b)"/>
+<path d="M92 34C98 27 108 27 114 33L101 78Z" fill="#5E2415"/>
+<path d="M92 34L101 78L110 90L122 128L88 128Z" fill="#B3563A"/>
+<path d="M128 38C124 34 119 32 114 33L101 78L88 128L122 128C126 104 130 70 128 38Z" fill="url(#ud-t)"/>
+<path d="M114 33L101 78L88 128" fill="none" stroke="#3E1708" stroke-opacity=".3" stroke-width="3" filter="url(#ud-bl)"/>
+<path d="M114 33C108 56 104 66 101 78C96 96 92 112 88 128" fill="none" stroke="#F6BC96" stroke-opacity=".6" stroke-width="1.3"/>
+<path d="M92 34L101 78M92 34C98 27 108 27 114 33" fill="none" stroke="#E9A57F" stroke-opacity=".55" stroke-width="1.2"/>
+<path d="M122 124C112 116 104 108 98 98M80 124C86 114 90 106 94 100" fill="none" stroke="#45190B" stroke-opacity=".3" stroke-width="3" filter="url(#ud-bl)"/>
+<path d="M77 123C92 128 108 128 123 123L124 134C108 139 92 139 76 134Z" fill="url(#ud-w)"/>
+<path d="M77 124C92 129 108 129 123 124" fill="none" stroke="#F5BE98" stroke-opacity=".5" stroke-width="1"/>
+<path d="M86 134C80 156 74 172 66 192L77 195C85 176 91 156 93 136Z" fill="url(#ud-b)" stroke="#6A2815" stroke-opacity=".35" stroke-width=".8"/>
+<path d="M88 134C95 158 100 176 102 198L113 194C108 174 101 154 95 135Z" fill="url(#ud-t)" stroke="#6A2815" stroke-opacity=".35" stroke-width=".8"/>
+<path d="M88 131C72 114 61 128 75 137Z" fill="url(#ud-t)" stroke="#6A2815" stroke-opacity=".4" stroke-width=".8"/>
+<path d="M88 131C104 114 115 128 101 137Z" fill="url(#ud-b)" stroke="#6A2815" stroke-opacity=".4" stroke-width=".8"/>
+<ellipse cx="88" cy="132" rx="5.5" ry="6" fill="#A44A2B" stroke="#5B2312" stroke-opacity=".4" stroke-width=".8"/>
+</g>
+<use href="#ud-all" filter="url(#ud-lin)"/>
+</symbol></defs></svg>
+<div class="ua-wrap">
+  <div class="vid in">
+    <div class="vh">
+      <div class="vt">
+        <h3>Flight plan &amp; publish</h3>
+        <p>Drop the post on the best time in your weekly plan, switch on auto-publish and watch it take off on both platforms.</p>
+      </div>
+      <div class="vc"><span>Schedule</span><span>Auto-publish</span><span>Live</span></div>
+    </div>
+    <div class="ua-player" id="ua-player">
+      <div class="ua-viewport" data-k="viewport" role="img" aria-label="Video 2: schedule the dress post on the best time and publish it automatically to Instagram and LinkedIn">
+        <div class="ua-stage" data-k="stage">
+          <div class="ua-chrome"><i></i><i></i><i></i><span class="ua-url">🔒 app.unool.co/automation</span><span class="nv"><span>Compose</span><span class="on">Flight plan</span><span>Inbox</span></span><span class="ua-live">LIVE DEMO</span></div>
+          <div class="ua-body">
+            <!-- PART 2a · flight plan -->
+            <div class="sub" data-k="b1">
+              <div class="card" style="left:24px;top:20px;width:640px;height:400px">
+                <div style="position:absolute;left:16px;top:12px;font-weight:600">Flight plan <span style="color:var(--dim);font-weight:500;font-size:13px">· this week</span></div>
+                <div data-k="cal"></div>
+              </div>
+              <div class="card" style="left:684px;top:20px;width:252px;height:400px;padding:16px">
+                <div class="lbl">Ready to schedule</div>
+                <div data-k="src" class="chip" style="position:relative;margin-top:14px;width:auto;height:84px;padding:12px"><div class="art" style="width:46px;height:58px;border-radius:8px"><svg viewBox="0 0 200 300"><use href="#ua-dress"/></svg></div><div>Linen Wrap Dress<small>Instagram + LinkedIn</small></div></div>
+                <div data-k="done" style="margin-top:16px;padding:12px;border-radius:12px;background:rgba(79,138,91,.12);color:var(--good);font-weight:600;font-size:13.5px;line-height:1.4">✓ Scheduled · Tue 9:40<small style="display:block;font-weight:500;color:var(--muted)">Your audience is most active then</small></div>
+                <div class="tg2" style="left:16px;bottom:18px"><span class="sw" data-k="sw"></span><span data-k="swl">Auto-publish</span></div>
+              </div>
+              <div class="chip" data-k="dg"><div class="art"><svg viewBox="0 0 200 300"><use href="#ua-dress"/></svg></div><div>Linen Wrap Dress<small>IG + LI</small></div></div>
+            </div>
+            <!-- PART 2b · publish -->
+            <div class="sub" data-k="b2">
+              <div class="card bp">
+                <div style="display:flex;align-items:center;gap:12px"><span class="pi brand">ᘐ</span><div><div class="lbl">Flight UN-204</div><b style="font-size:15px">Auto-publish</b></div></div>
+                <div class="rt"><div><small>FROM</small>Queue</div><div style="text-align:right"><small>TO</small>Live</div></div>
+                <div class="bar2"><span data-k="pl">✈</span></div>
+                <div style="font-size:19px;font-weight:600;margin-top:22px">Linen Wrap Dress drop</div>
+                <div class="grid3"><div class="lbl">Platforms<b>IG + LI</b></div><div class="lbl">Departs<b>Tue 9:40</b></div><div class="lbl">Status<b data-k="fs" style="color:var(--accent2)">Scheduled</b></div></div>
+                <div class="stub"><i></i><span>Boarding pass<br>issued by Unool</span></div>
+              </div>
+              <div class="card" style="left:468px;top:24px;width:464px;height:404px;padding:20px">
+                <div class="lbl">Publishing</div><div data-k="steps" style="margin-top:6px"></div>
+                <div class="live2" data-k="lv"><div><span class="pi sm ig"></span>Instagram · Live</div><div><span class="pi sm li">in</span>LinkedIn · Live</div></div>
+              </div>
+            </div>
+          </div>
+          <svg class="cur" data-k="cur" viewBox="0 0 22 22"><path d="M3 2l14 8-6.2 1.6L8 18z" fill="#2A1E17" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<script>
+(function(){
+'use strict';
+var DUR=15;
+var clamp=function(v,a,b){a=a==null?0:a;b=b==null?1:b;return Math.min(b,Math.max(a,v))},prog=function(t,a,b){return clamp((t-a)/(b-a))},sm=function(x){return x*x*(3-2*x)};
+var root=document.getElementById('ua-player'),cache={};
+var $=function(k){return cache[k]||(cache[k]=root.querySelector('[data-k="'+k+'"]'))};
+var viewport=$('viewport'),stage=$('stage');
+function fit(){
+  if(viewport&&stage){
+    var w=viewport.clientWidth||root.clientWidth||640;
+    stage.style.transform='scale('+(w/960)+')';
+  }
+}
+if(window.ResizeObserver)new ResizeObserver(fit).observe(viewport);else addEventListener('resize',fit);fit();
+
+/* ---- static builders: weekly calendar + publish steps ---- */
+(function(){
+  var T=['9:00','12:30','17:00'],P={'0-0':'ig','2-1':'li','3-0':'ig','4-2':'li'},h='',D=['MON','TUE','WED','THU','FRI'];
+  D.forEach(function(d,i){h+='<div class="dy" style="left:'+(16+i*121.6)+'px">'+d+'</div>'});h+='<div class="cal">';
+  for(var r=0;r<3;r++)for(var c=0;c<5;c++){var k=c+'-'+r,b=c==1&&r==0;h+='<div class="sl'+(b?'" data-k="best':'')+'"><em>'+T[r]+'</em>'+(P[k]?'<div class="q"><span class="pi sm '+P[k]+'">'+(P[k]=='li'?'in':'')+'</span>Queued post</div>':'')+(b?'<div class="bt" data-k="bt">Best time · 9:40</div><div class="chip" data-k="dc" style="left:8px;top:22px;width:auto;right:8px"><div class="art"><svg viewBox="0 0 200 300"><use href="#ua-dress"/></svg></div><div>Linen Wrap Dress<small>IG + LI</small></div></div>':'')+'</div>'}
+  $('cal').innerHTML=h+'</div>';
+})();
+var STEPS=[['Departure time reached','Tue 9:40 · queue checked',7,7.6],['Preparing media','Resized for 4:5 and 1.91:1',7.6,9],['Publishing to Instagram','Container created → published',9,10.6],['Publishing to LinkedIn','Post shared to your profile',10.4,12.1]];
+$('steps').innerHTML=STEPS.map(function(s){return '<div class="stp p"><span class="dot"></span><div><b>'+s[0]+'</b><small>'+s[1]+'</small></div></div>'}).join('');
+var stEls=[].slice.call(root.querySelectorAll('.stp'));
+
+/* ---- cursor path: [time, x, y, opacity] ---- */
+var F=[[0,700,300,0],[.4,700,300,0],[1,810,142,1],[1.6,810,142,1],[3.3,222,160,1],[3.8,260,210,1],[4.4,720,431,1],[5.4,760,400,0],[15,760,400,0]];
+var CK=[1.5,3.3,4.5];
+function cur(t){var i=0;while(i<F.length-2&&t>F[i+1][0])i++;var a=F[i],b=F[i+1],p=sm(prog(t,a[0],b[0]));return[a[1]+(b[1]-a[1])*p,a[2]+(b[2]-a[2])*p,a[3]+(b[3]-a[3])*p]}
+function vis(el,t,a,b,dy){if(!el)return;var o=sm(prog(t,a,a+.45))*(1-sm(prog(t,b-.35,b)));if(a<=0)o=1-sm(prog(t,b-.35,b));el.style.opacity=o;el.style.visibility=o>.01?'visible':'hidden';if(dy)el.style.transform='translateY('+(1-sm(prog(t,a,a+.6)))*dy+'px)'}
+function put(id,s){var e=$(id);if(e&&e._h!==s){e.innerHTML=s;e._h=s}}
+
+/* ---- render(t): pure function of time ---- */
+function render(t){
+ vis($('b1'),t,0,6.5);vis($('b2'),t,6.5,999);
+ /* schedule */
+ var bestEl = $('best');
+ if(bestEl) bestEl.className='sl'+(t>=.5&&t<3.3?' best':'');
+ var cp=cur(t),drag=t>=1.5&&t<3.3;
+ var srcEl = $('src');
+ if(srcEl) srcEl.style.opacity=t<1.5?1:0;
+ var dcEl = $('dc');
+ if(dcEl) dcEl.style.opacity=t>=3.3?1:0;
+ var dg=$('dg');
+ if(dg){
+   dg.style.opacity=drag?1:0;
+   dg.style.left=(cp[0]-75)+'px';
+   dg.style.top=(cp[1]-40-24)+'px';
+   dg.style.transform='rotate('+(drag?-3:0)+'deg)';
+ }
+ var doneEl = $('done');
+ if(doneEl) doneEl.style.opacity=sm(prog(t,3.4,3.9));
+ var sw=t>=4.5;
+ var swEl = $('sw');
+ if(swEl) swEl.className='sw'+(sw?' on':'');
+ put('swl',sw?'Auto-publish ON':'Auto-publish');
+ /* publish */
+ var fs=t<7?'Scheduled':t<9?'Boarding':t<12.2?'In flight':'Landed · Live';
+ var fsEl = $('fs');
+ if(fsEl) fsEl.textContent=fs;
+ var plEl = $('pl');
+ if(plEl) plEl.style.left=(prog(t,7,12.2)*92)+'%';
+ STEPS.forEach(function(s,i){
+   var e=stEls[i];
+   if(!e)return;
+   var d=t>=s[3],a=t>=s[2]&&!d;
+   e.className='stp '+(d?'d':a?'a':'p');
+   var dot = e.querySelector('.dot');
+   if(dot) dot.textContent=d?'✓':'';
+ });
+ var lvEl = $('lv');
+ if(lvEl){
+   lvEl.style.opacity=sm(prog(t,12.4,13));
+   lvEl.style.transform='translateY('+(1-sm(prog(t,12.4,13)))*10+'px)';
+ }
+ /* cursor */
+ var cu=$('cur'),press=CK.some(function(c){return Math.abs(t-c)<.12});
+ if(cu){
+   cu.style.opacity=cp[2];
+   cu.style.transform='translate('+cp[0]+'px,'+cp[1]+'px) scale('+(press?.82:1)+')';
+ }
+}
+
+/* ---- player in continuous infinite loop ---- */
+var t=0,playing=true,manual=false,dirty=true,last=performance.now(),reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
+function setPlay(v){playing=v;last=performance.now();dirty=true}
+function restart(){t=0;setPlay(true)}
+function toggle(){manual=playing;setPlay(!playing)}
+viewport.onclick=toggle;
+
+if('IntersectionObserver' in window){
+  new IntersectionObserver(function(es){
+    if(es[0].isIntersecting){if(!manual&&!reduce)setPlay(true)}else if(playing)setPlay(false);
+  },{threshold:.15}).observe(viewport);
+}
+if(!reduce)setPlay(true);
+
+(function loop(n){
+  var d=Math.max(0,Math.min(0.1,(n-last)/1000));
+  last=n;
+  if(playing){
+    t+=d;
+    if(t>=DUR+1.4){
+      t=0;
+    }
+    dirty=true;
+  }
+  if(dirty){dirty=false;render(t)}
+  requestAnimationFrame(loop);
+})(performance.now());
+
+var sec=document.getElementById('unool-automation');
+if(sec){
+  sec.addEventListener('pointermove',function(e){
+    var r=sec.getBoundingClientRect();
+    sec.style.setProperty('--mx',(e.clientX-r.left)+'px');
+    sec.style.setProperty('--my',(e.clientY-r.top)+'px');
+  });
+}
+
+function notifyHeight(){
+  try{
+    var wrap=document.querySelector('.ua-wrap')||document.body;
+    var h=wrap?wrap.offsetHeight:document.body.scrollHeight;
+    if(h&&window.parent)window.parent.postMessage({type:'unool-video-resize',height:h},'*');
+  }catch(e){}
+}
+notifyHeight();
+window.addEventListener('resize',function(){fit();notifyHeight();});
+if(window.ResizeObserver)new ResizeObserver(notifyHeight).observe(document.body);
+setTimeout(function(){fit();notifyHeight();},100);
+setTimeout(function(){fit();notifyHeight();},400);
+setTimeout(function(){fit();notifyHeight();},1200);
+})();
+</script>
+</body>
+</html>`;
+
 function BentoVideoPlayer() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [height, setHeight] = useState<number>(610);
+  const [height, setHeight] = useState<number>(480);
 
   useEffect(() => {
     function handleMessage(e: MessageEvent) {
@@ -766,7 +1086,7 @@ function BentoVideoPlayer() {
     }
 
     window.addEventListener('message', handleMessage);
-    const interval = setInterval(checkDirect, 500);
+    const interval = setInterval(checkDirect, 400);
 
     return () => {
       window.removeEventListener('message', handleMessage);
@@ -785,6 +1105,7 @@ function BentoVideoPlayer() {
     >
       <iframe
         ref={iframeRef}
+        srcDoc={UNOOL_VIDEO_HTML_DOC}
         src="/unool-video-2-flight-plan.html"
         title="Flight plan & publish interactive walkthrough"
         style={{
@@ -802,6 +1123,85 @@ function BentoVideoPlayer() {
             const doc = iframeRef.current?.contentDocument;
             if (doc) {
               const wrap = (doc.querySelector('.ua-wrap') || doc.body) as HTMLElement;
+              const h = wrap ? (wrap.offsetHeight || wrap.scrollHeight) : 0;
+              if (h > 200) {
+                setHeight(Math.ceil(h));
+              }
+            }
+          } catch (err) {}
+        }}
+      />
+    </div>
+  );
+}
+
+function AutomationVideoPlayer() {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [height, setHeight] = useState<number>(760);
+
+  useEffect(() => {
+    function handleMessage(e: MessageEvent) {
+      if (
+        e.data &&
+        (e.data.type === 'unool-automation-resize' || e.data.type === 'unool-video-resize') &&
+        typeof e.data.height === 'number'
+      ) {
+        if (e.data.height > 200) {
+          setHeight(Math.ceil(e.data.height));
+        }
+      }
+    }
+
+    function checkDirect() {
+      try {
+        const doc = iframeRef.current?.contentDocument;
+        if (doc) {
+          const wrap = (doc.querySelector('.ua-wrap') || doc.querySelector('.ua') || doc.body) as HTMLElement;
+          const h = wrap ? (wrap.offsetHeight || wrap.scrollHeight) : 0;
+          if (h > 200) {
+            setHeight(Math.ceil(h));
+          }
+        }
+      } catch (err) {}
+    }
+
+    window.addEventListener('message', handleMessage);
+    const interval = setInterval(checkDirect, 400);
+
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      clearInterval(interval);
+    };
+  }, []);
+
+  return (
+    <div
+      style={{
+        width: '100%',
+        position: 'relative',
+        overflow: 'hidden',
+        lineHeight: 0,
+      }}
+    >
+      <iframe
+        ref={iframeRef}
+        src="/unool-video-3-automation.html?v=3"
+        title="Automate comments & DMs interactive walkthrough"
+        style={{
+          width: '100%',
+          height: `${height}px`,
+          border: 'none',
+          display: 'block',
+          background: 'transparent',
+          overflow: 'hidden',
+        }}
+        loading="eager"
+        scrolling="no"
+        onLoad={() => {
+          try {
+            const doc = iframeRef.current?.contentDocument;
+            if (doc) {
+              const wrap = (doc.querySelector('.ua-wrap') || doc.querySelector('.ua') || doc.body) as HTMLElement;
               const h = wrap ? (wrap.offsetHeight || wrap.scrollHeight) : 0;
               if (h > 200) {
                 setHeight(Math.ceil(h));
@@ -1650,6 +2050,25 @@ export default function HomePage() {
   const [activeProfileTpl, setActiveProfileTpl] = useState(0);
   const currentTpl = PROFILE_PREVIEW_TEMPLATES[activeProfileTpl] || PROFILE_PREVIEW_TEMPLATES[0];
 
+  const [activeSection, setActiveSection] = useState('overview');
+
+  const scrollToSection = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    e.preventDefault();
+    const id = href.replace('#', '');
+    const el = document.getElementById(id);
+    if (el) {
+      const navOffset = 70;
+      const elementPosition = el.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.pageYOffset - navOffset;
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth',
+      });
+      window.history.pushState(null, '', href);
+      setActiveSection(id);
+    }
+  };
+
   const [thought] = useState(
     'Meet the Linen Wrap Dress 🌿 Hand-woven terracotta, made for warm days. Sizes XS–XL. First 50 pieces: 20% off this week.'
   );
@@ -1715,20 +2134,9 @@ export default function HomePage() {
         setFlowStep(2);
       }, 3100);
     } else if (flowStep === 2) {
-      // Step 3: Phone Deck cycling & auto-loop (Instagram & LinkedIn only)
+      // Step 3: Mobile Phone Deck
       const tabs = rootRef.current?.querySelectorAll<HTMLElement>('#tabs button[data-i]');
       if (tabs && tabs[0]) tabs[0].click();
-
-      // Switch to LinkedIn phone
-      timer1 = setTimeout(() => {
-        if (tabs && tabs[1]) tabs[1].click();
-      }, 3000);
-
-      // Loop back to Step 0 (Connect)
-      timer2 = setTimeout(() => {
-        if (tabs && tabs[0]) tabs[0].click();
-        setFlowStep(0);
-      }, 6000);
     }
 
     return () => {
@@ -1816,12 +2224,22 @@ export default function HomePage() {
     // Scroll progress bar & Nav scroll styling
     const nav = $('#nav');
     const bar = $('#bar');
+    const sectionIds = ['overview', 'voices', 'features', 'profile', 'analytics', 'pricing'];
     const handleScroll = () => {
       const scrollY = window.scrollY;
       if (nav) nav.classList.toggle('s', scrollY > 40);
       if (bar) {
         const totalHeight = document.body.scrollHeight - window.innerHeight;
         bar.style.width = totalHeight > 0 ? (scrollY / totalHeight) * 100 + '%' : '0%';
+      }
+
+      const scrollPos = scrollY + 120;
+      for (let i = sectionIds.length - 1; i >= 0; i--) {
+        const el = document.getElementById(sectionIds[i]);
+        if (el && el.offsetTop <= scrollPos) {
+          setActiveSection(sectionIds[i]);
+          break;
+        }
       }
     };
     window.addEventListener('scroll', handleScroll);
@@ -2343,14 +2761,57 @@ export default function HomePage() {
       {/* Navigation */}
       <nav id="nav">
         <div className="ni">
-          <Link href="#overview" className="lg" aria-label="UNOOL Home">
+          <Link
+            href="#overview"
+            className="lg"
+            aria-label="UNOOL Home"
+            onClick={(e) => scrollToSection(e, '#overview')}
+          >
             <img src="/unool-logo-white.png" alt="UNOOL" className="lg-img" />
           </Link>
           <div className="nl">
-            <a href="#overview">Overview</a>
-            <a href="#voices">Platforms</a>
-            <a href="#features">Features</a>
-            <a href="#pricing">Pricing</a>
+            <a
+              href="#overview"
+              className={activeSection === 'overview' ? 'active' : ''}
+              onClick={(e) => scrollToSection(e, '#overview')}
+            >
+              Overview
+            </a>
+            <a
+              href="#voices"
+              className={activeSection === 'voices' ? 'active' : ''}
+              onClick={(e) => scrollToSection(e, '#voices')}
+            >
+              Platforms
+            </a>
+            <a
+              href="#features"
+              className={activeSection === 'features' ? 'active' : ''}
+              onClick={(e) => scrollToSection(e, '#features')}
+            >
+              Features
+            </a>
+            <a
+              href="#profile"
+              className={activeSection === 'profile' ? 'active' : ''}
+              onClick={(e) => scrollToSection(e, '#profile')}
+            >
+              Profiles
+            </a>
+            <a
+              href="#analytics"
+              className={activeSection === 'analytics' ? 'active' : ''}
+              onClick={(e) => scrollToSection(e, '#analytics')}
+            >
+              Analytics
+            </a>
+            <a
+              href="#pricing"
+              className={activeSection === 'pricing' ? 'active' : ''}
+              onClick={(e) => scrollToSection(e, '#pricing')}
+            >
+              Pricing
+            </a>
           </div>
           <div className="nr">
             <Link href="/signin">Log in</Link>
@@ -2451,7 +2912,7 @@ export default function HomePage() {
               <button
                 type="button"
                 className={`flow-step-pill ${flowStep === 0 ? 'active' : ''}`}
-                onClick={() => setFlowStep(0)}
+                onClick={() => { setFlowStep(0); setIsPlaying(false); }}
               >
                 <span className="flow-step-num">1</span>
                 <span>Connect</span>
@@ -2459,7 +2920,7 @@ export default function HomePage() {
               <button
                 type="button"
                 className={`flow-step-pill ${flowStep === 1 ? 'active' : ''}`}
-                onClick={() => setFlowStep(1)}
+                onClick={() => { setFlowStep(1); setIsPlaying(false); }}
               >
                 <span className="flow-step-num">2</span>
                 <span>Write</span>
@@ -2467,7 +2928,7 @@ export default function HomePage() {
               <button
                 type="button"
                 className={`flow-step-pill ${flowStep === 2 ? 'active' : ''}`}
-                onClick={() => setFlowStep(2)}
+                onClick={() => { setFlowStep(2); setIsPlaying(false); }}
               >
                 <span className="flow-step-num">3</span>
                 <span>Adapt</span>
@@ -2696,20 +3157,7 @@ export default function HomePage() {
           Everything flows. <em>Nothing breaks.</em>
         </h2>
         <div className="bento" id="bento">
-          <div className="bt w7 rv">
-            <div className="ib">✎</div>
-            <h3>One Link Profile</h3>
-            <p>
-              A beautiful public profile at yourname.unool.co, auto-generated from any URL. 5 themes. Proof
-              points, links and badges — all editable.
-            </p>
-            <div className="ur">
-              🔒 https://<b id="nm">yourname</b>
-              <b>.unool.co</b>
-            </div>
-          </div>
-
-          <div className="bt w5 dk rv">
+          <div className="bt w12 dk rv">
             <div className="ib">❖</div>
             <h3>Multi-Network Composer</h3>
             <p>Write once. Adapted to every platform’s limits, formatting and best practices.</p>
@@ -2732,34 +3180,11 @@ export default function HomePage() {
             <BentoVideoPlayer />
           </div>
 
-          <div className="bt w12 dk an rv">
-            <div>
-              <div className="ib">↗</div>
-              <h3>Analytics &amp; Insights</h3>
-              <p>
-                Track engagement across all platforms in one dashboard. Understand what resonates. Grow
-                intelligently.
-              </p>
-              <div className="kp">
-                <div>
-                  <b id="rk">—</b>
-                  <small>Reach · 14 days</small>
-                </div>
-                <div>
-                  <b>6.9%</b>
-                  <small>Engagement</small>
-                </div>
-                <div>
-                  <b>Tue 9:40</b>
-                  <small>Best time</small>
-                </div>
-              </div>
-              <div className="lgd" id="lgd"></div>
-            </div>
-            <div className="strm" id="strm" ref={stmRef}>
-              <div className="tip" id="tip" ref={tipRef}></div>
-            </div>
+          {/* Video 3: Automate Comments & DMs (Added right after Image 2) */}
+          <div className="bt w12 rv ua-bento-card ua-automation-card" style={{ padding: 0 }}>
+            <AutomationVideoPlayer />
           </div>
+
         </div>
       </section>
 
@@ -2954,6 +3379,47 @@ export default function HomePage() {
             </Link>
           </div>
         </div>
+
+        {/* Analytics & Insights — placed after Every link. One home. */}
+        <div
+          id="analytics"
+          className="an-wrap"
+          style={{
+            maxWidth: '1100px',
+            margin: '80px auto 0',
+            textAlign: 'left',
+            perspective: '1400px',
+          }}
+        >
+          <div className="bt w12 dk an rv">
+            <div>
+              <div className="ib">↗</div>
+              <h3>Analytics &amp; Insights</h3>
+              <p>
+                Track engagement across all platforms in one dashboard. Understand what resonates. Grow
+                intelligently.
+              </p>
+              <div className="kp">
+                <div>
+                  <b id="rk">—</b>
+                  <small>Reach · 14 days</small>
+                </div>
+                <div>
+                  <b>6.9%</b>
+                  <small>Engagement</small>
+                </div>
+                <div>
+                  <b>Tue 9:40</b>
+                  <small>Best time</small>
+                </div>
+              </div>
+              <div className="lgd" id="lgd"></div>
+            </div>
+            <div className="strm" id="strm" ref={stmRef}>
+              <div className="tip" id="tip" ref={tipRef}></div>
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* Pricing Section */}
@@ -3047,7 +3513,12 @@ export default function HomePage() {
       <footer>
         <div className="footer-inner">
           <div className="footer-brand">
-            <Link href="#overview" className="lg" aria-label="UNOOL Home">
+            <Link
+              href="#overview"
+              className="lg"
+              aria-label="UNOOL Home"
+              onClick={(e) => scrollToSection(e, '#overview')}
+            >
               <img src="/unool-logo.png" alt="UNOOL" className="lg-img" />
             </Link>
             <p className="footer-legal-text">
