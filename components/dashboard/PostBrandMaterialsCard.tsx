@@ -313,79 +313,89 @@ export default function PostBrandMaterialsCard({
   return (
     <div
       style={{
-        background: 'linear-gradient(135deg, #FFFDF9 0%, #FAF6EE 100%)',
+        background: '#FFFFFF',
         border: '1.5px solid #E8E0D4',
         borderRadius: 16,
-        padding: '16px 18px',
-        boxShadow: '0 2px 8px rgba(61,43,31,0.03)',
+        padding: '16px 20px',
+        boxShadow: '0 2px 10px rgba(61,43,31,0.03)',
+        transition: 'all 0.2s ease',
       }}
     >
       {/* ── Header ── */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div
             style={{
-              width: 34,
-              height: 34,
+              width: 38,
+              height: 38,
               borderRadius: 10,
-              background: 'linear-gradient(135deg, #DF5B4C 0%, #C44537 100%)',
-              color: '#FFFFFF',
+              background: 'rgba(223,91,76,0.1)',
+              color: '#DF5B4C',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 2px 6px rgba(223,91,76,0.3)',
+              flexShrink: 0,
             }}
           >
             <Layers size={18} />
           </div>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 13.5, fontWeight: 700, color: '#3D2B1F' }}>
-                Brand Materials Page for this Post
-              </span>
-              <span
-                style={{
-                  fontSize: 10.5,
-                  fontWeight: 700,
-                  color: '#DF5B4C',
-                  background: 'rgba(223,91,76,0.1)',
-                  padding: '2px 8px',
-                  borderRadius: 12,
-                  border: '1px solid rgba(223,91,76,0.25)',
-                }}
-              >
-                DM Automation Hub
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#2C1E16', letterSpacing: '-0.01em' }}>
+                Brand Materials Page
               </span>
             </div>
-            <div style={{ fontSize: 11.5, color: '#8B7355', marginTop: 2 }}>
-              Dedicated page auto-delivered when followers comment on this post
+            <div style={{ fontSize: 12, color: '#8B7355', marginTop: 2 }}>
+              Publish exclusive lookbooks, PDF guides, or download links at <span style={{ fontFamily: 'monospace', color: '#5D4330' }}>https://{subdomain}.unool.co/[slug]</span>
             </div>
           </div>
         </div>
 
-        {/* View all pages counter link */}
-        {pages.length > 0 && (
-          <button
-            type="button"
-            onClick={() => setPagesListOpen(!pagesListOpen)}
+        {/* View all pages counter link + Studio link */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {pages.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setPagesListOpen(!pagesListOpen)}
+              style={{
+                background: '#FAF7F2',
+                border: '1px solid #E8E0D4',
+                borderRadius: 20,
+                padding: '5px 12px',
+                fontSize: 12,
+                fontWeight: 600,
+                color: '#5D4330',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <span>Your Pages ({pages.length})</span>
+              <ChevronDown size={13} style={{ transform: pagesListOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+            </button>
+          )}
+
+          <a
+            href="/dashboard/automation?tab=materials"
             style={{
-              background: '#FFFFFF',
-              border: '1px solid #E8E0D4',
-              borderRadius: 20,
-              padding: '4px 12px',
-              fontSize: 11.5,
+              fontSize: 12,
               fontWeight: 600,
-              color: '#5D4330',
-              cursor: 'pointer',
-              display: 'flex',
+              color: '#8B7355',
+              textDecoration: 'none',
+              display: 'inline-flex',
               alignItems: 'center',
-              gap: 5,
+              gap: 4,
+              padding: '5px 10px',
+              borderRadius: 8,
+              transition: 'color 0.15s ease',
             }}
           >
-            <span>Your Pages ({pages.length})</span>
-            <ChevronDown size={13} style={{ transform: pagesListOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
-          </button>
-        )}
+            <span>Brand Studio</span>
+            <ExternalLink size={12} />
+          </a>
+        </div>
       </div>
 
       {/* ── View All Pages Dropdown ── */}
@@ -498,11 +508,11 @@ export default function PostBrandMaterialsCard({
         <div
           style={{
             marginTop: 14,
-            padding: '12px 16px',
-            background: '#FFFFFF',
+            padding: '14px 18px',
+            background: '#FAF8F5',
             borderRadius: 12,
-            border: '1.5px solid #10B981',
-            boxShadow: '0 2px 10px rgba(16,185,129,0.08)',
+            border: '1.5px solid #E8E0D4',
+            boxShadow: '0 2px 8px rgba(61,43,31,0.02)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -513,23 +523,23 @@ export default function PostBrandMaterialsCard({
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
             <div
               style={{
-                width: 10,
-                height: 10,
+                width: 8,
+                height: 8,
                 borderRadius: '50%',
                 background: '#10B981',
-                boxShadow: '0 0 8px #10B981',
+                boxShadow: '0 0 6px rgba(16,185,129,0.5)',
                 flexShrink: 0,
               }}
             />
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#065F46', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#2C1E16', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <span>{attachedPage?.title || 'Brand Materials Page'}</span>
-                <span style={{ fontSize: 11, fontWeight: 600, color: '#047857', background: '#ECFDF5', padding: '1px 6px', borderRadius: 8 }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: '#8B7355', background: '#F0EBE3', padding: '2px 8px', borderRadius: 6 }}>
                   {attachedPage?.materials?.length || 0} materials attached
                 </span>
               </div>
-              <div style={{ fontSize: 11.5, color: '#059669', textDecoration: 'underline', marginTop: 2, wordBreak: 'break-all' }}>
-                <a href={attachedPageUrl} target="_blank" rel="noopener noreferrer">
+              <div style={{ fontSize: 12, color: '#DF5B4C', marginTop: 2, wordBreak: 'break-all', fontFamily: 'monospace' }}>
+                <a href={attachedPageUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#DF5B4C', textDecoration: 'none' }}>
                   {attachedPageUrl}
                 </a>
               </div>
@@ -633,18 +643,19 @@ export default function PostBrandMaterialsCard({
               color: '#FFFFFF',
               border: 'none',
               borderRadius: 10,
-              padding: '8px 16px',
-              fontSize: 12.5,
+              padding: '9px 18px',
+              fontSize: 13,
               fontWeight: 700,
               cursor: 'pointer',
               display: 'inline-flex',
               alignItems: 'center',
-              gap: 6,
-              boxShadow: '0 2px 6px rgba(223,91,76,0.25)',
+              gap: 7,
+              boxShadow: '0 3px 10px rgba(223,91,76,0.25)',
+              transition: 'all 0.15s ease',
             }}
           >
-            <Plus size={14} />
-            <span>+ Create Brand Page for this Post</span>
+            <Plus size={15} />
+            <span>Create Brand Page</span>
           </button>
 
           {pages.length > 0 && (
@@ -653,39 +664,27 @@ export default function PostBrandMaterialsCard({
               onClick={() => setPagesListOpen(!pagesListOpen)}
               style={{
                 background: '#FFFFFF',
-                color: '#5D4330',
-                border: '1px solid #D5C9B8',
+                color: '#3D2B1F',
+                border: '1px solid #E8E0D4',
                 borderRadius: 10,
-                padding: '8px 14px',
+                padding: '9px 15px',
                 fontSize: 12.5,
                 fontWeight: 600,
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
+                transition: 'all 0.15s ease',
               }}
             >
               <Layers size={14} />
-              <span>Attach Existing Page ({pages.length})</span>
+              <span>Attach Existing ({pages.length})</span>
             </button>
           )}
 
-          <a
-            href="/dashboard/automation?tab=materials"
-            style={{
-              fontSize: 12,
-              fontWeight: 600,
-              color: '#8B7355',
-              textDecoration: 'none',
-              marginLeft: 'auto',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 4,
-            }}
-          >
-            <span>Open Brand Studio</span>
-            <ExternalLink size={12} />
-          </a>
+          <span style={{ fontSize: 11.5, color: '#A69279', marginLeft: 'auto' }}>
+            Auto-delivered when followers ask in comments or DMs
+          </span>
         </div>
       )}
 

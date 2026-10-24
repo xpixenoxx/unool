@@ -177,10 +177,7 @@ export function FollowGateManager({ workspaceId }: { workspaceId: string }) {
             <Lock className="h-5 w-5 text-white" />
           </div>
           <div className="fgm-header-text">
-            <div className="fgm-title-row">
-              <h1 className="fgm-title">Unlock Gates</h1>
-              <span className="fgm-badge-pill">Growth Engine</span>
-            </div>
+            <h1 className="fgm-title">Unlock Gates</h1>
             <p className="fgm-subtitle">
               Lock premium downloads, discount codes, or secret links behind an Instagram follow. 
               Share in your bio, post captions, or send directly via automated DMs.
