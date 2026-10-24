@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback, Component } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { CashfreeInstance } from '@cashfreepayments/cashfree-js';
-import { UnoolCheckoutModal } from '@/components/billing/UnoolCheckoutModal';
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -64,39 +63,6 @@ function formatSubscriptionDate(dateStr?: string | null): string {
   }
 }
 
-// ── Error Boundary for Checkout Modal ─────────────────────────
-interface ErrorBoundaryProps {
-  children: React.ReactNode;
-  onError: (error: Error) => void;
-}
-
-interface ErrorBoundaryState {
-  hasError: boolean;
-}
-
-class CheckoutErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError(): ErrorBoundaryState {
-    return { hasError: true };
-  }
-
-  componentDidCatch(error: Error) {
-    console.error('[BillingClient] Caught checkout modal error:', error);
-    this.props.onError(error);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return null;
-    }
-    return this.props.children;
-  }
-}
-
 // ── Component ───────────────────────────────────────────────────
 
 export default function BillingClient() {
@@ -108,12 +74,6 @@ export default function BillingClient() {
   const [verifying, setVerifying] = useState(false);
   const [paymentResult, setPaymentResult] = useState<{ status: string; message: string } | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
-  const [checkoutData, setCheckoutData] = useState<{
-    plan: PlanData;
-    paymentSessionId: string;
-    cfOrderId: string;
-    mode?: 'sandbox' | 'production';
-  } | null>(null);
 
   // ── Payment Verification Polling ───────────────────────────
   const pollVerification = useCallback(async (orderId: string) => {
@@ -132,12 +92,12 @@ export default function BillingClient() {
       }
 
       try {
-        const res = await fetch(`/api/billing/verify?orderId=${orderId}`);
+        const res = await fetch(`/api/billing/verify?orderId=${orderId}&t=${Date.now()}`, { cache: 'no-store' });
         const data = await res.json();
 
         if (data.status === 'PAID') {
           setVerifying(false);
-          setPaymentResult({ status: 'PAID', message: data.message });
+          setPaymentResult({ status: 'PAID', message: data.message || 'Payment successful! Your plan is now active.' });
           // Clear active session
           try { sessionStorage.removeItem('unool_active_checkout'); } catch {}
           // Broadcast to other tabs
@@ -150,26 +110,29 @@ export default function BillingClient() {
           const targetPlanId = data.planId;
           const upgraded = plans.find(p => p.id === targetPlanId);
           const cyc = data.billingCycle || billingCycle;
-          if (upgraded) {
-            setCurrentPlan({
-              plan: { id: upgraded.id, name: upgraded.name, tagline: upgraded.tagline },
-              subscription: {
-                id: 'sub_' + orderId,
-                status: 'active',
-                billingCycle: cyc,
-                amount: cyc === 'annual' ? upgraded.pricing.annualDisplay : upgraded.pricing.monthlyDisplay,
-                amountPaise: cyc === 'annual' ? upgraded.pricing.annual : upgraded.pricing.monthly,
-                currency: upgraded.pricing.currency,
-                currentPeriodStart: new Date().toISOString(),
-                currentPeriodEnd: new Date(Date.now() + (cyc === 'annual' ? 365 : 30) * 86400000).toISOString(),
-                trialEnd: null,
-                cancelAtPeriodEnd: false,
-                cancelledAt: null,
-                paymentMethod: null,
-              },
-              isFreeTier: false,
-            });
-          }
+          const planName = upgraded?.name || (targetPlanId ? targetPlanId.charAt(0).toUpperCase() + targetPlanId.slice(1) : 'Pro');
+          const planTagline = upgraded?.tagline || '';
+
+          setCurrentPlan({
+            plan: { id: targetPlanId, name: planName, tagline: planTagline },
+            subscription: {
+              id: 'sub_' + orderId,
+              status: 'active',
+              billingCycle: cyc,
+              amount: cyc === 'annual' ? (upgraded?.pricing?.annualDisplay || '') : (upgraded?.pricing?.monthlyDisplay || ''),
+              amountPaise: cyc === 'annual' ? (upgraded?.pricing?.annual || 0) : (upgraded?.pricing?.monthly || 0),
+              currency: upgraded?.pricing?.currency || 'INR',
+              currentPeriodStart: new Date().toISOString(),
+              currentPeriodEnd: new Date(Date.now() + (cyc === 'annual' ? 365 : 30) * 86400000).toISOString(),
+              trialEnd: null,
+              cancelAtPeriodEnd: false,
+              cancelledAt: null,
+              paymentMethod: null,
+            },
+            isFreeTier: false,
+          });
+
+          window.scrollTo({ top: 0, behavior: 'smooth' });
 
           // Refresh current plan with cache buster from server
           try {
@@ -210,8 +173,7 @@ export default function BillingClient() {
       const channel = new BroadcastChannel('unool_billing_sync');
       channel.onmessage = (event) => {
         if (event.data?.type === 'CHECKOUT_SUCCESS') {
-          // Another tab completed payment — refresh subscription & close any modal
-          setCheckoutData(null);
+          // Another tab completed payment — refresh subscription
           fetch(`/api/billing/current?t=${Date.now()}`, { cache: 'no-store' })
             .then(res => res.json())
             .then(data => {
@@ -219,8 +181,6 @@ export default function BillingClient() {
               setPaymentResult({ status: 'PAID', message: 'Subscription updated successfully!' });
             })
             .catch(() => {});
-        } else if (event.data?.type === 'CHECKOUT_CANCELLED') {
-          setCheckoutData(null);
         }
       };
       return () => {
@@ -284,26 +244,26 @@ export default function BillingClient() {
                 const targetPlanId = data.planId || parsed.planId;
                 const upgraded = plans.find(p => p.id === targetPlanId);
                 const cyc = data.billingCycle || parsed.billingCycle || 'monthly';
-                if (upgraded) {
-                  setCurrentPlan({
-                    plan: { id: upgraded.id, name: upgraded.name, tagline: upgraded.tagline },
-                    subscription: {
-                      id: 'sub_' + parsed.cfOrderId,
-                      status: 'active',
-                      billingCycle: cyc,
-                      amount: cyc === 'annual' ? upgraded.pricing.annualDisplay : upgraded.pricing.monthlyDisplay,
-                      amountPaise: cyc === 'annual' ? upgraded.pricing.annual : upgraded.pricing.monthly,
-                      currency: upgraded.pricing.currency,
-                      currentPeriodStart: new Date().toISOString(),
-                      currentPeriodEnd: new Date(Date.now() + (cyc === 'annual' ? 365 : 30) * 86400000).toISOString(),
-                      trialEnd: null,
-                      cancelAtPeriodEnd: false,
-                      cancelledAt: null,
-                      paymentMethod: null,
-                    },
-                    isFreeTier: false,
-                  });
-                }
+                const planName = upgraded?.name || (targetPlanId ? targetPlanId.charAt(0).toUpperCase() + targetPlanId.slice(1) : 'Pro');
+                const planTagline = upgraded?.tagline || '';
+                setCurrentPlan({
+                  plan: { id: targetPlanId, name: planName, tagline: planTagline },
+                  subscription: {
+                    id: 'sub_' + parsed.cfOrderId,
+                    status: 'active',
+                    billingCycle: cyc,
+                    amount: cyc === 'annual' ? (upgraded?.pricing?.annualDisplay || '') : (upgraded?.pricing?.monthlyDisplay || ''),
+                    amountPaise: cyc === 'annual' ? (upgraded?.pricing?.annual || 0) : (upgraded?.pricing?.monthly || 0),
+                    currency: upgraded?.pricing?.currency || 'INR',
+                    currentPeriodStart: new Date().toISOString(),
+                    currentPeriodEnd: new Date(Date.now() + (cyc === 'annual' ? 365 : 30) * 86400000).toISOString(),
+                    trialEnd: null,
+                    cancelAtPeriodEnd: false,
+                    cancelledAt: null,
+                    paymentMethod: null,
+                  },
+                  isFreeTier: false,
+                });
                 fetch(`/api/billing/current?t=${Date.now()}`, { cache: 'no-store' })
                   .then(r => r.json())
                   .then(freshPlan => {
@@ -400,13 +360,34 @@ export default function BillingClient() {
         }));
       } catch {}
 
-      // Open our bespoke Unool Checkout Modal!
-      setCheckoutData({
-        plan: selectedPlan,
-        paymentSessionId,
-        cfOrderId,
-        mode,
-      });
+      // Open Cashfree Drop-in Checkout Popup directly (_modal mode)
+      const cashfreeMode = mode || (process.env.NEXT_PUBLIC_CASHFREE_MODE as 'sandbox' | 'production') || 'sandbox';
+      const cashfree = await loadCashfreeSDK(cashfreeMode);
+      if (!cashfree) {
+        setPaymentResult({
+          status: 'ERROR',
+          message: 'Payment gateway failed to load. Please check your connection and refresh.',
+        });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+
+      cashfree
+        .checkout({
+          paymentSessionId,
+          redirectTarget: '_modal',
+        })
+        .then((result: any) => {
+          if (result?.error) {
+            console.warn('[BillingClient] Cashfree checkout modal closed or error:', result.error);
+          }
+          // Modal closed or payment completed — poll for verification
+          pollVerification(cfOrderId);
+        })
+        .catch((err: any) => {
+          console.error('[BillingClient] Cashfree checkout error:', err);
+          pollVerification(cfOrderId);
+        });
     } catch (err) {
       console.error('Payment order creation error:', err);
       setPaymentResult({ status: 'ERROR', message: 'Something went wrong while initiating checkout. Please try again.' });
@@ -832,67 +813,6 @@ export default function BillingClient() {
           </div>
         </div>
       )}
-
-      {/* ── Bespoke Unool Checkout Modal Protected by Error Boundary ───────────────────── */}
-      {checkoutData && (
-        <CheckoutErrorBoundary
-          key={checkoutData.cfOrderId}
-          onError={(_err) => {
-            const orderIdToPoll = checkoutData.cfOrderId;
-            try { sessionStorage.removeItem('unool_active_checkout'); } catch {}
-            setCheckoutData(null);
-            setPaymentResult({
-              status: 'ERROR',
-              message: 'Checkout window encountered an unexpected error loading payment methods. Please try again.',
-            });
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-            if (orderIdToPoll) {
-              pollVerification(orderIdToPoll);
-            }
-          }}
-        >
-          <UnoolCheckoutModal
-            isOpen={!!checkoutData}
-            onClose={() => {
-              const orderIdToPoll = checkoutData.cfOrderId;
-              try { sessionStorage.removeItem('unool_active_checkout'); } catch {}
-              try {
-                const bc = new BroadcastChannel('unool_billing_sync');
-                bc.postMessage({ type: 'CHECKOUT_CANCELLED' });
-                bc.close();
-              } catch {}
-              setCheckoutData(null);
-              if (orderIdToPoll) {
-                pollVerification(orderIdToPoll);
-              }
-            }}
-            plan={checkoutData.plan}
-            billingCycle={billingCycle}
-            paymentSessionId={checkoutData.paymentSessionId}
-            cfOrderId={checkoutData.cfOrderId}
-            mode={checkoutData.mode}
-            onPaymentSuccess={() => {
-              const orderIdToPoll = checkoutData.cfOrderId;
-              try { sessionStorage.removeItem('unool_active_checkout'); } catch {}
-              setCheckoutData(null);
-              if (orderIdToPoll) {
-                pollVerification(orderIdToPoll);
-              }
-            }}
-            onPaymentFailed={(msg) => {
-              try { sessionStorage.removeItem('unool_active_checkout'); } catch {}
-              try {
-                const bc = new BroadcastChannel('unool_billing_sync');
-                bc.postMessage({ type: 'CHECKOUT_CANCELLED' });
-                bc.close();
-              } catch {}
-              setCheckoutData(null);
-              setPaymentResult({ status: 'ERROR', message: msg });
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-          />
-        </CheckoutErrorBoundary>
-      )}
     </div>
   );
 }
@@ -916,15 +836,18 @@ function FeatureItem({ text, highlight }: { text: string; highlight?: boolean })
 // ── Cashfree SDK Loader ─────────────────────────────────────────
 
 let cashfreeInstance: CashfreeInstance | null = null;
+let cachedCashfreeMode: string | null = null;
 
-async function loadCashfreeSDK(): Promise<CashfreeInstance | null> {
-  if (cashfreeInstance) return cashfreeInstance;
+async function loadCashfreeSDK(modeOverride?: 'sandbox' | 'production'): Promise<CashfreeInstance | null> {
+  const targetMode = modeOverride || (process.env.NEXT_PUBLIC_CASHFREE_MODE as 'sandbox' | 'production') || 'sandbox';
+  if (cashfreeInstance && cachedCashfreeMode === targetMode) return cashfreeInstance;
 
   try {
     const { load } = await import('@cashfreepayments/cashfree-js');
     cashfreeInstance = await load({
-      mode: (process.env.NEXT_PUBLIC_CASHFREE_MODE as 'sandbox' | 'production') || 'sandbox',
+      mode: targetMode,
     });
+    cachedCashfreeMode = targetMode;
     return cashfreeInstance;
   } catch (err) {
     console.error('Failed to load Cashfree SDK:', err);

@@ -385,15 +385,9 @@ export function UnoolCheckoutModal({
                 </div>
                 <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
                   <button
-                    onClick={handleOpenFallbackModal}
-                    className="unool-verify-btn"
-                  >
-                    Open in Popup
-                  </button>
-                  <button
                     onClick={handleClose}
                     className="unool-verify-btn"
-                    style={{ background: '#F4EFEA', color: '#1A1612', border: '1px solid #E5DED5' }}
+                    style={{ background: '#1A1612', color: '#FFFFFF' }}
                   >
                     Close &amp; Try Again
                   </button>
@@ -417,15 +411,6 @@ export function UnoolCheckoutModal({
           <div className="unool-right-footer">
             <span>Powered by Cashfree Payments</span>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button
-                type="button"
-                className="unool-verify-btn"
-                style={{ background: 'transparent', color: '#7A7265', border: '1px solid #E5DED5' }}
-                onClick={handleOpenFallbackModal}
-                title="If payment options don't display properly, open in overlay popup"
-              >
-                Open in Popup
-              </button>
               <button
                 type="button"
                 className="unool-verify-btn"

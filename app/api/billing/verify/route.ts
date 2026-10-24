@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
-import { getOrderPayments } from '@/lib/billing/cashfree';
+import { getOrderPayments, getOrder } from '@/lib/billing/cashfree';
 import { findOrderByCfOrderId, markOrderPaid, markOrderFailed } from '@/lib/billing/subscription';
 import { logger } from '@/lib/logger';
 
@@ -59,18 +59,31 @@ export async function GET(request: NextRequest) {
 
     // Order is still PENDING — check Cashfree for updates
     try {
-      const payments = await getOrderPayments(orderId);
+      const payments = await getOrderPayments(orderId).catch(() => []);
       const successPayment = payments.find(p => p.payment_status === 'SUCCESS');
 
-      if (successPayment) {
-        // Payment succeeded — activate plan
-        const paymentMethodStr = successPayment.payment_method
-          ? Object.keys(successPayment.payment_method)[0] || 'unknown'
-          : 'unknown';
+      let paymentId = successPayment?.cf_payment_id;
+      let paymentMethodStr = successPayment?.payment_method
+        ? Object.keys(successPayment.payment_method)[0] || 'unknown'
+        : 'unknown';
 
+      if (!paymentId) {
+        // Fallback: check Cashfree order status directly in case payment list indexing is delayed
+        try {
+          const cfOrder = await getOrder(orderId);
+          if (cfOrder && (cfOrder.order_status === 'PAID' || cfOrder.order_status === 'SUCCESS')) {
+            paymentId = cfOrder.cf_order_id || 'cf_' + orderId;
+          }
+        } catch (e) {
+          logger.warn('Failed to fetch Cashfree order status fallback in verify', { orderId, error: e });
+        }
+      }
+
+      if (paymentId) {
+        // Payment succeeded — activate plan in database
         const result = await markOrderPaid(
           orderId,
-          successPayment.cf_payment_id,
+          paymentId,
           paymentMethodStr
         );
 
