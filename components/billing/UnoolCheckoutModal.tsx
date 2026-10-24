@@ -34,18 +34,20 @@ interface UnoolCheckoutModalProps {
   billingCycle: 'monthly' | 'annual';
   paymentSessionId: string | null;
   cfOrderId: string | null;
+  mode?: 'sandbox' | 'production';
   onPaymentSuccess: () => void;
   onPaymentFailed: (message: string) => void;
 }
 
 let cachedCashfree: CashfreeInstance | null = null;
+let cachedCashfreeMode: string | null = null;
 
-async function getCashfreeInstance(): Promise<CashfreeInstance | null> {
-  if (cachedCashfree) return cachedCashfree;
+async function getCashfreeInstance(mode: 'sandbox' | 'production' = 'sandbox'): Promise<CashfreeInstance | null> {
+  if (cachedCashfree && cachedCashfreeMode === mode) return cachedCashfree;
   try {
     const { load } = await import('@cashfreepayments/cashfree-js');
-    const mode = (process.env.NEXT_PUBLIC_CASHFREE_MODE as 'sandbox' | 'production') || 'sandbox';
     cachedCashfree = await load({ mode });
+    cachedCashfreeMode = mode;
     return cachedCashfree;
   } catch (err) {
     console.error('[UnoolCheckout] Failed to load Cashfree SDK:', err);
@@ -56,10 +58,11 @@ async function getCashfreeInstance(): Promise<CashfreeInstance | null> {
 function cleanupCashfreeArtifacts() {
   if (typeof document === 'undefined') return;
   try {
-    const cfElements = document.querySelectorAll(
-      '[id*="cashfree"], [class*="cf-"], [id*="cf-"], iframe[src*="cashfree"], .cf-modal, .cf-backdrop, .cf-overlay'
+    // Only clean standalone Cashfree modal overlays injected directly into body, NEVER touch React's tree
+    const modals = document.querySelectorAll(
+      'body > [id*="cashfree"], body > [class*="cf-modal"], body > .cf-backdrop, body > .cf-overlay'
     );
-    cfElements.forEach(el => el.remove());
+    modals.forEach(el => el.remove());
   } catch {
     // Ignore
   }
@@ -72,6 +75,7 @@ export function UnoolCheckoutModal({
   billingCycle,
   paymentSessionId,
   cfOrderId,
+  mode,
   onPaymentSuccess,
   onPaymentFailed,
 }: UnoolCheckoutModalProps) {
@@ -82,6 +86,33 @@ export function UnoolCheckoutModal({
   const handleClose = () => {
     cleanupCashfreeArtifacts();
     onClose();
+  };
+
+  const handleOpenFallbackModal = async () => {
+    if (!paymentSessionId) return;
+    try {
+      const cashfreeMode = mode || (process.env.NEXT_PUBLIC_CASHFREE_MODE as 'sandbox' | 'production') || 'sandbox';
+      const cashfree = await getCashfreeInstance(cashfreeMode);
+      if (!cashfree) return;
+      handleClose();
+      cashfree
+        .checkout({
+          paymentSessionId,
+          redirectTarget: '_modal',
+        })
+        .then((result: any) => {
+          if (result?.error) {
+            onPaymentFailed(result.error.message || 'Payment was cancelled.');
+          } else {
+            onPaymentSuccess();
+          }
+        })
+        .catch((err: any) => {
+          console.error('[UnoolCheckout] Popup checkout error:', err);
+        });
+    } catch (err) {
+      console.error('[UnoolCheckout] Fallback checkout error:', err);
+    }
   };
 
   // Close on Escape key
@@ -95,7 +126,7 @@ export function UnoolCheckoutModal({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen]);
 
-  // Clean Cashfree artifacts on beforeunload / unmount
+  // Clean standalone Cashfree overlays on beforeunload
   useEffect(() => {
     if (!isOpen) return;
     const handleBeforeUnload = () => {
@@ -108,7 +139,7 @@ export function UnoolCheckoutModal({
     };
   }, [isOpen]);
 
-  // Mount Cashfree Checkout inside our custom dialog container
+  // Mount Cashfree Checkout inside our dedicated DOM container
   useEffect(() => {
     if (!isOpen || !paymentSessionId || !plan) return;
 
@@ -118,7 +149,8 @@ export function UnoolCheckoutModal({
 
     async function mountCheckout() {
       try {
-        const cashfree = await getCashfreeInstance();
+        const cashfreeMode = mode || (process.env.NEXT_PUBLIC_CASHFREE_MODE as 'sandbox' | 'production') || 'sandbox';
+        const cashfree = await getCashfreeInstance(cashfreeMode);
         if (!cashfree) {
           if (isMounted) {
             setInitError('Could not initialize payment gateway. Please check your internet connection and refresh.');
@@ -131,25 +163,31 @@ export function UnoolCheckoutModal({
         const sessionId = paymentSessionId;
         if (!container || !sessionId) return;
 
-        // Clean container before mounting
-        container.innerHTML = '';
+        // Clear previous children inside our isolated DOM node (safe because React has no children in this div)
+        while (container.firstChild) {
+          container.removeChild(container.firstChild);
+        }
 
         // Call Cashfree checkout targeting our bespoke container element
         cashfree
           .checkout({
             paymentSessionId: sessionId,
             redirectTarget: container,
+            appearance: {
+              width: '100%',
+              height: '560px',
+            },
           })
           .then((result: any) => {
             if (!isMounted) return;
 
             if (result?.error) {
               console.warn('[UnoolCheckout] Gateway error or user cancellation:', result.error);
-              cleanupCashfreeArtifacts();
               onPaymentFailed(result.error.message || 'Payment was cancelled.');
+            } else if (result?.redirect) {
+              console.log('[UnoolCheckout] Payment redirect in progress');
             } else {
               // Completed or modal finished
-              cleanupCashfreeArtifacts();
               onPaymentSuccess();
             }
           })
@@ -157,6 +195,7 @@ export function UnoolCheckoutModal({
             console.error('[UnoolCheckout] Checkout invocation error:', err);
             if (isMounted) {
               setInitError(err?.message || 'Failed to open payment gateway.');
+              setLoadingGateway(false);
             }
           });
 
@@ -178,9 +217,8 @@ export function UnoolCheckoutModal({
     return () => {
       isMounted = false;
       clearTimeout(timer);
-      cleanupCashfreeArtifacts();
     };
-  }, [isOpen, paymentSessionId, plan, onPaymentSuccess, onPaymentFailed]);
+  }, [isOpen, paymentSessionId, plan, mode, onPaymentSuccess, onPaymentFailed]);
 
   if (!isOpen || !plan) return null;
 
@@ -321,7 +359,7 @@ export function UnoolCheckoutModal({
           </div>
 
           {/* Embedded Cashfree Container */}
-          <div className="unool-cashfree-mount" ref={mountRef}>
+          <div className="unool-cashfree-mount">
             {loadingGateway && (
               <div className="unool-mount-skeleton">
                 <div className="unool-spinner" />
@@ -345,27 +383,57 @@ export function UnoolCheckoutModal({
                 <div style={{ fontWeight: 600, color: '#991B1B' }}>
                   {initError}
                 </div>
-                <button
-                  onClick={onClose}
-                  className="unool-verify-btn"
-                  style={{ marginTop: 8 }}
-                >
-                  Close & Try Again
-                </button>
+                <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+                  <button
+                    onClick={handleOpenFallbackModal}
+                    className="unool-verify-btn"
+                  >
+                    Open in Popup
+                  </button>
+                  <button
+                    onClick={handleClose}
+                    className="unool-verify-btn"
+                    style={{ background: '#F4EFEA', color: '#1A1612', border: '1px solid #E5DED5' }}
+                  >
+                    Close &amp; Try Again
+                  </button>
+                </div>
               </div>
             )}
+
+            {/* Dedicated Cashfree Embed Target — React leaves this pure DOM container alone */}
+            <div
+              ref={mountRef}
+              className="unool-cf-embed-target"
+              style={{
+                width: '100%',
+                minHeight: '520px',
+                display: initError ? 'none' : 'block',
+              }}
+            />
           </div>
 
           {/* Footer Note */}
           <div className="unool-right-footer">
             <span>Powered by Cashfree Payments</span>
-            <button
-              type="button"
-              className="unool-verify-btn"
-              onClick={onPaymentSuccess}
-            >
-              Check Status
-            </button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                type="button"
+                className="unool-verify-btn"
+                style={{ background: 'transparent', color: '#7A7265', border: '1px solid #E5DED5' }}
+                onClick={handleOpenFallbackModal}
+                title="If payment options don't display properly, open in overlay popup"
+              >
+                Open in Popup
+              </button>
+              <button
+                type="button"
+                className="unool-verify-btn"
+                onClick={onPaymentSuccess}
+              >
+                Check Status
+              </button>
+            </div>
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
-import { createOrder as createCashfreeOrder } from '@/lib/billing/cashfree';
+import { createOrder as createCashfreeOrder, getCashfreeMode } from '@/lib/billing/cashfree';
 import { createPaymentOrder, findOrderByIdempotencyKey } from '@/lib/billing/subscription';
 import { generateIdempotencyKey, generateOrderId } from '@/lib/billing/idempotency';
 import { getPlan, getPlanPrice } from '@/lib/billing/plans';
@@ -74,6 +74,7 @@ export async function POST(request: NextRequest) {
         paymentSessionId: existingOrder.payment_session_id,
         cfOrderId: existingOrder.cf_order_id,
         orderId: existingOrder.id,
+        mode: getCashfreeMode(),
       });
     }
 
@@ -153,6 +154,7 @@ export async function POST(request: NextRequest) {
       paymentSessionId: cfOrder.payment_session_id,
       cfOrderId: orderId,
       orderId: dbOrder.id,
+      mode: getCashfreeMode(),
     });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Component } from 'react';
 import type { CashfreeInstance } from '@cashfreepayments/cashfree-js';
 import { UnoolCheckoutModal } from '@/components/billing/UnoolCheckoutModal';
 
@@ -64,6 +64,39 @@ function formatSubscriptionDate(dateStr?: string | null): string {
   }
 }
 
+// ── Error Boundary for Checkout Modal ─────────────────────────
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+  onError: (error: Error) => void;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+}
+
+class CheckoutErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(): ErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error) {
+    console.error('[BillingClient] Caught checkout modal error:', error);
+    this.props.onError(error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return null;
+    }
+    return this.props.children;
+  }
+}
+
 // ── Component ───────────────────────────────────────────────────
 
 export default function BillingClient() {
@@ -79,6 +112,7 @@ export default function BillingClient() {
     plan: PlanData;
     paymentSessionId: string;
     cfOrderId: string;
+    mode?: 'sandbox' | 'production';
   } | null>(null);
 
   // ── Payment Verification Polling ───────────────────────────
@@ -171,10 +205,10 @@ export default function BillingClient() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    // 1. Clean DOM artifacts from Cashfree iframes/modals
+    // 1. Clean DOM artifacts from Cashfree iframes/modals directly attached to body
     try {
       const lingeringCf = document.querySelectorAll(
-        '[id*="cashfree"], [class*="cf-"], [id*="cf-"], iframe[src*="cashfree"], .cf-modal, .cf-backdrop, .cf-overlay'
+        'body > [id*="cashfree"], body > [class*="cf-modal"], body > .cf-backdrop, body > .cf-overlay'
       );
       lingeringCf.forEach(el => el.remove());
     } catch {
@@ -210,7 +244,7 @@ export default function BillingClient() {
       if (savedCheckout) {
         const parsed = JSON.parse(savedCheckout);
         const ageMs = Date.now() - (parsed.timestamp || 0);
-        // If within 15 minutes, check if it was completed or interrupted
+        // If within 15 minutes, check if it was completed or failed
         if (parsed.cfOrderId && ageMs < 15 * 60 * 1000) {
           fetch(`/api/billing/verify?orderId=${parsed.cfOrderId}`)
             .then(res => res.json())
@@ -218,12 +252,13 @@ export default function BillingClient() {
               if (data.status === 'PAID') {
                 setPaymentResult({ status: 'PAID', message: data.message });
                 fetch('/api/billing/current').then(r => r.json()).then(setCurrentPlan);
-              } else {
+              } else if (data.status === 'FAILED') {
                 setPaymentResult({
                   status: 'ERROR',
-                  message: 'Checkout was interrupted by page refresh. You are back on the billing page.',
+                  message: data.message || 'Payment was cancelled or failed.',
                 });
               }
+              // If PENDING, the user reloaded before paying — do not show an alarming error banner
             })
             .catch(() => {});
         }
@@ -287,7 +322,7 @@ export default function BillingClient() {
         return;
       }
 
-      const { paymentSessionId, cfOrderId } = await res.json();
+      const { paymentSessionId, cfOrderId, mode } = await res.json();
       const selectedPlan = plans.find(p => p.id === planId);
 
       if (!selectedPlan) {
@@ -310,6 +345,7 @@ export default function BillingClient() {
         plan: selectedPlan,
         paymentSessionId,
         cfOrderId,
+        mode,
       });
     } catch (err) {
       console.error('Payment order creation error:', err);
@@ -737,47 +773,65 @@ export default function BillingClient() {
         </div>
       )}
 
-      {/* ── Bespoke Unool Checkout Modal ───────────────────── */}
+      {/* ── Bespoke Unool Checkout Modal Protected by Error Boundary ───────────────────── */}
       {checkoutData && (
-        <UnoolCheckoutModal
-          isOpen={!!checkoutData}
-          onClose={() => {
-            const orderIdToPoll = checkoutData.cfOrderId;
-            try { sessionStorage.removeItem('unool_active_checkout'); } catch {}
-            try {
-              const bc = new BroadcastChannel('unool_billing_sync');
-              bc.postMessage({ type: 'CHECKOUT_CANCELLED' });
-              bc.close();
-            } catch {}
-            setCheckoutData(null);
-            if (orderIdToPoll) {
-              pollVerification(orderIdToPoll);
-            }
-          }}
-          plan={checkoutData.plan}
-          billingCycle={billingCycle}
-          paymentSessionId={checkoutData.paymentSessionId}
-          cfOrderId={checkoutData.cfOrderId}
-          onPaymentSuccess={() => {
+        <CheckoutErrorBoundary
+          key={checkoutData.cfOrderId}
+          onError={(_err) => {
             const orderIdToPoll = checkoutData.cfOrderId;
             try { sessionStorage.removeItem('unool_active_checkout'); } catch {}
             setCheckoutData(null);
-            if (orderIdToPoll) {
-              pollVerification(orderIdToPoll);
-            }
-          }}
-          onPaymentFailed={(msg) => {
-            try { sessionStorage.removeItem('unool_active_checkout'); } catch {}
-            try {
-              const bc = new BroadcastChannel('unool_billing_sync');
-              bc.postMessage({ type: 'CHECKOUT_CANCELLED' });
-              bc.close();
-            } catch {}
-            setCheckoutData(null);
-            setPaymentResult({ status: 'ERROR', message: msg });
+            setPaymentResult({
+              status: 'ERROR',
+              message: 'Checkout window encountered an unexpected error loading payment methods. Please try again.',
+            });
             window.scrollTo({ top: 0, behavior: 'smooth' });
+            if (orderIdToPoll) {
+              pollVerification(orderIdToPoll);
+            }
           }}
-        />
+        >
+          <UnoolCheckoutModal
+            isOpen={!!checkoutData}
+            onClose={() => {
+              const orderIdToPoll = checkoutData.cfOrderId;
+              try { sessionStorage.removeItem('unool_active_checkout'); } catch {}
+              try {
+                const bc = new BroadcastChannel('unool_billing_sync');
+                bc.postMessage({ type: 'CHECKOUT_CANCELLED' });
+                bc.close();
+              } catch {}
+              setCheckoutData(null);
+              if (orderIdToPoll) {
+                pollVerification(orderIdToPoll);
+              }
+            }}
+            plan={checkoutData.plan}
+            billingCycle={billingCycle}
+            paymentSessionId={checkoutData.paymentSessionId}
+            cfOrderId={checkoutData.cfOrderId}
+            mode={checkoutData.mode}
+            onPaymentSuccess={() => {
+              const orderIdToPoll = checkoutData.cfOrderId;
+              try { sessionStorage.removeItem('unool_active_checkout'); } catch {}
+              setCheckoutData(null);
+              if (orderIdToPoll) {
+                pollVerification(orderIdToPoll);
+              }
+            }}
+            onPaymentFailed={(msg) => {
+              try { sessionStorage.removeItem('unool_active_checkout'); } catch {}
+              try {
+                const bc = new BroadcastChannel('unool_billing_sync');
+                bc.postMessage({ type: 'CHECKOUT_CANCELLED' });
+                bc.close();
+              } catch {}
+              setCheckoutData(null);
+              setPaymentResult({ status: 'ERROR', message: msg });
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+          />
+        </CheckoutErrorBoundary>
       )}
     </div>
   );

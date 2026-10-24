@@ -103,6 +103,11 @@ function getBaseUrl(): string {
   return config.CASHFREE_API_URL || process.env.CASHFREE_API_URL || 'https://sandbox.cashfree.com/pg';
 }
 
+export function getCashfreeMode(): 'sandbox' | 'production' {
+  const url = getBaseUrl();
+  return url.includes('sandbox') ? 'sandbox' : 'production';
+}
+
 /**
  * Create a payment order on Cashfree.
  * Returns the payment_session_id needed by the Drop-in SDK.

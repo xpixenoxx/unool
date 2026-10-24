@@ -14,6 +14,14 @@ declare module '@cashfreepayments/cashfree-js' {
   export interface CashfreeCheckoutOptions {
     paymentSessionId: string;
     redirectTarget?: '_self' | '_blank' | '_modal' | HTMLElement;
+    appearance?: {
+      width?: string;
+      height?: string;
+      borderColor?: string;
+      backgroundColor?: string;
+      borderWidth?: string;
+      borderRadius?: string;
+    };
   }
 
   export interface CashfreeInstance {
