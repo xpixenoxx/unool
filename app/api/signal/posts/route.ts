@@ -17,8 +17,8 @@ export async function GET(request: NextRequest) {
   const { workspaceId } = auth;
   const shouldSync = request.nextUrl.searchParams.get('sync') === 'true';
 
-  // Self-heal: process any scheduled posts that have become due
-  await scheduleService.processDueScheduledPosts(workspaceId).catch(() => {});
+  // Self-heal: process any scheduled posts that have become due in background without blocking GET
+  scheduleService.processDueScheduledPosts(workspaceId).catch(() => {});
 
   // Trigger live engagement sync if requested
 

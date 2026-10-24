@@ -1046,6 +1046,10 @@ const LIGHT_PREMIUM_CSS = `
   }
 `;
 
+// In-memory module cache for instant (0ms) revisits across sidebar navigation
+let memoryAutomationConfig: AutomationConfig | null = null;
+let memoryIgConnection: { status: 'connected' | 'not_connected' | 'expired'; username?: string } | null = null;
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function AutomationClient({
@@ -1094,11 +1098,11 @@ export default function AutomationClient({
   };
 
   const [activeTab, setActiveTab] = useState<'control' | 'materials' | 'simulator' | 'feed' | 'inbox' | 'dms'>('control');
-  const [config, setConfig] = useState<AutomationConfig | null>(null);
+  const [config, setConfig] = useState<AutomationConfig | null>(() => memoryAutomationConfig);
   const [saving, setSaving] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !memoryAutomationConfig);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-  const [igConnection, setIgConnection] = useState<{ status: 'connected' | 'not_connected' | 'expired'; username?: string } | null>(null);
+  const [igConnection, setIgConnection] = useState<{ status: 'connected' | 'not_connected' | 'expired'; username?: string } | null>(() => memoryIgConnection);
   const [comments, setComments] = useState<CommentLog[]>([]);
   const [commentStats, setCommentStats] = useState<any>(null);
   const [commentFilter, setCommentFilter] = useState('all');
@@ -1206,7 +1210,10 @@ export default function AutomationClient({
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         const ig = data?.connections?.instagram || data?.instagram;
-        if (ig) setIgConnection(ig);
+        if (ig) {
+          memoryIgConnection = ig;
+          setIgConnection(ig);
+        }
       })
       .catch(() => {});
   }, []);
@@ -1215,7 +1222,11 @@ export default function AutomationClient({
     if (!workspaceId) { setLoading(false); return; }
     fetch(`/api/instagram/automation?workspaceId=${workspaceId}`)
       .then(r => r.json())
-      .then(data => { setConfig(data); setLoading(false); })
+      .then(data => {
+        memoryAutomationConfig = data;
+        setConfig(data);
+        setLoading(false);
+      })
       .catch(() => { setLoading(false); showToast('Failed to load automation config', 'error'); });
   }, [workspaceId]);
 

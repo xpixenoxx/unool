@@ -259,27 +259,34 @@ function AnimatedNumber({ value, suffix = '' }: { value: number; suffix?: string
   return <>{display}{suffix}</>;
 }
 
+// In-memory module cache for instant (0ms) revisits across sidebar navigation
+let memorySignalPosts: SignalPost[] | null = null;
+let memoryResonance: ResonanceData | null = null;
+let memoryProfileSubdomain: string | null = null;
+let memoryWorkspaceId: string | null = null;
+let memoryAutomationStats: {
+  enabled: boolean;
+  todayComments: number;
+  todayDms: number;
+  hotLeads: number;
+  pendingFlagged: number;
+} | null = null;
+
 /* ── Main Signal Client ─────────────────────────────────────────────────────── */
 export function SignalClient() {
-  const [posts, setPosts] = useState<SignalPost[]>([]);
-  const [resonance, setResonance] = useState<ResonanceData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [posts, setPosts] = useState<SignalPost[]>(() => memorySignalPosts || []);
+  const [resonance, setResonance] = useState<ResonanceData | null>(() => memoryResonance);
+  const [loading, setLoading] = useState(() => !memorySignalPosts);
   const [tab, setTab] = useState<'feed' | 'dna' | 'analytics'>('feed');
-  const [profileSubdomain, setProfileSubdomain] = useState<string | null>(null);
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const [profileSubdomain, setProfileSubdomain] = useState<string | null>(() => memoryProfileSubdomain);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(() => memoryWorkspaceId);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'publishing' | 'active' | 'draft' | 'failed'>('all');
   const [activePublishingPostIds, setActivePublishingPostIds] = useState<Set<string>>(() => new Set());
   const [showDNAInfo, setShowDNAInfo] = useState(true);
-  const [automationStats, setAutomationStats] = useState<{
-    enabled: boolean;
-    todayComments: number;
-    todayDms: number;
-    hotLeads: number;
-    pendingFlagged: number;
-  } | null>(null);
+  const [automationStats, setAutomationStats] = useState(() => memoryAutomationStats);
 
-  const hasLoadedOnce = useRef(false);
+  const hasLoadedOnce = useRef(Boolean(memorySignalPosts));
   const prevPendingPostIds = useRef<Set<string>>(new Set());
 
   // Hydrate active publishing posts from sessionStorage on client mount
@@ -311,6 +318,7 @@ export function SignalClient() {
         if (res.ok) {
           const data = await res.json();
           if (data?.profile?.subdomain) {
+            memoryProfileSubdomain = data.profile.subdomain;
             setProfileSubdomain(data.profile.subdomain);
           }
         }
@@ -320,9 +328,11 @@ export function SignalClient() {
         if (ctxRes.ok) {
           const ctxData = await ctxRes.json();
           if (ctxData?.profile?.subdomain) {
+            memoryProfileSubdomain = ctxData.profile.subdomain;
             setProfileSubdomain(ctxData.profile.subdomain);
           }
           if (ctxData?.workspace?.id) {
+            memoryWorkspaceId = ctxData.workspace.id;
             setWorkspaceId(ctxData.workspace.id);
           }
         }
@@ -332,22 +342,34 @@ export function SignalClient() {
   }, []);
 
   const loadData = useCallback(async (silent = false) => {
-    if (!silent && !hasLoadedOnce.current) {
+    if (!silent && !hasLoadedOnce.current && !memorySignalPosts) {
       setLoading(true);
     }
     try {
-      const [postsRes, resonanceRes] = await Promise.all([
-        fetch('/api/signal/posts', { credentials: 'include' }),
-        fetch('/api/signal/resonance', { credentials: 'include' }),
-      ]);
-      if (postsRes.ok) {
-        const data = await postsRes.json();
-        setPosts(data.posts || []);
-      }
-      if (resonanceRes.ok) {
-        const data = await resonanceRes.json();
-        setResonance(data);
-      }
+      const postsPromise = fetch('/api/signal/posts', { credentials: 'include' })
+        .then(async (res) => {
+          if (res.ok) {
+            const data = await res.json();
+            const fetched = data.posts || [];
+            memorySignalPosts = fetched;
+            setPosts(fetched);
+            // Unblock UI immediately once posts are in — don't wait for heavy analytics
+            setLoading(false);
+          }
+        })
+        .catch(() => {});
+
+      const resonancePromise = fetch('/api/signal/resonance', { credentials: 'include' })
+        .then(async (res) => {
+          if (res.ok) {
+            const data = await res.json();
+            memoryResonance = data;
+            setResonance(data);
+          }
+        })
+        .catch(() => {});
+
+      await Promise.all([postsPromise, resonancePromise]);
     } catch {
       // silent
     } finally {
@@ -591,7 +613,9 @@ export function SignalClient() {
           pendingFlagged = flaggedData.statusCounts?.pending || 0;
         }
 
-        setAutomationStats({ enabled: true, todayComments, todayDms, hotLeads, pendingFlagged });
+        const statsObj = { enabled: true, todayComments, todayDms, hotLeads, pendingFlagged };
+        memoryAutomationStats = statsObj;
+        setAutomationStats(statsObj);
       } catch {
         // Non-critical — hide card silently
       }
@@ -666,15 +690,47 @@ export function SignalClient() {
 
   if (loading) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
-          >
-            <RefreshCw className="w-5 h-5 text-gray-400" />
-          </motion.div>
-          <p className="text-sm text-gray-400 font-medium">Loading Signal…</p>
+      <div className="max-w-4xl mx-auto px-4 py-8 space-y-6 animate-in fade-in duration-150">
+        {/* Editorial Header Skeleton */}
+        <div className="flex items-start justify-between gap-4 flex-wrap pb-4 border-b border-[#E8E0D4]">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-extrabold text-[#3D2B1F] tracking-tight font-serif">Signal</h1>
+            <p className="text-sm text-[#8B7355]">Your posts, live. Where they go, what they build.</p>
+          </div>
+        </div>
+
+        {/* Live Overview Cards Skeleton */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="p-4 rounded-xl bg-white border border-[#E8E0D4] space-y-2 shadow-2xs">
+              <div className="h-3.5 w-20 rounded bg-[#EDE7DD] animate-pulse" />
+              <div className="h-6 w-12 rounded bg-[#EDE7DD] animate-pulse" />
+            </div>
+          ))}
+        </div>
+
+        {/* Tab switcher skeleton */}
+        <div className="flex items-center gap-2 border-b border-[#E8E0D4] pb-2">
+          <div className="h-8 w-24 rounded-lg bg-[#FAF7F2] border border-[#E8E0D4] animate-pulse" />
+          <div className="h-8 w-24 rounded-lg bg-[#FAF7F2] border border-[#E8E0D4] animate-pulse" />
+        </div>
+
+        {/* Feed Cards Skeleton */}
+        <div className="space-y-4 pt-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="p-5 rounded-2xl bg-white border border-[#E8E0D4] space-y-3 shadow-2xs">
+              <div className="flex items-center justify-between">
+                <div className="h-4 w-32 rounded bg-[#EDE7DD] animate-pulse" />
+                <div className="h-5 w-16 rounded-full bg-[#EDE7DD]/60 animate-pulse" />
+              </div>
+              <div className="h-4 w-full rounded bg-[#FAF7F2] animate-pulse" />
+              <div className="h-4 w-3/4 rounded bg-[#FAF7F2] animate-pulse" />
+              <div className="flex items-center gap-2 pt-2">
+                <div className="h-6 w-16 rounded bg-[#F5EFE2] animate-pulse" />
+                <div className="h-6 w-20 rounded bg-[#F5EFE2] animate-pulse" />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     );

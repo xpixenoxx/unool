@@ -49,14 +49,18 @@ interface SettingsClientProps {
   workspaceId: string;
 }
 
+// In-memory module cache for instant (0ms) revisits across sidebar navigation
+let memorySettingsWorkspace: Workspace | null = null;
+let memorySettingsTemplate: string | null = null;
+
 /* ─── Main component ─── */
 
 export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
   const searchParams = useSearchParams();
   const [activeSection, setActiveSection] = useState<SectionId>('workspace');
-  const [loading, setLoading] = useState(true);
+  const [workspace, setWorkspace] = useState<Workspace | null>(() => memorySettingsWorkspace);
+  const [loading, setLoading] = useState(() => !memorySettingsWorkspace);
   const [saving, setSaving] = useState(false);
-  const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [oauthBanner, setOauthBanner] = useState<{
     type: 'success' | 'error';
     message: string;
@@ -66,7 +70,7 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
   const navRef = useRef<HTMLDivElement>(null);
 
   // Template state
-  const [currentTemplate, setCurrentTemplate] = useState<string>('lone');
+  const [currentTemplate, setCurrentTemplate] = useState<string>(() => memorySettingsTemplate || 'lone');
   const [templateLoading, setTemplateLoading] = useState(false);
 
   const loadWorkspace = async () => {
@@ -74,6 +78,7 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
       const res = await fetch('/api/workspace', { credentials: 'include' });
       const data = await res.json();
       if (data.workspace) {
+        memorySettingsWorkspace = data.workspace;
         setWorkspace(data.workspace);
       }
     } catch {
@@ -142,6 +147,7 @@ export function SettingsContent({ userId, workspaceId }: SettingsClientProps) {
       const res = await fetch('/api/profile', { credentials: 'include' });
       const data = await res.json();
       if (data.profile?.theme?.template) {
+        memorySettingsTemplate = data.profile.theme.template;
         setCurrentTemplate(data.profile.theme.template);
       }
     } catch {
