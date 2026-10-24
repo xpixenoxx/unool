@@ -2980,7 +2980,7 @@ export default function HomePage() {
         d.className = 'tl';
         d.style.background = p[1];
         d.style.color = p[2];
-        d.innerHTML = svg(p, 30) + '<small>' + p[0].replace('Manual / Other', 'Other') + '</small>';
+        d.innerHTML = svg(p, 34) + '<small>' + p[0].replace('Manual / Other', 'Other') + '</small>';
         d.v = [x, y, z];
         d.a = Math.atan2(x, z);
         d.b = Math.asin(y);
@@ -2990,8 +2990,8 @@ export default function HomePage() {
 
       function sizeSphere() {
         if (!st) return;
-        const availableR = Math.min(st.clientWidth * 0.40, st.clientHeight * 0.43, 240);
-        R = Math.max(165, Math.round(availableR));
+        const availableR = Math.min(st.clientWidth * 0.44, st.clientHeight * 0.46, 275);
+        R = Math.max(185, Math.round(availableR));
         T.forEach(function(d) {
           d.style.transform = 'rotateY(' + d.a + 'rad) rotateX(' + d.b + 'rad) translateZ(' + R + 'px)';
         });
