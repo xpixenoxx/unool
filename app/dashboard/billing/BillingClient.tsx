@@ -85,6 +85,56 @@ function formatSubscriptionDate(dateStr?: string | null): string {
   }
 }
 
+function formatCardNumber(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 16);
+  return digits.replace(/(\d{4})(?=\d)/g, '$1 ');
+}
+
+function formatExpiry(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 4);
+  if (digits.length >= 3) {
+    return `${digits.slice(0, 2)}/${digits.slice(2, 4)}`;
+  }
+  return digits;
+}
+
+function getCardBrand(num: string): { name: string; brand: 'visa' | 'mastercard' | 'rupay' | 'amex' | 'generic'; color: string } {
+  const clean = num.replace(/\s+/g, '');
+  if (/^4/.test(clean)) return { name: 'Visa', brand: 'visa', color: '#1A1F71' };
+  if (/^(5[1-5]|2[2-7])/.test(clean)) return { name: 'Mastercard', brand: 'mastercard', color: '#EB001B' };
+  if (/^(60|65|81|82)/.test(clean)) return { name: 'RuPay', brand: 'rupay', color: '#097939' };
+  if (/^3[47]/.test(clean)) return { name: 'Amex', brand: 'amex', color: '#006FCF' };
+  return { name: 'Card', brand: 'generic', color: '#7A7265' };
+}
+
+const POPULAR_BANKS = [
+  { code: '3021', name: 'HDFC Bank', short: 'HDFC', badgeColor: '#004C8F' },
+  { code: '3022', name: 'ICICI Bank', short: 'ICICI', badgeColor: '#B02A30' },
+  { code: '3044', name: 'State Bank of India', short: 'SBI', badgeColor: '#225894' },
+  { code: '3003', name: 'Axis Bank', short: 'Axis', badgeColor: '#97144D' },
+  { code: '3032', name: 'Kotak Mahindra Bank', short: 'Kotak', badgeColor: '#ED1C24' },
+  { code: '3038', name: 'Punjab National Bank', short: 'PNB', badgeColor: '#A21D22' },
+];
+
+const ALL_OTHER_BANKS = [
+  { code: '3005', name: 'Bank of Baroda' },
+  { code: '3009', name: 'Canara Bank' },
+  { code: '3028', name: 'IndusInd Bank' },
+  { code: '3055', name: 'Union Bank of India' },
+  { code: '3058', name: 'Yes Bank' },
+  { code: '3023', name: 'IDBI Bank' },
+  { code: '3006', name: 'Bank of India' },
+  { code: '3011', name: 'Central Bank of India' },
+  { code: '3026', name: 'Indian Bank' },
+  { code: '3018', name: 'Federal Bank' },
+  { code: '3039', name: 'RBL Bank' },
+  { code: '3087', name: 'AU Small Finance Bank' },
+  { code: '3043', name: 'Standard Chartered Bank' },
+  { code: '3024', name: 'IDFC FIRST Bank' },
+  { code: '3042', name: 'South Indian Bank' },
+  { code: '3054', name: 'UCO Bank' },
+];
+
 // ── Component ───────────────────────────────────────────────────
 
 export default function BillingClient() {
@@ -97,13 +147,37 @@ export default function BillingClient() {
   const [paymentResult, setPaymentResult] = useState<{ status: string; message: string } | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
 
-  // Active Checkout Dialog & UPI ID States
+  // Active Checkout Dialog & Payment States
   const [activeCheckout, setActiveCheckout] = useState<ActiveCheckout | null>(null);
-  const [checkoutTab, setCheckoutTab] = useState<'upi' | 'gateway'>('upi');
+  const [checkoutTab, setCheckoutTab] = useState<'cards' | 'upi' | 'qr' | 'netbanking'>('cards');
+
+  // UPI ID States
   const [upiIdInput, setUpiIdInput] = useState('');
   const [upiSubmitting, setUpiSubmitting] = useState(false);
   const [upiSent, setUpiSent] = useState(false);
   const [upiError, setUpiError] = useState<string | null>(null);
+
+  // Card States
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardHolder, setCardHolder] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvv, setCardCvv] = useState('');
+  const [cardSubmitting, setCardSubmitting] = useState(false);
+  const [cardError, setCardError] = useState<string | null>(null);
+  const [cardThreeDSUrl, setCardThreeDSUrl] = useState<string | null>(null);
+
+  // QR States
+  const [qrImageUrl, setQrImageUrl] = useState<string | null>(null);
+  const [qrString, setQrString] = useState<string | null>(null);
+  const [qrLoading, setQrLoading] = useState(false);
+  const [qrError, setQrError] = useState<string | null>(null);
+
+  // Netbanking States
+  const [selectedBank, setSelectedBank] = useState('3021');
+  const [selectedBankName, setSelectedBankName] = useState('HDFC Bank');
+  const [netbankingSubmitting, setNetbankingSubmitting] = useState(false);
+  const [netbankingError, setNetbankingError] = useState<string | null>(null);
+  const [netbankingRedirecting, setNetbankingRedirecting] = useState(false);
 
   // ── Clean & Close Checkout Helper ──────────────────────────
   const closeAndCleanCashfree = useCallback(() => {
@@ -136,11 +210,25 @@ export default function BillingClient() {
       // Ignore
     }
 
-    // 4. Reset active checkout state in UI
+    // 4. Reset active checkout states in UI
     setActiveCheckout(null);
     setUpiSubmitting(false);
     setUpiSent(false);
     setUpiError(null);
+    setCardSubmitting(false);
+    setCardError(null);
+    setCardThreeDSUrl(null);
+    setCardNumber('');
+    setCardHolder('');
+    setCardExpiry('');
+    setCardCvv('');
+    setQrImageUrl(null);
+    setQrString(null);
+    setQrLoading(false);
+    setQrError(null);
+    setNetbankingSubmitting(false);
+    setNetbankingError(null);
+    setNetbankingRedirecting(false);
     try {
       sessionStorage.removeItem('unool_active_checkout');
     } catch {}
@@ -400,7 +488,7 @@ export default function BillingClient() {
         }));
       } catch {}
 
-      // Open custom checkout dialog with UPI ID option & Gateway tab
+      // Open custom Unool checkout dialog with Cards, UPI, QR, and Netbanking tabs
       setActiveCheckout({
         planId,
         planName: selectedPlan.name,
@@ -410,16 +498,163 @@ export default function BillingClient() {
         cfOrderId,
         mode: mode || (process.env.NEXT_PUBLIC_CASHFREE_MODE as 'sandbox' | 'production') || 'sandbox',
       });
-      setCheckoutTab('upi');
+      setCheckoutTab('cards');
+      setCardNumber('');
+      setCardHolder('');
+      setCardExpiry('');
+      setCardCvv('');
+      setCardError(null);
+      setCardThreeDSUrl(null);
       setUpiIdInput('');
       setUpiError(null);
       setUpiSent(false);
+      setQrImageUrl(null);
+      setQrString(null);
+      setQrError(null);
+      setNetbankingError(null);
+      setNetbankingRedirecting(false);
     } catch (err) {
       console.error('Payment order creation error:', err);
       setPaymentResult({ status: 'ERROR', message: 'Something went wrong while initiating checkout. Please try again.' });
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setPaymentLoading(null);
+    }
+  };
+
+  // ── Card Handlers ──────────────────────────────────────────
+  const handlePayWithCard = async () => {
+    if (!activeCheckout) return;
+    const cleanNum = cardNumber.replace(/\s+/g, '');
+    if (cleanNum.length < 13 || cleanNum.length > 19) {
+      setCardError('Please enter a valid card number.');
+      return;
+    }
+    if (!cardHolder.trim()) {
+      setCardError('Please enter the name on your card.');
+      return;
+    }
+    const [month, year] = cardExpiry.split('/');
+    if (!month || !year || month.length !== 2 || year.length !== 2) {
+      setCardError('Please enter a valid expiry date (MM/YY).');
+      return;
+    }
+    const monthNum = parseInt(month, 10);
+    if (isNaN(monthNum) || monthNum < 1 || monthNum > 12) {
+      setCardError('Please enter a valid expiry month (01-12).');
+      return;
+    }
+    if (cardCvv.trim().length < 3 || cardCvv.trim().length > 4) {
+      setCardError('Please enter a valid CVV (3 or 4 digits).');
+      return;
+    }
+
+    setCardSubmitting(true);
+    setCardError(null);
+
+    try {
+      const res = await fetch('/api/billing/pay-card', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cfOrderId: activeCheckout.cfOrderId,
+          paymentSessionId: activeCheckout.paymentSessionId,
+          cardNumber: cleanNum,
+          cardHolder: cardHolder.trim(),
+          expiryMonth: month,
+          expiryYear: year,
+          cvv: cardCvv.trim(),
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setCardError(data.error || 'Card payment processing failed.');
+        setCardSubmitting(false);
+        return;
+      }
+
+      setCardSubmitting(false);
+      if (data.url) {
+        setCardThreeDSUrl(data.url);
+        const win = window.open(data.url, 'unool_3ds_window', 'width=520,height=680');
+        if (win) {
+          (window as any).__unool_cf_window = win;
+        }
+      }
+      pollVerification(activeCheckout.cfOrderId);
+    } catch {
+      setCardError('Payment gateway communication error. Please try again.');
+      setCardSubmitting(false);
+    }
+  };
+
+  // ── QR Code Handlers ───────────────────────────────────────
+  const handleGenerateQr = useCallback(async (order: ActiveCheckout) => {
+    setQrLoading(true);
+    setQrError(null);
+    try {
+      const res = await fetch('/api/billing/pay-qr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cfOrderId: order.cfOrderId,
+          paymentSessionId: order.paymentSessionId,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setQrError(data.error || 'Failed to generate dynamic QR code.');
+        setQrLoading(false);
+        return;
+      }
+      setQrImageUrl(data.imageUrl || null);
+      setQrString(data.qrString || null);
+      setQrLoading(false);
+      pollVerification(order.cfOrderId);
+    } catch {
+      setQrError('Failed to generate QR code. Please check your connection.');
+      setQrLoading(false);
+    }
+  }, [pollVerification]);
+
+  // ── Netbanking Handlers ────────────────────────────────────
+  const handlePayWithNetbanking = async () => {
+    if (!activeCheckout) return;
+    setNetbankingSubmitting(true);
+    setNetbankingError(null);
+
+    try {
+      const res = await fetch('/api/billing/pay-netbanking', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cfOrderId: activeCheckout.cfOrderId,
+          paymentSessionId: activeCheckout.paymentSessionId,
+          netbankingCode: selectedBank,
+          bankName: selectedBankName,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setNetbankingError(data.error || 'Failed to initiate Netbanking payment.');
+        setNetbankingSubmitting(false);
+        return;
+      }
+
+      setNetbankingSubmitting(false);
+      if (data.url) {
+        setNetbankingRedirecting(true);
+        const win = window.open(data.url, '_blank');
+        if (win) {
+          (window as any).__unool_cf_window = win;
+        }
+      }
+      pollVerification(activeCheckout.cfOrderId);
+    } catch {
+      setNetbankingError('Failed to connect to netbanking. Please try again.');
+      setNetbankingSubmitting(false);
     }
   };
 
@@ -475,43 +710,6 @@ export default function BillingClient() {
     } catch (err) {
       setUpiError('Failed to communicate with payment gateway. Please try again.');
       setUpiSubmitting(false);
-    }
-  };
-
-  const handleLaunchGateway = async () => {
-    if (!activeCheckout) return;
-    setPaymentLoading(activeCheckout.planId);
-
-    try {
-      const cashfreeMode = activeCheckout.mode || (process.env.NEXT_PUBLIC_CASHFREE_MODE as 'sandbox' | 'production') || 'sandbox';
-      const cashfree = await loadCashfreeSDK(cashfreeMode);
-      if (!cashfree) {
-        setPaymentResult({
-          status: 'ERROR',
-          message: 'Payment gateway failed to load. Please check your connection.',
-        });
-        return;
-      }
-
-      cashfree
-        .checkout({
-          paymentSessionId: activeCheckout.paymentSessionId,
-          redirectTarget: '_modal',
-        })
-        .then((result: any) => {
-          if (result?.error) {
-            console.warn('[BillingClient] Cashfree checkout modal closed or error:', result.error);
-          }
-          pollVerification(activeCheckout.cfOrderId);
-        })
-        .catch((err: any) => {
-          console.error('[BillingClient] Cashfree checkout error:', err);
-          pollVerification(activeCheckout.cfOrderId);
-        });
-    } catch (err) {
-      console.error('Cashfree launch error:', err);
-    } finally {
-      setPaymentLoading(null);
     }
   };
 
@@ -929,294 +1127,488 @@ export default function BillingClient() {
         </div>
       )}
 
-      {/* ── Checkout Dialog with UPI ID & Gateway Tabs ──────────────── */}
-      {activeCheckout && (
-        <div
-          id="unool-checkout-modal"
-          role="dialog"
-          aria-modal="true"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 1000,
-            background: 'rgba(26, 22, 18, 0.72)',
-            backdropFilter: 'blur(8px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 16,
-            overflowY: 'auto',
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              closeAndCleanCashfree();
-            }
-          }}
-        >
-          <style>{`
-            @keyframes unoolSpin {
-              0% { transform: rotate(0deg); }
-              100% { transform: rotate(360deg); }
-            }
-            @keyframes unoolPulse {
-              0%, 100% { transform: scale(1); opacity: 1; }
-              50% { transform: scale(1.08); opacity: 0.85; }
-            }
-            @keyframes unoolScaleUp {
-              from { opacity: 0; transform: scale(0.96) translateY(8px); }
-              to { opacity: 1; transform: scale(1) translateY(0); }
-            }
-          `}</style>
+      {/* ── Custom Made Unool Checkout Modal ────────────────────── */}
+      {activeCheckout && (() => {
+        const cardBrand = getCardBrand(cardNumber);
+
+        return (
           <div
+            id="unool-checkout-modal"
+            role="dialog"
+            aria-modal="true"
             style={{
-              background: '#FFFFFF',
-              borderRadius: 20,
-              border: '1px solid #E8E0D5',
-              width: '100%',
-              maxWidth: 480,
-              boxShadow: '0 25px 60px -15px rgba(26, 22, 18, 0.3), 0 0 0 1px rgba(0,0,0,0.04)',
-              overflow: 'hidden',
-              animation: 'unoolScaleUp 0.2s ease-out',
+              position: 'fixed',
+              inset: 0,
+              zIndex: 1000,
+              background: 'rgba(26, 22, 18, 0.75)',
+              backdropFilter: 'blur(8px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 16,
+              overflowY: 'auto',
             }}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                closeAndCleanCashfree();
+              }
+            }}
           >
-            {/* Modal Header */}
+            <style>{`
+              @keyframes unoolSpin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+              @keyframes unoolPulse {
+                0%, 100% { transform: scale(1); opacity: 1; }
+                50% { transform: scale(1.08); opacity: 0.85; }
+              }
+              @keyframes unoolScaleUp {
+                from { opacity: 0; transform: scale(0.97) translateY(8px); }
+                to { opacity: 1; transform: scale(1) translateY(0); }
+              }
+            `}</style>
             <div
               style={{
-                padding: '20px 24px',
-                borderBottom: '1px solid #F0ECE6',
+                background: '#FFFFFF',
+                borderRadius: 22,
+                border: '1px solid #E8E0D5',
+                width: '100%',
+                maxWidth: 500,
+                boxShadow: '0 25px 60px -15px rgba(26, 22, 18, 0.35), 0 0 0 1px rgba(0,0,0,0.04)',
+                overflow: 'hidden',
+                animation: 'unoolScaleUp 0.2s ease-out',
                 display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                background: 'linear-gradient(180deg, #FAF8F5 0%, #FFFFFF 100%)',
+                flexDirection: 'column',
               }}
+              onClick={(e) => e.stopPropagation()}
             >
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 700,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.06em',
-                      color: '#7C3AED',
-                      background: '#F5F3FF',
-                      padding: '3px 8px',
-                      borderRadius: 6,
-                    }}
-                  >
-                    Checkout
-                  </span>
-                  <span style={{ fontSize: 13, color: '#7A7265' }}>
-                    {activeCheckout.billingCycle === 'annual' ? 'Billed Annually' : 'Billed Monthly'}
-                  </span>
-                </div>
-                <h3 style={{ fontSize: 18, fontWeight: 800, color: '#1A1612', margin: '4px 0 0' }}>
-                  Upgrade to {activeCheckout.planName}
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={closeAndCleanCashfree}
-                title="Close checkout (Esc)"
-                aria-label="Close"
+              {/* Modal Header */}
+              <div
                 style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 10,
-                  border: '1px solid #E8E0D5',
-                  background: '#FFFFFF',
-                  color: '#7A7265',
-                  fontSize: 16,
-                  fontWeight: 600,
-                  cursor: 'pointer',
+                  padding: '20px 24px',
+                  borderBottom: '1px solid #F0ECE6',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'all 0.15s ease',
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLElement).style.background = '#F4EFEA';
-                  (e.currentTarget as HTMLElement).style.color = '#1A1612';
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLElement).style.background = '#FFFFFF';
-                  (e.currentTarget as HTMLElement).style.color = '#7A7265';
+                  justifyContent: 'space-between',
+                  background: 'linear-gradient(180deg, #FAF8F5 0%, #FFFFFF 100%)',
                 }}
               >
-                ✕
-              </button>
-            </div>
-
-            {/* Navigation Tabs */}
-            <div
-              style={{
-                display: 'flex',
-                background: '#FAF7F3',
-                padding: '6px 8px',
-                borderBottom: '1px solid #F0ECE6',
-                gap: 6,
-              }}
-            >
-              <button
-                type="button"
-                id="checkout-tab-upi"
-                onClick={() => {
-                  setCheckoutTab('upi');
-                  setUpiError(null);
-                }}
-                style={{
-                  flex: 1,
-                  padding: '9px 12px',
-                  borderRadius: 10,
-                  border: checkoutTab === 'upi' ? '1px solid #DDD6FE' : '1px solid transparent',
-                  background: checkoutTab === 'upi' ? '#FFFFFF' : 'transparent',
-                  color: checkoutTab === 'upi' ? '#7C3AED' : '#6B655B',
-                  fontSize: 13,
-                  fontWeight: checkoutTab === 'upi' ? 700 : 500,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 6,
-                  boxShadow: checkoutTab === 'upi' ? '0 2px 4px rgba(124,58,237,0.08)' : 'none',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <span style={{ fontSize: 15 }}>⚡</span>
-                <span>UPI ID / VPA</span>
-              </button>
-              <button
-                type="button"
-                id="checkout-tab-gateway"
-                onClick={() => {
-                  setCheckoutTab('gateway');
-                  setUpiError(null);
-                }}
-                style={{
-                  flex: 1,
-                  padding: '9px 12px',
-                  borderRadius: 10,
-                  border: checkoutTab === 'gateway' ? '1px solid #E8E0D5' : '1px solid transparent',
-                  background: checkoutTab === 'gateway' ? '#FFFFFF' : 'transparent',
-                  color: checkoutTab === 'gateway' ? '#1A1612' : '#6B655B',
-                  fontSize: 13,
-                  fontWeight: checkoutTab === 'gateway' ? 700 : 500,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 6,
-                  boxShadow: checkoutTab === 'gateway' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <span style={{ fontSize: 14 }}>💳</span>
-                <span>Cards, Netbanking & QR</span>
-              </button>
-            </div>
-
-            {/* Tab Body */}
-            <div style={{ padding: '24px' }}>
-              {checkoutTab === 'upi' ? (
                 <div>
-                  {!upiSent ? (
-                    <div>
-                      <label
-                        htmlFor="upi-id-input"
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 800,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.08em',
+                        color: '#7C3AED',
+                        background: '#F5F3FF',
+                        padding: '3px 8px',
+                        borderRadius: 6,
+                        border: '1px solid #DDD6FE',
+                      }}
+                    >
+                      UNOOL CHECKOUT
+                    </span>
+                    <span style={{ fontSize: 13, color: '#7A7265', fontWeight: 500 }}>
+                      {activeCheckout.billingCycle === 'annual' ? 'Billed Annually' : 'Billed Monthly'}
+                    </span>
+                  </div>
+                  <h3 style={{ fontSize: 19, fontWeight: 800, color: '#1A1612', margin: '6px 0 0' }}>
+                    Upgrade to {activeCheckout.planName}
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeAndCleanCashfree}
+                  title="Close checkout (Esc)"
+                  aria-label="Close"
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: 10,
+                    border: '1px solid #E8E0D5',
+                    background: '#FFFFFF',
+                    color: '#7A7265',
+                    fontSize: 16,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLElement).style.background = '#F4EFEA';
+                    (e.currentTarget as HTMLElement).style.color = '#1A1612';
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLElement).style.background = '#FFFFFF';
+                    (e.currentTarget as HTMLElement).style.color = '#7A7265';
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Navigation Tabs - 4 Custom Unool Options */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(4, 1fr)',
+                  background: '#FAF7F3',
+                  padding: '6px 8px',
+                  borderBottom: '1px solid #F0ECE6',
+                  gap: 6,
+                }}
+              >
+                {[
+                  { id: 'cards' as const, label: 'Cards', icon: '💳' },
+                  { id: 'upi' as const, label: 'UPI ID', icon: '⚡' },
+                  { id: 'qr' as const, label: 'Scan QR', icon: '📱' },
+                  { id: 'netbanking' as const, label: 'Net Banking', icon: '🏛️' },
+                ].map((tab) => {
+                  const isActive = checkoutTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      id={`checkout-tab-${tab.id}`}
+                      onClick={() => {
+                        setCheckoutTab(tab.id);
+                        if (tab.id === 'qr' && !qrImageUrl && !qrString && activeCheckout) {
+                          handleGenerateQr(activeCheckout);
+                        }
+                      }}
+                      style={{
+                        padding: '10px 4px',
+                        borderRadius: 10,
+                        border: isActive ? '1px solid #DDD6FE' : '1px solid transparent',
+                        background: isActive ? '#FFFFFF' : 'transparent',
+                        color: isActive ? '#7C3AED' : '#6B655B',
+                        fontSize: 12,
+                        fontWeight: isActive ? 700 : 500,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 3,
+                        boxShadow: isActive ? '0 2px 6px rgba(124,58,237,0.1)' : 'none',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <span style={{ fontSize: 16 }}>{tab.icon}</span>
+                      <span>{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Tab Body */}
+              <div style={{ padding: '24px', overflowY: 'auto', maxHeight: '72vh' }}>
+                {/* ── TAB 1: CARDS (Custom Unool Card Checkout) ──────────────── */}
+                {checkoutTab === 'cards' && (
+                  <div>
+                    {/* Virtual Interactive Unool Card Preview */}
+                    <div
+                      style={{
+                        width: '100%',
+                        maxWidth: 390,
+                        margin: '0 auto 20px',
+                        borderRadius: 16,
+                        padding: '20px 22px',
+                        background: 'linear-gradient(135deg, #181412 0%, #2A211B 50%, #3D2F24 100%)',
+                        color: '#FFFFFF',
+                        boxShadow: '0 16px 36px -10px rgba(26,22,18,0.45), 0 0 0 1px rgba(255,255,255,0.08) inset',
+                        position: 'relative',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      {/* Decorative ambient glow */}
+                      <div
                         style={{
-                          display: 'block',
-                          fontSize: 13,
-                          fontWeight: 700,
-                          color: '#1A1612',
-                          marginBottom: 6,
+                          position: 'absolute',
+                          top: -50,
+                          right: -50,
+                          width: 150,
+                          height: 150,
+                          borderRadius: '50%',
+                          background: 'radial-gradient(circle, rgba(139,92,246,0.3) 0%, transparent 70%)',
+                          pointerEvents: 'none',
+                        }}
+                      />
+
+                      {/* Card Top Row: EMV Chip + Unool Plan Badge */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          {/* Gold Chip */}
+                          <div
+                            style={{
+                              width: 36,
+                              height: 26,
+                              borderRadius: 5,
+                              background: 'linear-gradient(135deg, #FDE68A 0%, #D97706 100%)',
+                              border: '1px solid #B45309',
+                              boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.6)',
+                              position: 'relative',
+                            }}
+                          >
+                            <div
+                              style={{
+                                position: 'absolute',
+                                inset: 3,
+                                border: '1px solid rgba(180,83,9,0.5)',
+                                borderRadius: 2,
+                              }}
+                            />
+                          </div>
+                          <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', letterSpacing: 1 }}>
+                            (((•
+                          </span>
+                        </div>
+
+                        <span
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 800,
+                            letterSpacing: '0.12em',
+                            color: '#FDE68A',
+                            textTransform: 'uppercase',
+                            background: 'rgba(253,230,138,0.12)',
+                            padding: '3px 8px',
+                            borderRadius: 4,
+                            border: '1px solid rgba(253,230,138,0.3)',
+                          }}
+                        >
+                          UNOOL {activeCheckout.planName.toUpperCase()}
+                        </span>
+                      </div>
+
+                      {/* Card Number */}
+                      <div
+                        style={{
+                          fontSize: 18,
+                          fontFamily: 'monospace',
+                          letterSpacing: '2.5px',
+                          color: '#FFFFFF',
+                          marginBottom: 18,
+                          textShadow: '0 2px 4px rgba(0,0,0,0.5)',
+                          fontWeight: 600,
                         }}
                       >
-                        Enter UPI ID (Virtual Payment Address)
-                      </label>
-                      <p style={{ fontSize: 12, color: '#7A7265', margin: '0 0 12px', lineHeight: 1.45 }}>
-                        Enter your UPI ID to receive a direct collect request on Google Pay, PhonePe, Paytm, BHIM, or any UPI app.
-                      </p>
+                        {cardNumber ? formatCardNumber(cardNumber) : '•••• •••• •••• ••••'}
+                      </div>
 
-                      <div style={{ position: 'relative', marginBottom: 12 }}>
+                      {/* Card Bottom Row: Holder Name, Expiry, Brand Badge */}
+                      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+                        <div>
+                          <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 2 }}>
+                            Cardholder Name
+                          </div>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: '#FFFFFF', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                            {cardHolder.trim() || 'YOUR NAME'}
+                          </div>
+                        </div>
+
+                        <div>
+                          <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 2 }}>
+                            Expires
+                          </div>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: '#FFFFFF', letterSpacing: '0.05em' }}>
+                            {cardExpiry || 'MM/YY'}
+                          </div>
+                        </div>
+
+                        <div
+                          style={{
+                            padding: '4px 10px',
+                            borderRadius: 6,
+                            background: 'rgba(255,255,255,0.16)',
+                            backdropFilter: 'blur(4px)',
+                            fontSize: 11,
+                            fontWeight: 800,
+                            color: '#FFFFFF',
+                            letterSpacing: '0.04em',
+                            border: '1px solid rgba(255,255,255,0.2)',
+                          }}
+                        >
+                          {cardBrand.name}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Card Input Form */}
+                    <div>
+                      {/* Card Number Input */}
+                      <div style={{ marginBottom: 14 }}>
+                        <label
+                          htmlFor="unool-card-number"
+                          style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#1A1612', marginBottom: 6 }}
+                        >
+                          Card Number
+                        </label>
+                        <div style={{ position: 'relative' }}>
+                          <input
+                            type="text"
+                            id="unool-card-number"
+                            value={cardNumber}
+                            onChange={(e) => {
+                              const val = formatCardNumber(e.target.value);
+                              setCardNumber(val);
+                              setCardError(null);
+                            }}
+                            placeholder="4000 1234 5678 9010"
+                            maxLength={19}
+                            style={{
+                              width: '100%',
+                              padding: '12px 14px',
+                              paddingRight: 64,
+                              borderRadius: 10,
+                              border: '1.5px solid #E8E0D5',
+                              fontSize: 14,
+                              fontFamily: 'monospace',
+                              letterSpacing: '1px',
+                              color: '#1A1612',
+                              background: '#FAF8F5',
+                              outline: 'none',
+                              boxSizing: 'border-box',
+                              transition: 'border-color 0.15s ease',
+                            }}
+                            onFocus={(e) => (e.target.style.borderColor = '#7C3AED')}
+                            onBlur={(e) => (e.target.style.borderColor = '#E8E0D5')}
+                          />
+                          <div
+                            style={{
+                              position: 'absolute',
+                              right: 12,
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              fontSize: 11,
+                              fontWeight: 700,
+                              color: cardBrand.color,
+                              background: '#EDE9FE',
+                              padding: '3px 8px',
+                              borderRadius: 4,
+                            }}
+                          >
+                            {cardBrand.name}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Cardholder Name Input */}
+                      <div style={{ marginBottom: 14 }}>
+                        <label
+                          htmlFor="unool-card-holder"
+                          style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#1A1612', marginBottom: 6 }}
+                        >
+                          Cardholder Name
+                        </label>
                         <input
                           type="text"
-                          id="upi-id-input"
-                          value={upiIdInput}
+                          id="unool-card-holder"
+                          value={cardHolder}
                           onChange={(e) => {
-                            setUpiIdInput(e.target.value);
-                            setUpiError(null);
+                            setCardHolder(e.target.value);
+                            setCardError(null);
                           }}
-                          placeholder="e.g. yourname@okhdfcbank or 9876543210@upi"
+                          placeholder="Name as printed on card"
                           style={{
                             width: '100%',
                             padding: '12px 14px',
                             borderRadius: 10,
-                            border: upiError ? '1.5px solid #EF4444' : '1.5px solid #E8E0D5',
+                            border: '1.5px solid #E8E0D5',
                             fontSize: 14,
                             color: '#1A1612',
                             background: '#FAF8F5',
                             outline: 'none',
-                            fontFamily: 'inherit',
-                            transition: 'border-color 0.15s ease',
                             boxSizing: 'border-box',
+                            transition: 'border-color 0.15s ease',
                           }}
-                          onFocus={(e) => {
-                            if (!upiError) e.target.style.borderColor = '#7C3AED';
-                          }}
-                          onBlur={(e) => {
-                            if (!upiError) e.target.style.borderColor = '#E8E0D5';
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              handlePayWithUpi();
-                            }
-                          }}
-                          autoFocus
+                          onFocus={(e) => (e.target.style.borderColor = '#7C3AED')}
+                          onBlur={(e) => (e.target.style.borderColor = '#E8E0D5')}
                         />
                       </div>
 
-                      {/* Quick handle chips */}
-                      <div style={{ marginBottom: 18 }}>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: '#8C8476', marginBottom: 6 }}>
-                          Popular UPI Handles (click to append):
+                      {/* Expiry & CVV in 2 columns */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 18 }}>
+                        <div>
+                          <label
+                            htmlFor="unool-card-expiry"
+                            style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#1A1612', marginBottom: 6 }}
+                          >
+                            Valid Thru (MM/YY)
+                          </label>
+                          <input
+                            type="text"
+                            id="unool-card-expiry"
+                            value={cardExpiry}
+                            onChange={(e) => {
+                              const val = formatExpiry(e.target.value);
+                              setCardExpiry(val);
+                              setCardError(null);
+                            }}
+                            placeholder="MM/YY"
+                            maxLength={5}
+                            style={{
+                              width: '100%',
+                              padding: '12px 14px',
+                              borderRadius: 10,
+                              border: '1.5px solid #E8E0D5',
+                              fontSize: 14,
+                              fontFamily: 'monospace',
+                              color: '#1A1612',
+                              background: '#FAF8F5',
+                              outline: 'none',
+                              boxSizing: 'border-box',
+                              transition: 'border-color 0.15s ease',
+                            }}
+                            onFocus={(e) => (e.target.style.borderColor = '#7C3AED')}
+                            onBlur={(e) => (e.target.style.borderColor = '#E8E0D5')}
+                          />
                         </div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                          {['@okhdfcbank', '@okaxis', '@oksbi', '@okicici', '@ybl', '@paytm', '@ibl', '@apl'].map((handle) => (
-                            <button
-                              key={handle}
-                              type="button"
-                              onClick={() => handleAppendUpiChip(handle)}
-                              style={{
-                                padding: '4px 8px',
-                                borderRadius: 6,
-                                border: '1px solid #E8E0D5',
-                                background: '#FFFFFF',
-                                color: '#4B4339',
-                                fontSize: 11,
-                                fontWeight: 500,
-                                cursor: 'pointer',
-                                transition: 'all 0.1s ease',
-                              }}
-                              onMouseEnter={(e) => {
-                                (e.currentTarget as HTMLElement).style.background = '#EDE9FE';
-                                (e.currentTarget as HTMLElement).style.borderColor = '#C4B5FD';
-                                (e.currentTarget as HTMLElement).style.color = '#7C3AED';
-                              }}
-                              onMouseLeave={(e) => {
-                                (e.currentTarget as HTMLElement).style.background = '#FFFFFF';
-                                (e.currentTarget as HTMLElement).style.borderColor = '#E8E0D5';
-                                (e.currentTarget as HTMLElement).style.color = '#4B4339';
-                              }}
-                            >
-                              {handle}
-                            </button>
-                          ))}
+
+                        <div>
+                          <label
+                            htmlFor="unool-card-cvv"
+                            style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#1A1612', marginBottom: 6 }}
+                          >
+                            CVV / CVC
+                          </label>
+                          <input
+                            type="password"
+                            id="unool-card-cvv"
+                            value={cardCvv}
+                            onChange={(e) => {
+                              const digits = e.target.value.replace(/\D/g, '').slice(0, 4);
+                              setCardCvv(digits);
+                              setCardError(null);
+                            }}
+                            placeholder="•••"
+                            maxLength={4}
+                            style={{
+                              width: '100%',
+                              padding: '12px 14px',
+                              borderRadius: 10,
+                              border: '1.5px solid #E8E0D5',
+                              fontSize: 14,
+                              fontFamily: 'monospace',
+                              letterSpacing: '2px',
+                              color: '#1A1612',
+                              background: '#FAF8F5',
+                              outline: 'none',
+                              boxSizing: 'border-box',
+                              transition: 'border-color 0.15s ease',
+                            }}
+                            onFocus={(e) => (e.target.style.borderColor = '#7C3AED')}
+                            onBlur={(e) => (e.target.style.borderColor = '#E8E0D5')}
+                          />
                         </div>
                       </div>
 
-                      {upiError && (
+                      {cardError && (
                         <div
                           style={{
                             padding: '10px 12px',
@@ -1233,36 +1625,76 @@ export default function BillingClient() {
                           }}
                         >
                           <span>⚠️</span>
-                          <span>{upiError}</span>
+                          <span>{cardError}</span>
+                        </div>
+                      )}
+
+                      {/* 3DS Verification Notice / Button */}
+                      {cardThreeDSUrl && (
+                        <div
+                          style={{
+                            padding: '14px 16px',
+                            borderRadius: 12,
+                            background: '#F5F3FF',
+                            border: '1px solid #DDD6FE',
+                            marginBottom: 16,
+                            textAlign: 'center',
+                          }}
+                        >
+                          <div style={{ fontSize: 13, fontWeight: 700, color: '#7C3AED', marginBottom: 6 }}>
+                            🛡️ Bank 3D Secure Verification
+                          </div>
+                          <p style={{ fontSize: 12, color: '#4B4339', margin: '0 0 10px', lineHeight: 1.45 }}>
+                            Please complete the OTP verification from your bank. If the bank page did not open automatically, click below:
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const win = window.open(cardThreeDSUrl, 'unool_3ds_window', 'width=520,height=680');
+                              if (win) (window as any).__unool_cf_window = win;
+                            }}
+                            style={{
+                              padding: '8px 16px',
+                              borderRadius: 8,
+                              background: '#7C3AED',
+                              color: '#FFFFFF',
+                              border: 'none',
+                              fontSize: 12,
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Open Bank OTP Verification Window
+                          </button>
                         </div>
                       )}
 
                       <button
                         type="button"
-                        id="submit-upi-pay-btn"
-                        onClick={handlePayWithUpi}
-                        disabled={upiSubmitting || !upiIdInput.trim()}
+                        id="unool-submit-card-pay"
+                        onClick={handlePayWithCard}
+                        disabled={cardSubmitting || !cardNumber || !cardHolder || !cardExpiry || !cardCvv}
                         style={{
                           width: '100%',
                           padding: '13px 18px',
                           borderRadius: 12,
-                          background: upiSubmitting || !upiIdInput.trim()
+                          background: cardSubmitting || !cardNumber || !cardHolder || !cardExpiry || !cardCvv
                             ? '#C4B5FD'
                             : 'linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%)',
                           color: '#FFFFFF',
                           fontSize: 14,
                           fontWeight: 700,
                           border: 'none',
-                          cursor: upiSubmitting || !upiIdInput.trim() ? 'not-allowed' : 'pointer',
+                          cursor: cardSubmitting || !cardNumber || !cardHolder || !cardExpiry || !cardCvv ? 'not-allowed' : 'pointer',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           gap: 8,
-                          boxShadow: upiSubmitting || !upiIdInput.trim() ? 'none' : '0 4px 14px rgba(124,58,237,0.3)',
+                          boxShadow: '0 4px 14px rgba(124,58,237,0.25)',
                           transition: 'all 0.15s ease',
                         }}
                       >
-                        {upiSubmitting ? (
+                        {cardSubmitting ? (
                           <>
                             <div
                               style={{
@@ -1274,11 +1706,11 @@ export default function BillingClient() {
                                 animation: 'unoolSpin 0.8s linear infinite',
                               }}
                             />
-                            <span>Sending UPI Request...</span>
+                            <span>Processing Card Payment...</span>
                           </>
                         ) : (
                           <>
-                            <span>Pay via UPI ID</span>
+                            <span>🔒 Pay Securely with Card</span>
                             <span style={{ fontSize: 16 }}>→</span>
                           </>
                         )}
@@ -1286,7 +1718,7 @@ export default function BillingClient() {
 
                       <div
                         style={{
-                          marginTop: 14,
+                          marginTop: 12,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -1296,263 +1728,721 @@ export default function BillingClient() {
                         }}
                       >
                         <span>🔒</span>
-                        <span>Direct Cashfree UPI Collect • Bank-Grade 256-bit Encryption</span>
+                        <span>256-bit SSL Encryption • RBI Tokenization Ready • 100% Secure</span>
                       </div>
                     </div>
-                  ) : (
-                    <div style={{ textAlign: 'center', padding: '12px 8px' }}>
-                      <div
-                        style={{
-                          width: 56,
-                          height: 56,
-                          borderRadius: '50%',
-                          background: '#F5F3FF',
-                          border: '2px solid #DDD6FE',
-                          margin: '0 auto 16px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: 24,
-                          animation: 'unoolPulse 2s infinite',
-                        }}
-                      >
-                        📲
-                      </div>
+                  </div>
+                )}
 
-                      <h4 style={{ fontSize: 16, fontWeight: 800, color: '#1A1612', margin: '0 0 6px' }}>
-                        Payment Request Dispatched!
-                      </h4>
+                {/* ── TAB 2: UPI ID (Collect Flow) ─────────────────────────── */}
+                {checkoutTab === 'upi' && (
+                  <div>
+                    {!upiSent ? (
+                      <div>
+                        <label
+                          htmlFor="upi-id-input"
+                          style={{
+                            display: 'block',
+                            fontSize: 13,
+                            fontWeight: 700,
+                            color: '#1A1612',
+                            marginBottom: 6,
+                          }}
+                        >
+                          Enter UPI ID (Virtual Payment Address)
+                        </label>
+                        <p style={{ fontSize: 12, color: '#7A7265', margin: '0 0 12px', lineHeight: 1.45 }}>
+                          Enter your UPI ID to receive a direct collect request on Google Pay, PhonePe, Paytm, BHIM, or any UPI app.
+                        </p>
 
-                      <p style={{ fontSize: 13, color: '#5A5245', margin: '0 0 16px', lineHeight: 1.5 }}>
-                        A collect request has been sent to{' '}
-                        <strong style={{ color: '#7C3AED' }}>{upiIdInput.trim().toLowerCase()}</strong>.
-                      </p>
-
-                      <div
-                        style={{
-                          background: '#FAF7F3',
-                          border: '1px solid #E8E0D5',
-                          borderRadius: 12,
-                          padding: '14px 16px',
-                          textAlign: 'left',
-                          fontSize: 12,
-                          color: '#4B4339',
-                          lineHeight: 1.6,
-                          marginBottom: 18,
-                        }}
-                      >
-                        <div style={{ fontWeight: 700, color: '#1A1612', marginBottom: 6 }}>
-                          Next Steps to Complete Payment:
+                        <div style={{ position: 'relative', marginBottom: 12 }}>
+                          <input
+                            type="text"
+                            id="upi-id-input"
+                            value={upiIdInput}
+                            onChange={(e) => {
+                              setUpiIdInput(e.target.value);
+                              setUpiError(null);
+                            }}
+                            placeholder="e.g. yourname@okhdfcbank or 9876543210@upi"
+                            style={{
+                              width: '100%',
+                              padding: '12px 14px',
+                              borderRadius: 10,
+                              border: upiError ? '1.5px solid #EF4444' : '1.5px solid #E8E0D5',
+                              fontSize: 14,
+                              color: '#1A1612',
+                              background: '#FAF8F5',
+                              outline: 'none',
+                              fontFamily: 'inherit',
+                              transition: 'border-color 0.15s ease',
+                              boxSizing: 'border-box',
+                            }}
+                            onFocus={(e) => {
+                              if (!upiError) e.target.style.borderColor = '#7C3AED';
+                            }}
+                            onBlur={(e) => {
+                              if (!upiError) e.target.style.borderColor = '#E8E0D5';
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handlePayWithUpi();
+                              }
+                            }}
+                            autoFocus
+                          />
                         </div>
-                        <ol style={{ margin: 0, paddingLeft: 18 }}>
-                          <li>Open your UPI app (Google Pay, PhonePe, Paytm, BHIM, etc.).</li>
-                          <li>Approve the pending collect request from Cashfree.</li>
-                          <li>Enter your UPI PIN to finalize payment.</li>
-                        </ol>
-                      </div>
 
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: 8,
-                          fontSize: 12,
-                          color: '#7C3AED',
-                          fontWeight: 600,
-                          marginBottom: 16,
-                        }}
-                      >
+                        {/* Quick handle chips */}
+                        <div style={{ marginBottom: 18 }}>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: '#8C8476', marginBottom: 6 }}>
+                            Popular UPI Handles (click to append):
+                          </div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                            {['@okhdfcbank', '@okaxis', '@oksbi', '@okicici', '@ybl', '@paytm', '@ibl', '@apl'].map((handle) => (
+                              <button
+                                key={handle}
+                                type="button"
+                                onClick={() => handleAppendUpiChip(handle)}
+                                style={{
+                                  padding: '4px 8px',
+                                  borderRadius: 6,
+                                  border: '1px solid #E8E0D5',
+                                  background: '#FFFFFF',
+                                  color: '#4B4339',
+                                  fontSize: 11,
+                                  fontWeight: 500,
+                                  cursor: 'pointer',
+                                  transition: 'all 0.1s ease',
+                                }}
+                                onMouseEnter={(e) => {
+                                  (e.currentTarget as HTMLElement).style.background = '#EDE9FE';
+                                  (e.currentTarget as HTMLElement).style.borderColor = '#C4B5FD';
+                                  (e.currentTarget as HTMLElement).style.color = '#7C3AED';
+                                }}
+                                onMouseLeave={(e) => {
+                                  (e.currentTarget as HTMLElement).style.background = '#FFFFFF';
+                                  (e.currentTarget as HTMLElement).style.borderColor = '#E8E0D5';
+                                  (e.currentTarget as HTMLElement).style.color = '#4B4339';
+                                }}
+                              >
+                                {handle}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {upiError && (
+                          <div
+                            style={{
+                              padding: '10px 12px',
+                              borderRadius: 8,
+                              background: '#FEF2F2',
+                              border: '1px solid #FECACA',
+                              color: '#DC2626',
+                              fontSize: 12,
+                              fontWeight: 500,
+                              marginBottom: 16,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 6,
+                            }}
+                          >
+                            <span>⚠️</span>
+                            <span>{upiError}</span>
+                          </div>
+                        )}
+
+                        <button
+                          type="button"
+                          id="submit-upi-pay-btn"
+                          onClick={handlePayWithUpi}
+                          disabled={upiSubmitting || !upiIdInput.trim()}
+                          style={{
+                            width: '100%',
+                            padding: '13px 18px',
+                            borderRadius: 12,
+                            background: upiSubmitting || !upiIdInput.trim()
+                              ? '#C4B5FD'
+                              : 'linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%)',
+                            color: '#FFFFFF',
+                            fontSize: 14,
+                            fontWeight: 700,
+                            border: 'none',
+                            cursor: upiSubmitting || !upiIdInput.trim() ? 'not-allowed' : 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 8,
+                            boxShadow: upiSubmitting || !upiIdInput.trim() ? 'none' : '0 4px 14px rgba(124,58,237,0.3)',
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          {upiSubmitting ? (
+                            <>
+                              <div
+                                style={{
+                                  width: 16,
+                                  height: 16,
+                                  border: '2px solid rgba(255,255,255,0.4)',
+                                  borderTopColor: '#FFFFFF',
+                                  borderRadius: '50%',
+                                  animation: 'unoolSpin 0.8s linear infinite',
+                                }}
+                              />
+                              <span>Sending UPI Request...</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>Pay via UPI ID</span>
+                              <span style={{ fontSize: 16 }}>→</span>
+                            </>
+                          )}
+                        </button>
+
                         <div
                           style={{
-                            width: 14,
-                            height: 14,
-                            border: '2px solid #DDD6FE',
-                            borderTopColor: '#7C3AED',
-                            borderRadius: '50%',
-                            animation: 'unoolSpin 0.8s linear infinite',
+                            marginTop: 14,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 6,
+                            fontSize: 11,
+                            color: '#8C8476',
                           }}
-                        />
-                        <span>Waiting for your UPI approval...</span>
+                        >
+                          <span>🔒</span>
+                          <span>Direct Cashfree UPI Collect • Bank-Grade 256-bit Encryption</span>
+                        </div>
                       </div>
+                    ) : (
+                      <div style={{ textAlign: 'center', padding: '12px 8px' }}>
+                        <div
+                          style={{
+                            width: 56,
+                            height: 56,
+                            borderRadius: '50%',
+                            background: '#F5F3FF',
+                            border: '2px solid #DDD6FE',
+                            margin: '0 auto 16px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: 24,
+                            animation: 'unoolPulse 2s infinite',
+                          }}
+                        >
+                          📲
+                        </div>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setUpiSent(false);
-                          setUpiSubmitting(false);
-                        }}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          color: '#6B655B',
-                          fontSize: 12,
-                          textDecoration: 'underline',
-                          cursor: 'pointer',
-                          padding: 4,
-                        }}
-                      >
-                        Need to change UPI ID or retry?
-                      </button>
+                        <h4 style={{ fontSize: 16, fontWeight: 800, color: '#1A1612', margin: '0 0 6px' }}>
+                          Payment Request Dispatched!
+                        </h4>
+
+                        <p style={{ fontSize: 13, color: '#5A5245', margin: '0 0 16px', lineHeight: 1.5 }}>
+                          A collect request has been sent to{' '}
+                          <strong style={{ color: '#7C3AED' }}>{upiIdInput.trim().toLowerCase()}</strong>.
+                        </p>
+
+                        <div
+                          style={{
+                            background: '#FAF7F3',
+                            border: '1px solid #E8E0D5',
+                            borderRadius: 12,
+                            padding: '14px 16px',
+                            textAlign: 'left',
+                            fontSize: 12,
+                            color: '#4B4339',
+                            lineHeight: 1.6,
+                            marginBottom: 18,
+                          }}
+                        >
+                          <div style={{ fontWeight: 700, color: '#1A1612', marginBottom: 6 }}>
+                            Next Steps to Complete Payment:
+                          </div>
+                          <ol style={{ margin: 0, paddingLeft: 18 }}>
+                            <li>Open your UPI app (Google Pay, PhonePe, Paytm, BHIM, etc.).</li>
+                            <li>Approve the pending collect request from Cashfree.</li>
+                            <li>Enter your UPI PIN to finalize payment.</li>
+                          </ol>
+                        </div>
+
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 8,
+                            fontSize: 12,
+                            color: '#7C3AED',
+                            fontWeight: 600,
+                            marginBottom: 16,
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: 14,
+                              height: 14,
+                              border: '2px solid #DDD6FE',
+                              borderTopColor: '#7C3AED',
+                              borderRadius: '50%',
+                              animation: 'unoolSpin 0.8s linear infinite',
+                            }}
+                          />
+                          <span>Waiting for your UPI approval...</span>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setUpiSent(false);
+                            setUpiSubmitting(false);
+                          }}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#6B655B',
+                            fontSize: 12,
+                            textDecoration: 'underline',
+                            cursor: 'pointer',
+                            padding: 4,
+                          }}
+                        >
+                          Need to change UPI ID or retry?
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── TAB 3: SCAN QR (Dynamic UPI QR Code) ─────────────────── */}
+                {checkoutTab === 'qr' && (
+                  <div style={{ textAlign: 'center', padding: '6px 4px' }}>
+                    <div style={{ marginBottom: 16 }}>
+                      <h4 style={{ fontSize: 16, fontWeight: 800, color: '#1A1612', margin: '0 0 4px' }}>
+                        Scan QR Code to Pay
+                      </h4>
+                      <p style={{ fontSize: 13, color: '#7A7265', margin: 0 }}>
+                        Scan using any UPI app on your phone to complete payment instantly.
+                      </p>
                     </div>
-                  )}
-                </div>
-              ) : (
-                <div style={{ padding: '8px 4px' }}>
-                  <div style={{ textAlign: 'center', marginBottom: 20 }}>
+
+                    {/* QR Code Container */}
                     <div
                       style={{
-                        width: 52,
-                        height: 52,
-                        borderRadius: 14,
-                        background: '#FAF8F5',
-                        border: '1px solid #E8E0D5',
-                        margin: '0 auto 12px',
+                        width: 220,
+                        height: 220,
+                        margin: '0 auto 16px',
+                        background: '#FFFFFF',
+                        borderRadius: 16,
+                        border: '2px solid #E8E0D5',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontSize: 22,
+                        boxShadow: '0 8px 24px -4px rgba(26,22,18,0.12)',
+                        position: 'relative',
+                        padding: 12,
+                        boxSizing: 'border-box',
                       }}
                     >
-                      💳
-                    </div>
-                    <h4 style={{ fontSize: 16, fontWeight: 800, color: '#1A1612', margin: '0 0 6px' }}>
-                      Cards, Netbanking & QR Code
-                    </h4>
-                    <p style={{ fontSize: 13, color: '#7A7265', margin: 0, lineHeight: 1.45 }}>
-                      Pay using Visa, Mastercard, RuPay, 50+ Netbanking banks, or scan dynamic UPI QR code.
-                    </p>
-                  </div>
-
-                  <div
-                    style={{
-                      display: 'flex',
-                      flexWrap: 'wrap',
-                      justifyContent: 'center',
-                      gap: 8,
-                      marginBottom: 20,
-                    }}
-                  >
-                    {['Cards', 'Netbanking', 'UPI QR Code', 'Wallets'].map((badge) => (
-                      <span
-                        key={badge}
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 600,
-                          color: '#4B4339',
-                          background: '#F4EFEA',
-                          border: '1px solid #E8E0D5',
-                          borderRadius: 6,
-                          padding: '4px 10px',
-                        }}
-                      >
-                        {badge}
-                      </span>
-                    ))}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleLaunchGateway}
-                    disabled={paymentLoading === activeCheckout.planId}
-                    style={{
-                      width: '100%',
-                      padding: '13px 18px',
-                      borderRadius: 12,
-                      background: '#1A1612',
-                      color: '#FFFFFF',
-                      fontSize: 14,
-                      fontWeight: 700,
-                      border: 'none',
-                      cursor: paymentLoading === activeCheckout.planId ? 'not-allowed' : 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 8,
-                      boxShadow: '0 4px 14px rgba(0,0,0,0.15)',
-                      transition: 'all 0.15s ease',
-                    }}
-                  >
-                    {paymentLoading === activeCheckout.planId ? (
-                      <>
-                        <div
+                      {qrLoading ? (
+                        <div style={{ textAlign: 'center' }}>
+                          <div
+                            style={{
+                              width: 28,
+                              height: 28,
+                              border: '3px solid #DDD6FE',
+                              borderTopColor: '#7C3AED',
+                              borderRadius: '50%',
+                              animation: 'unoolSpin 0.8s linear infinite',
+                              margin: '0 auto 10px',
+                            }}
+                          />
+                          <span style={{ fontSize: 12, color: '#7A7265', fontWeight: 600 }}>
+                            Generating Dynamic QR...
+                          </span>
+                        </div>
+                      ) : qrImageUrl || qrString ? (
+                        <img
+                          src={
+                            qrImageUrl ||
+                            `https://api.qrserver.com/v1/create-qr-code/?size=190x190&margin=4&data=${encodeURIComponent(
+                              qrString || ''
+                            )}`
+                          }
+                          alt="Dynamic UPI QR Code"
                           style={{
-                            width: 16,
-                            height: 16,
-                            border: '2px solid rgba(255,255,255,0.3)',
-                            borderTopColor: '#FFFFFF',
-                            borderRadius: '50%',
-                            animation: 'unoolSpin 0.8s linear infinite',
+                            width: 190,
+                            height: 190,
+                            borderRadius: 10,
+                            objectFit: 'contain',
                           }}
                         />
-                        <span>Launching Gateway...</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>Open Gateway (Cards, Netbanking & QR)</span>
-                        <span style={{ fontSize: 16 }}>→</span>
-                      </>
+                      ) : (
+                        <div style={{ textAlign: 'center', padding: 12 }}>
+                          <span style={{ fontSize: 24, display: 'block', marginBottom: 6 }}>⚠️</span>
+                          <button
+                            type="button"
+                            onClick={() => handleGenerateQr(activeCheckout)}
+                            style={{
+                              padding: '8px 14px',
+                              borderRadius: 8,
+                              background: '#7C3AED',
+                              color: '#FFFFFF',
+                              border: 'none',
+                              fontSize: 12,
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Generate QR Code
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Supported UPI Apps Row */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        justifyContent: 'center',
+                        gap: 6,
+                        marginBottom: 16,
+                      }}
+                    >
+                      {['Google Pay', 'PhonePe', 'Paytm', 'BHIM', 'Cred', 'Amazon Pay'].map((app) => (
+                        <span
+                          key={app}
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 600,
+                            color: '#4B4339',
+                            background: '#FAF7F3',
+                            border: '1px solid #E8E0D5',
+                            borderRadius: 6,
+                            padding: '3px 8px',
+                          }}
+                        >
+                          {app}
+                        </span>
+                      ))}
+                    </div>
+
+                    {/* Live Listening Status */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 8,
+                        fontSize: 12,
+                        color: '#10B981',
+                        fontWeight: 600,
+                        background: '#ECFDF5',
+                        border: '1px solid #A7F3D0',
+                        borderRadius: 10,
+                        padding: '10px 14px',
+                        marginBottom: 12,
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: '50%',
+                          background: '#10B981',
+                          animation: 'unoolPulse 1.5s infinite',
+                        }}
+                      />
+                      <span>Listening for QR scan & payment confirmation...</span>
+                    </div>
+
+                    {qrString && (
+                      <a
+                        href={qrString}
+                        style={{
+                          display: 'inline-block',
+                          fontSize: 12,
+                          color: '#7C3AED',
+                          fontWeight: 600,
+                          textDecoration: 'underline',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Paying on this mobile device? Click here to launch UPI app directly
+                      </a>
                     )}
-                  </button>
-
-                  <div
-                    style={{
-                      marginTop: 14,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 6,
-                      fontSize: 11,
-                      color: '#8C8476',
-                    }}
-                  >
-                    <span>🔒</span>
-                    <span>PCI-DSS Level 1 Compliant • 100% Secure</span>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
 
-            {/* Modal Footer */}
-            <div
-              style={{
-                padding: '14px 24px',
-                background: '#FAF8F5',
-                borderTop: '1px solid #F0ECE6',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
-            >
-              <div style={{ fontSize: 12, color: '#7A7265' }}>
-                Need help? <span style={{ color: '#1A1612', fontWeight: 600 }}>support@unool.com</span>
+                {/* ── TAB 4: NET BANKING ───────────────────────────────────── */}
+                {checkoutTab === 'netbanking' && (
+                  <div>
+                    <div style={{ marginBottom: 14 }}>
+                      <h4 style={{ fontSize: 15, fontWeight: 800, color: '#1A1612', margin: '0 0 4px' }}>
+                        Select Your Bank
+                      </h4>
+                      <p style={{ fontSize: 12, color: '#7A7265', margin: 0 }}>
+                        Choose your bank to authorize payment directly via secure netbanking.
+                      </p>
+                    </div>
+
+                    {/* Popular Banks Grid */}
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(3, 1fr)',
+                        gap: 8,
+                        marginBottom: 16,
+                      }}
+                    >
+                      {POPULAR_BANKS.map((b) => {
+                        const isSelected = selectedBank === b.code;
+                        return (
+                          <button
+                            key={b.code}
+                            type="button"
+                            onClick={() => {
+                              setSelectedBank(b.code);
+                              setSelectedBankName(b.name);
+                              setNetbankingError(null);
+                            }}
+                            style={{
+                              padding: '10px 8px',
+                              borderRadius: 10,
+                              border: isSelected ? '2px solid #7C3AED' : '1px solid #E8E0D5',
+                              background: isSelected ? '#F5F3FF' : '#FFFFFF',
+                              color: isSelected ? '#7C3AED' : '#1A1612',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: 4,
+                              transition: 'all 0.12s ease',
+                              textAlign: 'center',
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 800,
+                                color: b.badgeColor,
+                                background: '#FAF8F5',
+                                padding: '2px 6px',
+                                borderRadius: 4,
+                                border: '1px solid #E8E0D5',
+                              }}
+                            >
+                              {b.short}
+                            </span>
+                            <span style={{ fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>
+                              {b.name}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* All Other Banks Dropdown */}
+                    <div style={{ marginBottom: 18 }}>
+                      <label
+                        htmlFor="unool-bank-select"
+                        style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#1A1612', marginBottom: 6 }}
+                      >
+                        Or Select Other Bank (50+ Supported):
+                      </label>
+                      <select
+                        id="unool-bank-select"
+                        value={selectedBank}
+                        onChange={(e) => {
+                          const code = e.target.value;
+                          setSelectedBank(code);
+                          const found =
+                            POPULAR_BANKS.find((b) => b.code === code) ||
+                            ALL_OTHER_BANKS.find((b) => b.code === code);
+                          setSelectedBankName(found?.name || 'Selected Bank');
+                          setNetbankingError(null);
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '11px 12px',
+                          borderRadius: 10,
+                          border: '1.5px solid #E8E0D5',
+                          fontSize: 13,
+                          color: '#1A1612',
+                          background: '#FAF8F5',
+                          outline: 'none',
+                          boxSizing: 'border-box',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <optgroup label="Popular Banks">
+                          {POPULAR_BANKS.map((b) => (
+                            <option key={b.code} value={b.code}>
+                              {b.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                        <optgroup label="All Other Indian Banks">
+                          {ALL_OTHER_BANKS.map((b) => (
+                            <option key={b.code} value={b.code}>
+                              {b.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                      </select>
+                    </div>
+
+                    {netbankingError && (
+                      <div
+                        style={{
+                          padding: '10px 12px',
+                          borderRadius: 8,
+                          background: '#FEF2F2',
+                          border: '1px solid #FECACA',
+                          color: '#DC2626',
+                          fontSize: 12,
+                          fontWeight: 500,
+                          marginBottom: 16,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                        }}
+                      >
+                        <span>⚠️</span>
+                        <span>{netbankingError}</span>
+                      </div>
+                    )}
+
+                    {netbankingRedirecting && (
+                      <div
+                        style={{
+                          padding: '12px 14px',
+                          borderRadius: 10,
+                          background: '#ECFDF5',
+                          border: '1px solid #A7F3D0',
+                          marginBottom: 16,
+                          textAlign: 'center',
+                        }}
+                      >
+                        <div style={{ fontSize: 13, fontWeight: 700, color: '#065F46', marginBottom: 4 }}>
+                          Redirected to {selectedBankName} Portal
+                        </div>
+                        <div style={{ fontSize: 12, color: '#047857' }}>
+                          Please complete authentication on your bank portal. Plan updates automatically upon confirmation.
+                        </div>
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      id="unool-submit-netbanking-pay"
+                      onClick={handlePayWithNetbanking}
+                      disabled={netbankingSubmitting}
+                      style={{
+                        width: '100%',
+                        padding: '13px 18px',
+                        borderRadius: 12,
+                        background: netbankingSubmitting
+                          ? '#C4B5FD'
+                          : 'linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%)',
+                        color: '#FFFFFF',
+                        fontSize: 14,
+                        fontWeight: 700,
+                        border: 'none',
+                        cursor: netbankingSubmitting ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 8,
+                        boxShadow: '0 4px 14px rgba(124,58,237,0.25)',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      {netbankingSubmitting ? (
+                        <>
+                          <div
+                            style={{
+                              width: 16,
+                              height: 16,
+                              border: '2px solid rgba(255,255,255,0.4)',
+                              borderTopColor: '#FFFFFF',
+                              borderRadius: '50%',
+                              animation: 'unoolSpin 0.8s linear infinite',
+                            }}
+                          />
+                          <span>Connecting to Bank...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Proceed with {selectedBankName} Netbanking</span>
+                          <span style={{ fontSize: 16 }}>→</span>
+                        </>
+                      )}
+                    </button>
+
+                    <div
+                      style={{
+                        marginTop: 12,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 6,
+                        fontSize: 11,
+                        color: '#8C8476',
+                      }}
+                    >
+                      <span>🔒</span>
+                      <span>Direct 256-bit Encrypted Bank Gateway</span>
+                    </div>
+                  </div>
+                )}
               </div>
-              <button
-                type="button"
-                onClick={closeAndCleanCashfree}
+
+              {/* Modal Footer */}
+              <div
                 style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: '#7A7265',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  padding: '4px 8px',
-                  borderRadius: 6,
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLElement).style.color = '#1A1612';
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLElement).style.color = '#7A7265';
+                  padding: '14px 24px',
+                  background: '#FAF8F5',
+                  borderTop: '1px solid #F0ECE6',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
                 }}
               >
-                Cancel & Close
-              </button>
+                <div style={{ fontSize: 12, color: '#7A7265' }}>
+                  Need help? <span style={{ color: '#1A1612', fontWeight: 600 }}>support@unool.com</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeAndCleanCashfree}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#7A7265',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    padding: '4px 8px',
+                    borderRadius: 6,
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLElement).style.color = '#1A1612';
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLElement).style.color = '#7A7265';
+                  }}
+                >
+                  Cancel & Close
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

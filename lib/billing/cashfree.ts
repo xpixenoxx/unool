@@ -245,6 +245,197 @@ export async function payOrderWithUpi(
   return data;
 }
 
+export interface CardPaymentDetails {
+  cardNumber: string;
+  cardHolder: string;
+  expiryMonth: string;
+  expiryYear: string;
+  cvv: string;
+}
+
+/**
+ * Initiate a Card payment request for an existing order session.
+ * Submits card data directly via S2S API and returns 3DS redirect/action.
+ */
+export async function payOrderWithCard(
+  paymentSessionId: string,
+  card: CardPaymentDetails
+): Promise<{
+  action?: string;
+  data?: { url?: string; [key: string]: any };
+  cf_payment_id?: string;
+  payment_status?: string;
+  message?: string;
+}> {
+  const url = `${getBaseUrl()}/orders/sessions`;
+
+  const cleanNumber = card.cardNumber.replace(/\s+/g, '');
+  const cleanExpMonth = card.expiryMonth.padStart(2, '0');
+  const cleanExpYear = card.expiryYear.length === 4 ? card.expiryYear.slice(2) : card.expiryYear;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      ...getHeaders(),
+      'x-client-device': 'desktop',
+    },
+    body: JSON.stringify({
+      payment_session_id: paymentSessionId,
+      payment_method: {
+        card: {
+          channel: 'link',
+          card_number: cleanNumber,
+          card_holder_name: card.cardHolder.trim(),
+          card_expiry_mm: cleanExpMonth,
+          card_expiry_yy: cleanExpYear,
+          card_cvv: card.cvv.trim(),
+        },
+      },
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const errorMsg =
+      data.message ||
+      data.error_details?.error_description ||
+      data.error_details?.message ||
+      `Card payment initiation failed (${response.status})`;
+    logger.error('Cashfree Card payment failed', {
+      status: response.status,
+      errorMsg,
+      data,
+    });
+    throw new Error(errorMsg);
+  }
+
+  logger.info('Cashfree Card payment initiated', {
+    cfPaymentId: data.cf_payment_id,
+    paymentStatus: data.payment_status,
+    action: data.action,
+  });
+
+  return data;
+}
+
+/**
+ * Initiate a UPI QR Code payment request for an existing order session.
+ * Returns dynamic QR payload or URL for scanning with any UPI app.
+ */
+export async function payOrderWithQr(
+  paymentSessionId: string
+): Promise<{
+  action?: string;
+  data?: {
+    url?: string;
+    payload?: { qrcode?: string; [key: string]: any };
+    [key: string]: any;
+  };
+  cf_payment_id?: string;
+  payment_status?: string;
+  message?: string;
+}> {
+  const url = `${getBaseUrl()}/orders/sessions`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      ...getHeaders(),
+      'x-client-device': 'desktop',
+    },
+    body: JSON.stringify({
+      payment_session_id: paymentSessionId,
+      payment_method: {
+        upi: {
+          channel: 'qrcode',
+        },
+      },
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const errorMsg =
+      data.message ||
+      data.error_details?.error_description ||
+      data.error_details?.message ||
+      `QR payment initiation failed (${response.status})`;
+    logger.error('Cashfree QR payment failed', {
+      status: response.status,
+      errorMsg,
+      data,
+    });
+    throw new Error(errorMsg);
+  }
+
+  logger.info('Cashfree QR payment initiated', {
+    cfPaymentId: data.cf_payment_id,
+    paymentStatus: data.payment_status,
+  });
+
+  return data;
+}
+
+/**
+ * Initiate a Netbanking payment request for an existing order session.
+ * Returns the direct bank authentication portal URL.
+ */
+export async function payOrderWithNetbanking(
+  paymentSessionId: string,
+  netbankingCode: number | string
+): Promise<{
+  action?: string;
+  data?: { url?: string; [key: string]: any };
+  cf_payment_id?: string;
+  payment_status?: string;
+  message?: string;
+}> {
+  const url = `${getBaseUrl()}/orders/sessions`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      ...getHeaders(),
+      'x-client-device': 'desktop',
+    },
+    body: JSON.stringify({
+      payment_session_id: paymentSessionId,
+      payment_method: {
+        netbanking: {
+          channel: 'link',
+          netbanking_code: Number(netbankingCode),
+        },
+      },
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const errorMsg =
+      data.message ||
+      data.error_details?.error_description ||
+      data.error_details?.message ||
+      `Netbanking payment initiation failed (${response.status})`;
+    logger.error('Cashfree Netbanking payment failed', {
+      status: response.status,
+      errorMsg,
+      data,
+    });
+    throw new Error(errorMsg);
+  }
+
+  logger.info('Cashfree Netbanking payment initiated', {
+    cfPaymentId: data.cf_payment_id,
+    paymentStatus: data.payment_status,
+    action: data.action,
+  });
+
+  return data;
+}
+
 // ── Webhook Signature Verification ──────────────────────────────
 
 /**
