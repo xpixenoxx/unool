@@ -7,5 +7,5 @@ export { InstagramStoryBar } from './InstagramStoryBar';
 export { StepDots } from './StepDots';
 
 // Design tokens
-export { B, PLATFORM_META, MOTION, SPACING, RADIUS, SHADOW } from './design-tokens';
+export { B, COL, BEAT_COLORS, PLATFORM_META, MOTION, SPACING, RADIUS, SHADOW } from './design-tokens';
 export type { DesignTokens, MotionTokens } from './design-tokens';

@@ -1,0 +1,1066 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=DM+Sans:wght@400;500;600;700&family=Caveat:wght@600&display=swap');
+
+/* ============================================================
+   FLIGHT PLAN — PARCHMENT EDITORIAL DESIGN SYSTEM
+   Boarding pass tickets, starfield flight map & narrative tension arc
+   ============================================================ */
+
+:root {
+  --bg: #F5EFE8;
+  --card: #FFFBF6;
+  --card2: #F0E7DD;
+  --bd: #E3D6C9;
+  --dash: #CDB9A8;
+  --tx: #2A1A1D;
+  --tx2: #5C4448;
+  --mu: #8A7074;
+  --ac: #7A2E40;
+  --onac: #FFFBF6;
+  --btn: #6B1F33;
+  --chip: #6B1F33;
+  --chipd: #EBD3D3;
+  --acbg: #F1DEDA;
+  --ok: #3F7D52;
+  --okbg: #E4F0E7;
+  --wabg: #F6E3D4;
+  --bad: #B0432E;
+  --night: #2A1A1D;
+  --star: #F6EDE6;
+  --bgglow: #EBDDD0;
+  --st1: #4A1624;
+  --st2: #2A0B14;
+  --glow: #E8B4A8;
+  --p1: #F2B8C0;
+  --p2: #E8B4A8;
+  --p3: #D2663F;
+  --now: #C0502F;
+  --chipx: #8A4A2C;
+}
+
+/* Base wrapper */
+.fp-wrap {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 16px 8px 100px;
+  color: var(--tx);
+  font: 400 15px/1.55 "DM Sans", system-ui, sans-serif;
+}
+
+.fp-wrap h1, .fp-wrap h2, .fp-wrap h3 {
+  font-family: "Fraunces", Georgia, serif;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.fp-wrap h1 {
+  font-size: clamp(34px, 5.5vw, 48px);
+  line-height: 1;
+  font-weight: 700;
+  color: var(--tx);
+}
+
+.fp-wrap h2 {
+  font-size: clamp(22px, 3.4vw, 32px);
+  line-height: 1.15;
+  font-weight: 700;
+  color: var(--tx);
+}
+
+.fp-big {
+  font: 700 clamp(28px, 4.5vw, 42px)/1.08 "Fraunces", Georgia, serif;
+  margin: 10px 0 2px;
+}
+
+.fp-sub {
+  color: var(--tx2);
+  margin: 8px 0 0;
+  max-width: 62ch;
+  font-size: 14.5px;
+  line-height: 1.5;
+}
+
+.fp-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+/* Buttons */
+.fp-btn {
+  font: 700 13.5px "Fraunces", Georgia, serif;
+  border: 1px solid var(--bd);
+  background: var(--card);
+  color: var(--tx);
+  padding: 9px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+}
+
+.fp-btn:hover:not(:disabled) {
+  border-color: var(--ac);
+  background: var(--card2);
+}
+
+.fp-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.fp-btn:focus-visible {
+  outline: 2px solid var(--ac);
+  outline-offset: 3px;
+}
+
+.fp-btn.gold {
+  background: var(--btn);
+  color: #FCF8F3;
+  border-color: var(--btn);
+  box-shadow: 0 8px 22px -8px color-mix(in srgb, var(--btn) 55%, transparent);
+}
+
+.fp-btn.gold:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--btn) 85%, black);
+  border-color: color-mix(in srgb, var(--btn) 85%, black);
+}
+
+/* Rows & Controls */
+.fp-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+
+.fp-row .sp {
+  flex: 1;
+}
+
+.fp-stat {
+  color: var(--mu);
+  font-size: 13px;
+}
+
+.fp-stat b {
+  color: var(--tx);
+  font-weight: 600;
+}
+
+/* Switches */
+.fp-sw {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--card);
+  border: 1px solid var(--bd);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 13.5px;
+  cursor: pointer;
+  user-select: none;
+  color: var(--tx);
+  transition: all 0.2s ease;
+}
+
+.fp-sw:hover {
+  border-color: var(--ac);
+}
+
+.fp-sw i {
+  width: 34px;
+  height: 20px;
+  border-radius: 20px;
+  background: var(--bd);
+  position: relative;
+  transition: 0.25s;
+  flex: none;
+}
+
+.fp-sw i:after {
+  content: "";
+  position: absolute;
+  inset: 3px auto 3px 3px;
+  width: 14px;
+  border-radius: 50%;
+  background: #FFFBF6;
+  transition: 0.25s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.fp-sw.on i {
+  background: var(--ok);
+}
+
+.fp-sw.on i:after {
+  transform: translateX(14px);
+}
+
+.fp-sw.amber.on i {
+  background: var(--now);
+}
+
+/* Form inputs */
+.fp-wrap textarea,
+.fp-wrap input[type=time],
+.fp-wrap input[type=date],
+.fp-wrap select {
+  width: 100%;
+  background: var(--card);
+  border: 1px solid var(--bd);
+  border-radius: 12px;
+  color: var(--tx);
+  font: 400 14.5px/1.5 "DM Sans", system-ui, sans-serif;
+  padding: 10px 12px;
+  resize: vertical;
+  margin-top: 4px;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease, outline 0.2s ease;
+}
+
+.fp-wrap textarea:focus,
+.fp-wrap input:focus,
+.fp-wrap select:focus {
+  outline: 2px solid var(--ac);
+  outline-offset: 1px;
+}
+
+.fp-bigt {
+  font-size: 17px !important;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.fp-lb {
+  font-size: 13px;
+  color: var(--mu);
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.fp-chs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 8px 0;
+}
+
+.fp-hint {
+  font-size: 13px;
+  color: var(--mu);
+}
+
+.fp-ch {
+  border: 1px solid var(--bd);
+  background: var(--card);
+  color: var(--tx2);
+  border-radius: 999px;
+  padding: 6px 13px;
+  font: 600 13px "DM Sans", sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.fp-ch:hover {
+  border-color: var(--ac);
+  color: var(--tx);
+}
+
+.fp-ch.on {
+  background: var(--ac);
+  color: var(--onac);
+  border-color: transparent;
+}
+
+/* ─── Starfield Flight Stage ───────────────────────────────── */
+.fp-stage {
+  position: relative;
+  margin-top: 18px;
+  background: radial-gradient(520px 320px at var(--mx, 80%) var(--my, 0%), color-mix(in srgb, var(--glow) 14%, transparent), transparent 65%), linear-gradient(160deg, var(--st1), var(--st2));
+  color: var(--star);
+  border-radius: 26px;
+  padding: 24px 22px 18px;
+  overflow: hidden;
+  box-shadow: 0 30px 70px -36px #2A0B14;
+  transition: filter 0.5s ease;
+}
+
+.fp-stage.hold {
+  filter: saturate(0.3) brightness(0.85);
+}
+
+.fp-sh {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.fp-sh p {
+  margin: 4px 0 0;
+  color: rgba(246, 233, 226, 0.75);
+  font-size: 13.5px;
+}
+
+.fp-tc {
+  font: 700 26px "Fraunces", serif;
+  text-align: right;
+  line-height: 1;
+  color: var(--star);
+}
+
+.fp-tc small {
+  display: block;
+  font: 400 12px "DM Sans", sans-serif;
+  color: rgba(246, 233, 226, 0.6);
+  margin-bottom: 4px;
+}
+
+.fp-tc span {
+  color: rgba(246, 233, 226, 0.45);
+}
+
+.fp-mapw {
+  overflow-x: auto;
+  margin: 10px -8px 0;
+  position: relative;
+}
+
+#fp-map {
+  display: block;
+  min-width: 740px;
+  width: 100%;
+  height: auto;
+}
+
+#fp-map.ghost .fp-nd,
+#fp-map.ghost .fp-pp {
+  opacity: 0.35;
+}
+
+.fp-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+  padding: 20px;
+  min-width: 740px;
+}
+
+.fp-empty p {
+  margin: 0;
+  font: 600 19px "Fraunces", serif;
+  max-width: 34ch;
+  color: var(--star);
+}
+
+.fp-pa {
+  fill: none;
+  stroke: rgba(246, 233, 226, 0.35);
+  stroke-width: 2;
+  stroke-dasharray: 2 9;
+  stroke-linecap: round;
+  animation: fpFlow 1.6s linear infinite;
+}
+
+@keyframes fpFlow {
+  to {
+    stroke-dashoffset: -22;
+  }
+}
+
+.fp-pp {
+  fill: none;
+  stroke: url(#fp-g);
+  stroke-width: 4.5;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 7px var(--glow));
+}
+
+.fp-nd {
+  cursor: pointer;
+  outline: none;
+}
+
+.fp-nd .core {
+  stroke-width: 2.5;
+  transition: stroke-width 0.25s ease;
+}
+
+.fp-nd:hover .core {
+  stroke-width: 5;
+}
+
+.fp-nd .ring {
+  fill: none;
+  stroke-width: 1.5;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.fp-nd.sel .ring {
+  opacity: 0.9;
+}
+
+.fp-nd.today .pl {
+  animation: fpPl 2.2s ease-out infinite;
+  fill: none;
+  stroke-width: 1.5;
+}
+
+@keyframes fpPl {
+  0% {
+    r: 16;
+    opacity: 0.9;
+  }
+  100% {
+    r: 38;
+    opacity: 0;
+  }
+}
+
+.fp-nd text {
+  pointer-events: none;
+}
+
+.fp-nm {
+  font: 700 16px "Fraunces", serif;
+}
+
+.fp-dy {
+  font: 400 12px "DM Sans", sans-serif;
+  fill: rgba(246, 233, 226, 0.65);
+}
+
+.fp-hw {
+  font: 600 22px "Caveat", cursive;
+  fill: var(--p1);
+}
+
+/* Reel bar */
+.fp-reel {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.fp-rb {
+  flex: 1 0 100px;
+  text-align: left;
+  border: 1px solid rgba(246, 233, 226, 0.12);
+  background: rgba(246, 233, 226, 0.04);
+  color: var(--star);
+  border-radius: 12px;
+  padding: 9px 11px;
+  cursor: pointer;
+  font: 700 13px "Fraunces", serif;
+  position: relative;
+  overflow: hidden;
+  transition: 0.25s;
+}
+
+.fp-rb:hover {
+  background: rgba(246, 233, 226, 0.1);
+}
+
+.fp-rb small {
+  display: block;
+  font: 400 11.5px "DM Sans", sans-serif;
+  color: rgba(246, 233, 226, 0.65);
+  margin-top: 2px;
+}
+
+.fp-rb.sel {
+  background: rgba(246, 233, 226, 0.16);
+  border-color: var(--c);
+}
+
+.fp-rb:after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: var(--w, 0%);
+  background: var(--c);
+  transition: width 0.4s ease;
+}
+
+/* ─── Boarding Pass Ticket (.tkt) ──────────────────────────── */
+.fp-tkt {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--sw, 310px);
+  background: var(--card);
+  border: 1px solid var(--bd);
+  border-radius: 20px;
+  box-shadow: 0 18px 40px -28px rgba(90, 14, 32, 0.12);
+  margin-top: 16px;
+  overflow: visible;
+}
+
+.fp-tkt .main {
+  padding: 24px 26px;
+  position: relative;
+}
+
+.fp-tkt .stub {
+  position: relative;
+  padding: 22px;
+  border-left: 2px dashed var(--dash);
+  background: var(--card2);
+  border-radius: 0 20px 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Notches on perforation */
+.fp-tkt .stub:before,
+.fp-tkt .stub:after {
+  content: "";
+  position: absolute;
+  left: -11px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--bd);
+  z-index: 2;
+}
+
+.fp-tkt .stub:before {
+  top: -11px;
+}
+
+.fp-tkt .stub:after {
+  bottom: -11px;
+}
+
+.fp-air {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 11.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mu);
+}
+
+.fp-air i {
+  color: var(--c, var(--ac));
+  font-style: normal;
+  font-size: 13px;
+  margin-right: 4px;
+}
+
+.fp-fld {
+  display: grid;
+  gap: 3px;
+}
+
+.fp-fld > span:first-child {
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--mu);
+  font-weight: 600;
+}
+
+.fp-fld > b {
+  font: 700 17px "Fraunces", serif;
+  color: var(--tx);
+}
+
+.fp-fld > em {
+  font-style: normal;
+  font-size: 12.5px;
+  color: var(--tx2);
+  line-height: 1.35;
+}
+
+.fp-chip {
+  display: inline-block;
+  width: fit-content;
+  padding: 3px 11px;
+  border-radius: 999px;
+  font: 600 12.5px "DM Sans", sans-serif;
+  background: var(--wabg);
+  color: var(--chipx);
+}
+
+.fp-chip.ok {
+  background: var(--okbg);
+  color: var(--ok);
+}
+
+/* Ticket barcode container */
+.fp-bcw {
+  margin: auto 0 0;
+  cursor: pointer;
+  border: 0;
+  background: none;
+  padding: 4px 0 0;
+  text-align: left;
+  color: var(--tx);
+  width: 100%;
+  border-radius: 6px;
+  transition: opacity 0.2s ease;
+}
+
+.fp-bcw svg {
+  display: block;
+  width: 100%;
+  height: 34px;
+  opacity: 0.85;
+}
+
+.fp-bcw .cap {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 5px;
+  font: 500 11px "DM Sans", sans-serif;
+  letter-spacing: 0.12em;
+  color: var(--mu);
+}
+
+.fp-bcw:hover svg {
+  opacity: 1;
+}
+
+.fp-line {
+  margin: 14px 0 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--acbg);
+  color: var(--tx);
+  font-size: 13.5px;
+}
+
+.fp-pv {
+  display: flex;
+  gap: 12px;
+  border: 1px solid var(--bd);
+  border-radius: 14px;
+  padding: 14px;
+  margin-top: 8px;
+  background: var(--card2);
+}
+
+.fp-pv i {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--p1), var(--p3));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-style: normal;
+}
+
+.fp-pv p {
+  margin: 4px 0;
+  white-space: pre-wrap;
+  color: var(--tx);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.fp-pv small {
+  color: var(--mu);
+  font-size: 12px;
+}
+
+/* Cleared for take-off Stamp */
+.fp-stamp {
+  position: absolute;
+  right: 330px;
+  top: 18px;
+  border: 3px solid var(--ok);
+  color: var(--ok);
+  font: 700 14px/1.1 "Fraunces", serif;
+  padding: 7px 12px;
+  border-radius: 10px;
+  transform: rotate(-10deg);
+  animation: fpStamp 0.5s cubic-bezier(0.2, 2, 0.4, 1) both;
+  z-index: 3;
+  background: var(--card);
+  box-shadow: 0 4px 12px rgba(63, 125, 82, 0.15);
+}
+
+@keyframes fpStamp {
+  from {
+    transform: rotate(-10deg) scale(2.4);
+    opacity: 0;
+  }
+}
+
+.fp-g3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.fp-g3 label {
+  font-size: 13px;
+  color: var(--tx2);
+  font-weight: 600;
+  display: block;
+}
+
+@media (max-width: 820px) {
+  .fp-tkt {
+    grid-template-columns: 1fr;
+  }
+  .fp-tkt .stub {
+    border-left: 0;
+    border-top: 2px dashed var(--dash);
+    border-radius: 0 0 20px 20px;
+  }
+  .fp-tkt .stub:before {
+    top: -11px;
+    left: -11px;
+  }
+  .fp-tkt .stub:after {
+    bottom: auto;
+    top: -11px;
+    left: auto;
+    right: -11px;
+  }
+  .fp-stamp {
+    right: 20px;
+    top: 60px;
+  }
+}
+
+/* ─── Calendar Strip (.cal) ─────────────────────────────────── */
+.fp-cal {
+  margin-top: 18px;
+  background: var(--card2);
+  border: 1px solid var(--bd);
+  border-radius: 26px;
+  padding: 18px 16px 20px;
+  overflow-x: auto;
+  transition: filter 0.5s ease;
+}
+
+.fp-cal.hold {
+  filter: saturate(0.3) brightness(0.9);
+}
+
+.fp-cin {
+  min-width: 780px;
+}
+
+.fp-dhs, .fp-cg {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.fp-dh {
+  border: 0;
+  background: transparent;
+  color: var(--mu);
+  font: 600 12px "DM Sans", sans-serif;
+  letter-spacing: 0.12em;
+  padding: 10px 0;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.fp-dh:hover {
+  color: var(--tx);
+  background: rgba(42, 26, 29, 0.04);
+}
+
+.fp-dh.td {
+  box-shadow: inset 0 0 0 1px var(--dash);
+}
+
+.fp-dh.sel {
+  background: var(--btn);
+  color: #FCF8F3;
+  font-weight: 700;
+  box-shadow: none;
+}
+
+.fp-cg {
+  margin-top: 12px;
+}
+
+.fp-ce {
+  position: relative;
+  min-height: 160px;
+  border: 1px dashed var(--dash);
+  border-radius: 18px;
+  padding: 10px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--card);
+  transition: all 0.2s ease;
+}
+
+.fp-ce:hover {
+  border-color: var(--btn);
+  background: var(--card);
+}
+
+.fp-ce.sel {
+  border: 1.5px solid var(--btn);
+  box-shadow: 0 4px 14px rgba(107, 31, 51, 0.12);
+}
+
+.fp-ce:focus-visible {
+  outline: 2px solid var(--ac);
+  outline-offset: 3px;
+}
+
+.fp-dn {
+  font-size: 11.5px;
+  color: var(--mu);
+  margin-bottom: 2px;
+  font-weight: 500;
+}
+
+.fp-ct {
+  font-size: 12px;
+  color: var(--tx2);
+  line-height: 1.35;
+}
+
+.fp-cp {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 9px;
+  border-radius: 9px;
+  font: 600 12.5px "DM Sans", sans-serif;
+  background: var(--chipd);
+  color: var(--tx);
+  border: 1px dashed var(--btn);
+}
+
+.fp-cp i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--c);
+  flex: none;
+}
+
+.fp-cp.s {
+  background: var(--chip);
+  color: #FCF8F3;
+  border-color: transparent;
+}
+
+.fp-now {
+  position: absolute;
+  left: -6px;
+  right: -6px;
+  top: var(--t);
+  border-top: 2px solid var(--now);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.fp-now:before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: -5px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--now);
+}
+
+.fp-now b {
+  position: absolute;
+  right: 0;
+  top: -10px;
+  background: var(--now);
+  color: #fff;
+  font: 700 10px "DM Sans", sans-serif;
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+
+/* ─── Review Screen Bar & Day Cards ────────────────────────── */
+.fp-sbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 10px 0;
+  background: var(--bg);
+}
+
+.fp-sbar button {
+  flex: 1 0 88px;
+  border: 1px solid var(--bd);
+  background: var(--card);
+  color: var(--tx);
+  border-radius: 12px;
+  padding: 7px 10px;
+  text-align: left;
+  font: 700 13px "Fraunces", serif;
+  cursor: pointer;
+  border-top: 3px solid var(--c);
+  transition: all 0.2s ease;
+}
+
+.fp-sbar button:hover {
+  background: var(--card2);
+}
+
+.fp-sbar small {
+  display: block;
+  font: 400 11.5px "DM Sans", sans-serif;
+  color: var(--mu);
+}
+
+.fp-tkt.day {
+  border-left: 5px solid var(--c);
+}
+
+.fp-ok {
+  color: var(--ok);
+}
+
+.fp-bad {
+  color: var(--bad);
+  font-weight: 700;
+}
+
+/* Image Drop Zone */
+.fp-dz {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px dashed var(--c, var(--ac));
+  border-radius: 12px;
+  padding: 14px;
+  cursor: pointer;
+  color: var(--tx2);
+  text-align: center;
+  font-size: 13.5px;
+  transition: background 0.2s ease;
+}
+
+.fp-dz:hover {
+  background: var(--acbg);
+}
+
+.fp-dz em {
+  font-style: normal;
+  background: var(--bd);
+  color: var(--tx);
+  padding: 2px 9px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+/* Sticky Approval Bar */
+.fp-rbar {
+  position: sticky;
+  bottom: 12px;
+  z-index: 25;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 20px;
+  padding: 12px 18px;
+  border-radius: 18px;
+  background: var(--card);
+  border: 1px solid var(--ac);
+  box-shadow: 0 16px 40px -16px rgba(107, 31, 51, 0.2);
+}
+
+.fp-rbar span {
+  flex: 1;
+  font-size: 14px;
+  color: var(--tx2);
+  min-width: 140px;
+}
+
+/* ─── Loader & Progressive Generation ──────────────────────── */
+.fp-steps {
+  list-style: none;
+  padding: 0;
+  margin: 18px 0 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.fp-steps li {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  opacity: 0.35;
+  transition: opacity 0.4s ease;
+  font-size: 13.5px;
+}
+
+.fp-steps li:before {
+  content: "";
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--ac);
+  flex: none;
+}
+
+.fp-steps li.on {
+  opacity: 1;
+  font-weight: 600;
+}
+
+.fp-steps li.on:before {
+  background: var(--ac);
+}
+
+.fp-draw {
+  fill: none;
+  stroke: var(--glow);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-dasharray: 760;
+  stroke-dashoffset: 760;
+  animation: fpDraw 3.4s ease-out forwards;
+}
+
+@keyframes fpDraw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}

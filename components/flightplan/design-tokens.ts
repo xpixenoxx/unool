@@ -84,75 +84,91 @@ export const SHADOW = {
 } as const;
 
 export const B = {
-  // Base surfaces
-  bg:          '#F7F3ED',        // Lighter warm biscuit parchment (from reference design)
-  bgElevated:  '#FAF7F2',        // Raised panels
-  card:        '#FFFDF9',        // Primary card — warm ivory white
-  cardHover:   '#F5EFE2',        // Hover tint
-  cardBorder:  '#EDE7DD',        // Hairline border
-  cardShadow:  '0 2px 8px rgba(61,43,31,0.04), 0 1px 2px rgba(61,43,31,0.06)',
-  cardShadowHover: '0 4px 16px rgba(61,43,31,0.08), 0 2px 4px rgba(61,43,31,0.04)',
+  // Base surfaces (Parchment Palette)
+  bg:          '#F5EFE8',        // Warm parchment cream
+  bgElevated:  '#F0E7DD',        // Raised panels / ticket stub
+  card:        '#FFFBF6',        // Primary card — pure warm ivory white
+  cardHover:   '#F1DEDA',        // Hover tint
+  cardBorder:  '#E3D6C9',        // Hairline border
+  dash:        '#CDB9A8',        // Dashed perforation line
+  cardShadow:  '0 2px 8px rgba(42,26,29,0.04), 0 1px 2px rgba(42,26,29,0.06)',
+  cardShadowHover: '0 4px 16px rgba(42,26,29,0.08), 0 2px 4px rgba(42,26,29,0.04)',
 
-  // Typography — Inter / system sans-serif
-  text:          '#3D2B1F',      // Deep warm espresso
-  textSecondary: '#6B5744',      // Secondary warm brown
-  textMuted:     '#8B7355',      // Helper / placeholder
-  textLight:     '#A8917A',      // Lightest metadata / timestamps
+  // Typography — Fraunces & DM Sans
+  text:          '#2A1A1D',      // Deep warm maroon-espresso
+  textSecondary: '#5C4448',      // Secondary warm brown-maroon
+  textMuted:     '#8A7074',      // Helper / placeholder
+  textLight:     '#A38C89',      // Lightest metadata / timestamps
 
-  // Champagne Gold accent system
-  accent:       '#C4A265',       // Signature champagne gold
-  accentHover:  '#B8962E',       // Darker on hover
-  accentDark:   '#A68B52',       // Active / pressed
-  accentBg:     '#F5EFE2',       // Soft warm gold background
-  accentBgHover:'#EDE5D3',       // Accent bg hover
-  accentBorder: '#E5D9C3',       // Accent hairline border
-  accentGlow:   'rgba(196,162,101,0.22)',
+  // Rich Maroon / Burgundy accent system (Parchment Palette)
+  accent:       '#7A2E40',       // Rich rose-maroon accent
+  accentHover:  '#6B1F33',       // Darker burgundy on hover
+  accentDark:   '#4A1624',       // Deep wine active
+  accentBg:     '#F1DEDA',       // Soft rose-cream background
+  accentBgHover:'#EBD3D3',       // Accent bg hover
+  accentBorder: '#E3D6C9',       // Accent hairline border
+  accentGlow:   'rgba(122,46,64,0.22)',
+  btn:          '#6B1F33',       // Burgundy primary button
 
-  // Hero Ribbon Surface (Espresso dark luxury banner)
-  heroBg:       'linear-gradient(135deg, #3D2B1F 0%, #4E3828 100%)',
-  heroText:     '#E8D9B5',
+  // Starfield Flight Stage (Deep wine luxury starfield)
+  st1:          '#4A1624',       // Stage top
+  st2:          '#2A0B14',       // Stage bottom
+  heroBg:       'linear-gradient(160deg, #4A1624 0%, #2A0B14 100%)',
+  heroText:     '#F6EDE6',
+  glow:         '#E8B4A8',       // Trajectory glow stroke
 
   // Status: success / published
-  success:       '#4A8C5C',
-  successBg:     '#EBF5EE',
+  success:       '#3F7D52',
+  successBg:     '#E4F0E7',
   successBorder: '#C5E0CE',
-  successGlow:   'rgba(74,140,92,0.18)',
+  successGlow:   'rgba(63,125,82,0.18)',
 
   // Status: info
-  info:          '#4A76A8',
+  info:          '#5B8FC9',
   infoBg:        '#EBF0F7',
   infoBorder:    '#C9D9ED',
-  infoGlow:      'rgba(74,118,168,0.18)',
+  infoGlow:      'rgba(91,143,201,0.18)',
 
   // Status: warning / held
-  warning:       '#C49B3C',
-  warningBg:     '#FBF5E6',
-  warningBorder: '#F5E5BE',
-  warningGlow:   'rgba(196,155,60,0.22)',
+  warning:       '#C98A3A',
+  warningBg:     '#F6E3D4',
+  warningBorder: '#E3D6C9',
+  warningGlow:   'rgba(201,138,58,0.22)',
 
   // Status: danger / validation error
-  danger:        '#B85450',
+  danger:        '#B0432E',
   dangerBg:      '#FBEDED',
   dangerBorder:  '#EFC7C6',
-  dangerGlow:    'rgba(184,84,80,0.18)',
+  dangerGlow:    'rgba(176,67,46,0.18)',
 
   // Utility
-  border:      '#EDE7DD',
-  borderLight: '#F3EDE6',
-  inputBg:     '#FFFFFF',
-  glass:       'rgba(255,253,249,0.92)',
-  glassBorder: '#EDE7DD',
-  overlay:     'rgba(45,31,20,0.35)',
+  border:      '#E3D6C9',
+  borderLight: '#F0E7DD',
+  inputBg:     '#FFFBF6',
+  glass:       'rgba(255,251,246,0.92)',
+  glassBorder: '#E3D6C9',
+  overlay:     'rgba(42,26,29,0.35)',
+  now:         '#C0502F',
 } as const;
 
+export const COL = [
+  '#C0607A', // Monday: Dusty Rose
+  '#CC6B43', // Tuesday: Terracotta
+  '#C05A4C', // Wednesday: Brick Red
+  '#5E9E70', // Thursday: Forest Sage
+  '#9A6B8E', // Friday: Mauve Violet (Peak / CTA)
+  '#5B8FC9', // Saturday: Cerulean
+  '#C98A3A', // Sunday: Amber
+];
+
 export const BEAT_COLORS: Record<string, string> = {
-  Hook: '#C4A265',      // Beat 1: Hook (Gold)
-  Context: '#B8794B',   // Beat 2: Context (Copper)
-  Challenge: '#C0554F', // Beat 3: Challenge (Terracotta)
-  Proof: '#4A9C62',     // Beat 4: Proof (Emerald / Sage)
-  CTA: '#9A6B8E',       // Beat 5: CTA (Mauve / Violet)
-  Community: '#3B82F6', // Beat 6: Community (Cobalt / Ocean)
-  Horizon: '#D97706',   // Beat 7: Horizon (Amber Glow)
+  Hook: '#C0607A',
+  Context: '#CC6B43',
+  Challenge: '#C05A4C',
+  Proof: '#5E9E70',
+  CTA: '#9A6B8E',
+  Community: '#5B8FC9',
+  Horizon: '#C98A3A',
 };
 
 export type DesignTokens = typeof B;

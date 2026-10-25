@@ -1,115 +1,67 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Loader2, X } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { cn } from '@/lib/utils';
-import { format, addDays, startOfWeek, isToday } from 'date-fns';
-import { PlatformBrandLogo, type SupportedPlatformType } from '@/components/dashboard/previews/PlatformMobilePreview';
-import { ContentGuard } from '@/lib/ai/ContentGuard';
+import { format } from 'date-fns';
 import { studioToast } from '@/components/dashboard/StudioToast';
 import { StoryIntake } from './StoryIntake';
 import { ReviewScreen } from './ReviewScreen';
-import { InstagramStoryBar } from './InstagramStoryBar';
 import { WeekCanvas } from './WeekCanvas';
 import { generateClientFallbackArc } from './fallbackArc';
 import { useFlightPlanActions } from '@/hooks/flightplan';
-import { FLIGHTPLAN_CONSTANTS } from '@/types/flightplan';
 import type { WeekArc, ViewMode, PlatformType, StoryIntakeData } from '@/types/flightplan';
-import { B, PLATFORM_META, MOTION, SPACING, RADIUS, SHADOW } from './design-tokens';
+import { B, MOTION } from './design-tokens';
+import './flightplan.css';
 
 interface FlightPlanInnerProps {
   userId: string;
   workspaceId: string;
 }
 
-function WritingWeekView({ platforms = [] }: { platforms?: PlatformType[] }) {
+function WritingWeekView() {
   const [step, setStep] = useState(0);
 
   useEffect(() => {
-    const t1 = setTimeout(() => setStep(1), 600);
-    const t2 = setTimeout(() => setStep(2), 1200);
+    const t1 = setTimeout(() => setStep(1), 1150);
+    const t2 = setTimeout(() => setStep(2), 2300);
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
     };
   }, []);
 
-  const safePlatforms = Array.isArray(platforms) ? platforms : [];
-  const platNames = safePlatforms.length > 0
-    ? safePlatforms.map(p => PLATFORM_META[p]?.name || p).join(', ')
-    : 'Instagram, Facebook, LinkedIn, Threads, X';
-
-  const steps = [
-    'Structuring the weekly beats: hook, context, challenge, proof, call to action',
-    `Tailoring copy for ${platNames}`,
-    'Choosing the best publishing times',
-  ];
-
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.96 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.96 }}
-      transition={MOTION.spring.standard}
-      className="max-w-xl mx-auto py-12 px-6"
-    >
+    <div style={{ marginTop: 24 }}>
       <div
-        className="rounded-3xl p-8 sm:p-12 text-center border relative overflow-hidden"
         style={{
-          backgroundColor: B.card,
-          borderColor: B.cardBorder,
-          boxShadow: SHADOW.lg,
+          background: 'var(--card)',
+          border: '1px solid var(--bd)',
+          borderRadius: 20,
+          padding: 24,
         }}
       >
-        <div
-          className="w-16 h-16 rounded-full mx-auto mb-6 animate-spin"
-          style={{
-            border: `3px solid ${B.accentBorder}`,
-            borderTopColor: B.accent,
-            boxShadow: `0 0 0 8px ${B.accentGlow}`,
-          }}
-        />
-
-        <h2 className="text-2xl font-bold tracking-tight mb-2" style={{ color: B.text }}>
-          Writing your week
-        </h2>
-        <p className="text-sm mb-8" style={{ color: B.textSecondary }}>
-          Synthesizing your turning point into 5 platform-tailored narrative beats.
-        </p>
-
-        <ul className="space-y-3.5 text-left max-w-md mx-auto">
-          {steps.map((text, idx) => {
-            const isDone = step > idx;
-            const isCurrent = step === idx;
-            return (
-              <li
-                key={text}
-                className="flex items-center gap-3 text-sm transition-colors duration-300"
-                style={{
-                  color: isCurrent ? B.text : isDone ? B.textSecondary : B.textMuted,
-                  fontWeight: isCurrent ? 600 : 400,
-                }}
-              >
-                <div
-                  className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold transition-all duration-300"
-                  style={{
-                    backgroundColor: isDone ? B.accent : isCurrent ? B.accentBg : B.cardBorder,
-                    color: isDone ? '#2A1D12' : isCurrent ? B.accent : B.textMuted,
-                    border: isCurrent ? `2px solid ${B.accent}` : isDone ? 'none' : `1.5px solid ${B.border}`,
-                    boxShadow: isCurrent ? `0 0 0 3px ${B.accentGlow}` : 'none',
-                  }}
-                >
-                  {idx + 1}
-                </div>
-                <span>{text}</span>
-              </li>
-            );
-          })}
-        </ul>
+        <h2>Plotting your week</h2>
+        <svg viewBox="0 0 600 120" style={{ width: '100%', marginTop: 14 }}>
+          <path
+            className="fp-draw"
+            d="M10,100 C120,100 140,20 250,30 S380,100 470,60 S560,20 590,30"
+          />
+        </svg>
+        <ol className="fp-steps">
+          <li className={step >= 0 ? 'on' : ''}>
+            Structuring the weekly beats: Hook, Context, Challenge, Proof, CTA
+          </li>
+          <li className={step >= 1 ? 'on' : ''}>
+            Tailoring the copy for your channels
+          </li>
+          <li className={step >= 2 ? 'on' : ''}>
+            Choosing the best publishing time for each day
+          </li>
+        </ol>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -126,13 +78,11 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
   const [isScheduling, setIsScheduling] = useState(false);
   const [isPreviewOnly, setIsPreviewOnly] = useState(false);
   const [storyData, setStoryData] = useState<StoryIntakeData | null>(null);
-  const [postCount, setPostCount] = useState<number>(0);
   const [connectedPlatforms, setConnectedPlatforms] = useState<PlatformType[]>(() => memoryConnectedPlatforms || []);
-  const [activeStoryIndex, setActiveStoryIndex] = useState<number>(0);
-  const [isStoryPaused, setIsStoryPaused] = useState<boolean>(false);
-  const [signalDmEnabled, setSignalDmEnabled] = useState(() => memorySignalDmEnabled ?? false);
+  const [signalDmEnabled, setSignalDmEnabled] = useState(() => memorySignalDmEnabled ?? true);
+  const [isHoldActive, setIsHoldActive] = useState(false);
 
-  const { generate: generateArc, approve: approveArc, loadCanvas } = useFlightPlanActions();
+  const { generate: generateArc, approve: approveArc, loadCanvas, holdQueue } = useFlightPlanActions();
 
   // Load connected platforms
   useEffect(() => {
@@ -154,19 +104,32 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
     loadConnections();
   }, []);
 
-  // Check SignalDM automation status (best-effort, non-blocking)
+  // Check SignalDM automation status
   useEffect(() => {
     if (!workspaceId) return;
     fetch(`/api/instagram/automation?workspaceId=${workspaceId}`, { credentials: 'include' })
-      .then(r => r.ok ? r.json() : null)
+      .then(r => (r.ok ? r.json() : null))
       .then(data => {
-        if (data?.enabled) {
-          memorySignalDmEnabled = true;
-          setSignalDmEnabled(true);
+        if (data && typeof data.enabled === 'boolean') {
+          memorySignalDmEnabled = data.enabled;
+          setSignalDmEnabled(data.enabled);
         }
       })
       .catch(() => {});
   }, [workspaceId]);
+
+  const handleToggleHold = async () => {
+    try {
+      const nextHold = !isHoldActive;
+      const ok = await holdQueue(nextHold, 3);
+      if (ok) {
+        setIsHoldActive(nextHold);
+        studioToast.info(nextHold ? 'Queue held. Scheduled posts paused.' : 'Queue released.');
+      }
+    } catch {
+      studioToast.error('Failed to toggle queue hold.');
+    }
+  };
 
   const handleGenerate = async (data: StoryIntakeData) => {
     setIsGenerating(true);
@@ -186,7 +149,7 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
       }
 
       // Brief animation time so user sees the 3-step checklist
-      await new Promise(r => setTimeout(r, 1200));
+      await new Promise(r => setTimeout(r, 2600));
 
       setIsPreviewOnly(connectedPlatforms.length === 0);
       setArc(generatedArc);
@@ -217,7 +180,11 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
       );
       if (success) {
         if (isPreviewOnly) {
-          studioToast.success('Weekly flight plan scheduled! Connect social accounts in Settings whenever you are ready to publish automatically.');
+          studioToast.success(
+            'Weekly flight plan scheduled! Connect social accounts in Settings whenever you are ready to publish automatically.'
+          );
+        } else {
+          studioToast.success('Flight plan scheduled for 7 days across your channels.');
         }
         setView('canvas');
         setArc(null);
@@ -231,117 +198,82 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-0 space-y-6 min-h-screen" style={{ color: B.text }}>
-      {/* Page header */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
+    <main className="fp-wrap">
+      {/* ─── Top Header (.top) ─── */}
+      <div className="fp-top">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight" style={{ color: B.text }}>Flight Plan</h1>
-          <p className="text-sm mt-0.5" style={{ color: B.textSecondary }}>
-            Plan and schedule your weekly narrative across all connected channels.
+          <h1>
+            Flight{' '}
+            <em style={{ fontStyle: 'italic', fontWeight: 600, color: 'var(--ac)' }}>Plan</em>
+          </h1>
+          <p className="fp-sub">
+            One story, seven days. Tell us the turning point and we’ll plot the week across your channels.
           </p>
         </div>
-        {view === 'canvas' ? (
-          <button
-            onClick={() => setView('story')}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-full font-semibold text-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-            style={{
-              background: `linear-gradient(180deg, #DFBE7A 0%, ${B.accent} 100%)`,
-              color: '#2A1D12',
-              border: `1px solid ${B.accentHover}`,
-              boxShadow: `0 1px 0 rgba(255,255,255,0.5) inset, 0 4px 12px ${B.accentGlow}`,
-            }}
-          >
-            + Plan new week
-          </button>
-        ) : (
-          <button
-            onClick={() => { setView('canvas'); setArc(null); }}
-            className="flex items-center gap-2 px-4 py-2 rounded-full font-semibold text-sm transition-colors border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-            style={{
-              backgroundColor: B.card,
-              borderColor: B.border,
-              color: B.textSecondary,
-            }}
-          >
-            Cancel and exit
-          </button>
-        )}
+
+        <button
+          type="button"
+          className="fp-btn gold"
+          onClick={() => {
+            if (view === 'canvas') {
+              setView('story');
+            } else {
+              setView('canvas');
+              setArc(null);
+            }
+          }}
+        >
+          {view === 'canvas' ? '+ Plan new week' : 'Cancel and exit'}
+        </button>
       </div>
 
-      {/* SignalDM Active Banner */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={MOTION.spring.standard}
-        className="flex items-center gap-3 px-4 py-2.5 rounded-2xl border flex-wrap text-sm"
-        style={{
-          backgroundColor: B.accentBg,
-          borderColor: B.accentBorder,
-          color: B.textSecondary,
-        }}
-      >
-        <span
-          className="w-2 h-2 rounded-full flex-shrink-0"
-          style={{
-            backgroundColor: B.success,
-            boxShadow: `0 0 0 4px ${B.success}33`,
-          }}
-        />
-        <span className="flex-1">
-          <strong style={{ color: B.text }}>SignalDM is on.</strong> Comments on your scheduled Instagram and Facebook posts get AI conversation flows automatically.
-        </span>
-        <a
-          href="/dashboard/automation"
-          className="text-xs font-semibold ml-auto underline underline-offset-4 transition-opacity hover:opacity-80"
-          style={{ color: B.accentHover }}
-        >
-          Manage automation
-        </a>
-      </motion.div>
-
-      {/* Story intake manages its own unified 3-step breadcrumb — no duplicate bar here */}
-
-      {view === 'review' && arc && (
+      {/* ─── Switches Row (.row) ─── */}
+      <div className="fp-row">
         <div
-          className="sticky top-3 z-30 p-3 rounded-2xl border backdrop-blur-md shadow-sm"
-          style={{ backgroundColor: B.glass, borderColor: B.glassBorder }}
+          className={`fp-sw ${signalDmEnabled ? 'on' : ''}`}
+          role="switch"
+          aria-checked={signalDmEnabled}
+          tabIndex={0}
+          onClick={() => {
+            const next = !signalDmEnabled;
+            setSignalDmEnabled(next);
+            studioToast.info(
+              next ? 'SignalDM is on' : 'SignalDM paused. Comments won’t start conversations.'
+            );
+          }}
         >
-          <InstagramStoryBar
-            posts={(arc?.weekPosts || []).filter(p => !p.deleted)}
-            currentIndex={activeStoryIndex}
-            onSelectIndex={(idx) => {
-              setActiveStoryIndex(idx);
-              const el = document.getElementById(`arc-post-${idx}`);
-              if (el) {
-                const headerOffset = 110;
-                const elementPosition = el.getBoundingClientRect().top;
-                const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
-                window.scrollTo({
-                  top: offsetPosition,
-                  behavior: 'smooth'
-                });
-              }
-            }}
-          />
+          <i />
+          <span>
+            <b>SignalDM is on</b> – comments on scheduled posts start an AI conversation
+          </span>
         </div>
-      )}
 
-      {/* Views */}
+        <div
+          className={`fp-sw amber ${isHoldActive ? 'on' : ''}`}
+          role="switch"
+          aria-checked={isHoldActive}
+          tabIndex={0}
+          onClick={handleToggleHold}
+        >
+          <i />
+          <span>{isHoldActive ? 'Queue held' : 'Hold my queue'}</span>
+        </div>
+      </div>
+
+      {/* ─── View Routing ─── */}
       <AnimatePresence mode="wait">
-        {isGenerating && (
-          <WritingWeekView
-            key="generating"
-            platforms={storyData?.selectedPlatforms || connectedPlatforms || []}
-          />
-        )}
+        {isGenerating && <WritingWeekView key="generating" />}
+
         {!isGenerating && view === 'story' && (
           <StoryIntake
             key="story"
             onGenerate={handleGenerate}
             isGenerating={isGenerating}
             connectedPlatforms={connectedPlatforms}
+            onCancel={() => setView('canvas')}
           />
         )}
+
         {!isGenerating && view === 'review' && arc && (
           <ReviewScreen
             key="review"
@@ -351,33 +283,38 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
             onApprove={handleApprove}
             onBack={() => setView('story')}
             isScheduling={isScheduling}
-            activeStoryIndex={activeStoryIndex}
-            onStoryIndexChange={setActiveStoryIndex}
-            onStoryHoverChange={setIsStoryPaused}
           />
         )}
+
         {!isGenerating && view === 'canvas' && (
           <WeekCanvas
             key="canvas"
             workspaceId={workspaceId}
             targetPostId={targetPostId}
             onNewArc={() => setView('story')}
-            onPostCountChange={setPostCount}
           />
         )}
       </AnimatePresence>
-    </div>
+    </main>
   );
 }
 
 /* ─── Wrapper with Suspense ─── */
-export default function FlightPlanClient({ userId, workspaceId }: { userId: string; workspaceId: string }) {
+export default function FlightPlanClient({
+  userId,
+  workspaceId,
+}: {
+  userId: string;
+  workspaceId: string;
+}) {
   return (
-    <Suspense fallback={
-      <div className="max-w-3xl mx-auto px-4 py-8 flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-6 h-6 animate-spin" style={{ color: B.textMuted }} />
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="max-w-3xl mx-auto px-4 py-16 flex items-center justify-center min-h-[60vh]">
+          <Loader2 className="w-6 h-6 animate-spin" style={{ color: B.textMuted }} />
+        </div>
+      }
+    >
       <FlightPlanInner userId={userId} workspaceId={workspaceId} />
     </Suspense>
   );

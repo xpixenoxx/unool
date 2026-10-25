@@ -1,20 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Button } from '@/components/ui/button';
-import {
-  ChevronLeft, ChevronRight, Loader2, Calendar, Clock, PauseCircle, PlayCircle,
-  Trash2, MoreHorizontal, Edit3, Film, Play, Sparkles
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { format, addDays, startOfWeek, isToday, endOfWeek, addWeeks } from 'date-fns';
-import { PlatformBrandLogo, type SupportedPlatformType } from '@/components/dashboard/previews/PlatformMobilePreview';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { format, addDays, startOfWeek, isToday } from 'date-fns';
 import { ScheduledPostModal } from './ScheduledPostModal';
+import { BarcodeTicket } from './ui/BarcodeTicket';
 import { useFlightPlanActions } from '@/hooks/flightplan';
-import { FLIGHTPLAN_CONSTANTS } from '@/types/flightplan';
+import { studioToast } from '@/components/dashboard/StudioToast';
 import type { CanvasPost } from '@/types/flightplan';
-import { B, PLATFORM_META, BEAT_COLORS, MOTION, SPACING, RADIUS, SHADOW } from './design-tokens';
+import { B, COL, BEAT_COLORS, PLATFORM_META } from './design-tokens';
 
 interface WeekCanvasProps {
   workspaceId: string;
@@ -23,8 +16,43 @@ interface WeekCanvasProps {
   onPostCountChange?: (count: number) => void;
 }
 
-// ── In-Memory SWR Cache for 0ms Route Switching ──────────────────
-const memoryCanvasPostsByWeek = new Map<number, CanvasPost[]>();
+const BEATS = ['Hook', 'Context', 'Challenge', 'Proof', 'CTA', 'Community', 'Horizon'];
+const SUBS = [
+  'The disruption',
+  'The backstory',
+  'The breakthrough',
+  'Evidence and data',
+  'The direct call',
+  'Weekend dialogue',
+  'The next chapter',
+];
+const TEN = [55, 28, 78, 58, 92, 45, 70];
+const MN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const DN = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+function catmull(p: number[][]): string[] {
+  const s: string[] = [];
+  for (let i = 0; i < p.length - 1; i++) {
+    const a = p[Math.max(i - 1, 0)];
+    const b = p[i];
+    const c = p[i + 1];
+    const d = p[Math.min(i + 2, p.length - 1)];
+    s.push(
+      `C${b[0] + (c[0] - a[0]) / 6},${b[1] + (c[1] - a[1]) / 6} ${c[0] - (d[0] - b[0]) / 6},${c[1] - (d[1] - b[1]) / 6} ${c[0]},${c[1]}`
+    );
+  }
+  return s;
+}
+
+const two = (n: number) => String(n).padStart(2, '0');
+
+// Fixed star coordinates for reproducible starfield
+const STARS = Array.from({ length: 46 }, (_, i) => ({
+  cx: ((i * 137 + 45) % 960) + 20,
+  cy: ((i * 83 + 27) % 280) + 15,
+  r: (((i * 17) % 13) / 10 + 0.3).toFixed(1),
+  opacity: (((i * 23) % 50) / 100 + 0.15).toFixed(2),
+}));
 
 export function WeekCanvas({
   workspaceId,
@@ -32,167 +60,64 @@ export function WeekCanvas({
   onNewArc,
   onPostCountChange,
 }: WeekCanvasProps) {
-  const [posts, setPosts] = useState<CanvasPost[]>(() => memoryCanvasPostsByWeek.get(0) || []);
-  const [isLoading, setIsLoading] = useState(() => !memoryCanvasPostsByWeek.has(0));
+  const [posts, setPosts] = useState<CanvasPost[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [weekOffset, setWeekOffset] = useState(0);
-  const [isHolding, setIsHolding] = useState(false);
-  const [holdActive, setHoldActive] = useState(false);
+  const [sel, setSel] = useState<number>(() => {
+    const day = (new Date().getDay() + 6) % 7;
+    return day;
+  });
   const [selectedPost, setSelectedPost] = useState<CanvasPost | null>(null);
   const [hasOpenedTargetPost, setHasOpenedTargetPost] = useState(false);
-  const [selectedMobileDay, setSelectedMobileDay] = useState<string | null>(null);
-  const [activePlayheadDay, setActivePlayheadDay] = useState<number | null>(null);
-  const [isPlayingTimeline, setIsPlayingTimeline] = useState(false);
-
-  const handlePlayTimeline = useCallback(() => {
-    if (isPlayingTimeline) return;
-    setIsPlayingTimeline(true);
-    let step = 0;
-    setActivePlayheadDay(0);
-    const interval = setInterval(() => {
-      step++;
-      if (step < 7) {
-        setActivePlayheadDay(step);
-      } else {
-        clearInterval(interval);
-        setIsPlayingTimeline(false);
-        setActivePlayheadDay(null);
-      }
-    }, 450);
-  }, [isPlayingTimeline]);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   const { loadCanvas, holdQueue, cancelPost } = useFlightPlanActions();
+
+  // SVG Flight Map animation refs
+  const mapSvgRef = useRef<SVGSVGElement | null>(null);
+  const paPathRef = useRef<SVGPathElement | null>(null);
+  const ppPathRef = useRef<SVGPathElement | null>(null);
+  const mkGroupRef = useRef<SVGGElement | null>(null);
+  const animFrameRef = useRef<number | null>(null);
+  const playIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const stageRef = useRef<HTMLDivElement | null>(null);
 
   const weekStart = useMemo(() => {
     const monday = startOfWeek(new Date(), { weekStartsOn: 1 });
     return addDays(monday, weekOffset * 7);
   }, [weekOffset]);
 
-  const weekDays = useMemo(() =>
-    Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
+  const weekDays = useMemo(
+    () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
     [weekStart]
   );
 
   const loadWeekCanvas = useCallback(async () => {
-    // Only show loading if we don't have this week cached in memory
-    if (!memoryCanvasPostsByWeek.has(weekOffset)) {
-      setIsLoading(true);
-    }
+    setIsLoading(true);
     try {
       const loadedPosts = await loadCanvas(weekOffset);
-      memoryCanvasPostsByWeek.set(weekOffset, loadedPosts);
-      setPosts(loadedPosts);
-      onPostCountChange?.(loadedPosts.length);
+      setPosts(loadedPosts || []);
+      onPostCountChange?.(loadedPosts?.length || 0);
     } catch {
-      // Error handled in hook
+      // silent
     } finally {
       setIsLoading(false);
     }
   }, [weekOffset, loadCanvas, onPostCountChange]);
 
-  useEffect(() => { loadWeekCanvas(); }, [loadWeekCanvas]);
+  useEffect(() => {
+    loadWeekCanvas();
+  }, [loadWeekCanvas]);
 
-  // If targetPostId is present in URL, find or fetch it and auto-open it in ScheduledPostModal
+  // Target post auto-open
   useEffect(() => {
     if (!targetPostId || hasOpenedTargetPost) return;
-
-    // Check if post is already present in loaded week posts
     const existing = posts.find(p => p.postId === targetPostId);
     if (existing) {
       setSelectedPost(existing);
       setHasOpenedTargetPost(true);
-      return;
     }
-
-    // Otherwise fetch post directly from /api/publish/[postId]
-    let isCancelled = false;
-    async function fetchTargetPost() {
-      try {
-        const res = await fetch(`/api/publish/${targetPostId}`);
-        if (!res.ok) return;
-        const data = await res.json();
-        if (isCancelled || !data?.post) return;
-
-        const p = data.post;
-        const variants = data.variants || [];
-
-        const targetCanvasPost: CanvasPost = {
-          postId: p.id,
-          content: p.content,
-          status: p.status,
-          scheduledAt: p.scheduledAt || null,
-          scheduleStrategy: p.scheduleStrategy || 'simultaneous',
-          arcId: p.arcId || null,
-          platforms: variants.map((v: any) => ({
-            variantId: v.id,
-            platform: v.platform,
-            content: v.adaptedContent || v.content || '',
-            status: v.status,
-            scheduledAt: v.scheduledAt || null,
-            autoFirstComment: v.autoFirstComment || null,
-            firstCommentHint: v.firstCommentHint || null,
-            mediaUrls: v.mediaUrls || [],
-            hashtags: v.hashtagStrategy || [],
-            error: v.error,
-          })),
-        };
-
-        if (targetCanvasPost.scheduledAt) {
-          const postDate = new Date(targetCanvasPost.scheduledAt);
-          const currentMonday = startOfWeek(new Date(), { weekStartsOn: 1 });
-          const postMonday = startOfWeek(postDate, { weekStartsOn: 1 });
-          const diffDays = Math.round((postMonday.getTime() - currentMonday.getTime()) / (1000 * 60 * 60 * 24));
-          const offset = Math.round(diffDays / 7);
-          if (offset >= 0 && offset <= 1) {
-            setWeekOffset(offset);
-          }
-        }
-
-        setSelectedPost(targetCanvasPost);
-        setHasOpenedTargetPost(true);
-      } catch {
-        // silent
-      }
-    }
-
-    fetchTargetPost();
-    return () => { isCancelled = true; };
   }, [targetPostId, posts, hasOpenedTargetPost]);
-
-  const handleCancel = useCallback(async (postId: string) => {
-    const confirmed = window.confirm('Delete this scheduled post?');
-    if (!confirmed) return;
-
-    // Optimistically remove from state so the card vanishes immediately without screen flicker
-    setPosts(prev => prev.filter(p => p.postId !== postId));
-    if (selectedPost?.postId === postId) {
-      setSelectedPost(null);
-    }
-
-    try {
-      const success = await cancelPost(postId);
-      if (success) {
-        const loadedPosts = await loadCanvas(weekOffset);
-        setPosts(loadedPosts);
-        onPostCountChange?.(loadedPosts.length);
-      } else {
-        loadWeekCanvas();
-      }
-    } catch {
-      loadWeekCanvas();
-    }
-  }, [cancelPost, loadCanvas, weekOffset, selectedPost, onPostCountChange, loadWeekCanvas]);
-
-  const handleHold = useCallback(async () => {
-    setIsHolding(true);
-    try {
-      const success = await holdQueue(!holdActive, 3);
-      if (success) {
-        setHoldActive(!holdActive);
-      }
-    } finally {
-      setIsHolding(false);
-    }
-  }, [holdActive, holdQueue]);
 
   const postsByDay = useMemo(() => {
     const map = new Map<string, CanvasPost[]>();
@@ -213,634 +138,586 @@ export function WeekCanvas({
     return s.size || 1;
   }, [posts]);
 
-  const nextPost = useMemo(() => {
-    const unpub = posts
-      .filter(p => p.status === 'scheduled' && p.scheduledAt)
-      .sort((a, b) => new Date(a.scheduledAt!).getTime() - new Date(b.scheduledAt!).getTime())[0];
-    if (!unpub || !unpub.scheduledAt) return null;
-    const d = new Date(unpub.scheduledAt);
-    const platform = unpub.platforms[0]?.platform || 'instagram';
-    const meta = PLATFORM_META[platform];
-    return {
-      platformName: meta?.name || platform,
-      dayLabel: format(d, 'EEE'),
-      timeFormatted: format(d, 'h:mm a'),
-    };
-  }, [posts]);
+  // Catmull points & curve
+  const points = useMemo(() => {
+    return BEATS.map((_, i) => [80 + i * 140, 330 - TEN[i] * 2.6]);
+  }, []);
 
-  const statusColor = (status: string) => {
-    if (status === 'published') return B.success;
-    if (status === 'failed') return B.danger;
-    if (status === 'scheduled') return B.info;
-    return B.textMuted;
+  const splineD = useMemo(() => {
+    const s = catmull(points);
+    return 'M' + points[0].join(',') + s.join('');
+  }, [points]);
+
+  // Max peak index
+  const peakIdx = useMemo(() => {
+    return TEN.reduce((maxI, t, i) => (t > TEN[maxI] ? i : maxI), 0);
+  }, []);
+
+  // Update airplane position along the curve
+  const placeAirplane = useCallback((targetLength: number, totalLength: number) => {
+    const pa = paPathRef.current;
+    const mk = mkGroupRef.current;
+    const pp = ppPathRef.current;
+    if (!pa || !mk) return;
+
+    const q = pa.getPointAtLength(targetLength);
+    const r = pa.getPointAtLength(Math.min(targetLength + 3, totalLength));
+    const o = pa.getPointAtLength(Math.max(targetLength - 3, 0));
+    const angle = (Math.atan2(r.y - o.y, r.x - o.x) * 180) / Math.PI;
+
+    mk.setAttribute('transform', `translate(${q.x},${q.y}) rotate(${angle})`);
+
+    if (pp) {
+      pp.style.strokeDasharray = `${totalLength}`;
+      pp.style.strokeDashoffset = `${totalLength - targetLength}`;
+    }
+  }, []);
+
+  // Fly animation to day index
+  const flyToDay = useCallback((targetIndex: number) => {
+    const pa = paPathRef.current;
+    if (!pa) return;
+    const total = pa.getTotalLength();
+    const targetRatio = targetIndex / 6;
+    const targetLength = total * targetRatio;
+
+    placeAirplane(targetLength, total);
+  }, [placeAirplane]);
+
+  useEffect(() => {
+    flyToDay(sel);
+  }, [sel, flyToDay]);
+
+  // Play Timeline auto-stepper
+  const togglePlayTimeline = () => {
+    if (isPlaying) {
+      if (playIntervalRef.current) clearInterval(playIntervalRef.current);
+      playIntervalRef.current = null;
+      setIsPlaying(false);
+      return;
+    }
+
+    setIsPlaying(true);
+    setSel(0);
+
+    let curStep = 0;
+    playIntervalRef.current = setInterval(() => {
+      curStep++;
+      if (curStep <= 6) {
+        setSel(curStep);
+      } else {
+        if (playIntervalRef.current) clearInterval(playIntervalRef.current);
+        playIntervalRef.current = null;
+        setIsPlaying(false);
+      }
+    }, 1500);
+  };
+
+  const handleDaySelect = (i: number) => {
+    if (isPlaying) {
+      if (playIntervalRef.current) clearInterval(playIntervalRef.current);
+      playIntervalRef.current = null;
+      setIsPlaying(false);
+    }
+    setSel(i);
+  };
+
+  // Stage pointer ambient radial glow
+  const handleStagePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    e.currentTarget.style.setProperty('--mx', `${e.clientX - r.left}px`);
+    e.currentTarget.style.setProperty('--my', `${e.clientY - r.top}px`);
+  };
+
+  // Selected day data
+  const selDate = weekDays[sel] || new Date();
+  const selDateKey = format(selDate, 'yyyy-MM-dd');
+  const selPost = postsByDay.get(selDateKey)?.[0] || null;
+  const isSelScheduled = !!selPost;
+  const selColor = COL[sel] || '#C0607A';
+  const selBeat = BEATS[sel] || 'Hook';
+  const selSub = SUBS[sel] || 'The disruption';
+
+  const scheduledTimeFormatted = useMemo(() => {
+    if (!selPost?.scheduledAt) return '18:00';
+    try {
+      const d = new Date(selPost.scheduledAt);
+      const h = d.getHours();
+      const m = d.getMinutes();
+      return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
+    } catch {
+      return '18:00';
+    }
+  }, [selPost]);
+
+  const ticketId = useMemo(() => {
+    const d = selDate;
+    const timeStr = selPost?.scheduledAt
+      ? format(new Date(selPost.scheduledAt), 'HHmm')
+      : '1800';
+    return isSelScheduled
+      ? `FP-${two(d.getMonth() + 1)}${two(d.getDate())}-D${sel + 1}-${timeStr}`
+      : 'FP-OPEN-SKY';
+  }, [selDate, sel, selPost, isSelScheduled]);
+
+  // Current real-time line position percentage (0–100%)
+  const nowPercent = useMemo(() => {
+    const n = new Date();
+    return (((n.getHours() * 60 + n.getMinutes()) / 1440) * 100).toFixed(1);
+  }, []);
+
+  const handleUnschedulePost = async () => {
+    if (!selPost) return;
+    const confirmed = window.confirm('Delete this scheduled flight plan post?');
+    if (!confirmed) return;
+
+    try {
+      const ok = await cancelPost(selPost.postId);
+      if (ok) {
+        studioToast.success('Post removed from flight plan.');
+        loadWeekCanvas();
+      }
+    } catch {
+      studioToast.error('Failed to cancel post.');
+    }
   };
 
   return (
     <div className="space-y-6">
-      {/* ─── Toolbar (matches reference .bar .wk .cnt) ─── */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-2">
-          {/* Week Selector Pill */}
-          <div
-            className="flex items-center gap-1 p-1 rounded-full border shadow-xs"
-            style={{ backgroundColor: B.card, borderColor: B.border }}
-          >
-            <button
-              onClick={() => setWeekOffset(w => Math.max(0, w - 1))}
-              disabled={weekOffset <= 0}
-              className="w-7 h-7 rounded-full flex items-center justify-center transition-colors hover:bg-black/5 disabled:opacity-30 disabled:cursor-not-allowed"
-              style={{ color: B.textSecondary }}
-              aria-label="Previous week"
-            >
-              ‹
-            </button>
-            <span className="px-3 text-xs sm:text-sm font-semibold text-center min-w-[130px] sm:min-w-[150px]" style={{ color: B.text }}>
-              {format(weekStart, 'MMM d')} – {format(addDays(weekStart, 6), 'MMM d, yyyy')}
-            </span>
-            <button
-              onClick={() => setWeekOffset(w => Math.min(1, w + 1))}
-              disabled={weekOffset >= 1}
-              className="w-7 h-7 rounded-full flex items-center justify-center transition-colors hover:bg-black/5 disabled:opacity-30 disabled:cursor-not-allowed"
-              style={{ color: B.textSecondary }}
-              aria-label="Next week"
-            >
-              ›
-            </button>
-          </div>
-
-          {/* Today Button */}
-          <button
-            onClick={() => {
-              setWeekOffset(0);
-              const todayKey = format(new Date(), 'yyyy-MM-dd');
-              setSelectedMobileDay(todayKey);
-            }}
-            className="px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-colors hover:bg-black/5"
-            style={{
-              backgroundColor: weekOffset === 0 ? B.accentBg : B.card,
-              borderColor: weekOffset === 0 ? B.accentBorder : B.border,
-              color: weekOffset === 0 ? B.accentHover : B.textSecondary,
-            }}
-          >
-            Today
-          </button>
-
-          {/* Hold Queue Toggle Button */}
-          <button
-            onClick={handleHold}
-            disabled={isHolding}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all"
-            style={{
-              backgroundColor: holdActive ? B.warningBg : B.card,
-              borderColor: holdActive ? B.warningBorder : B.border,
-              color: holdActive ? B.warning : B.textSecondary,
-            }}
-          >
-            {isHolding ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <span>⏸</span>}
-            <span>{holdActive ? 'Queue Held' : 'Hold my queue'}</span>
-          </button>
-        </div>
-
-        {/* Counter Summary */}
-        <div className="text-xs font-medium ml-auto" style={{ color: B.textMuted }}>
-          {scheduledCount} scheduled · {publishedCount} published · {uniquePlatformsCount} platform{uniquePlatformsCount === 1 ? '' : 's'}
-        </div>
+      {/* ─── Navigation Row (#nav) ─── */}
+      <div className="fp-row" id="nav">
+        <button
+          className="fp-btn"
+          onClick={() => setWeekOffset(w => Math.max(0, w - 1))}
+          disabled={weekOffset <= 0}
+          aria-label="Previous week"
+        >
+          ‹
+        </button>
+        <b style={{ minWidth: 160, textAlign: 'center', fontFamily: '"Fraunces", Georgia, serif', fontSize: 16 }}>
+          {format(weekStart, 'MMM d')} – {format(addDays(weekStart, 6), 'MMM d, yyyy')}
+        </b>
+        <button
+          className="fp-btn"
+          onClick={() => setWeekOffset(w => Math.min(1, w + 1))}
+          disabled={weekOffset >= 1}
+          aria-label="Next week"
+        >
+          ›
+        </button>
+        <button
+          className="fp-btn"
+          onClick={() => {
+            setWeekOffset(0);
+            setSel((new Date().getDay() + 6) % 7);
+          }}
+        >
+          This week
+        </button>
+        <span className="sp" />
+        <span className="fp-stat">
+          <b>{scheduledCount}</b> scheduled, <b>{publishedCount}</b> published, <b>{uniquePlatformsCount}</b> platform
+          {uniquePlatformsCount === 1 ? '' : 's'}
+        </span>
       </div>
 
-      {/* Hold banner */}
-      <AnimatePresence>
-        {holdActive && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={MOTION.spring.standard}
-            className="flex items-center gap-3 px-4 py-3 rounded-2xl text-sm"
-            style={{ backgroundColor: B.warningBg, border: `1px solid ${B.warningBorder}`, color: B.text }}
-          >
-            <PauseCircle className="w-4 h-4 flex-shrink-0" style={{ color: B.warning }} />
-            <span className="flex-1">
-              <strong>Queue is held.</strong> Scheduled posts are paused until you release the queue.
-            </span>
-            <button
-              onClick={handleHold}
-              className="px-3 py-1 rounded-full text-xs font-semibold border bg-white shadow-xs"
-              style={{ color: B.warning, borderColor: B.warningBorder }}
-            >
-              Release queue
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* ─── Week Calendar Strip (.cal) ─── */}
+      {posts.length > 0 && (
+        <section className="fp-cal" aria-label="Week calendar">
+          <div className="fp-cin">
+            <div className="fp-dhs">
+              {DN.map((name, i) => {
+                const dayDate = weekDays[i];
+                const isDayToday = isToday(dayDate);
+                const isDaySel = i === sel;
+                return (
+                  <button
+                    key={name}
+                    className={`fp-dh ${isDaySel ? 'sel' : ''} ${isDayToday ? 'td' : ''}`}
+                    onClick={() => handleDaySelect(i)}
+                  >
+                    {name.toUpperCase()}
+                  </button>
+                );
+              })}
+            </div>
 
-      {/* ─── Cinematic 7-Day Video Timeline Master Engine ─── */}
-      <div
-        className="rounded-2xl p-5 sm:p-6 shadow-xl relative overflow-hidden border border-[#523B2A]"
-        style={{
-          background: 'linear-gradient(135deg, #1C150F 0%, #291D15 50%, #201710 100%)',
-          boxShadow: '0 16px 40px -8px rgba(28,21,15,0.45)',
-        }}
-      >
-        {/* Filmstrip top perforation bar */}
-        <div className="flex items-center justify-between gap-2 pb-3 mb-3 border-b border-[#3D2C1F]/80 flex-wrap">
-          <div className="flex items-center gap-3 flex-wrap">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold tracking-wider uppercase bg-[#C4A265]/15 text-[#E5C77A] border border-[#C4A265]/30">
-              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
-              TIMELINE REEL · 7 EPISODES
-            </span>
-            <span className="hidden md:inline-block text-[11px] font-mono text-[#A8917A]">
-              00:07:00 MASTER AIR TIMECODE
-            </span>
+            <div className="fp-cg">
+              {DN.map((name, i) => {
+                const dayDate = weekDays[i];
+                const dayKey = format(dayDate, 'yyyy-MM-dd');
+                const dayPost = postsByDay.get(dayKey)?.[0];
+                const isDayToday = isToday(dayDate);
+                const isDaySel = i === sel;
+                const pColor = COL[i] || '#C0607A';
+
+                return (
+                  <div
+                    key={name}
+                    className={`fp-ce ${isDaySel ? 'sel' : ''}`}
+                    onClick={() => handleDaySelect(i)}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`${name} ${dayDate.getDate()}`}
+                  >
+                    <span className="fp-dn">
+                      {dayDate.getDate()} {MN[dayDate.getMonth()]}
+                    </span>
+
+                    {dayPost && (
+                      <>
+                        <span className="fp-cp s" style={{ ['--c' as any]: pColor }}>
+                          <i />
+                          {dayPost.scheduleStrategy || BEATS[i]}
+                        </span>
+                        <span className="fp-ct">
+                          {format(new Date(dayPost.scheduledAt || dayDate), 'h:mm a')} ·{' '}
+                          {PLATFORM_META[dayPost.platforms[0]?.platform]?.name || 'Social'}
+                        </span>
+                        <span className="fp-ct">
+                          {dayPost.status === 'scheduled' ? 'Scheduled' : 'Draft'}
+                          {dayPost.platforms[0]?.mediaUrls?.length
+                            ? ` · ${dayPost.platforms[0].mediaUrls.length} media`
+                            : ' · text only'}
+                        </span>
+                      </>
+                    )}
+
+                    {isDayToday && (
+                      <div className="fp-now" style={{ ['--t' as any]: `${nowPercent}%` }}>
+                        <b>now</b>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ─── Starfield Flight Stage (.stage) ─── */}
+      <section className="fp-stage" ref={stageRef} onPointerMove={handleStagePointerMove}>
+        <div className="fp-sh">
+          <div>
+            <h2>The story arc, in flight</h2>
+            <p>Height is story tension. Click a day, or press play to watch the week unfold.</p>
           </div>
 
-          <div className="flex items-center gap-3 flex-wrap">
+          <div style={{ display: 'flex', gap: 18, alignItems: 'center', flexWrap: 'wrap' }}>
             <button
               type="button"
-              onClick={handlePlayTimeline}
-              disabled={isPlayingTimeline}
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-[#C4A265]/20 hover:bg-[#C4A265]/30 text-[#F5E6C4] border border-[#C4A265]/40 transition-all cursor-pointer disabled:opacity-50"
-              title="Preview 7-day story narrative flow"
+              className="fp-btn"
+              onClick={togglePlayTimeline}
+              style={{
+                background: 'rgba(246, 233, 226, 0.08)',
+                color: 'var(--star)',
+                borderColor: 'rgba(246, 233, 226, 0.2)',
+              }}
             >
-              <Play className="w-3 h-3 text-[#E5C77A] fill-current" />
-              <span>{isPlayingTimeline ? 'Scrubbing Reel…' : 'Preview Reel'}</span>
+              {isPlaying ? '■ Stop' : '▶ Play timeline'}
             </button>
-            <div className="text-xs font-mono" style={{ color: '#D9C9A6' }}>
-              {holdActive ? (
-                <span className="font-semibold text-amber-300">⏸ Queue paused</span>
-              ) : nextPost ? (
-                <span>
-                  Next on air <b className="text-white font-semibold">{nextPost.platformName}</b> · {nextPost.dayLabel} {nextPost.timeFormatted}
-                </span>
-              ) : (
-                <span className="text-[#A8917A]">All 7 days staged</span>
-              )}
+            <div className="fp-tc">
+              <small>Master air timecode</small>
+              <b>
+                00:0{sel + 1}:00 <span>/ 00:07:00</span>
+              </b>
             </div>
           </div>
         </div>
 
-        {/* Cinematic Header info */}
-        <div className="flex items-baseline justify-between flex-wrap gap-2 mb-4">
-          <div>
-            <h3 className="font-bold text-base sm:text-lg tracking-tight text-[#FAF7F2] flex items-center gap-2">
-              <Film className="w-4 h-4 text-[#C4A265]" />
-              7-Day Narrative Arc · Video Story Engine
-            </h3>
-            <p className="text-xs text-[#A8917A] mt-0.5">
-              Episodic story progression · Frame-synced broadcast clips from Monday to Sunday
-            </p>
-          </div>
-        </div>
+        {/* SVG Flight Map */}
+        <div className="fp-mapw">
+          <svg id="fp-map" ref={mapSvgRef} viewBox="0 0 1000 400" role="group" aria-label="Seven day flight path">
+            <defs>
+              <linearGradient id="fp-g" x1="0" x2="1">
+                <stop offset="0" style={{ stopColor: 'var(--p1)' }} />
+                <stop offset="0.5" style={{ stopColor: 'var(--p2)' }} />
+                <stop offset="1" style={{ stopColor: 'var(--p3)' }} />
+              </linearGradient>
+            </defs>
 
-        {/* Master Video Timeline Tracks (All 7 Days Active) */}
-        <div className="relative pt-2">
-          {/* Timeline timecode ruler */}
-          <div className="hidden sm:grid grid-cols-7 gap-2 mb-2 px-1">
-            {['00:01:00', '00:02:00', '00:03:00', '00:04:00', '00:05:00', '00:06:00', '00:07:00'].map((tc, idx) => (
-              <div key={idx} className="flex items-center justify-between text-[9px] font-mono text-[#8B7355]">
-                <span>{tc}</span>
-                <span className="h-1.5 w-[1px] bg-[#5C4533]" />
-              </div>
+            {/* Starfield */}
+            {STARS.map((s, idx) => (
+              <circle
+                key={idx}
+                cx={s.cx}
+                cy={s.cy}
+                r={s.r}
+                fill="#F6EDE6"
+                opacity={s.opacity}
+              />
             ))}
-          </div>
 
-          {/* 7-Episode Video Clip Reel Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 relative z-10">
-            {weekDays.map((day, idx) => {
-              const dayKey = format(day, 'yyyy-MM-dd');
-              const dayPosts = postsByDay.get(dayKey) || [];
-              const postCount = dayPosts.length;
-              const isTodayDay = isToday(day);
-              const isScrubbed = activePlayheadDay === idx;
+            {/* Peak of the week annotation */}
+            <text
+              x={peakIdx >= 5 ? points[peakIdx][0] - 30 : points[peakIdx][0] + 30}
+              y={points[peakIdx][1] + 6}
+              textAnchor={peakIdx >= 5 ? 'end' : 'start'}
+              className="fp-hw"
+              transform={`rotate(-5 ${points[peakIdx][0]} ${points[peakIdx][1]})`}
+            >
+              {peakIdx >= 5 ? 'peak of the week →' : '← peak of the week'}
+            </text>
 
-              const beats = [
-                { beat: 'Hook', role: 'The Disruption', ep: '01' },
-                { beat: 'Context', role: 'The Backstory', ep: '02' },
-                { beat: 'Challenge', role: 'The Breakthrough', ep: '03' },
-                { beat: 'Proof', role: 'Evidence & Data', ep: '04' },
-                { beat: 'CTA', role: 'The Direct Call', ep: '05' },
-                { beat: 'Community', role: 'Weekend Dialogue', ep: '06' },
-                { beat: 'Horizon', role: 'The Next Chapter', ep: '07' },
-              ];
-              const info = beats[idx] || { beat: 'Story', role: 'Narrative', ep: `0${idx + 1}` };
-              const beatColor = BEAT_COLORS[info.beat] || '#C4A265';
+            {/* Tension Labels */}
+            <text x="10" y="82" className="fp-dy">
+              Climax
+            </text>
+            <text x="10" y="338" className="fp-dy">
+              Calm
+            </text>
+
+            {/* Spline paths */}
+            <path id="fp-pa" ref={paPathRef} className="fp-pa" d={splineD} />
+            <path id="fp-pp" ref={ppPathRef} className="fp-pp" d={splineD} />
+
+            {/* Day nodes */}
+            {BEATS.map((beat, i) => {
+              const [x, y] = points[i];
+              const c = COL[i];
+              const isTodayDay = isToday(weekDays[i]);
+              const isSelected = i === sel;
+              const hasPost = !!postsByDay.get(format(weekDays[i], 'yyyy-MM-dd'))?.[0];
+              const nodeLabel = hasPost ? '✓' : `${i + 1}`;
 
               return (
-                <div
-                  key={idx}
-                  onClick={() => {
-                    setSelectedMobileDay(dayKey);
-                    const el = document.getElementById(`day-col-${dayKey}`);
-                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                  }}
-                  className={cn(
-                    'group/clip relative flex flex-col rounded-xl p-2.5 transition-all duration-200 cursor-pointer border text-left',
-                    isScrubbed
-                      ? 'bg-[#3A2A1D] border-[#E5C77A] ring-2 ring-[#E5C77A]/40 scale-[1.02] shadow-lg'
-                      : isTodayDay
-                      ? 'bg-[#2E2117] border-[#C4A265]/70 shadow-md'
-                      : 'bg-[#241A13]/90 hover:bg-[#2F2218] border-[#443122] hover:border-[#C4A265]/50'
-                  )}
+                <g
+                  key={beat}
+                  className={`fp-nd ${isSelected ? 'sel' : ''} ${isTodayDay ? 'today' : ''}`}
+                  onClick={() => handleDaySelect(i)}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`${beat}, ${format(weekDays[i], 'EEE d')}`}
                 >
-                  {/* Clip Header: EP and Day */}
-                  <div className="flex items-center justify-between gap-1 mb-1.5">
-                    <span className="text-[9px] font-mono font-bold tracking-wider px-1.5 py-0.5 rounded bg-black/40 text-[#D4C3A3]">
-                      EP.{info.ep}
-                    </span>
-                    <span
-                      className={cn(
-                        'text-[10px] font-bold uppercase tracking-wider',
-                        isTodayDay ? 'text-[#E5C77A]' : 'text-[#A8917A]'
-                      )}
-                    >
-                      {format(day, 'EEE d')}
-                    </span>
-                  </div>
-
-                  {/* Narrative Beat & Role */}
-                  <div className="mb-2">
-                    <div className="flex items-center gap-1.5">
-                      <span
-                        className="w-2 h-2 rounded-full shrink-0"
-                        style={{
-                          backgroundColor: beatColor,
-                          boxShadow: `0 0 8px ${beatColor}`,
-                        }}
-                      />
-                      <span className="text-xs font-bold tracking-tight text-[#FAF7F2] truncate">
-                        {info.beat}
-                      </span>
-                    </div>
-                    <span className="text-[10px] text-[#A8917A] block truncate pl-3.5">
-                      {info.role}
-                    </span>
-                  </div>
-
-                  {/* Scheduled Posts Status Indicator */}
-                  <div className="mt-auto pt-2 border-t border-[#3D2C1F] flex items-center justify-between text-[10px]">
-                    {postCount > 0 ? (
-                      <span className="inline-flex items-center gap-1 text-[#E5C77A] font-semibold">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                        {postCount} clip{postCount > 1 ? 's' : ''} staged
-                      </span>
-                    ) : (
-                      <span className="text-[#8B7355] group-hover/clip:text-[#D4C3A3] transition-colors">
-                        + Stage Clip
-                      </span>
-                    )}
-
-                    {isTodayDay && (
-                      <span className="text-[8px] font-mono px-1 py-0.5 rounded bg-[#C4A265]/20 text-[#E5C77A] font-bold uppercase">
-                        Today
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Mini video waveform bar at base */}
-                  <div className="flex items-end gap-[2px] h-1.5 mt-1.5 opacity-60 group-hover/clip:opacity-100 transition-opacity">
-                    {[40, 70, 100, 60, 85, 45, 95].map((h, i) => (
-                      <div
-                        key={i}
-                        className="flex-1 rounded-full transition-all"
-                        style={{
-                          height: `${postCount > 0 ? h : 25}%`,
-                          backgroundColor: postCount > 0 ? beatColor : '#5C4533',
-                        }}
-                      />
-                    ))}
-                  </div>
-                </div>
+                  <line
+                    x1={x}
+                    y1={y + 16}
+                    x2={x}
+                    y2={352}
+                    stroke={c}
+                    strokeOpacity={0.25}
+                    strokeDasharray="3 5"
+                  />
+                  <text x={x} y="372" textAnchor="middle" className="fp-dy">
+                    00:0{i + 1}:00
+                  </text>
+                  {isTodayDay && <circle className="pl" cx={x} cy={y} r={16} stroke={c} />}
+                  <circle className="ring" cx={x} cy={y} r={26} stroke={c} />
+                  <circle
+                    className="core"
+                    cx={x}
+                    cy={y}
+                    r={15}
+                    fill={hasPost ? c : '#24070F'}
+                    stroke={c}
+                  />
+                  <text
+                    x={x}
+                    y={y + 5}
+                    textAnchor="middle"
+                    fontSize={14}
+                    fontWeight={800}
+                    fill={hasPost ? '#24070F' : '#F6EDE6'}
+                  >
+                    {nodeLabel}
+                  </text>
+                  <text x={x} y={y - 48} textAnchor="middle" className="fp-dy">
+                    {format(weekDays[i], 'EEE d')}
+                  </text>
+                  <text x={x} y={y - 31} textAnchor="middle" className="fp-nm" fill={c}>
+                    {beat}
+                  </text>
+                </g>
               );
             })}
-          </div>
+
+            {/* Airplane marker */}
+            <g id="fp-mk" ref={mkGroupRef}>
+              <polygon
+                points="16,0 -11,-9 -5,0 -11,9"
+                fill="#FFF6DE"
+                strokeWidth={2}
+                style={{
+                  stroke: 'var(--glow)',
+                  filter: 'drop-shadow(0 0 9px var(--glow))',
+                }}
+              />
+            </g>
+          </svg>
+
+          {/* Empty state overlay */}
+          {posts.length === 0 && (
+            <div className="fp-empty">
+              <p>Nothing in flight this week. Give us one story and we’ll plot all seven days.</p>
+              <button className="fp-btn gold" onClick={onNewArc}>
+                + Plan new week
+              </button>
+            </div>
+          )}
         </div>
+
+        {/* Sub-beat Reel */}
+        <div className="fp-reel">
+          {BEATS.map((beat, i) => {
+            const hasPost = !!postsByDay.get(format(weekDays[i], 'yyyy-MM-dd'))?.[0];
+            const isSelected = i === sel;
+            return (
+              <button
+                key={beat}
+                className={`fp-rb ${isSelected ? 'sel' : ''}`}
+                onClick={() => handleDaySelect(i)}
+                style={{
+                  ['--c' as any]: COL[i],
+                  ['--w' as any]: hasPost ? '100%' : '0%',
+                }}
+              >
+                {beat}
+                <small>{SUBS[i]}</small>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* ─── Boarding Pass Ticket (#ck / .tkt) ─── */}
+      <div id="ck">
+        {!isSelScheduled ? (
+          <div className="fp-tkt" style={{ ['--c' as any]: selColor }}>
+            <div className="main">
+              <div className="fp-air">
+                <span>
+                  <i>✈</i> Open sky
+                </span>
+                <span>{format(selDate, 'EEEE d MMMM')}</span>
+              </div>
+              <h3 className="fp-big">Nothing planned for this day</h3>
+              <p className="fp-sub">
+                Give us one story. We write a post for every day of the week, pick the best times, and let you review it all
+                before anything goes out.
+              </p>
+            </div>
+            <div className="stub">
+              <div className="fp-fld">
+                <span>Next step</span>
+                <b>Plan your week</b>
+                <em>It takes about a minute.</em>
+              </div>
+              <button className="fp-btn gold" onClick={onNewArc}>
+                + Plan new week
+              </button>
+              <BarcodeTicket code="FP-OPEN-SKY" note="No post yet" />
+            </div>
+          </div>
+        ) : (
+          <div className="fp-tkt" style={{ ['--c' as any]: selColor }}>
+            <div className="fp-stamp">Cleared for take-off</div>
+            <div className="main">
+              <div className="fp-air">
+                <span>
+                  <i>✈</i> Boarding pass, day {sel + 1} of 7
+                </span>
+                <span>{format(selDate, 'EEEE d MMMM')}</span>
+              </div>
+              <h3 className="fp-big" style={{ color: selColor }}>
+                {selPost.scheduleStrategy || selBeat}
+              </h3>
+              <p className="fp-sub" style={{ marginTop: 2 }}>
+                {selSub}
+              </p>
+              <p className="fp-line">
+                This post goes live on <b>{format(selDate, 'EEEE d MMMM')} at {scheduledTimeFormatted}</b> on{' '}
+                {selPost.platforms.map(p => PLATFORM_META[p.platform]?.name || p.platform).join(', ')}.
+              </p>
+
+              <div className="fp-lb" style={{ marginTop: 14 }}>
+                <span>What your followers will read</span>
+                <span>{selPost.content.length} characters</span>
+              </div>
+
+              <div className="fp-pv">
+                <i />
+                <div>
+                  <b>unool</b>
+                  <p>{selPost.content}</p>
+                  <small>
+                    {format(selDate, 'EEE d')} at {scheduledTimeFormatted}
+                  </small>
+                </div>
+              </div>
+            </div>
+
+            <div className="stub">
+              <div className="fp-fld">
+                <span>Goes live</span>
+                <b>{scheduledTimeFormatted}</b>
+                <em>
+                  {format(selDate, 'EEE d MMM')}. Time picked for your audience.
+                </em>
+              </div>
+              <div className="fp-fld">
+                <span>Status</span>
+                <span className="fp-chip ok">Scheduled</span>
+              </div>
+              <div className="fp-fld">
+                <span>Photos or video</span>
+                <b>
+                  {selPost.platforms[0]?.mediaUrls?.length
+                    ? `${selPost.platforms[0].mediaUrls.length} added`
+                    : 'None yet'}
+                </b>
+                <em>
+                  {selPost.platforms[0]?.mediaUrls?.length
+                    ? 'Ready for publishing.'
+                    : 'At least one media item recommended.'}
+                </em>
+              </div>
+              <div className="fp-fld">
+                <span>Auto first comment</span>
+                <b>{selPost.platforms[0]?.autoFirstComment ? 'On' : 'Off'}</b>
+                <em>
+                  {selPost.platforms[0]?.autoFirstComment
+                    ? 'Adds conversation link in first comment.'
+                    : 'Nothing is added under your post.'}
+                </em>
+              </div>
+
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button
+                  className="fp-btn"
+                  onClick={() => setSelectedPost(selPost)}
+                >
+                  Edit this day
+                </button>
+                <button
+                  className="fp-btn"
+                  onClick={handleUnschedulePost}
+                >
+                  Delete post
+                </button>
+              </div>
+
+              <BarcodeTicket code={ticketId} note="Scheduled ticket" />
+            </div>
+          </div>
+        )}
       </div>
 
-      {isLoading ? (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-8 h-8 animate-spin" style={{ color: B.accent }} />
-        </div>
-      ) : posts.length === 0 ? (
-        <div className="text-center py-20 space-y-4">
-          <div className="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center"
-            style={{ backgroundColor: B.accentBg }}>
-            <Calendar className="w-8 h-8" style={{ color: B.accent }} />
-          </div>
-          <div>
-            <p className="font-semibold text-lg" style={{ color: B.text }}>Nothing scheduled yet</p>
-            <p className="text-sm mt-1" style={{ color: B.textMuted }}>
-              Schedule your story across all connected platforms.
-            </p>
-          </div>
-          <button
-            onClick={onNewArc}
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-            style={{ backgroundColor: B.accent, color: '#fff', boxShadow: `0 4px 16px ${B.accentGlow}` }}
-          >
-            Plan My Week
-          </button>
-        </div>
-      ) : (
-        <>
-          {/* ─── Mobile: Horizontal Day-Tab Strip (matches reference .strip) ─── */}
-          <div className="flex gap-2 overflow-x-auto pb-2 md:hidden" style={{ scrollbarWidth: 'none' }}>
-            {weekDays.map(day => {
-              const dayKey = format(day, 'yyyy-MM-dd');
-              const count = postsByDay.get(dayKey)?.length ?? 0;
-              const isNow = isToday(day);
-              const isSel = (selectedMobileDay || format(new Date(), 'yyyy-MM-dd')) === dayKey;
-              return (
-                <button
-                  key={dayKey}
-                  type="button"
-                  onClick={() => setSelectedMobileDay(dayKey)}
-                  className="flex-shrink-0 flex flex-col items-center gap-1 min-w-[68px] px-3 py-2.5 rounded-2xl transition-all text-xs font-medium focus-visible:outline-none focus-visible:ring-2"
-                  style={{
-                    backgroundColor: isSel ? B.accentBg : B.card,
-                    color: isSel ? B.accentHover : B.text,
-                    border: `1.5px solid ${isSel ? B.accent : B.border}`,
-                    boxShadow: isSel ? `0 4px 12px ${B.accentGlow}` : B.cardShadow,
-                  }}
-                >
-                  <span className="uppercase tracking-wider text-[10px] font-semibold" style={{ color: isSel ? B.accentHover : B.textMuted }}>
-                    {format(day, 'EEE')}
-                  </span>
-                  <span className="font-bold text-lg" style={{ color: isSel ? B.accentHover : B.text }}>
-                    {format(day, 'd')}
-                  </span>
-                  <span className="text-[10px] font-medium" style={{ color: B.accentHover }}>
-                    {count} post{count === 1 ? '' : 's'}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* ─── Mobile: Selected-Day Posts (matches reference .mday) ─── */}
-          <div className="md:hidden space-y-2.5">
-            {(() => {
-              const activeDayKey = selectedMobileDay || format(new Date(), 'yyyy-MM-dd');
-              const activePosts = postsByDay.get(activeDayKey) ?? [];
-              const dayIndex = weekDays.findIndex(d => format(d, 'yyyy-MM-dd') === activeDayKey);
-              const beatName = dayIndex >= 0 && dayIndex < 5 ? ['Hook', 'Context', 'Challenge', 'Proof', 'CTA'][dayIndex] : null;
-              const beatColor = beatName ? BEAT_COLORS[beatName] : B.accent;
-
-              if (activePosts.length === 0) {
-                return (
-                  <div
-                    className="text-center py-10 px-4 rounded-2xl border border-dashed text-sm"
-                    style={{ borderColor: B.border, color: B.textSecondary, backgroundColor: B.card }}
-                  >
-                    <p className="font-medium">Nothing scheduled for this day.</p>
-                    <button
-                      type="button"
-                      onClick={onNewArc}
-                      className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold border transition-colors"
-                      style={{ backgroundColor: B.accentBg, borderColor: B.accentBorder, color: B.accentHover }}
-                    >
-                      + Add post
-                    </button>
-                  </div>
-                );
-              }
-
-              return (
-                <>
-                  {activePosts.map(post => {
-                    const isPub = post.status === 'published';
-                    return (
-                      <div
-                        key={post.postId}
-                        onClick={() => setSelectedPost(post)}
-                        className="p-3.5 rounded-2xl transition-all cursor-pointer"
-                        style={{
-                          backgroundColor: B.card,
-                          border: `1px solid ${B.border}`,
-                          borderLeft: `4px solid ${beatColor}`,
-                          boxShadow: B.cardShadow,
-                        }}
-                      >
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-xs font-mono font-semibold" style={{ color: B.textSecondary }}>
-                            {post.scheduledAt ? format(new Date(post.scheduledAt), 'h:mm a') : '--:--'}
-                          </span>
-                          {isPub ? (
-                            <span className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ backgroundColor: B.successBg, color: B.success }}>
-                              ✓ Published
-                            </span>
-                          ) : beatName ? (
-                            <span
-                              className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-semibold"
-                              style={{ backgroundColor: `${beatColor}18`, color: beatColor, border: `1px solid ${beatColor}40` }}
-                            >
-                              {beatName}
-                            </span>
-                          ) : null}
-                        </div>
-                        <p className="text-xs leading-relaxed line-clamp-2" style={{ color: B.text }}>
-                          {post.content}
-                        </p>
-                        <div className="flex items-center justify-between mt-3 pt-2 border-t border-black/5">
-                          <div className="flex gap-1">
-                            {post.platforms.slice(0, 4).map(v => (
-                              <span
-                                key={v.variantId}
-                                className="w-5 h-5 rounded-full flex items-center justify-center"
-                                style={{ backgroundColor: PLATFORM_META[v.platform]?.bg || B.accentBg }}
-                              >
-                                <PlatformBrandLogo platform={v.platform as SupportedPlatformType} size={11} />
-                              </span>
-                            ))}
-                          </div>
-                          <span className="text-xs font-semibold" style={{ color: B.accentHover }}>
-                            Edit →
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  <button
-                    type="button"
-                    onClick={onNewArc}
-                    className="w-full py-2.5 rounded-xl border border-dashed text-xs font-semibold transition-all hover:bg-black/5"
-                    style={{ borderColor: B.border, color: B.textMuted }}
-                  >
-                    + Add post
-                  </button>
-                </>
-              );
-            })()}
-          </div>
-
-          {/* ─── Desktop: 7-Day Grid (matches reference .grid .col .post .add) ─── */}
-          <div className="hidden md:grid md:grid-cols-7 gap-3 items-stretch">
-            {weekDays.map((day, dayIndex) => {
-              const dayKey = format(day, 'yyyy-MM-dd');
-              const dayPosts = postsByDay.get(dayKey) ?? [];
-              const isNow = isToday(day);
-              const beatName = dayIndex < 5 ? ['Hook', 'Context', 'Challenge', 'Proof', 'CTA'][dayIndex] : null;
-              const beatColor = beatName ? BEAT_COLORS[beatName] : B.accent;
-
-              return (
-                <div
-                  key={dayKey}
-                  className={cn(
-                    "rounded-2xl p-2.5 min-h-[380px] flex flex-col gap-2 transition-all",
-                    isNow ? "ring-2" : ""
-                  )}
-                  style={{
-                    backgroundColor: isNow ? B.accentBg : B.card,
-                    border: `1px solid ${isNow ? B.accent : B.border}`,
-                    boxShadow: isNow ? `inset 0 3px 0 ${B.accent}, ${B.cardShadow}` : B.cardShadow,
-                  }}
-                >
-                  {/* Day header */}
-                  <div
-                    className="flex justify-between items-baseline px-1 pt-0.5 pb-2 border-b"
-                    style={{ borderColor: isNow ? B.accentBorder : B.border }}
-                  >
-                    <span className="text-xs font-semibold" style={{ color: isNow ? B.accentHover : B.textMuted }}>
-                      {format(day, 'EEE')}{isNow ? ' · Today' : ''}
-                    </span>
-                    <span className="text-xl font-bold tracking-tight" style={{ color: isNow ? B.accentHover : B.text }}>
-                      {format(day, 'd')}
-                    </span>
-                  </div>
-
-                  {/* Post cards list */}
-                  <div className="flex-1 space-y-2">
-                    {dayPosts.map(post => {
-                      const isPub = post.status === 'published';
-
-                      return (
-                        <motion.div
-                          key={post.postId}
-                          layout
-                          onClick={() => setSelectedPost(post)}
-                          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedPost(post); }}}
-                          tabIndex={0}
-                          role="button"
-                          className="rounded-xl p-2.5 group relative transition-all hover:shadow-md cursor-pointer overflow-hidden"
-                          style={{
-                            backgroundColor: B.card,
-                            border: `1px solid ${B.border}`,
-                            borderLeft: `4px solid ${beatColor}`,
-                            boxShadow: B.cardShadow,
-                          }}
-                        >
-                          {/* Top row: Platform logos, time, status pill */}
-                          <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
-                            <div className="flex items-center gap-1">
-                              {post.platforms.slice(0, 2).map(v => (
-                                <span
-                                  key={v.variantId}
-                                  className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0"
-                                  style={{ backgroundColor: PLATFORM_META[v.platform]?.bg || B.accentBg }}
-                                  title={PLATFORM_META[v.platform]?.name || v.platform}
-                                >
-                                  <PlatformBrandLogo platform={v.platform as SupportedPlatformType} size={10} />
-                                </span>
-                              ))}
-                            </div>
-                            <span className="font-mono text-[11px] font-semibold" style={{ color: B.textSecondary }}>
-                              {post.scheduledAt ? format(new Date(post.scheduledAt), 'h:mm a') : '--:--'}
-                            </span>
-                            {isPub ? (
-                              <span
-                                className="ml-auto px-1.5 py-0.5 rounded-full text-[10px] font-semibold flex items-center gap-0.5"
-                                style={{ backgroundColor: B.successBg, color: B.success, border: `1px solid ${B.successBorder}` }}
-                              >
-                                ✓ Published
-                              </span>
-                            ) : beatName ? (
-                              <span
-                                className="ml-auto px-1.5 py-0.5 rounded-full text-[10px] font-semibold"
-                                style={{
-                                  backgroundColor: `${beatColor}18`,
-                                  color: beatColor,
-                                  border: `1px solid ${beatColor}40`,
-                                }}
-                              >
-                                {beatName}
-                              </span>
-                            ) : null}
-                          </div>
-
-                          {/* Post text snippet */}
-                          <p className="text-xs leading-snug line-clamp-2" style={{ color: B.text }}>
-                            {post.content}
-                          </p>
-
-                          {/* Quick Actions on hover */}
-                          {!isPub && (
-                            <div
-                              className="flex items-center justify-between gap-1 mt-2 pt-1.5 border-t opacity-0 group-hover:opacity-100 transition-opacity w-full overflow-hidden"
-                              style={{ borderColor: `${B.border}80` }}
-                              onClick={e => e.stopPropagation()}
-                            >
-                              <button
-                                type="button"
-                                onClick={() => setSelectedPost(post)}
-                                className="inline-flex items-center gap-0.5 text-[10px] font-semibold hover:underline transition-colors py-0.5"
-                                style={{ color: B.accentHover }}
-                                title="Edit post"
-                              >
-                                <Edit3 className="w-2.5 h-2.5 flex-shrink-0" />
-                                <span>Edit</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setSelectedPost(post)}
-                                className="inline-flex items-center gap-0.5 text-[10px] font-semibold hover:underline transition-colors py-0.5"
-                                style={{ color: B.textSecondary }}
-                                title="Reschedule post"
-                              >
-                                <Clock className="w-2.5 h-2.5 flex-shrink-0" />
-                                <span>Time</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleCancel(post.postId)}
-                                className="inline-flex items-center gap-0.5 text-[10px] font-semibold hover:underline transition-colors py-0.5 ml-auto"
-                                style={{ color: B.danger }}
-                                title="Delete post"
-                              >
-                                <Trash2 className="w-2.5 h-2.5 flex-shrink-0" />
-                                <span>Delete</span>
-                              </button>
-                            </div>
-                          )}
-                        </motion.div>
-                      );
-                    })}
-                  </div>
-
-                  {/* + Add post button at bottom of day column */}
-                  <button
-                    type="button"
-                    onClick={onNewArc}
-                    className="w-full min-h-[44px] rounded-xl border border-dashed flex items-center justify-center text-xs font-semibold transition-all opacity-40 hover:opacity-100 hover:border-solid hover:bg-black/5 mt-auto"
-                    style={{
-                      borderColor: B.border,
-                      color: B.textMuted,
-                    }}
-                  >
-                    + Add post
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </>
+      {/* Scheduled Post Inspection / Edit Modal (Preserved feature) */}
+      {selectedPost && (
+        <ScheduledPostModal
+          post={selectedPost}
+          isOpen={!!selectedPost}
+          onClose={() => setSelectedPost(null)}
+          onUpdated={loadWeekCanvas}
+          onCancelled={() => {
+            setSelectedPost(null);
+            loadWeekCanvas();
+          }}
+        />
       )}
-
-      {/* Scheduled Post Detail & Edit Modal */}
-      <ScheduledPostModal
-        post={selectedPost}
-        isOpen={!!selectedPost}
-        onClose={() => setSelectedPost(null)}
-        onUpdated={loadWeekCanvas}
-        onCancelled={loadWeekCanvas}
-      />
     </div>
   );
 }
+
+export default WeekCanvas;
