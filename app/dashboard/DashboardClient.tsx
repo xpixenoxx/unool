@@ -267,8 +267,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   const totalSteps = questSteps.length;
   const completionPercent = Math.round((completedCount / totalSteps) * 100);
 
-  // Platform network filter & hover states
-  const [platformFilter, setPlatformFilter] = useState<'all' | 'on' | 'off'>('all');
+  // Platform network hover states
   const [hoveredPlatformId, setHoveredPlatformId] = useState<string | null>(null);
   const [tileOrigins, setTileOrigins] = useState<Record<string, [number, number]>>({});
 
@@ -312,48 +311,10 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     }
   }, [data.connections]);
 
-  // Platforms dataset: ALL connected platforms are shown FIRST,
-  // followed by not-connected platforms, with alternating Blue and Black colors
+  // Platforms dataset mapped to 8 core platforms with alternating Blue and Black colors.
+  // The Overview UI is consistent and identical for all users.
   const platforms = useMemo(() => {
-    // 1. All connected platforms from the system
-    const connectedList: NetworkPlatformDef[] = [];
-    const connectedSet = new Set<string>();
-
-    for (const pid of SUPPORTED_PLATFORMS) {
-      if (connections[pid]?.status === 'connected') {
-        const def = ALL_PLATFORM_DEFS[pid] || {
-          id: pid,
-          name: pid.charAt(0).toUpperCase() + pid.slice(1),
-          mark: pid.slice(0, 2).toUpperCase(),
-        };
-        connectedList.push(def);
-        connectedSet.add(pid);
-      }
-    }
-
-    // 2. Unconnected platforms: default core 8 platforms first, then remaining supported platforms
-    const notConnectedList: NetworkPlatformDef[] = [];
-    for (const p of OVERVIEW_8_PLATFORMS) {
-      if (!connectedSet.has(p.id)) {
-        notConnectedList.push(p);
-      }
-    }
-    for (const pid of SUPPORTED_PLATFORMS) {
-      if (!connectedSet.has(pid) && !notConnectedList.some((p) => p.id === pid)) {
-        const def = ALL_PLATFORM_DEFS[pid] || {
-          id: pid,
-          name: pid.charAt(0).toUpperCase() + pid.slice(1),
-          mark: pid.slice(0, 2).toUpperCase(),
-        };
-        notConnectedList.push(def);
-      }
-    }
-
-    // Minimum 8 platforms, or rounded up to complete 4-column rows if more platforms are connected
-    const targetCount = Math.max(8, Math.ceil(connectedList.length / 4) * 4);
-    const combined = [...connectedList, ...notConnectedList].slice(0, targetCount);
-
-    return combined.map((p, index) => {
+    return OVERVIEW_8_PLATFORMS.map((p, index) => {
       const isConnected = connections[p.id]?.status === 'connected';
       const pal = ALTERNATING_PALETTE[index % 2];
       return {
@@ -373,22 +334,6 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     ).length;
   }, [connections]);
   const systemNotConnectedCount = Math.max(0, totalSystemPlatforms - systemConnectedCount);
-
-  const visiblePlatforms = useMemo(() => {
-    let list = platforms;
-    if (platformFilter === 'on') list = platforms.filter((p) => p.connected);
-    else if (platformFilter === 'off') list = platforms.filter((p) => !p.connected);
-
-    // Re-apply alternating blue and black palette so visible list is always strictly alternating
-    return list.map((p, index) => {
-      const pal = ALTERNATING_PALETTE[index % 2];
-      return {
-        ...p,
-        color: pal.color,
-        gradient: pal.gradient,
-      };
-    });
-  }, [platforms, platformFilter]);
 
   // Platform connect / disconnect handlers
   const handlePlatformClick = (platformId: string, isConnected: boolean, e: React.MouseEvent) => {
@@ -654,107 +599,91 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               <h2>Broadcast Network</h2>
               <p>Your connected platforms</p>
             </div>
-            <div className="seg" role="group" aria-label="Filter platforms">
-              <button
-                type="button"
-                className={platformFilter === 'all' ? 'on' : ''}
-                onClick={() => setPlatformFilter('all')}
-              >
+            <div className="seg" aria-label="Platform counts">
+              <span className="seg-lbl all">
                 All <em>{totalSystemPlatforms}</em>
-              </button>
-              <button
-                type="button"
-                className={platformFilter === 'on' ? 'on' : ''}
-                onClick={() => setPlatformFilter('on')}
-              >
+              </span>
+              <span className="seg-lbl connected">
                 Connected <em>{systemConnectedCount}</em>
-              </button>
-              <button
-                type="button"
-                className={platformFilter === 'off' ? 'on' : ''}
-                onClick={() => setPlatformFilter('off')}
-              >
+              </span>
+              <span className="seg-lbl not-connected">
                 Not connected <em>{systemNotConnectedCount}</em>
-              </button>
+              </span>
             </div>
           </div>
 
           {/* Brand Tiles Grid */}
           <div className="tiles">
-            {visiblePlatforms.length > 0 ? (
-              visiblePlatforms.map((p, i) => {
-                const isHi = hoveredPlatformId === p.id;
-                const origin = tileOrigins[p.id];
-                const isPending = connectingPlatform === p.id;
-                const isLinkedinAnalytics = p.id === 'linkedin' && p.connected;
+            {platforms.map((p, i) => {
+              const isHi = hoveredPlatformId === p.id;
+              const origin = tileOrigins[p.id];
+              const isPending = connectingPlatform === p.id;
+              const isLinkedinAnalytics = p.id === 'linkedin' && p.connected;
 
-                return (
-                  <div
-                    key={p.id}
-                    className={`tile ${p.connected ? 'on' : ''} ${isHi ? 'hi' : ''}`}
-                    onMouseEnter={() => setHoveredPlatformId(p.id)}
-                    onMouseLeave={() => setHoveredPlatformId(null)}
-                    onClick={() => {
-                      if (isLinkedinAnalytics) {
-                        window.location.href = '/analytics/linkedin';
-                      }
-                    }}
-                    style={
-                      {
-                        '--i': i,
-                        '--c': p.gradient,
-                        '--t': p.color,
-                        '--lb': p.color,
-                        ...(origin ? { '--ox': `${origin[0]}%`, '--oy': `${origin[1]}%` } : {}),
-                      } as React.CSSProperties
+              return (
+                <div
+                  key={p.id}
+                  className={`tile ${p.connected ? 'on' : ''} ${isHi ? 'hi' : ''}`}
+                  onMouseEnter={() => setHoveredPlatformId(p.id)}
+                  onMouseLeave={() => setHoveredPlatformId(null)}
+                  onClick={() => {
+                    if (isLinkedinAnalytics) {
+                      window.location.href = '/analytics/linkedin';
                     }
-                  >
-                    <span className="flood" />
-                    <span className="bgm">{p.mark}</span>
+                  }}
+                  style={
+                    {
+                      '--i': i,
+                      '--c': p.gradient,
+                      '--t': p.color,
+                      '--lb': p.color,
+                      ...(origin ? { '--ox': `${origin[0]}%`, '--oy': `${origin[1]}%` } : {}),
+                    } as React.CSSProperties
+                  }
+                >
+                  <span className="flood" />
+                  <span className="bgm">{p.mark}</span>
 
-                    <div className="tt">
-                      <span className="lg">
-                        <PlatformBrandLogo platform={p.id} size={44} />
-                      </span>
-                      <span className="st">{p.connected ? 'Connected' : 'Not connected'}</span>
-                    </div>
-
-                    <div className="tb">
-                      <b>{p.name}</b>
-                      {p.connected ? (
-                        <button
-                          type="button"
-                          className="tbtn g"
-                          onClick={(e) => handlePlatformClick(p.id, true, e)}
-                          aria-label={`Disconnect ${p.name}`}
-                        >
-                          Disconnect
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          className="tbtn k"
-                          disabled={isPending}
-                          onClick={(e) => handlePlatformClick(p.id, false, e)}
-                          aria-label={`Connect ${p.name}`}
-                        >
-                          {isPending ? (
-                            <span className="sp2" />
-                          ) : (
-                            <svg viewBox="0 0 24 24">
-                              <path d="M12 5v14M5 12h14" />
-                            </svg>
-                          )}
-                          <span>Connect</span>
-                        </button>
-                      )}
-                    </div>
+                  <div className="tt">
+                    <span className="lg">
+                      <PlatformBrandLogo platform={p.id} size={34} />
+                    </span>
+                    <span className="st">{p.connected ? 'Connected' : 'Not connected'}</span>
                   </div>
-                );
-              })
-            ) : (
-              <div className="none">No platforms in this view.</div>
-            )}
+
+                  <div className="tb">
+                    <b>{p.name}</b>
+                    {p.connected ? (
+                      <button
+                        type="button"
+                        className="tbtn g"
+                        onClick={(e) => handlePlatformClick(p.id, true, e)}
+                        aria-label={`Disconnect ${p.name}`}
+                      >
+                        Disconnect
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="tbtn k"
+                        disabled={isPending}
+                        onClick={(e) => handlePlatformClick(p.id, false, e)}
+                        aria-label={`Connect ${p.name}`}
+                      >
+                        {isPending ? (
+                          <span className="sp2" />
+                        ) : (
+                          <svg viewBox="0 0 24 24">
+                            <path d="M12 5v14M5 12h14" />
+                          </svg>
+                        )}
+                        <span>Connect</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           {/* All Platforms Modal Trigger */}

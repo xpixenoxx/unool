@@ -599,6 +599,7 @@
   flex-wrap: wrap;
 }
 
+#ov-root .seg .seg-lbl,
 #ov-root .seg button {
   display: flex;
   align-items: center;
@@ -608,10 +609,12 @@
   font-size: 13.5px;
   font-weight: 700;
   color: var(--mute);
-  transition: 0.2s;
   white-space: nowrap;
+  user-select: none;
+  cursor: default;
 }
 
+#ov-root .seg .seg-lbl em,
 #ov-root .seg button em {
   font-style: normal;
   font-size: 12px;
@@ -622,17 +625,14 @@
   color: var(--brn);
 }
 
-#ov-root .seg button:hover {
-  color: var(--brn);
-  background: #fff;
-}
-
+#ov-root .seg .seg-lbl.all,
 #ov-root .seg button.on {
   background: var(--brn);
   color: #fff;
   box-shadow: 0 2px 0 var(--esp);
 }
 
+#ov-root .seg .seg-lbl.all em,
 #ov-root .seg button.on em {
   background: var(--gold);
   border-color: #a47d3f;
@@ -754,43 +754,41 @@
 #ov-root .lg {
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background: transparent;
-  overflow: visible;
-  border: none;
-  box-shadow: none;
-  transition: transform 0.25s, filter 0.25s;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: #ffffff;
+  border: 1.5px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.14);
+  transition: transform 0.25s, box-shadow 0.25s;
   flex: none;
-  padding: 0;
+  padding: 6px;
+  overflow: hidden;
 }
 
 #ov-root .lg svg {
-  width: 44px;
-  height: 44px;
+  width: 34px;
+  height: 34px;
   display: block;
-  border-radius: 11px;
-  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.3));
-  transition: transform 0.2s ease, filter 0.2s ease;
+  border-radius: 8px;
+  transition: transform 0.2s ease;
 }
 
 #ov-root .tile:hover .lg svg,
 #ov-root .tile.hi .lg svg {
-  transform: scale(1.06);
-  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.42));
+  transform: scale(1.08);
 }
 
 #ov-root .tile.on .lg {
-  background: transparent;
-  border-color: transparent;
-  box-shadow: none;
+  background: #ffffff;
+  border: 1.5px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
 }
 
 #ov-root .tile:not(.on) .lg {
-  background: transparent;
-  border-color: transparent;
-  box-shadow: none;
+  background: #ffffff;
+  border: 1.5px solid var(--line);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 #ov-root .st {
