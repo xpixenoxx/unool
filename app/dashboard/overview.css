@@ -363,7 +363,8 @@
   transition: 0.25s;
   min-width: 0;
   max-width: 100%;
-  overflow: hidden;
+  overflow: visible;
+  position: relative;
   box-sizing: border-box;
 }
 
@@ -444,6 +445,92 @@
 #ov-root .ib circle {
   transform-box: fill-box;
   transform-origin: center;
+}
+
+/* ─── Stat Card Tooltip ──────────────────────────────────── */
+#ov-root .stat-tip-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+#ov-root .stat-tooltip {
+  position: absolute;
+  top: calc(100% + 11px);
+  right: 0;
+  width: 275px;
+  background: var(--esp);
+  color: #fff6e3;
+  border: 1.5px solid var(--gold);
+  border-radius: 14px;
+  padding: 13px 15px;
+  box-shadow: 0 14px 30px -4px rgba(36, 25, 18, 0.45), 0 4px 10px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-6px) scale(0.97);
+  transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1), transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.22s ease;
+  z-index: 120;
+  box-sizing: border-box;
+  text-align: left;
+}
+
+/* Upward pointing notch directed at the icon center */
+#ov-root .stat-tooltip::before {
+  content: '';
+  position: absolute;
+  top: -6.5px;
+  right: 17px;
+  width: 11px;
+  height: 11px;
+  background: var(--esp);
+  border-left: 1.5px solid var(--gold);
+  border-top: 1.5px solid var(--gold);
+  transform: rotate(45deg);
+}
+
+#ov-root .stat-tip-wrap:hover .stat-tooltip,
+#ov-root .stat-tip-wrap:focus-within .stat-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0) scale(1);
+}
+
+#ov-root .st-head {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gold);
+  margin-bottom: 8px;
+  letter-spacing: 0.01em;
+  font-family: inherit;
+}
+
+#ov-root .st-lines {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+#ov-root .st-lines li {
+  font-size: 12px;
+  line-height: 1.45;
+  color: #ecd9b8;
+  position: relative;
+  padding-left: 14px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  letter-spacing: -0.01em;
+}
+
+#ov-root .st-lines li::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  top: -1px;
+  color: var(--gold);
+  font-size: 14px;
+  line-height: 1;
 }
 
 #ov-root .num {

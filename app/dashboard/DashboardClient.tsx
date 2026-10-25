@@ -567,12 +567,22 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           <section className="card stat">
             <div className="hd">
               <span>Impressions</span>
-              <button className="ib ey" aria-label="Impressions" title="Profile views">
-                <svg viewBox="0 0 24 24">
-                  <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
-              </button>
+              <div className="stat-tip-wrap">
+                <button className="ib ey" aria-label="Impressions info" type="button">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                </button>
+                <div className="stat-tooltip" role="tooltip">
+                  <div className="st-head">Impressions</div>
+                  <ul className="st-lines">
+                    <li>Total visits and views across your public profile link.</li>
+                    <li>Tracks unique audience members discovering your work.</li>
+                    <li>Compares weekly momentum with real-time growth indicators.</li>
+                  </ul>
+                </div>
+              </div>
             </div>
             <div className="num">
               <AnimatedCounter
@@ -606,12 +616,22 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           <section className="card stat">
             <div className="hd">
               <span>Content Published</span>
-              <button className="ib dc" aria-label="Content Published" title="Published posts">
-                <svg viewBox="0 0 24 24">
-                  <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
-                  <path d="M14 3v5h5M9 13h6M9 17h4" />
-                </svg>
-              </button>
+              <div className="stat-tip-wrap">
+                <button className="ib dc" aria-label="Content Published info" type="button">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+                    <path d="M14 3v5h5M9 13h6M9 17h4" />
+                  </svg>
+                </button>
+                <div className="stat-tooltip" role="tooltip">
+                  <div className="st-head">Content Published</div>
+                  <ul className="st-lines">
+                    <li>Total posts broadcast and published across your social networks.</li>
+                    <li>Monitors progress against your active monthly plan limit.</li>
+                    <li>Includes live dispatches, drafts, and automated scheduled posts.</li>
+                  </ul>
+                </div>
+              </div>
             </div>
             <div className="num">
               <AnimatedCounter value={usageStats.postsThisMonth} />
@@ -624,11 +644,21 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           <section className="card stat">
             <div className="hd">
               <span>Link Engagement</span>
-              <button className="ib sp" aria-label="Link Engagement" title="Link clicks & conversion">
-                <svg viewBox="0 0 24 24">
-                  <path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M18 6l-2.5 2.5M8.5 15.5 6 18" />
-                </svg>
-              </button>
+              <div className="stat-tip-wrap">
+                <button className="ib sp" aria-label="Link Engagement info" type="button">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M18 6l-2.5 2.5M8.5 15.5 6 18" />
+                  </svg>
+                </button>
+                <div className="stat-tooltip" role="tooltip">
+                  <div className="st-head">Link Engagement</div>
+                  <ul className="st-lines">
+                    <li>Total clicks on your links, socials, and featured resources.</li>
+                    <li>Measures your visitor-to-click conversion rate percentage.</li>
+                    <li>Identifies your top-performing links and audience interests.</li>
+                  </ul>
+                </div>
+              </div>
             </div>
             <div className="num">
               <AnimatedCounter
