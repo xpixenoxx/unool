@@ -89,24 +89,31 @@ function useAnalyticsInsights() {
 interface NetworkPlatformDef {
   id: string;
   name: string;
-  color: string;
-  gradient: string;
   mark: string;
 }
 
-const NETWORK_PLATFORMS: NetworkPlatformDef[] = [
-  { id: 'linkedin', name: 'LinkedIn', color: '#0a66c2', gradient: 'linear-gradient(145deg, #0a66c2, #084c8d)', mark: 'in' },
-  { id: 'threads', name: 'Threads', color: '#111111', gradient: 'linear-gradient(145deg, #2e2e2e, #050505)', mark: '@' },
-  { id: 'instagram', name: 'Instagram', color: '#e1306c', gradient: 'linear-gradient(45deg, #f9a03f, #e1306c, #7b3fe4)', mark: 'Ig' },
-  { id: 'x', name: 'X (Twitter)', color: '#000000', gradient: 'linear-gradient(145deg, #2a2a2a, #000000)', mark: 'X' },
-  { id: 'bluesky', name: 'Bluesky', color: '#1185fe', gradient: 'linear-gradient(145deg, #1185fe, #0a5ec2)', mark: 'B' },
-  { id: 'mastodon', name: 'Mastodon', color: '#6364ff', gradient: 'linear-gradient(145deg, #6364ff, #4748db)', mark: 'M' },
-  { id: 'slack', name: 'Slack', color: '#4a154b', gradient: 'linear-gradient(145deg, #4a154b, #2e0d2f)', mark: '#' },
-  { id: 'telegram', name: 'Telegram', color: '#229ed9', gradient: 'linear-gradient(145deg, #229ed9, #177bb0)', mark: 'T' },
-  { id: 'dribbble', name: 'Dribbble', color: '#ea4c89', gradient: 'linear-gradient(145deg, #ea4c89, #b83265)', mark: 'Dr' },
-  { id: 'facebook', name: 'Facebook', color: '#1877f2', gradient: 'linear-gradient(145deg, #1877f2, #0d5abf)', mark: 'f' },
-  { id: 'youtube', name: 'YouTube', color: '#ff0000', gradient: 'linear-gradient(145deg, #ff0000, #b30000)', mark: '▶' },
-  { id: 'pinterest', name: 'Pinterest', color: '#e60023', gradient: 'linear-gradient(145deg, #e60023, #ad001a)', mark: 'P' },
+const OVERVIEW_8_PLATFORMS: NetworkPlatformDef[] = [
+  { id: 'linkedin', name: 'LinkedIn', mark: 'in' },
+  { id: 'threads', name: 'Threads', mark: '@' },
+  { id: 'instagram', name: 'Instagram', mark: 'Ig' },
+  { id: 'bluesky', name: 'Bluesky', mark: 'B' },
+  { id: 'mastodon', name: 'Mastodon', mark: 'M' },
+  { id: 'slack', name: 'Slack', mark: '#' },
+  { id: 'telegram', name: 'Telegram', mark: 'T' },
+  { id: 'dribbble', name: 'Dribbble', mark: 'Dr' },
+];
+
+const ALTERNATING_PALETTE = [
+  {
+    // Blue gradient & color
+    gradient: 'linear-gradient(145deg, #1d6bf3, #0a3fb5)',
+    color: '#1565d8',
+  },
+  {
+    // Black gradient & color
+    gradient: 'linear-gradient(145deg, #2b2b2b, #0a0a0a)',
+    color: '#111111',
+  },
 ];
 
 /* ─── Animated Counter ────────────────────────────────────── */
@@ -264,19 +271,34 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     );
   };
 
-  // Platforms dataset mapped from real connections
+  // Dynamic connections state auto-updated when connections change
+  const [connections, setConnections] = useState<Record<string, { status: string; username?: string }>>(
+    data.connections || {}
+  );
+
+  useEffect(() => {
+    if (data.connections) {
+      setConnections(data.connections);
+    }
+  }, [data.connections]);
+
+  // Platforms dataset mapped to 8 core platforms with alternating Blue and Black colors
   const platforms = useMemo(() => {
-    return NETWORK_PLATFORMS.map((p) => {
-      const isConnected = data.connections[p.id]?.status === 'connected';
+    return OVERVIEW_8_PLATFORMS.map((p, index) => {
+      const isConnected = connections[p.id]?.status === 'connected';
+      const pal = ALTERNATING_PALETTE[index % 2];
       return {
         ...p,
         connected: isConnected,
+        color: pal.color,
+        gradient: pal.gradient,
       };
     });
-  }, [data.connections]);
+  }, [connections]);
 
   const connectedCount = useMemo(() => platforms.filter((p) => p.connected).length, [platforms]);
   const totalPlatforms = platforms.length;
+  const notConnectedCount = totalPlatforms - connectedCount;
 
   const visiblePlatforms = useMemo(() => {
     if (platformFilter === 'on') return platforms.filter((p) => p.connected);
@@ -298,16 +320,33 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     if (isConnected) {
       const pDef = platforms.find((p) => p.id === platformId);
       if (!confirm(`Disconnect ${pDef?.name || platformId}? You can reconnect anytime.`)) return;
+
+      // Optimistic update: flip state immediately for smooth animation & auto-updated parameters
+      setConnections((prev) => ({
+        ...prev,
+        [platformId]: { status: 'not_connected' },
+      }));
+
       fetch(`/api/platform/connections/${platformId}`, { method: 'DELETE' })
         .then((res) => {
           if (res.ok) {
             showToast(`${pDef?.name || platformId} disconnected`);
-            setTimeout(() => window.location.reload(), 600);
           } else {
+            // Revert on failure
+            setConnections((prev) => ({
+              ...prev,
+              [platformId]: { status: 'connected' },
+            }));
             showToast('Failed to disconnect');
           }
         })
-        .catch(() => showToast('Failed to disconnect'));
+        .catch(() => {
+          setConnections((prev) => ({
+            ...prev,
+            [platformId]: { status: 'connected' },
+          }));
+          showToast('Failed to disconnect');
+        });
     } else {
       if (platformId === 'bluesky') {
         setBlueskyDialogOpen(true);
@@ -551,7 +590,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 className={platformFilter === 'off' ? 'on' : ''}
                 onClick={() => setPlatformFilter('off')}
               >
-                Not connected <em>{totalPlatforms - connectedCount}</em>
+                Not connected <em>{notConnectedCount}</em>
               </button>
             </div>
           </div>
@@ -559,14 +598,15 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           {/* Spectrum Meter */}
           <div className="meter">
             <div className="spec">
-              {platforms.map((p) => {
+              {platforms.map((p, idx) => {
+                const pal = ALTERNATING_PALETTE[idx % 2];
                 const isHi = hoveredPlatformId === p.id;
                 return (
                   <i
                     key={p.id}
                     className={`${p.connected ? 'on' : ''} ${isHi ? 'hi' : ''}`}
                     title={p.name}
-                    style={{ '--c': p.color } as React.CSSProperties}
+                    style={{ '--c': pal.color } as React.CSSProperties}
                   />
                 );
               })}
@@ -655,7 +695,21 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           </div>
 
           {/* All Platforms Modal Trigger */}
-          <Dialog>
+          <Dialog
+            onOpenChange={(open) => {
+              if (!open) {
+                // Refresh connections from API when modal closes to catch external changes
+                fetch(`/api/platform/connections?workspaceId=${data.workspaceId}&_t=${Date.now()}`)
+                  .then((res) => res.json())
+                  .then((resData) => {
+                    if (resData?.connections) {
+                      setConnections((prev) => ({ ...prev, ...resData.connections }));
+                    }
+                  })
+                  .catch(() => {});
+              }
+            }}
+          >
             <DialogTrigger asChild>
               <button type="button" className="all">
                 <span>All platforms</span>
@@ -669,7 +723,10 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               <PlatformConnections
                 workspaceId={data.workspaceId}
                 userId={data.userId}
-                initialConnectionsProp={data.connections}
+                initialConnectionsProp={connections}
+                onConnectionChange={(newConns) => {
+                  setConnections((prev) => ({ ...prev, ...newConns }));
+                }}
               />
             </DialogContent>
           </Dialog>
@@ -896,7 +953,13 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
         open={blueskyDialogOpen}
         onClose={() => setBlueskyDialogOpen(false)}
         workspaceId={data.workspaceId}
-        onSuccess={() => window.location.reload()}
+        onSuccess={() => {
+          setConnections((prev) => ({
+            ...prev,
+            bluesky: { status: 'connected' },
+          }));
+          showToast('Bluesky connected');
+        }}
       />
       <ManualIntegrationDialog
         open={manualDialogOpen}

@@ -48,6 +48,7 @@ interface PlatformConnectionsProps {
   workspaceId: string;
   userId?: string;
   initialConnectionsProp?: Record<string, { status: string; username?: string }>;
+  onConnectionChange?: (connections: Record<string, { status: string; username?: string }>) => void;
 }
 
 /* ─── Platform display config ──────────────────────────────── */
@@ -359,7 +360,7 @@ const memoryConnectionsCache = new Map<string, Record<Platform, PlatformConnecti
 
 /* ─── Component ────────────────────────────────────────────── */
 
-export function PlatformConnections({ workspaceId, userId: initialUserId, initialConnectionsProp }: PlatformConnectionsProps) {
+export function PlatformConnections({ workspaceId, userId: initialUserId, initialConnectionsProp, onConnectionChange }: PlatformConnectionsProps) {
   const connectablePlatforms = useMemo(
     () =>
       SUPPORTED_PLATFORMS.filter(
@@ -390,6 +391,11 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
 
   const [connections, setConnections] =
     useState<Record<Platform, PlatformConnection>>(initialConnections);
+
+  // Notify parent of connection updates
+  useEffect(() => {
+    onConnectionChange?.(connections);
+  }, [connections, onConnectionChange]);
 
   // Sort platforms: connected first, preserving relative order, manual ALWAYS at the end
   const sortedPlatforms = useMemo(

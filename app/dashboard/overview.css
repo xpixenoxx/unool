@@ -801,33 +801,32 @@
 #ov-root .lg {
   display: grid;
   place-items: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
-  font-weight: 700;
-  font-size: 17px;
-  color: #fff;
-  background: var(--lb);
+  width: 50px;
+  height: 50px;
+  border-radius: 15px;
+  background: #ffffff;
   overflow: hidden;
-  border: 2px solid rgba(0, 0, 0, 0.12);
-  transition: 0.4s;
+  border: 2px solid var(--line);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  transition: 0.35s;
   flex: none;
 }
 
 #ov-root .lg svg {
-  width: 26px;
-  height: 26px;
-}
-
-#ov-root .tile:not(.on) .lg {
-  filter: grayscale(1) opacity(0.55);
+  width: 28px;
+  height: 28px;
 }
 
 #ov-root .tile.on .lg {
-  background: #fff;
-  color: var(--t);
-  border-color: #fff;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  background: #ffffff;
+  border-color: #ffffff;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+
+#ov-root .tile:not(.on) .lg {
+  background: #ffffff;
+  border-color: var(--line);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
 }
 
 #ov-root .st {
