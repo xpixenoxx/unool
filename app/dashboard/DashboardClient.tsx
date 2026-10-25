@@ -548,8 +548,8 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       </div>
 
       {/* ═══ ROW 3: Quick Actions & Flight Engine ═══ */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        <motion.div variants={fadeUp} transition={transition}>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+        <motion.div variants={fadeUp} transition={transition} className="h-full">
           <QuickActionBento
             icon={WeeklyFlightPlanIcon}
             title="Weekly Flight Plan"
@@ -560,7 +560,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             badge="7-Day Arc"
           />
         </motion.div>
-        <motion.div variants={fadeUp} transition={transition}>
+        <motion.div variants={fadeUp} transition={transition} className="h-full">
           <QuickActionBento
             icon={ContentStudioIcon}
             title="Content Studio"
@@ -571,7 +571,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             badge={usageStats.postsThisMonth > 0 ? `${usageStats.postsThisMonth} Broadcasts` : 'Multi-Publish'}
           />
         </motion.div>
-        <motion.div variants={fadeUp} transition={transition}>
+        <motion.div variants={fadeUp} transition={transition} className="h-full">
           <QuickActionBento
             icon={PublicProfileIcon}
             title="Your Public Profile"
@@ -580,6 +580,17 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             href={isProfileLive ? `/u/${profile?.subdomain}` : '/dashboard/profile'}
             buttonLabel={isProfileLive ? 'View Live Profile' : 'Set Up Profile'}
             external={!!isProfileLive}
+          />
+        </motion.div>
+        <motion.div variants={fadeUp} transition={transition} className="h-full">
+          <QuickActionBento
+            icon={AutomationIcon}
+            title="Automation"
+            subtitle="Auto-reply & inbound leads"
+            description="AI-powered comment and DM automation for Instagram & LinkedIn. Auto-reply and convert audience to leads."
+            href="/dashboard/automation"
+            buttonLabel="Open Automation"
+            badge="Auto-Pilot"
           />
         </motion.div>
       </div>
@@ -794,6 +805,17 @@ function PublicProfileIcon({ className = 'h-5 w-5' }: { className?: string }) {
   );
 }
 
+function AutomationIcon({ className = 'h-5 w-5' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      {/* Interaction conversation beacon bubble */}
+      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="currentColor" fillOpacity="0.08" />
+      {/* AI auto-response lightning spark */}
+      <path d="M13 6.5L8.5 12.5H12L11 17.5L15.5 11.5H12L13 6.5Z" fill="currentColor" fillOpacity="0.2" />
+    </svg>
+  );
+}
+
 /* ═══════════════════════════════════════════════════════════════
    QUICK ACTION BENTO CARD
    ═══════════════════════════════════════════════════════════════ */
@@ -819,58 +841,62 @@ function QuickActionBento({
 }) {
   return (
     <div
-      className="rounded-2xl p-6 transition-shadow duration-200 hover:shadow-md relative overflow-hidden"
+      className="rounded-2xl p-6 transition-shadow duration-200 hover:shadow-md relative overflow-hidden flex flex-col justify-between h-full"
       style={{
         backgroundColor: B.card,
         border: `1px solid ${B.cardBorder}`,
         boxShadow: B.cardShadow,
       }}
     >
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div
-            className="p-2.5 rounded-xl"
-            style={{ backgroundColor: B.accentBg, border: `1px solid ${B.border}` }}
-          >
-            <Icon className="h-5 w-5" style={{ color: B.accent }} />
+      <div>
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div
+              className="p-2.5 rounded-xl flex-shrink-0"
+              style={{ backgroundColor: B.accentBg, border: `1px solid ${B.border}` }}
+            >
+              <Icon className="h-5 w-5" style={{ color: B.accent }} />
+            </div>
+            <div>
+              <h3 className="font-semibold text-sm" style={{ color: B.text }}>{title}</h3>
+              <p className="text-xs" style={{ color: B.textMuted }}>{subtitle}</p>
+            </div>
           </div>
-          <div>
-            <h3 className="font-semibold text-sm" style={{ color: B.text }}>{title}</h3>
-            <p className="text-xs" style={{ color: B.textMuted }}>{subtitle}</p>
-          </div>
+          {badge && (
+            <span
+              className="text-[11px] font-semibold px-2.5 py-1 rounded-lg border flex items-center gap-1.5 tracking-wide shadow-2xs flex-shrink-0"
+              style={{
+                backgroundColor: '#FAF7F2',
+                borderColor: '#E8E0D4',
+                color: '#7A6248',
+              }}
+            >
+              <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#C4A265' }} />
+              {badge}
+            </span>
+          )}
         </div>
-        {badge && (
-          <span
-            className="text-[11px] font-semibold px-2.5 py-1 rounded-lg border flex items-center gap-1.5 tracking-wide shadow-2xs"
-            style={{
-              backgroundColor: '#FAF7F2',
-              borderColor: '#E8E0D4',
-              color: '#7A6248',
-            }}
-          >
-            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#C4A265' }} />
-            {badge}
-          </span>
-        )}
+
+        <p className="text-sm leading-relaxed mb-5" style={{ color: B.textMuted }}>
+          {description}
+        </p>
       </div>
 
-      <p className="text-sm leading-relaxed mb-5" style={{ color: B.textMuted }}>
-        {description}
-      </p>
-
-      <Link
-        href={href}
-        target={external ? '_blank' : undefined}
-        rel={external ? 'noopener noreferrer' : undefined}
-        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 hover:shadow-sm"
-        style={{
-          backgroundColor: B.text,
-          color: B.card,
-        }}
-      >
-        {buttonLabel}
-        {external ? <ExternalLink className="h-3.5 w-3.5" /> : <ArrowRight className="h-3.5 w-3.5" />}
-      </Link>
+      <div>
+        <Link
+          href={href}
+          target={external ? '_blank' : undefined}
+          rel={external ? 'noopener noreferrer' : undefined}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 hover:shadow-sm"
+          style={{
+            backgroundColor: B.text,
+            color: B.card,
+          }}
+        >
+          {buttonLabel}
+          {external ? <ExternalLink className="h-3.5 w-3.5" /> : <ArrowRight className="h-3.5 w-3.5" />}
+        </Link>
+      </div>
     </div>
   );
 }
