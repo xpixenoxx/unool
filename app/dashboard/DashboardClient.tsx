@@ -4,10 +4,10 @@ import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { formatDistanceToNow } from 'date-fns';
-import { PlatformConnections } from '@/components/dashboard/PlatformConnections';
+import { PlatformConnections, SUPPORTED_PLATFORMS } from '@/components/dashboard/PlatformConnections';
 import { BlueskyConnectDialog } from '@/components/dashboard/BlueskyConnectDialog';
 import { ManualIntegrationDialog } from '@/components/dashboard/ManualIntegrationDialog';
-import { PlatformBrandLogo } from '@/components/dashboard/PlatformLogos';
+import { PlatformBrandLogo, getPlatformConfig } from '@/components/dashboard/PlatformLogos';
 import { Dialog, DialogContent, DialogTrigger, DialogTitle } from '@/components/ui/dialog';
 import { ProfileCompletionQuest, getQuestSteps } from '@/components/dashboard/ProfileCompletionQuest';
 import './overview.css';
@@ -296,9 +296,14 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     });
   }, [connections]);
 
-  const connectedCount = useMemo(() => platforms.filter((p) => p.connected).length, [platforms]);
-  const totalPlatforms = platforms.length;
-  const notConnectedCount = totalPlatforms - connectedCount;
+  // System-wide platform counts (all 27 supported platforms)
+  const totalSystemPlatforms = SUPPORTED_PLATFORMS.length; // 27
+  const systemConnectedCount = useMemo(() => {
+    return SUPPORTED_PLATFORMS.filter(
+      (pid) => connections[pid]?.status === 'connected'
+    ).length;
+  }, [connections]);
+  const systemNotConnectedCount = Math.max(0, totalSystemPlatforms - systemConnectedCount);
 
   const visiblePlatforms = useMemo(() => {
     if (platformFilter === 'on') return platforms.filter((p) => p.connected);
@@ -576,21 +581,21 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 className={platformFilter === 'all' ? 'on' : ''}
                 onClick={() => setPlatformFilter('all')}
               >
-                All <em>{totalPlatforms}</em>
+                All <em>{totalSystemPlatforms}</em>
               </button>
               <button
                 type="button"
                 className={platformFilter === 'on' ? 'on' : ''}
                 onClick={() => setPlatformFilter('on')}
               >
-                Connected <em>{connectedCount}</em>
+                Connected <em>{systemConnectedCount}</em>
               </button>
               <button
                 type="button"
                 className={platformFilter === 'off' ? 'on' : ''}
                 onClick={() => setPlatformFilter('off')}
               >
-                Not connected <em>{notConnectedCount}</em>
+                Not connected <em>{systemNotConnectedCount}</em>
               </button>
             </div>
           </div>
@@ -598,21 +603,23 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           {/* Spectrum Meter */}
           <div className="meter">
             <div className="spec">
-              {platforms.map((p, idx) => {
+              {SUPPORTED_PLATFORMS.map((platformId, idx) => {
+                const isConn = connections[platformId]?.status === 'connected';
                 const pal = ALTERNATING_PALETTE[idx % 2];
-                const isHi = hoveredPlatformId === p.id;
+                const isHi = hoveredPlatformId === platformId;
+                const pCfg = getPlatformConfig(platformId);
                 return (
                   <i
-                    key={p.id}
-                    className={`${p.connected ? 'on' : ''} ${isHi ? 'hi' : ''}`}
-                    title={p.name}
+                    key={platformId}
+                    className={`${isConn ? 'on' : ''} ${isHi ? 'hi' : ''}`}
+                    title={`${pCfg.name} (${isConn ? 'Connected' : 'Not connected'})`}
                     style={{ '--c': pal.color } as React.CSSProperties}
                   />
                 );
               })}
             </div>
             <span>
-              <b>{connectedCount}</b> of {totalPlatforms} connected
+              <b>{systemConnectedCount}</b> of {totalSystemPlatforms} connected
             </span>
           </div>
 
@@ -651,7 +658,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
 
                     <div className="tt">
                       <span className="lg">
-                        <PlatformBrandLogo platform={p.id} size={28} />
+                        <PlatformBrandLogo platform={p.id} size={38} />
                       </span>
                       <span className="st">{p.connected ? 'Connected' : 'Not connected'}</span>
                     </div>
@@ -718,7 +725,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 </svg>
               </button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[800px] bg-[#F7F3ED] border-none max-h-[85vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-[850px] md:max-w-[980px] lg:max-w-[1100px] bg-[#F7F3ED] border-none max-h-[85vh] overflow-y-auto">
               <DialogTitle className="sr-only">Manage Platforms</DialogTitle>
               <PlatformConnections
                 workspaceId={data.workspaceId}

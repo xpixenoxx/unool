@@ -815,89 +815,106 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
 
         <CardContent className="pt-0">
           {/* Connected + available platforms (connected first) */}
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {sortedPlatforms.map((platform) => {
+          <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+            {sortedPlatforms.map((platform, idx) => {
               const cfg = PLATFORM_CONFIG[platform];
               const connection = connections[platform];
-              const Icon = cfg.icon;
               const isConnected = connection.status === 'connected';
               const isExpired = connection.status === 'expired';
               const isError = connection.status === 'error';
               const hasIssue = isExpired || isError;
+              const isBlue = idx % 2 === 0;
 
               return (
                 <div
                   key={platform}
                   className={cn(
-                    'relative rounded-xl border p-4 transition-all duration-200',
-                    cfg.hoverBorder,
+                    'relative rounded-2xl p-4 transition-all duration-200 border flex flex-col justify-between',
                     isConnected
-                      ? 'border-emerald-200/80 dark:border-emerald-800/50 bg-emerald-50/50 dark:bg-emerald-950/20'
+                      ? isBlue
+                        ? 'bg-gradient-to-br from-[#1d6bf3] to-[#0a3fb5] text-white border-blue-400/40 shadow-md'
+                        : 'bg-gradient-to-br from-[#262626] to-[#0e0e0e] text-white border-white/20 shadow-md'
                       : hasIssue
                         ? 'border-amber-200/80 dark:border-amber-800/50 bg-amber-50/30 dark:bg-amber-950/20'
-                        : 'border-border/50 bg-card hover:bg-accent/30'
+                        : 'border-stone-200/80 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/60 hover:bg-white hover:border-stone-400 shadow-2xs'
                   )}
                 >
-                  {/* Platform header */}
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 drop-shadow-xs">
-                      <PlatformBrandLogo platform={platform} size={28} />
+                  <div>
+                    {/* Platform header */}
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-11 h-11 rounded-xl bg-white p-1 flex items-center justify-center flex-shrink-0 shadow-sm border border-black/5">
+                        <PlatformBrandLogo platform={platform} size={32} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h4
+                          className={cn(
+                            'text-sm font-semibold truncate',
+                            isConnected ? 'text-white' : 'text-foreground'
+                          )}
+                        >
+                          {cfg.name}
+                        </h4>
+                        <p
+                          className={cn(
+                            'text-xs truncate',
+                            isConnected
+                              ? isBlue
+                                ? 'text-blue-100/85'
+                                : 'text-zinc-300/85'
+                              : 'text-muted-foreground'
+                          )}
+                        >
+                          {cfg.description}
+                        </p>
+                      </div>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <h4 className="text-sm font-semibold text-foreground truncate">
-                        {cfg.name}
-                      </h4>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {cfg.description}
-                      </p>
-                    </div>
-                  </div>
 
-                  {/* Status + username */}
-                  <div className="mb-3">
-                    {isConnected ? (
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />
-                        <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400 truncate">
-                          {connection.username
-                            ? `@${connection.username}`
-                            : 'Connected'}
-                        </span>
-                      </div>
-                    ) : hasIssue ? (
-                      <div className="flex items-center gap-1.5">
-                        <AlertCircle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
-                        <span className="text-xs font-medium text-amber-700 dark:text-amber-400">
-                          {isExpired ? 'Token expired — reconnect' : 'Connection error'}
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-1.5">
-                        <WifiOff className="h-3.5 w-3.5 text-muted-foreground/50 flex-shrink-0" />
-                        <span className="text-xs text-muted-foreground">
-                          Not connected
-                        </span>
-                      </div>
-                    )}
+                    {/* Status + username */}
+                    <div className="mb-3">
+                      {isConnected ? (
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-[#7dffb0] shadow-[0_0_6px_#7dffb0] flex-shrink-0" />
+                          <span className="text-xs font-medium text-white/95 truncate">
+                            {connection.username
+                              ? `@${connection.username}`
+                              : 'Connected'}
+                          </span>
+                        </div>
+                      ) : hasIssue ? (
+                        <div className="flex items-center gap-1.5">
+                          <AlertCircle className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
+                          <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
+                            {isExpired ? 'Token expired — reconnect' : 'Connection error'}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5">
+                          <WifiOff className="h-3.5 w-3.5 text-muted-foreground/50 flex-shrink-0" />
+                          <span className="text-xs text-muted-foreground">
+                            Not connected
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Action button */}
                   {isConnected || isExpired ? (
-                    <div className="space-y-2">
+                    <div className="space-y-2 mt-auto">
                       {platform === 'kick' && isConnected && (
                         <Button
                           size="sm"
-                          variant={connection.streamConfigured ? "ghost" : "outline"}
+                          variant="outline"
                           className={cn(
-                            "w-full h-8 text-xs font-medium gap-1.5",
-                            connection.streamConfigured
-                              ? "text-emerald-700 dark:text-emerald-400 bg-emerald-50/70 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/40"
-                              : "border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50"
+                            'w-full h-8 text-xs font-medium gap-1.5 border-white/30 bg-white/15 text-white hover:bg-white',
+                            isBlue ? 'hover:text-blue-900' : 'hover:text-black'
                           )}
                           onClick={() => setKickStreamDialogOpen(true)}
                         >
-                          <Radio className={cn("w-3.5 h-3.5", !connection.streamConfigured && "animate-pulse text-amber-600")} />
-                          {connection.streamConfigured ? "Live Stream Ready (Configure)" : "Complete Setup"}
+                          <Radio className="w-3.5 h-3.5 text-[#7dffb0]" />
+                          {connection.streamConfigured
+                            ? 'Live Stream Ready'
+                            : 'Complete Setup'}
                         </Button>
                       )}
                       <div className="flex gap-2">
@@ -923,8 +940,13 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
                           variant="ghost"
                           size="sm"
                           className={cn(
-                            'h-8 text-xs text-muted-foreground',
-                            !isExpired && 'flex-1'
+                            'h-8 text-xs transition-all font-medium',
+                            !isExpired && 'flex-1',
+                            isConnected
+                              ? isBlue
+                                ? 'text-white border border-white/25 bg-white/10 hover:bg-white hover:text-blue-900'
+                                : 'text-white border border-white/25 bg-white/10 hover:bg-white hover:text-black'
+                              : 'text-muted-foreground'
                           )}
                           onClick={() => handleDisconnect(platform)}
                           disabled={disconnecting === platform}
@@ -943,7 +965,7 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
                   ) : (
                     <Button
                       size="sm"
-                      className="w-full h-8 text-xs gap-1.5"
+                      className="w-full h-8 text-xs gap-1.5 mt-auto"
                       onClick={() => handleConnect(platform)}
                       disabled={connecting === platform}
                     >

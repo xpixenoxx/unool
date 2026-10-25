@@ -267,7 +267,7 @@ export const PlatformSVGs: Record<string, PlatformLogoComponent> = {
     return (
       <svg width={size} height={size} viewBox="0 0 24 24" className={`flex-shrink-0 ${className}`}>
         {variant !== 'glyph' && <rect width="24" height="24" rx="5" fill="#FFFFFF" stroke="#E5E7EB" strokeWidth="0.8" />}
-        <g transform={variant === 'glyph' ? '' : 'translate(3, 3) scale(0.75)'}>
+        <g transform={variant === 'glyph' ? '' : 'translate(1.8, 1.8) scale(0.85)'}>
           <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313z" fill="#E01E5A" />
           <path d="M8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312z" fill="#36C5F0" />
           <path d="M18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312z" fill="#2EB67D" />
@@ -371,10 +371,8 @@ export const PlatformSVGs: Record<string, PlatformLogoComponent> = {
     }
     return (
       <svg width={size} height={size} viewBox="0 0 24 24" className={`flex-shrink-0 ${className}`}>
-        <circle cx="12" cy="12" r="12" fill="#EA4C89" />
-        <g transform="translate(2.4, 2.4) scale(0.8)">
-          <path fill="#FFFFFF" d={dribPath} />
-        </g>
+        <circle cx="12" cy="12" r="11.5" fill="#FFFFFF" />
+        <path fill="#EA4C89" d={dribPath} />
       </svg>
     );
   },
