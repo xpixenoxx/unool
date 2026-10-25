@@ -17,6 +17,7 @@ import { ManualIntegrationDialog } from '@/components/dashboard/ManualIntegratio
 import { PlatformBrandLogo } from '@/components/dashboard/PlatformLogos';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogTrigger, DialogTitle } from '@/components/ui/dialog';
+import { ProfileCompletionQuest } from '@/components/dashboard/ProfileCompletionQuest';
 
 /* ─── Biscuit Design System ───────────────────────────────── */
 
@@ -164,19 +165,6 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   const displayName = profile?.name?.split(' ')[0] || 'there';
   const isProfileLive = profile?.status === 'published' && profile?.subdomain;
 
-  /* Profile completion */
-  const completionSteps = [
-    !!profile?.name,
-    !!profile?.subdomain,
-    !!profile?.headline,
-    (profile?.links?.length || 0) > 0,
-    (profile?.proofPoints?.length || 0) > 0,
-    recentPosts.length > 0,
-  ];
-  const completionPercent = Math.round(
-    (completionSteps.filter(Boolean).length / completionSteps.length) * 100
-  );
-
   /* Heatmap data — generate from real posts */
   const heatmapData = useMemo(() => generateHeatmapData(recentPosts), [recentPosts]);
 
@@ -227,18 +215,21 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
 
             {/* Profile URL */}
             {profile?.subdomain && (
-              <div
-                className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono"
+              <a
+                href={isProfileLive ? (process.env.NODE_ENV === 'development' ? `/u/${profile.subdomain}` : `https://${profile.subdomain}.unool.co`) : `/dashboard/profile?focus=subdomain`}
+                target={isProfileLive ? "_blank" : undefined}
+                rel="noreferrer"
+                title={isProfileLive ? "Open live profile in new tab" : "Manage profile subdomain"}
+                className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono transition-opacity hover:opacity-85"
                 style={{
                   backgroundColor: B.accentBg,
                   color: B.textSecondary,
                   border: `1px solid ${B.border}`,
                 }}
               >
-                <Globe className="h-3.5 w-3.5" style={{ color: B.accent }} />
-                {profile.subdomain}.unool.co
+                <span>{profile.subdomain}.unool.co</span>
                 {isProfileLive && (
-                  <span className="relative flex h-2 w-2 ml-1">
+                  <span className="relative flex h-2 w-2 ml-1" title="Live Profile">
                     <span
                       className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
                       style={{ backgroundColor: B.success }}
@@ -249,46 +240,11 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                     />
                   </span>
                 )}
-              </div>
+              </a>
             )}
 
-            {/* Profile Completion Ring */}
-            <div className="flex items-center gap-4 mt-5">
-              <div className="relative h-16 w-16 flex-shrink-0">
-                <svg viewBox="0 0 36 36" className="h-16 w-16 -rotate-90">
-                  <circle
-                    cx="18" cy="18" r="15.5"
-                    fill="none"
-                    stroke={B.borderLight}
-                    strokeWidth="3"
-                  />
-                  <circle
-                    cx="18" cy="18" r="15.5"
-                    fill="none"
-                    stroke={B.accent}
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    strokeDasharray={`${completionPercent} ${100 - completionPercent}`}
-                  />
-                </svg>
-                <span
-                  className="absolute inset-0 flex items-center justify-center text-sm font-bold"
-                  style={{ color: B.text }}
-                >
-                  {completionPercent}%
-                </span>
-              </div>
-              <div>
-                <p className="text-sm font-semibold" style={{ color: B.text }}>
-                  Profile Completion
-                </p>
-                <p className="text-xs mt-0.5" style={{ color: B.textMuted }}>
-                  {completionPercent === 100
-                    ? 'Your profile is fully set up!'
-                    : `${completionSteps.filter(Boolean).length} of ${completionSteps.length} steps done`}
-                </p>
-              </div>
-            </div>
+            {/* Interactive Profile Completion Quest */}
+            <ProfileCompletionQuest profile={profile} recentPosts={recentPosts} />
 
             {/* CTA Button */}
             <Link

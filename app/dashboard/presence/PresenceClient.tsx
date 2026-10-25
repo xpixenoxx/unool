@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -147,8 +148,44 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<{id: string, email: string, full_name: string}[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const searchParams = useSearchParams();
 
   useEffect(() => { loadProfile(); }, []);
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab') as TabValue | null;
+    const focusParam = searchParams.get('focus') || searchParams.get('step');
+
+    if (tabParam === 'profile' || tabParam === 'links' || tabParam === 'templates') {
+      setActiveTab(tabParam);
+    } else if (focusParam === 'links' || focusParam === 'proofPoints') {
+      setActiveTab('links');
+    } else if (focusParam === 'name' || focusParam === 'headline') {
+      setActiveTab('profile');
+    }
+
+    if (focusParam) {
+      const timer = setTimeout(() => {
+        let elId = '';
+        if (focusParam === 'subdomain') elId = 'subdomain-section';
+        else if (focusParam === 'name') elId = 'profile-name-input';
+        else if (focusParam === 'headline') elId = 'profile-headline-input';
+        else if (focusParam === 'links') elId = 'links-section';
+        else if (focusParam === 'proofPoints') elId = 'proofs-section';
+
+        if (elId) {
+          const el = document.getElementById(elId);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+              el.focus();
+            }
+          }
+        }
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+  }, [searchParams]);
 
   const loadProfile = async () => {
     try {
@@ -520,7 +557,7 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
       </motion.div>
 
       {/* ═══ SUBDOMAIN CLAIM ═══ */}
-      <motion.div variants={fadeUp} transition={transition} className="rounded-2xl p-6" style={{ backgroundColor: B.card, border: `1px solid ${B.cardBorder}`, boxShadow: B.cardShadow }}>
+      <motion.div id="subdomain-section" variants={fadeUp} transition={transition} className="rounded-2xl p-6" style={{ backgroundColor: B.card, border: `1px solid ${B.cardBorder}`, boxShadow: B.cardShadow }}>
         <div className="flex items-center gap-2.5 mb-5">
           <div className="p-2 rounded-lg" style={{ backgroundColor: B.bg }}>
             <Globe className="h-4 w-4" style={{ color: B.text }} />
@@ -618,11 +655,11 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium ml-1" style={{ color: B.textMuted }}>Full Name</label>
-                    <input value={profile.name} onChange={e => setProfile({...profile, name: e.target.value})} className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none" style={{ backgroundColor: B.bg, border: `1px solid ${B.border}`, color: B.text }} placeholder="Jane Doe" />
+                    <input id="profile-name-input" value={profile.name} onChange={e => setProfile({...profile, name: e.target.value})} className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none" style={{ backgroundColor: B.bg, border: `1px solid ${B.border}`, color: B.text }} placeholder="Jane Doe" />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium ml-1" style={{ color: B.textMuted }}>Headline</label>
-                    <input value={profile.headline} onChange={e => setProfile({...profile, headline: e.target.value})} className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none" style={{ backgroundColor: B.bg, border: `1px solid ${B.border}`, color: B.text }} placeholder="Founder @ Startup" />
+                    <input id="profile-headline-input" value={profile.headline} onChange={e => setProfile({...profile, headline: e.target.value})} className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none" style={{ backgroundColor: B.bg, border: `1px solid ${B.border}`, color: B.text }} placeholder="Founder @ Startup" />
                   </div>
                 </div>
 
@@ -694,7 +731,7 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
             {activeTab === 'links' && (
               <div className="space-y-6">
                 {/* Links Card */}
-                <div className="rounded-2xl p-6" style={{ backgroundColor: B.card, border: `1px solid ${B.cardBorder}`, boxShadow: B.cardShadow }}>
+                <div id="links-section" className="rounded-2xl p-6" style={{ backgroundColor: B.card, border: `1px solid ${B.cardBorder}`, boxShadow: B.cardShadow }}>
                   <div className="flex items-center justify-between mb-5">
                     <div>
                       <h3 className="text-sm font-semibold" style={{ color: B.text }}>Social & Custom Links</h3>
@@ -724,7 +761,7 @@ export function PresenceClient({ userId, workspaceId }: PresenceClientProps) {
                 </div>
 
                 {/* Proof Points Card */}
-                <div className="rounded-2xl p-6" style={{ backgroundColor: B.card, border: `1px solid ${B.cardBorder}`, boxShadow: B.cardShadow }}>
+                <div id="proofs-section" className="rounded-2xl p-6" style={{ backgroundColor: B.card, border: `1px solid ${B.cardBorder}`, boxShadow: B.cardShadow }}>
                   <div className="flex items-center justify-between mb-5">
                     <div>
                       <h3 className="text-sm font-semibold" style={{ color: B.text }}>Proof Points & Credentials</h3>
