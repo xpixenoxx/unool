@@ -369,8 +369,8 @@ export default function DashboardLayout({
         )}
 
         {/* Main content */}
-        <main className="lg:pl-[240px] min-h-screen">
-          <div className="p-5 pt-16 lg:p-8 lg:pt-8">
+        <main className="lg:pl-[240px] min-h-screen max-w-full overflow-x-hidden">
+          <div className="p-4 pt-16 lg:p-6 lg:pt-6 max-w-full overflow-x-hidden min-w-0">
             {children}
           </div>
         </main>

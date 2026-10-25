@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&display=swap');
 
+/* ─── CSS Variables & Base Container ─────────────────────────── */
 #ov-root {
   --bg: #f6f1e6;
   --card: #fffdf8;
@@ -16,10 +17,13 @@
   font-family: 'Lora', Georgia, serif;
   color: var(--ink);
   background: var(--bg);
-  padding: 26px;
+  padding: 0 0 28px 0;
   line-height: 1.45;
   box-sizing: border-box;
-  min-height: 100vh;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 #ov-root * {
@@ -55,11 +59,15 @@
   flex: none;
 }
 
+/* ─── Layout Wrapper ─────────────────────────────────────── */
 #ov-root .wrap {
+  width: 100%;
   max-width: 1200px;
   margin: 0 auto;
   display: grid;
   gap: 22px;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 #ov-root .card {
@@ -67,8 +75,12 @@
   border: 2px solid var(--line);
   border-radius: 22px;
   box-shadow: 0 4px 0 var(--g2);
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
+/* ─── Buttons ────────────────────────────────────────────── */
 #ov-root .btn {
   display: inline-flex;
   align-items: center;
@@ -80,6 +92,7 @@
   border: 2px solid var(--brn);
   transition: 0.2s;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 #ov-root .btn.d {
@@ -143,8 +156,11 @@
 /* ─── Top Grid (Hero + 3 Stats) ─────────────────────────── */
 #ov-root .top {
   display: grid;
-  grid-template-columns: 1.45fr 1fr 1fr 1fr;
+  grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(0, 1fr));
   gap: 20px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 #ov-root .hero {
@@ -152,6 +168,9 @@
   position: relative;
   overflow: hidden;
   background: radial-gradient(circle at var(--mx, 85%) var(--my, 10%), #f4e3bd, var(--card) 55%);
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 #ov-root .hello {
@@ -164,10 +183,11 @@
 
 #ov-root h1 {
   margin: 2px 0 14px;
-  font-size: clamp(28px, 3.4vw, 38px);
+  font-size: clamp(26px, 3.2vw, 38px);
   line-height: 1.1;
   font-weight: 700;
   letter-spacing: -0.02em;
+  word-break: break-word;
 }
 
 #ov-root .url {
@@ -180,12 +200,16 @@
   background: #fff;
   border: 2px solid var(--line);
   font-size: 14px;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 #ov-root .url .t {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
+  max-width: min(320px, 50vw);
 }
 
 #ov-root .live {
@@ -214,6 +238,7 @@
   font-size: 12.5px;
   font-weight: 700;
   transition: 0.15s;
+  flex-shrink: 0;
 }
 
 #ov-root .cp:hover {
@@ -232,12 +257,20 @@
   border: 2px solid var(--line);
   cursor: pointer;
   transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 #ov-root .comp:hover {
   border-color: var(--gold);
   transform: translateY(-1px);
   box-shadow: 0 4px 0 var(--g2);
+}
+
+#ov-root .comp > div:last-child {
+  min-width: 0;
+  flex: 1;
 }
 
 #ov-root .ring {
@@ -265,21 +298,31 @@
 #ov-root .comp strong {
   display: block;
   font-size: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 #ov-root .comp small {
   color: var(--mute);
   font-size: 13.5px;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 #ov-root .segs {
   display: flex;
   gap: 4px;
   margin-top: 8px;
+  width: 100%;
+  min-width: 0;
 }
 
 #ov-root .segs i {
   flex: 1;
+  min-width: 0;
   height: 7px;
   border-radius: 4px;
   background: var(--g2);
@@ -291,13 +334,17 @@
   border-color: #a47d3f;
 }
 
-/* ─── Stats ─────────────────────────────────────────────── */
+/* ─── Stat Cards ─────────────────────────────────────────── */
 #ov-root .stat {
   padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 4px;
   transition: 0.25s;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 #ov-root .stat:hover {
@@ -313,11 +360,18 @@
   font-size: 15px;
   color: var(--mute);
   font-weight: 600;
+  min-width: 0;
+}
+
+#ov-root .stat .hd span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 #ov-root .ib {
-  width: 46px;
-  height: 46px;
+  width: 44px;
+  height: 44px;
   border-radius: 14px;
   display: grid;
   place-items: center;
@@ -326,12 +380,12 @@
   border: 2px solid #a47d3f;
   box-shadow: 0 3px 0 #7d5e2b;
   transition: 0.2s;
-  cursor: pointer;
+  flex: none;
 }
 
 #ov-root .ib svg {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   stroke-width: 2.4;
   transition: 0.35s;
 }
@@ -373,17 +427,20 @@
 }
 
 #ov-root .num {
-  font-size: 42px;
+  font-size: clamp(30px, 2.6vw, 42px);
   font-weight: 700;
   line-height: 1.1;
   margin-top: 4px;
   letter-spacing: -0.03em;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 #ov-root .tr {
   font-size: 13px;
   font-weight: 700;
-  margin-left: 8px;
   padding: 3px 9px;
   border-radius: 99px;
   vertical-align: middle;
@@ -391,6 +448,7 @@
   background: var(--g3);
   color: var(--mute);
   border: 1.5px solid var(--line);
+  white-space: nowrap;
 }
 
 #ov-root .tr.u {
@@ -408,17 +466,24 @@
 #ov-root .sub {
   font-size: 13.5px;
   color: var(--mute);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 #ov-root .spw {
   position: relative;
   margin-top: auto;
   padding-top: 10px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 #ov-root .spk {
   width: 100%;
-  height: 60px;
+  max-width: 100%;
+  height: 52px;
   display: block;
   overflow: visible;
   cursor: crosshair;
@@ -490,18 +555,25 @@
 /* ─── Network: Brand Tiles ──────────────────────────────── */
 #ov-root .con {
   padding: 28px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 #ov-root .ch {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
+  width: 100%;
+  min-width: 0;
 }
 
 #ov-root .ch > div:first-child {
   flex: 1;
-  min-width: 200px;
+  min-width: 180px;
 }
 
 #ov-root .ch h2 {
@@ -523,6 +595,8 @@
   border-radius: 14px;
   background: var(--g3);
   border: 2px solid var(--line);
+  max-width: 100%;
+  flex-wrap: wrap;
 }
 
 #ov-root .seg button {
@@ -535,6 +609,7 @@
   font-weight: 700;
   color: var(--mute);
   transition: 0.2s;
+  white-space: nowrap;
 }
 
 #ov-root .seg button em {
@@ -569,17 +644,23 @@
   align-items: center;
   gap: 16px;
   margin: 20px 0 18px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 #ov-root .spec {
   display: flex;
   gap: 5px;
   flex: 1;
+  min-width: 0;
   height: 12px;
 }
 
 #ov-root .spec i {
   flex: 1;
+  min-width: 0;
   border-radius: 6px;
   background: #e6dcc4;
   border: 1.5px solid var(--line);
@@ -599,6 +680,7 @@
   font-weight: 700;
   font-size: 14.5px;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 #ov-root .meter span b {
@@ -607,8 +689,12 @@
 
 #ov-root .tiles {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
   gap: 16px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 #ov-root .tile {
@@ -618,14 +704,17 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 26px;
-  min-height: 168px;
+  gap: 24px;
+  min-height: 164px;
   padding: 16px;
   border-radius: 20px;
   background: #fffdf8;
   border: 2px dashed var(--line);
   color: var(--ink);
   transition: transform 0.25s, box-shadow 0.25s, border-color 0.3s, color 0.4s 0.15s;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 #ov-root .tile:hover,
@@ -690,23 +779,7 @@
   opacity: 0;
   transition: opacity 0.6s 0.2s, transform 0.5s;
   pointer-events: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-#ov-root .bgm img {
-  height: 120px;
-  width: 120px;
-  object-fit: contain;
-  filter: brightness(0) invert(1);
-}
-
-#ov-root .bgm svg {
-  height: 120px;
-  width: 120px;
-  stroke: none;
-  fill: #fff;
+  overflow: hidden;
 }
 
 #ov-root .tile.on .bgm {
@@ -722,14 +795,15 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 8px;
+  width: 100%;
 }
 
 #ov-root .lg {
   display: grid;
   place-items: center;
-  width: 50px;
-  height: 50px;
-  border-radius: 15px;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
   font-weight: 700;
   font-size: 17px;
   color: #fff;
@@ -738,12 +812,6 @@
   border: 2px solid rgba(0, 0, 0, 0.12);
   transition: 0.4s;
   flex: none;
-}
-
-#ov-root .lg img {
-  width: 62%;
-  height: 62%;
-  object-fit: contain;
 }
 
 #ov-root .lg svg {
@@ -768,12 +836,13 @@
   gap: 7px;
   padding: 4px 11px;
   border-radius: 99px;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 700;
   background: #fff;
   border: 1.5px solid var(--line);
   color: var(--mute);
   transition: 0.4s;
+  white-space: nowrap;
 }
 
 #ov-root .st:before {
@@ -802,31 +871,36 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: 10px;
+  width: 100%;
 }
 
 #ov-root .tb b {
-  font-size: 22px;
+  font-size: 20px;
   line-height: 1.1;
   font-weight: 700;
   letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 #ov-root .tbtn {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 9px 16px;
+  padding: 8px 15px;
   border-radius: 99px;
   font-weight: 700;
-  font-size: 13.5px;
+  font-size: 13px;
   transition: 0.2s;
   white-space: nowrap;
   cursor: pointer;
+  flex-shrink: 0;
 }
 
 #ov-root .tbtn svg {
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
   stroke-width: 2.6;
 }
 
@@ -919,23 +993,15 @@
   transform: translateX(4px);
 }
 
-#ov-root .intro .tile {
-  animation: rise 0.5s both;
-  animation-delay: calc(var(--i) * 60ms + 150ms);
-}
-
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(18px);
-  }
-}
-
-/* ─── Tools (4 Cards) ──────────────────────────────────── */
+/* ─── Tools Grid (4 Cards) ───────────────────────────────── */
 #ov-root .tools {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 18px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 #ov-root .tool {
@@ -946,6 +1012,9 @@
   position: relative;
   transition: 0.3s;
   overflow: hidden;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 #ov-root .tool:hover {
@@ -962,6 +1031,9 @@
   display: grid;
   place-items: center;
   padding: 10px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 #ov-root .tag {
@@ -976,6 +1048,7 @@
   color: var(--esp);
   border: 2px solid #a47d3f;
   z-index: 2;
+  white-space: nowrap;
 }
 
 #ov-root .tool h3 {
@@ -983,12 +1056,14 @@
   font-size: 19px;
   font-weight: 700;
   line-height: 1.2;
+  word-break: break-word;
 }
 
 #ov-root .t2 {
   font-size: 13px;
   color: var(--mute);
   margin-top: -5px;
+  word-break: break-word;
 }
 
 #ov-root .tool p {
@@ -996,6 +1071,7 @@
   font-size: 14px;
   color: #4b3a2d;
   flex: 1;
+  word-break: break-word;
 }
 
 #ov-root .tool .btn {
@@ -1004,16 +1080,21 @@
 
 #ov-root .days {
   display: flex;
-  gap: 5px;
+  gap: 4px;
+  width: 100%;
+  max-width: 100%;
+  justify-content: center;
 }
 
 #ov-root .days button {
-  width: 27px;
+  flex: 1;
+  max-width: 32px;
+  min-width: 20px;
   height: 46px;
   border-radius: 9px;
   background: #fff;
   border: 2px solid var(--line);
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 700;
   color: var(--mute);
   display: grid;
@@ -1062,7 +1143,7 @@
   height: 46px;
   margin: -23px;
   border-radius: 13px;
-  background: var(--c, #3b2a1f);
+  background: var(--c);
   transition: 0.4s cubic-bezier(0.2, 1.3, 0.4, 1);
   display: grid;
   place-items: center;
@@ -1075,11 +1156,11 @@
 }
 
 #ov-root .tool:hover .fan i:nth-child(1) {
-  transform: translateX(-62px) rotate(-8deg);
+  transform: translateX(-56px) rotate(-8deg);
 }
 
 #ov-root .tool:hover .fan i:nth-child(3) {
-  transform: translateX(62px) rotate(8deg);
+  transform: translateX(56px) rotate(8deg);
 }
 
 #ov-root .fan i:nth-child(2) {
@@ -1089,11 +1170,13 @@
 
 #ov-root .mini {
   width: 100%;
+  max-width: 100%;
   background: #fff;
   border: 2px solid var(--line);
   border-radius: 10px;
   overflow: hidden;
   font-size: 11.5px;
+  box-sizing: border-box;
 }
 
 #ov-root .mini .bar {
@@ -1104,6 +1187,7 @@
   background: var(--g3);
   color: var(--mute);
   border-bottom: 2px solid var(--line);
+  min-width: 0;
 }
 
 #ov-root .mini .bar i {
@@ -1111,6 +1195,7 @@
   height: 6px;
   border-radius: 50%;
   background: var(--line);
+  flex-shrink: 0;
 }
 
 #ov-root .mini .bar span {
@@ -1118,6 +1203,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
 }
 
 #ov-root .mini .ln {
@@ -1130,13 +1216,14 @@
 
 #ov-root .tool:hover .mini .ln {
   background: var(--gold);
-  width: 80% !important;
+  width: 80%;
 }
 
 #ov-root .chat {
   display: grid;
   gap: 6px;
   width: 100%;
+  min-width: 0;
 }
 
 #ov-root .chat span {
@@ -1148,6 +1235,7 @@
   max-width: 92%;
   border: 2px solid var(--line);
   background: #fff;
+  word-break: break-word;
 }
 
 #ov-root .chat .b {
@@ -1168,17 +1256,25 @@
 /* ─── Recent Broadcasts ─────────────────────────────────── */
 #ov-root .rec {
   padding: 26px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 #ov-root .rec .sh {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
   gap: 16px;
+  flex-wrap: wrap;
+  width: 100%;
+  min-width: 0;
 }
 
 #ov-root .rec .sh > div {
   flex: 1;
+  min-width: 180px;
 }
 
 #ov-root .rec .sh h2 {
@@ -1197,11 +1293,14 @@
   display: grid;
   gap: 12px;
   margin-top: 18px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 #ov-root .it {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 14px 16px;
   align-items: center;
   padding: 15px 18px;
@@ -1210,6 +1309,10 @@
   border: 2px solid var(--line);
   cursor: pointer;
   transition: 0.25s;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 #ov-root .it:hover {
@@ -1224,6 +1327,12 @@
   border-radius: 50%;
   background: var(--gold);
   box-shadow: 0 0 0 5px rgba(194, 155, 91, 0.25);
+  flex-shrink: 0;
+}
+
+#ov-root .it > div:nth-child(2) {
+  min-width: 0;
+  overflow: hidden;
 }
 
 #ov-root .it p {
@@ -1233,15 +1342,18 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
 }
 
 #ov-root .it.open p {
   white-space: normal;
+  word-break: break-word;
 }
 
 #ov-root .it small {
   color: var(--mute);
   font-size: 13px;
+  display: block;
 }
 
 #ov-root .step {
@@ -1251,6 +1363,7 @@
   font-size: 12px;
   font-weight: 700;
   color: #a8967e;
+  flex-shrink: 0;
 }
 
 #ov-root .step span {
@@ -1258,6 +1371,7 @@
   border-radius: 99px;
   background: var(--g3);
   border: 1.5px solid var(--line);
+  white-space: nowrap;
 }
 
 #ov-root .step span.cur {
@@ -1276,6 +1390,7 @@
   width: 12px;
   height: 2px;
   background: var(--line);
+  flex-shrink: 0;
 }
 
 #ov-root .it .pr {
@@ -1285,6 +1400,7 @@
   background: var(--g2);
   border: 1px solid var(--line);
   overflow: hidden;
+  width: 100%;
 }
 
 #ov-root .it .pr i {
@@ -1317,6 +1433,7 @@
   color: var(--mute);
 }
 
+/* ─── Toast Notification ─────────────────────────────────── */
 #ov-root .toast {
   position: fixed;
   left: 50%;
@@ -1340,33 +1457,37 @@
   transform: translate(-50%, 0);
 }
 
-/* ─── Media Queries ─────────────────────────────────────── */
-@media (max-width: 1050px) {
+/* ─── Responsive Breakpoints ─────────────────────────────── */
+/* When window <= 1380px (content area <= ~1100px due to 240px sidebar) */
+@media (max-width: 1380px) {
   #ov-root .top {
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
   #ov-root .hero {
     grid-column: 1 / -1;
   }
+}
+
+/* When window <= 1220px */
+@media (max-width: 1220px) {
   #ov-root .tools {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 640px) {
-  #ov-root {
-    padding: 12px;
+/* When window <= 880px */
+@media (max-width: 880px) {
+  #ov-root .top {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  #ov-root .top,
-  #ov-root .tools {
-    grid-template-columns: 1fr;
+  #ov-root .hero {
+    grid-column: 1 / -1;
   }
-  #ov-root .con,
-  #ov-root .rec {
-    padding: 18px;
+  #ov-root .stat:last-child {
+    grid-column: 1 / -1;
   }
   #ov-root .it {
-    grid-template-columns: auto 1fr;
+    grid-template-columns: auto minmax(0, 1fr);
   }
   #ov-root .it .step {
     grid-column: 1 / -1;
@@ -1374,6 +1495,26 @@
   }
   #ov-root .it .pr {
     grid-column: 1 / -1;
+  }
+}
+
+/* Mobile: <= 600px */
+@media (max-width: 600px) {
+  #ov-root .top,
+  #ov-root .tools {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  #ov-root .hero,
+  #ov-root .stat:last-child {
+    grid-column: auto;
+  }
+  #ov-root .con,
+  #ov-root .rec,
+  #ov-root .hero {
+    padding: 18px;
+  }
+  #ov-root .num {
+    font-size: 32px;
   }
 }
 
