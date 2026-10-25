@@ -603,11 +603,11 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               </div>
             </div>
 
-            <Link href="/dashboard/studio" className="btn d">
+            <Link href="/dashboard/studio" className="btn d" aria-label="New idea">
               <svg viewBox="0 0 24 24">
                 <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
               </svg>
-              <span>Start Creating</span>
+              <span>New idea</span>
             </Link>
           </section>
 
