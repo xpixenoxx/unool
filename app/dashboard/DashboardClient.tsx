@@ -311,6 +311,22 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     }
   }, [data.connections]);
 
+  const handleConnectionChange = useCallback(
+    (newConns: Record<string, { status: string; username?: string }>) => {
+      setConnections((prev) => {
+        let changed = false;
+        for (const [k, v] of Object.entries(newConns)) {
+          if (!prev[k] || prev[k].status !== v.status || prev[k].username !== v.username) {
+            changed = true;
+            break;
+          }
+        }
+        return changed ? { ...prev, ...newConns } : prev;
+      });
+    },
+    []
+  );
+
   // Platforms dataset: ALL connected platforms are shown FIRST,
   // followed by not-connected platforms, with strictly alternating Blue and Black colors.
   const platforms = useMemo(() => {
@@ -762,9 +778,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 workspaceId={data.workspaceId}
                 userId={data.userId}
                 initialConnectionsProp={connections}
-                onConnectionChange={(newConns) => {
-                  setConnections((prev) => ({ ...prev, ...newConns }));
-                }}
+                onConnectionChange={handleConnectionChange}
               />
             </DialogContent>
           </Dialog>

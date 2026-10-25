@@ -422,10 +422,6 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
     }
   }, [initialConnectionsProp, workspaceId]);
 
-  // Notify parent of connection updates
-  useEffect(() => {
-    onConnectionChange?.(connections);
-  }, [connections, onConnectionChange]);
 
   // Sort platforms: ALL connected platforms first, followed by not-connected platforms (manual at end of not-connected)
   const sortedPlatforms = useMemo(() => {
@@ -484,9 +480,29 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
         const data = await res.json();
         if (data.connections) {
           setConnections((prev) => {
-            const next = { ...prev, ...data.connections };
-            memoryConnectionsCache.set(workspaceId, next);
-            return next;
+            let changed = false;
+            const next = { ...prev };
+            for (const [p, val] of Object.entries(data.connections)) {
+              const platformKey = p as Platform;
+              if (next[platformKey]) {
+                const newStatus = (val as any).status || 'not_connected';
+                const newUsername = (val as any).username;
+                if (next[platformKey].status !== newStatus || next[platformKey].username !== newUsername) {
+                  next[platformKey] = {
+                    ...next[platformKey],
+                    status: newStatus,
+                    username: newUsername,
+                  };
+                  changed = true;
+                }
+              }
+            }
+            if (changed) {
+              memoryConnectionsCache.set(workspaceId, next);
+              onConnectionChange?.(next);
+              return next;
+            }
+            return prev;
           });
         }
         // Cache the userId returned from the API so we can pass it during connect
@@ -581,10 +597,15 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
         credentials: 'include',
       });
       if (res.ok) {
-        setConnections((prev) => ({
-          ...prev,
-          [platform]: { platform, status: 'not_connected' },
-        }));
+        setConnections((prev) => {
+          const next = {
+            ...prev,
+            [platform]: { platform, status: 'not_connected' },
+          };
+          memoryConnectionsCache.set(workspaceId, next);
+          onConnectionChange?.(next);
+          return next;
+        });
         toast.success(`${cfg.name} disconnected`);
       } else {
         toast.error('Failed to disconnect');
@@ -617,7 +638,7 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
             {connectablePlatforms.map((p) => (
               <div
                 key={p}
@@ -855,7 +876,7 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
                 <div
                   key={platform}
                   className={cn(
-                    'relative rounded-2xl p-4 transition-all duration-200 border flex flex-col justify-between',
+                    'relative rounded-2xl p-4 transition-colors duration-150 border flex flex-col justify-between',
                     isConnected
                       ? isBlue
                         ? 'bg-gradient-to-br from-[#1d6bf3] to-[#0a3fb5] text-white border-blue-400/40 shadow-md'
