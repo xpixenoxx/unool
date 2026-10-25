@@ -64,30 +64,11 @@ export interface QuestStep {
   icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
 }
 
-interface ProfileCompletionQuestProps {
-  profile: {
-    subdomain: string | null;
-    name: string | null;
-    headline: string | null;
-    status: 'published' | 'draft';
-    updatedAt: string | null;
-    links: Array<{ label: string; url: string; type: string }>;
-    proofPoints: Array<{ type: string; value: string }>;
-  } | null;
-  recentPosts: Array<{
-    id: string;
-    content: string;
-    status: string;
-    createdAt: string;
-    updatedAt: string;
-  }>;
-}
-
-export function ProfileCompletionQuest({ profile, recentPosts }: ProfileCompletionQuestProps) {
-  const [modalOpen, setModalOpen] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<'all' | 'pending' | 'completed'>('pending');
-
-  const steps: QuestStep[] = [
+export function getQuestSteps(
+  profile: ProfileCompletionQuestProps['profile'],
+  recentPosts: ProfileCompletionQuestProps['recentPosts']
+): QuestStep[] {
+  return [
     {
       id: 'name',
       title: 'Creator Display Name',
@@ -167,6 +148,48 @@ export function ProfileCompletionQuest({ profile, recentPosts }: ProfileCompleti
       icon: PenTool,
     },
   ];
+}
+
+export interface ProfileCompletionQuestProps {
+  profile: {
+    subdomain: string | null;
+    name: string | null;
+    headline: string | null;
+    status: 'published' | 'draft';
+    updatedAt: string | null;
+    links: Array<{ label: string; url: string; type: string }>;
+    proofPoints: Array<{ type: string; value: string }>;
+  } | null;
+  recentPosts: Array<{
+    id: string;
+    content: string;
+    status: string;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  renderTrigger?: boolean;
+}
+
+export function ProfileCompletionQuest({
+  profile,
+  recentPosts,
+  isOpen,
+  onOpenChange,
+  renderTrigger = true,
+}: ProfileCompletionQuestProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = typeof isOpen === 'boolean';
+  const modalOpen = isControlled ? isOpen : internalOpen;
+  const setModalOpen = (val: boolean) => {
+    if (onOpenChange) onOpenChange(val);
+    if (!isControlled) setInternalOpen(val);
+  };
+
+  const [activeFilter, setActiveFilter] = useState<'all' | 'pending' | 'completed'>('pending');
+
+  const steps = getQuestSteps(profile, recentPosts);
 
   const completedSteps = steps.filter((s) => s.completed);
   const incompleteSteps = steps.filter((s) => !s.completed);
@@ -198,130 +221,132 @@ export function ProfileCompletionQuest({ profile, recentPosts }: ProfileCompleti
   return (
     <>
       {/* ─── IN-CARD INTERACTIVE WIDGET ─────────────────────── */}
-      <div className="mt-5 pt-4 border-t" style={{ borderColor: B.borderLight }}>
-        <div className="flex items-center justify-between">
-          <div
-            onClick={() => setModalOpen(true)}
-            className="flex items-center gap-3.5 cursor-pointer group select-none"
-            title="Click to view all profile completion milestones"
-          >
-            {/* Circular Progress Gauge */}
-            <div className="relative h-14 w-14 flex-shrink-0 transition-transform duration-300 group-hover:scale-105">
-              <svg viewBox="0 0 36 36" className="h-14 w-14 -rotate-90">
-                <circle
-                  cx="18"
-                  cy="18"
-                  r="15.5"
-                  fill="none"
-                  stroke={B.borderLight}
-                  strokeWidth="3"
-                />
-                <circle
-                  cx="18"
-                  cy="18"
-                  r="15.5"
-                  fill="none"
-                  stroke={completionPercent === 100 ? B.success : B.accent}
-                  strokeWidth="3.2"
-                  strokeLinecap="round"
-                  strokeDasharray={`${completionPercent} ${100 - completionPercent}`}
-                  className="transition-all duration-700 ease-out"
-                />
-              </svg>
-              <span
-                className="absolute inset-0 flex items-center justify-center text-xs font-bold font-mono tracking-tight"
-                style={{ color: B.text }}
-              >
-                {completionPercent}%
-              </span>
-            </div>
-
-            <div>
-              <div className="flex items-center gap-2">
-                <p
-                  className="text-sm font-semibold tracking-tight transition-colors group-hover:opacity-85"
+      {renderTrigger && (
+        <div className="mt-5 pt-4 border-t" style={{ borderColor: B.borderLight }}>
+          <div className="flex items-center justify-between">
+            <div
+              onClick={() => setModalOpen(true)}
+              className="flex items-center gap-3.5 cursor-pointer group select-none"
+              title="Click to view all profile completion milestones"
+            >
+              {/* Circular Progress Gauge */}
+              <div className="relative h-14 w-14 flex-shrink-0 transition-transform duration-300 group-hover:scale-105">
+                <svg viewBox="0 0 36 36" className="h-14 w-14 -rotate-90">
+                  <circle
+                    cx="18"
+                    cy="18"
+                    r="15.5"
+                    fill="none"
+                    stroke={B.borderLight}
+                    strokeWidth="3"
+                  />
+                  <circle
+                    cx="18"
+                    cy="18"
+                    r="15.5"
+                    fill="none"
+                    stroke={completionPercent === 100 ? B.success : B.accent}
+                    strokeWidth="3.2"
+                    strokeLinecap="round"
+                    strokeDasharray={`${completionPercent} ${100 - completionPercent}`}
+                    className="transition-all duration-700 ease-out"
+                  />
+                </svg>
+                <span
+                  className="absolute inset-0 flex items-center justify-center text-xs font-bold font-mono tracking-tight"
                   style={{ color: B.text }}
                 >
-                  Profile Completion
-                </p>
-                {completionPercent === 100 ? (
-                  <span
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wider uppercase"
-                    style={{ backgroundColor: B.successBg, color: B.success }}
-                  >
-                    <Check className="w-2.5 h-2.5" /> 100% Ready
-                  </span>
-                ) : (
-                  <span
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wider uppercase"
-                    style={{ backgroundColor: B.accentBg, color: B.accentDark }}
-                  >
-                    {incompleteSteps.length} left
-                  </span>
-                )}
+                  {completionPercent}%
+                </span>
               </div>
 
-              <p className="text-xs mt-0.5" style={{ color: B.textMuted }}>
-                {completionPercent === 100
-                  ? 'Your profile is fully set up!'
-                  : `${completedCount} of ${totalSteps} steps done`}
-              </p>
+              <div>
+                <div className="flex items-center gap-2">
+                  <p
+                    className="text-sm font-semibold tracking-tight transition-colors group-hover:opacity-85"
+                    style={{ color: B.text }}
+                  >
+                    Profile Completion
+                  </p>
+                  {completionPercent === 100 ? (
+                    <span
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wider uppercase"
+                      style={{ backgroundColor: B.successBg, color: B.success }}
+                    >
+                      <Check className="w-2.5 h-2.5" /> 100% Ready
+                    </span>
+                  ) : (
+                    <span
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wider uppercase"
+                      style={{ backgroundColor: B.accentBg, color: B.accentDark }}
+                    >
+                      {incompleteSteps.length} left
+                    </span>
+                  )}
+                </div>
+
+                <p className="text-xs mt-0.5" style={{ color: B.textMuted }}>
+                  {completionPercent === 100
+                    ? 'Your profile is fully set up!'
+                    : `${completedCount} of ${totalSteps} steps done`}
+                </p>
+              </div>
             </div>
+
+            <button
+              onClick={() => setModalOpen(true)}
+              className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-all hover:bg-black/5"
+              style={{ color: B.textSecondary }}
+            >
+              {completionPercent === 100 ? 'View details' : 'View steps'}
+              <ChevronRight className="h-3.5 w-3.5 opacity-70" />
+            </button>
           </div>
 
-          <button
-            onClick={() => setModalOpen(true)}
-            className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-all hover:bg-black/5"
-            style={{ color: B.textSecondary }}
-          >
-            {completionPercent === 100 ? 'View details' : 'View steps'}
-            <ChevronRight className="h-3.5 w-3.5 opacity-70" />
-          </button>
-        </div>
-
-        {/* Dynamic Next-Action Chip (Only shown when profile is not 100% complete) */}
-        {nextIncompleteStep && (
-          <div
-            className="mt-3.5 p-2.5 rounded-xl flex items-center justify-between gap-3 text-xs transition-all hover:shadow-sm"
-            style={{
-              backgroundColor: B.cardAlt,
-              border: `1px dashed ${B.border}`,
-            }}
-          >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <span
-                className="p-1 rounded-md flex-shrink-0"
-                style={{ backgroundColor: B.accentBg, color: B.accentDark }}
-              >
-                <nextIncompleteStep.icon className="h-3.5 w-3.5" />
-              </span>
-              <div className="truncate">
-                <span className="font-medium mr-1.5" style={{ color: B.text }}>
-                  Next: {nextIncompleteStep.title}
-                </span>
-                <span
-                  className="hidden sm:inline-block px-1.5 py-0.2 rounded text-[10px]"
-                  style={{ backgroundColor: B.bg, color: B.textMuted }}
-                >
-                  {nextIncompleteStep.timeEst}
-                </span>
-              </div>
-            </div>
-
-            <Link
-              href={nextIncompleteStep.href}
-              className="flex-shrink-0 inline-flex items-center gap-1 font-semibold px-2.5 py-1 rounded-lg text-xs transition-all hover:opacity-90 active:scale-95 shadow-sm"
+          {/* Dynamic Next-Action Chip (Only shown when profile is not 100% complete) */}
+          {nextIncompleteStep && (
+            <div
+              className="mt-3.5 p-2.5 rounded-xl flex items-center justify-between gap-3 text-xs transition-all hover:shadow-sm"
               style={{
-                backgroundColor: B.text,
-                color: B.card,
+                backgroundColor: B.cardAlt,
+                border: `1px dashed ${B.border}`,
               }}
             >
-              {nextIncompleteStep.actionText}
-              <ArrowRight className="h-3 w-3" />
-            </Link>
-          </div>
-        )}
-      </div>
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span
+                  className="p-1 rounded-md flex-shrink-0"
+                  style={{ backgroundColor: B.accentBg, color: B.accentDark }}
+                >
+                  <nextIncompleteStep.icon className="h-3.5 w-3.5" />
+                </span>
+                <div className="truncate">
+                  <span className="font-medium mr-1.5" style={{ color: B.text }}>
+                    Next: {nextIncompleteStep.title}
+                  </span>
+                  <span
+                    className="hidden sm:inline-block px-1.5 py-0.2 rounded text-[10px]"
+                    style={{ backgroundColor: B.bg, color: B.textMuted }}
+                  >
+                    {nextIncompleteStep.timeEst}
+                  </span>
+                </div>
+              </div>
+
+              <Link
+                href={nextIncompleteStep.href}
+                className="flex-shrink-0 inline-flex items-center gap-1 font-semibold px-2.5 py-1 rounded-lg text-xs transition-all hover:opacity-90 active:scale-95 shadow-sm"
+                style={{
+                  backgroundColor: B.text,
+                  color: B.card,
+                }}
+              >
+                {nextIncompleteStep.actionText}
+                <ArrowRight className="h-3 w-3" />
+              </Link>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ─── CREATOR IDENTITY QUEST MODAL / DRAWER ───────────── */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
