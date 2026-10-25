@@ -429,7 +429,7 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
 
   // Sort platforms: ALL connected platforms first, followed by not-connected platforms (manual at end of not-connected)
   const sortedPlatforms = useMemo(() => {
-    const isConn = (p: Platform) => connections[p]?.status === 'connected';
+    const isConn = (p: Platform) => connections[p]?.status?.toLowerCase() === 'connected';
 
     // 1. All connected platforms first (preserving relative order)
     const connected = connectablePlatforms.filter((p) => isConn(p));
@@ -845,7 +845,7 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
             {sortedPlatforms.map((platform, idx) => {
               const cfg = PLATFORM_CONFIG[platform];
               const connection = connections[platform];
-              const isConnected = connection?.status === 'connected';
+              const isConnected = connection?.status?.toLowerCase() === 'connected';
               const isExpired = connection?.status === 'expired';
               const isError = connection?.status === 'error';
               const hasIssue = isExpired || isError;

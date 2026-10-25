@@ -311,11 +311,57 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     }
   }, [data.connections]);
 
-  // Platforms dataset mapped to 8 core platforms with alternating Blue and Black colors.
-  // The Overview UI is consistent and identical for all users.
+  // Platforms dataset: ALL connected platforms are shown FIRST,
+  // followed by not-connected platforms, with strictly alternating Blue and Black colors.
   const platforms = useMemo(() => {
-    return OVERVIEW_8_PLATFORMS.map((p, index) => {
-      const isConnected = connections[p.id]?.status === 'connected';
+    const isConn = (id: string) => connections[id]?.status?.toLowerCase() === 'connected';
+
+    // 1. All connected platforms (core 8 platforms first, then any other connected system platforms)
+    const connectedList: NetworkPlatformDef[] = [];
+    const connectedSet = new Set<string>();
+
+    for (const p of OVERVIEW_8_PLATFORMS) {
+      if (isConn(p.id)) {
+        connectedList.push(p);
+        connectedSet.add(p.id);
+      }
+    }
+    for (const pid of SUPPORTED_PLATFORMS) {
+      if (!connectedSet.has(pid) && isConn(pid)) {
+        const def = ALL_PLATFORM_DEFS[pid] || {
+          id: pid,
+          name: pid.charAt(0).toUpperCase() + pid.slice(1),
+          mark: pid.slice(0, 2).toUpperCase(),
+        };
+        connectedList.push(def);
+        connectedSet.add(pid);
+      }
+    }
+
+    // 2. Unconnected platforms: default core 8 platforms first, then remaining supported platforms
+    const notConnectedList: NetworkPlatformDef[] = [];
+    for (const p of OVERVIEW_8_PLATFORMS) {
+      if (!connectedSet.has(p.id)) {
+        notConnectedList.push(p);
+      }
+    }
+    for (const pid of SUPPORTED_PLATFORMS) {
+      if (!connectedSet.has(pid) && !notConnectedList.some((p) => p.id === pid)) {
+        const def = ALL_PLATFORM_DEFS[pid] || {
+          id: pid,
+          name: pid.charAt(0).toUpperCase() + pid.slice(1),
+          mark: pid.slice(0, 2).toUpperCase(),
+        };
+        notConnectedList.push(def);
+      }
+    }
+
+    // Keep at least 8 platforms, or rounded up to complete 4-column rows if more platforms are connected
+    const targetCount = Math.max(8, Math.ceil(connectedList.length / 4) * 4);
+    const combined = [...connectedList, ...notConnectedList].slice(0, targetCount);
+
+    return combined.map((p, index) => {
+      const isConnected = isConn(p.id);
       const pal = ALTERNATING_PALETTE[index % 2];
       return {
         ...p,
