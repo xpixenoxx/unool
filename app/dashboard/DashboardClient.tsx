@@ -53,10 +53,13 @@ interface DashboardData {
 interface AnalyticsInsights {
   viewsSeries: number[];
   clicksSeries: number[];
+  postsSeries?: number[];
   viewsThisWeek: number;
   clicksThisWeek: number;
+  postsThisWeek?: number;
   viewsChangeWoW: number;
   clicksChangeWoW: number;
+  postsChangeWoW?: number;
   conversionRate: number;
   topLinks: Array<{ url: string; label: string; count: number }>;
   peakHourLabel: string | null;
@@ -80,6 +83,16 @@ function useAnalyticsInsights() {
 
   useEffect(() => {
     fetch_();
+
+    // Auto-refresh every 60s and on window focus for live data
+    const interval = setInterval(fetch_, 60_000);
+    const onFocus = () => fetch_();
+    window.addEventListener('focus', onFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+    };
   }, [fetch_]);
 
   return { insights, loadingInsights };
@@ -171,10 +184,17 @@ function AnimatedCounter({ value, loading }: { value: number; loading?: boolean 
 
 /* ─── Interactive Sparkline ───────────────────────────────── */
 
-function InteractiveSparkline({ data }: { data: number[] | null }) {
+function InteractiveSparkline({
+  data,
+  unit = 'events',
+}: {
+  data: number[] | null;
+  unit?: string;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const [hoverVal, setHoverVal] = useState<number | null>(null);
-  const [ptPos, setPtPos] = useState<{ x: number; y: number } | null>(null);
+  const [hoverDate, setHoverDate] = useState<string | null>(null);
+  const [ptPos, setPtPos] = useState<{ x: number; y: number; transform: string } | null>(null);
 
   const series = data && data.length >= 2 ? data : null;
   const maxVal = series ? Math.max(...series, 1) : 1;
@@ -199,13 +219,33 @@ function InteractiveSparkline({ data }: { data: number[] | null }) {
     const idx = Math.round(ratio * (series.length - 1));
     const val = series[idx];
     const xPct = (idx / (series.length - 1)) * 100;
-    const yPx = ((44 - (val / maxVal) * 38) / 50) * 60 + 10;
+    const yVal = 44 - (val / maxVal) * 38;
+    const yPx = 10 + (yVal / 50) * 52;
+
+    const daysAgo = (series.length - 1) - idx;
+    let dateStr = 'Today';
+    if (daysAgo === 1) {
+      dateStr = 'Yesterday';
+    } else if (daysAgo > 1) {
+      const d = new Date();
+      d.setDate(d.getDate() - daysAgo);
+      dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+
+    const transform = xPct < 20
+      ? 'translate(0, -100%)'
+      : xPct > 80
+      ? 'translate(-100%, -100%)'
+      : 'translate(-50%, -100%)';
+
     setHoverVal(val);
-    setPtPos({ x: xPct, y: yPx });
+    setHoverDate(dateStr);
+    setPtPos({ x: xPct, y: yPx, transform });
   };
 
   const handleMouseLeave = () => {
     setHoverVal(null);
+    setHoverDate(null);
     setPtPos(null);
   };
 
@@ -216,10 +256,17 @@ function InteractiveSparkline({ data }: { data: number[] | null }) {
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
     >
-      {hoverVal !== null && ptPos && (
+      {hoverVal !== null && hoverDate && ptPos && (
         <>
-          <span className="tp" style={{ left: `${ptPos.x}%`, opacity: 1 }}>
-            {hoverVal}
+          <span
+            className="tp"
+            style={{
+              left: `${ptPos.x}%`,
+              transform: ptPos.transform,
+              opacity: 1,
+            }}
+          >
+            {hoverVal} {unit} • {hoverDate}
           </span>
           <span
             className="pt"
@@ -604,7 +651,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               )}
             </div>
             <div className="sub">Profile views this week</div>
-            <InteractiveSparkline data={insights?.viewsSeries ?? null} />
+            <InteractiveSparkline data={insights?.viewsSeries ?? null} unit="views" />
             {insights?.peakHourLabel && (
               <div className="note" title={`Peak: ${insights.peakHourLabel}`}>
                 Peak: {insights.peakHourLabel}
@@ -635,9 +682,34 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             </div>
             <div className="num">
               <AnimatedCounter value={usageStats.postsThisMonth} />
+              {insights?.postsChangeWoW !== undefined && insights?.postsChangeWoW !== null && (
+                <span
+                  className={`tr ${
+                    insights.postsChangeWoW > 0 ? 'u' : insights.postsChangeWoW < 0 ? 'w' : ''
+                  }`}
+                >
+                  {insights.postsChangeWoW > 0
+                    ? `↑ ${insights.postsChangeWoW}%`
+                    : insights.postsChangeWoW < 0
+                    ? `↓ ${Math.abs(insights.postsChangeWoW)}%`
+                    : '= 0%'}
+                </span>
+              )}
             </div>
             <div className="sub">of {usageStats.postsLimit} this month</div>
-            <InteractiveSparkline data={null} />
+            <InteractiveSparkline data={insights?.postsSeries ?? null} unit="posts" />
+            <div
+              className="note"
+              title={
+                insights?.postsThisWeek !== undefined && insights?.postsThisWeek !== null
+                  ? `${insights.postsThisWeek} posts published in the last 7 days`
+                  : `${usageStats.postsThisMonth} posts published this month`
+              }
+            >
+              {insights?.postsThisWeek !== undefined && insights?.postsThisWeek !== null
+                ? `Pace: ${insights.postsThisWeek} this week`
+                : `${usageStats.postsThisMonth} published this month`}
+            </div>
           </section>
 
           {/* Stat 3: Link Engagement */}
@@ -684,7 +756,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 ? `${insights.conversionRate}% conversion rate`
                 : 'Link clicks this week'}
             </div>
-            <InteractiveSparkline data={insights?.clicksSeries ?? null} />
+            <InteractiveSparkline data={insights?.clicksSeries ?? null} unit="clicks" />
             {insights?.topLinks?.[0] && (
               <div
                 className="note"

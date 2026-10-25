@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentAuth } from '@/lib/auth/server';
 import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
+import { buildDailySeries, calcPercentageChange } from '@/lib/analytics/timeSeries';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,6 +43,9 @@ export async function GET(request: NextRequest) {
     topLinksRaw,
     peakHourRaw,
     referrersRaw,
+    postsRaw,
+    postsThisWeek,
+    postsLastWeek,
   ] = await Promise.all([
     // Daily profile views last 30 days
     admin
@@ -119,38 +123,52 @@ export async function GET(request: NextRequest) {
       .eq('event_type', 'profile_view')
       .gte('created_at', thirtyDaysAgo.toISOString())
       .not('referrer', 'is', null),
+
+    // Daily posts published last 30 days
+    admin
+      .from('posts')
+      .select('created_at, published_at')
+      .eq('workspace_id', workspaceId)
+      .eq('status', 'published')
+      .gte('created_at', thirtyDaysAgo.toISOString())
+      .order('created_at', { ascending: true }),
+
+    // Posts published this week (count)
+    admin
+      .from('posts')
+      .select('id', { count: 'exact', head: true })
+      .eq('workspace_id', workspaceId)
+      .eq('status', 'published')
+      .gte('created_at', thisWeekStart.toISOString()),
+
+    // Posts published last week (count)
+    admin
+      .from('posts')
+      .select('id', { count: 'exact', head: true })
+      .eq('workspace_id', workspaceId)
+      .eq('status', 'published')
+      .gte('created_at', lastWeekStart.toISOString())
+      .lt('created_at', thisWeekStart.toISOString()),
   ]);
 
-  // ── Build daily time-series for last 30 days ──────────────────────────────
-  // Creates an array of 30 daily buckets with real counts
-  const buildDailySeries = (rows: Array<{ created_at: string }>) => {
-    const buckets: Record<string, number> = {};
-    // Pre-fill all 30 days with 0
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - i);
-      buckets[d.toISOString().slice(0, 10)] = 0;
-    }
-    for (const row of rows || []) {
-      const day = row.created_at.slice(0, 10);
-      if (buckets[day] !== undefined) buckets[day]++;
-    }
-    return Object.values(buckets); // ordered array of 30 numbers
-  };
-
-  const viewsSeries = buildDailySeries(viewsRaw.data || []);
+  // ── Build daily time-series for last 30 days (UTC-aligned) ─────────────
+  const viewsSeries = buildDailySeries(viewsRaw.data || [], now, 30);
   const clicksSeries = buildDailySeries(
-    (clicksRaw.data || []).map((r) => ({ created_at: r.created_at }))
+    (clicksRaw.data || []).map((r) => ({ created_at: r.created_at })),
+    now,
+    30
+  );
+  const postsSeries = buildDailySeries(
+    (postsRaw.data || []).map((r) => ({ created_at: r.published_at || r.created_at })),
+    now,
+    30
   );
 
   // ── % change week-over-week ────────────────────────────────────────────────
-  const calcChange = (thisW: number, lastW: number) => {
-    if (lastW === 0) return thisW > 0 ? 100 : 0;
-    return Math.round(((thisW - lastW) / lastW) * 100);
-  };
-
-  const viewsChangeWoW = calcChange(viewsThisWeek.count || 0, viewsLastWeek.count || 0);
-  const clicksChangeWoW = calcChange(clicksThisWeek.count || 0, clicksLastWeek.count || 0);
+  const viewsChangeWoW = calcPercentageChange(viewsThisWeek.count || 0, viewsLastWeek.count || 0);
+  const clicksChangeWoW = calcPercentageChange(clicksThisWeek.count || 0, clicksLastWeek.count || 0);
+  const postsThisWeekCount = postsThisWeek.count || 0;
+  const postsChangeWoW = calcPercentageChange(postsThisWeekCount, postsLastWeek.count || 0);
 
   // ── Top clicked links ─────────────────────────────────────────────────────
   const linkCounts: Record<string, { url: string; label: string; count: number }> = {};
@@ -218,10 +236,13 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     viewsSeries,       // number[30] — real daily views
     clicksSeries,      // number[30] — real daily clicks
+    postsSeries,       // number[30] — real daily published posts
     viewsThisWeek: totalViews,
     clicksThisWeek: totalClicks,
+    postsThisWeek: postsThisWeekCount,
     viewsChangeWoW,    // % vs last week (positive = up, negative = down)
     clicksChangeWoW,
+    postsChangeWoW,
     conversionRate,    // % of viewers who clicked
     topLinks,          // [{url, label, count}] top 5 clicked links
     peakHourLabel,     // "2pm–3pm" or null if no data
