@@ -31,12 +31,6 @@ export async function GET(request: NextRequest) {
   const thirtyDaysAgo = new Date(now);
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  const thisWeekStart = new Date(now);
-  thisWeekStart.setDate(thisWeekStart.getDate() - 7);
-
-  const lastWeekStart = new Date(now);
-  lastWeekStart.setDate(lastWeekStart.getDate() - 14);
-
   // Helper to ensure queries match both workspace_id and profile_id if present
   const applyScope = (query: any) => {
     if (profileId) {
@@ -45,32 +39,19 @@ export async function GET(request: NextRequest) {
     return query.eq('workspace_id', workspaceId);
   };
 
-  // All queries fire simultaneously
-  const [
-    viewsRaw,
-    clicksRaw,
-    viewsThisWeek,
-    viewsLastWeek,
-    clicksThisWeek,
-    clicksLastWeek,
-    topLinksRaw,
-    peakHourRaw,
-    referrersRaw,
-    postsRaw,
-    postsThisWeek,
-    postsLastWeek,
-  ] = await Promise.all([
-    // Daily profile views last 30 days
+  // Parallel fetch: exactly 3 queries covering all required datasets
+  const [viewsRaw, clicksRaw, postsRaw] = await Promise.all([
+    // 1. Profile views in the last 30 days (for series, peak hour, referrers, and week-over-week)
     applyScope(
       admin
         .from('analytics_events')
-        .select('created_at')
+        .select('created_at, referrer')
         .eq('event_type', 'profile_view')
         .gte('created_at', thirtyDaysAgo.toISOString())
         .order('created_at', { ascending: true })
     ),
 
-    // Daily link clicks last 30 days
+    // 2. Link clicks in the last 30 days (for series, top links, and week-over-week)
     applyScope(
       admin
         .from('analytics_events')
@@ -80,97 +61,13 @@ export async function GET(request: NextRequest) {
         .order('created_at', { ascending: true })
     ),
 
-    // Views this week (count)
-    applyScope(
-      admin
-        .from('analytics_events')
-        .select('id', { count: 'exact', head: true })
-        .eq('event_type', 'profile_view')
-        .gte('created_at', thisWeekStart.toISOString())
-    ),
-
-    // Views last week (count)
-    applyScope(
-      admin
-        .from('analytics_events')
-        .select('id', { count: 'exact', head: true })
-        .eq('event_type', 'profile_view')
-        .gte('created_at', lastWeekStart.toISOString())
-        .lt('created_at', thisWeekStart.toISOString())
-    ),
-
-    // Clicks this week
-    applyScope(
-      admin
-        .from('analytics_events')
-        .select('id', { count: 'exact', head: true })
-        .eq('event_type', 'link_click')
-        .gte('created_at', thisWeekStart.toISOString())
-    ),
-
-    // Clicks last week
-    applyScope(
-      admin
-        .from('analytics_events')
-        .select('id', { count: 'exact', head: true })
-        .eq('event_type', 'link_click')
-        .gte('created_at', lastWeekStart.toISOString())
-        .lt('created_at', thisWeekStart.toISOString())
-    ),
-
-    // Top clicked links (URL + count)
-    applyScope(
-      admin
-        .from('analytics_events')
-        .select('event_data')
-        .eq('event_type', 'link_click')
-        .gte('created_at', thirtyDaysAgo.toISOString())
-    ),
-
-    // Peak hour (all profile views, grouped later in JS)
-    applyScope(
-      admin
-        .from('analytics_events')
-        .select('created_at')
-        .eq('event_type', 'profile_view')
-        .gte('created_at', thirtyDaysAgo.toISOString())
-    ),
-
-    // Referrer breakdown
-    applyScope(
-      admin
-        .from('analytics_events')
-        .select('referrer')
-        .eq('event_type', 'profile_view')
-        .gte('created_at', thirtyDaysAgo.toISOString())
-        .not('referrer', 'is', null)
-    ),
-
-    // Daily posts published last 30 days
+    // 3. Published posts (for 30-day series, pace this week, and count this month)
     admin
       .from('posts')
-      .select('created_at, published_at')
+      .select('id, created_at, published_at')
       .eq('workspace_id', workspaceId)
       .eq('status', 'published')
-      .gte('created_at', thirtyDaysAgo.toISOString())
       .order('created_at', { ascending: true }),
-
-    // Posts published this week (count)
-    admin
-      .from('posts')
-      .select('id', { count: 'exact', head: true })
-      .eq('workspace_id', workspaceId)
-      .eq('status', 'published')
-      .gte('created_at', thisWeekStart.toISOString()),
-
-    // Posts published last week (count)
-    admin
-      .from('posts')
-      .select('id', { count: 'exact', head: true })
-      .eq('workspace_id', workspaceId)
-      .eq('status', 'published')
-      .gte('created_at', lastWeekStart.toISOString())
-      .lt('created_at', thisWeekStart.toISOString()),
   ]);
 
   // ── Build daily time-series for last 30 days (UTC-aligned) ─────────────
@@ -180,25 +77,49 @@ export async function GET(request: NextRequest) {
     now,
     30
   );
+
+  const postsData = (postsRaw.data || []) as Array<{ id: string; created_at: string; published_at?: string | null }>;
   const postsSeries = buildDailySeries(
-    ((postsRaw.data || []) as Array<{ created_at?: string | null; published_at?: string | null }>).map((r) => ({
-      created_at: r.published_at || r.created_at,
-    })),
+    postsData.map((r) => ({ created_at: r.published_at || r.created_at })),
     now,
     30
   );
 
-  // ── % change week-over-week ────────────────────────────────────────────────
-  const viewsChangeWoW = calcPercentageChange(viewsThisWeek.count || 0, viewsLastWeek.count || 0);
-  const clicksChangeWoW = calcPercentageChange(clicksThisWeek.count || 0, clicksLastWeek.count || 0);
-  const postsThisWeekCount = postsThisWeek.count || 0;
-  const postsChangeWoW = calcPercentageChange(postsThisWeekCount, postsLastWeek.count || 0);
+  // ── Synchronized weekly and monthly totals matching the graphs ────────────
+  // Indices -7..end represent the last 7 calendar days visible on the sparkline
+  const viewsThisWeek = viewsSeries.slice(-7).reduce((sum, v) => sum + v, 0);
+  const viewsLastWeek = viewsSeries.slice(-14, -7).reduce((sum, v) => sum + v, 0);
+  const viewsChangeWoW = calcPercentageChange(viewsThisWeek, viewsLastWeek);
+
+  const clicksThisWeek = clicksSeries.slice(-7).reduce((sum, v) => sum + v, 0);
+  const clicksLastWeek = clicksSeries.slice(-14, -7).reduce((sum, v) => sum + v, 0);
+  const clicksChangeWoW = calcPercentageChange(clicksThisWeek, clicksLastWeek);
+
+  const postsThisWeek = postsSeries.slice(-7).reduce((sum, v) => sum + v, 0);
+  const postsLastWeek = postsSeries.slice(-14, -7).reduce((sum, v) => sum + v, 0);
+  const postsChangeWoW = calcPercentageChange(postsThisWeek, postsLastWeek);
+
+  // Month-to-date published posts count
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const postsThisMonth = postsData.filter((p) => {
+    const d = new Date(p.published_at || p.created_at);
+    return d >= monthStart;
+  }).length;
 
   // ── Top clicked links ─────────────────────────────────────────────────────
   const linkCounts: Record<string, { url: string; label: string; count: number }> = {};
-  for (const row of topLinksRaw.data || []) {
-    const url = (row.event_data as any)?.link_url || 'unknown';
-    const label = (row.event_data as any)?.link_text || url;
+  for (const row of clicksRaw.data || []) {
+    const data = row.event_data as any;
+    const url = data?.link_url || 'unknown';
+    let label = data?.link_text || data?.label;
+    if (!label || label === url) {
+      try {
+        const parsed = new URL(url);
+        label = parsed.hostname.replace('www.', '') + (parsed.pathname !== '/' && parsed.pathname !== '' ? parsed.pathname : '');
+      } catch {
+        label = url;
+      }
+    }
     if (!linkCounts[url]) linkCounts[url] = { url, label, count: 0 };
     linkCounts[url].count++;
   }
@@ -208,7 +129,7 @@ export async function GET(request: NextRequest) {
 
   // ── Peak hour of day ──────────────────────────────────────────────────────
   const hourBuckets: number[] = new Array(24).fill(0);
-  for (const row of peakHourRaw.data || []) {
+  for (const row of viewsRaw.data || []) {
     const hour = new Date(row.created_at).getHours();
     hourBuckets[hour]++;
   }
@@ -226,7 +147,7 @@ export async function GET(request: NextRequest) {
 
   // ── Referrer breakdown ────────────────────────────────────────────────────
   const refCounts: Record<string, number> = {};
-  for (const row of referrersRaw.data || []) {
+  for (const row of viewsRaw.data || []) {
     if (!row.referrer) continue;
     let source = 'Direct';
     try {
@@ -251,22 +172,18 @@ export async function GET(request: NextRequest) {
       pct: Math.round((count / totalRefs) * 100),
     }));
 
-  // ── Conversion rate & Weekly Totals ─────────────────────────────────────
-  // Synchronize exact weekly counts with 7-day sparkline window so tooltips and counters never diverge
-  const weeklyViewsFromSeries = viewsSeries.slice(23).reduce((sum, v) => sum + v, 0);
-  const totalViews = Math.max(viewsThisWeek.count || 0, weeklyViewsFromSeries);
-  const weeklyClicksFromSeries = clicksSeries.slice(23).reduce((sum, v) => sum + v, 0);
-  const totalClicks = Math.max(clicksThisWeek.count || 0, weeklyClicksFromSeries);
+  // ── Conversion rate percentage ──────────────────────────────────────────
   const conversionRate =
-    totalViews === 0 ? 0 : Math.round((totalClicks / totalViews) * 100);
+    viewsThisWeek === 0 ? 0 : Math.round((clicksThisWeek / viewsThisWeek) * 100);
 
   return NextResponse.json({
     viewsSeries,       // number[30] — real daily views
     clicksSeries,      // number[30] — real daily clicks
     postsSeries,       // number[30] — real daily published posts
-    viewsThisWeek: totalViews,
-    clicksThisWeek: totalClicks,
-    postsThisWeek: postsThisWeekCount,
+    viewsThisWeek,     // synchronized with viewsSeries.slice(-7)
+    clicksThisWeek,    // synchronized with clicksSeries.slice(-7)
+    postsThisWeek,     // synchronized with postsSeries.slice(-7)
+    postsThisMonth,    // posts published in current calendar month
     viewsChangeWoW,    // % vs last week (positive = up, negative = down)
     clicksChangeWoW,
     postsChangeWoW,

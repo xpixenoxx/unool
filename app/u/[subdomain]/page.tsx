@@ -163,24 +163,55 @@ export default function PublicProfilePage({ params }: { params: Promise<{ subdom
     const handleGlobalClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       const anchor = target.closest('a');
+      if (!anchor) return;
       
-      // If it's a link and it's not pointing to the same page (like # anchors)
-      if (anchor && anchor.href && !anchor.href.startsWith('javascript:')) {
-        // Send tracking event without blocking navigation
-        fetch('/api/analytics/track', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            events: [{
-              eventType: 'link_click',
-              workspaceId: profile.workspaceId || (profile as any).workspace_id,
-              profileId: profile.id,
-              eventData: { link_url: anchor.href }
-            }]
-          }),
-          keepalive: true
-        }).catch(err => console.error('[Analytics] Failed to track click:', err));
+      const rawHref = anchor.getAttribute('href') || '';
+      // Ignore hash jumps on the same page, javascript, or empty links
+      if (!anchor.href || rawHref.startsWith('#') || rawHref.startsWith('javascript:')) {
+        return;
       }
+
+      // Extract a clean human-readable label
+      const linkText = (
+        anchor.getAttribute('data-label') ||
+        anchor.getAttribute('aria-label') ||
+        anchor.innerText?.trim() ||
+        anchor.getAttribute('title') ||
+        anchor.href
+      ).slice(0, 120);
+
+      const linkType = anchor.href.startsWith('mailto:')
+        ? 'email'
+        : anchor.href.startsWith('tel:')
+        ? 'phone'
+        : anchor.href.includes('linkedin.com')
+        ? 'linkedin'
+        : anchor.href.includes('twitter.com') || anchor.href.includes('x.com')
+        ? 'x'
+        : anchor.href.includes('instagram.com')
+        ? 'instagram'
+        : anchor.href.includes('github.com')
+        ? 'github'
+        : 'website';
+
+      // Send tracking event without blocking navigation
+      fetch('/api/analytics/track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          events: [{
+            eventType: 'link_click',
+            workspaceId: profile.workspaceId || (profile as any).workspace_id,
+            profileId: profile.id,
+            eventData: {
+              link_url: anchor.href,
+              link_text: linkText,
+              link_type: linkType,
+            }
+          }]
+        }),
+        keepalive: true
+      }).catch(err => console.error('[Analytics] Failed to track click:', err));
     };
 
     document.addEventListener('click', handleGlobalClick);

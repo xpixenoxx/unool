@@ -36,6 +36,7 @@ async function getDashboardData(): Promise<{
     profileViews: number;
     profileViewsThisWeek?: number;
     linkClicks: number;
+    linkClicksThisWeek?: number;
   };
   connections: Record<string, { status: 'connected' | 'not_connected' | 'expired' }>;
   planTier: 'free' | 'pro' | 'enterprise';
@@ -47,7 +48,7 @@ async function getDashboardData(): Promise<{
     return {
       profile: null,
       recentPosts: [],
-      usageStats: { postsThisMonth: 0, postsLimit: 12, profileViews: 0, profileViewsThisWeek: 0, linkClicks: 0 },
+      usageStats: { postsThisMonth: 0, postsLimit: 12, profileViews: 0, profileViewsThisWeek: 0, linkClicks: 0, linkClicksThisWeek: 0 },
       connections: {},
       planTier: 'free',
       userId: '',
@@ -69,38 +70,53 @@ async function getDashboardData(): Promise<{
   // ─── All DB fetches in parallel — cuts SSR time by ~70-80% ──────────────
   // Previously these ran one-after-another (sequential waterfall).
   // Now they all fire at the same time and we wait for the slowest one.
-  const [workspaceResult, profile, postsResult, usage, connectionsResult, viewsThisWeekResult] =
-    await Promise.all([
-      // 1. Workspace plan tier
-      supabaseAdmin
-        .from('workspaces')
-        .select('plan')
-        .eq('id', workspaceId)
-        .single(),
+  const [
+    workspaceResult,
+    profile,
+    postsResult,
+    usage,
+    connectionsResult,
+    viewsThisWeekResult,
+    clicksThisWeekResult,
+  ] = await Promise.all([
+    // 1. Workspace plan tier
+    supabaseAdmin
+      .from('workspaces')
+      .select('plan')
+      .eq('id', workspaceId)
+      .single(),
 
-      // 2. Profile
-      profileRepository.findByWorkspaceId(workspaceId),
+    // 2. Profile
+    profileRepository.findByWorkspaceId(workspaceId),
 
-      // 3. Recent posts
-      postRepository.findByWorkspaceId(workspaceId, { limit: 10 }),
+    // 3. Recent posts
+    postRepository.findByWorkspaceId(workspaceId, { limit: 10 }),
 
-      // 4. Usage stats (internally also runs its queries in parallel)
-      getCurrentUsage(supabaseAdmin, workspaceId, userId),
+    // 4. Usage stats (internally also runs its queries in parallel)
+    getCurrentUsage(supabaseAdmin, workspaceId, userId),
 
-      // 5. Platform connections (lightweight)
-      supabaseAdmin
-        .from('platform_connections')
-        .select('platform, expires_at, status')
-        .eq('workspace_id', workspaceId),
+    // 5. Platform connections (lightweight)
+    supabaseAdmin
+      .from('platform_connections')
+      .select('platform, expires_at, status')
+      .eq('workspace_id', workspaceId),
 
-      // 6. Profile views this week (for accurate SSR card matching the "views this week" subtitle)
-      supabaseAdmin
-        .from('analytics_events')
-        .select('id', { count: 'exact', head: true })
-        .eq('workspace_id', workspaceId)
-        .eq('event_type', 'profile_view')
-        .gte('created_at', thisWeekStart.toISOString()),
-    ]);
+    // 6. Profile views this week (for accurate SSR card matching the "views this week" subtitle)
+    supabaseAdmin
+      .from('analytics_events')
+      .select('id', { count: 'exact', head: true })
+      .eq('workspace_id', workspaceId)
+      .eq('event_type', 'profile_view')
+      .gte('created_at', thisWeekStart.toISOString()),
+
+    // 7. Link clicks this week (for accurate SSR card matching the "Link clicks this week" subtitle)
+    supabaseAdmin
+      .from('analytics_events')
+      .select('id', { count: 'exact', head: true })
+      .eq('workspace_id', workspaceId)
+      .eq('event_type', 'link_click')
+      .gte('created_at', thisWeekStart.toISOString()),
+  ]);
 
   const tier = (workspaceResult.data?.plan as Tier) || 'free';
   const limits = getLimitsForTier(tier);
@@ -143,6 +159,7 @@ async function getDashboardData(): Promise<{
       profileViews: usage.profileViews || 0,
       profileViewsThisWeek: viewsThisWeekResult.count ?? usage.profileViews ?? 0,
       linkClicks: usage.linkClicks || 0,
+      linkClicksThisWeek: clicksThisWeekResult.count ?? 0,
     },
     connections,
     planTier: tier,

@@ -32,7 +32,8 @@ export function buildDailySeries(
   for (const row of rows) {
     const ts = row.published_at || row.created_at;
     if (!ts) continue;
-    const day = ts.slice(0, 10);
+    const tsStr = typeof ts === 'string' ? ts : (ts as any) instanceof Date ? (ts as any).toISOString() : String(ts);
+    const day = tsStr.slice(0, 10);
     if (buckets[day] !== undefined) {
       buckets[day]++;
     }

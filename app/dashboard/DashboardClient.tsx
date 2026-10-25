@@ -39,6 +39,7 @@ interface UsageStats {
   profileViews: number;
   profileViewsThisWeek?: number;
   linkClicks: number;
+  linkClicksThisWeek?: number;
 }
 
 interface DashboardData {
@@ -58,6 +59,7 @@ interface AnalyticsInsights {
   viewsThisWeek: number;
   clicksThisWeek: number;
   postsThisWeek?: number;
+  postsThisMonth?: number;
   viewsChangeWoW: number;
   clicksChangeWoW: number;
   postsChangeWoW?: number;
@@ -164,22 +166,38 @@ const ALTERNATING_PALETTE = [
 /* ─── Animated Counter ────────────────────────────────────── */
 
 function AnimatedCounter({ value, loading }: { value: number; loading?: boolean }) {
-  const [display, setDisplay] = useState(0);
+  const [display, setDisplay] = useState(isNaN(value) ? 0 : value);
+  const prevValRef = useRef(display);
 
   useEffect(() => {
     if (loading || isNaN(value)) return;
+    const startVal = prevValRef.current;
+    const diff = value - startVal;
+    if (diff === 0) {
+      setDisplay(value);
+      return;
+    }
     const t0 = performance.now();
     let animId: number;
     const animate = (now: number) => {
-      const k = Math.min((now - t0) / 800, 1);
-      setDisplay(Math.round(value * k));
-      if (k < 1) animId = requestAnimationFrame(animate);
+      const k = Math.min((now - t0) / 600, 1);
+      const ease = 1 - Math.pow(1 - k, 3);
+      const current = Math.round(startVal + diff * ease);
+      setDisplay(current);
+      if (k < 1) {
+        animId = requestAnimationFrame(animate);
+      } else {
+        prevValRef.current = value;
+      }
     };
     animId = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(animId);
+    return () => {
+      cancelAnimationFrame(animId);
+      prevValRef.current = value;
+    };
   }, [value, loading]);
 
-  if (loading) return <span>—</span>;
+  if (loading && display === 0 && (value === undefined || isNaN(value))) return <span>—</span>;
   return <span>{display.toLocaleString()}</span>;
 }
 
@@ -213,10 +231,10 @@ function InteractiveSparkline({
     };
   }, [series, maxVal]);
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+  const updateHoverAt = (clientX: number) => {
     if (!ref.current || !series || series.length < 2) return;
     const rect = ref.current.getBoundingClientRect();
-    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
     const idx = Math.round(ratio * (series.length - 1));
     const val = series[idx];
     const xPct = (idx / (series.length - 1)) * 100;
@@ -244,18 +262,34 @@ function InteractiveSparkline({
     setPtPos({ x: xPct, y: yPx, transform });
   };
 
-  const handleMouseLeave = () => {
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    updateHoverAt(e.clientX);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches && e.touches[0]) {
+      updateHoverAt(e.touches[0].clientX);
+    }
+  };
+
+  const handleLeave = () => {
     setHoverVal(null);
     setHoverDate(null);
     setPtPos(null);
   };
+
+  const unitLabel = hoverVal === 1 ? unit.replace(/s$/, '') : unit;
 
   return (
     <div
       ref={ref}
       className="spw"
       onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
+      onMouseLeave={handleLeave}
+      onTouchStart={handleTouchMove}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleLeave}
+      onTouchCancel={handleLeave}
     >
       {hoverVal !== null && hoverDate && ptPos && (
         <>
@@ -267,7 +301,7 @@ function InteractiveSparkline({
               opacity: 1,
             }}
           >
-            {hoverVal} {unit} • {hoverDate}
+            {hoverVal} {unitLabel} • {hoverDate}
           </span>
           <span
             className="pt"
@@ -635,7 +669,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             <div className="num">
               <AnimatedCounter
                 value={insights?.viewsThisWeek ?? usageStats.profileViewsThisWeek ?? usageStats.profileViews}
-                loading={loadingInsights}
+                loading={loadingInsights && usageStats.profileViewsThisWeek === undefined && usageStats.profileViews === undefined}
               />
               {insights?.viewsChangeWoW !== undefined && insights?.viewsChangeWoW !== null && (
                 <span
@@ -695,7 +729,10 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               </div>
             </div>
             <div className="num">
-              <AnimatedCounter value={usageStats.postsThisMonth} />
+              <AnimatedCounter
+                value={insights?.postsThisMonth ?? usageStats.postsThisMonth}
+                loading={loadingInsights && usageStats.postsThisMonth === undefined}
+              />
               {insights?.postsChangeWoW !== undefined && insights?.postsChangeWoW !== null && (
                 <span
                   className={`tr ${
@@ -717,12 +754,12 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               title={
                 insights?.postsThisWeek !== undefined && insights?.postsThisWeek !== null
                   ? `${insights.postsThisWeek} posts published in the last 7 days`
-                  : `${usageStats.postsThisMonth} posts published this month`
+                  : `${insights?.postsThisMonth ?? usageStats.postsThisMonth} posts published this month`
               }
             >
               {insights?.postsThisWeek !== undefined && insights?.postsThisWeek !== null
                 ? `Pace: ${insights.postsThisWeek} this week`
-                : `${usageStats.postsThisMonth} published this month`}
+                : `${insights?.postsThisMonth ?? usageStats.postsThisMonth} published this month`}
             </div>
           </section>
 
@@ -748,8 +785,8 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             </div>
             <div className="num">
               <AnimatedCounter
-                value={insights?.clicksThisWeek ?? usageStats.linkClicks}
-                loading={loadingInsights}
+                value={insights?.clicksThisWeek ?? usageStats.linkClicksThisWeek ?? usageStats.linkClicks}
+                loading={loadingInsights && usageStats.linkClicksThisWeek === undefined && usageStats.linkClicks === undefined}
               />
               {insights?.clicksChangeWoW !== undefined && insights?.clicksChangeWoW !== null && (
                 <span
@@ -771,12 +808,25 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 : 'Link clicks this week'}
             </div>
             <InteractiveSparkline data={insights?.clicksSeries ?? null} unit="clicks" />
-            {insights?.topLinks?.[0] && (
+            {insights?.topLinks?.[0] ? (
               <div
                 className="note"
                 title={`Top: ${insights.topLinks[0].label || insights.topLinks[0].url} (${insights.topLinks[0].count})`}
               >
                 Top: {insights.topLinks[0].label || insights.topLinks[0].url} ({insights.topLinks[0].count})
+              </div>
+            ) : (
+              <div
+                className="note"
+                title={
+                  (insights?.clicksThisWeek ?? usageStats.linkClicksThisWeek ?? 0) > 0
+                    ? 'Audience link clicks tracked live'
+                    : 'Add links to your profile to track clicks'
+                }
+              >
+                {(insights?.clicksThisWeek ?? usageStats.linkClicksThisWeek ?? 0) > 0
+                  ? 'Link clicks tracked live'
+                  : 'Add links to track clicks'}
               </div>
             )}
           </section>

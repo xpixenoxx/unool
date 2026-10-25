@@ -60,20 +60,38 @@ describe('calcPercentageChange', () => {
     expect(calcPercentageChange(0, 10)).toBe(-100);
   });
 
-  it('accurately extracts the last 7 days of impressions from a 30-day series', () => {
+  it('accurately extracts the last 7 days and prior 7 days of impressions from a 30-day series', () => {
     const now = new Date('2026-10-25T14:00:00Z');
-    // Generate 1 impression for each of the last 10 days
+    // Generate 2 impressions for each of the last 14 days
     const rows = [];
-    for (let d = 0; d < 10; d++) {
+    for (let d = 0; d < 14; d++) {
       const date = new Date(now);
       date.setDate(date.getDate() - d);
+      rows.push({ created_at: date.toISOString() });
       rows.push({ created_at: date.toISOString() });
     }
 
     const series = buildDailySeries(rows, now, 30);
-    // Indices 23..29 represent the last 7 calendar days
-    const last7DaysTotal = series.slice(23).reduce((sum, n) => sum + n, 0);
-    expect(last7DaysTotal).toBe(7);
+    // Indices -7..end represent the last 7 calendar days
+    const last7DaysTotal = series.slice(-7).reduce((sum, n) => sum + n, 0);
+    expect(last7DaysTotal).toBe(14); // 7 days * 2 = 14
+
+    // Prior 7 days
+    const prior7DaysTotal = series.slice(-14, -7).reduce((sum, n) => sum + n, 0);
+    expect(prior7DaysTotal).toBe(14);
+
+    expect(calcPercentageChange(last7DaysTotal, prior7DaysTotal)).toBe(0);
+  });
+
+  it('supports Date objects for created_at or published_at', () => {
+    const now = new Date('2026-10-25T14:00:00Z');
+    const rows = [
+      { created_at: new Date('2026-10-25T10:00:00Z') as any },
+      { published_at: new Date('2026-10-25T12:00:00Z') as any },
+    ];
+
+    const series = buildDailySeries(rows, now, 30);
+    expect(series[29]).toBe(2);
   });
 });
 
