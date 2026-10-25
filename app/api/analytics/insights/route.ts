@@ -4,9 +4,12 @@ import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import { buildDailySeries, calcPercentageChange } from '@/lib/analytics/timeSeries';
 
+import { SupabaseProfileRepository } from '@/lib/repositories/supabase/SupabaseProfileRepository';
+
 export const dynamic = 'force-dynamic';
 
 const admin = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+const profileRepo = new SupabaseProfileRepository();
 
 /**
  * Returns real analytics data for the dashboard:
@@ -21,6 +24,8 @@ export async function GET(request: NextRequest) {
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { workspaceId } = auth;
+  const profile = await profileRepo.findByWorkspaceId(workspaceId);
+  const profileId = profile?.id;
 
   const now = new Date();
   const thirtyDaysAgo = new Date(now);
@@ -31,6 +36,14 @@ export async function GET(request: NextRequest) {
 
   const lastWeekStart = new Date(now);
   lastWeekStart.setDate(lastWeekStart.getDate() - 14);
+
+  // Helper to ensure queries match both workspace_id and profile_id if present
+  const applyScope = (query: any) => {
+    if (profileId) {
+      return query.or(`workspace_id.eq.${workspaceId},profile_id.eq.${profileId}`);
+    }
+    return query.eq('workspace_id', workspaceId);
+  };
 
   // All queries fire simultaneously
   const [
@@ -48,81 +61,90 @@ export async function GET(request: NextRequest) {
     postsLastWeek,
   ] = await Promise.all([
     // Daily profile views last 30 days
-    admin
-      .from('analytics_events')
-      .select('created_at')
-      .eq('workspace_id', workspaceId)
-      .eq('event_type', 'profile_view')
-      .gte('created_at', thirtyDaysAgo.toISOString())
-      .order('created_at', { ascending: true }),
+    applyScope(
+      admin
+        .from('analytics_events')
+        .select('created_at')
+        .eq('event_type', 'profile_view')
+        .gte('created_at', thirtyDaysAgo.toISOString())
+        .order('created_at', { ascending: true })
+    ),
 
     // Daily link clicks last 30 days
-    admin
-      .from('analytics_events')
-      .select('created_at, event_data')
-      .eq('workspace_id', workspaceId)
-      .eq('event_type', 'link_click')
-      .gte('created_at', thirtyDaysAgo.toISOString())
-      .order('created_at', { ascending: true }),
+    applyScope(
+      admin
+        .from('analytics_events')
+        .select('created_at, event_data')
+        .eq('event_type', 'link_click')
+        .gte('created_at', thirtyDaysAgo.toISOString())
+        .order('created_at', { ascending: true })
+    ),
 
     // Views this week (count)
-    admin
-      .from('analytics_events')
-      .select('id', { count: 'exact', head: true })
-      .eq('workspace_id', workspaceId)
-      .eq('event_type', 'profile_view')
-      .gte('created_at', thisWeekStart.toISOString()),
+    applyScope(
+      admin
+        .from('analytics_events')
+        .select('id', { count: 'exact', head: true })
+        .eq('event_type', 'profile_view')
+        .gte('created_at', thisWeekStart.toISOString())
+    ),
 
     // Views last week (count)
-    admin
-      .from('analytics_events')
-      .select('id', { count: 'exact', head: true })
-      .eq('workspace_id', workspaceId)
-      .eq('event_type', 'profile_view')
-      .gte('created_at', lastWeekStart.toISOString())
-      .lt('created_at', thisWeekStart.toISOString()),
+    applyScope(
+      admin
+        .from('analytics_events')
+        .select('id', { count: 'exact', head: true })
+        .eq('event_type', 'profile_view')
+        .gte('created_at', lastWeekStart.toISOString())
+        .lt('created_at', thisWeekStart.toISOString())
+    ),
 
     // Clicks this week
-    admin
-      .from('analytics_events')
-      .select('id', { count: 'exact', head: true })
-      .eq('workspace_id', workspaceId)
-      .eq('event_type', 'link_click')
-      .gte('created_at', thisWeekStart.toISOString()),
+    applyScope(
+      admin
+        .from('analytics_events')
+        .select('id', { count: 'exact', head: true })
+        .eq('event_type', 'link_click')
+        .gte('created_at', thisWeekStart.toISOString())
+    ),
 
     // Clicks last week
-    admin
-      .from('analytics_events')
-      .select('id', { count: 'exact', head: true })
-      .eq('workspace_id', workspaceId)
-      .eq('event_type', 'link_click')
-      .gte('created_at', lastWeekStart.toISOString())
-      .lt('created_at', thisWeekStart.toISOString()),
+    applyScope(
+      admin
+        .from('analytics_events')
+        .select('id', { count: 'exact', head: true })
+        .eq('event_type', 'link_click')
+        .gte('created_at', lastWeekStart.toISOString())
+        .lt('created_at', thisWeekStart.toISOString())
+    ),
 
     // Top clicked links (URL + count)
-    admin
-      .from('analytics_events')
-      .select('event_data')
-      .eq('workspace_id', workspaceId)
-      .eq('event_type', 'link_click')
-      .gte('created_at', thirtyDaysAgo.toISOString()),
+    applyScope(
+      admin
+        .from('analytics_events')
+        .select('event_data')
+        .eq('event_type', 'link_click')
+        .gte('created_at', thirtyDaysAgo.toISOString())
+    ),
 
     // Peak hour (all profile views, grouped later in JS)
-    admin
-      .from('analytics_events')
-      .select('created_at')
-      .eq('workspace_id', workspaceId)
-      .eq('event_type', 'profile_view')
-      .gte('created_at', thirtyDaysAgo.toISOString()),
+    applyScope(
+      admin
+        .from('analytics_events')
+        .select('created_at')
+        .eq('event_type', 'profile_view')
+        .gte('created_at', thirtyDaysAgo.toISOString())
+    ),
 
     // Referrer breakdown
-    admin
-      .from('analytics_events')
-      .select('referrer')
-      .eq('workspace_id', workspaceId)
-      .eq('event_type', 'profile_view')
-      .gte('created_at', thirtyDaysAgo.toISOString())
-      .not('referrer', 'is', null),
+    applyScope(
+      admin
+        .from('analytics_events')
+        .select('referrer')
+        .eq('event_type', 'profile_view')
+        .gte('created_at', thirtyDaysAgo.toISOString())
+        .not('referrer', 'is', null)
+    ),
 
     // Daily posts published last 30 days
     admin
@@ -152,14 +174,16 @@ export async function GET(request: NextRequest) {
   ]);
 
   // ── Build daily time-series for last 30 days (UTC-aligned) ─────────────
-  const viewsSeries = buildDailySeries(viewsRaw.data || [], now, 30);
+  const viewsSeries = buildDailySeries((viewsRaw.data || []) as Array<{ created_at?: string | null }>, now, 30);
   const clicksSeries = buildDailySeries(
-    (clicksRaw.data || []).map((r) => ({ created_at: r.created_at })),
+    ((clicksRaw.data || []) as Array<{ created_at?: string | null }>).map((r) => ({ created_at: r.created_at })),
     now,
     30
   );
   const postsSeries = buildDailySeries(
-    (postsRaw.data || []).map((r) => ({ created_at: r.published_at || r.created_at })),
+    ((postsRaw.data || []) as Array<{ created_at?: string | null; published_at?: string | null }>).map((r) => ({
+      created_at: r.published_at || r.created_at,
+    })),
     now,
     30
   );
@@ -227,9 +251,12 @@ export async function GET(request: NextRequest) {
       pct: Math.round((count / totalRefs) * 100),
     }));
 
-  // ── Conversion rate ───────────────────────────────────────────────────────
-  const totalViews = viewsThisWeek.count || 0;
-  const totalClicks = clicksThisWeek.count || 0;
+  // ── Conversion rate & Weekly Totals ─────────────────────────────────────
+  // Synchronize exact weekly counts with 7-day sparkline window so tooltips and counters never diverge
+  const weeklyViewsFromSeries = viewsSeries.slice(23).reduce((sum, v) => sum + v, 0);
+  const totalViews = Math.max(viewsThisWeek.count || 0, weeklyViewsFromSeries);
+  const weeklyClicksFromSeries = clicksSeries.slice(23).reduce((sum, v) => sum + v, 0);
+  const totalClicks = Math.max(clicksThisWeek.count || 0, weeklyClicksFromSeries);
   const conversionRate =
     totalViews === 0 ? 0 : Math.round((totalClicks / totalViews) * 100);
 

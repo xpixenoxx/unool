@@ -120,7 +120,10 @@ export default function PublicProfilePage({ params }: { params: Promise<{ subdom
       const { subdomain } = await params;
       console.log('[PublicProfile] Fetching profile for:', subdomain);
       try {
-        const response = await fetch(`/api/profile/${subdomain}`, {
+        const refParam = typeof document !== 'undefined' && document.referrer
+          ? `?ref=${encodeURIComponent(document.referrer)}`
+          : '';
+        const response = await fetch(`/api/profile/${subdomain}${refParam}`, {
           cache: 'no-store',
           headers: { 'Content-Type': 'application/json' },
         });
@@ -153,25 +156,6 @@ export default function PublicProfilePage({ params }: { params: Promise<{ subdom
     };
   }, [params]);
 
-  // Track "profile_view" for Impressions metric
-  useEffect(() => {
-    if (profile) {
-      fetch('/api/analytics/track', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          events: [{
-            eventType: 'profile_view',
-            workspaceId: profile.workspaceId,
-            profileId: profile.id,
-            eventData: { subdomain: profile.subdomain }
-          }]
-        }),
-        keepalive: true
-      }).catch(err => console.error('[Analytics] Failed to track impression:', err));
-    }
-  }, [profile?.id]); // Only trigger when profile is first loaded
-
   // Global Link Click Tracking for "Link Engagement"
   useEffect(() => {
     if (!profile) return;
@@ -189,7 +173,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ subdom
           body: JSON.stringify({
             events: [{
               eventType: 'link_click',
-              workspaceId: profile.workspaceId,
+              workspaceId: profile.workspaceId || (profile as any).workspace_id,
               profileId: profile.id,
               eventData: { link_url: anchor.href }
             }]

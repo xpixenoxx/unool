@@ -37,6 +37,7 @@ interface UsageStats {
   postsThisMonth: number;
   postsLimit: number;
   profileViews: number;
+  profileViewsThisWeek?: number;
   linkClicks: number;
 }
 
@@ -633,7 +634,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             </div>
             <div className="num">
               <AnimatedCounter
-                value={insights?.viewsThisWeek ?? usageStats.profileViews}
+                value={insights?.viewsThisWeek ?? usageStats.profileViewsThisWeek ?? usageStats.profileViews}
                 loading={loadingInsights}
               />
               {insights?.viewsChangeWoW !== undefined && insights?.viewsChangeWoW !== null && (
@@ -652,9 +653,22 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             </div>
             <div className="sub">Profile views this week</div>
             <InteractiveSparkline data={insights?.viewsSeries ?? null} unit="views" />
-            {insights?.peakHourLabel && (
+            {insights?.peakHourLabel ? (
               <div className="note" title={`Peak: ${insights.peakHourLabel}`}>
                 Peak: {insights.peakHourLabel}
+              </div>
+            ) : (
+              <div
+                className="note"
+                title={
+                  (insights?.viewsThisWeek ?? usageStats.profileViewsThisWeek ?? 0) > 0
+                    ? 'Audience engagement tracked live'
+                    : 'Share your profile link to start tracking audience views'
+                }
+              >
+                {(insights?.viewsThisWeek ?? usageStats.profileViewsThisWeek ?? 0) > 0
+                  ? 'Audience tracking live'
+                  : 'Share profile to track views'}
               </div>
             )}
           </section>

@@ -59,4 +59,21 @@ describe('calcPercentageChange', () => {
   it('handles zero current with positive previous', () => {
     expect(calcPercentageChange(0, 10)).toBe(-100);
   });
+
+  it('accurately extracts the last 7 days of impressions from a 30-day series', () => {
+    const now = new Date('2026-10-25T14:00:00Z');
+    // Generate 1 impression for each of the last 10 days
+    const rows = [];
+    for (let d = 0; d < 10; d++) {
+      const date = new Date(now);
+      date.setDate(date.getDate() - d);
+      rows.push({ created_at: date.toISOString() });
+    }
+
+    const series = buildDailySeries(rows, now, 30);
+    // Indices 23..29 represent the last 7 calendar days
+    const last7DaysTotal = series.slice(23).reduce((sum, n) => sum + n, 0);
+    expect(last7DaysTotal).toBe(7);
+  });
 });
+

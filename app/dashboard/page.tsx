@@ -34,6 +34,7 @@ async function getDashboardData(): Promise<{
     postsThisMonth: number;
     postsLimit: number;
     profileViews: number;
+    profileViewsThisWeek?: number;
     linkClicks: number;
   };
   connections: Record<string, { status: 'connected' | 'not_connected' | 'expired' }>;
@@ -46,7 +47,7 @@ async function getDashboardData(): Promise<{
     return {
       profile: null,
       recentPosts: [],
-      usageStats: { postsThisMonth: 0, postsLimit: 12, profileViews: 0, linkClicks: 0 },
+      usageStats: { postsThisMonth: 0, postsLimit: 12, profileViews: 0, profileViewsThisWeek: 0, linkClicks: 0 },
       connections: {},
       planTier: 'free',
       userId: '',
@@ -62,10 +63,13 @@ async function getDashboardData(): Promise<{
     return cached.data;
   }
 
+  const thisWeekStart = new Date();
+  thisWeekStart.setDate(thisWeekStart.getDate() - 7);
+
   // ─── All DB fetches in parallel — cuts SSR time by ~70-80% ──────────────
   // Previously these ran one-after-another (sequential waterfall).
   // Now they all fire at the same time and we wait for the slowest one.
-  const [workspaceResult, profile, postsResult, usage, connectionsResult] =
+  const [workspaceResult, profile, postsResult, usage, connectionsResult, viewsThisWeekResult] =
     await Promise.all([
       // 1. Workspace plan tier
       supabaseAdmin
@@ -88,6 +92,14 @@ async function getDashboardData(): Promise<{
         .from('platform_connections')
         .select('platform, expires_at, status')
         .eq('workspace_id', workspaceId),
+
+      // 6. Profile views this week (for accurate SSR card matching the "views this week" subtitle)
+      supabaseAdmin
+        .from('analytics_events')
+        .select('id', { count: 'exact', head: true })
+        .eq('workspace_id', workspaceId)
+        .eq('event_type', 'profile_view')
+        .gte('created_at', thisWeekStart.toISOString()),
     ]);
 
   const tier = (workspaceResult.data?.plan as Tier) || 'free';
@@ -129,6 +141,7 @@ async function getDashboardData(): Promise<{
       postsThisMonth: usage.postsThisMonth,
       postsLimit: limits.postsPerMonth,
       profileViews: usage.profileViews || 0,
+      profileViewsThisWeek: viewsThisWeekResult.count ?? usage.profileViews ?? 0,
       linkClicks: usage.linkClicks || 0,
     },
     connections,

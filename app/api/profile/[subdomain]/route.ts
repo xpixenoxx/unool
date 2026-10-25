@@ -93,18 +93,29 @@ export async function GET(
       // Ignore view count errors
     }
 
-    // Track profile view analytics (fire-and-forget)
+    // Track profile view analytics (reliable, awaited server-side tracking)
+    const isPreview = request.nextUrl.searchParams.get('preview') === 'true' || request.headers.get('x-preview') === 'true';
     const { ipHash, referrer, userAgent } = extractTrackingFromRequest(request);
-    const resolvedIpHash = await ipHash;
-    analytics.profileView({
-      workspaceId: profile.workspaceId,
-      profileId: profile.id,
-      userId: profile.userId,
-      sessionId: request.headers.get('x-session-id') || undefined,
-      referrer: referrer || undefined,
-      userAgent: userAgent || undefined,
-      ipHash: resolvedIpHash || undefined,
-    });
+    const clientReferrer = request.nextUrl.searchParams.get('ref') || request.nextUrl.searchParams.get('referrer');
+    const effectiveReferrer = clientReferrer || referrer || undefined;
+    const isBot = userAgent ? /bot|crawler|spider|crawling|slurp|facebookexternalhit|whatsapp|preview|headless/i.test(userAgent) : false;
+
+    if (!isPreview && !isBot && profile.workspaceId) {
+      try {
+        const resolvedIpHash = await ipHash;
+        await analytics.profileView({
+          workspaceId: profile.workspaceId,
+          profileId: profile.id,
+          userId: profile.userId,
+          sessionId: request.headers.get('x-session-id') || undefined,
+          referrer: effectiveReferrer,
+          userAgent: userAgent || undefined,
+          ipHash: resolvedIpHash || undefined,
+        });
+      } catch (trackErr) {
+        logger.warn('Failed to track profile view', { error: trackErr, subdomain });
+      }
+    }
 
     // ── Fetch latest published broadcast for the "Recent Activity" section ──
     let recentActivity = null;
