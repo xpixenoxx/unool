@@ -7,7 +7,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { PlatformConnections, SUPPORTED_PLATFORMS } from '@/components/dashboard/PlatformConnections';
 import { BlueskyConnectDialog } from '@/components/dashboard/BlueskyConnectDialog';
 import { ManualIntegrationDialog } from '@/components/dashboard/ManualIntegrationDialog';
-import { PlatformBrandLogo, getPlatformConfig } from '@/components/dashboard/PlatformLogos';
+import { PlatformBrandLogo } from '@/components/dashboard/PlatformLogos';
 import { Dialog, DialogContent, DialogTrigger, DialogTitle } from '@/components/ui/dialog';
 import { ProfileCompletionQuest, getQuestSteps } from '@/components/dashboard/ProfileCompletionQuest';
 import './overview.css';
@@ -600,29 +600,6 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             </div>
           </div>
 
-          {/* Spectrum Meter */}
-          <div className="meter">
-            <div className="spec">
-              {SUPPORTED_PLATFORMS.map((platformId, idx) => {
-                const isConn = connections[platformId]?.status === 'connected';
-                const pal = ALTERNATING_PALETTE[idx % 2];
-                const isHi = hoveredPlatformId === platformId;
-                const pCfg = getPlatformConfig(platformId);
-                return (
-                  <i
-                    key={platformId}
-                    className={`${isConn ? 'on' : ''} ${isHi ? 'hi' : ''}`}
-                    title={`${pCfg.name} (${isConn ? 'Connected' : 'Not connected'})`}
-                    style={{ '--c': pal.color } as React.CSSProperties}
-                  />
-                );
-              })}
-            </div>
-            <span>
-              <b>{systemConnectedCount}</b> of {totalSystemPlatforms} connected
-            </span>
-          </div>
-
           {/* Brand Tiles Grid */}
           <div className="tiles">
             {visiblePlatforms.length > 0 ? (
@@ -658,7 +635,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
 
                     <div className="tt">
                       <span className="lg">
-                        <PlatformBrandLogo platform={p.id} size={38} />
+                        <PlatformBrandLogo platform={p.id} size={44} />
                       </span>
                       <span className="st">{p.connected ? 'Connected' : 'Not connected'}</span>
                     </div>

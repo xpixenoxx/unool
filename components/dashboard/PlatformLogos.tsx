@@ -65,7 +65,7 @@ export const PlatformSVGs: Record<string, PlatformLogoComponent> = {
     }
     return (
       <svg width={size} height={size} viewBox="0 0 24 24" className={`flex-shrink-0 ${className}`}>
-        <rect width="24" height="24" rx="4.5" fill="#0A66C2" />
+        <rect width="24" height="24" rx="5" fill="#0A66C2" stroke="rgba(255, 255, 255, 0.4)" strokeWidth="0.8" />
         <path fill="#FFFFFF" d="M6.94 19H4.25V9.6h2.69V19zM5.6 8.32a1.56 1.56 0 1 1 0-3.12 1.56 1.56 0 0 1 0 3.12zm12.9 10.68h-2.69v-4.22c0-1.01-.02-2.31-1.41-2.31-1.41 0-1.63 1.1-1.63 2.24v4.29h-2.69V9.6h2.58v1.18h.04c.36-.68 1.24-1.39 2.55-1.39 2.73 0 3.23 1.8 3.23 4.14V19z" />
       </svg>
     );
@@ -82,7 +82,7 @@ export const PlatformSVGs: Record<string, PlatformLogoComponent> = {
     }
     return (
       <svg width={size} height={size} viewBox="0 0 24 24" className={`flex-shrink-0 ${className}`}>
-        <rect width="24" height="24" rx="5" fill="#000000" />
+        <rect width="24" height="24" rx="5" fill="#000000" stroke="rgba(255, 255, 255, 0.55)" strokeWidth="1" />
         <path
           fill="#FFFFFF"
           d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"
@@ -106,7 +106,7 @@ export const PlatformSVGs: Record<string, PlatformLogoComponent> = {
     }
     return (
       <svg width={size} height={size} viewBox="0 0 24 24" className={`flex-shrink-0 ${className}`}>
-        <rect width="24" height="24" rx="5" fill="#000000" />
+        <rect width="24" height="24" rx="5" fill="#000000" stroke="rgba(255, 255, 255, 0.55)" strokeWidth="1" />
         <path fill="#FFFFFF" d={threadPath} transform="translate(2.4, 2.4) scale(0.8)" />
       </svg>
     );
@@ -134,7 +134,7 @@ export const PlatformSVGs: Record<string, PlatformLogoComponent> = {
             <stop offset="100%" stopColor="#1B00E0" />
           </linearGradient>
         </defs>
-        <rect width="24" height="24" rx="5.5" fill="url(#ig-brand-gradient)" />
+        <rect width="24" height="24" rx="5.5" fill="url(#ig-brand-gradient)" stroke="rgba(255, 255, 255, 0.4)" strokeWidth="0.8" />
         <rect x="5" y="5" width="14" height="14" rx="4" fill="none" stroke="#FFFFFF" strokeWidth="1.7" />
         <circle cx="12" cy="12" r="3.4" fill="none" stroke="#FFFFFF" strokeWidth="1.7" />
         <circle cx="16.2" cy="7.8" r="0.9" fill="#FFFFFF" />
@@ -176,7 +176,7 @@ export const PlatformSVGs: Record<string, PlatformLogoComponent> = {
     }
     return (
       <svg width={size} height={size} viewBox="0 0 24 24" className={`flex-shrink-0 ${className}`}>
-        <rect width="24" height="24" rx="5" fill="#0085FF" />
+        <rect width="24" height="24" rx="5" fill="#0085FF" stroke="rgba(255, 255, 255, 0.4)" strokeWidth="0.8" />
         <path fill="#FFFFFF" d={butterflyPath} transform="translate(2.4, 2.4) scale(0.8)" />
       </svg>
     );
@@ -256,7 +256,7 @@ export const PlatformSVGs: Record<string, PlatformLogoComponent> = {
     }
     return (
       <svg width={size} height={size} viewBox="0 0 24 24" className={`flex-shrink-0 ${className}`}>
-        <rect width="24" height="24" rx="5" fill="#6364FF" />
+        <rect width="24" height="24" rx="5" fill="#6364FF" stroke="rgba(255, 255, 255, 0.4)" strokeWidth="0.8" />
         <path fill="#FFFFFF" d={mPath} transform="translate(2.4, 2.4) scale(0.8)" />
       </svg>
     );
@@ -266,8 +266,8 @@ export const PlatformSVGs: Record<string, PlatformLogoComponent> = {
   slack: ({ size = 20, className = '', variant = 'app-icon' }) => {
     return (
       <svg width={size} height={size} viewBox="0 0 24 24" className={`flex-shrink-0 ${className}`}>
-        {variant !== 'glyph' && <rect width="24" height="24" rx="5" fill="#FFFFFF" stroke="#E5E7EB" strokeWidth="0.8" />}
-        <g transform={variant === 'glyph' ? '' : 'translate(1.8, 1.8) scale(0.85)'}>
+        {variant !== 'glyph' && <rect width="24" height="24" rx="5.5" fill="#FFFFFF" stroke="rgba(255, 255, 255, 0.6)" strokeWidth="0.8" />}
+        <g transform={variant === 'glyph' ? '' : 'translate(2.2, 2.2) scale(0.82)'}>
           <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313z" fill="#E01E5A" />
           <path d="M8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312z" fill="#36C5F0" />
           <path d="M18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312z" fill="#2EB67D" />
@@ -331,7 +331,7 @@ export const PlatformSVGs: Record<string, PlatformLogoComponent> = {
     }
     return (
       <svg width={size} height={size} viewBox="0 0 24 24" className={`flex-shrink-0 ${className}`}>
-        <circle cx="12" cy="12" r="12" fill="#229ED9" />
+        <circle cx="12" cy="12" r="11.5" fill="#229ED9" stroke="rgba(255, 255, 255, 0.4)" strokeWidth="0.8" />
         <path fill="#FFFFFF" d={telePath} />
       </svg>
     );
@@ -360,7 +360,7 @@ export const PlatformSVGs: Record<string, PlatformLogoComponent> = {
   // 16. Dribbble (Official pink roundel with solid white basketball seams)
   dribbble: ({ size = 20, className = '', variant = 'app-icon' }) => {
     const dribPath =
-      'M12 24C5.385 24 0 18.615 0 12S5.385 0 12 0s12 5.385 12 12-5.385 12-12 12zm10.12-10.358c-.35-.11-3.17-.953-6.384-.438 1.34 3.684 1.887 6.684 1.992 7.308 2.3-1.555 3.936-4.02 4.395-6.87zm-6.115 7.808c-.153-.9-.75-4.032-2.19-7.77l-.066.02c-5.79 2.015-7.86 6.025-8.04 6.4 1.73 1.358 3.92 2.166 6.29 2.166 1.42 0 2.77-.29 4-.814zm-11.62-2.58c.232-.4 3.045-5.055 8.332-6.765.135-.045.27-.084.405-.12-.26-.585-.54-1.167-.832-1.74C7.17 11.775 2.206 11.71 1.756 11.7l-.004.312c0 2.633.998 5.037 2.634 6.855zm-2.42-8.955c.46.008 4.683.026 9.477-1.248-1.698-3.018-3.53-5.558-3.8-5.928-2.868 1.35-5.01 3.99-5.676 7.17zM9.6 2.052c.282.38 2.145 2.914 3.822 6 3.645-1.365 5.19-3.44 5.373-3.702-1.81-1.61-4.19-2.586-6.795-2.586-.825 0-1.63.1-2.4.285zm10.335 3.483c-.218.29-1.935 2.493-5.724 4.04.24.49.47.985.68 1.486.08.18.15.36.22.53 3.41-.43 6.8.26 7.14.33-.02-2.42-.88-4.64-2.31-6.38z';
+      'M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm9.849 9.876c-.365-.116-3.236-.97-6.525-.444 1.365 3.754 1.924 6.812 2.031 7.448 2.344-1.585 4.013-4.1 4.494-7.004zm-6.234 7.958c-.156-.917-.765-4.11-2.232-7.92-.067.02-5.9 2.053-8.196 6.524 1.764 1.385 3.996 2.208 6.413 2.208 1.447 0 2.823-.295 4.015-.812zm-11.847-2.63c.232-.407 3.104-5.152 8.492-6.897.138-.046.275-.086.413-.122-.265-.596-.55-1.189-.848-1.774-4.887 1.439-9.946 1.372-10.405 1.362-.004.318-.004.64-.004.965 0 2.684 1.018 5.136 2.352 6.466zm-2.467-9.13c.47.008 4.774.026 9.66-1.272-1.73-3.076-3.6-5.666-3.876-6.044-2.924 1.376-5.108 4.068-5.784 7.316zm6.814-7.307c.287.387 2.187 2.97 3.896 6.115 3.716-1.391 5.291-3.507 5.477-3.774-1.845-1.641-4.272-2.636-6.928-2.636-.84 0-1.661.102-2.445.295zm10.536 3.55c-.222.296-1.973 2.542-5.835 4.118.245.5.479 1.004.693 1.515.082.183.153.367.224.54 3.477-.438 6.932.265 7.279.336-.021-2.467-.898-4.73-2.361-6.509z';
 
     if (variant === 'glyph') {
       return (
@@ -371,8 +371,8 @@ export const PlatformSVGs: Record<string, PlatformLogoComponent> = {
     }
     return (
       <svg width={size} height={size} viewBox="0 0 24 24" className={`flex-shrink-0 ${className}`}>
-        <circle cx="12" cy="12" r="11.5" fill="#FFFFFF" />
-        <path fill="#EA4C89" d={dribPath} />
+        <circle cx="12" cy="12" r="11.4" fill="#FFFFFF" />
+        <path fill="#EA4C89" stroke="rgba(255, 255, 255, 0.4)" strokeWidth="0.8" d={dribPath} />
       </svg>
     );
   },
