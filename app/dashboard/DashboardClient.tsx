@@ -10,6 +10,7 @@ import { ManualIntegrationDialog } from '@/components/dashboard/ManualIntegratio
 import { PlatformBrandLogo } from '@/components/dashboard/PlatformLogos';
 import { Dialog, DialogContent, DialogTrigger, DialogTitle } from '@/components/ui/dialog';
 import { ProfileCompletionQuest, getQuestSteps } from '@/components/dashboard/ProfileCompletionQuest';
+import { getHourlyGreetingForDate, type GreetingPhase } from '@/lib/utils/hourlyGreetings';
 import './overview.css';
 
 /* ─── Types ────────────────────────────────────────────────── */
@@ -240,6 +241,47 @@ function InteractiveSparkline({ data }: { data: number[] | null }) {
   );
 }
 
+/* ─── Greeting Phase Icon ─────────────────────────────────── */
+
+function GreetingPhaseIcon({ phase }: { phase: GreetingPhase }) {
+  switch (phase) {
+    case 'late-night':
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+          <path d="M19 4v3M17.5 5.5h3" strokeWidth="1.8" />
+        </svg>
+      );
+    case 'morning':
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 2v4M4.93 10.93l2.12 2.12M2 18h20M20 18a8 8 0 0 0-16 0" />
+          <path d="M19.07 10.93l-2.12 2.12M12 10a4 4 0 0 0-4 4" />
+        </svg>
+      );
+    case 'afternoon':
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M19 5l-1.5 1.5M6.5 17.5 5 19" />
+        </svg>
+      );
+    case 'evening':
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M17 18a5 5 0 0 0-10 0M12 9v5M2 18h20M12 2v2M4.22 10.22l1.42 1.42M19.78 10.22l-1.42 1.42" />
+        </svg>
+      );
+    case 'night':
+    default:
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        </svg>
+      );
+  }
+}
+
 /* ═══════════════════════════════════════════════════════════════
    MAIN OVERVIEW DASHBOARD
    ═══════════════════════════════════════════════════════════════ */
@@ -247,11 +289,25 @@ function InteractiveSparkline({ data }: { data: number[] | null }) {
 export default function DashboardClient({ data }: { data: DashboardData }) {
   const { profile, recentPosts, usageStats } = data;
 
-  const greeting = getGreeting();
   const displayName = profile?.name?.split(' ')[0] || 'there';
   const profileSubdomain = profile?.subdomain || 'preview';
   const profileUrl = `${profileSubdomain}.unool.co`;
   const isProfileLive = profile?.status === 'published' && profile?.subdomain;
+
+  const [currentDate, setCurrentDate] = useState<Date>(() => new Date());
+
+  useEffect(() => {
+    setCurrentDate(new Date());
+    const interval = setInterval(() => {
+      setCurrentDate(new Date());
+    }, 60_000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const hourlyGreeting = useMemo(
+    () => getHourlyGreetingForDate(currentDate, displayName),
+    [currentDate, displayName]
+  );
 
   const searchParams = useSearchParams();
   const [blueskyDialogOpen, setBlueskyDialogOpen] = useState(searchParams.get('connect') === 'bluesky');
@@ -477,17 +533,21 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             ref={heroRef}
             className="card hero"
             id="ov-hero"
+            data-phase={hourlyGreeting.phase}
             onMouseMove={handleHeroMouseMove}
           >
-            <div className="hello">
-              <svg viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="4" />
-                <path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M19 5l-1.5 1.5M6.5 17.5 5 19" />
-              </svg>
-              <span>{greeting}</span>
+            <div className={`hello phase-${hourlyGreeting.phase}`} suppressHydrationWarning>
+              <GreetingPhaseIcon phase={hourlyGreeting.phase} />
+              <span className="phase-badge">{hourlyGreeting.phaseLabel}</span>
+              <span className="phase-sep">•</span>
+              <span className="phase-time">{hourlyGreeting.timeLabel}</span>
             </div>
 
-            <h1>Welcome, {displayName}!</h1>
+            <h1 suppressHydrationWarning>
+              {hourlyGreeting.parts.prefix}
+              <span className="ov-user-name">{hourlyGreeting.parts.name}</span>
+              {hourlyGreeting.parts.suffix}
+            </h1>
 
             {/* Profile URL Pill with Live Dot & Copy */}
             <div className="url">
@@ -1028,10 +1088,4 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
 }
 
 /* ─── Helpers ──────────────────────────────────────────────── */
-
-function getGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 17) return 'Good afternoon';
-  return 'Good evening';
-}
+// Hourly greeting engine managed in @/lib/utils/hourlyGreetings
