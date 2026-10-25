@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { format, addDays, startOfWeek } from 'date-fns';
 import { BarcodeTicket } from './ui/BarcodeTicket';
 import { useFlightPlanDraft } from '@/hooks/flightplan';
 import { studioToast } from '@/components/dashboard/StudioToast';
+import { PlatformBrandLogo } from '@/components/dashboard/PlatformLogos';
 import type { StoryIntakeData, PlatformType } from '@/types/flightplan';
-import { B, PLATFORM_META } from './design-tokens';
+import { PLATFORM_META } from './design-tokens';
 
 interface StoryIntakeProps {
   onGenerate: (data: StoryIntakeData) => void;
@@ -44,13 +45,23 @@ const TIMEZONES = [
   'UTC',
 ];
 
+const ALL_POSSIBLE_PLATFORMS: PlatformType[] = [
+  'instagram',
+  'linkedin',
+  'x',
+  'threads',
+  'facebook',
+  'bluesky',
+  'youtube',
+];
+
 export function StoryIntake({
   onGenerate,
   isGenerating,
   connectedPlatforms = [],
   onCancel,
 }: StoryIntakeProps) {
-  const { draft, saveDraft, clearDraft } = useFlightPlanDraft();
+  const { draft, saveDraft } = useFlightPlanDraft();
 
   const nextMonday = useMemo(() => {
     const today = new Date();
@@ -68,7 +79,7 @@ export function StoryIntake({
     draft?.audienceTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata'
   );
 
-  // Default to connected platforms, or fallback platforms if none connected
+  // Initialize selected platforms: draft -> connectedPlatforms -> fallback defaults
   const [selectedPlatforms, setSelectedPlatforms] = useState<PlatformType[]>(() => {
     if (draft?.selectedPlatforms && draft.selectedPlatforms.length > 0) {
       return draft.selectedPlatforms;
@@ -115,9 +126,19 @@ export function StoryIntake({
     });
   };
 
+  const handleSelectAllConnected = () => {
+    if (connectedPlatforms.length === 0) return;
+    setSelectedPlatforms(prev => Array.from(new Set([...prev, ...connectedPlatforms])));
+  };
+
   const handleGenerateClick = () => {
     if (!story.trim()) {
       studioToast.error('Tell us the story first.');
+      return;
+    }
+
+    if (selectedPlatforms.length === 0) {
+      studioToast.error('Please select at least one platform to generate your plan for.');
       return;
     }
 
@@ -136,15 +157,9 @@ export function StoryIntake({
     return `FP-${startDate.slice(5).replace('-', '')}-NEW`;
   }, [startDate]);
 
-  const allAvailablePlatforms: PlatformType[] = [
-    'instagram',
-    'linkedin',
-    'x',
-    'threads',
-    'facebook',
-    'bluesky',
-    'youtube',
-  ];
+  const otherAvailablePlatforms = useMemo(() => {
+    return ALL_POSSIBLE_PLATFORMS.filter(p => !connectedPlatforms.includes(p));
+  }, [connectedPlatforms]);
 
   return (
     <div className="fp-tkt" style={{ ['--c' as any]: 'var(--ac)', ['--sw' as any]: '340px' }}>
@@ -168,7 +183,15 @@ export function StoryIntake({
         {/* Core Story Field */}
         <div className="fp-lb">
           <span>Your story, in a sentence or two</span>
-          <span>Required</span>
+          <span>
+            {story.length > 0 ? (
+              <span className={story.length >= 80 && story.length <= 600 ? 'fp-ok' : ''}>
+                {story.length} chars {story.length >= 80 && story.length <= 600 ? '• Good length' : '• Target: 150–500'}
+              </span>
+            ) : (
+              'Required'
+            )}
+          </span>
         </div>
         <textarea
           rows={3}
@@ -258,26 +281,149 @@ export function StoryIntake({
           <em>We pick post times for this timezone.</em>
         </div>
 
+        {/* Channels & Connected Platforms Selector */}
         <div className="fp-fld">
-          <span>Posting to</span>
-          <div className="fp-chs" style={{ marginTop: 6 }}>
-            {allAvailablePlatforms.map(p => {
-              const meta = PLATFORM_META[p];
-              const isSelected = selectedPlatforms.includes(p);
-              const isConnected = connectedPlatforms.includes(p);
-              return (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => togglePlatform(p)}
-                  className={`fp-ch ${isSelected ? 'on' : ''}`}
-                  title={isConnected ? `${meta?.name || p} (Connected)` : `${meta?.name || p}`}
-                >
-                  {meta?.name || p}
-                </button>
-              );
-            })}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>Posting to</span>
+            {connectedPlatforms.length > 0 && (
+              <button
+                type="button"
+                onClick={handleSelectAllConnected}
+                style={{
+                  fontSize: 11,
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--ac)',
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                  padding: 0,
+                }}
+              >
+                Select all connected
+              </button>
+            )}
           </div>
+
+          {/* Connected accounts with toggle buttons */}
+          {connectedPlatforms.length > 0 ? (
+            <div style={{ marginTop: 4 }}>
+              <div style={{ fontSize: 11, color: 'var(--mu)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>
+                Connected accounts (click to toggle)
+              </div>
+              <div className="fp-chs" style={{ marginTop: 0, marginBottom: 8 }}>
+                {connectedPlatforms.map(p => {
+                  const meta = PLATFORM_META[p];
+                  const isSelected = selectedPlatforms.includes(p);
+                  return (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => togglePlatform(p)}
+                      className={`fp-ch ${isSelected ? 'on' : ''}`}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        padding: '6px 11px',
+                        transition: 'all 0.15s ease',
+                      }}
+                      title={isSelected ? `Included: ${meta?.name || p} (click to remove)` : `Excluded: ${meta?.name || p} (click to add)`}
+                    >
+                      <PlatformBrandLogo platform={p as any} size={14} />
+                      <span>{meta?.name || p}</span>
+                      <span style={{ fontSize: 11, opacity: isSelected ? 1 : 0.6 }}>
+                        {isSelected ? '✓' : '+'}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Other channels available for draft preview */}
+              {otherAvailablePlatforms.length > 0 && (
+                <div style={{ marginTop: 8 }}>
+                  <div style={{ fontSize: 11, color: 'var(--mu)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>
+                    Available channels (draft &amp; preview)
+                  </div>
+                  <div className="fp-chs" style={{ marginTop: 0 }}>
+                    {otherAvailablePlatforms.map(p => {
+                      const meta = PLATFORM_META[p];
+                      const isSelected = selectedPlatforms.includes(p);
+                      return (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => togglePlatform(p)}
+                          className={`fp-ch ${isSelected ? 'on' : ''}`}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 5,
+                            padding: '5px 9px',
+                            fontSize: 12,
+                            opacity: isSelected ? 1 : 0.65,
+                          }}
+                        >
+                          <PlatformBrandLogo platform={p as any} size={13} />
+                          <span>{meta?.name || p}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{ marginTop: 4 }}>
+              <div
+                style={{
+                  background: 'var(--acbg)',
+                  border: '1px solid var(--bd)',
+                  borderRadius: 12,
+                  padding: '9px 12px',
+                  fontSize: 12,
+                  color: 'var(--tx2)',
+                  lineHeight: 1.4,
+                  marginBottom: 8,
+                }}
+              >
+                No accounts connected yet. Select platforms below to draft your plan, or connect in{' '}
+                <a
+                  href="/dashboard/settings"
+                  style={{
+                    fontWeight: 700,
+                    color: 'var(--ac)',
+                    textDecoration: 'underline',
+                  }}
+                >
+                  Settings →
+                </a>
+              </div>
+              <div className="fp-chs" style={{ marginTop: 0 }}>
+                {ALL_POSSIBLE_PLATFORMS.map(p => {
+                  const meta = PLATFORM_META[p];
+                  const isSelected = selectedPlatforms.includes(p);
+                  return (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => togglePlatform(p)}
+                      className={`fp-ch ${isSelected ? 'on' : ''}`}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        padding: '6px 11px',
+                      }}
+                    >
+                      <PlatformBrandLogo platform={p as any} size={14} />
+                      <span>{meta?.name || p}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>

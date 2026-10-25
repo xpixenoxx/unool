@@ -1,11 +1,16 @@
 'use client';
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { format, addDays } from 'date-fns';
+import { format, addDays, isToday, startOfDay } from 'date-fns';
 import { BarcodeTicket } from './ui/BarcodeTicket';
+import { HashtagInput } from './ui/HashtagInput';
+import { ImageDropZone } from './ui/ImageDropZone';
+import { PlatformBrandLogo } from '@/components/dashboard/PlatformLogos';
 import { studioToast } from '@/components/dashboard/StudioToast';
+import { ContentGuard } from '@/lib/ai/ContentGuard';
+import { PLATFORM_CONFIG } from '@/types/flightplan';
 import type { WeekArc, ArcPost, ArcPlatformDraft, PlatformType } from '@/types/flightplan';
-import { B, COL, BEAT_COLORS, PLATFORM_META } from './design-tokens';
+import { COL, BEAT_COLORS, PLATFORM_META } from './design-tokens';
 
 interface ReviewScreenProps {
   arc: WeekArc;
@@ -19,7 +24,6 @@ interface ReviewScreenProps {
   onStoryHoverChange?: (paused: boolean) => void;
 }
 
-const LIM = 2200;
 const DN = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const two = (n: number) => String(n).padStart(2, '0');
 
@@ -43,8 +47,26 @@ export function ReviewScreen({
   onBack,
   isScheduling,
 }: ReviewScreenProps) {
-  const [arc, setArc] = useState<WeekArc>(initialArc);
+  const [arc, setArc] = useState<WeekArc>(() => {
+    // Ensure all posts and platforms have default enabled & media structure
+    return {
+      ...initialArc,
+      weekPosts: (initialArc.weekPosts || []).map(post => ({
+        ...post,
+        imageUrls: post.imageUrls || [],
+        platforms: (post.platforms || []).map(p => ({
+          ...p,
+          enabled: p.enabled !== false,
+          hashtags: p.hashtags || [],
+          characterCount: p.content?.length || 0,
+        })),
+      })),
+    };
+  });
+
   const [activePlatformByPost, setActivePlatformByPost] = useState<Record<number, PlatformType>>({});
+  const [isUploadingByDay, setIsUploadingByDay] = useState<Record<number, boolean>>({});
+  const [isDraggingByDay, setIsDraggingByDay] = useState<Record<number, boolean>>({});
 
   const baseDate = useMemo(() => parseLocalDate(weekStartDate), [weekStartDate]);
 
@@ -60,13 +82,26 @@ export function ReviewScreen({
     return `${two(post.scheduledHour || 18)}:${two(post.scheduledMinute || 0)}`;
   };
 
-  // Nudge time by minutes
+  // Nudge time by minutes (+/-)
   const handleNudgeTime = (dayIdx: number, addMins: number) => {
     setArc(prev => {
       const posts = [...prev.weekPosts];
       const target = { ...posts[dayIdx] };
       const currentMins = (target.scheduledHour || 18) * 60 + (target.scheduledMinute || 0);
-      const newMins = (currentMins + addMins) % 1440;
+      let newMins = (currentMins + addMins) % 1440;
+      if (newMins < 0) newMins += 1440;
+
+      const targetDay = dateOf(dayIdx);
+      const now = new Date();
+      if (isToday(targetDay)) {
+        const candidateTime = new Date(targetDay);
+        candidateTime.setHours(Math.floor(newMins / 60), newMins % 60, 0, 0);
+        if (candidateTime.getTime() <= now.getTime()) {
+          studioToast.generationFailed('Cannot schedule for a time that has already passed today.');
+          return prev;
+        }
+      }
+
       target.scheduledHour = Math.floor(newMins / 60);
       target.scheduledMinute = newMins % 60;
       posts[dayIdx] = target;
@@ -79,6 +114,17 @@ export function ReviewScreen({
     const [h, m] = timeStr.split(':').map(Number);
     if (isNaN(h) || isNaN(m)) return;
 
+    const targetDay = dateOf(dayIdx);
+    const now = new Date();
+    if (isToday(targetDay)) {
+      const candidateTime = new Date(targetDay);
+      candidateTime.setHours(h, m, 0, 0);
+      if (candidateTime.getTime() <= now.getTime()) {
+        studioToast.generationFailed('Cannot schedule for a time that has already passed today.');
+        return;
+      }
+    }
+
     setArc(prev => {
       const posts = [...prev.weekPosts];
       const target = { ...posts[dayIdx] };
@@ -90,14 +136,13 @@ export function ReviewScreen({
   };
 
   // Update caption for active platform on a day
-  const handleCaptionChange = (dayIdx: number, newCaption: string) => {
+  const handleCaptionChange = (dayIdx: number, platform: PlatformType, newCaption: string) => {
     setArc(prev => {
       const posts = [...prev.weekPosts];
       const target = { ...posts[dayIdx] };
-      const activePlat = activePlatformByPost[dayIdx] || target.platforms[0]?.platform || 'instagram';
 
-      const platforms = target.platforms.map(p => {
-        if (p.platform === activePlat) {
+      target.platforms = target.platforms.map(p => {
+        if (p.platform === platform) {
           return {
             ...p,
             content: newCaption,
@@ -107,66 +152,197 @@ export function ReviewScreen({
         return p;
       });
 
-      target.platforms = platforms;
       posts[dayIdx] = target;
       return { ...prev, weekPosts: posts };
     });
   };
 
-  // Toggle Auto First Comment
+  // Toggle platform enabled/included on a day
+  const handleTogglePlatformEnabled = (dayIdx: number, platform: PlatformType) => {
+    setArc(prev => {
+      const posts = [...prev.weekPosts];
+      const target = { ...posts[dayIdx] };
+
+      target.platforms = target.platforms.map(p => {
+        if (p.platform === platform) {
+          const nextState = p.enabled === false;
+          return {
+            ...p,
+            enabled: nextState,
+          };
+        }
+        return p;
+      });
+
+      posts[dayIdx] = target;
+      return { ...prev, weekPosts: posts };
+    });
+  };
+
+  // Add hashtag to specific platform draft
+  const handleAddHashtag = (dayIdx: number, platform: PlatformType, tag: string) => {
+    const clean = tag.trim().replace(/^#+/, '');
+    if (!clean) return;
+
+    setArc(prev => {
+      const posts = [...prev.weekPosts];
+      const target = { ...posts[dayIdx] };
+
+      target.platforms = target.platforms.map(p => {
+        if (p.platform === platform) {
+          const existing = p.hashtags || [];
+          if (!existing.includes(clean)) {
+            return { ...p, hashtags: [...existing, clean] };
+          }
+        }
+        return p;
+      });
+
+      posts[dayIdx] = target;
+      return { ...prev, weekPosts: posts };
+    });
+  };
+
+  // Remove hashtag from specific platform draft
+  const handleRemoveHashtag = (dayIdx: number, platform: PlatformType, tag: string) => {
+    setArc(prev => {
+      const posts = [...prev.weekPosts];
+      const target = { ...posts[dayIdx] };
+
+      target.platforms = target.platforms.map(p => {
+        if (p.platform === platform) {
+          return {
+            ...p,
+            hashtags: (p.hashtags || []).filter(t => t !== tag),
+          };
+        }
+        return p;
+      });
+
+      posts[dayIdx] = target;
+      return { ...prev, weekPosts: posts };
+    });
+  };
+
+  // Toggle Auto First Comment for this day
   const handleToggleFirstComment = (dayIdx: number) => {
     setArc(prev => {
       const posts = [...prev.weekPosts];
       const target = { ...posts[dayIdx] };
-      const platforms = target.platforms.map(p => ({
+      const hasAnyComment = target.platforms.some(p => Boolean(p.autoFirstComment));
+
+      target.platforms = target.platforms.map(p => ({
         ...p,
-        autoFirstComment: p.autoFirstComment ? null : 'Comment FLIGHT to get the full story breakdown.',
+        autoFirstComment: hasAnyComment ? null : 'Comment FLIGHT to get the full story breakdown.',
       }));
-      target.platforms = platforms;
+
       posts[dayIdx] = target;
       return { ...prev, weekPosts: posts };
     });
   };
 
   // Handle image upload from file picker or drag-drop
-  const handleImageUpload = (dayIdx: number, files: FileList | null) => {
+  const handleImageUpload = async (dayIdx: number, files: FileList | File[]): Promise<void> => {
     if (!files || files.length === 0) return;
-    const names = Array.from(files).map(f => URL.createObjectURL(f));
+    setIsUploadingByDay(prev => ({ ...prev, [dayIdx]: true }));
+
+    const urls = Array.from(files).map(f => {
+      if (typeof f === 'string') return f;
+      return URL.createObjectURL(f);
+    });
 
     setArc(prev => {
       const posts = [...prev.weekPosts];
       const target = { ...posts[dayIdx] };
       const existing = target.imageUrls || [];
-      const updated = [...existing, ...names].slice(0, 10);
-      target.imageUrls = updated;
+      const updated = [...existing, ...urls].slice(0, 10);
 
+      target.imageUrls = updated;
       target.platforms = target.platforms.map(p => ({
         ...p,
-        mediaUrls: updated.map(u => ({ url: u, type: 'image' })),
+        mediaUrls: updated.map(u => ({ url: u, type: 'image' as const })),
       }));
 
       posts[dayIdx] = target;
       return { ...prev, weekPosts: posts };
     });
 
-    studioToast.success(`Added ${files.length} media file${files.length > 1 ? 's' : ''}`);
+    setIsUploadingByDay(prev => ({ ...prev, [dayIdx]: false }));
+    studioToast.success(`Added ${urls.length} media file${urls.length > 1 ? 's' : ''}`);
   };
 
-  // Check validation state
+  // Remove individual image from post
+  const handleRemoveImage = (dayIdx: number, imgIdx: number) => {
+    setArc(prev => {
+      const posts = [...prev.weekPosts];
+      const target = { ...posts[dayIdx] };
+      const updated = (target.imageUrls || []).filter((_, i) => i !== imgIdx);
+
+      target.imageUrls = updated;
+      target.platforms = target.platforms.map(p => ({
+        ...p,
+        mediaUrls: updated.map(u => ({ url: u, type: 'image' as const })),
+      }));
+
+      posts[dayIdx] = target;
+      return { ...prev, weekPosts: posts };
+    });
+  };
+
+  // Validation analysis
   const { overLimitCount, missingMediaCount } = useMemo(() => {
     let over = 0;
     let missing = 0;
+
     arc.weekPosts.forEach(p => {
-      const activePlat = p.platforms[0];
-      if (activePlat && (activePlat.content?.length || 0) > LIM) {
-        over++;
-      }
-      if (!p.imageUrls || p.imageUrls.length === 0) {
+      const enabledPlatforms = p.platforms.filter(plat => plat.enabled !== false);
+      enabledPlatforms.forEach(plat => {
+        const maxChars = PLATFORM_CONFIG[plat.platform as PlatformType]?.maxChars || 2200;
+        if ((plat.content?.length || 0) > maxChars) {
+          over++;
+        }
+      });
+
+      // Instagram requires media
+      const hasInstagram = enabledPlatforms.some(plat => plat.platform === 'instagram');
+      if (hasInstagram && (!p.imageUrls || p.imageUrls.length === 0)) {
         missing++;
       }
     });
+
     return { overLimitCount: over, missingMediaCount: missing };
   }, [arc]);
+
+  // Validation on Approval
+  const handleApproveWithValidation = async () => {
+    for (const post of arc.weekPosts) {
+      for (const platform of post.platforms) {
+        if (platform.enabled === false) continue;
+
+        // Content safety guardrail check
+        const guard = ContentGuard.validateSocialInput(platform.content, { route: 'flightplan/review' });
+        if (!guard.safe) {
+          studioToast.generationFailed(guard.violation.message, {
+            platforms: [platform.platform],
+            knowMoreUrl: '/terms',
+          });
+          return;
+        }
+
+        // Platform character limits check
+        const config = PLATFORM_CONFIG[platform.platform as PlatformType];
+        if (config && platform.content.length > config.maxChars) {
+          studioToast.generationFailed(
+            `Content for ${config.name} exceeds the character limit of ${config.maxChars} (${platform.content.length}/${config.maxChars}).`,
+            { platforms: [platform.platform] }
+          );
+          return;
+        }
+      }
+    }
+
+    onApprove(arc);
+  };
 
   const scrollToDay = (idx: number) => {
     const el = document.getElementById(`d${idx}`);
@@ -175,17 +351,20 @@ export function ReviewScreen({
     }
   };
 
+  const now = new Date();
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div style={{ marginTop: 20 }}>
         <h2>Review your week</h2>
         <p className="fp-sub">
-          Everything is already written and timed. Check each day, add a photo or video, then approve to schedule all seven posts.
+          Everything is written and timed. Review each day, attach photos or videos with drag &amp; drop, adjust
+          hashtags, and include or exclude platforms before approving.
         </p>
       </div>
 
-      {/* Sticky Day Navigation Bar (.sbar) */}
+      {/* Sticky Day Navigation Bar (.fp-sbar) */}
       <div className="fp-sbar">
         {arc.weekPosts.map((post, i) => {
           const c = COL[i] || '#C0607A';
@@ -208,15 +387,31 @@ export function ReviewScreen({
         {arc.weekPosts.map((post, i) => {
           const c = COL[i] || '#C0607A';
           const dayDate = dateOf(i);
-          const activePlat = activePlatformByPost[i] || post.platforms[0]?.platform || 'instagram';
-          const currentDraft = post.platforms.find(p => p.platform === activePlat) || post.platforms[0];
+          const isTodayPost = isToday(dayDate);
+
+          const activePlat =
+            activePlatformByPost[i] ||
+            post.platforms.find(p => p.enabled !== false)?.platform ||
+            post.platforms[0]?.platform ||
+            'instagram';
+
+          const currentDraft =
+            post.platforms.find(p => p.platform === activePlat) || post.platforms[0];
+
+          const isCurrentPlatformEnabled = currentDraft?.enabled !== false;
+          const maxChars = PLATFORM_CONFIG[activePlat as PlatformType]?.maxChars || 2200;
           const caption = currentDraft?.content || '';
           const charCount = caption.length;
-          const isOver = charCount > LIM;
+          const isOver = charCount > maxChars;
           const timeStr = getTimeString(post);
 
+          // Check if time is in the past for today
+          const postDateTime = new Date(dayDate);
+          postDateTime.setHours(post.scheduledHour || 18, post.scheduledMinute || 0, 0, 0);
+          const isPastTime = isTodayPost && postDateTime.getTime() <= now.getTime();
+
           const ticketId = `FP-${two(dayDate.getMonth() + 1)}${two(dayDate.getDate())}-D${i + 1}-${timeStr.replace(':', '')}`;
-          const hasAutoComment = !!currentDraft?.autoFirstComment;
+          const hasAutoComment = post.platforms.some(p => Boolean(p.autoFirstComment));
 
           return (
             <article
@@ -234,17 +429,38 @@ export function ReviewScreen({
                   <span>{format(dayDate, 'EEEE d MMMM')}</span>
                 </div>
 
-                <h3 className="fp-big" style={{ color: c }}>
-                  {post.arcBeat}
-                </h3>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 4 }}>
+                  <h3 className="fp-big" style={{ color: c }}>
+                    {post.arcBeat}
+                  </h3>
+                  {isPastTime && (
+                    <span
+                      style={{
+                        background: 'var(--wabg)',
+                        color: 'var(--now)',
+                        border: '1px solid var(--bd)',
+                        borderRadius: 999,
+                        padding: '2px 9px',
+                        fontSize: 11,
+                        fontWeight: 700,
+                      }}
+                    >
+                      Time passed for today
+                    </span>
+                  )}
+                </div>
+
                 <p className="fp-sub" style={{ marginTop: 2 }}>
                   Why this day: {post.arcBeatReason}
                 </p>
 
                 {/* Platform Tabs Selector */}
-                {post.platforms.length > 1 && (
-                  <div className="fp-chs" style={{ marginTop: 14 }}>
-                    {post.platforms.map(p => (
+                <div className="fp-chs" style={{ marginTop: 14 }}>
+                  {post.platforms.map(p => {
+                    const isTabActive = p.platform === activePlat;
+                    const isEnabled = p.enabled !== false;
+                    const meta = PLATFORM_META[p.platform];
+                    return (
                       <button
                         key={p.platform}
                         type="button"
@@ -254,27 +470,98 @@ export function ReviewScreen({
                             [i]: p.platform,
                           }))
                         }
-                        className={`fp-ch ${p.platform === activePlat ? 'on' : ''}`}
+                        className={`fp-plat-tab ${isTabActive ? 'on' : ''} ${!isEnabled ? 'excluded' : ''}`}
+                        title={
+                          isEnabled
+                            ? `${meta?.name || p.platform} (Included in this post)`
+                            : `${meta?.name || p.platform} (Excluded / skipped for this post)`
+                        }
                       >
-                        {PLATFORM_META[p.platform]?.name || p.platform}
+                        <PlatformBrandLogo platform={p.platform as any} size={14} />
+                        <span>{meta?.name || p.platform}</span>
+                        {!isEnabled && (
+                          <span style={{ fontSize: 10, textDecoration: 'none' }}>(Excluded)</span>
+                        )}
                       </button>
-                    ))}
+                    );
+                  })}
+                </div>
+
+                {/* Platform Inclusion / Exclusion Toggle Bar */}
+                <div className="fp-toggle-box">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <PlatformBrandLogo platform={activePlat as any} size={15} />
+                    <span style={{ fontWeight: 600, color: 'var(--tx)' }}>
+                      Upload to {PLATFORM_CONFIG[activePlat as PlatformType]?.name || activePlat}:
+                    </span>
+                    <span style={{ color: isCurrentPlatformEnabled ? 'var(--tx2)' : 'var(--mu)', fontSize: 12.5 }}>
+                      {isCurrentPlatformEnabled ? '• Included in Flight Plan' : '• Excluded / skipped for this day'}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleTogglePlatformEnabled(i, activePlat)}
+                    className={`fp-ch ${isCurrentPlatformEnabled ? 'on' : ''}`}
+                    style={{
+                      padding: '4px 12px',
+                      fontSize: 12,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {isCurrentPlatformEnabled ? '✓ Included' : '✕ Excluded'}
+                  </button>
+                </div>
+
+                {/* Excluded notice if disabled */}
+                {!isCurrentPlatformEnabled && (
+                  <div
+                    style={{
+                      background: 'var(--acbg)',
+                      border: '1px dashed var(--bd)',
+                      borderRadius: 10,
+                      padding: '6px 12px',
+                      fontSize: 12,
+                      color: 'var(--tx2)',
+                      marginBottom: 8,
+                    }}
+                  >
+                    This day will not post to {PLATFORM_CONFIG[activePlat as PlatformType]?.name || activePlat}. Click “Included” above to re-enable.
                   </div>
                 )}
 
                 {/* Caption Editor */}
-                <div className="fp-lb" style={{ marginTop: 14 }}>
+                <div className="fp-lb" style={{ marginTop: 10 }}>
                   <span>Post caption. This is what followers read.</span>
                   <span className={isOver ? 'fp-bad' : 'fp-ok'}>
-                    {charCount} of {LIM} characters
+                    {charCount} of {maxChars} characters
                   </span>
                 </div>
                 <textarea
                   rows={6}
                   value={caption}
-                  onChange={e => handleCaptionChange(i, e.target.value)}
-                  placeholder="Post content..."
+                  disabled={!isCurrentPlatformEnabled}
+                  onChange={e => handleCaptionChange(i, activePlat, e.target.value)}
+                  placeholder={`Post content for ${PLATFORM_CONFIG[activePlat as PlatformType]?.name || activePlat}...`}
+                  style={{
+                    opacity: isCurrentPlatformEnabled ? 1 : 0.6,
+                    borderColor: isOver ? 'var(--bad)' : 'var(--bd)',
+                  }}
                 />
+
+                {/* Hashtags Section */}
+                <div style={{ marginTop: 12 }}>
+                  <div className="fp-lb" style={{ marginTop: 0, marginBottom: 6 }}>
+                    <span>Hashtags for {PLATFORM_CONFIG[activePlat as PlatformType]?.name || activePlat}</span>
+                    <span>{(currentDraft?.hashtags || []).length} / 30 tags</span>
+                  </div>
+                  <HashtagInput
+                    tags={currentDraft?.hashtags || []}
+                    onAdd={tag => handleAddHashtag(i, activePlat, tag)}
+                    onRemove={tag => handleRemoveHashtag(i, activePlat, tag)}
+                    placeholder="add tag..."
+                    maxTags={30}
+                  />
+                </div>
               </div>
 
               {/* Right Stub Section */}
@@ -286,7 +573,7 @@ export function ReviewScreen({
                     value={timeStr}
                     onChange={e => handleTimeChange(i, e.target.value)}
                   />
-                  <em>Picked for your audience. Nudge it later:</em>
+                  <em>Picked for your audience. Nudge time:</em>
                   <div className="fp-chs" style={{ marginTop: 4 }}>
                     {[5, 15, 30, 60].map(mins => (
                       <button
@@ -295,29 +582,39 @@ export function ReviewScreen({
                         className="fp-ch"
                         onClick={() => handleNudgeTime(i, mins)}
                       >
-                        +{mins < 60 ? `${mins} min` : '1 hour'}
+                        +{mins < 60 ? `${mins}m` : '1h'}
+                      </button>
+                    ))}
+                    {[-60, -5].map(mins => (
+                      <button
+                        key={mins}
+                        type="button"
+                        className="fp-ch"
+                        onClick={() => handleNudgeTime(i, mins)}
+                      >
+                        {mins === -60 ? '-1h' : '-5m'}
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* Photos or Video Dropzone */}
+                {/* Photos or Video Drag-and-Drop Dropzone */}
                 <div className="fp-fld">
-                  <span>Photos or video ({post.imageUrls?.length || 0} of 10)</span>
-                  <label className="fp-dz" style={{ ['--c' as any]: c }}>
-                    <input
-                      type="file"
-                      hidden
-                      multiple
-                      accept="image/*,video/*"
-                      onChange={e => handleImageUpload(i, e.target.files)}
-                    />
-                    {post.imageUrls && post.imageUrls.length > 0
-                      ? post.imageUrls.map((url, imgIdx) => (
-                          <em key={imgIdx}>Media {imgIdx + 1}</em>
-                        ))
-                      : '+ Tap to add, or drop files here'}
-                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span>Attached Media ({post.imageUrls?.length || 0} of 10)</span>
+                    <span style={{ fontSize: 11, color: 'var(--mu)' }}>Images, videos, PDFs</span>
+                  </div>
+
+                  <ImageDropZone
+                    images={post.imageUrls || []}
+                    onUpload={files => handleImageUpload(i, files)}
+                    onRemove={imgIdx => handleRemoveImage(i, imgIdx)}
+                    maxImages={10}
+                    isUploading={isUploadingByDay[i] || false}
+                    isDragging={isDraggingByDay[i] || false}
+                    setIsDragging={dragging => setIsDraggingByDay(prev => ({ ...prev, [i]: dragging }))}
+                    compact={true}
+                  />
                 </div>
 
                 {/* Auto First Comment Switch */}
@@ -341,7 +638,7 @@ export function ReviewScreen({
         })}
       </div>
 
-      {/* Sticky Bottom Approval Bar (.rbar) */}
+      {/* Sticky Bottom Approval Bar (.fp-rbar) */}
       <div className="fp-rbar">
         <button
           type="button"
@@ -353,17 +650,17 @@ export function ReviewScreen({
 
         <span>
           {overLimitCount > 0
-            ? `${overLimitCount} caption${overLimitCount > 1 ? 's are' : ' is'} over the limit.`
+            ? `${overLimitCount} caption${overLimitCount > 1 ? 's are' : ' is'} over the character limit.`
             : missingMediaCount > 0
-            ? `${missingMediaCount} day${missingMediaCount > 1 ? 's' : ''} still need media. You can approve now and add media later.`
-            : 'Every day is ready.'}
+            ? `${missingMediaCount} day${missingMediaCount > 1 ? 's' : ''} still need media for Instagram. You can approve now and add media later.`
+            : 'Every day is ready for take-off.'}
         </span>
 
         <button
           type="button"
           className="fp-btn gold"
           disabled={isScheduling || overLimitCount > 0}
-          onClick={() => onApprove(arc)}
+          onClick={handleApproveWithValidation}
         >
           {isScheduling ? 'Scheduling flight plan…' : 'Approve and schedule flight plan'}
         </button>

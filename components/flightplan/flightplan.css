@@ -988,6 +988,61 @@
   font-size: 12px;
 }
 
+/* Platform tab and inclusion bar */
+.fp-ch.excluded {
+  opacity: 0.55;
+  text-decoration: line-through;
+  border-style: dashed;
+  background: var(--bg);
+}
+
+.fp-plat-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--bd);
+  background: var(--card);
+  color: var(--tx2);
+  font: 600 13px "DM Sans", sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.fp-plat-tab:hover {
+  border-color: var(--ac);
+  color: var(--tx);
+}
+
+.fp-plat-tab.on {
+  background: var(--ac);
+  color: var(--onac);
+  border-color: transparent;
+}
+
+.fp-plat-tab.excluded {
+  opacity: 0.55;
+  text-decoration: line-through;
+  border-style: dashed;
+  background: var(--bg);
+  color: var(--mu);
+}
+
+.fp-toggle-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--card);
+  border: 1px solid var(--bd);
+  margin-top: 10px;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
 /* Sticky Approval Bar */
 .fp-rbar {
   position: sticky;
