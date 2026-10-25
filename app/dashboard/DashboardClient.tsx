@@ -103,6 +103,36 @@ const OVERVIEW_8_PLATFORMS: NetworkPlatformDef[] = [
   { id: 'dribbble', name: 'Dribbble', mark: 'Dr' },
 ];
 
+const ALL_PLATFORM_DEFS: Record<string, NetworkPlatformDef> = {
+  linkedin: { id: 'linkedin', name: 'LinkedIn', mark: 'in' },
+  threads: { id: 'threads', name: 'Threads', mark: '@' },
+  instagram: { id: 'instagram', name: 'Instagram', mark: 'Ig' },
+  bluesky: { id: 'bluesky', name: 'Bluesky', mark: 'B' },
+  mastodon: { id: 'mastodon', name: 'Mastodon', mark: 'M' },
+  slack: { id: 'slack', name: 'Slack', mark: '#' },
+  telegram: { id: 'telegram', name: 'Telegram', mark: 'T' },
+  dribbble: { id: 'dribbble', name: 'Dribbble', mark: 'Dr' },
+  x: { id: 'x', name: 'X (Twitter)', mark: 'X' },
+  facebook: { id: 'facebook', name: 'Facebook', mark: 'f' },
+  youtube: { id: 'youtube', name: 'YouTube', mark: 'YT' },
+  pinterest: { id: 'pinterest', name: 'Pinterest', mark: 'P' },
+  reddit: { id: 'reddit', name: 'Reddit', mark: 'r/' },
+  twitch: { id: 'twitch', name: 'Twitch', mark: 'Tw' },
+  discord: { id: 'discord', name: 'Discord', mark: 'Dc' },
+  skool: { id: 'skool', name: 'Skool', mark: 'sk' },
+  whop: { id: 'whop', name: 'Whop', mark: 'W' },
+  kick: { id: 'kick', name: 'Kick', mark: 'K' },
+  warpcast: { id: 'warpcast', name: 'Farcaster', mark: 'Fc' },
+  mewe: { id: 'mewe', name: 'MeWe', mark: 'Mw' },
+  nostr: { id: 'nostr', name: 'Nostr', mark: 'N' },
+  medium: { id: 'medium', name: 'Medium', mark: 'Med' },
+  lemmy: { id: 'lemmy', name: 'Lemmy', mark: 'Lm' },
+  listmonk: { id: 'listmonk', name: 'Listmonk', mark: 'Lm' },
+  hashnode: { id: 'hashnode', name: 'Hashnode', mark: 'Hn' },
+  devto: { id: 'devto', name: 'DEV.to', mark: 'Dev' },
+  manual: { id: 'manual', name: 'Manual / Other', mark: 'Ot' },
+};
+
 const ALTERNATING_PALETTE = [
   {
     // Blue gradient & color
@@ -282,9 +312,48 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     }
   }, [data.connections]);
 
-  // Platforms dataset mapped to 8 core platforms with alternating Blue and Black colors
+  // Platforms dataset: ALL connected platforms are shown FIRST,
+  // followed by not-connected platforms, with alternating Blue and Black colors
   const platforms = useMemo(() => {
-    return OVERVIEW_8_PLATFORMS.map((p, index) => {
+    // 1. All connected platforms from the system
+    const connectedList: NetworkPlatformDef[] = [];
+    const connectedSet = new Set<string>();
+
+    for (const pid of SUPPORTED_PLATFORMS) {
+      if (connections[pid]?.status === 'connected') {
+        const def = ALL_PLATFORM_DEFS[pid] || {
+          id: pid,
+          name: pid.charAt(0).toUpperCase() + pid.slice(1),
+          mark: pid.slice(0, 2).toUpperCase(),
+        };
+        connectedList.push(def);
+        connectedSet.add(pid);
+      }
+    }
+
+    // 2. Unconnected platforms: default core 8 platforms first, then remaining supported platforms
+    const notConnectedList: NetworkPlatformDef[] = [];
+    for (const p of OVERVIEW_8_PLATFORMS) {
+      if (!connectedSet.has(p.id)) {
+        notConnectedList.push(p);
+      }
+    }
+    for (const pid of SUPPORTED_PLATFORMS) {
+      if (!connectedSet.has(pid) && !notConnectedList.some((p) => p.id === pid)) {
+        const def = ALL_PLATFORM_DEFS[pid] || {
+          id: pid,
+          name: pid.charAt(0).toUpperCase() + pid.slice(1),
+          mark: pid.slice(0, 2).toUpperCase(),
+        };
+        notConnectedList.push(def);
+      }
+    }
+
+    // Minimum 8 platforms, or rounded up to complete 4-column rows if more platforms are connected
+    const targetCount = Math.max(8, Math.ceil(connectedList.length / 4) * 4);
+    const combined = [...connectedList, ...notConnectedList].slice(0, targetCount);
+
+    return combined.map((p, index) => {
       const isConnected = connections[p.id]?.status === 'connected';
       const pal = ALTERNATING_PALETTE[index % 2];
       return {
@@ -306,9 +375,19 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   const systemNotConnectedCount = Math.max(0, totalSystemPlatforms - systemConnectedCount);
 
   const visiblePlatforms = useMemo(() => {
-    if (platformFilter === 'on') return platforms.filter((p) => p.connected);
-    if (platformFilter === 'off') return platforms.filter((p) => !p.connected);
-    return platforms;
+    let list = platforms;
+    if (platformFilter === 'on') list = platforms.filter((p) => p.connected);
+    else if (platformFilter === 'off') list = platforms.filter((p) => !p.connected);
+
+    // Re-apply alternating blue and black palette so visible list is always strictly alternating
+    return list.map((p, index) => {
+      const pal = ALTERNATING_PALETTE[index % 2];
+      return {
+        ...p,
+        color: pal.color,
+        gradient: pal.gradient,
+      };
+    });
   }, [platforms, platformFilter]);
 
   // Platform connect / disconnect handlers

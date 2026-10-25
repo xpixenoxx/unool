@@ -370,20 +370,22 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
   );
 
   const initialConnections = useMemo(() => {
-    const cached = memoryConnectionsCache.get(workspaceId);
-    if (cached) return cached;
-
     const conn: Record<Platform, PlatformConnection> = {} as Record<
       Platform,
       PlatformConnection
     >;
+    const cached = memoryConnectionsCache.get(workspaceId);
+
     connectablePlatforms.forEach((p) => {
       const propStatus = (initialConnectionsProp as any)?.[p]?.status;
       const propUsername = (initialConnectionsProp as any)?.[p]?.username;
+      const cachedStatus = cached?.[p]?.status;
+      const cachedUsername = cached?.[p]?.username;
+
       conn[p] = {
         platform: p,
-        status: (propStatus as any) || 'not_connected',
-        username: propUsername,
+        status: (propStatus as any) || (cachedStatus as any) || 'not_connected',
+        username: propUsername || cachedUsername,
       };
     });
     return conn;
@@ -392,27 +394,51 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
   const [connections, setConnections] =
     useState<Record<Platform, PlatformConnection>>(initialConnections);
 
+  // Sync state when initialConnectionsProp updates from parent
+  useEffect(() => {
+    if (initialConnectionsProp && Object.keys(initialConnectionsProp).length > 0) {
+      setConnections((prev) => {
+        let changed = false;
+        const next = { ...prev };
+        for (const [p, val] of Object.entries(initialConnectionsProp)) {
+          const platformKey = p as Platform;
+          if (next[platformKey]) {
+            if (next[platformKey].status !== val.status || next[platformKey].username !== val.username) {
+              next[platformKey] = {
+                ...next[platformKey],
+                status: (val.status as any) || 'not_connected',
+                username: val.username,
+              };
+              changed = true;
+            }
+          }
+        }
+        if (changed) {
+          memoryConnectionsCache.set(workspaceId, next);
+          return next;
+        }
+        return prev;
+      });
+    }
+  }, [initialConnectionsProp, workspaceId]);
+
   // Notify parent of connection updates
   useEffect(() => {
     onConnectionChange?.(connections);
   }, [connections, onConnectionChange]);
 
-  // Sort platforms: connected first, preserving relative order, manual ALWAYS at the end
-  const sortedPlatforms = useMemo(
-    () => {
-      const nonManual = connectablePlatforms.filter((p) => p !== 'manual');
-      const sorted: Platform[] = [...nonManual].sort((a, b) => {
-        const aConn = connections[a]?.status === 'connected';
-        const bConn = connections[b]?.status === 'connected';
-        return aConn === bConn ? 0 : aConn ? -1 : 1;
-      });
-      if (connectablePlatforms.includes('manual')) {
-        sorted.push('manual');
-      }
-      return sorted;
-    },
-    [connectablePlatforms, connections]
-  );
+  // Sort platforms: ALL connected platforms first, followed by not-connected platforms (manual at end of not-connected)
+  const sortedPlatforms = useMemo(() => {
+    const isConn = (p: Platform) => connections[p]?.status === 'connected';
+
+    // 1. All connected platforms first (preserving relative order)
+    const connected = connectablePlatforms.filter((p) => isConn(p));
+    // 2. All not-connected platforms (standard first, manual at the very end of not-connected)
+    const notConnectedNonManual = connectablePlatforms.filter((p) => !isConn(p) && p !== 'manual');
+    const notConnectedManual = connectablePlatforms.filter((p) => !isConn(p) && p === 'manual');
+
+    return [...connected, ...notConnectedNonManual, ...notConnectedManual];
+  }, [connectablePlatforms, connections]);
 
   const [loading, setLoading] = useState(() => {
     const hasCached = memoryConnectionsCache.has(workspaceId);
@@ -819,9 +845,9 @@ export function PlatformConnections({ workspaceId, userId: initialUserId, initia
             {sortedPlatforms.map((platform, idx) => {
               const cfg = PLATFORM_CONFIG[platform];
               const connection = connections[platform];
-              const isConnected = connection.status === 'connected';
-              const isExpired = connection.status === 'expired';
-              const isError = connection.status === 'error';
+              const isConnected = connection?.status === 'connected';
+              const isExpired = connection?.status === 'expired';
+              const isError = connection?.status === 'error';
               const hasIssue = isExpired || isError;
               const isBlue = idx % 2 === 0;
 
