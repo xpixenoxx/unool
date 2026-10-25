@@ -143,11 +143,34 @@ let memoryBillingCurrent: CurrentPlan | null = null;
 // ── Skeleton Loader ─────────────────────────────────────────────
 function BillingSkeleton() {
   return (
-    <div style={{ padding: '32px 24px', maxWidth: 1200, margin: '0 auto', color: '#1A1612' }}>
+    <div style={{ padding: '32px 16px', maxWidth: 1400, margin: '0 auto', color: '#1A1612' }}>
       <style>{`
         @keyframes biscuitPulse {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.45; }
+        }
+        .unool-plans-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 16px;
+          width: 100%;
+        }
+        @media (min-width: 640px) {
+          .unool-plans-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 18px;
+          }
+        }
+        @media (min-width: 1024px) {
+          .unool-plans-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 16px;
+          }
+        }
+        @media (min-width: 1360px) {
+          .unool-plans-grid {
+            gap: 20px;
+          }
         }
       `}</style>
       {/* Header skeleton */}
@@ -161,19 +184,20 @@ function BillingSkeleton() {
         <div style={{ width: 220, height: 42, borderRadius: 24, background: '#EDE7DD', animation: 'biscuitPulse 1.5s ease-in-out infinite' }} />
       </div>
 
-      {/* 3 cards skeleton */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
-        {[1, 2, 3].map((i) => (
+      {/* 4 cards skeleton */}
+      <div className="unool-plans-grid">
+        {[1, 2, 3, 4].map((i) => (
           <div
             key={i}
             style={{
               background: '#FFFDF9',
               border: '1px solid #E8E0D4',
-              borderRadius: 20,
-              padding: 28,
+              borderRadius: 18,
+              padding: '28px 18px',
               display: 'flex',
               flexDirection: 'column',
               gap: 20,
+              minWidth: 0,
               boxShadow: '0 4px 20px -2px rgba(61, 43, 31, 0.04)',
             }}
           >
@@ -920,7 +944,32 @@ export default function BillingClient() {
   const isFreeTier = currentPlan?.isFreeTier !== false;
 
   return (
-    <div style={{ padding: '32px 24px', maxWidth: 1200, margin: '0 auto', color: '#1A1612' }}>
+    <div style={{ padding: '32px 16px', maxWidth: 1400, margin: '0 auto', color: '#1A1612' }}>
+      <style>{`
+        .unool-plans-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 16px;
+          width: 100%;
+        }
+        @media (min-width: 640px) {
+          .unool-plans-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 18px;
+          }
+        }
+        @media (min-width: 1024px) {
+          .unool-plans-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 16px;
+          }
+        }
+        @media (min-width: 1360px) {
+          .unool-plans-grid {
+            gap: 20px;
+          }
+        }
+      `}</style>
       {/* ── Header ──────────────────────────────────────────── */}
       <div style={{ marginBottom: 32 }}>
         <h1 style={{ fontSize: 28, fontWeight: 800, color: '#1A1612', margin: 0, letterSpacing: '-0.02em' }}>
@@ -1101,11 +1150,7 @@ export default function BillingClient() {
       </div>
 
       {/* ── Plan Cards ────────────────────────────────────────── */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-        gap: 24,
-      }}>
+      <div className="unool-plans-grid">
         {plans.map(plan => {
           const isCurrentPlan = plan.id === currentPlanId;
           const isUpgrade = plan.sortOrder > (plans.find(p => p.id === currentPlanId)?.sortOrder ?? 0);
@@ -1125,9 +1170,10 @@ export default function BillingClient() {
                   : isCurrentPlan
                     ? '2px solid #10B981'
                     : '1px solid #E8E0D5',
-                borderRadius: 20,
-                padding: '32px 24px',
+                borderRadius: 18,
+                padding: '28px 18px',
                 display: 'flex', flexDirection: 'column',
+                minWidth: 0,
                 transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
                 boxShadow: isPopular
                   ? '0 20px 40px -12px rgba(139, 92, 246, 0.2)'
@@ -1142,9 +1188,10 @@ export default function BillingClient() {
                   position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)',
                   background: 'linear-gradient(135deg, #8B5CF6, #6366F1)',
                   color: 'white', fontSize: 11, fontWeight: 700,
-                  padding: '4px 16px', borderRadius: 12,
+                  padding: '4px 14px', borderRadius: 12,
                   textTransform: 'uppercase', letterSpacing: '0.06em',
                   boxShadow: '0 4px 12px rgba(139, 92, 246, 0.35)',
+                  whiteSpace: 'nowrap',
                 }}>
                   Most Popular
                 </div>
@@ -1152,33 +1199,33 @@ export default function BillingClient() {
 
               {/* Plan header */}
               <div>
-                <h3 style={{ fontSize: 22, fontWeight: 800, color: '#1A1612', margin: 0, letterSpacing: '-0.01em' }}>
+                <h3 style={{ fontSize: 21, fontWeight: 800, color: '#1A1612', margin: 0, letterSpacing: '-0.01em' }}>
                   {plan.name}
                 </h3>
-                <p style={{ fontSize: 13, color: '#7A7265', marginTop: 6, minHeight: 38, lineHeight: 1.4 }}>
+                <p style={{ fontSize: 12.5, color: '#7A7265', marginTop: 6, minHeight: 38, lineHeight: 1.4 }}>
                   {plan.tagline}
                 </p>
               </div>
 
               {/* Price */}
-              <div style={{ marginTop: 16 }}>
+              <div style={{ marginTop: 14 }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                  <span style={{ fontSize: 38, fontWeight: 800, color: '#1A1612', letterSpacing: '-0.03em' }}>
+                  <span style={{ fontSize: 34, fontWeight: 800, color: '#1A1612', letterSpacing: '-0.03em' }}>
                     {plan.isFreeTier ? 'Free' : price}
                   </span>
                   {!plan.isFreeTier && (
-                    <span style={{ fontSize: 14, color: '#7A7265', fontWeight: 500 }}>/mo</span>
+                    <span style={{ fontSize: 13, color: '#7A7265', fontWeight: 500 }}>/mo</span>
                   )}
                 </div>
                 {!plan.isFreeTier && billingCycle === 'annual' && (
-                  <div style={{ fontSize: 12, color: '#059669', fontWeight: 600, marginTop: 4 }}>
+                  <div style={{ fontSize: 11.5, color: '#059669', fontWeight: 600, marginTop: 4 }}>
                     Billed {plan.pricing.annualDisplay}/year
                   </div>
                 )}
               </div>
 
               {/* Features */}
-              <ul style={{ listStyle: 'none', padding: 0, margin: '24px 0', flex: 1 }}>
+              <ul style={{ listStyle: 'none', padding: 0, margin: '20px 0', flex: 1 }}>
                 <FeatureItem text={`${plan.limits?.channels === -1 ? 'Unlimited' : (plan.limits?.channels ?? 0)} channels`} />
                 <FeatureItem text={`${plan.limits?.posts_per_month === -1 ? 'Unlimited' : (plan.limits?.posts_per_month ?? 0)} posts/mo`} />
                 <FeatureItem text={`${plan.limits?.ai_credits_per_month === -1 ? 'Unlimited' : (plan.limits?.ai_credits_per_month ?? 0)} AI credits/mo`} />
@@ -1196,10 +1243,12 @@ export default function BillingClient() {
                 <button
                   disabled
                   style={{
-                    padding: '12px 24px', borderRadius: 10, fontSize: 14, fontWeight: 600,
+                    padding: '11px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600,
                     background: '#ECFDF5', color: '#065F46',
                     border: '1px solid #A7F3D0',
                     cursor: 'default',
+                    width: '100%',
+                    textAlign: 'center',
                   }}
                 >
                   ✓ Current Plan
@@ -1208,10 +1257,12 @@ export default function BillingClient() {
                 <button
                   disabled
                   style={{
-                    padding: '12px 24px', borderRadius: 10, fontSize: 14, fontWeight: 600,
+                    padding: '11px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600,
                     background: '#F4EFEA', color: '#7A7265',
                     border: '1px solid #E8E0D5',
                     cursor: 'default',
+                    width: '100%',
+                    textAlign: 'center',
                   }}
                 >
                   Free Forever
@@ -1221,7 +1272,7 @@ export default function BillingClient() {
                   onClick={() => handleSelectPlan(plan.id)}
                   disabled={!!paymentLoading || !isUpgrade}
                   style={{
-                    padding: '12px 24px', borderRadius: 10, fontSize: 14, fontWeight: 700,
+                    padding: '11px 16px', borderRadius: 10, fontSize: 13, fontWeight: 700,
                     background: isUpgrade
                       ? (isPopular ? 'linear-gradient(135deg, #8B5CF6, #6366F1)' : '#1A1612')
                       : '#F4EFEA',
@@ -1229,6 +1280,8 @@ export default function BillingClient() {
                     border: 'none', cursor: isUpgrade ? 'pointer' : 'default',
                     transition: 'all 0.2s',
                     opacity: paymentLoading === plan.id ? 0.7 : 1,
+                    width: '100%',
+                    textAlign: 'center',
                     boxShadow: isUpgrade && isPopular
                       ? '0 4px 14px rgba(139, 92, 246, 0.35)'
                       : isUpgrade
@@ -2591,12 +2644,13 @@ function FeatureItem({ text, highlight }: { text: string; highlight?: boolean })
   return (
     <li style={{
       display: 'flex', alignItems: 'center', gap: 8,
-      fontSize: 13, color: highlight ? '#8B5CF6' : '#2D241E',
+      fontSize: 12.5, color: highlight ? '#8B5CF6' : '#2D241E',
       fontWeight: highlight ? 600 : 400,
-      padding: '5px 0',
+      padding: '4.5px 0',
+      lineHeight: 1.35,
     }}>
-      <span style={{ color: highlight ? '#8B5CF6' : '#10B981', fontSize: 13, fontWeight: 700 }}>✓</span>
-      {text}
+      <span style={{ color: highlight ? '#8B5CF6' : '#10B981', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>✓</span>
+      <span>{text}</span>
     </li>
   );
 }
