@@ -450,28 +450,23 @@ export default function BillingClient() {
         const { orderId, status } = event.data;
         closeAndCleanCashfree();
 
+        // Close checkout tab immediately
+        setActiveCheckout(null);
+
         if (status === 'USER_DROPPED' || status === 'CANCELLED') {
-          setCardSubmitting(false);
-          setCardAwaitingVerification(false);
-          setNetbankingSubmitting(false);
-          setNetbankingRedirecting(false);
-          setCardError('Payment was cancelled or dismissed. You have not been charged.');
-          setNetbankingError('Payment was cancelled or dismissed.');
+          setPaymentResult({
+            status: 'ERROR',
+            message: 'Checkout was cancelled. No changes were made to your subscription.',
+          });
         } else if (status === 'PAID' || status === 'SUCCESS') {
-          setCardSubmitting(false);
-          setCardAwaitingVerification(false);
-          setNetbankingSubmitting(false);
-          setNetbankingRedirecting(false);
           if (orderId) {
             pollVerification(orderId);
           }
         } else if (status === 'FAILED') {
-          setCardSubmitting(false);
-          setCardAwaitingVerification(false);
-          setNetbankingSubmitting(false);
-          setNetbankingRedirecting(false);
-          setCardError('Payment was declined by your bank. Please try again.');
-          setNetbankingError('Payment was declined or failed.');
+          setPaymentResult({
+            status: 'FAILED',
+            message: 'Payment was declined or failed. Please try again.',
+          });
         }
       }
     };
@@ -718,6 +713,11 @@ export default function BillingClient() {
           clearInterval(checkClosedTimer);
           setCardAwaitingVerification(false);
           setCardSubmitting(false);
+          setActiveCheckout(null);
+          setPaymentResult({
+            status: 'ERROR',
+            message: 'Checkout window was closed. No changes were made to your subscription.',
+          });
         }
       }, 1000);
 
@@ -815,6 +815,11 @@ export default function BillingClient() {
           clearInterval(checkNbClosed);
           setNetbankingRedirecting(false);
           setNetbankingSubmitting(false);
+          setActiveCheckout(null);
+          setPaymentResult({
+            status: 'ERROR',
+            message: 'Netbanking window was closed. No changes were made to your subscription.',
+          });
         }
       }, 1000);
 
@@ -1303,10 +1308,10 @@ export default function BillingClient() {
               background: 'rgba(26, 22, 18, 0.75)',
               backdropFilter: 'blur(8px)',
               display: 'flex',
-              alignItems: 'center',
               justifyContent: 'center',
-              padding: 16,
+              padding: '16px 12px',
               overflowY: 'auto',
+              WebkitOverflowScrolling: 'touch',
             }}
             onClick={(e) => {
               if (e.target === e.currentTarget) {
@@ -1331,10 +1336,12 @@ export default function BillingClient() {
             <div
               style={{
                 background: '#FFFFFF',
-                borderRadius: 22,
+                borderRadius: 20,
                 border: '1px solid #E8E0D5',
                 width: '100%',
-                maxWidth: 500,
+                maxWidth: 480,
+                maxHeight: 'calc(100vh - 32px)',
+                margin: 'auto',
                 boxShadow: '0 25px 60px -15px rgba(26, 22, 18, 0.35), 0 0 0 1px rgba(0,0,0,0.04)',
                 overflow: 'hidden',
                 animation: 'unoolScaleUp 0.2s ease-out',
@@ -1346,12 +1353,13 @@ export default function BillingClient() {
               {/* Modal Header */}
               <div
                 style={{
-                  padding: '20px 24px',
+                  padding: '16px 20px',
                   borderBottom: '1px solid #F0ECE6',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   background: 'linear-gradient(180deg, #FAF8F5 0%, #FFFFFF 100%)',
+                  flexShrink: 0,
                 }}
               >
                 <div>
@@ -1375,7 +1383,7 @@ export default function BillingClient() {
                       {activeCheckout.billingCycle === 'annual' ? 'Billed Annually' : 'Billed Monthly'}
                     </span>
                   </div>
-                  <h3 style={{ fontSize: 19, fontWeight: 800, color: '#1A1612', margin: '6px 0 0' }}>
+                  <h3 style={{ fontSize: 18, fontWeight: 800, color: '#1A1612', margin: '4px 0 0' }}>
                     Upgrade to {activeCheckout.planName}
                   </h3>
                 </div>
@@ -1385,13 +1393,13 @@ export default function BillingClient() {
                   title="Close checkout (Esc)"
                   aria-label="Close"
                   style={{
-                    width: 34,
-                    height: 34,
-                    borderRadius: 10,
+                    width: 32,
+                    height: 32,
+                    borderRadius: 8,
                     border: '1px solid #E8E0D5',
                     background: '#FFFFFF',
                     color: '#7A7265',
-                    fontSize: 16,
+                    fontSize: 15,
                     fontWeight: 600,
                     cursor: 'pointer',
                     display: 'flex',
@@ -1418,9 +1426,10 @@ export default function BillingClient() {
                   display: 'grid',
                   gridTemplateColumns: 'repeat(4, 1fr)',
                   background: '#FAF7F3',
-                  padding: '6px 8px',
+                  padding: '5px 8px',
                   borderBottom: '1px solid #F0ECE6',
-                  gap: 6,
+                  gap: 5,
+                  flexShrink: 0,
                 }}
               >
                 {[
@@ -1442,8 +1451,8 @@ export default function BillingClient() {
                         }
                       }}
                       style={{
-                        padding: '10px 4px',
-                        borderRadius: 10,
+                        padding: '8px 4px',
+                        borderRadius: 8,
                         border: isActive ? '1px solid #DDD6FE' : '1px solid transparent',
                         background: isActive ? '#FFFFFF' : 'transparent',
                         color: isActive ? '#7C3AED' : '#6B655B',
@@ -1454,12 +1463,12 @@ export default function BillingClient() {
                         flexDirection: 'column',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        gap: 3,
+                        gap: 2,
                         boxShadow: isActive ? '0 2px 6px rgba(124,58,237,0.1)' : 'none',
                         transition: 'all 0.15s ease',
                       }}
                     >
-                      <span style={{ fontSize: 16 }}>{tab.icon}</span>
+                      <span style={{ fontSize: 15 }}>{tab.icon}</span>
                       <span>{tab.label}</span>
                     </button>
                   );
@@ -1467,7 +1476,15 @@ export default function BillingClient() {
               </div>
 
               {/* Tab Body */}
-              <div style={{ padding: '24px', overflowY: 'auto', maxHeight: '72vh' }}>
+              <div
+                style={{
+                  padding: '20px',
+                  flex: '1 1 auto',
+                  overflowY: 'auto',
+                  minHeight: 0,
+                  WebkitOverflowScrolling: 'touch',
+                }}
+              >
                 {/* ── TAB 1: CARDS (Custom Unool Card Checkout) ──────────────── */}
                 {checkoutTab === 'cards' && (
                   <div>
@@ -1475,10 +1492,10 @@ export default function BillingClient() {
                     <div
                       style={{
                         width: '100%',
-                        maxWidth: 390,
-                        margin: '0 auto 20px',
-                        borderRadius: 16,
-                        padding: '20px 22px',
+                        maxWidth: 360,
+                        margin: '0 auto 16px',
+                        borderRadius: 14,
+                        padding: '16px 18px',
                         background: 'linear-gradient(135deg, #181412 0%, #2A211B 50%, #3D2F24 100%)',
                         color: '#FFFFFF',
                         boxShadow: '0 16px 36px -10px rgba(26,22,18,0.45), 0 0 0 1px rgba(255,255,255,0.08) inset',
@@ -1789,93 +1806,11 @@ export default function BillingClient() {
                         </div>
                       )}
 
-                      {cardAwaitingVerification ? (
-                        <div
-                          style={{
-                            padding: '28px 20px',
-                            borderRadius: 14,
-                            background: 'linear-gradient(180deg, #FAF8FF 0%, #F5F3FF 100%)',
-                            border: '1.5px solid #DDD6FE',
-                            textAlign: 'center',
-                            marginBottom: 16,
-                          }}
-                        >
-                          <div
-                            style={{
-                              width: 52,
-                              height: 52,
-                              borderRadius: 26,
-                              background: '#EDE9FE',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              margin: '0 auto 12px',
-                              fontSize: 24,
-                            }}
-                          >
-                            🛡️
-                          </div>
-                          <div style={{ fontSize: 15, fontWeight: 700, color: '#1E1B4B', marginBottom: 6 }}>
-                            Bank 3D Secure Verification in Progress
-                          </div>
-                          <p style={{ fontSize: 13, color: '#4B4339', margin: '0 0 16px', lineHeight: 1.5, maxWidth: 360, marginLeft: 'auto', marginRight: 'auto' }}>
-                            A secure bank verification window has opened automatically. Please enter your OTP in that window to confirm payment.
-                          </p>
-                          <div
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 8,
-                              padding: '6px 14px',
-                              borderRadius: 20,
-                              background: '#EDE9FE',
-                              color: '#7C3AED',
-                              fontSize: 12,
-                              fontWeight: 600,
-                              marginBottom: 16,
-                            }}
-                          >
-                            <div
-                              style={{
-                                width: 12,
-                                height: 12,
-                                border: '2px solid #C4B5FD',
-                                borderTopColor: '#7C3AED',
-                                borderRadius: '50%',
-                                animation: 'unoolSpin 0.8s linear infinite',
-                              }}
-                            />
-                            <span>Waiting for bank confirmation...</span>
-                          </div>
-                          <div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                closeAndCleanCashfree();
-                                setCardAwaitingVerification(false);
-                                setCardSubmitting(false);
-                              }}
-                              style={{
-                                padding: '8px 18px',
-                                borderRadius: 8,
-                                background: '#FFFFFF',
-                                color: '#6B7280',
-                                border: '1px solid #D1D5DB',
-                                fontSize: 12,
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                              }}
-                            >
-                              Cancel Verification
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          id="unool-submit-card-pay"
-                          onClick={handlePayWithCard}
-                          disabled={cardSubmitting || !cardNumber || !cardHolder || !cardExpiry || !cardCvv}
+                      <button
+                        type="button"
+                        id="unool-submit-card-pay"
+                        onClick={handlePayWithCard}
+                        disabled={cardSubmitting || !cardNumber || !cardHolder || !cardExpiry || !cardCvv}
                           style={{
                             width: '100%',
                             padding: '13px 18px',
@@ -1917,7 +1852,6 @@ export default function BillingClient() {
                             </>
                           )}
                         </button>
-                      )}
 
                       <div
                         style={{
@@ -1954,51 +1888,9 @@ export default function BillingClient() {
                         >
                           Enter UPI ID (Virtual Payment Address)
                         </label>
-                        <p style={{ fontSize: 12, color: '#7A7265', margin: '0 0 12px', lineHeight: 1.45 }}>
+                        <p style={{ fontSize: 12, color: '#7A7265', margin: '0 0 14px', lineHeight: 1.45 }}>
                           Enter your UPI ID to receive a direct collect request on Google Pay, PhonePe, Paytm, BHIM, or any UPI app.
                         </p>
-
-                        {/* Test Sandbox Mode Helper */}
-                        {activeCheckout?.mode === 'sandbox' && (
-                          <div
-                            style={{
-                              padding: '10px 12px',
-                              borderRadius: 8,
-                              background: '#F5F3FF',
-                              border: '1px solid #DDD6FE',
-                              fontSize: 12,
-                              color: '#6D28D9',
-                              marginBottom: 14,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              gap: 8,
-                            }}
-                          >
-                            <span>
-                              🧪 <strong>Sandbox Mode:</strong> Use test VPA
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setUpiIdInput('testsuccess@gocash');
-                                setUpiError(null);
-                              }}
-                              style={{
-                                padding: '4px 10px',
-                                borderRadius: 6,
-                                background: '#7C3AED',
-                                color: '#FFFFFF',
-                                border: 'none',
-                                fontSize: 11,
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                              }}
-                            >
-                              Fill testsuccess@gocash
-                            </button>
-                          </div>
-                        )}
 
                         <div style={{ position: 'relative', marginBottom: 12 }}>
                           <input
@@ -2650,12 +2542,13 @@ export default function BillingClient() {
               {/* Modal Footer */}
               <div
                 style={{
-                  padding: '14px 24px',
+                  padding: '12px 20px',
                   background: '#FAF8F5',
                   borderTop: '1px solid #F0ECE6',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
+                  flexShrink: 0,
                 }}
               >
                 <div style={{ fontSize: 12, color: '#7A7265' }}>

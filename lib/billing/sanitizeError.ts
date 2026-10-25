@@ -22,10 +22,11 @@ export function sanitizePaymentError(
     lower.includes('@gocash') ||
     lower.includes('@cosb') ||
     lower.includes('@axis') ||
+    lower.includes('sandbox') ||
     /\b\d{10}@(paytm|axis|cosb|upi)\b/i.test(message) ||
     /[a-zA-Z0-9._%+-]+@(axis|cosb|gocash|payu)/i.test(message)
   ) {
-    return 'In sandbox test mode, please use "testsuccess@gocash" to test a successful payment or "testfailure@gocash" to simulate a declined payment.';
+    return 'Unable to process payment with this UPI ID. Please check your UPI ID and try again.';
   }
 
   // Card specific sanitized errors
