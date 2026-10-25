@@ -178,82 +178,25 @@
 #ov-root .hero[data-phase="late-night"] {
   background: radial-gradient(circle at var(--mx, 85%) var(--my, 10%), #e3e8f4, var(--card) 60%);
 }
-#ov-root .hero[data-phase="late-night"] .hello svg {
-  color: #5c6b94;
-}
 
 #ov-root .hero[data-phase="morning"] {
   background: radial-gradient(circle at var(--mx, 85%) var(--my, 10%), #faecd3, var(--card) 60%);
-}
-#ov-root .hero[data-phase="morning"] .hello svg {
-  color: #d48b38;
 }
 
 #ov-root .hero[data-phase="afternoon"] {
   background: radial-gradient(circle at var(--mx, 85%) var(--my, 10%), #f5e2ba, var(--card) 60%);
 }
-#ov-root .hero[data-phase="afternoon"] .hello svg {
-  color: #c29b5b;
-}
 
 #ov-root .hero[data-phase="evening"] {
   background: radial-gradient(circle at var(--mx, 85%) var(--my, 10%), #f8ded0, var(--card) 60%);
-}
-#ov-root .hero[data-phase="evening"] .hello svg {
-  color: #c85a3a;
 }
 
 #ov-root .hero[data-phase="night"] {
   background: radial-gradient(circle at var(--mx, 85%) var(--my, 10%), #ede7f6, var(--card) 60%);
 }
-#ov-root .hero[data-phase="night"] .hello svg {
-  color: #6a5d89;
-}
-
-#ov-root .hello {
-  color: var(--mute);
-  font-size: 14.5px;
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-#ov-root .hello svg {
-  width: 18px;
-  height: 18px;
-  color: var(--gold);
-  stroke-width: 2.1;
-  flex-shrink: 0;
-  transition: color 0.3s ease;
-}
-
-#ov-root .hello .phase-badge {
-  font-weight: 600;
-  color: var(--brn);
-  letter-spacing: 0.01em;
-}
-
-#ov-root .hello .phase-sep {
-  opacity: 0.4;
-  font-size: 11px;
-}
-
-#ov-root .hello .phase-time {
-  display: inline-flex;
-  align-items: center;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 1px 7px;
-  border-radius: 999px;
-  background: var(--g3);
-  border: 1px solid var(--line);
-  color: var(--brn);
-  line-height: 1.4;
-}
 
 #ov-root h1 {
-  margin: 4px 0 14px;
+  margin: 0 0 16px;
   font-size: clamp(26px, 3.2vw, 38px);
   line-height: 1.15;
   font-weight: 700;
