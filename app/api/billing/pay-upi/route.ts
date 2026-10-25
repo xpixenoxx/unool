@@ -6,6 +6,8 @@ import { logger } from '@/lib/logger';
 import { createClient as createSbClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 
+import { sanitizePaymentError } from '@/lib/billing/sanitizeError';
+
 export const dynamic = 'force-dynamic';
 
 const UPI_REGEX = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z0-9]{2,64}$/;
@@ -89,9 +91,13 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     logger.error('Pay with UPI failed', { error: err });
+    const userSafeMessage = sanitizePaymentError(
+      err.message,
+      'Failed to send UPI payment request. Please check your UPI ID and try again.'
+    );
     return NextResponse.json(
-      { error: err.message || 'Failed to initiate UPI payment' },
-      { status: 500 }
+      { error: userSafeMessage },
+      { status: 400 }
     );
   }
 }

@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
         customer_phone: customerPhone,
       },
       order_meta: {
-        return_url: `${appUrl}/dashboard/billing?order_id=${orderId}&status={order_status}`,
+        return_url: `${appUrl}/api/billing/callback?order_id=${orderId}&status={order_status}`,
         notify_url: `${appUrl}/api/webhooks/cashfree`,
         payment_methods: 'upi,cc,dc,nb,app,paylater',
       },

@@ -6,6 +6,8 @@ import { logger } from '@/lib/logger';
 import { createClient as createSbClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 
+import { sanitizePaymentError } from '@/lib/billing/sanitizeError';
+
 export const dynamic = 'force-dynamic';
 
 /**
@@ -81,9 +83,13 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     logger.error('Pay with Netbanking failed', { error: err });
+    const userSafeMessage = sanitizePaymentError(
+      err.message,
+      'Failed to initiate Netbanking payment. Please try again or select another bank.'
+    );
     return NextResponse.json(
-      { error: err.message || 'Failed to initiate Netbanking payment.' },
-      { status: 500 }
+      { error: userSafeMessage },
+      { status: 400 }
     );
   }
 }

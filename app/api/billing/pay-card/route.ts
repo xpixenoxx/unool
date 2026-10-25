@@ -6,6 +6,8 @@ import { logger } from '@/lib/logger';
 import { createClient as createSbClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 
+import { sanitizePaymentError } from '@/lib/billing/sanitizeError';
+
 export const dynamic = 'force-dynamic';
 
 /**
@@ -110,9 +112,13 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     logger.error('Pay with Card failed', { error: err });
+    const userSafeMessage = sanitizePaymentError(
+      err.message,
+      'Card payment processing failed. Please check your card details and try again.'
+    );
     return NextResponse.json(
-      { error: err.message || 'Failed to process card payment.' },
-      { status: 500 }
+      { error: userSafeMessage },
+      { status: 400 }
     );
   }
 }

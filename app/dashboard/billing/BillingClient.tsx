@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { CashfreeInstance } from '@cashfreepayments/cashfree-js';
+import { sanitizePaymentError } from '@/lib/billing/sanitizeError';
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -228,6 +229,7 @@ export default function BillingClient() {
   const [cardSubmitting, setCardSubmitting] = useState(false);
   const [cardError, setCardError] = useState<string | null>(null);
   const [cardThreeDSUrl, setCardThreeDSUrl] = useState<string | null>(null);
+  const [cardAwaitingVerification, setCardAwaitingVerification] = useState(false);
 
   // QR States
   const [qrImageUrl, setQrImageUrl] = useState<string | null>(null);
@@ -254,6 +256,10 @@ export default function BillingClient() {
     } catch {
       // Ignore cross-origin close restrictions
     }
+    setCardAwaitingVerification(false);
+    setCardSubmitting(false);
+    setNetbankingRedirecting(false);
+    setNetbankingSubmitting(false);
 
     // 2. Remove all Cashfree injected modals, iframes, backdrops
     try {
@@ -438,7 +444,40 @@ export default function BillingClient() {
     window.addEventListener('beforeunload', handleUnload);
     window.addEventListener('pagehide', handleUnload);
 
-    // 3. Handle return_url from Cashfree redirect (?order_id=xxx&status=xxx)
+    // 3. Listen for postMessage from the popup 3DS callback window
+    const handlePaymentMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'UNO_CF_PAYMENT_STATUS') {
+        const { orderId, status } = event.data;
+        closeAndCleanCashfree();
+
+        if (status === 'USER_DROPPED' || status === 'CANCELLED') {
+          setCardSubmitting(false);
+          setCardAwaitingVerification(false);
+          setNetbankingSubmitting(false);
+          setNetbankingRedirecting(false);
+          setCardError('Payment was cancelled or dismissed. You have not been charged.');
+          setNetbankingError('Payment was cancelled or dismissed.');
+        } else if (status === 'PAID' || status === 'SUCCESS') {
+          setCardSubmitting(false);
+          setCardAwaitingVerification(false);
+          setNetbankingSubmitting(false);
+          setNetbankingRedirecting(false);
+          if (orderId) {
+            pollVerification(orderId);
+          }
+        } else if (status === 'FAILED') {
+          setCardSubmitting(false);
+          setCardAwaitingVerification(false);
+          setNetbankingSubmitting(false);
+          setNetbankingRedirecting(false);
+          setCardError('Payment was declined by your bank. Please try again.');
+          setNetbankingError('Payment was declined or failed.');
+        }
+      }
+    };
+    window.addEventListener('message', handlePaymentMessage);
+
+    // 4. Handle return_url from Cashfree redirect (?order_id=xxx&status=xxx)
     const params = new URLSearchParams(window.location.search);
     const orderIdFromUrl = params.get('order_id');
     const statusFromUrl = params.get('status');
@@ -458,10 +497,11 @@ export default function BillingClient() {
       return () => {
         window.removeEventListener('beforeunload', handleUnload);
         window.removeEventListener('pagehide', handleUnload);
+        window.removeEventListener('message', handlePaymentMessage);
       };
     }
 
-    // 4. On page refresh during checkout, ensure URL is clean /dashboard/billing
+    // 5. On page refresh during checkout, ensure URL is clean /dashboard/billing
     if (window.location.search || window.location.hash) {
       window.history.replaceState({}, '', '/dashboard/billing');
     }
@@ -469,6 +509,7 @@ export default function BillingClient() {
     return () => {
       window.removeEventListener('beforeunload', handleUnload);
       window.removeEventListener('pagehide', handleUnload);
+      window.removeEventListener('message', handlePaymentMessage);
     };
   }, [closeAndCleanCashfree, pollVerification]);
 
@@ -621,6 +662,23 @@ export default function BillingClient() {
     setCardSubmitting(true);
     setCardError(null);
 
+    // Open popup synchronously in click handler to prevent browser popup blockers
+    const authWin = window.open('about:blank', 'unool_3ds_window', 'width=540,height=720,scrollbars=yes,resizable=yes');
+    if (authWin) {
+      (window as any).__unool_cf_window = authWin;
+      try {
+        authWin.document.write(`<!DOCTYPE html>
+<html><head><title>Secure Verification • Unool</title></head>
+<body style="background:#0F0E0D;color:#E6E4DD;font-family:-apple-system,BlinkMacSystemFont,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center;">
+<div>
+  <div style="font-size:24px;margin-bottom:12px;">🛡️</div>
+  <p style="font-size:16px;font-weight:600;margin:0 0 6px;color:#FFFFFF;">Connecting to Bank 3D Secure...</p>
+  <p style="font-size:13px;color:#8C8476;margin:0;">Please wait, do not close this window.</p>
+</div>
+</body></html>`);
+      } catch {}
+    }
+
     try {
       const res = await fetch('/api/billing/pay-card', {
         method: 'POST',
@@ -637,24 +695,38 @@ export default function BillingClient() {
       });
 
       const data = await res.json();
-      if (!res.ok) {
-        setCardError(data.error || 'Card payment processing failed.');
+      if (!res.ok || !data.url) {
+        if (authWin && !authWin.closed) authWin.close();
+        setCardError(sanitizePaymentError(data.error, 'Card payment processing failed. Please check details and try again.'));
         setCardSubmitting(false);
+        setCardAwaitingVerification(false);
         return;
       }
 
       setCardSubmitting(false);
-      if (data.url) {
-        setCardThreeDSUrl(data.url);
-        const win = window.open(data.url, 'unool_3ds_window', 'width=520,height=680');
-        if (win) {
-          (window as any).__unool_cf_window = win;
-        }
+      setCardAwaitingVerification(true);
+      setCardThreeDSUrl(data.url);
+
+      if (authWin && !authWin.closed) {
+        authWin.location.href = data.url;
+        authWin.focus();
       }
+
+      // Track if user manually closed popup window
+      const checkClosedTimer = setInterval(() => {
+        if (authWin && authWin.closed) {
+          clearInterval(checkClosedTimer);
+          setCardAwaitingVerification(false);
+          setCardSubmitting(false);
+        }
+      }, 1000);
+
       pollVerification(activeCheckout.cfOrderId);
     } catch {
+      if (authWin && !authWin.closed) authWin.close();
       setCardError('Payment gateway communication error. Please try again.');
       setCardSubmitting(false);
+      setCardAwaitingVerification(false);
     }
   };
 
@@ -693,6 +765,23 @@ export default function BillingClient() {
     setNetbankingSubmitting(true);
     setNetbankingError(null);
 
+    // Open popup synchronously in click handler to prevent browser popup blockers
+    const nbWin = window.open('about:blank', 'unool_nb_window', 'width=620,height=760,scrollbars=yes,resizable=yes');
+    if (nbWin) {
+      (window as any).__unool_cf_window = nbWin;
+      try {
+        nbWin.document.write(`<!DOCTYPE html>
+<html><head><title>Connecting to Bank • Unool</title></head>
+<body style="background:#0F0E0D;color:#E6E4DD;font-family:-apple-system,BlinkMacSystemFont,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center;">
+<div>
+  <div style="font-size:24px;margin-bottom:12px;">🏦</div>
+  <p style="font-size:16px;font-weight:600;margin:0 0 6px;color:#FFFFFF;">Connecting to ${selectedBankName}...</p>
+  <p style="font-size:13px;color:#8C8476;margin:0;">Please wait, redirecting to bank portal...</p>
+</div>
+</body></html>`);
+      } catch {}
+    }
+
     try {
       const res = await fetch('/api/billing/pay-netbanking', {
         method: 'POST',
@@ -706,24 +795,35 @@ export default function BillingClient() {
       });
 
       const data = await res.json();
-      if (!res.ok) {
-        setNetbankingError(data.error || 'Failed to initiate Netbanking payment.');
+      if (!res.ok || !data.url) {
+        if (nbWin && !nbWin.closed) nbWin.close();
+        setNetbankingError(sanitizePaymentError(data.error, 'Failed to initiate Netbanking payment.'));
         setNetbankingSubmitting(false);
         return;
       }
 
       setNetbankingSubmitting(false);
-      if (data.url) {
-        setNetbankingRedirecting(true);
-        const win = window.open(data.url, '_blank');
-        if (win) {
-          (window as any).__unool_cf_window = win;
-        }
+      setNetbankingRedirecting(true);
+      if (nbWin && !nbWin.closed) {
+        nbWin.location.href = data.url;
+        nbWin.focus();
       }
+
+      // Track if user manually closed netbanking popup
+      const checkNbClosed = setInterval(() => {
+        if (nbWin && nbWin.closed) {
+          clearInterval(checkNbClosed);
+          setNetbankingRedirecting(false);
+          setNetbankingSubmitting(false);
+        }
+      }, 1000);
+
       pollVerification(activeCheckout.cfOrderId);
     } catch {
+      if (nbWin && !nbWin.closed) nbWin.close();
       setNetbankingError('Failed to connect to netbanking. Please try again.');
       setNetbankingSubmitting(false);
+      setNetbankingRedirecting(false);
     }
   };
 
@@ -767,7 +867,7 @@ export default function BillingClient() {
 
       const data = await res.json();
       if (!res.ok) {
-        setUpiError(data.error || 'Failed to send UPI payment request. Please check your UPI ID and try again.');
+        setUpiError(sanitizePaymentError(data.error, 'Failed to send UPI payment request. Please check your UPI ID and try again.'));
         setUpiSubmitting(false);
         return;
       }
@@ -1689,92 +1789,135 @@ export default function BillingClient() {
                         </div>
                       )}
 
-                      {/* 3DS Verification Notice / Button */}
-                      {cardThreeDSUrl && (
+                      {cardAwaitingVerification ? (
                         <div
                           style={{
-                            padding: '14px 16px',
-                            borderRadius: 12,
-                            background: '#F5F3FF',
-                            border: '1px solid #DDD6FE',
-                            marginBottom: 16,
+                            padding: '28px 20px',
+                            borderRadius: 14,
+                            background: 'linear-gradient(180deg, #FAF8FF 0%, #F5F3FF 100%)',
+                            border: '1.5px solid #DDD6FE',
                             textAlign: 'center',
+                            marginBottom: 16,
                           }}
                         >
-                          <div style={{ fontSize: 13, fontWeight: 700, color: '#7C3AED', marginBottom: 6 }}>
-                            🛡️ Bank 3D Secure Verification
-                          </div>
-                          <p style={{ fontSize: 12, color: '#4B4339', margin: '0 0 10px', lineHeight: 1.45 }}>
-                            Please complete the OTP verification from your bank. If the bank page did not open automatically, click below:
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const win = window.open(cardThreeDSUrl, 'unool_3ds_window', 'width=520,height=680');
-                              if (win) (window as any).__unool_cf_window = win;
-                            }}
+                          <div
                             style={{
-                              padding: '8px 16px',
-                              borderRadius: 8,
-                              background: '#7C3AED',
-                              color: '#FFFFFF',
-                              border: 'none',
-                              fontSize: 12,
-                              fontWeight: 700,
-                              cursor: 'pointer',
+                              width: 52,
+                              height: 52,
+                              borderRadius: 26,
+                              background: '#EDE9FE',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              margin: '0 auto 12px',
+                              fontSize: 24,
                             }}
                           >
-                            Open Bank OTP Verification Window
-                          </button>
-                        </div>
-                      )}
-
-                      <button
-                        type="button"
-                        id="unool-submit-card-pay"
-                        onClick={handlePayWithCard}
-                        disabled={cardSubmitting || !cardNumber || !cardHolder || !cardExpiry || !cardCvv}
-                        style={{
-                          width: '100%',
-                          padding: '13px 18px',
-                          borderRadius: 12,
-                          background: cardSubmitting || !cardNumber || !cardHolder || !cardExpiry || !cardCvv
-                            ? '#C4B5FD'
-                            : 'linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%)',
-                          color: '#FFFFFF',
-                          fontSize: 14,
-                          fontWeight: 700,
-                          border: 'none',
-                          cursor: cardSubmitting || !cardNumber || !cardHolder || !cardExpiry || !cardCvv ? 'not-allowed' : 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: 8,
-                          boxShadow: '0 4px 14px rgba(124,58,237,0.25)',
-                          transition: 'all 0.15s ease',
-                        }}
-                      >
-                        {cardSubmitting ? (
-                          <>
+                            🛡️
+                          </div>
+                          <div style={{ fontSize: 15, fontWeight: 700, color: '#1E1B4B', marginBottom: 6 }}>
+                            Bank 3D Secure Verification in Progress
+                          </div>
+                          <p style={{ fontSize: 13, color: '#4B4339', margin: '0 0 16px', lineHeight: 1.5, maxWidth: 360, marginLeft: 'auto', marginRight: 'auto' }}>
+                            A secure bank verification window has opened automatically. Please enter your OTP in that window to confirm payment.
+                          </p>
+                          <div
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 8,
+                              padding: '6px 14px',
+                              borderRadius: 20,
+                              background: '#EDE9FE',
+                              color: '#7C3AED',
+                              fontSize: 12,
+                              fontWeight: 600,
+                              marginBottom: 16,
+                            }}
+                          >
                             <div
                               style={{
-                                width: 16,
-                                height: 16,
-                                border: '2px solid rgba(255,255,255,0.4)',
-                                borderTopColor: '#FFFFFF',
+                                width: 12,
+                                height: 12,
+                                border: '2px solid #C4B5FD',
+                                borderTopColor: '#7C3AED',
                                 borderRadius: '50%',
                                 animation: 'unoolSpin 0.8s linear infinite',
                               }}
                             />
-                            <span>Processing Card Payment...</span>
-                          </>
-                        ) : (
-                          <>
-                            <span>🔒 Pay Securely with Card</span>
-                            <span style={{ fontSize: 16 }}>→</span>
-                          </>
-                        )}
-                      </button>
+                            <span>Waiting for bank confirmation...</span>
+                          </div>
+                          <div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                closeAndCleanCashfree();
+                                setCardAwaitingVerification(false);
+                                setCardSubmitting(false);
+                              }}
+                              style={{
+                                padding: '8px 18px',
+                                borderRadius: 8,
+                                background: '#FFFFFF',
+                                color: '#6B7280',
+                                border: '1px solid #D1D5DB',
+                                fontSize: 12,
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Cancel Verification
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          id="unool-submit-card-pay"
+                          onClick={handlePayWithCard}
+                          disabled={cardSubmitting || !cardNumber || !cardHolder || !cardExpiry || !cardCvv}
+                          style={{
+                            width: '100%',
+                            padding: '13px 18px',
+                            borderRadius: 12,
+                            background: cardSubmitting || !cardNumber || !cardHolder || !cardExpiry || !cardCvv
+                              ? '#C4B5FD'
+                              : 'linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%)',
+                            color: '#FFFFFF',
+                            fontSize: 14,
+                            fontWeight: 700,
+                            border: 'none',
+                            cursor: cardSubmitting || !cardNumber || !cardHolder || !cardExpiry || !cardCvv ? 'not-allowed' : 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 8,
+                            boxShadow: '0 4px 14px rgba(124,58,237,0.25)',
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          {cardSubmitting ? (
+                            <>
+                              <div
+                                style={{
+                                  width: 16,
+                                  height: 16,
+                                  border: '2px solid rgba(255,255,255,0.4)',
+                                  borderTopColor: '#FFFFFF',
+                                  borderRadius: '50%',
+                                  animation: 'unoolSpin 0.8s linear infinite',
+                                }}
+                              />
+                              <span>Connecting to Bank 3DS...</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>🔒 Pay Securely with Card</span>
+                              <span style={{ fontSize: 16 }}>→</span>
+                            </>
+                          )}
+                        </button>
+                      )}
 
                       <div
                         style={{
@@ -1814,6 +1957,48 @@ export default function BillingClient() {
                         <p style={{ fontSize: 12, color: '#7A7265', margin: '0 0 12px', lineHeight: 1.45 }}>
                           Enter your UPI ID to receive a direct collect request on Google Pay, PhonePe, Paytm, BHIM, or any UPI app.
                         </p>
+
+                        {/* Test Sandbox Mode Helper */}
+                        {activeCheckout?.mode === 'sandbox' && (
+                          <div
+                            style={{
+                              padding: '10px 12px',
+                              borderRadius: 8,
+                              background: '#F5F3FF',
+                              border: '1px solid #DDD6FE',
+                              fontSize: 12,
+                              color: '#6D28D9',
+                              marginBottom: 14,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: 8,
+                            }}
+                          >
+                            <span>
+                              🧪 <strong>Sandbox Mode:</strong> Use test VPA
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setUpiIdInput('testsuccess@gocash');
+                                setUpiError(null);
+                              }}
+                              style={{
+                                padding: '4px 10px',
+                                borderRadius: 6,
+                                background: '#7C3AED',
+                                color: '#FFFFFF',
+                                border: 'none',
+                                fontSize: 11,
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Fill testsuccess@gocash
+                            </button>
+                          </div>
+                        )}
 
                         <div style={{ position: 'relative', marginBottom: 12 }}>
                           <input
