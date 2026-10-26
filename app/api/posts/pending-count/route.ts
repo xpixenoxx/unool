@@ -15,8 +15,9 @@ export async function GET(request: NextRequest) {
     }
 
     const { workspaceId } = auth;
+    const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
-    // Fetch draft, scheduled, and publishing counts in parallel with safe error boundaries
+    // Fetch unpublished drafts (past 24h), scheduled (past 24h), and publishing counts
     const [drafts, scheduled, publishing] = await Promise.all([
       (async () => {
         try {
@@ -24,7 +25,8 @@ export async function GET(request: NextRequest) {
             .from('posts')
             .select('id', { count: 'exact', head: true })
             .eq('workspace_id', workspaceId)
-            .eq('status', 'draft');
+            .eq('status', 'draft')
+            .gte('created_at', since24h);
           return (!error && typeof count === 'number') ? count : 0;
         } catch {
           return 0;
@@ -36,7 +38,8 @@ export async function GET(request: NextRequest) {
             .from('posts')
             .select('id', { count: 'exact', head: true })
             .eq('workspace_id', workspaceId)
-            .eq('status', 'scheduled');
+            .eq('status', 'scheduled')
+            .gte('created_at', since24h);
           return (!error && typeof count === 'number') ? count : 0;
         } catch {
           return 0;
@@ -48,7 +51,8 @@ export async function GET(request: NextRequest) {
             .from('posts')
             .select('id', { count: 'exact', head: true })
             .eq('workspace_id', workspaceId)
-            .eq('status', 'publishing');
+            .eq('status', 'publishing')
+            .gte('created_at', since24h);
           return (!error && typeof count === 'number') ? count : 0;
         } catch {
           return 0;

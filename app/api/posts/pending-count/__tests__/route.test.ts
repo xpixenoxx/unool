@@ -44,10 +44,15 @@ describe('/api/posts/pending-count route', () => {
               if (field === 'workspace_id') {
                 return {
                   eq: vi.fn().mockImplementation((statusField: string, statusVal: string) => {
-                    if (statusVal === 'draft') return Promise.resolve({ count: 4, error: null });
-                    if (statusVal === 'scheduled') return Promise.resolve({ count: 1, error: null });
-                    if (statusVal === 'publishing') return Promise.resolve({ count: 0, error: null });
-                    return Promise.resolve({ count: 0, error: null });
+                    return {
+                      gte: vi.fn().mockImplementation((dateField: string, dateVal: string) => {
+                        expect(dateField).toBe('created_at');
+                        if (statusVal === 'draft') return Promise.resolve({ count: 4, error: null });
+                        if (statusVal === 'scheduled') return Promise.resolve({ count: 1, error: null });
+                        if (statusVal === 'publishing') return Promise.resolve({ count: 0, error: null });
+                        return Promise.resolve({ count: 0, error: null });
+                      }),
+                    };
                   }),
                 };
               }

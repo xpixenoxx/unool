@@ -418,7 +418,7 @@ function DashboardSidebar({
                     {!isActive && item.badge !== undefined && (
                       <div
                         className="ml-auto mr-1 w-5 h-5 rounded-full bg-[#e2a458] text-[#17120e] text-[11px] font-bold flex items-center justify-center shadow-sm flex-shrink-0 transition-transform group-hover:scale-110"
-                        title={`${item.badge} pending ${item.badge === 1 ? 'post' : 'posts'}`}
+                        title={`${item.badge} pending ${item.badge === 1 ? 'draft' : 'drafts'} (past 24h)`}
                       >
                         {item.badge}
                       </div>

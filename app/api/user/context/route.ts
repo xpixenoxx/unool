@@ -30,11 +30,13 @@ export async function GET(request: NextRequest) {
         .single(),
       (async () => {
         try {
+          const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
           const { count, error } = await supabaseAdmin
             .from('posts')
             .select('id', { count: 'exact', head: true })
             .eq('workspace_id', workspaceId)
-            .in('status', ['draft', 'scheduled', 'publishing']);
+            .in('status', ['draft', 'scheduled', 'publishing'])
+            .gte('created_at', since24h);
           return (!error && typeof count === 'number') ? count : 0;
         } catch {
           return 0;

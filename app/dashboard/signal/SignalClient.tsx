@@ -356,13 +356,19 @@ export function SignalClient() {
             // Unblock UI immediately once posts are in — don't wait for heavy analytics
             setLoading(false);
 
-            // Synchronize exact live pending drafts/posts count to sidebar
+            // Synchronize exact live pending drafts/posts count to sidebar (past 24h only)
             try {
+              const now = Date.now();
+              const twentyFourHoursAgo = now - 24 * 60 * 60 * 1000;
               const pendingCount = fetched.filter((p: any) => {
                 const isFailed = p.status === 'failed';
                 const hasPublished = Array.isArray(p.variants) && p.variants.some((v: any) => v.status === 'published');
-                if (isFailed && !hasPublished) return false;
-                return p.status === 'draft' || p.status === 'scheduled' || p.status === 'publishing' || !hasPublished;
+                if (isFailed || hasPublished || p.status === 'published') return false;
+
+                // Scope to drafts (not published) created in the past 24 hours
+                const postTime = new Date(p.createdAt || p.created_at).getTime();
+                const isWithin24h = !isNaN(postTime) && postTime >= twentyFourHoursAgo;
+                return isWithin24h && (p.status === 'draft' || p.status === 'scheduled' || p.status === 'publishing' || !hasPublished);
               }).length;
 
               if (typeof window !== 'undefined') {
