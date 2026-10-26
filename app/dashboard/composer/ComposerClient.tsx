@@ -248,7 +248,7 @@ function IPhoneBottomNavBar({
   const isDark = isPlatformDark(platform);
 
   const navBorder = isDark ? 'border-[#262626]' : 'border-[#EAEAEA]';
-  const navBg = isDark ? 'bg-[#000000]/95 backdrop-blur-md' : 'bg-white/95 backdrop-blur-md';
+  const navBg = isDark ? 'bg-[#000000]' : 'bg-[#FFFFFF]';
   const iconMuted = isDark ? 'text-[#71767B]' : 'text-[#666666]';
 
   // Platform specific bottom navigation items
@@ -419,7 +419,7 @@ function IPhoneBottomNavBar({
   };
 
   return (
-    <div className={cn('relative w-full border-t px-3 pt-1.5 pb-0.5 flex items-center justify-around z-20 transition-colors duration-200', navBorder, navBg)}>
+    <div className={cn('relative w-full border-t px-3 pt-1.5 pb-0.5 flex items-center justify-around transition-colors duration-200', navBorder, navBg)}>
       {renderNavTabs()}
     </div>
   );
@@ -597,10 +597,12 @@ function IPhonePreview({
 
         {/* Outer Titanium Rim */}
         <div
-          className="relative w-full h-full rounded-[54px] p-[3.5px] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.45)] z-10 transition-shadow duration-300"
+          className="relative w-full h-full rounded-[54px] overflow-hidden p-[3.5px] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.45)] z-10 transition-shadow duration-300"
           style={{
             background: 'linear-gradient(135deg, #A8B1B8 0%, #52575C 30%, #1C1E20 50%, #52575C 70%, #8A929A 100%)',
             boxShadow: '0 25px 60px -15px rgba(0,0,0,0.5), inset 0 0 0 1.5px rgba(255,255,255,0.2), inset 0 2px 4px rgba(255,255,255,0.3)',
+            clipPath: 'inset(0px round 54px)',
+            WebkitClipPath: 'inset(0px round 54px)',
           }}
         >
           {/* Inner Display Bezel */}
@@ -609,6 +611,11 @@ function IPhonePreview({
             style={{
               background: '#090A0B',
               boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.06)',
+              clipPath: 'inset(0px round 50px)',
+              WebkitClipPath: 'inset(0px round 50px)',
+              WebkitMaskImage: '-webkit-radial-gradient(white, black)',
+              maskImage: 'radial-gradient(white, black)',
+              isolation: 'isolate',
             }}
           >
             {/* Screen Area with Platform-matched background */}
@@ -616,6 +623,12 @@ function IPhonePreview({
               className="relative w-full h-full rounded-[42px] overflow-hidden flex flex-col justify-between transition-colors duration-300"
               style={{
                 background: bgColor,
+                clipPath: 'inset(0px round 42px)',
+                WebkitClipPath: 'inset(0px round 42px)',
+                WebkitMaskImage: '-webkit-radial-gradient(white, black)',
+                maskImage: 'radial-gradient(white, black)',
+                isolation: 'isolate',
+                transform: 'translateZ(0)',
               }}
             >
               {/* ── Status Bar & Dynamic Island ── */}
@@ -725,30 +738,43 @@ function IPhonePreview({
                 </AnimatePresence>
               </div>
 
-              {/* ── Native App Bottom Navigation Bar ── */}
-              <IPhoneBottomNavBar
-                platform={previewPlatform}
-                avatarUrl={avatarUrl}
-                initials={initials}
-              />
-
-              {/* ── iOS Home Indicator Bar ── */}
-              <div className="w-full pb-1 pt-0.5 flex justify-center z-30" style={{ background: isDark ? '#000000' : '#FFFFFF' }}>
-                <div
-                  className="w-32 h-1 rounded-full transition-colors duration-200"
-                  style={{
-                    background: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.25)',
-                  }}
+              {/* ── Native App Bottom Navigation & Home Indicator ── */}
+              <div
+                className="w-full rounded-b-[42px] overflow-hidden flex flex-col shrink-0"
+                style={{
+                  clipPath: 'inset(0 round 0 0 42px 42px)',
+                  WebkitClipPath: 'inset(0 round 0 0 42px 42px)',
+                }}
+              >
+                <IPhoneBottomNavBar
+                  platform={previewPlatform}
+                  avatarUrl={avatarUrl}
+                  initials={initials}
                 />
+
+                {/* ── iOS Home Indicator Bar ── */}
+                <div
+                  className="w-full pb-1.5 pt-0.5 flex justify-center rounded-b-[42px]"
+                  style={{ background: isDark ? '#000000' : '#FFFFFF' }}
+                >
+                  <div
+                    className="w-32 h-1 rounded-full transition-colors duration-200"
+                    style={{
+                      background: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.25)',
+                    }}
+                  />
+                </div>
               </div>
             </div>
           </div>
 
           {/* Glare Glass Reflection */}
           <div
-            className="absolute inset-0 rounded-[54px] pointer-events-none z-40"
+            className="absolute inset-0 rounded-[54px] pointer-events-none z-40 overflow-hidden"
             style={{
               background: 'linear-gradient(115deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.01) 35%, rgba(255,255,255,0) 65%, rgba(255,255,255,0.05) 100%)',
+              clipPath: 'inset(0px round 54px)',
+              WebkitClipPath: 'inset(0px round 54px)',
             }}
           />
         </div>
