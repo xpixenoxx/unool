@@ -86,6 +86,8 @@ import {
   Edit3,
   ArrowLeft,
   Trash2,
+  Ticket,
+  Check,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { studioToast } from '@/components/dashboard/StudioToast';
@@ -1839,76 +1841,119 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
 
   const readyCount = drafts.filter(d => d.status === 'ready').length;
 
-  const PlatformSelector = () => (
-    <div className="mb-4 space-y-2">
-      <p className="text-sm font-medium">Select Platforms:</p>
-      <div className="flex flex-wrap gap-3">
-        {connectedPlatforms.map(platform => {
-          const cfg = PLATFORM_CONFIG[platform];
-          const Icon = cfg.icon;
-          const isSelected = selectedPlatforms.includes(platform);
-          const limit = getPlatformLimit(platform);
-          
-          let warningMsg: string | null = null;
-          for (const m of media) {
-            if (!m.sizeInBytes) continue;
-            if (m.type === 'video' && m.sizeInBytes > limit.maxVideoSizeMB * 1024 * 1024) {
-              warningMsg = `File too large for ${cfg.name} (${limit.maxVideoSizeMB}MB max)`;
-            } else if (m.type === 'image' && m.sizeInBytes > limit.maxImageSizeMB * 1024 * 1024) {
-              warningMsg = `Image too large for ${cfg.name} (${limit.maxImageSizeMB}MB max)`;
-            }
-          }
+  const PlatformSelector = () => {
+    const defaultPlatformList: PlatformType[] = [
+      'linkedin',
+      'threads',
+      'instagram',
+      'youtube',
+      'bluesky',
+      'telegram',
+      'dribbble',
+      'kick',
+    ];
 
-          return (
-            <div key={platform} className="group relative flex flex-col items-start gap-1">
-              <label className={cn("flex items-center gap-2 text-sm p-1.5 rounded-md transition-colors border",
-                  warningMsg ? "opacity-50 cursor-not-allowed border-transparent" : "cursor-pointer hover:bg-muted/50 border-transparent hover:border-border"
-                )}>
-                <Checkbox 
-                  checked={isSelected && !warningMsg} 
-                  disabled={!!warningMsg}
-                  onCheckedChange={() => !warningMsg && togglePlatform(platform)} 
-                />
-                <span className={cn('flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110 drop-shadow-xs', warningMsg ? 'grayscale opacity-50' : '')}>
-                  <PlatformBrandLogo platform={platform} size={22} />
-                </span>
-                <span className="font-medium text-foreground">{cfg.name}</span>
-              </label>
-              {warningMsg && (
-                <div className="absolute top-full left-0 mt-1 hidden group-hover:block z-10 w-48 text-xs bg-black text-white p-2 rounded shadow-lg">
-                  {warningMsg}
+    const platformsToDisplay: PlatformType[] = connectedPlatforms.length > 0
+      ? connectedPlatforms
+      : defaultPlatformList;
+
+    return (
+      <div className="mb-4 space-y-2.5">
+        <p className="text-sm font-bold text-[#231C16]">Select Platforms:</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+          {platformsToDisplay.map(platform => {
+            const cfg = PLATFORM_CONFIG[platform] || { name: platform, icon: PlatformSVGs[platform] || Linkedin, maxChars: 3000, color: 'bg-blue-600' };
+            const isSelected = selectedPlatforms.includes(platform);
+            const limit = getPlatformLimit(platform);
+            
+            let warningMsg: string | null = null;
+            for (const m of media) {
+              if (!m.sizeInBytes) continue;
+              if (m.type === 'video' && m.sizeInBytes > limit.maxVideoSizeMB * 1024 * 1024) {
+                warningMsg = `File too large for ${cfg.name} (${limit.maxVideoSizeMB}MB max)`;
+              } else if (m.type === 'image' && m.sizeInBytes > limit.maxImageSizeMB * 1024 * 1024) {
+                warningMsg = `Image too large for ${cfg.name} (${limit.maxImageSizeMB}MB max)`;
+              }
+            }
+
+            return (
+              <div
+                key={platform}
+                onClick={() => !warningMsg && togglePlatform(platform)}
+                className={cn(
+                  "relative group flex items-center justify-between px-3.5 py-2.5 rounded-xl border transition-all cursor-pointer select-none overflow-hidden",
+                  warningMsg
+                    ? "opacity-50 cursor-not-allowed bg-white border-[#E8DEC8]"
+                    : isSelected
+                    ? "bg-[#FAF6EE] border-[#C4A265] shadow-2xs"
+                    : "bg-white border-[#E8DEC8] hover:border-[#C4A265] hover:bg-[#FAF7F2]"
+                )}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className={cn('flex items-center justify-center shrink-0 drop-shadow-xs', warningMsg ? 'grayscale opacity-50' : '')}>
+                    <PlatformBrandLogo platform={platform} size={18} />
+                  </span>
+                  <span className="font-semibold text-xs text-[#231C16] truncate">{cfg.name}</span>
                 </div>
-              )}
-            </div>
-          );
-        })}
-        {connectedPlatforms.length === 0 && (
-          <p className="text-sm text-muted-foreground italic">No platforms connected. Please connect platforms in Settings.</p>
-        )}
+                <div
+                  className={cn(
+                    "w-4 h-4 rounded border flex items-center justify-center transition-all shrink-0",
+                    isSelected
+                      ? "bg-[#231C16] border-[#231C16] text-white"
+                      : "border-[#C5B8A5] bg-white"
+                  )}
+                >
+                  {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                </div>
+                {isSelected && (
+                  <div className="absolute bottom-0 left-3 right-3 h-[2px] bg-[#22C55E] rounded-full" />
+                )}
+                {warningMsg && (
+                  <div className="absolute top-full left-0 mt-1 hidden group-hover:block z-10 w-48 text-xs bg-black text-white p-2 rounded shadow-lg">
+                    {warningMsg}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
-    <div className="flex gap-8 items-start max-w-[1400px] mx-auto px-4 py-8">
-      {/* ───── Left Panel: Composer Form ───── */}
-      <div className="flex-1 min-w-0 space-y-6" style={{ maxWidth: 680 }}>
-        {/* Header */}
-        <div className="pb-4 border-b border-border flex items-start justify-between flex-wrap gap-3">
-          <div>
-            <Display size="xl" weight="bold">Studio</Display>
-            <Text size="sm" color="muted" className="mt-1">
-              Write once. AI adapts. You review. One click publishes everywhere.
-            </Text>
+    <div
+      className="min-h-screen py-8 px-4 sm:px-6 lg:px-8 -m-4 sm:-m-6 lg:-m-6"
+      style={{
+        backgroundColor: '#FAF8F5',
+        backgroundImage: 'radial-gradient(#D6CEBE 1.1px, transparent 1.1px)',
+        backgroundSize: '20px 20px',
+      }}
+    >
+      <div className="flex gap-8 items-start max-w-[1400px] mx-auto">
+        {/* ───── Left Panel: Composer Form ───── */}
+        <div className="flex-1 min-w-0 space-y-6" style={{ maxWidth: 840 }}>
+          {/* Header */}
+          <div className="pb-2">
+            <div className="flex items-start justify-between flex-wrap gap-4">
+              <div>
+                <h1 className="text-5xl sm:text-6xl font-black tracking-tight bg-gradient-to-r from-[#604E38] via-[#8A6740] to-[#9F83A3] bg-clip-text text-transparent select-none">
+                  Studio
+                </h1>
+                <div className="h-[3.5px] w-[110px] rounded-full bg-gradient-to-r from-[#B48850] via-[#C99C62] to-[#8B5CF6] mt-2 mb-3" />
+                <p className="text-sm sm:text-base text-[#382B1F] font-normal leading-relaxed">
+                  Write once. AI adapts. You review. One click publishes everywhere.
+                </p>
+              </div>
+              <Link
+                href="/dashboard/schedule"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-[#FAF3E7] hover:bg-[#F3EAD9] text-[#785E3A] border border-[#E8DEC8] transition-all shadow-2xs"
+              >
+                Plan Entire Week (Flight Plan)
+              </Link>
+            </div>
+            <div className="border-b border-[#EADFC9] mt-6" />
           </div>
-          <Link
-            href="/dashboard/schedule"
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100 transition-all shadow-sm"
-          >
-            <Calendar className="w-3.5 h-3.5 text-amber-600" />
-            Plan Entire Week (Flight Plan)
-          </Link>
-        </div>
 
         {/* Active Draft Review Header Banner */}
         <AnimatePresence>
@@ -2005,220 +2050,175 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           )}
           {profile && !profileLoading && (
             <MotionBox key="profile" variant="slide-up">
-              <div className="relative group overflow-hidden rounded-2xl border border-[#EDE7DD] bg-white shadow-sm transition-all duration-300 hover:shadow-md hover:border-[#D4B87A]/50"
-                style={{
-                  background: 'linear-gradient(135deg, #FFFDF9 0%, #FEFBF5 50%, #FFFDF9 100%)',
-                  boxShadow: '0 2px 8px rgba(61,43,31,0.04), 0 0 0 1px rgba(196,162,101,0.06) inset',
-                }}
-              >
-                {/* Subtle top accent bar */}
-                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#C4A265] via-[#D4B87A] to-[#C4A265] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                
-                <div className="flex items-center justify-between flex-wrap gap-4 px-5 py-4">
-                  <div className="flex items-center gap-4 min-w-0 flex-1">
-                    {/* Avatar with status ring */}
-                    <div className="relative flex-shrink-0">
-                      <div className="relative w-11 h-11 rounded-xl overflow-hidden border border-[#EDE7DD] shadow-sm"
-                        style={{ boxShadow: '0 2px 8px rgba(61,43,31,0.08)' }}>
-                        {user?.avatarUrl ? (
-                          <img 
-                            src={user.avatarUrl} 
-                            alt={profile.name} 
-                            className="w-full h-full object-cover" 
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center font-bold text-sm"
-                            style={{ 
-                              background: 'linear-gradient(135deg, #C4A265 0%, #D4B87A 100%)',
-                              color: '#3D2B1F'
-                            }}
-                          >
-                            {profile.name?.charAt(0).toUpperCase() || 'U'}
-                          </div>
-                        )}
-                      </div>
-                      {/* Active indicator */}
-                      <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-white bg-green-500 shadow-sm"
-                        style={{ boxShadow: '0 0 0 2px rgba(34,197,94,0.2)' }}
-                      />
-                    </div>
-                    
-                    {/* Profile info */}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-base font-semibold text-[#3D2B1F] truncate pr-2">
-                          {profile.name}
-                        </p>
-                        {profile.company && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider"
-                            style={{ 
-                              background: 'linear-gradient(135deg, #F5EFE2 0%, #EDE7DD 100%)',
-                              color: '#C4A265',
-                              border: '1px solid #E8E0D4'
-                            }}
-                          >
-                            {profile.company}
-                          </span>
-                        )}
-                      </div>
-                      {(profile.headline || profile.role) && (
-                        <p className="mt-1 text-sm truncate leading-relaxed" style={{ color: '#6B5744' }}>
-                          {profile.headline || profile.role}
-                        </p>
+              <div className="bg-white rounded-3xl border border-[#EADBBD] shadow-[0_2px_12px_rgba(61,43,31,0.03)] px-6 py-4 flex items-center justify-between flex-wrap gap-4">
+                <div className="flex items-center gap-4 min-w-0 flex-1">
+                  {/* Avatar with green active status dot */}
+                  <div className="relative flex-shrink-0">
+                    <div className="w-12 h-12 rounded-2xl overflow-hidden bg-[#65554B] text-white flex items-center justify-center font-bold text-lg shadow-xs select-none">
+                      {user?.avatarUrl ? (
+                        <img 
+                          src={user.avatarUrl} 
+                          alt={profile.name} 
+                          className="w-full h-full object-cover" 
+                        />
+                      ) : (
+                        <span>{profile.name?.charAt(0).toUpperCase() || 'V'}</span>
                       )}
                     </div>
+                    {/* Active indicator dot */}
+                    <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[#10B981] border-2 border-white shadow-xs" />
                   </div>
                   
-                  {/* Edit action with hover reveal */}
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      asChild 
-                      className="group relative px-3 py-1.5 text-[#8B7355] hover:text-[#3D2B1F] hover:bg-[#F5EFE2] transition-all duration-200 rounded-lg border border-transparent hover:border-[#E8E0D4]"
-                    >
-                      <Link href="/dashboard/profile">
-                        <span className="flex items-center gap-1.5 font-medium text-sm">
-                          <svg className="w-4 h-4 transition-transform group-hover:translate-x-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                          </svg>
-                          Edit
-                        </span>
-                      </Link>
-                    </Button>
-                    
-                    {/* Quick stats hint */}
-                    <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg"
-                      style={{ background: 'rgba(196,162,101,0.08)', border: '1px solid rgba(196,162,101,0.15)' }}
-                    >
-                      <span className="text-[11px] font-semibold text-[#C4A265]">Ready</span>
-                      <span className="text-[11px] text-[#8B7355]">to compose</span>
+                  {/* Profile info */}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-base font-bold text-[#231C16] truncate">
+                        {profile.name || user?.fullName || 'usha'}
+                      </p>
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-[#EFE7D8] text-[#735A42] border border-[#E2D6C2]">
+                        {profile.company || 'AVADIKA SOLUTIONS'}
+                      </span>
                     </div>
+                    <p className="text-xs text-[#735A42] mt-0.5 font-normal">
+                      {profile.headline || profile.role || 'Professional'}
+                    </p>
                   </div>
                 </div>
                 
-                {/* Subtle bottom detail */}
-                <div className="absolute bottom-0 left-1/4 right-1/4 h-px opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                  style={{ background: 'linear-gradient(90deg, transparent, #D4B87A, transparent)' }} />
+                {/* Edit action & status badge */}
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  <Link
+                    href="/dashboard/profile"
+                    className="text-xs font-semibold text-[#231C16] hover:underline px-2 py-1 transition-colors"
+                  >
+                    Edit
+                  </Link>
+                  <div className="px-3.5 py-1.5 rounded-full text-xs font-medium bg-[#EFE7D8] text-[#5C4533] border border-[#E2D6C2] select-none">
+                    Ready to compose
+                  </div>
+                </div>
               </div>
             </MotionBox>
           )}
 
           {!profile && !profileLoading && (
             <MotionBox key="no-profile" variant="slide-up">
-              <div className="relative group overflow-hidden rounded-2xl border border-[#FDE68A]/60 bg-gradient-to-r from-[#FFFCF0] to-[#FFFDF9] shadow-sm transition-all duration-300 hover:shadow-md hover:border-[#FCD34D]/80"
-                style={{ boxShadow: '0 2px 8px rgba(251,191,36,0.08)' }}
-              >
-                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#FCD34D] via-[#FDE68A] to-[#FCD34D]" />
-                
-                <div className="flex items-center justify-between flex-wrap gap-4 px-5 py-4">
-                  <div className="flex items-center gap-4">
-                    <div className="relative w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
-                      style={{ background: 'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)' }}
-                    >
-                      <AlertTriangle className="w-5 h-5 text-[#B45309]" />
-                      <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-white border-2 border-[#FDE68A] flex items-center justify-center">
-                        <span className="text-[10px] font-bold text-[#B45309]">+</span>
-                      </span>
-                    </div>
-                    
-                    <div>
-                      <p className="text-base font-semibold text-[#78350F]">Profile not set up</p>
-                      <p className="mt-0.5 text-sm text-[#A16207]">Create your profile to unlock AI-powered composition</p>
-                    </div>
+              <div className="bg-white rounded-3xl border border-[#EADBBD] shadow-[0_2px_12px_rgba(61,43,31,0.03)] px-6 py-4 flex items-center justify-between flex-wrap gap-4">
+                <div className="flex items-center gap-4 min-w-0 flex-1">
+                  <div className="w-12 h-12 rounded-2xl bg-[#65554B] text-white flex items-center justify-center font-bold text-lg shrink-0">
+                    <span>V</span>
                   </div>
-                  
-                  <Button 
-                    size="sm" 
-                    asChild 
-                    className="group relative px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200"
-                    style={{ 
-                      background: 'linear-gradient(135deg, #C4A265 0%, #D4B87A 100%)',
-                      color: '#3D2B1F',
-                      boxShadow: '0 2px 8px rgba(196,162,101,0.3)'
-                    }}
-                  >
-                    <Link href="/dashboard/profile">
-                      <span className="flex items-center gap-1.5">
-                        Set Up Profile
-                        <ArrowUpRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
-                      </span>
-                    </Link>
-                  </Button>
+                  <div>
+                    <p className="text-base font-bold text-[#231C16]">usha</p>
+                    <p className="text-xs text-[#735A42]">Professional</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Link href="/dashboard/profile" className="text-xs font-semibold text-[#231C16] hover:underline px-2 py-1">
+                    Edit
+                  </Link>
+                  <div className="px-3.5 py-1.5 rounded-full text-xs font-medium bg-[#EFE7D8] text-[#5C4533] border border-[#E2D6C2]">
+                    Ready to compose
+                  </div>
                 </div>
               </div>
             </MotionBox>
           )}
         </AnimatePresence>
 
-        {/* ── SignalDM Active Badge ── */}
-        {signalDmEnabled && connectedPlatforms.includes('instagram' as PlatformType) && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              padding: '8px 14px',
-              borderRadius: 12,
-              background: 'linear-gradient(135deg, rgba(139,92,246,0.08) 0%, rgba(236,72,153,0.06) 100%)',
-              border: '1px solid rgba(139,92,246,0.2)',
-              marginBottom: 4,
-            }}
-          >
-            <Zap className="w-4 h-4 text-violet-600 shrink-0" />
-            <div style={{ flex: 1 }}>
-              <span style={{ fontSize: 12.5, fontWeight: 600, color: '#7c3aed' }}>SignalDM Active</span>
-              <span style={{ fontSize: 12, color: '#8b7355', marginLeft: 6 }}>
-                Instagram comments on this post will be auto-handled by AI
-              </span>
-            </div>
-            <a
-              href="/dashboard/automation"
-              style={{
-                fontSize: 11.5,
-                fontWeight: 600,
-                color: '#8b5cf6',
-                textDecoration: 'none',
-                padding: '3px 10px',
-                borderRadius: 8,
-                background: 'rgba(139,92,246,0.1)',
-                border: '1px solid rgba(139,92,246,0.25)',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              Configure →
-            </a>
+        {/* ── SignalDM Active Badge (Image 1) ── */}
+        <div className="flex items-center justify-between px-5 py-3.5 rounded-2xl bg-[#FBF9FE] border border-[#E9DEFA] flex-wrap gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <Zap className="w-4 h-4 text-[#7C3AED] fill-[#7C3AED] shrink-0" />
+            <span className="text-xs sm:text-sm font-bold text-[#7C3AED]">SignalDM Active</span>
+            <span className="text-xs text-[#5D4734]">
+              Instagram comments on this post will be auto-handled by AI
+            </span>
           </div>
-        )}
+          <a
+            href="/dashboard/automation"
+            className="px-4 py-1.5 rounded-full text-xs font-semibold bg-[#EDE7FD] text-[#7C3AED] border border-[#DDD0FA] hover:bg-[#E4DAFC] transition-all whitespace-nowrap"
+          >
+            Configure →
+          </a>
+        </div>
 
-        {/* Mode toggle */}
-        <div className="flex justify-center">
-          <div className="inline-flex rounded-xl border border-border bg-muted/50 p-1 gap-1">
-            <button
-              onClick={() => setMode('ai')}
+        {/* Mode Selector Cards (Side-by-Side Cards, Image 1 & 2) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <button
+            type="button"
+            onClick={() => setMode('ai')}
+            className={cn(
+              "p-5 rounded-2xl text-left transition-all cursor-pointer relative",
+              mode === 'ai'
+                ? "bg-white border-2 border-[#8B5CF6] shadow-[0_4px_20px_rgba(139,92,246,0.08)]"
+                : "bg-white/80 hover:bg-white border border-[#EADBBD]"
+            )}
+          >
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#7C3AED] to-[#9333EA] flex items-center justify-center text-white shadow-xs">
+              <PenTool className="w-5 h-5 text-white" />
+            </div>
+            <p className="text-base font-bold text-[#231C16] mt-3.5">AI Composer</p>
+            <p className="text-xs text-[#735A42] mt-1">
+              AI will adapt it perfectly for each platform.
+            </p>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setMode('quick')}
+            className={cn(
+              "p-5 rounded-2xl text-left transition-all cursor-pointer relative",
+              mode === 'quick'
+                ? "bg-white border-2 border-[#8B5CF6] shadow-[0_4px_20px_rgba(139,92,246,0.08)]"
+                : "bg-white/80 hover:bg-white border border-[#EADBBD]"
+            )}
+          >
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#E2A17E] to-[#CD825E] flex items-center justify-center text-white shadow-xs">
+              <Zap className="w-5 h-5 text-white fill-white" />
+            </div>
+            <p className="text-base font-bold text-[#231C16] mt-3.5">Quick Broadcast</p>
+            <p className="text-xs text-[#735A42] mt-1">
+              Publish identical content instantly — no AI adaptation.
+            </p>
+          </button>
+        </div>
+
+        {/* Stepper Navigation (Image 2) */}
+        <div className="flex items-center justify-center gap-3 sm:gap-4 my-2 select-none flex-wrap">
+          <div className="flex items-center gap-2">
+            <span className="w-6 h-6 rounded-full bg-black text-white text-xs font-bold flex items-center justify-center">
+              1
+            </span>
+            <span className="text-xs font-bold text-[#231C16]">Write Your Idea</span>
+          </div>
+          <div className="h-[2px] w-8 sm:w-16 bg-[#E5DBC7]" />
+          <div className="flex items-center gap-2">
+            <span
               className={cn(
-                'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200',
-                mode === 'ai'
-                  ? 'bg-background shadow-sm text-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
+                "w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center",
+                drafts.some(d => d.status === 'ready' || d.status === 'generating')
+                  ? "bg-black text-white"
+                  : "border-2 border-[#231C16] text-[#231C16] bg-transparent"
               )}
             >
-              <PenTool className="w-4 h-4" />
-              AI Composer
-            </button>
-            <button
-              onClick={() => setMode('quick')}
+              2
+            </span>
+            <span className="text-xs font-bold text-[#231C16]">Review &amp; Edit Drafts</span>
+          </div>
+          <div className="h-[2px] w-8 sm:w-16 bg-[#E5DBC7]" />
+          <div className="flex items-center gap-2">
+            <span
               className={cn(
-                'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200',
-                mode === 'quick'
-                  ? 'bg-background shadow-sm text-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
+                "w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center",
+                readyCount > 0
+                  ? "bg-black text-white"
+                  : "border-2 border-[#231C16] text-[#231C16] bg-transparent"
               )}
             >
-              <Zap className="w-4 h-4" />
-              Quick Broadcast
-            </button>
+              3
+            </span>
+            <span className="text-xs font-bold text-[#231C16]">Ready to Publish</span>
           </div>
         </div>
 
@@ -2422,298 +2422,310 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           <>
             {/* Step 1 */}
             <MotionBox variant="slide-up" delay={0.05}>
-              <Card>
-                <CardHeader className="pb-3 flex flex-row items-start justify-between gap-4">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold flex-shrink-0">1</span>
-                      <CardTitle className="text-base">Write Your Idea</CardTitle>
+              <div className="bg-white rounded-3xl border border-[#EADBBD] shadow-[0_2px_12px_rgba(61,43,31,0.03)] p-6 sm:p-7 relative overflow-hidden">
+                {/* Top purple accent line (Image 2) */}
+                <div className="absolute top-0 left-0 right-0 h-[4px] bg-[#8B5CF6]" />
+
+                {/* Header */}
+                <div className="flex items-start justify-between flex-wrap gap-4 pb-2">
+                  <div className="flex items-start gap-3">
+                    <span className="w-6 h-6 rounded-full bg-black text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                      1
+                    </span>
+                    <div>
+                      <h2 className="text-lg sm:text-xl font-bold text-[#231C16]">Write Your Idea</h2>
+                      <p className="text-xs sm:text-sm text-[#735A42] mt-0.5">
+                        Describe what you want to share. AI will adapt it perfectly for each platform.
+                      </p>
                     </div>
-                    <Text size="sm" color="muted">
-                      Describe what you want to share. AI will adapt it perfectly for each platform.
-                    </Text>
                   </div>
-                  <Button
+                  <button
                     type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setIsIdeaGeneratorOpen((prev) => !prev);
-                    }}
-                    className="h-8 text-xs font-semibold px-3 bg-white dark:bg-zinc-800 hover:bg-[#F5EFE2] dark:hover:bg-zinc-700 border-zinc-200 dark:border-zinc-700 text-[#8B7355] dark:text-zinc-200 hover:text-[#3D2B1F] flex items-center gap-1.5 cursor-pointer shrink-0 shadow-2xs"
+                    onClick={() => setIsIdeaGeneratorOpen(prev => !prev)}
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-white text-[#231C16] border border-[#E5DBC7] hover:bg-[#FAF7F2] shadow-2xs flex items-center gap-1.5 cursor-pointer shrink-0"
                   >
-                    <Lightbulb className="w-3.5 h-3.5 text-[#C4A265]" />
+                    <span>💡</span>
                     <span>{isIdeaGeneratorOpen ? 'Hide ideas' : 'Generate ideas'}</span>
-                  </Button>
-                </CardHeader>
-                <CardContent 
-                  className={cn("space-y-4 transition-colors", isDragging && "bg-muted/50 rounded-lg")}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                >
-                  {/* Subtle Studio Profile Personalization Indicator & Toggle */}
-                  {(profile?.studioProfile || profile?.onboardingAnswers) && (
-                    <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-[#FAF6EE] dark:bg-zinc-800/60 border border-[#E8E0D4] dark:border-zinc-800 text-xs text-[#8B7355] dark:text-zinc-300 transition-colors">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-3.5 h-3.5 text-[#C4A265] shrink-0" />
-                        <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-                          <span className="font-semibold text-zinc-900 dark:text-zinc-100">
-                            {personalizeWithProfile ? 'Personalized with' : 'Personalization paused:'}
-                          </span>
-                          <span className="font-medium text-zinc-800 dark:text-zinc-200 truncate">
-                            {profile?.studioProfile?.role || 'Studio profile'}
-                            {(profile?.studioProfile?.businessDomain || profile?.studioProfile?.doing)
-                              ? ` · ${profile?.studioProfile?.businessDomain || profile?.studioProfile?.doing}`
-                              : ''}
-                            {profile?.studioProfile?.businessStage
-                              ? ` · ${profile?.studioProfile?.businessStage}`
-                              : ''}
-                          </span>
-                        </div>
-                      </div>
+                  </button>
+                </div>
 
-                      <div className="flex items-center gap-3 shrink-0">
-                        <Link
-                          href="/dashboard/settings?tab=persona"
-                          className="text-[11px] font-semibold text-[#8B7355] hover:text-[#3D2B1F] dark:text-zinc-400 dark:hover:text-zinc-200 underline underline-offset-2"
-                        >
-                          Edit Persona
-                        </Link>
-                        <div className="flex items-center gap-1.5 border-l border-zinc-200 dark:border-zinc-700 pl-3">
-                          <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                            {personalizeWithProfile ? 'Active' : 'Paused'}
-                          </span>
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={personalizeWithProfile}
-                            onClick={() => setPersonalizeWithProfile(prev => !prev)}
-                            className={cn(
-                              "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden",
-                              personalizeWithProfile ? "bg-[#C4A265]" : "bg-zinc-300 dark:bg-zinc-700"
-                            )}
-                          >
-                            <span
-                              className={cn(
-                                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out",
-                                personalizeWithProfile ? "translate-x-4" : "translate-x-0"
-                              )}
-                            />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Interactive Studio Idea Generator */}
-                  <StudioIdeaGenerator
-                    isOpen={isIdeaGeneratorOpen}
-                    onClose={() => setIsIdeaGeneratorOpen(false)}
-                    hasCompletedProfile={true}
-                    studioProfile={effectiveStudioProfile}
-                    onSelectIdea={(idea) => {
-                      const formattedIdea = idea.hook ? `${idea.hook}\n\n${idea.title}` : idea.title;
-                      setSourceContent(formattedIdea);
-                    }}
-                  />
-
-                  <PlatformSelector />
-                  <Textarea
-                    placeholder="e.g. 'Just launched v2 of our product...' (Drag and drop media here to attach it!)"
-                    value={sourceContent}
-                    onChange={e => setSourceContent(e.target.value)}
-                    className={cn("min-h-[140px] resize-none select-text", isDragging && "bg-transparent border-dashed border-primary")}
-                    rows={6}
-                  />
-
-                  {/* ── Hook Score Panel ─────────────────────────────────── */}
-                  {hookScore && (
-                    <div className={cn(
-                      'flex items-start gap-3 px-3 py-2.5 rounded-lg text-xs border transition-all',
-                      hookScore.grade === 'STRONG' && 'border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30',
-                      hookScore.grade === 'OK'     && 'border-yellow-200 bg-yellow-50 dark:border-yellow-900 dark:bg-yellow-950/30',
-                      hookScore.grade === 'WEAK'   && 'border-orange-200 bg-orange-50 dark:border-orange-900 dark:bg-orange-950/30',
-                      hookScore.grade === 'FAIL'   && 'border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/30',
-                    )}>
-                      <div className="flex-shrink-0 mt-0.5">
-                        <span className={cn(
-                          'inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold',
-                          hookScore.grade === 'STRONG' && 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300',
-                          hookScore.grade === 'OK'     && 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300',
-                          hookScore.grade === 'WEAK'   && 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300',
-                          hookScore.grade === 'FAIL'   && 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300',
-                        )}>
-                          {hookScore.score}
-                        </span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className={cn(
-                            'font-semibold uppercase tracking-wide text-[11px]',
-                            hookScore.grade === 'STRONG' && 'text-green-700 dark:text-green-400',
-                            hookScore.grade === 'OK'     && 'text-yellow-700 dark:text-yellow-400',
-                            hookScore.grade === 'WEAK'   && 'text-orange-700 dark:text-orange-400',
-                            hookScore.grade === 'FAIL'   && 'text-red-700 dark:text-red-400',
-                          )}>Hook · {hookScore.grade}</span>
-                          {hookScore.slopWords.length > 0 && (
-                            <span className="text-[10px] text-muted-foreground">
-                              Slop: {hookScore.slopWords.slice(0,2).join(', ')}
-                            </span>
-                          )}
-                        </div>
-                        {hookScore.suggestion && (
-                          <p className="text-muted-foreground mt-0.5 leading-snug">{hookScore.suggestion}</p>
+                {/* Persona box (Image 2) */}
+                <div className="rounded-2xl bg-[#FAF6EE] border border-[#EADBBD] px-4 py-3 flex items-center justify-between flex-wrap gap-2 my-4">
+                  <span className="text-xs sm:text-sm font-bold text-[#231C16]">
+                    Personalized with Studio profile
+                  </span>
+                  <div className="flex items-center gap-3">
+                    <Link
+                      href="/dashboard/settings?tab=persona"
+                      className="text-xs font-bold text-[#231C16] underline underline-offset-2 hover:opacity-80"
+                    >
+                      Edit Persona
+                    </Link>
+                    <span className="text-xs font-medium text-[#735A42]">
+                      {personalizeWithProfile ? 'Active' : 'Paused'}
+                    </span>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={personalizeWithProfile}
+                      onClick={() => setPersonalizeWithProfile(prev => !prev)}
+                      className={cn(
+                        "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden",
+                        personalizeWithProfile ? "bg-[#B8874E]" : "bg-zinc-300 dark:bg-zinc-700"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out",
+                          personalizeWithProfile ? "translate-x-5" : "translate-x-0"
                         )}
-                      </div>
-                    </div>
-                  )}
+                      />
+                    </button>
+                  </div>
+                </div>
 
+                {/* Interactive Studio Idea Generator */}
+                <StudioIdeaGenerator
+                  isOpen={isIdeaGeneratorOpen}
+                  onClose={() => setIsIdeaGeneratorOpen(false)}
+                  hasCompletedProfile={true}
+                  studioProfile={effectiveStudioProfile}
+                  onSelectIdea={(idea) => {
+                    const formattedIdea = idea.hook ? `${idea.hook}\n\n${idea.title}` : idea.title;
+                    setSourceContent(formattedIdea);
+                  }}
+                />
+
+                <PlatformSelector />
+
+                <Textarea
+                  placeholder="e.g. 'Just launched v2 of our product...' (Drag and drop media here to attach it!)"
+                  value={sourceContent}
+                  onChange={e => setSourceContent(e.target.value)}
+                  className={cn(
+                    "w-full rounded-2xl border border-[#D8CEBE] p-4 text-sm text-[#231C16] bg-white placeholder-[#A69279] focus:outline-none focus:border-[#C4A265] resize-none min-h-[140px] leading-relaxed select-text mt-2",
+                    isDragging && "bg-transparent border-dashed border-primary"
+                  )}
+                  rows={6}
+                />
+
+                {/* Hook Score Widget (Image 3) */}
+                {hookScore && (
+                  <div className="rounded-2xl bg-[#FFF9F3] border border-[#FDE5D2] p-4 flex items-center gap-4 mt-3 shadow-2xs">
+                    <div className="relative flex items-center justify-center shrink-0 w-12 h-12">
+                      <svg className="w-12 h-12 transform -rotate-90" viewBox="0 0 44 44">
+                        <circle cx="22" cy="22" r="18" fill="none" stroke="#FEE8D8" strokeWidth="3" />
+                        <circle
+                          cx="22"
+                          cy="22"
+                          r="18"
+                          fill="none"
+                          stroke={hookScore.grade === 'STRONG' ? '#16A34A' : hookScore.grade === 'OK' ? '#CA8A04' : '#EA580C'}
+                          strokeWidth="3.5"
+                          strokeDasharray={113}
+                          strokeDashoffset={113 - (113 * Math.min(hookScore.score, 100)) / 100}
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                      <span className="absolute text-sm font-bold text-[#231C16]">{hookScore.score}</span>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className={cn(
+                        "text-xs font-bold uppercase tracking-wide",
+                        hookScore.grade === 'STRONG' ? "text-[#16A34A]" : hookScore.grade === 'OK' ? "text-[#CA8A04]" : "text-[#C2410C]"
+                      )}>
+                        HOOK · {hookScore.grade}
+                      </p>
+                      <p className="text-xs text-[#3D2B1F] mt-0.5 leading-snug">
+                        {hookScore.suggestion || 'Add a specific number, timeframe, or named entity. Vague claims are invisible.'}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 1 Footer Action Bar (Image 3) */}
+                <div className="pt-3 space-y-3">
                   <div className="flex items-center justify-between flex-wrap gap-3">
-                    <span className="text-sm text-muted-foreground tabular-nums">
+                    <span className="text-xs text-[#735A42] font-medium">
                       {sourceContent.length} characters
                     </span>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
+                    <div className="flex gap-2.5">
+                      <button
+                        type="button"
                         onClick={() => generateDrafts(true)}
                         disabled={isGenerating || !sourceContent.trim() || !profile || selectedPlatforms.length === 0}
+                        className="px-4 py-2 rounded-xl text-xs font-bold bg-white text-[#231C16] border border-[#231C16] hover:bg-[#FAF7F2] flex items-center gap-2 cursor-pointer shadow-2xs transition-all disabled:opacity-50"
                       >
                         {generatingType === 'selected' ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
                         ) : (
-                          <FileText className="mr-2 h-4 w-4" />
+                          <FileText className="w-3.5 h-3.5 text-[#231C16]" />
                         )}
-                        Draft Selected
-                      </Button>
-                      <Button
+                        <span>Draft Selected</span>
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => generateDrafts(false)}
                         disabled={isGenerating || !sourceContent.trim() || !profile || connectedPlatforms.length === 0}
+                        className="px-4 py-2 rounded-xl text-xs font-bold bg-[#1C1611] text-white hover:bg-[#2D2319] flex items-center gap-2 cursor-pointer shadow-sm transition-all disabled:opacity-50"
                       >
                         {generatingType === 'all' ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
                         ) : (
-                          <FileText className="mr-2 h-4 w-4" />
+                          <FileText className="w-3.5 h-3.5 text-white" />
                         )}
-                        Draft All
-                      </Button>
+                        <span>Draft All</span>
+                      </button>
                     </div>
                   </div>
 
                   {/* Media Upload (AI Composer) */}
-                  <div className="pt-2">
-                    <div className="flex items-center gap-4">
-                      <input
-                        type="file"
-                        id="media-upload-ai"
-                        className="hidden"
-                        accept="image/*,video/*,application/pdf"
-                        onChange={handleFileUpload}
-                        disabled={isUploading}
-                        multiple
-                      />
-                      <Button variant="outline" size="sm" type="button" onClick={() => document.getElementById('media-upload-ai')?.click()} disabled={isUploading}>
-                        {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImagePlus className="mr-2 h-4 w-4" />}
-                        Add Media
-                      </Button>
-                      {media.length > 0 && (
-                        <div className="flex flex-wrap gap-2">
-                          {media.map((m, i) => (
-                            <div key={i} className="relative inline-block">
-                              {m.type === 'document' ? (
-                                <div className="h-16 w-16 bg-muted rounded-md border flex flex-col items-center justify-center">
-                                  <FileText className="h-6 w-6 text-primary" />
-                                  <span className="text-[10px] mt-1 text-muted-foreground">PDF</span>
-                                </div>
-                              ) : m.type === 'video' ? (
-                                <video src={m.url} className="h-16 w-16 object-cover rounded-md border" muted />
-                              ) : (
-                                <img src={m.url} alt="Upload preview" className="h-16 w-16 object-cover rounded-md border" />
-                              )}
-                              <button
-                                onClick={() => setMedia(prev => prev.filter((_, idx) => idx !== i))}
-                                className="absolute -top-2 -right-2 bg-background border rounded-full p-0.5 hover:bg-muted"
-                              >
-                                <X className="h-3 w-3" />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Brand Materials Page for this Post */}
-                  <div className="pt-2">
-                    <PostBrandMaterialsCard
-                      workspaceId={workspaceId}
-                      subdomain={(profile as any)?.subdomain || (user as any)?.subdomain || 'user'}
-                      postContent={sourceContent}
-                      attachedSlug={attachedBrandSlug}
-                      onAttachPage={(slug, url) => {
-                        setAttachedBrandSlug(slug);
-                        setAttachedBrandUrl(url);
-                      }}
-                      onInsertLinkIntoDraft={(url) => {
-                        setSourceContent(prev => prev ? `${prev}\n\n${url}` : url);
-                        toast.success('Brand page link added to post draft!');
-                      }}
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <input
+                      type="file"
+                      id="media-upload-ai"
+                      className="hidden"
+                      accept="image/*,video/*,application/pdf"
+                      onChange={handleFileUpload}
+                      disabled={isUploading}
+                      multiple
                     />
+                    <button
+                      type="button"
+                      onClick={() => document.getElementById('media-upload-ai')?.click()}
+                      disabled={isUploading}
+                      className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-white text-[#231C16] border border-[#231C16] hover:bg-[#FAF7F2] flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all disabled:opacity-50"
+                    >
+                      {isUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImageIcon className="w-3.5 h-3.5 text-[#231C16]" />}
+                      <span>Add Media</span>
+                    </button>
+                    {media.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {media.map((m, i) => (
+                          <div key={i} className="relative inline-block">
+                            {m.type === 'document' ? (
+                              <div className="h-14 w-14 bg-[#FAF7F2] rounded-xl border border-[#EADBBD] flex flex-col items-center justify-center">
+                                <FileText className="h-5 w-5 text-[#735A42]" />
+                                <span className="text-[9px] mt-0.5 text-[#735A42]">PDF</span>
+                              </div>
+                            ) : m.type === 'video' ? (
+                              <video src={m.url} className="h-14 w-14 object-cover rounded-xl border border-[#EADBBD]" muted />
+                            ) : (
+                              <img src={m.url} alt="Upload preview" className="h-14 w-14 object-cover rounded-xl border border-[#EADBBD]" />
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => setMedia(prev => prev.filter((_, idx) => idx !== i))}
+                              className="absolute -top-1.5 -right-1.5 bg-black text-white rounded-full p-0.5 hover:bg-zinc-800"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </MotionBox>
+
+            {/* Brand Materials Page for this Post (Image 4) */}
+            <div className="pt-1">
+              <PostBrandMaterialsCard
+                workspaceId={workspaceId}
+                subdomain={(profile as any)?.subdomain || (user as any)?.subdomain || 'user'}
+                postContent={sourceContent}
+                attachedSlug={attachedBrandSlug}
+                onAttachPage={(slug, url) => {
+                  setAttachedBrandSlug(slug);
+                  setAttachedBrandUrl(url);
+                }}
+                onInsertLinkIntoDraft={(url) => {
+                  setSourceContent(prev => prev ? `${prev}\n\n${url}` : url);
+                  toast.success('Brand page link added to post draft!');
+                }}
+              />
+            </div>
 
             {/* Step 2 — Platform Drafts */}
             <div ref={reviewSectionRef} id="review-and-edit-section" className="scroll-mt-24">
               <AnimatePresence mode="wait">
                 {drafts.some(d => d.status !== 'idle') && (
                   <MotionBox key="drafts" variant="slide-up" delay={0.1}>
-                    <Card>
-                      <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between flex-wrap gap-2">
-                        <div className="flex items-center gap-2">
-                          <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold flex-shrink-0">2</span>
-                          <CardTitle className="text-base">Review & Edit Drafts</CardTitle>
+                    <div className="rounded-3xl border border-[#EADBBD] bg-white p-6 sm:p-7 shadow-[0_4px_24px_rgba(61,43,31,0.03)] my-4">
+                      {/* Step 2 Header */}
+                      <div className="flex items-center justify-between flex-wrap gap-3 mb-2">
+                        <div className="flex items-center gap-2.5">
+                          <span className="flex items-center justify-center w-7 h-7 rounded-full bg-[#1A140E] text-white text-xs font-bold flex-shrink-0">
+                            2
+                          </span>
+                          <h2 className="text-xl font-bold tracking-tight text-[#231C16]">
+                            Review &amp; Edit Drafts
+                          </h2>
                         </div>
-                        <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-3 flex-wrap">
                           {readyCount > 0 && (
-                            <Badge variant="secondary" className="text-xs">{readyCount} of {drafts.length} ready</Badge>
+                            <span className="text-sm font-semibold text-[#16A34A]">
+                              {readyCount} of {drafts.length} ready
+                            </span>
                           )}
-                          <Button
+                          <button
                             type="button"
-                            variant="outline"
-                            size="sm"
                             onClick={handleSaveDraftAndClear}
                             disabled={isSavingDraft}
-                            className="h-7 text-xs font-semibold bg-white hover:bg-muted border-border cursor-pointer flex items-center gap-1.5 px-3 shadow-2xs"
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-[#231C16] bg-white text-xs font-semibold text-[#231C16] hover:bg-[#FAF7F2] transition-colors cursor-pointer shadow-2xs"
                             title="Save this draft in Signal and clear composer to create a new post"
                           >
-                            {isSavingDraft ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BookmarkPlus className="w-3.5 h-3.5 text-primary" />}
+                            {isSavingDraft ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Ticket className="w-3.5 h-3.5 text-[#E05344] fill-[#E05344]/15" />
+                            )}
                             <span>Save as draft &amp; clear</span>
-                          </Button>
+                          </button>
                         </div>
                       </div>
-                      <Text size="sm" color="muted">
+                      <p className="text-sm text-[#7A6B5D] mb-5">
                         Each platform draft is independently editable. Tweak before publishing, or publish directly as-is.
-                      </Text>
-                    </CardHeader>
-                    <CardContent>
-                      <Tabs value={activeTab} onValueChange={(value: string) => { setActiveTab(value as PlatformType); setPreviewPlatform(value as PlatformType); }}>
-                        <TabsList className="w-full mb-4 flex-wrap h-auto">
+                      </p>
+
+                      <Tabs
+                        value={activeTab}
+                        onValueChange={(value: string) => {
+                          setActiveTab(value as PlatformType);
+                          setPreviewPlatform(value as PlatformType);
+                        }}
+                      >
+                        {/* Platform Pills Tabs Bar matching Screenshot 4 */}
+                        <TabsList className="w-full mb-5 flex-wrap h-auto bg-transparent p-0 gap-2 justify-start border-none">
                           {drafts.map(draft => {
                             const platform = draft.platform;
                             const cfg = PLATFORM_CONFIG[platform];
-                            const Icon = cfg.icon;
+                            const isActive = activeTab === platform;
                             return (
-                              <TabsTrigger key={platform} value={platform} className="flex-1 min-w-[80px] flex items-center justify-center gap-1.5 py-2">
+                              <TabsTrigger
+                                key={platform}
+                                value={platform}
+                                className={cn(
+                                  "inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl text-xs font-semibold transition-all cursor-pointer",
+                                  isActive
+                                    ? "bg-white text-[#231C16] border border-[#EADBBD] shadow-[0_2px_8px_rgba(61,43,31,0.06)]"
+                                    : "bg-transparent text-[#6B5A4B] hover:text-[#231C16] hover:bg-[#FAF6EE] border border-transparent"
+                                )}
+                              >
                                 <span className="flex items-center justify-center flex-shrink-0">
                                   <PlatformBrandLogo platform={platform} size={18} />
                                 </span>
-                                <span className="hidden sm:inline text-xs font-medium">{cfg.name}</span>
-                                {draft.status === 'generating' && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
-                                {draft.status === 'ready' && <span className="w-1.5 h-1.5 rounded-full bg-[#C4A265] shrink-0" />}
-                                {draft.status === 'error' && <X className="h-3 w-3 text-destructive" />}
+                                <span>{cfg.name}</span>
+                                {draft.status === 'generating' && (
+                                  <Loader2 className="h-3 w-3 animate-spin text-[#8B5CF6]" />
+                                )}
+                                {draft.status === 'ready' && (
+                                  <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E] shrink-0" />
+                                )}
+                                {draft.status === 'error' && (
+                                  <X className="h-3 w-3 text-destructive" />
+                                )}
                               </TabsTrigger>
                             );
                           })}
@@ -2725,55 +2737,65 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                           const isOverLimit = draft && draft.characterCount > cfg.maxChars;
 
                           return (
-                            <TabsContent key={platform} value={platform} className="space-y-3 mt-0">
+                            <TabsContent key={platform} value={platform} className="space-y-4 mt-0">
                               <motion.div
                                 initial={{ opacity: 0, y: 8 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -8 }}
                                 transition={springConfig}
                               >
-                                <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-                                  <div className="flex items-center gap-2">
+                                {/* Draft header row */}
+                                <div className="flex items-center justify-between mb-3.5 flex-wrap gap-2">
+                                  <div className="flex items-center gap-3">
                                     <span className="flex items-center justify-center flex-shrink-0">
-                                      <PlatformBrandLogo platform={platform} size={24} />
+                                      <PlatformBrandLogo platform={platform} size={36} />
                                     </span>
                                     <div>
-                                      <p className="text-sm font-semibold leading-tight">{cfg.name}</p>
-                                      <p className={cn(
-                                        'text-xs tabular-nums',
-                                        isOverLimit ? 'text-destructive font-medium' : 'text-muted-foreground'
-                                      )}>
+                                      <p className="text-base font-bold text-[#231C16] leading-tight">
+                                        {cfg.name}
+                                      </p>
+                                      <p
+                                        className={cn(
+                                          'text-xs tabular-nums mt-0.5',
+                                          isOverLimit ? 'text-destructive font-medium' : 'text-[#7A6B5D]'
+                                        )}
+                                      >
                                         {draft?.characterCount ?? 0} / {cfg.maxChars} chars
-                                        {draft && (draft.hashtags?.length ?? 0) > 0 && ` · ${draft.hashtags.length} ${draft.hashtags.length === 1 ? 'hashtag' : 'hashtags'}`}
+                                        {draft && (draft.hashtags?.length ?? 0) >= 0 &&
+                                          ` · ${draft.hashtags?.length ?? 0} ${draft.hashtags?.length === 1 ? 'hashtag' : 'hashtags'}`}
                                       </p>
                                     </div>
                                   </div>
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-2.5">
                                     {draft?.status === 'ready' && (
-                                      <Button
+                                      <button
                                         type="button"
-                                        size="sm"
-                                        variant="outline"
                                         onClick={() => handleHumanizeDraft(platform)}
                                         disabled={humanizingPlatform === platform || !draft?.content?.trim()}
                                         title={`Humanize and remove AI slop for ${cfg.name}`}
-                                        className="h-7 text-xs flex items-center gap-1.5 px-2.5 bg-background hover:bg-muted border-border font-medium cursor-pointer"
+                                        className="h-8 px-3.5 rounded-xl border border-[#231C16] bg-white text-xs font-semibold text-[#231C16] hover:bg-[#FAF7F2] transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
                                       >
                                         {humanizingPlatform === platform ? (
-                                          <Loader2 className="w-3 h-3 animate-spin text-primary" />
+                                          <Loader2 className="w-3.5 h-3.5 animate-spin text-[#8B5CF6]" />
                                         ) : (
-                                          <Edit3 className="w-3 h-3 text-amber-500" />
+                                          <PenTool className="w-3.5 h-3.5 text-[#231C16]" />
                                         )}
-                                        De-Slop
-                                      </Button>
+                                        <span>De-Slop</span>
+                                      </button>
                                     )}
-                                    {draft?.status === 'generating' && <Badge variant="secondary">Generating…</Badge>}
+                                    {draft?.status === 'generating' && (
+                                      <span className="px-3 py-1 rounded-full text-xs font-medium bg-[#F3F4F6] text-[#6B7280]">
+                                        Generating…
+                                      </span>
+                                    )}
                                     {draft?.status === 'ready' && (
-                                      <Badge className="bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 border-green-200">
+                                      <span className="px-3.5 py-1 rounded-full text-xs font-semibold bg-[#E8F8EE] text-[#16A34A]">
                                         Ready
-                                      </Badge>
+                                      </span>
                                     )}
-                                    {draft?.status === 'error' && <Badge variant="destructive">Error</Badge>}
+                                    {draft?.status === 'error' && (
+                                      <Badge variant="destructive">Error</Badge>
+                                    )}
                                   </div>
                                 </div>
 
@@ -2790,7 +2812,9 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                                         <AlertTriangle className="w-3.5 h-3.5 text-[#B85450]" />
                                       </div>
                                       <div>
-                                        <p className="font-semibold text-xs text-[#9E2A2B] leading-tight">{formatPlatformError(draft.error)}</p>
+                                        <p className="font-semibold text-xs text-[#9E2A2B] leading-tight">
+                                          {formatPlatformError(draft.error)}
+                                        </p>
                                         <p className="text-[11px] text-[#8B7355] mt-0.5">
                                           {/duplicate/i.test(draft.error)
                                             ? 'Please edit the wording slightly so LinkedIn accepts the update.'
@@ -2831,16 +2855,18 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                                   value={draft?.content ?? ''}
                                   onChange={e => updateDraft(platform, e.target.value)}
                                   className={cn(
-                                    'min-h-[160px] resize-none font-mono text-sm select-text',
+                                    'min-h-[160px] resize-y font-mono text-sm select-text rounded-2xl border border-[#D8CEBE] p-4 text-[#231C16] bg-white focus-visible:ring-1 focus-visible:ring-[#8B5CF6] focus-visible:border-[#8B5CF6]',
                                     isOverLimit && 'border-destructive focus-visible:ring-destructive',
                                     draft?.status !== 'ready' && 'opacity-60 cursor-not-allowed'
                                   )}
                                   rows={7}
                                   readOnly={draft?.status !== 'ready'}
                                   placeholder={
-                                    draft?.status === 'generating' ? 'Generating your draft…' :
-                                    draft?.status === 'idle' ? 'Click "Generate Platform Drafts" to start' :
-                                    'Your adapted content will appear here'
+                                    draft?.status === 'generating'
+                                      ? 'Generating your draft…'
+                                      : draft?.status === 'idle'
+                                      ? 'Click "Generate Platform Drafts" to start'
+                                      : 'Your adapted content will appear here'
                                   }
                                 />
 
@@ -2860,41 +2886,41 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                                   />
                                 )}
 
-                                {draft?.firstCommentHint && (
-                                  <div className="mt-2 p-3 bg-muted/60 rounded-lg text-xs">
-                                    <span className="font-semibold text-foreground">First comment idea: </span>
-                                    <span className="text-muted-foreground">{draft.firstCommentHint}</span>
-                                  </div>
-                                )}
+                                {/* First comment idea container matching Screenshot 5 */}
+                                <div className="mt-3 p-3.5 rounded-2xl bg-[#FAF6EE] border border-[#EADBBD] text-xs text-[#231C16]">
+                                  <span className="font-bold text-[#231C16]">First comment idea: </span>
+                                  <span className="text-[#6B5A4B]">
+                                    {draft?.firstCommentHint || 'Drop your link here and invite questions in the comments.'}
+                                  </span>
+                                </div>
 
-                                <div className="flex items-center justify-between flex-wrap gap-2 pt-2">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
+                                {/* Step 2 footer actions matching Screenshot 5 */}
+                                <div className="flex items-center justify-between flex-wrap gap-2 pt-3">
+                                  <button
+                                    type="button"
                                     onClick={() => generateDrafts()}
                                     disabled={isGenerating || draft?.status === 'generating'}
-                                    className="text-xs h-7"
+                                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#231C16] hover:text-black transition-colors cursor-pointer py-1"
                                   >
-                                    <RefreshCw className="mr-1 h-3 w-3" />
-                                    Regenerate all drafts
-                                  </Button>
+                                    <RefreshCw className="h-3.5 w-3.5" />
+                                    <span>Regenerate all drafts</span>
+                                  </button>
 
                                   {readyCount > 1 && (
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
+                                    <button
+                                      type="button"
                                       onClick={() => handleHumanizeAllDrafts()}
                                       disabled={isHumanizingAll || drafts.every(d => d.status !== 'ready')}
-                                      className="text-xs h-7 flex items-center gap-1.5 cursor-pointer"
+                                      className="h-8 px-3.5 rounded-xl border border-[#231C16] bg-white text-xs font-semibold text-[#231C16] hover:bg-[#FAF7F2] transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
                                       title="Humanize and remove AI slop across all ready platform drafts"
                                     >
                                       {isHumanizingAll ? (
-                                        <Loader2 className="w-3 h-3 animate-spin text-primary" />
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin text-[#8B5CF6]" />
                                       ) : (
-                                        <Edit3 className="w-3 h-3 text-amber-500" />
+                                        <PenTool className="w-3.5 h-3.5 text-[#231C16]" />
                                       )}
-                                      De-Slop all drafts
-                                    </Button>
+                                      <span>De-Slop all drafts</span>
+                                    </button>
                                   )}
                                 </div>
                               </motion.div>
@@ -2902,94 +2928,84 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                           );
                         })}
                       </Tabs>
-                    </CardContent>
-                  </Card>
-                </MotionBox>
-              )}
-            </AnimatePresence>
+                    </div>
+                  </MotionBox>
+                )}
+              </AnimatePresence>
             </div>
 
-            {/* Step 3 — Publish bar */}
+            {/* Step 3 — Publish bar matching Screenshot 5 */}
             <AnimatePresence mode="wait">
               {readyCount > 0 && (
                 <MotionBox key="publish" variant="slide-up" delay={0.1}>
-                  <div className="relative overflow-hidden flex items-center justify-between flex-wrap gap-4 px-5 py-4 rounded-2xl border border-[#E2D5BE] dark:border-[#382E24] bg-gradient-to-r from-[#FAF8F5] via-[#FFFDFB] to-[#F5EFE6] dark:from-[#1A1612] dark:via-[#1E1914] dark:to-[#16120E] shadow-[0_8px_30px_rgba(61,43,31,0.06)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
-                    {/* Top luxury hairline accent */}
-                    <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#C4A265]/70 to-transparent" />
-
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2.5 flex-wrap">
-                          <span className="relative flex h-2.5 w-2.5">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#C4A265] opacity-75" />
-                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#C4A265]" />
-                          </span>
-                          <p className="text-base font-bold tracking-tight text-[#2D2319] dark:text-[#FAF7F2]">
-                            Ready to Publish
-                          </p>
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-[#C4A265]/15 text-[#8A6726] dark:text-[#E5C77A] border border-[#C4A265]/30">
-                            Staged &amp; Primed
-                          </span>
-                        </div>
-                        <p className="text-xs text-[#8B7355] dark:text-[#A89886] mt-0.5 font-medium">
-                          {postId
-                            ? `${readyCount} platform draft${readyCount > 1 ? 's' : ''} ready to publish · edits optional`
-                            : `${readyCount} platform draft${readyCount > 1 ? 's' : ''} reviewed and verified for publishing`}
-                        </p>
+                  <div className="rounded-3xl border border-[#EADBBD] bg-[#FAF6EE] p-6 sm:p-7 shadow-[0_4px_24px_rgba(61,43,31,0.03)] my-6">
+                    <div className="mb-4">
+                      <div className="flex items-center gap-2.5 flex-wrap">
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#8C6D46] inline-block shrink-0" />
+                        <h2 className="text-xl font-bold tracking-tight text-[#231C16]">
+                          Ready to Publish
+                        </h2>
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-[10px] font-bold tracking-wider uppercase bg-[#EADBBD] text-[#735A42]">
+                          STAGED &amp; PRIMED
+                        </span>
                       </div>
+                      <p className="text-xs text-[#7A6B5D] mt-1 font-medium">
+                        {readyCount} platform draft{readyCount > 1 ? 's' : ''} ready to publish · edits optional
+                      </p>
                     </div>
 
-                    <div className="flex items-center gap-2.5 ml-auto sm:ml-0 flex-wrap">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={handleSaveDraftAndClear}
-                        disabled={isGenerating || isSchedulingPost || isPublishing || isSavingDraft}
-                        className="h-10 px-3.5 rounded-xl text-xs font-semibold cursor-pointer transition-all bg-white dark:bg-[#251E17] text-[#3D2B1F] dark:text-[#FAF7F2] border border-[#D8C7A5] dark:border-[#423527] shadow-xs hover:border-[#C4A265] flex items-center gap-1.5"
-                        title="Save draft in Signal and clear composer to start a new post"
-                      >
-                        {isSavingDraft ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <BookmarkPlus className="w-3.5 h-3.5 text-[#C4A265]" />
-                        )}
-                        <span>Save as draft &amp; clear</span>
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setScheduleDialogOpen(true)}
-                        disabled={isGenerating || isSchedulingPost || isPublishing}
-                        className="relative group/schedule h-10 px-4 rounded-xl text-xs font-semibold cursor-pointer transition-all duration-200 bg-white dark:bg-[#251E17] text-[#3D2B1F] dark:text-[#FAF7F2] border border-[#D8C7A5] dark:border-[#423527] shadow-[0_2px_6px_rgba(61,43,31,0.06)] hover:shadow-md hover:border-[#C4A265] hover:bg-[#FAF6EE] dark:hover:bg-[#2E261E] active:scale-[0.98] disabled:opacity-50 flex items-center gap-2"
-                      >
-                        <span className="flex items-center justify-center w-5 h-5 rounded-lg bg-[#FAF4E6] dark:bg-[#34291F] text-[#B87A1E] dark:text-[#E5C77A] border border-[#EADBBD] dark:border-[#4B3B2B] group-hover/schedule:rotate-12 transition-transform duration-200">
-                          <Clock className="w-3.5 h-3.5" />
-                        </span>
-                        <span>Schedule</span>
-                      </Button>
+                    <div className="flex items-center justify-between flex-wrap gap-3 pt-1">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={handleSaveDraftAndClear}
+                          disabled={isGenerating || isSchedulingPost || isPublishing || isSavingDraft}
+                          className="h-10 px-4 rounded-xl border border-[#D8CEBE] bg-white text-xs font-semibold text-[#231C16] hover:bg-[#FAF7F2] transition-colors cursor-pointer flex items-center gap-2 shadow-2xs"
+                          title="Save draft in Signal and clear composer to start a new post"
+                        >
+                          {isSavingDraft ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Ticket className="w-3.5 h-3.5 text-[#E05344] fill-[#E05344]/15" />
+                          )}
+                          <span>Save as draft &amp; clear</span>
+                        </button>
 
-                      <Button
+                        <button
+                          type="button"
+                          onClick={() => setScheduleDialogOpen(true)}
+                          disabled={isGenerating || isSchedulingPost || isPublishing}
+                          className="h-10 px-4 rounded-xl border border-[#D8CEBE] bg-white text-xs font-semibold text-[#231C16] hover:bg-[#FAF7F2] transition-colors cursor-pointer flex items-center gap-2 shadow-2xs"
+                        >
+                          <Clock className="w-3.5 h-3.5 text-[#231C16]" />
+                          <span>Schedule</span>
+                        </button>
+                      </div>
+
+                      {/* Slide to Publish All Button (Image 5) */}
+                      <button
                         type="button"
                         onClick={handlePublish}
                         disabled={isGenerating || isSchedulingPost || isPublishing}
-                        className="relative group/publish overflow-hidden h-10 px-5 rounded-xl text-xs font-bold tracking-wide cursor-pointer transition-all duration-300 bg-gradient-to-r from-[#201912] via-[#2E241B] to-[#3D2B1F] hover:from-[#15100B] hover:via-[#241B13] hover:to-[#2F2116] text-[#FAF7F2] border border-[#C4A265]/50 shadow-[0_4px_16px_rgba(45,35,25,0.28)] hover:shadow-[0_6px_24px_rgba(45,35,25,0.42)] hover:border-[#E5C77A]/80 active:scale-[0.98] disabled:opacity-50 flex items-center gap-2.5"
+                        className="group relative select-none h-11 px-1.5 pr-4 rounded-full bg-[#1C1611] text-white flex items-center gap-3.5 shadow-xl hover:bg-black transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        style={{ minWidth: 260 }}
                       >
-                        {/* Shimmer light reflection sweep */}
-                        <div className="absolute inset-0 -translate-x-full group-hover/publish:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/15 to-transparent pointer-events-none" />
+                        <span className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-[#1C1611] shadow-sm flex-shrink-0 group-hover:scale-105 transition-transform">
+                          {isPublishing ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-[#1C1611]" />
+                          ) : (
+                            <Play className="w-3.5 h-3.5 fill-[#1C1611] translate-x-0.5 text-[#1C1611]" />
+                          )}
+                        </span>
 
-                        {isPublishing ? (
-                          <Loader2 className="w-4 h-4 animate-spin text-[#E5C77A]" />
-                        ) : (
-                          <span className="flex items-center justify-center w-5 h-5 rounded-lg bg-white/10 text-[#E5C77A] group-hover/publish:scale-110 transition-transform duration-200">
-                            <Send className="w-3.5 h-3.5" />
-                          </span>
-                        )}
-                        <span>{isPublishing ? 'Publishing...' : 'Publish All'}</span>
-                        <span className="px-1.5 py-0.5 rounded-md text-[10px] font-black bg-[#C4A265]/30 text-[#E5C77A] border border-[#C4A265]/40 leading-none">
+                        <span className="text-xs sm:text-sm font-bold tracking-wide text-white whitespace-nowrap flex-1 text-center">
+                          {isPublishing ? 'Publishing...' : 'Slide to Publish All'}
+                        </span>
+
+                        <span className="w-6 h-6 rounded-full bg-[#4A3B2F] text-[#FAF6EE] text-xs font-bold flex items-center justify-center flex-shrink-0">
                           {readyCount}
                         </span>
-                        <ArrowUpRight className="w-3.5 h-3.5 text-[#C4A265] group-hover/publish:translate-x-0.5 group-hover/publish:-translate-y-0.5 transition-transform" />
-                      </Button>
+                      </button>
                     </div>
                   </div>
                 </MotionBox>
@@ -3013,6 +3029,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           selectedPlatforms={selectedPlatforms}
           drafts={drafts}
         />
+      </div>
       </div>
 
       {/* Schedule Dialog */}

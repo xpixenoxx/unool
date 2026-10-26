@@ -314,45 +314,49 @@ export default function PostBrandMaterialsCard({
     <div
       style={{
         background: '#FFFFFF',
-        border: '1.5px solid #E8E0D4',
-        borderRadius: 16,
-        padding: '16px 20px',
-        boxShadow: '0 2px 10px rgba(61,43,31,0.03)',
+        border: '1.5px solid #EADBBD',
+        borderRadius: 22,
+        padding: '20px 22px',
+        boxShadow: '0 2px 10px rgba(61,43,31,0.02)',
         transition: 'all 0.2s ease',
       }}
     >
       {/* ── Header ── */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <div
             style={{
-              width: 38,
-              height: 38,
-              borderRadius: 10,
-              background: 'rgba(223,91,76,0.1)',
-              color: '#DF5B4C',
+              width: 42,
+              height: 42,
+              borderRadius: 12,
+              background: '#FFEBE8',
+              color: '#E05344',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               flexShrink: 0,
             }}
           >
-            <Layers size={18} />
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M2 12c2.5-3 5-3 7.5 0s5 3 7.5 0 5-3 7-0.5" />
+              <path d="M2 7c2.5-3 5-3 7.5 0s5 3 7.5 0 5-3 7-0.5" />
+              <path d="M2 17c2.5-3 5-3 7.5 0s5 3 7.5 0 5-3 7-0.5" />
+            </svg>
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: '#2C1E16', letterSpacing: '-0.01em' }}>
+              <span style={{ fontSize: 16, fontWeight: 700, color: '#231C16', letterSpacing: '-0.01em' }}>
                 Brand Materials Page
               </span>
             </div>
-            <div style={{ fontSize: 12, color: '#8B7355', marginTop: 2 }}>
-              Publish exclusive lookbooks, PDF guides, or download links at <span style={{ fontFamily: 'monospace', color: '#5D4330' }}>https://{subdomain}.unool.co/[slug]</span>
+            <div style={{ fontSize: 12.5, color: '#735A42', marginTop: 2 }}>
+              Publish exclusive lookbooks, PDF guides, or download links at <span style={{ fontFamily: 'monospace', color: '#4A3B2F' }}>https://{subdomain}.unool.co/[slug]</span>
             </div>
           </div>
         </div>
 
         {/* View all pages counter link + Studio link */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {pages.length > 0 && (
             <button
               type="button"
@@ -361,10 +365,10 @@ export default function PostBrandMaterialsCard({
                 background: '#FAF7F2',
                 border: '1px solid #E8E0D4',
                 borderRadius: 20,
-                padding: '5px 12px',
+                padding: '5px 13px',
                 fontSize: 12,
                 fontWeight: 600,
-                color: '#5D4330',
+                color: '#231C16',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
@@ -382,7 +386,7 @@ export default function PostBrandMaterialsCard({
             style={{
               fontSize: 12,
               fontWeight: 600,
-              color: '#8B7355',
+              color: '#6B5744',
               textDecoration: 'none',
               display: 'inline-flex',
               alignItems: 'center',
@@ -634,28 +638,27 @@ export default function PostBrandMaterialsCard({
         </div>
       ) : (
         /* ── Action Buttons to Create or Attach ── */
-        <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <button
             type="button"
             onClick={handleOpenCreateModal}
             style={{
-              background: 'linear-gradient(135deg, #DF5B4C 0%, #C44537 100%)',
+              background: '#DF5B4C',
               color: '#FFFFFF',
               border: 'none',
-              borderRadius: 10,
+              borderRadius: 12,
               padding: '9px 18px',
               fontSize: 13,
               fontWeight: 700,
               cursor: 'pointer',
               display: 'inline-flex',
               alignItems: 'center',
-              gap: 7,
-              boxShadow: '0 3px 10px rgba(223,91,76,0.25)',
+              gap: 6,
+              boxShadow: '0 3px 12px rgba(223,91,76,0.3)',
               transition: 'all 0.15s ease',
             }}
           >
-            <Plus size={15} />
-            <span>Create Brand Page</span>
+            <span>+ Create Brand Page</span>
           </button>
 
           {pages.length > 0 && (
@@ -664,11 +667,11 @@ export default function PostBrandMaterialsCard({
               onClick={() => setPagesListOpen(!pagesListOpen)}
               style={{
                 background: '#FFFFFF',
-                color: '#3D2B1F',
-                border: '1px solid #E8E0D4',
-                borderRadius: 10,
-                padding: '9px 15px',
-                fontSize: 12.5,
+                color: '#231C16',
+                border: '1.5px solid #231C16',
+                borderRadius: 12,
+                padding: '9px 18px',
+                fontSize: 13,
                 fontWeight: 600,
                 cursor: 'pointer',
                 display: 'inline-flex',
@@ -677,12 +680,11 @@ export default function PostBrandMaterialsCard({
                 transition: 'all 0.15s ease',
               }}
             >
-              <Layers size={14} />
               <span>Attach Existing ({pages.length})</span>
             </button>
           )}
 
-          <span style={{ fontSize: 11.5, color: '#A69279', marginLeft: 'auto' }}>
+          <span style={{ fontSize: 12, color: '#A69279', marginLeft: 'auto' }}>
             Auto-delivered when followers ask in comments or DMs
           </span>
         </div>

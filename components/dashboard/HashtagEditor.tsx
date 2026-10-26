@@ -145,10 +145,10 @@ export function HashtagEditor({
           <button
             type="button"
             onClick={() => setIsAdding(true)}
-            className="inline-flex items-center gap-1 rounded-full border border-dashed border-border px-2.5 py-0.5 text-xs text-muted-foreground hover:text-foreground hover:border-foreground/40 hover:bg-muted/40 transition-all cursor-pointer focus:outline-none focus:ring-1 focus:ring-ring"
+            className="inline-flex items-center gap-1 rounded-full border border-dashed border-[#231C16] px-3 py-1 text-xs font-semibold text-[#231C16] bg-white hover:bg-[#FAF7F2] transition-all cursor-pointer shadow-2xs focus:outline-none"
             title="Add a hashtag to this draft"
           >
-            <Plus className="w-3 h-3" />
+            <Plus className="w-3 h-3 text-[#231C16]" />
             <span>Add hashtag</span>
           </button>
         )
