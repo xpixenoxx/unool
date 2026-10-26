@@ -208,30 +208,45 @@ export function useModalImageUpload(
     const uploadedMedia: Array<{ url: string; type: string }> = [];
 
     for (const file of files) {
-      const contentType = getFileContentType(file);
-      const res = await fetch('/api/composer/upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename: file.name, contentType }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to get upload URL');
-      }
-
-      const uploadRes = await fetch(data.signedUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': contentType },
-        body: file,
-      });
-
-      if (!uploadRes.ok) {
-        throw new Error('Upload to storage failed');
-      }
-
       const mediaType = getMediaCategory(file);
-      uploadedMedia.push({ url: data.url, type: mediaType });
+      let uploadSucceeded = false;
+
+      // 1. Try server storage upload
+      try {
+        const contentType = getFileContentType(file);
+        const res = await fetch('/api/composer/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: file.name, contentType }),
+        });
+
+        const data = await res.json();
+        if (res.ok && data.signedUrl) {
+          const uploadRes = await fetch(data.signedUrl, {
+            method: 'PUT',
+            headers: { 'Content-Type': contentType },
+            body: file,
+          });
+
+          if (uploadRes.ok && data.url) {
+            uploadedMedia.push({ url: data.url, type: mediaType });
+            uploadSucceeded = true;
+          }
+        }
+      } catch {
+        // Fall through to Data URI fallback
+      }
+
+      // 2. Fallback to base64 Data URI
+      if (!uploadSucceeded) {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        uploadedMedia.push({ url: dataUrl, type: mediaType });
+      }
     }
 
     return uploadedMedia;

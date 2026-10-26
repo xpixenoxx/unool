@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { format, addDays, startOfWeek } from 'date-fns';
+import { format, addDays, startOfWeek, endOfWeek, addWeeks } from 'date-fns';
 import { BarcodeTicket } from './ui/BarcodeTicket';
 import { useFlightPlanDraft } from '@/hooks/flightplan';
 import { studioToast } from '@/components/dashboard/StudioToast';
@@ -63,23 +63,28 @@ export function StoryIntake({
 }: StoryIntakeProps) {
   const { draft, saveDraft } = useFlightPlanDraft();
 
+  const minDate = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
+  const maxDate = useMemo(() => {
+    const monday = startOfWeek(new Date(), { weekStartsOn: 1 });
+    const nextSunday = endOfWeek(addWeeks(monday, 1), { weekStartsOn: 1 });
+    return format(nextSunday, 'yyyy-MM-dd');
+  }, []);
+
   const defaultStartDate = useMemo(() => {
-    const today = new Date();
-    const thisMonday = startOfWeek(today, { weekStartsOn: 1 });
-    const day = today.getDay();
-    // On Friday (5), Saturday (6), or Sunday (0), default to the upcoming Monday
-    if (day === 0 || day >= 5) {
-      return addDays(thisMonday, 7);
-    }
-    // On Monday through Thursday, default to this week's Monday
-    return thisMonday;
+    return new Date();
   }, []);
 
   const [story, setStory] = useState(draft?.coreStory || '');
   const [changed, setChanged] = useState(draft?.whatChanged || '');
   const [wrong, setWrong] = useState(draft?.whatWentWrong || '');
   const [num, setNum] = useState(draft?.oneRealNumber || '');
-  const [startDate, setStartDate] = useState(draft?.weekStartDate || format(defaultStartDate, 'yyyy-MM-dd'));
+  const [startDate, setStartDate] = useState(() => {
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    if (draft?.weekStartDate && draft.weekStartDate >= todayStr) {
+      return draft.weekStartDate;
+    }
+    return todayStr;
+  });
   const [timezone, setTimezone] = useState(
     draft?.audienceTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata'
   );
@@ -139,6 +144,16 @@ export function StoryIntake({
   const handleGenerateClick = () => {
     if (!story.trim()) {
       studioToast.error('Tell us the story first.');
+      return;
+    }
+
+    if (startDate < minDate) {
+      studioToast.error('Cannot schedule for past dates. Please pick today or a future date.');
+      return;
+    }
+
+    if (startDate > maxDate) {
+      studioToast.error('You can only schedule for the ongoing week and the upcoming week.');
       return;
     }
 
@@ -270,7 +285,20 @@ export function StoryIntake({
           <input
             type="date"
             value={startDate}
-            onChange={e => setStartDate(e.target.value)}
+            min={minDate}
+            max={maxDate}
+            onChange={e => {
+              const val = e.target.value;
+              if (val < minDate) {
+                setStartDate(minDate);
+                studioToast.error('Cannot select a past date.');
+              } else if (val > maxDate) {
+                setStartDate(maxDate);
+                studioToast.error('You can only schedule for the ongoing week and upcoming week.');
+              } else {
+                setStartDate(val);
+              }
+            }}
           />
         </div>
 

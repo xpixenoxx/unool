@@ -62,10 +62,16 @@ function ScheduledPostModalContent({
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [isModalDragging, setIsModalDragging] = useState(false);
+  const [currentScheduledAt, setCurrentScheduledAt] = useState<string | null>(post.scheduledAt || null);
   const modalFileInputRef = useRef<HTMLInputElement>(null);
 
+  const minDateTime = useMemo(() => {
+    return format(new Date(), "yyyy-MM-dd'T'HH:mm");
+  }, []);
+
   const maxDateTime = useMemo(() => {
-    const nextSunday = endOfWeek(addWeeks(new Date(), 1), { weekStartsOn: 1 });
+    const mondayThisWeek = startOfWeek(new Date(), { weekStartsOn: 1 });
+    const nextSunday = endOfWeek(addWeeks(mondayThisWeek, 1), { weekStartsOn: 1 });
     return format(nextSunday, "yyyy-MM-dd'T'23:59");
   }, []);
 
@@ -73,6 +79,7 @@ function ScheduledPostModalContent({
     if (post) {
       setConfirmCancel(false);
       setActiveVariantIndex(0);
+      setCurrentScheduledAt(post.scheduledAt || null);
       const contentMap: Record<string, string> = {};
       const hashtagsMap: Record<string, string[]> = {};
       const mediaMap: Record<string, Array<{ url: string; type?: string }>> = {};
@@ -110,7 +117,7 @@ function ScheduledPostModalContent({
     hashtags: [],
   };
 
-  const isPublished = post.status === 'published';
+  const isPublished = post.status === 'published' || (post.platforms && post.platforms.some(p => p.status === 'published'));
   const currentContent = editedContent[currentVariant.variantId] ?? currentVariant.content;
   const currentTags = editedHashtags[currentVariant.variantId] ?? currentVariant.hashtags ?? [];
   const currentMedia = editedMediaUrls[currentVariant.variantId] ?? currentVariant.mediaUrls ?? [];
@@ -236,13 +243,27 @@ function ScheduledPostModalContent({
   }, [variantsWithChanges, editedContent, editedHashtags, editedMediaUrls, onUpdated]);
 
   const handleReschedule = useCallback(async () => {
-    if (!rescheduleTime) return;
+    if (!rescheduleTime) {
+      studioToast.error('Please choose a date and time.');
+      return;
+    }
     const targetDate = new Date(rescheduleTime);
-    if (isNaN(targetDate.getTime()) || targetDate.getTime() <= Date.now()) return;
-    const endOfNextWeek = endOfWeek(addWeeks(new Date(), 1), { weekStartsOn: 1 });
-    if (targetDate.getTime() > endOfNextWeek.getTime()) return;
+    if (isNaN(targetDate.getTime())) {
+      studioToast.error('Please choose a valid date and time.');
+      return;
+    }
+    if (targetDate.getTime() <= Date.now()) {
+      studioToast.error('Cannot schedule posts for past dates or past time periods.');
+      return;
+    }
+    const mondayThisWeek = startOfWeek(new Date(), { weekStartsOn: 1 });
+    const endOfUpcomingWeek = endOfWeek(addWeeks(mondayThisWeek, 1), { weekStartsOn: 1 });
+    if (targetDate.getTime() > endOfUpcomingWeek.getTime()) {
+      studioToast.error('Posts can only be scheduled for the ongoing week and the upcoming week.');
+      return;
+    }
 
-    const isFirstSchedule = !post.scheduledAt;
+    const isFirstSchedule = !currentScheduledAt;
     setIsRescheduling(true);
     try {
       const res = await fetch(`/api/composer/schedule/${post.postId}`, {
@@ -257,6 +278,7 @@ function ScheduledPostModalContent({
       }
       post.scheduledAt = targetDate.toISOString();
       post.status = 'scheduled';
+      setCurrentScheduledAt(targetDate.toISOString());
       setShowRescheduleInput(false);
       studioToast.success(isFirstSchedule ? 'Post scheduled successfully!' : 'Post rescheduled successfully!');
       onUpdated();
@@ -265,7 +287,7 @@ function ScheduledPostModalContent({
     } finally {
       setIsRescheduling(false);
     }
-  }, [rescheduleTime, post, onUpdated]);
+  }, [rescheduleTime, post, currentScheduledAt, onUpdated]);
 
   const handleCancelPost = useCallback(async () => {
     if (!confirmCancel) {
@@ -329,22 +351,24 @@ function ScheduledPostModalContent({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-bold text-base" style={{ color: B.text }}>
-                  {post.scheduledAt ? 'Scheduled Post' : 'Review & Schedule Post'}
+                  {isPublished ? 'Published Post' : currentScheduledAt ? 'Scheduled Post' : 'Review & Schedule Post'}
                 </h3>
                 <span
                   className="text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider"
                   style={{
-                    backgroundColor: post.status === 'scheduled' ? B.infoBg : post.status === 'published' ? B.successBg : B.warningBg,
-                    color: post.status === 'scheduled' ? B.info : post.status === 'published' ? B.success : B.warning,
+                    backgroundColor: isPublished ? B.successBg : post.status === 'scheduled' ? B.infoBg : B.warningBg,
+                    color: isPublished ? B.success : post.status === 'scheduled' ? B.info : B.warning,
                   }}
                 >
-                  {post.status || 'draft'}
+                  {isPublished ? 'published' : post.status || 'draft'}
                 </span>
               </div>
               <p className="text-xs flex items-center gap-1.5 mt-0.5" style={{ color: B.textMuted }}>
                 <Clock className="w-3.5 h-3.5" />
-                {post.scheduledAt
-                  ? format(new Date(post.scheduledAt), 'EEEE, MMM d, yyyy • h:mm a')
+                {isPublished
+                  ? (currentScheduledAt ? `Published on ${format(new Date(currentScheduledAt), 'EEEE, MMM d, yyyy • h:mm a')}` : 'Published live on social channels')
+                  : currentScheduledAt
+                  ? format(new Date(currentScheduledAt), 'EEEE, MMM d, yyyy • h:mm a')
                   : 'Ready to review and schedule'}
               </p>
             </div>
@@ -367,27 +391,41 @@ function ScheduledPostModalContent({
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-xs font-semibold" style={{ color: B.text }}>
-                <Clock className="w-4 h-4" style={{ color: B.accent }} />
-                <span>{post.scheduledAt ? 'Scheduled Time:' : 'Choose Schedule Time:'}</span>
+                <Clock className="w-4 h-4" style={{ color: isPublished ? B.success : B.accent }} />
+                <span>{isPublished ? 'Published on:' : currentScheduledAt ? 'Scheduled Time:' : 'Choose Schedule Time:'}</span>
                 <span className="font-mono font-normal">
-                  {post.scheduledAt ? format(new Date(post.scheduledAt), 'MMM d, yyyy @ h:mm a') : 'Not scheduled yet'}
+                  {currentScheduledAt
+                    ? format(new Date(currentScheduledAt), 'MMM d, yyyy @ h:mm a')
+                    : isPublished
+                    ? 'Published'
+                    : 'Not scheduled yet'}
                 </span>
               </div>
-              <button
-                onClick={() => setShowRescheduleInput(prev => !prev)}
-                className="text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors hover:opacity-80 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-                style={{ backgroundColor: B.card, border: `1px solid ${B.border}`, color: B.accentDark, focusRingColor: B.accent, focusRingOffsetColor: B.card }}
-              >
-                {showRescheduleInput ? 'Cancel' : (post.scheduledAt ? 'Change Time' : 'Set Schedule')}
-              </button>
+              {!isPublished && (
+                <button
+                  onClick={() => setShowRescheduleInput(prev => !prev)}
+                  className="text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors hover:opacity-80 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                  style={{ backgroundColor: B.card, border: `1px solid ${B.border}`, color: B.accentDark, focusRingColor: B.accent, focusRingOffsetColor: B.card }}
+                >
+                  {showRescheduleInput ? 'Cancel' : (currentScheduledAt ? 'Change Time' : 'Set Schedule')}
+                </button>
+              )}
+              {isPublished && (
+                <span
+                  className="text-[11px] font-medium px-2 py-0.5 rounded-md"
+                  style={{ backgroundColor: B.successBg, color: B.success }}
+                >
+                  Live on channels
+                </span>
+              )}
             </div>
 
-            {showRescheduleInput && (
+            {!isPublished && showRescheduleInput && (
               <div className="flex items-center gap-2 pt-2 border-t" style={{ borderColor: `${B.border}80` }}>
                 <input
                   type="datetime-local"
                   value={rescheduleTime}
-                  min={format(new Date(), "yyyy-MM-dd'T'HH:mm")}
+                  min={minDateTime}
                   max={maxDateTime}
                   onChange={e => setRescheduleTime(e.target.value)}
                   className="text-xs px-3 py-2 rounded-xl border flex-1"
@@ -400,7 +438,7 @@ function ScheduledPostModalContent({
                   style={{ backgroundColor: B.accent, focusRingColor: B.accent, focusRingOffsetColor: B.card }}
                 >
                   {isRescheduling && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  {post.scheduledAt ? 'Reschedule' : 'Schedule Post'}
+                  {currentScheduledAt ? 'Reschedule' : 'Schedule Post'}
                 </button>
               </div>
             )}
@@ -439,11 +477,18 @@ function ScheduledPostModalContent({
             <textarea
               rows={6}
               value={currentContent}
-              onChange={e => setEditedContent(prev => ({
-                ...prev,
-                [currentVariant.variantId]: e.target.value,
-              }))}
-              className="w-full text-sm p-3 rounded-xl border focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 transition-colors leading-relaxed"
+              readOnly={isPublished}
+              onChange={e => {
+                if (isPublished) return;
+                setEditedContent(prev => ({
+                  ...prev,
+                  [currentVariant.variantId]: e.target.value,
+                }));
+              }}
+              className={cn(
+                "w-full text-sm p-3 rounded-xl border focus:outline-none transition-colors leading-relaxed",
+                isPublished ? "opacity-85 cursor-default resize-none" : "focus-visible:ring-2 focus-visible:ring-offset-2"
+              )}
               style={{
                 backgroundColor: B.card,
                 borderColor: B.border,
@@ -455,14 +500,16 @@ function ScheduledPostModalContent({
             />
 
             {/* Modal Alert Banner for Safety Violation or Character Limit */}
-            <ContentValidationBanner
-              isBlocked={Boolean(isModalContentBlocked)}
-              isOverLimit={isModalOverLimit}
-              violationMessage={!modalGuardResult?.safe ? modalGuardResult?.violation.message : undefined}
-              platformName={platformMeta.name}
-              currentCount={currentContent.length}
-              maxChars={modalVariantConfig?.maxChars}
-            />
+            {!isPublished && (
+              <ContentValidationBanner
+                isBlocked={Boolean(isModalContentBlocked)}
+                isOverLimit={isModalOverLimit}
+                violationMessage={!modalGuardResult?.safe ? modalGuardResult?.violation.message : undefined}
+                platformName={platformMeta.name}
+                currentCount={currentContent.length}
+                maxChars={modalVariantConfig?.maxChars}
+              />
+            )}
           </div>
 
           {/* Hashtags Section */}
@@ -470,13 +517,35 @@ function ScheduledPostModalContent({
             <label className="text-xs font-semibold block" style={{ color: B.text }}>
               Hashtags
             </label>
-            <HashtagInput
-              tags={currentTags}
-              onAdd={addTag}
-              onRemove={removeTag}
-              placeholder="add tag..."
-              inputRef={React.createRef<HTMLInputElement>()}
-            />
+            {isPublished ? (
+              <div className="flex flex-wrap items-center gap-1.5">
+                {currentTags.length > 0 ? (
+                  currentTags.map(tag => (
+                    <span
+                      key={tag}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium"
+                      style={{
+                        backgroundColor: B.cardHover,
+                        color: B.textSecondary,
+                        border: `1px solid ${B.border}`,
+                      }}
+                    >
+                      #{tag}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-xs" style={{ color: B.textMuted }}>No hashtags</span>
+                )}
+              </div>
+            ) : (
+              <HashtagInput
+                tags={currentTags}
+                onAdd={addTag}
+                onRemove={removeTag}
+                placeholder="add tag..."
+                inputRef={React.createRef<HTMLInputElement>()}
+              />
+            )}
           </div>
 
           {/* Attached Media Section */}
@@ -486,31 +555,51 @@ function ScheduledPostModalContent({
                 <ImageIcon className="w-3.5 h-3.5" style={{ color: B.accent }} />
                 Attached Media ({currentMedia.length})
               </label>
-              <div className="flex items-center gap-2">
-                {post.platforms.length > 1 && currentMedia.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={handleApplyMediaToAllVariants}
-                    className="text-[11px] font-semibold px-2 py-0.5 rounded-md hover:opacity-80 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-                    style={{ backgroundColor: B.accentBg, color: B.accentDark, focusRingColor: B.accent, focusRingOffsetColor: B.card }}
-                    title="Copy these images to all other platform variants of this post"
-                  >
-                    Apply to all platforms
-                  </button>
-                )}
-                <ImageDropZone
-                  images={currentMedia.map(m => m.url)}
-                  onUpload={files => handleUploadModalMedia(files, currentVariant.variantId)}
-                  onRemove={handleRemoveModalMedia}
-                  maxImages={10}
-                  isUploading={isUploading}
-                  isDragging={isDragging}
-                  setIsDragging={setIsDragging}
-                  fileInputRef={modalFileInputRef}
-                  compact={true}
-                />
-              </div>
+              {!isPublished && (
+                <div className="flex items-center gap-2">
+                  {post.platforms.length > 1 && currentMedia.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleApplyMediaToAllVariants}
+                      className="text-[11px] font-semibold px-2 py-0.5 rounded-md hover:opacity-80 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                      style={{ backgroundColor: B.accentBg, color: B.accentDark, focusRingColor: B.accent, focusRingOffsetColor: B.card }}
+                      title="Copy these images to all other platform variants of this post"
+                    >
+                      Apply to all platforms
+                    </button>
+                  )}
+                  <ImageDropZone
+                    images={currentMedia.map(m => m.url)}
+                    onUpload={files => handleUploadModalMedia(files, currentVariant.variantId)}
+                    onRemove={handleRemoveModalMedia}
+                    maxImages={10}
+                    isUploading={isUploading}
+                    isDragging={isDragging}
+                    setIsDragging={setIsDragging}
+                    fileInputRef={modalFileInputRef}
+                    compact={true}
+                  />
+                </div>
+              )}
             </div>
+
+            {isPublished && (
+              <div className="flex flex-wrap gap-2 pt-1">
+                {currentMedia.length > 0 ? (
+                  currentMedia.map((m, idx) => (
+                    <div
+                      key={idx}
+                      className="relative w-16 h-16 rounded-xl overflow-hidden border"
+                      style={{ borderColor: B.border }}
+                    >
+                      <img src={m.url} alt={`Media ${idx + 1}`} className="w-full h-full object-cover" />
+                    </div>
+                  ))
+                ) : (
+                  <span className="text-xs" style={{ color: B.textMuted }}>No media attached</span>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Auto First Comment */}
@@ -520,57 +609,75 @@ function ScheduledPostModalContent({
 
         {/* Modal Footer */}
         <div className="p-4 border-t flex items-center justify-between gap-3" style={{ backgroundColor: B.bg, borderColor: B.border }}>
-          {confirmCancel ? (
-            <div className="flex items-center gap-2">
+          {isPublished ? (
+            <>
+              <div className="text-xs flex items-center gap-2" style={{ color: B.textMuted }}>
+                <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+                <span>This post has already been published. Live posts cannot be edited or deleted.</span>
+              </div>
               <button
-                onClick={handleCancelPost}
-                disabled={isCancelling}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-                style={{ backgroundColor: B.danger, boxShadow: `0 2px 8px ${B.danger}40`, focusRingColor: B.danger, focusRingOffsetColor: B.card }}
+                onClick={onClose}
+                className="px-5 py-2 rounded-xl text-xs font-semibold text-white transition-opacity shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                style={{ backgroundColor: B.accent, focusRingColor: B.accent, focusRingOffsetColor: B.card }}
               >
-                {isCancelling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                Confirm Cancel
+                Close
               </button>
-              <button
-                onClick={() => setConfirmCancel(false)}
-                className="px-2.5 py-1.5 rounded-xl text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-                style={{ color: B.textMuted, backgroundColor: B.card, focusRingColor: B.accent, focusRingOffsetColor: B.card }}
-              >
-                Keep Post
-              </button>
-            </div>
+            </>
           ) : (
-            <button
-              onClick={() => setConfirmCancel(true)}
-              disabled={isCancelling}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-              style={{ color: B.danger, backgroundColor: B.dangerBg, focusRingColor: B.danger, focusRingOffsetColor: B.card }}
-            >
-              <Trash2 className="w-3.5 h-3.5" style={{ color: B.danger }} />
-              Cancel Post
-            </button>
-          )}
+            <>
+              {confirmCancel ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleCancelPost}
+                    disabled={isCancelling}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                    style={{ backgroundColor: B.danger, boxShadow: `0 2px 8px ${B.danger}40`, focusRingColor: B.danger, focusRingOffsetColor: B.card }}
+                  >
+                    {isCancelling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                    Confirm Cancel
+                  </button>
+                  <button
+                    onClick={() => setConfirmCancel(false)}
+                    className="px-2.5 py-1.5 rounded-xl text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                    style={{ color: B.textMuted, backgroundColor: B.card, focusRingColor: B.accent, focusRingOffsetColor: B.card }}
+                  >
+                    Keep Post
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setConfirmCancel(true)}
+                  disabled={isCancelling}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                  style={{ color: B.danger, backgroundColor: B.dangerBg, focusRingColor: B.danger, focusRingOffsetColor: B.card }}
+                >
+                  <Trash2 className="w-3.5 h-3.5" style={{ color: B.danger }} />
+                  Cancel Post
+                </button>
+              )}
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 rounded-xl text-xs font-medium border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-              style={{ borderColor: B.border, color: B.textMuted, backgroundColor: B.card, focusRingColor: B.accent, focusRingOffsetColor: B.card }}
-            >
-              Close
-            </button>
-            <button
-              onClick={handleSaveVariant}
-              disabled={isSaving || !hasChanges}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white transition-opacity disabled:opacity-50 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-              style={{ backgroundColor: B.accent, focusRingColor: B.accent, focusRingOffsetColor: B.card }}
-            >
-              {isSaving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              {hasChanges
-                ? (variantsWithChanges.length > 1 ? `Save Changes (${variantsWithChanges.length})` : 'Save Changes')
-                : 'Saved'}
-            </button>
-          </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={onClose}
+                  className="px-4 py-2 rounded-xl text-xs font-medium border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                  style={{ borderColor: B.border, color: B.textMuted, backgroundColor: B.card, focusRingColor: B.accent, focusRingOffsetColor: B.card }}
+                >
+                  Close
+                </button>
+                <button
+                  onClick={handleSaveVariant}
+                  disabled={isSaving || !hasChanges}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white transition-opacity disabled:opacity-50 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                  style={{ backgroundColor: B.accent, focusRingColor: B.accent, focusRingOffsetColor: B.card }}
+                >
+                  {isSaving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  {hasChanges
+                    ? (variantsWithChanges.length > 1 ? `Save Changes (${variantsWithChanges.length})` : 'Save Changes')
+                    : 'Saved'}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </motion.div>
     </motion.div>

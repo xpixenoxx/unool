@@ -47,27 +47,6 @@ export function ReviewScreen({
   onBack,
   isScheduling,
 }: ReviewScreenProps) {
-  const [arc, setArc] = useState<WeekArc>(() => {
-    // Ensure all posts and platforms have default enabled & media structure
-    return {
-      ...initialArc,
-      weekPosts: (initialArc.weekPosts || []).map(post => ({
-        ...post,
-        imageUrls: post.imageUrls || [],
-        platforms: (post.platforms || []).map(p => ({
-          ...p,
-          enabled: p.enabled !== false,
-          hashtags: p.hashtags || [],
-          characterCount: p.content?.length || 0,
-        })),
-      })),
-    };
-  });
-
-  const [activePlatformByPost, setActivePlatformByPost] = useState<Record<number, PlatformType>>({});
-  const [isUploadingByDay, setIsUploadingByDay] = useState<Record<number, boolean>>({});
-  const [isDraggingByDay, setIsDraggingByDay] = useState<Record<number, boolean>>({});
-
   const baseDate = useMemo(() => parseLocalDate(weekStartDate), [weekStartDate]);
 
   const dateOf = useCallback(
@@ -77,6 +56,52 @@ export function ReviewScreen({
     [baseDate]
   );
 
+  const [arc, setArc] = useState<WeekArc>(() => {
+    const base = parseLocalDate(weekStartDate);
+    const now = new Date();
+    const todayStart = startOfDay(now);
+
+    return {
+      ...initialArc,
+      weekPosts: (initialArc.weekPosts || []).map((post, idx) => {
+        const postDate = addDays(base, idx);
+        const isPostPast = postDate < todayStart;
+        const isPostToday = isToday(postDate);
+
+        let hour = post.scheduledHour || 18;
+        let minute = post.scheduledMinute || 0;
+
+        // If post is today, ensure scheduled time is in the future
+        if (isPostToday) {
+          const currentMins = now.getHours() * 60 + now.getMinutes();
+          const postMins = hour * 60 + minute;
+          if (postMins <= currentMins) {
+            const futureMins = Math.min(1435, currentMins + 30);
+            hour = Math.floor(futureMins / 60);
+            minute = futureMins % 60;
+          }
+        }
+
+        return {
+          ...post,
+          scheduledHour: hour,
+          scheduledMinute: minute,
+          imageUrls: post.imageUrls || [],
+          platforms: (post.platforms || []).map(p => ({
+            ...p,
+            enabled: isPostPast ? false : p.enabled !== false,
+            hashtags: p.hashtags || [],
+            characterCount: p.content?.length || 0,
+          })),
+        };
+      }),
+    };
+  });
+
+  const [activePlatformByPost, setActivePlatformByPost] = useState<Record<number, PlatformType>>({});
+  const [isUploadingByDay, setIsUploadingByDay] = useState<Record<number, boolean>>({});
+  const [isDraggingByDay, setIsDraggingByDay] = useState<Record<number, boolean>>({});
+
   // Time format helper HH:MM
   const getTimeString = (post: ArcPost) => {
     return `${two(post.scheduledHour || 18)}:${two(post.scheduledMinute || 0)}`;
@@ -84,6 +109,15 @@ export function ReviewScreen({
 
   // Nudge time by minutes (+/-)
   const handleNudgeTime = (dayIdx: number, addMins: number) => {
+    const targetDay = dateOf(dayIdx);
+    const now = new Date();
+    const todayStart = startOfDay(now);
+
+    if (targetDay < todayStart) {
+      studioToast.generationFailed('Cannot schedule for past dates.');
+      return;
+    }
+
     setArc(prev => {
       const posts = [...prev.weekPosts];
       const target = { ...posts[dayIdx] };
@@ -91,8 +125,6 @@ export function ReviewScreen({
       let newMins = (currentMins + addMins) % 1440;
       if (newMins < 0) newMins += 1440;
 
-      const targetDay = dateOf(dayIdx);
-      const now = new Date();
       if (isToday(targetDay)) {
         const candidateTime = new Date(targetDay);
         candidateTime.setHours(Math.floor(newMins / 60), newMins % 60, 0, 0);
@@ -116,6 +148,13 @@ export function ReviewScreen({
 
     const targetDay = dateOf(dayIdx);
     const now = new Date();
+    const todayStart = startOfDay(now);
+
+    if (targetDay < todayStart) {
+      studioToast.generationFailed('Cannot schedule for past dates.');
+      return;
+    }
+
     if (isToday(targetDay)) {
       const candidateTime = new Date(targetDay);
       candidateTime.setHours(h, m, 0, 0);
@@ -387,7 +426,43 @@ export function ReviewScreen({
       }
     }
 
-    onApprove(arc);
+    const nowTime = new Date();
+    const todayStart = startOfDay(nowTime);
+
+    // Filter out past days so scheduling covers the ongoing week starting from today
+    const sanitizedPosts = arc.weekPosts.map((post, i) => {
+      const dayDate = dateOf(i);
+      const isPastDay = dayDate < todayStart;
+      if (isPastDay) {
+        return {
+          ...post,
+          platforms: post.platforms.map(p => ({ ...p, enabled: false })),
+        };
+      }
+      return post;
+    });
+
+    const activePosts = sanitizedPosts.filter(p => p.platforms.some(plat => plat.enabled !== false));
+    if (activePosts.length === 0) {
+      studioToast.generationFailed('No upcoming posts to schedule. All days in this selection are in the past.');
+      return;
+    }
+
+    // Verify today's post time has not passed
+    for (let i = 0; i < sanitizedPosts.length; i++) {
+      const post = sanitizedPosts[i];
+      const dayDate = dateOf(i);
+      if (isToday(dayDate)) {
+        const postTime = new Date(dayDate);
+        postTime.setHours(post.scheduledHour || 18, post.scheduledMinute || 0, 0, 0);
+        if (postTime.getTime() <= nowTime.getTime()) {
+          studioToast.generationFailed(`Today's post (${post.arcBeat}) is set for a time that has already passed. Please set a future time.`);
+          return;
+        }
+      }
+    }
+
+    onApprove({ ...arc, weekPosts: sanitizedPosts });
   };
 
   const scrollToDay = (idx: number) => {
@@ -434,6 +509,7 @@ export function ReviewScreen({
           const c = COL[i] || '#C0607A';
           const dayDate = dateOf(i);
           const isTodayPost = isToday(dayDate);
+          const isPastDay = dayDate < startOfDay(now);
 
           const activePlat =
             activePlatformByPost[i] ||
@@ -613,35 +689,49 @@ export function ReviewScreen({
               {/* Right Stub Section */}
               <div className="stub">
                 <div className="fp-fld">
-                  <span>Goes live at</span>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span>Goes live at</span>
+                    {isPastDay && (
+                      <span style={{ fontSize: 10, color: 'var(--bad)', fontWeight: 700, textTransform: 'uppercase' }}>
+                        Past date (skipped)
+                      </span>
+                    )}
+                  </div>
                   <input
                     type="time"
                     value={timeStr}
+                    disabled={isPastDay}
                     onChange={e => handleTimeChange(i, e.target.value)}
                   />
-                  <em>Picked for your audience. Nudge time:</em>
-                  <div className="fp-chs" style={{ marginTop: 4 }}>
-                    {[5, 15, 30, 60].map(mins => (
-                      <button
-                        key={mins}
-                        type="button"
-                        className="fp-ch"
-                        onClick={() => handleNudgeTime(i, mins)}
-                      >
-                        +{mins < 60 ? `${mins}m` : '1h'}
-                      </button>
-                    ))}
-                    {[-60, -5].map(mins => (
-                      <button
-                        key={mins}
-                        type="button"
-                        className="fp-ch"
-                        onClick={() => handleNudgeTime(i, mins)}
-                      >
-                        {mins === -60 ? '-1h' : '-5m'}
-                      </button>
-                    ))}
-                  </div>
+                  <em>
+                    {isPastDay
+                      ? 'This date has already passed; this post will not be scheduled.'
+                      : 'Picked for your audience. Nudge time:'}
+                  </em>
+                  {!isPastDay && (
+                    <div className="fp-chs" style={{ marginTop: 4 }}>
+                      {[5, 15, 30, 60].map(mins => (
+                        <button
+                          key={mins}
+                          type="button"
+                          className="fp-ch"
+                          onClick={() => handleNudgeTime(i, mins)}
+                        >
+                          +{mins < 60 ? `${mins}m` : '1h'}
+                        </button>
+                      ))}
+                      {[-60, -5].map(mins => (
+                        <button
+                          key={mins}
+                          type="button"
+                          className="fp-ch"
+                          onClick={() => handleNudgeTime(i, mins)}
+                        >
+                          {mins === -60 ? '-1h' : '-5m'}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Photos or Video Drag-and-Drop Dropzone */}

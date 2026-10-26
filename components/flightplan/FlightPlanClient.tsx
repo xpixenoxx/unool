@@ -83,6 +83,7 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
   const [isHoldActive, setIsHoldActive] = useState(false);
 
   const [canvasWeekOffset, setCanvasWeekOffset] = useState<number>(0);
+  const [showTourAfterSchedule, setShowTourAfterSchedule] = useState(false);
 
   const { generate: generateArc, approve: approveArc, loadCanvas, holdQueue } = useFlightPlanActions();
 
@@ -205,6 +206,7 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
         }
 
         setCanvasWeekOffset(targetOffset);
+        setShowTourAfterSchedule(true);
         setView('canvas');
         setArc(null);
         loadCanvas(targetOffset);
@@ -312,6 +314,8 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
             targetPostId={targetPostId}
             onNewArc={() => setView('story')}
             initialWeekOffset={canvasWeekOffset}
+            autoTour={showTourAfterSchedule}
+            onTourComplete={() => setShowTourAfterSchedule(false)}
           />
         )}
       </AnimatePresence>

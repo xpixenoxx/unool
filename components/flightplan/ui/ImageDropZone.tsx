@@ -12,9 +12,9 @@ interface ImageDropZoneInternalProps extends ImageDropZoneProps {
 }
 
 function renderMediaItem(url: string) {
-  const isVideo = /\.(mp4|mov|webm|ogg|m4v)(\?.*)?$/i.test(url);
-  const isPdf = /\.pdf(\?.*)?$/i.test(url);
-  const isPpt = /\.(ppt|pptx)(\?.*)?$/i.test(url);
+  const isVideo = /\.(mp4|mov|webm|ogg|m4v)(\?.*)?$/i.test(url) || url.startsWith('data:video/');
+  const isPdf = /\.pdf(\?.*)?$/i.test(url) || url.startsWith('data:application/pdf');
+  const isPpt = /\.(ppt|pptx)(\?.*)?$/i.test(url) || url.startsWith('data:application/vnd.ms-powerpoint') || url.startsWith('data:application/vnd.openxmlformats');
 
   if (isVideo) {
     return (
@@ -179,6 +179,15 @@ export const ImageDropZone = forwardRef<HTMLInputElement, ImageDropZoneInternalP
               </span>
             </div>
           )}
+
+          <input
+            ref={internalFileInputRef}
+            type="file"
+            multiple
+            accept="image/*,video/*,.pdf,.ppt,.pptx,application/pdf,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+            className="hidden"
+            onChange={handleFileChange}
+          />
         </div>
       );
     }

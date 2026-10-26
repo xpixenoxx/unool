@@ -38,27 +38,33 @@ export async function GET(request: NextRequest) {
     const canvas = await scheduleService.getWeekCanvas(workspaceId, weekStart);
 
     // Shape the response for the frontend
-    const posts = canvas.map(({ post, variants }) => ({
-      postId: post.id,
-      content: post.content,
-      status: post.status,
-      scheduledAt: post.scheduledAt?.toISOString() ?? null,
-      scheduleStrategy: post.scheduleStrategy,
-      arcId: post.arcId,
-      createdAt: post.createdAt.toISOString(),
-      platforms: variants.map(v => ({
-        variantId: v.id,
-        platform: v.platform,
-        content: v.adaptedContent,
-        status: v.status,
-        scheduledAt: v.scheduledAt?.toISOString() ?? null,
-        autoFirstComment: v.autoFirstComment,
-        firstCommentHint: v.firstCommentHint,
-        error: v.error,
-        mediaUrls: v.mediaUrls ?? [],
-        hashtags: v.hashtagStrategy ?? [],
-      })),
-    }));
+    const posts = canvas.map(({ post, variants }) => {
+      const effectiveStatus = (post.status === 'published' || variants.some(v => v.status === 'published'))
+        ? 'published'
+        : post.status;
+
+      return {
+        postId: post.id,
+        content: post.content,
+        status: effectiveStatus,
+        scheduledAt: post.scheduledAt?.toISOString() ?? null,
+        scheduleStrategy: post.scheduleStrategy,
+        arcId: post.arcId,
+        createdAt: post.createdAt.toISOString(),
+        platforms: variants.map(v => ({
+          variantId: v.id,
+          platform: v.platform,
+          content: v.adaptedContent,
+          status: v.status,
+          scheduledAt: v.scheduledAt?.toISOString() ?? null,
+          autoFirstComment: v.autoFirstComment,
+          firstCommentHint: v.firstCommentHint,
+          error: v.error,
+          mediaUrls: v.mediaUrls ?? [],
+          hashtags: v.hashtagStrategy ?? [],
+        })),
+      };
+    });
 
     return NextResponse.json({
       success: true,
