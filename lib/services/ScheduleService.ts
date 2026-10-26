@@ -293,8 +293,24 @@ export class ScheduleService {
             arcBeat: arcPost.arcBeat,
             day: arcPost.day,
           });
-          // Bump to future, staggering by day index to avoid simultaneous collisions
-          baseScheduledAt = new Date(Date.now() + (arcPost.day + 1) * 5 * 60 * 1000);
+          if (arcPost.day === 0) {
+            // Today's post whose time has passed: bump to 5 minutes from now
+            baseScheduledAt = new Date(Date.now() + 5 * 60 * 1000);
+          } else {
+            // Future day: keep on its target day relative to today
+            const futureDay = new Date();
+            futureDay.setDate(futureDay.getDate() + arcPost.day);
+            baseScheduledAt = computeScheduledAt(
+              futureDay,
+              0,
+              arcPost.scheduledHour ?? 9,
+              arcPost.scheduledMinute ?? 0,
+              input.userTimezone
+            );
+            if (baseScheduledAt.getTime() <= Date.now()) {
+              baseScheduledAt = new Date(Date.now() + (arcPost.day * 24 * 60 * 60 * 1000) + 5 * 60 * 1000);
+            }
+          }
         }
 
         return this.schedulePost({

@@ -199,6 +199,7 @@ export interface CanvasPost {
   scheduledAt: string | null;
   scheduleStrategy: string;
   arcId: string | null;
+  arcBeat?: string;
   platforms: CanvasPlatformVariant[];
 }
 

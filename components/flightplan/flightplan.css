@@ -287,8 +287,8 @@
   margin-top: 14px;
   background: radial-gradient(520px 240px at var(--mx, 80%) var(--my, 0%), color-mix(in srgb, var(--glow) 14%, transparent), transparent 65%), linear-gradient(160deg, var(--st1), var(--st2));
   color: var(--star);
-  border-radius: 22px;
-  padding: 16px 20px 14px;
+  border-radius: 20px;
+  padding: 12px 18px 10px;
   overflow: hidden;
   box-shadow: 0 20px 50px -30px #2A0B14;
   transition: filter 0.5s ease;
@@ -306,10 +306,17 @@
   align-items: center;
 }
 
+.fp-sh h2,
+.fp-stage h2 {
+  color: #FFFBF6 !important;
+  font-size: clamp(20px, 2.6vw, 26px);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
 .fp-sh p {
-  margin: 4px 0 0;
-  color: rgba(246, 233, 226, 0.75);
-  font-size: 13.5px;
+  margin: 3px 0 0;
+  color: rgba(246, 233, 226, 0.85);
+  font-size: 13px;
 }
 
 .fp-tc {
@@ -538,7 +545,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 22px;
+  padding: 7px 16px;
   background: linear-gradient(135deg, var(--c, var(--ac)) 0%, color-mix(in srgb, var(--c, var(--ac)) 75%, #18090f) 100%);
   color: #ffffff;
   border-radius: 19px 19px 0 0;
@@ -608,7 +615,7 @@
 }
 
 .fp-tkt .main {
-  padding: 22px 26px 20px;
+  padding: 14px 18px 12px;
   position: relative;
   background: var(--card);
 }
@@ -619,13 +626,13 @@
 
 .fp-tkt .stub {
   position: relative;
-  padding: 18px 20px 16px;
+  padding: 12px 14px 10px;
   border-left: 2px dashed rgba(60, 30, 35, 0.26);
   background: linear-gradient(180deg, color-mix(in srgb, var(--c, var(--ac)) 7%, #FAF7F2) 0%, #FAF7F2 100%);
   border-radius: 0 20px 20px 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .fp-tkt.has-header-band .stub {
@@ -831,18 +838,18 @@
 
 .fp-pv {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   border: 1px solid var(--bd);
-  border-radius: 14px;
-  padding: 14px;
-  margin-top: 8px;
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-top: 6px;
   background: var(--card2);
 }
 
 .fp-pv i {
   flex: none;
-  width: 36px;
-  height: 36px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--p1), var(--p3));
   display: flex;
@@ -852,11 +859,11 @@
 }
 
 .fp-pv p {
-  margin: 4px 0;
+  margin: 2px 0 4px;
   white-space: pre-wrap;
   color: var(--tx);
-  font-size: 14px;
-  line-height: 1.45;
+  font-size: 13.5px;
+  line-height: 1.4;
 }
 
 .fp-view-more-btn {
@@ -1080,18 +1087,22 @@
 .fp-cp {
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 7px 9px;
-  border-radius: 9px;
-  font: 600 12.5px "DM Sans", sans-serif;
+  gap: 5px;
+  padding: 4px 7px;
+  border-radius: 7px;
+  font: 700 11px/1.2 "DM Sans", sans-serif;
   background: var(--chipd);
   color: var(--tx);
   border: 1px dashed var(--btn);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .fp-cp i {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 2px;
   background: var(--c);
   flex: none;
@@ -1391,14 +1402,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 8px 12px;
-  border-radius: 12px;
+  gap: 10px;
+  padding: 5px 10px;
+  border-radius: 9px;
   background: var(--card);
   border: 1px solid var(--bd);
-  margin-top: 10px;
-  margin-bottom: 8px;
-  font-size: 13px;
+  margin-top: 6px;
+  margin-bottom: 6px;
+  font-size: 12px;
 }
 
 /* Sticky Approval Bar */

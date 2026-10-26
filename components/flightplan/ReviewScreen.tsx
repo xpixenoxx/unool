@@ -756,7 +756,7 @@ export function ReviewScreen({
                   </span>
                 </div>
                 <textarea
-                  rows={4}
+                  rows={3}
                   value={caption}
                   disabled={!isCurrentPlatformEnabled}
                   onChange={e => handleCaptionChange(i, activePlat, e.target.value)}
@@ -768,8 +768,8 @@ export function ReviewScreen({
                 />
 
                 {/* Hashtags Section */}
-                <div style={{ marginTop: 12 }}>
-                  <div className="fp-lb" style={{ marginTop: 0, marginBottom: 6 }}>
+                <div style={{ marginTop: 8 }}>
+                  <div className="fp-lb" style={{ marginTop: 0, marginBottom: 4 }}>
                     <span>Hashtags for {PLATFORM_CONFIG[activePlat as PlatformType]?.name || activePlat}</span>
                     <span>{(currentDraft?.hashtags || []).length} / 30 tags</span>
                   </div>
@@ -811,25 +811,22 @@ export function ReviewScreen({
                       : 'Picked for optimal engagement. Nudge time:'}
                   </em>
                   {!isPastDay && !isDeleted && (
-                    <div className="fp-chs" style={{ marginTop: 4 }}>
-                      {[5, 15, 30, 60].map(mins => (
+                    <div style={{ marginTop: 4, display: 'flex', gap: 4 }}>
+                      {[-60, -5, 15, 60].map(mins => (
                         <button
                           key={mins}
                           type="button"
                           className="fp-ch"
+                          style={{
+                            flex: 1,
+                            textAlign: 'center',
+                            justifyContent: 'center',
+                            padding: '3px 4px',
+                            fontSize: 11,
+                          }}
                           onClick={() => handleNudgeTime(i, mins)}
                         >
-                          +{mins < 60 ? `${mins}m` : '1h'}
-                        </button>
-                      ))}
-                      {[-60, -5].map(mins => (
-                        <button
-                          key={mins}
-                          type="button"
-                          className="fp-ch"
-                          onClick={() => handleNudgeTime(i, mins)}
-                        >
-                          {mins === -60 ? '-1h' : '-5m'}
+                          {mins < 0 ? (mins === -60 ? '-1h' : `${mins}m`) : (mins === 60 ? '+1h' : `+${mins}m`)}
                         </button>
                       ))}
                     </div>
@@ -867,7 +864,7 @@ export function ReviewScreen({
                     <i />
                     <span>AUTO FIRST COMMENT</span>
                   </div>
-                  <em>Dispatches CTA link 90s after takeoff (bypasses LinkedIn &amp; X link penalties).</em>
+                  <em>Dispatches CTA link 90s after takeoff (bypasses link penalties).</em>
                   {hasAutoComment && (
                     <div style={{ marginTop: 8 }}>
                       <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx2)', display: 'block', marginBottom: 4 }}>

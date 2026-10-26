@@ -411,6 +411,7 @@ RULES (critical):
 8. CRITICAL: Every post MUST generate native content for EVERY connected platform: ${activePlatforms.join(', ')}.
 9. CRITICAL: Strictly obey platform character limits during generation (Threads: max 500 chars, X: max 280 chars, Bluesky: max 300 chars, Instagram: max 2200 chars, LinkedIn: max 3000 chars). The content must NEVER exceed these character limits.
 10. CRITICAL: Do NOT schedule any post on a past day, and for today (${upcomingDays[0]?.dayLabel || 'today'}) do NOT schedule for an hour that has already passed in ${audienceTimezone} (current local time is ~${currentTzHour.toString().padStart(2, '0')}:${currentTzMinute.toString().padStart(2, '0')}). Today's posts MUST be scheduled strictly in the future.
+11. CRITICAL: You MUST generate exactly 7 posts in "weekPosts" (one for each day: day 0, day 1, day 2, day 3, day 4, day 5, day 6). Do NOT skip or omit Saturday, Sunday, Tuesday, or any day in the week.
 
 Return a JSON object matching this exact structure:
 {
@@ -445,7 +446,7 @@ Write ONLY the JSON. No markdown code blocks. No explanation.`;
 
   try {
     const safePrompt = ContentGuard.buildSafePrompt(prompt);
-    const result = await generateWithFallback(safePrompt, { maxTokens: 3500 }, WeekArcSchema);
+    const result = await generateWithFallback(safePrompt, { maxTokens: 6500 }, WeekArcSchema);
 
     if (result.ok && result.value) {
       // Check if AI refused to generate content (returned empty posts per Rule 4)
@@ -525,9 +526,27 @@ Write ONLY the JSON. No markdown code blocks. No explanation.`;
         };
       });
 
+      // Guarantee all 7 days (0..6) are covered. If AI omitted any day, backfill from deterministic synthesizer
+      const postsByDayMap = new Map(processedPosts.map(p => [p.day, p]));
+      let fallbackArc: WeekArc | null = null;
+      const fullWeekPosts: ArcPostDraft[] = upcomingDays.map((slot, i) => {
+        const existing = postsByDayMap.get(slot.day);
+        if (existing) return existing;
+        if (!fallbackArc) {
+          fallbackArc = synthesizeFactGroundedArc({
+            ...params,
+            coreStory: guard.sanitizedContent,
+          });
+        }
+        if (fallbackArc && fallbackArc.weekPosts[i]) {
+          return fallbackArc.weekPosts[i];
+        }
+        return processedPosts[i] || processedPosts[0];
+      });
+
       return {
         ...result.value,
-        weekPosts: processedPosts,
+        weekPosts: fullWeekPosts,
       };
     }
 

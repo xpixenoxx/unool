@@ -330,7 +330,7 @@ export function WeekCanvas({
 
   // Catmull points & curve (compact vertical height)
   const points = useMemo(() => {
-    return BEATS.map((_, i) => [80 + i * 140, 190 - TEN[i] * 1.3]);
+    return BEATS.map((_, i) => [80 + i * 140, 136 - TEN[i] * 0.75]);
   }, []);
 
   const splineD = useMemo(() => {
@@ -732,7 +732,9 @@ export function WeekCanvas({
                               >
                                 <span className="fp-cp s" style={{ ['--c' as any]: pColor }}>
                                   <i />
-                                  {post.scheduleStrategy || (dayPosts.length > 1 ? `${BEATS[i]} #${postIdx + 1}` : BEATS[i])}
+                                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {post.arcBeat || (dayPosts.length > 1 ? `${BEATS[i]} #${postIdx + 1}` : BEATS[i])}
+                                  </span>
                                 </span>
                                 <span className="fp-ct">
                                   {format(new Date(post.scheduledAt || dayDate), 'h:mm a')} ·{' '}
@@ -803,7 +805,7 @@ export function WeekCanvas({
 
         {/* SVG Flight Map */}
         <div className="fp-mapw">
-          <svg id="fp-map" ref={mapSvgRef} viewBox="0 0 1000 250" role="group" aria-label="Seven day flight path">
+          <svg id="fp-map" ref={mapSvgRef} viewBox="0 0 1000 180" role="group" aria-label="Seven day flight path">
             <defs>
               <linearGradient id="fp-g" x1="0" x2="1">
                 <stop offset="0" style={{ stopColor: 'var(--p1)' }} />
@@ -836,10 +838,10 @@ export function WeekCanvas({
             </text>
 
             {/* Tension Labels */}
-            <text x="10" y="42" className="fp-dy">
+            <text x="10" y="30" className="fp-dy">
               Climax
             </text>
-            <text x="10" y="215" className="fp-dy">
+            <text x="10" y="152" className="fp-dy">
               Calm
             </text>
 
@@ -867,14 +869,14 @@ export function WeekCanvas({
                 >
                   <line
                     x1={x}
-                    y1={y + 16}
+                    y1={y + 14}
                     x2={x}
-                    y2={208}
+                    y2={150}
                     stroke={c}
                     strokeOpacity={0.25}
                     strokeDasharray="3 5"
                   />
-                  <text x={x} y="226" textAnchor="middle" className="fp-dy">
+                  <text x={x} y="166" textAnchor="middle" className="fp-dy">
                     00:0{i + 1}:00
                   </text>
                   {isTodayDay && <circle className="pl" cx={x} cy={y} r={16} stroke={c} />}
@@ -897,10 +899,10 @@ export function WeekCanvas({
                   >
                     {nodeLabel}
                   </text>
-                  <text x={x} y={y - 48} textAnchor="middle" className="fp-dy">
+                  <text x={x} y={y - 36} textAnchor="middle" className="fp-dy">
                     {format(weekDays[i], 'EEE d')}
                   </text>
-                  <text x={x} y={y - 31} textAnchor="middle" className="fp-nm" fill={c}>
+                  <text x={x} y={y - 20} textAnchor="middle" className="fp-nm" fill={c}>
                     {beat}
                   </text>
                 </g>

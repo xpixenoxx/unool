@@ -161,7 +161,7 @@ export const ImageDropZone = forwardRef<HTMLInputElement, ImageDropZoneInternalP
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-              className="p-3 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-1 text-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+              className="py-1.5 px-3 rounded-lg border-2 border-dashed flex items-center justify-center gap-2 text-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
               style={{
                 backgroundColor: B.bg,
                 borderColor: isDragging ? B.accent : B.border,
@@ -170,12 +170,12 @@ export const ImageDropZone = forwardRef<HTMLInputElement, ImageDropZoneInternalP
                 focusRingOffsetColor: B.card,
               }}
             >
-              <ImagePlus className="w-5 h-5" style={{ color: B.textMuted }} />
+              <ImagePlus className="w-4 h-4" style={{ color: B.textMuted }} />
               <span className="text-xs font-medium" style={{ color: B.text }}>
                 No media attached
               </span>
               <span className="text-[10px]" style={{ color: B.textMuted }}>
-                Drop image, video, PDF or PPT (max {maxImages})
+                (Drop media)
               </span>
             </div>
           )}
