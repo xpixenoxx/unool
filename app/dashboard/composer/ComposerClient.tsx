@@ -1962,14 +1962,6 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
             <p className="text-sm sm:text-base text-[#382B1F] font-normal leading-relaxed">
               Write once. AI adapts. You review. One click publishes everywhere.
             </p>
-            <div className="mt-3.5">
-              <Link
-                href="/dashboard/schedule"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-[#FAF3E7] hover:bg-[#F3EAD9] text-[#785E3A] border border-[#E8DEC8] transition-all shadow-2xs"
-              >
-                Plan Entire Week (Flight Plan)
-              </Link>
-            </div>
           </div>
           <div className="border-b border-[#EADFC9] mt-6" />
         </div>
@@ -2104,7 +2096,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   </div>
                 </div>
                 
-                {/* Edit action & status badge */}
+                {/* Edit action */}
                 <div className="flex items-center gap-3 flex-shrink-0">
                   <Link
                     href="/dashboard/profile"
@@ -2112,9 +2104,6 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   >
                     Edit
                   </Link>
-                  <div className="px-3.5 py-1.5 rounded-full text-xs font-medium bg-[#EFE7D8] text-[#5C4533] border border-[#E2D6C2] select-none">
-                    Ready to compose
-                  </div>
                 </div>
               </div>
             </MotionBox>
@@ -2136,19 +2125,15 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   <Link href="/dashboard/profile" className="text-xs font-semibold text-[#231C16] hover:underline px-2 py-1">
                     Edit
                   </Link>
-                  <div className="px-3.5 py-1.5 rounded-full text-xs font-medium bg-[#EFE7D8] text-[#5C4533] border border-[#E2D6C2]">
-                    Ready to compose
-                  </div>
                 </div>
               </div>
             </MotionBox>
           )}
         </AnimatePresence>
 
-        {/* ── SignalDM Active Badge (Extended full-width to right end, Image 1) ── */}
+        {/* ── SignalDM Active Badge ── */}
         <div className="w-full flex items-center justify-between px-5 py-3.5 rounded-2xl bg-[#FBF9FE] border border-[#E9DEFA] flex-wrap gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
-            <Zap className="w-4 h-4 text-[#7C3AED] fill-[#7C3AED] shrink-0" />
             <span className="text-xs sm:text-sm font-bold text-[#7C3AED]">SignalDM Active</span>
             <span className="text-xs text-[#5D4734]">
               Instagram comments on this post will be auto-handled by AI
@@ -2175,10 +2160,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   : "bg-white/80 hover:bg-white border border-[#EADBBD]"
               )}
             >
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#7C3AED] to-[#9333EA] flex items-center justify-center text-white shadow-xs">
-                <PenTool className="w-5 h-5 text-white" />
-              </div>
-              <p className="text-base font-bold text-[#231C16] mt-3.5">AI Composer</p>
+              <p className="text-base font-bold text-[#231C16]">AI Composer</p>
               <p className="text-xs text-[#735A42] mt-1">
                 AI will adapt it perfectly for each platform.
               </p>
@@ -2194,10 +2176,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   : "bg-white/80 hover:bg-white border border-[#EADBBD]"
               )}
             >
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#E2A17E] to-[#CD825E] flex items-center justify-center text-white shadow-xs">
-                <Zap className="w-5 h-5 text-white fill-white" />
-              </div>
-              <p className="text-base font-bold text-[#231C16] mt-3.5">Quick Broadcast</p>
+              <p className="text-base font-bold text-[#231C16]">Quick Broadcast</p>
               <p className="text-xs text-[#735A42] mt-1">
                 Publish identical content instantly — no AI adaptation.
               </p>
