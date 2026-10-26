@@ -33,6 +33,7 @@ interface ScheduledPostModalProps {
   onClose: () => void;
   onUpdated: () => void;
   onCancelled: () => void;
+  onScheduleAnother?: (date: Date) => void;
 }
 
 const QUICK_PRESETS = [
@@ -48,6 +49,7 @@ function ScheduledPostModalContent({
   onClose,
   onUpdated,
   onCancelled,
+  onScheduleAnother,
 }: ScheduledPostModalProps & { post: CanvasPost }) {
   const [activeVariantIndex, setActiveVariantIndex] = useState(0);
   const [editedContent, setEditedContent] = useState<Record<string, string>>({});
@@ -351,25 +353,26 @@ function ScheduledPostModalContent({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-bold text-base" style={{ color: B.text }}>
-                  {isPublished ? 'Published Post' : currentScheduledAt ? 'Scheduled Post' : 'Review & Schedule Post'}
+                  {isPublished ? 'Flight Log • Touched Down' : currentScheduledAt ? 'Scheduled Post' : 'Review & Schedule Post'}
                 </h3>
                 <span
-                  className="text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider"
+                  className="text-[10px] px-2.5 py-0.5 rounded-full font-semibold uppercase tracking-wider"
                   style={{
-                    backgroundColor: isPublished ? B.successBg : post.status === 'scheduled' ? B.infoBg : B.warningBg,
-                    color: isPublished ? B.success : post.status === 'scheduled' ? B.info : B.warning,
+                    backgroundColor: isPublished ? '#E5EDE6' : post.status === 'scheduled' ? B.infoBg : B.warningBg,
+                    color: isPublished ? '#2D4C34' : post.status === 'scheduled' ? B.info : B.warning,
+                    border: isPublished ? '1px solid #CADACD' : undefined,
                   }}
                 >
-                  {isPublished ? 'published' : post.status || 'draft'}
+                  {isPublished ? 'Landed, live' : post.status === 'scheduled' ? 'Cleared for take-off' : 'Awaiting clearance'}
                 </span>
               </div>
               <p className="text-xs flex items-center gap-1.5 mt-0.5" style={{ color: B.textMuted }}>
                 <Clock className="w-3.5 h-3.5" />
                 {isPublished
-                  ? (currentScheduledAt ? `Published on ${format(new Date(currentScheduledAt), 'EEEE, MMM d, yyyy • h:mm a')}` : 'Published live on social channels')
+                  ? (currentScheduledAt ? `Touched down on ${format(new Date(currentScheduledAt), 'EEEE, MMM d, yyyy • h:mm a')}` : 'Touched down live on social channels')
                   : currentScheduledAt
-                  ? format(new Date(currentScheduledAt), 'EEEE, MMM d, yyyy • h:mm a')
-                  : 'Ready to review and schedule'}
+                  ? `Goes live on ${format(new Date(currentScheduledAt), 'EEEE, MMM d, yyyy • h:mm a')}`
+                  : 'Awaiting clearance • Ready to review and schedule'}
               </p>
             </div>
           </div>
@@ -391,13 +394,13 @@ function ScheduledPostModalContent({
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-xs font-semibold" style={{ color: B.text }}>
-                <Clock className="w-4 h-4" style={{ color: isPublished ? B.success : B.accent }} />
-                <span>{isPublished ? 'Published on:' : currentScheduledAt ? 'Scheduled Time:' : 'Choose Schedule Time:'}</span>
+                <Clock className="w-4 h-4" style={{ color: isPublished ? '#4D6B53' : B.accent }} />
+                <span>{isPublished ? 'Landed at:' : currentScheduledAt ? 'Scheduled Time:' : 'Choose Schedule Time:'}</span>
                 <span className="font-mono font-normal">
                   {currentScheduledAt
                     ? format(new Date(currentScheduledAt), 'MMM d, yyyy @ h:mm a')
                     : isPublished
-                    ? 'Published'
+                    ? 'Landed'
                     : 'Not scheduled yet'}
                 </span>
               </div>
@@ -412,10 +415,10 @@ function ScheduledPostModalContent({
               )}
               {isPublished && (
                 <span
-                  className="text-[11px] font-medium px-2 py-0.5 rounded-md"
-                  style={{ backgroundColor: B.successBg, color: B.success }}
+                  className="text-[11px] font-medium px-2.5 py-0.5 rounded-md"
+                  style={{ backgroundColor: '#E5EDE6', color: '#2D4C34', border: '1px solid #CADACD' }}
                 >
-                  Live on channels
+                  Landed, live
                 </span>
               )}
             </div>
@@ -612,16 +615,31 @@ function ScheduledPostModalContent({
           {isPublished ? (
             <>
               <div className="text-xs flex items-center gap-2" style={{ color: B.textMuted }}>
-                <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
-                <span>This post has already been published. Live posts cannot be edited or deleted.</span>
+                <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: '#4D6B53' }} />
+                <span>This post touched down on your channels. Live posts cannot be edited or deleted.</span>
               </div>
-              <button
-                onClick={onClose}
-                className="px-5 py-2 rounded-xl text-xs font-semibold text-white transition-opacity shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-                style={{ backgroundColor: B.accent, focusRingColor: B.accent, focusRingOffsetColor: B.card }}
-              >
-                Close
-              </button>
+              <div className="flex items-center gap-2">
+                {onScheduleAnother && (
+                  <button
+                    onClick={() => {
+                      const d = post.scheduledAt ? new Date(post.scheduledAt) : new Date();
+                      onClose();
+                      onScheduleAnother(d);
+                    }}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold text-white transition-opacity shadow-sm flex items-center gap-1.5 cursor-pointer"
+                    style={{ backgroundColor: B.accent }}
+                  >
+                    + Schedule another post
+                  </button>
+                )}
+                <button
+                  onClick={onClose}
+                  className="px-4 py-2 rounded-xl text-xs font-medium border transition-colors cursor-pointer"
+                  style={{ borderColor: B.border, color: B.textMuted, backgroundColor: B.card }}
+                >
+                  Close
+                </button>
+              </div>
             </>
           ) : (
             <>

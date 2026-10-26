@@ -610,10 +610,34 @@
   color: var(--ok);
 }
 
+.fp-chip.landed {
+  background: #E5EDE6;
+  color: #2D4C34;
+  border: 1px solid #CADACD;
+}
+
+.fp-chip.grounded {
+  background: var(--wabg);
+  color: #8A4A2C;
+  border: 1px solid #E5D0C0;
+}
+
+.fp-chip.diverted {
+  background: #FCEBE8;
+  color: #9E3321;
+  border: 1px solid #F5CCC5;
+}
+
+.fp-chip.awaiting {
+  background: var(--card2);
+  color: var(--tx2);
+  border: 1px solid var(--bd);
+}
+
 .fp-chip.published {
-  background: #D1FAE5;
-  color: #065F46;
-  border: 1px solid #A7F3D0;
+  background: #E5EDE6;
+  color: #2D4C34;
+  border: 1px solid #CADACD;
 }
 
 /* Ticket barcode container */
@@ -712,11 +736,34 @@
   box-shadow: 0 4px 12px rgba(63, 125, 82, 0.15);
 }
 
+/* Touched down stamp — soft sage and warm cream editorial palette */
+.fp-stamp.touched-down,
 .fp-stamp.published {
-  border-color: #059669;
-  color: #047857;
-  background: var(--card);
-  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.2);
+  border: 2.5px solid #4D6B53;
+  color: #315139;
+  background: #F4EFEB;
+  box-shadow: 0 4px 14px rgba(77, 107, 83, 0.14);
+}
+
+.fp-stamp.grounded {
+  border-color: #8A4A2C;
+  color: #8A4A2C;
+  background: #F8EFE7;
+  box-shadow: 0 4px 14px rgba(138, 74, 44, 0.12);
+}
+
+.fp-stamp.diverted {
+  border-color: #B0432E;
+  color: #963523;
+  background: #FAF0EE;
+  box-shadow: 0 4px 14px rgba(176, 67, 46, 0.12);
+}
+
+.fp-stamp.on-the-ground {
+  border-color: #7A2E40;
+  color: #5C1E2D;
+  background: #F9EFEF;
+  box-shadow: 0 4px 14px rgba(122, 46, 64, 0.12);
 }
 
 @keyframes fpStamp {
@@ -890,36 +937,134 @@
   border-color: transparent;
 }
 
-.fp-now {
-  position: absolute;
-  left: -6px;
-  right: -6px;
-  top: var(--t);
-  border-top: 2px solid var(--now);
-  z-index: 2;
-  pointer-events: none;
+.fp-ce-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 2px;
 }
 
-.fp-now:before {
-  content: "";
-  position: absolute;
-  left: -1px;
-  top: -5px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
+.fp-today-badge {
+  font: 700 9px/1.2 "DM Sans", sans-serif;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   background: var(--now);
-}
-
-.fp-now b {
-  position: absolute;
-  right: 0;
-  top: -10px;
-  background: var(--now);
-  color: #fff;
-  font: 700 10px "DM Sans", sans-serif;
+  color: #ffffff;
   border-radius: 999px;
-  padding: 1px 7px;
+  padding: 2px 7px;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.fp-post-count-badge {
+  font: 700 9px/1.2 "DM Sans", sans-serif;
+  letter-spacing: 0.04em;
+  background: rgba(42, 26, 29, 0.08);
+  color: var(--tx2);
+  border-radius: 999px;
+  padding: 2px 6px;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.fp-day-posts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.fp-day-post-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 4px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.015);
+  border: 1px solid rgba(42, 26, 29, 0.04);
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.fp-day-post-item:hover {
+  background: rgba(107, 31, 51, 0.04);
+  border-color: rgba(107, 31, 51, 0.2);
+}
+
+.fp-add-post-btn {
+  margin-top: auto;
+  font: 600 11px/1 "DM Sans", sans-serif;
+  color: var(--tx2);
+  background: rgba(107, 31, 51, 0.04);
+  border: 1px dashed var(--btn);
+  border-radius: 8px;
+  padding: 5px 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.fp-add-post-btn:hover {
+  background: var(--btn);
+  color: #fff;
+  border-style: solid;
+}
+
+.fp-empty-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 1;
+  padding: 12px 0;
+}
+
+.fp-dispatches-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: rgba(42, 26, 29, 0.04);
+}
+
+.fp-dispatches-title {
+  font: 700 10.5px/1 "DM Sans", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--mu);
+}
+
+.fp-dispatch-tab {
+  font: 600 11.5px/1.2 "DM Sans", sans-serif;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--bd);
+  background: var(--card);
+  color: var(--tx);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.fp-dispatch-tab.active {
+  background: var(--btn);
+  color: #fff;
+  border-color: var(--btn);
+  box-shadow: 0 2px 8px rgba(107, 31, 51, 0.15);
+}
+
+.fp-dispatch-tab:hover:not(.active) {
+  border-color: var(--btn);
+  color: var(--tx);
 }
 
 /* ─── Review Screen Bar & Day Cards ────────────────────────── */

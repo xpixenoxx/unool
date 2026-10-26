@@ -1212,8 +1212,33 @@ function PostCard({
       setConfirmDelete(false);
     }
   };
-
-
+  const cachePostForEdit = () => {
+    try {
+      const anyPost = post as any;
+      sessionStorage.setItem(
+        `unool_edit_post_${post.id}`,
+        JSON.stringify({
+          postId: post.id,
+          content: post.content,
+          status: post.status,
+          scheduledAt: anyPost.scheduledAt || post.publishedAt || null,
+          arcId: post.arcId || null,
+          createdAt: post.createdAt,
+          platforms: post.variants.map((v: any) => ({
+            variantId: v.id,
+            platform: v.platform,
+            content: v.adaptedContent || post.content,
+            status: v.status,
+            scheduledAt: v.scheduledAt || anyPost.scheduledAt || post.publishedAt || null,
+            mediaUrls: v.mediaUrls || [],
+            hashtags: [],
+          })),
+        })
+      );
+    } catch {
+      // ignore
+    }
+  };
 
   return (
     <motion.div
@@ -1496,6 +1521,8 @@ function PostCard({
             <div className="flex items-center gap-2">
               <Link
                 href={getDraftRedirect(post).href}
+                prefetch={true}
+                onClick={cachePostForEdit}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-rose-900 text-white hover:bg-rose-950 transition-colors shadow-xs cursor-pointer"
                 title="Review and fix failed post"
               >
@@ -1569,6 +1596,8 @@ function PostCard({
             )}
             <Link
               href={getDraftRedirect(post).href}
+              prefetch={true}
+              onClick={cachePostForEdit}
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-gray-900 text-white hover:bg-black transition-colors shadow-xs cursor-pointer"
               title="Review context, edit, or publish this draft"
             >

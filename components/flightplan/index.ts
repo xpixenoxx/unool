@@ -3,6 +3,7 @@ export { StoryIntake } from './StoryIntake';
 export { ReviewScreen } from './ReviewScreen';
 export { WeekCanvas } from './WeekCanvas';
 export { ScheduledPostModal } from './ScheduledPostModal';
+export { ScheduleNewPostModal } from './ScheduleNewPostModal';
 export { InstagramStoryBar } from './InstagramStoryBar';
 export { StepDots } from './StepDots';
 

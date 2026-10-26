@@ -545,8 +545,9 @@ export class ScheduleService {
     post: Post;
     variants: PostVariant[];
   }[]> {
-    // Self-heal: process any scheduled posts that have become due
-    await this.processDueScheduledPosts(workspaceId).catch(err => {
+    // Self-heal: process any scheduled posts that have become due in background
+    // (non-blocking so week canvas load returns immediately without waiting for external social dispatches)
+    void this.processDueScheduledPosts(workspaceId).catch(err => {
       logger.warn('Non-fatal error self-healing due posts in getWeekCanvas', { error: String(err) });
     });
 

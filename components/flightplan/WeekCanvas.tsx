@@ -3,10 +3,11 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { format, addDays, startOfWeek, isToday } from 'date-fns';
 import { ScheduledPostModal } from './ScheduledPostModal';
+import { ScheduleNewPostModal } from './ScheduleNewPostModal';
 import { BarcodeTicket } from './ui/BarcodeTicket';
 import { useFlightPlanActions } from '@/hooks/flightplan';
 import { studioToast } from '@/components/dashboard/StudioToast';
-import type { CanvasPost } from '@/types/flightplan';
+import type { CanvasPost, PlatformType } from '@/types/flightplan';
 import { B, COL, BEAT_COLORS, PLATFORM_META } from './design-tokens';
 
 interface WeekCanvasProps {
@@ -17,6 +18,8 @@ interface WeekCanvasProps {
   initialWeekOffset?: number;
   autoTour?: boolean;
   onTourComplete?: () => void;
+  isHoldActive?: boolean;
+  connectedPlatforms?: PlatformType[];
 }
 
 const BEATS = ['Hook', 'Context', 'Challenge', 'Proof', 'CTA', 'Community', 'Horizon'];
@@ -65,6 +68,8 @@ export function WeekCanvas({
   initialWeekOffset = 0,
   autoTour = false,
   onTourComplete,
+  isHoldActive = false,
+  connectedPlatforms,
 }: WeekCanvasProps) {
   const [posts, setPosts] = useState<CanvasPost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -80,8 +85,12 @@ export function WeekCanvas({
     return day;
   });
   const [selectedPost, setSelectedPost] = useState<CanvasPost | null>(null);
+  const [selectedPostIndexByDay, setSelectedPostIndexByDay] = useState<Record<number, number>>({});
+  const [isNewPostModalOpen, setIsNewPostModalOpen] = useState(false);
+  const [newPostModalDate, setNewPostModalDate] = useState<Date>(() => new Date());
   const [isPlaying, setIsPlaying] = useState(false);
   const openedTargetPostIdRef = useRef<string | null>(null);
+  const isFetchingTargetRef = useRef<string | null>(null);
 
   const { loadCanvas, holdQueue, cancelPost } = useFlightPlanActions();
 
@@ -136,54 +145,90 @@ export function WeekCanvas({
       return;
     }
 
-    // 2. If not found in current posts and initial load completed, fetch directly from API
-    if (!isLoading) {
-      let cancelled = false;
-      const fetchTargetPost = async () => {
-        try {
-          const res = await fetch(`/api/composer/schedule/${targetPostId}`);
-          if (res.ok) {
-            const data = await res.json();
-            if (data.post && !cancelled) {
-              const p: CanvasPost = data.post;
-              openedTargetPostIdRef.current = targetPostId;
-
-              // If post has a scheduledAt date, align weekOffset and day
-              if (p.scheduledAt) {
-                const postDate = new Date(p.scheduledAt);
-                const now = new Date();
-                const mondayThisWeek = startOfWeek(now, { weekStartsOn: 1 });
-                const mondayPostWeek = startOfWeek(postDate, { weekStartsOn: 1 });
-                const diffWeeks = Math.round(
-                  (mondayPostWeek.getTime() - mondayThisWeek.getTime()) / (7 * 24 * 60 * 60 * 1000)
-                );
-                if (diffWeeks >= 0 && diffWeeks <= 1) {
-                  setWeekOffset(diffWeeks);
-                }
-                const dayIndex = (postDate.getDay() + 6) % 7;
-                setSel(dayIndex);
+    // 2. Check sessionStorage for instant pre-cached post (0ms modal open)
+    try {
+      if (typeof window !== 'undefined') {
+        const cachedRaw = sessionStorage.getItem(`unool_edit_post_${targetPostId}`);
+        if (cachedRaw) {
+          const cachedPost = JSON.parse(cachedRaw) as CanvasPost;
+          if (cachedPost && cachedPost.postId === targetPostId) {
+            openedTargetPostIdRef.current = targetPostId;
+            setSelectedPost(cachedPost);
+            if (cachedPost.scheduledAt) {
+              const postDate = new Date(cachedPost.scheduledAt);
+              const now = new Date();
+              const mondayThisWeek = startOfWeek(now, { weekStartsOn: 1 });
+              const mondayPostWeek = startOfWeek(postDate, { weekStartsOn: 1 });
+              const diffWeeks = Math.round(
+                (mondayPostWeek.getTime() - mondayThisWeek.getTime()) / (7 * 24 * 60 * 60 * 1000)
+              );
+              if (diffWeeks >= 0 && diffWeeks <= 1) {
+                setWeekOffset(diffWeeks);
               }
-
-              // Merge into local posts state
-              setPosts(prev => {
-                if (prev.some(item => item.postId === p.postId)) return prev;
-                return [...prev, p];
-              });
-
-              // Open the review & edit modal
-              setSelectedPost(p);
+              const dayIndex = (postDate.getDay() + 6) % 7;
+              setSel(dayIndex);
             }
           }
-        } catch (err) {
-          console.error('Failed to load target post for Flight Plan:', err);
         }
-      };
-      fetchTargetPost();
-      return () => {
-        cancelled = true;
-      };
+      }
+    } catch {
+      // ignore
     }
-  }, [targetPostId, posts, isLoading]);
+
+    // 3. Immediately fetch directly from API in parallel (do NOT wait for loadWeekCanvas or isLoading)
+    if (isFetchingTargetRef.current === targetPostId) return;
+    isFetchingTargetRef.current = targetPostId;
+
+    let cancelled = false;
+    const fetchTargetPost = async () => {
+      try {
+        const res = await fetch(`/api/composer/schedule/${targetPostId}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.post && !cancelled) {
+            const p: CanvasPost = data.post;
+            openedTargetPostIdRef.current = targetPostId;
+
+            // If post has a scheduledAt date, align weekOffset and day
+            if (p.scheduledAt) {
+              const postDate = new Date(p.scheduledAt);
+              const now = new Date();
+              const mondayThisWeek = startOfWeek(now, { weekStartsOn: 1 });
+              const mondayPostWeek = startOfWeek(postDate, { weekStartsOn: 1 });
+              const diffWeeks = Math.round(
+                (mondayPostWeek.getTime() - mondayThisWeek.getTime()) / (7 * 24 * 60 * 60 * 1000)
+              );
+              if (diffWeeks >= 0 && diffWeeks <= 1) {
+                setWeekOffset(diffWeeks);
+              }
+              const dayIndex = (postDate.getDay() + 6) % 7;
+              setSel(dayIndex);
+            }
+
+            // Merge into local posts state
+            setPosts(prev => {
+              if (prev.some(item => item.postId === p.postId)) return prev;
+              return [...prev, p];
+            });
+
+            // Open the review & edit modal
+            setSelectedPost(p);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load target post for Flight Plan:', err);
+      } finally {
+        if (!cancelled) {
+          isFetchingTargetRef.current = null;
+        }
+      }
+    };
+    fetchTargetPost();
+    return () => {
+      cancelled = true;
+      isFetchingTargetRef.current = null;
+    };
+  }, [targetPostId, posts]);
 
   const postsByDay = useMemo(() => {
     const map = new Map<string, CanvasPost[]>();
@@ -192,6 +237,14 @@ export function WeekCanvas({
       const day = format(new Date(post.scheduledAt), 'yyyy-MM-dd');
       if (!map.has(day)) map.set(day, []);
       map.get(day)!.push(post);
+    }
+    // Sort posts chronologically within each day
+    for (const [, dayPosts] of map.entries()) {
+      dayPosts.sort((a, b) => {
+        const timeA = a.scheduledAt ? new Date(a.scheduledAt).getTime() : 0;
+        const timeB = b.scheduledAt ? new Date(b.scheduledAt).getTime() : 0;
+        return timeA - timeB;
+      });
     }
     return map;
   }, [posts]);
@@ -398,12 +451,25 @@ export function WeekCanvas({
   // Selected day data
   const selDate = weekDays[sel] || new Date();
   const selDateKey = format(selDate, 'yyyy-MM-dd');
-  const selPost = postsByDay.get(selDateKey)?.[0] || null;
+  const selDayPosts = useMemo(() => postsByDay.get(selDateKey) || [], [postsByDay, selDateKey]);
+  const activePostIndex = selectedPostIndexByDay[sel] ?? 0;
+  const selPost = selDayPosts[activePostIndex] || selDayPosts[0] || null;
   const isSelScheduled = !!selPost;
   const isSelPublished = !!selPost && (selPost.status === 'published' || selPost.platforms?.some(p => p.status === 'published'));
+  const isSelFailed = !!selPost && (selPost.status === 'failed' || selPost.platforms?.some(p => p.status === 'failed' || !!p.error));
+  const isSelGrounded = !isSelPublished && !isSelFailed && isHoldActive;
+  const isSelDraft = !!selPost && (selPost.status === 'draft' || (!selPost.scheduledAt && !isSelPublished));
   const selColor = COL[sel] || '#C0607A';
   const selBeat = BEATS[sel] || 'Hook';
   const selSub = SUBS[sel] || 'The disruption';
+
+  const formattedPlatforms = useMemo(() => {
+    if (!selPost?.platforms?.length) return 'your channels';
+    const names = selPost.platforms.map(p => PLATFORM_META[p.platform]?.name || p.platform);
+    if (names.length === 1) return names[0];
+    if (names.length === 2) return `${names[0]} and ${names[1]}`;
+    return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`;
+  }, [selPost]);
 
   const scheduledTimeFormatted = useMemo(() => {
     if (!selPost?.scheduledAt) return '18:00';
@@ -427,11 +493,6 @@ export function WeekCanvas({
       : 'FP-OPEN-SKY';
   }, [selDate, sel, selPost, isSelScheduled]);
 
-  // Current real-time line position percentage (0–100%)
-  const nowPercent = useMemo(() => {
-    const n = new Date();
-    return (((n.getHours() * 60 + n.getMinutes()) / 1440) * 100).toFixed(1);
-  }, []);
 
   const handleUnschedulePost = async () => {
     if (!selPost) return;
@@ -487,7 +548,7 @@ export function WeekCanvas({
         </button>
         <span className="sp" />
         <span className="fp-stat">
-          <b>{scheduledCount}</b> scheduled, <b>{publishedCount}</b> published, <b>{uniquePlatformsCount}</b> platform
+          <b>{scheduledCount}</b> scheduled, <b>{publishedCount}</b> landed, <b>{uniquePlatformsCount}</b> platform
           {uniquePlatformsCount === 1 ? '' : 's'}
         </span>
       </div>
@@ -517,7 +578,7 @@ export function WeekCanvas({
               {DN.map((name, i) => {
                 const dayDate = weekDays[i];
                 const dayKey = format(dayDate, 'yyyy-MM-dd');
-                const dayPost = postsByDay.get(dayKey)?.[0];
+                const dayPosts = postsByDay.get(dayKey) || [];
                 const isDayToday = isToday(dayDate);
                 const isDaySel = i === sel;
                 const pColor = COL[i] || '#C0607A';
@@ -526,41 +587,107 @@ export function WeekCanvas({
                   <div
                     key={name}
                     className={`fp-ce ${isDaySel ? 'sel' : ''}`}
-                    onClick={() => handleDaySelect(i)}
+                    onClick={() => {
+                      handleDaySelect(i);
+                      if (dayPosts[0]) {
+                        setSelectedPost(dayPosts[0]);
+                      }
+                    }}
                     role="button"
                     tabIndex={0}
                     aria-label={`${name} ${dayDate.getDate()}`}
                   >
-                    <span className="fp-dn">
-                      {dayDate.getDate()} {MN[dayDate.getMonth()]}
-                    </span>
-
-                    {dayPost && (() => {
-                      const isDayPublished = dayPost.status === 'published' || dayPost.platforms.some(p => p.status === 'published');
-                      return (
-                        <>
-                          <span className="fp-cp s" style={{ ['--c' as any]: pColor }}>
-                            <i />
-                            {dayPost.scheduleStrategy || BEATS[i]}
+                    <div className="fp-ce-top">
+                      <span className="fp-dn">
+                        {dayDate.getDate()} {MN[dayDate.getMonth()]}
+                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        {dayPosts.length > 1 && (
+                          <span className="fp-post-count-badge">
+                            {dayPosts.length} posts
                           </span>
-                          <span className="fp-ct">
-                            {format(new Date(dayPost.scheduledAt || dayDate), 'h:mm a')} ·{' '}
-                            {PLATFORM_META[dayPost.platforms[0]?.platform]?.name || 'Social'}
-                          </span>
-                          <span className="fp-ct">
-                            {isDayPublished ? 'Published' : dayPost.status === 'scheduled' ? 'Scheduled' : 'Draft'}
-                            {dayPost.platforms[0]?.mediaUrls?.length
-                              ? ` · ${dayPost.platforms[0].mediaUrls.length} media`
-                              : ' · text only'}
-                          </span>
-                        </>
-                      );
-                    })()}
-
-                    {isDayToday && (
-                      <div className="fp-now" style={{ ['--t' as any]: `${nowPercent}%` }}>
-                        <b>now</b>
+                        )}
+                        {isDayToday && <span className="fp-today-badge">Today</span>}
                       </div>
+                    </div>
+
+                    {dayPosts.length === 0 ? (
+                      <div className="fp-empty-day">
+                        <span style={{ fontSize: 11, color: 'var(--mu)' }}>Open sky</span>
+                        <button
+                          type="button"
+                          className="fp-add-post-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDaySelect(i);
+                            setNewPostModalDate(dayDate);
+                            setIsNewPostModalOpen(true);
+                          }}
+                        >
+                          + Schedule
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="fp-day-posts-list">
+                          {dayPosts.map((post, postIdx) => {
+                            const isPostPublished = post.status === 'published' || post.platforms.some(p => p.status === 'published');
+                            const isPostFailed = post.status === 'failed' || post.platforms.some(p => p.status === 'failed' || !!p.error);
+                            const isPostGrounded = !isPostPublished && !isPostFailed && isHoldActive;
+                            const statusLabel = isPostPublished
+                              ? 'Landed'
+                              : isPostFailed
+                              ? 'Diverted'
+                              : isPostGrounded
+                              ? 'Grounded'
+                              : post.status === 'scheduled'
+                              ? 'Scheduled'
+                              : 'Draft';
+
+                            return (
+                              <div
+                                key={post.postId || postIdx}
+                                className="fp-day-post-item"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDaySelect(i);
+                                  setSelectedPostIndexByDay(prev => ({ ...prev, [i]: postIdx }));
+                                  setSelectedPost(post);
+                                }}
+                                title="Click to view & edit post"
+                              >
+                                <span className="fp-cp s" style={{ ['--c' as any]: pColor }}>
+                                  <i />
+                                  {post.scheduleStrategy || (dayPosts.length > 1 ? `${BEATS[i]} #${postIdx + 1}` : BEATS[i])}
+                                </span>
+                                <span className="fp-ct">
+                                  {format(new Date(post.scheduledAt || dayDate), 'h:mm a')} ·{' '}
+                                  {PLATFORM_META[post.platforms[0]?.platform]?.name || 'Social'}
+                                </span>
+                                <span className="fp-ct">
+                                  {statusLabel}
+                                  {post.platforms[0]?.mediaUrls?.length
+                                    ? ` · ${post.platforms[0].mediaUrls.length} media`
+                                    : ' · text only'}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <button
+                          type="button"
+                          className="fp-add-post-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDaySelect(i);
+                            setNewPostModalDate(dayDate);
+                            setIsNewPostModalOpen(true);
+                          }}
+                          title="Schedule another post for this day"
+                        >
+                          + Add post
+                        </button>
+                      </>
                     )}
                   </div>
                 );
@@ -734,7 +861,7 @@ export function WeekCanvas({
         {/* Sub-beat Reel */}
         <div className="fp-reel">
           {BEATS.map((beat, i) => {
-            const hasPost = !!postsByDay.get(format(weekDays[i], 'yyyy-MM-dd'))?.[0];
+            const hasPost = (postsByDay.get(format(weekDays[i], 'yyyy-MM-dd'))?.length ?? 0) > 0;
             const isSelected = i === sel;
             return (
               <button
@@ -774,24 +901,67 @@ export function WeekCanvas({
             <div className="stub">
               <div className="fp-fld">
                 <span>Next step</span>
-                <b>Plan your week</b>
-                <em>It takes about a minute.</em>
+                <b>Schedule or plan</b>
+                <em>Plan a new week or schedule a single dispatch.</em>
               </div>
-              <button className="fp-btn gold" onClick={onNewArc}>
-                + Plan new week
-              </button>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button
+                  className="fp-btn gold"
+                  onClick={() => {
+                    setNewPostModalDate(selDate);
+                    setIsNewPostModalOpen(true);
+                  }}
+                >
+                  + Schedule post for this day
+                </button>
+                <button className="fp-btn" onClick={onNewArc}>
+                  + Plan new week
+                </button>
+              </div>
               <BarcodeTicket code="FP-OPEN-SKY" note="No post yet" />
             </div>
           </div>
         ) : (
           <div className="fp-tkt" style={{ ['--c' as any]: selColor }}>
-            <div className={`fp-stamp ${isSelPublished ? 'published' : ''}`}>
-              {isSelPublished ? 'Published' : 'Cleared for take-off'}
-            </div>
+            {/* Multiple Dispatches Switcher for this Day */}
+            {selDayPosts.length > 1 && (
+              <div className="fp-dispatches-bar">
+                <span className="fp-dispatches-title">Dispatches ({selDayPosts.length}):</span>
+                {selDayPosts.map((p, idx) => {
+                  const isPActive = (selPost?.postId === p.postId);
+                  const pTime = p.scheduledAt ? format(new Date(p.scheduledAt), 'h:mm a') : '';
+                  const isPPublished = p.status === 'published' || p.platforms?.some(v => v.status === 'published');
+                  return (
+                    <button
+                      key={p.postId || idx}
+                      type="button"
+                      className={`fp-dispatch-tab ${isPActive ? 'active' : ''}`}
+                      onClick={() => setSelectedPostIndexByDay(prev => ({ ...prev, [sel]: idx }))}
+                    >
+                      Flight {idx + 1}: {pTime} ({isPPublished ? 'Landed' : 'Scheduled'})
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Stamp: Touched down / Diverted / Grounded / Awaiting clearance / Cleared for take-off */}
+            {isSelPublished ? (
+              <div className="fp-stamp touched-down">✓ Touched down</div>
+            ) : isSelFailed ? (
+              <div className="fp-stamp diverted">Diverted</div>
+            ) : isSelGrounded ? (
+              <div className="fp-stamp grounded">Grounded</div>
+            ) : isSelDraft ? (
+              <div className="fp-stamp on-the-ground">Awaiting clearance</div>
+            ) : (
+              <div className="fp-stamp">Cleared for take-off</div>
+            )}
+
             <div className="main">
               <div className="fp-air">
                 <span>
-                  <i>✈</i> Boarding pass, day {sel + 1} of 7
+                  <i>✈</i> {isSelPublished ? `Flight log, day ${sel + 1} of 7` : `Boarding pass, day ${sel + 1} of 7`}
                 </span>
                 <span>{format(selDate, 'EEEE d MMMM')}</span>
               </div>
@@ -803,11 +973,25 @@ export function WeekCanvas({
               </p>
               <p className="fp-line">
                 {isSelPublished ? (
-                  <>This post was published on <b>{format(selDate, 'EEEE d MMMM')} at {scheduledTimeFormatted}</b> on{' '}</>
+                  <>
+                    This post touched down on <b>{format(selDate, 'EEEE d MMMM')} at {scheduledTimeFormatted}</b> on{' '}
+                    {formattedPlatforms}.
+                  </>
+                ) : isSelGrounded ? (
+                  <>
+                    This post is grounded on <b>{format(selDate, 'EEEE d MMMM')} at {scheduledTimeFormatted}</b> while queue hold is on.
+                  </>
+                ) : isSelFailed ? (
+                  <>
+                    This post was diverted on <b>{format(selDate, 'EEEE d MMMM')} at {scheduledTimeFormatted}</b> on{' '}
+                    {formattedPlatforms}.
+                  </>
                 ) : (
-                  <>This post goes live on <b>{format(selDate, 'EEEE d MMMM')} at {scheduledTimeFormatted}</b> on{' '}</>
+                  <>
+                    This post goes live on <b>{format(selDate, 'EEEE d MMMM')} at {scheduledTimeFormatted}</b> on{' '}
+                    {formattedPlatforms}.
+                  </>
                 )}
-                {selPost.platforms.map(p => PLATFORM_META[p.platform]?.name || p.platform).join(', ')}.
               </p>
 
               <div className="fp-lb" style={{ marginTop: 14 }}>
@@ -829,17 +1013,40 @@ export function WeekCanvas({
 
             <div className="stub">
               <div className="fp-fld">
-                <span>{isSelPublished ? 'Published at' : 'Goes live'}</span>
+                <span>
+                  {isSelPublished
+                    ? 'Landed at'
+                    : isSelGrounded
+                    ? 'Scheduled for'
+                    : isSelFailed
+                    ? 'Attempted at'
+                    : 'Goes live'}
+                </span>
                 <b>{scheduledTimeFormatted}</b>
                 <em>
-                  {format(selDate, 'EEE d MMM')}. {isSelPublished ? 'Live on your channels.' : 'Time picked for your audience.'}
+                  {format(selDate, 'EEE d MMM')}.{' '}
+                  {isSelPublished
+                    ? 'Live on your channels.'
+                    : isSelGrounded
+                    ? 'Grounded, queue on hold.'
+                    : isSelFailed
+                    ? 'Publishing diverted. Needs attention.'
+                    : 'Time picked for your audience.'}
                 </em>
               </div>
               <div className="fp-fld">
                 <span>Status</span>
-                <span className={`fp-chip ${isSelPublished ? 'published' : 'ok'}`}>
-                  {isSelPublished ? 'Published' : 'Scheduled'}
-                </span>
+                {isSelPublished ? (
+                  <span className="fp-chip landed">Landed, live</span>
+                ) : isSelGrounded ? (
+                  <span className="fp-chip grounded">Grounded, queue on hold</span>
+                ) : isSelFailed ? (
+                  <span className="fp-chip diverted">Diverted, needs attention</span>
+                ) : isSelDraft ? (
+                  <span className="fp-chip awaiting">Awaiting clearance</span>
+                ) : (
+                  <span className="fp-chip ok">Scheduled</span>
+                )}
               </div>
               <div className="fp-fld">
                 <span>Photos or video</span>
@@ -864,13 +1071,13 @@ export function WeekCanvas({
                 </em>
               </div>
 
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                 {isSelPublished ? (
                   <button
                     className="fp-btn"
                     onClick={() => setSelectedPost(selPost)}
                   >
-                    View post
+                    See it live
                   </button>
                 ) : (
                   <>
@@ -878,7 +1085,7 @@ export function WeekCanvas({
                       className="fp-btn"
                       onClick={() => setSelectedPost(selPost)}
                     >
-                      Edit this day
+                      Edit this dispatch
                     </button>
                     <button
                       className="fp-btn"
@@ -888,9 +1095,23 @@ export function WeekCanvas({
                     </button>
                   </>
                 )}
+                <button
+                  type="button"
+                  className="fp-btn gold"
+                  onClick={() => {
+                    setNewPostModalDate(selDate);
+                    setIsNewPostModalOpen(true);
+                  }}
+                  title={isToday(selDate) ? 'Schedule another dispatch for today' : 'Schedule another dispatch for this day'}
+                >
+                  + Schedule another post
+                </button>
               </div>
 
-              <BarcodeTicket code={ticketId} note={isSelPublished ? 'Published ticket' : 'Scheduled ticket'} />
+              <BarcodeTicket
+                code={ticketId}
+                note={isSelPublished ? 'Landed ticket' : isSelGrounded ? 'Grounded ticket' : 'Scheduled ticket'}
+              />
             </div>
           </div>
         )}
@@ -920,6 +1141,24 @@ export function WeekCanvas({
             if (typeof window !== 'undefined' && window.location.search.includes('postId=')) {
               window.history.replaceState({}, '', window.location.pathname);
             }
+          }}
+          onScheduleAnother={(d) => {
+            setNewPostModalDate(d);
+            setIsNewPostModalOpen(true);
+          }}
+        />
+      )}
+
+      {/* Schedule New Post Modal for Day/Week */}
+      {isNewPostModalOpen && (
+        <ScheduleNewPostModal
+          isOpen={isNewPostModalOpen}
+          targetDate={newPostModalDate}
+          connectedPlatforms={connectedPlatforms}
+          onClose={() => setIsNewPostModalOpen(false)}
+          onScheduled={() => {
+            loadWeekCanvas();
+            setIsNewPostModalOpen(false);
           }}
         />
       )}

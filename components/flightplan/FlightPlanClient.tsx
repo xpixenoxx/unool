@@ -277,7 +277,7 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
           onClick={handleToggleHold}
         >
           <i />
-          <span>{isHoldActive ? 'Queue held' : 'Hold my queue'}</span>
+          <span>{isHoldActive ? 'Grounded – queue on hold' : 'Hold my queue'}</span>
         </div>
       </div>
 
@@ -316,6 +316,8 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
             initialWeekOffset={canvasWeekOffset}
             autoTour={showTourAfterSchedule}
             onTourComplete={() => setShowTourAfterSchedule(false)}
+            isHoldActive={isHoldActive}
+            connectedPlatforms={connectedPlatforms}
           />
         )}
       </AnimatePresence>
