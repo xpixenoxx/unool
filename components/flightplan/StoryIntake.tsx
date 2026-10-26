@@ -185,11 +185,18 @@ export function StoryIntake({
     <div className="fp-tkt" style={{ ['--c' as any]: 'var(--ac)', ['--sw' as any]: '340px' }}>
       {/* ─── Left Main Ticket Section ─── */}
       <div className="main">
+        <div className="fp-boarding-meta">
+          <span>AIRLINE: UNOOL AIRWAYS</span>
+          <span>ORIGIN: CREATOR CORE</span>
+          <span>DESTINATION: 7-DAY NARRATIVE ARC</span>
+          <span>STATUS: PRE-FLIGHT BRIEFING</span>
+        </div>
+
         <div className="fp-air">
           <span>
-            <i>✈</i> Boarding pass, new flight plan
+            <i>✈</i> FLIGHT DISPATCH MANIFEST // PRE-FLIGHT BRIEFING
           </span>
-          <span>Step 1 of 3: your story</span>
+          <span>PHASE 01 // MISSION DOSSIER</span>
         </div>
 
         <h2 className="fp-big" style={{ marginTop: 12 }}>
@@ -202,7 +209,7 @@ export function StoryIntake({
 
         {/* Core Story Field */}
         <div className="fp-lb">
-          <span>Your story, in a sentence or two</span>
+          <span>PRIMARY FLIGHT VECTOR // NARRATIVE CORE</span>
           <span>
             {story.length > 0 ? (
               <span className={story.length >= 80 && story.length <= 600 ? 'fp-ok' : ''}>
@@ -238,7 +245,7 @@ export function StoryIntake({
 
         {/* 3 Detail inputs */}
         <div className="fp-lb" style={{ marginTop: 18 }}>
-          <span>Three optional details make the posts sharper</span>
+          <span>FLIGHT TELEMETRY // CONTEXT, FRICTION &amp; METRICS</span>
         </div>
 
         <div className="fp-g3">
@@ -274,14 +281,19 @@ export function StoryIntake({
 
       {/* ─── Right Ticket Stub Section ─── */}
       <div className="stub">
+        <div className="fp-stub-header">
+          <span>BOARDING PASS</span>
+          <span>FLIGHT FP-ORIGIN</span>
+        </div>
+
         <div className="fp-fld">
-          <span>Route</span>
+          <span>FLIGHT TRAJECTORY</span>
           <b>Your story ✈ 7 posts</b>
           <em>One post for each day of the week.</em>
         </div>
 
         <div className="fp-fld">
-          <span>Week starts on</span>
+          <span>DEPARTURE DATE</span>
           <input
             type="date"
             value={startDate}
@@ -303,7 +315,7 @@ export function StoryIntake({
         </div>
 
         <div className="fp-fld">
-          <span>Audience timezone</span>
+          <span>TARGET CHRONO-ZONE</span>
           <select value={timezone} onChange={e => setTimezone(e.target.value)}>
             {TIMEZONES.map(tz => (
               <option key={tz} value={tz}>
@@ -317,7 +329,7 @@ export function StoryIntake({
         {/* Channels & Connected Platforms Selector */}
         <div className="fp-fld">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span>Posting to</span>
+            <span>DISPATCH PLATFORMS</span>
             {connectedPlatforms.length > 0 && (
               <button
                 type="button"

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useRef } from 'react';
+import { format, startOfWeek, addDays } from 'date-fns';
 import { studioToast } from '@/components/dashboard/StudioToast';
 import type {
   StoryIntakeData,
@@ -115,8 +116,9 @@ export function useFlightPlanActions(): UseFlightPlanActionsResult {
         userTimezone: tz,
         scheduleMode: 'arc',
         posts: activePosts.map(p => {
-          // Each post must independently maintain its own discrete media assets without cross-post deduplication or reference sharing
-          const allImages = [...(p.imageUrls || (p.imageUrl ? [p.imageUrl] : []))];
+          // Each post independently maintains its own discrete media assets without cross-post deduplication or reference sharing
+          const rawImages = [...(p.imageUrls || (p.imageUrl ? [p.imageUrl] : []))];
+          const allImages = Array.from(new Set(rawImages.filter(Boolean)));
           const mediaObjects = allImages.map(u => ({
             url: u,
             type: (/\.(mp4|mov|webm)$/i.test(u) ? 'video' : /\.(pdf|ppt|pptx)$/i.test(u) ? 'document' : 'image') as 'video' | 'document' | 'image',
@@ -126,7 +128,7 @@ export function useFlightPlanActions(): UseFlightPlanActionsResult {
             day: p.day,
             scheduledHour: p.scheduledHour,
             scheduledMinute: p.scheduledMinute,
-            strategy: 'cascading',
+            strategy: 'simultaneous',
             arcBeat: p.arcBeat,
             imageUrl: allImages[0] || null,
             imageUrls: [...allImages],
@@ -171,13 +173,12 @@ export function useFlightPlanActions(): UseFlightPlanActionsResult {
 
   const loadCanvas = useCallback(async (weekOffset: number): Promise<CanvasPost[]> => {
     try {
-      const weekStart = new Date();
-      const monday = new Date(weekStart);
-      monday.setDate(monday.getDate() - monday.getDay() + (monday.getDay() === 0 ? -6 : 1)); // Monday
-      monday.setDate(monday.getDate() + weekOffset * 7);
-      monday.setHours(0, 0, 0, 0); // Start of day so morning posts are not dropped
+      const now = new Date();
+      const monday = startOfWeek(now, { weekStartsOn: 1 });
+      const targetMonday = addDays(monday, weekOffset * 7);
+      const weekStartStr = format(targetMonday, 'yyyy-MM-dd');
 
-      const res = await fetch(`/api/composer/schedule/week?weekStart=${monday.toISOString()}`);
+      const res = await fetch(`/api/composer/schedule/week?weekStart=${weekStartStr}`);
       if (!res.ok) {
         throw new Error('Failed to load week');
       }

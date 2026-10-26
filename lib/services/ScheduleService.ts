@@ -551,10 +551,11 @@ export class ScheduleService {
       logger.warn('Non-fatal error self-healing due posts in getWeekCanvas', { error: String(err) });
     });
 
-    const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekEnd.getDate() + 7);
+    // Safe timezone buffer: from 1 day prior to 8 days after to safely encompass all timezones (UTC-12 to UTC+14)
+    const weekStartBuffer = new Date(weekStart.getTime() - 24 * 60 * 60 * 1000);
+    const weekEnd = new Date(weekStart.getTime() + 8 * 24 * 60 * 60 * 1000);
 
-    const posts = await postRepository.findScheduledByWorkspace(workspaceId, weekStart, weekEnd);
+    const posts = await postRepository.findScheduledByWorkspace(workspaceId, weekStartBuffer, weekEnd);
     const postIds = posts.map(p => p.id);
     const allVariants = await postRepository.findVariantsByPostIds(postIds);
 

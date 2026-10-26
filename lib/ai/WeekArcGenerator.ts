@@ -445,7 +445,7 @@ Write ONLY the JSON. No markdown code blocks. No explanation.`;
 
   try {
     const safePrompt = ContentGuard.buildSafePrompt(prompt);
-    const result = await generateWithFallback(safePrompt, { maxTokens: 6000 }, WeekArcSchema);
+    const result = await generateWithFallback(safePrompt, { maxTokens: 3500 }, WeekArcSchema);
 
     if (result.ok && result.value) {
       // Check if AI refused to generate content (returned empty posts per Rule 4)

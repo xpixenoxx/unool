@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, Clock, Send, AlertTriangle,
-  Check, Layers, Loader2, Hash
+  Check, Layers, Loader2, Hash, Sparkles
 } from 'lucide-react';
 import { format, isToday, startOfWeek, endOfWeek, addWeeks } from 'date-fns';
 import { studioToast } from '@/components/dashboard/StudioToast';
@@ -55,10 +55,11 @@ export function ScheduleNewPostModal({
   const [selectedPlatforms, setSelectedPlatforms] = useState<PlatformType[]>([]);
   const [scheduledTime, setScheduledTime] = useState<string>('');
   const [content, setContent] = useState('');
-  const [strategy, setStrategy] = useState<'cascading' | 'simultaneous'>('cascading');
+  const [strategy, setStrategy] = useState<'cascading' | 'simultaneous'>('simultaneous');
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [newTagInput, setNewTagInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGeneratingFromIdea, setIsGeneratingFromIdea] = useState(false);
 
   // Initialize modal state on open or targetDate change
   useEffect(() => {
@@ -135,6 +136,50 @@ export function ScheduleNewPostModal({
   }, [selectedPlatforms]);
 
   const isOverCharLimit = content.length > minPlatformLimit;
+
+  const handleGenerateFromIdea = async () => {
+    if (!content.trim()) {
+      studioToast.error('Please type a rough idea, hook, or notes first.');
+      return;
+    }
+    if (selectedPlatforms.length === 0) {
+      studioToast.error('Please select at least one channel first.');
+      return;
+    }
+    setIsGeneratingFromIdea(true);
+    try {
+      const res = await fetch('/api/composer/adapt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: content.trim(),
+          selectedPlatforms,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to generate post copy');
+      }
+      const firstAdapted = data.adaptedPosts?.[0]?.content
+        || (data.adaptedPosts && typeof data.adaptedPosts === 'object' && (Object.values(data.adaptedPosts)[0] as any)?.content)
+        || data.posts?.[0]?.content;
+
+      if (firstAdapted) {
+        setContent(firstAdapted);
+        studioToast.success('Generated full post copy from your idea!');
+        const extracted = (firstAdapted.match(/#[a-zA-Z0-9_]+/g) || []).map((t: string) => t.slice(1));
+        if (extracted.length > 0) {
+          setHashtags(prev => Array.from(new Set([...prev, ...extracted])));
+        }
+      } else {
+        studioToast.error('Could not generate content from this idea. Please add a bit more detail.');
+      }
+    } catch (err) {
+      studioToast.error(err instanceof Error ? err.message : 'Failed to generate from idea');
+    } finally {
+      setIsGeneratingFromIdea(false);
+    }
+  };
 
   const handleScheduleSubmit = async () => {
     if (!content.trim()) {
@@ -310,8 +355,27 @@ export function ScheduleNewPostModal({
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
+                  onClick={() => setStrategy('simultaneous')}
+                  className={`p-2.5 rounded-lg text-left text-xs transition-all border cursor-pointer ${
+                    strategy === 'simultaneous'
+                      ? 'border-[#6B1F33] bg-[#6B1F33]/5 font-semibold text-[#6B1F33]'
+                      : 'border-stone-200 hover:border-stone-300 text-stone-600'
+                  }`}
+                >
+                  <div className="font-bold flex items-center gap-1">
+                    <span>Simultaneous</span>
+                    <span className="text-[9px] bg-emerald-700 text-white px-1.5 py-0.2 rounded-full font-normal">
+                      Instant
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-stone-500 block mt-0.5 leading-snug">
+                    All channels go live at the exact same minute
+                  </span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => setStrategy('cascading')}
-                  className={`p-2 rounded-lg text-left text-xs transition-all border cursor-pointer ${
+                  className={`p-2.5 rounded-lg text-left text-xs transition-all border cursor-pointer ${
                     strategy === 'cascading'
                       ? 'border-[#6B1F33] bg-[#6B1F33]/5 font-semibold text-[#6B1F33]'
                       : 'border-stone-200 hover:border-stone-300 text-stone-600'
@@ -320,25 +384,11 @@ export function ScheduleNewPostModal({
                   <div className="font-bold flex items-center gap-1">
                     <span>Cascading</span>
                     <span className="text-[9px] bg-[#6B1F33] text-white px-1.5 py-0.2 rounded-full font-normal">
-                      Rec.
+                      Anti-spam
                     </span>
                   </div>
-                  <span className="text-[10px] text-stone-500 block mt-0.5">
-                    Staggered offset across networks
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setStrategy('simultaneous')}
-                  className={`p-2 rounded-lg text-left text-xs transition-all border cursor-pointer ${
-                    strategy === 'simultaneous'
-                      ? 'border-[#6B1F33] bg-[#6B1F33]/5 font-semibold text-[#6B1F33]'
-                      : 'border-stone-200 hover:border-stone-300 text-stone-600'
-                  }`}
-                >
-                  <div className="font-bold">Simultaneous</div>
-                  <span className="text-[10px] text-stone-500 block mt-0.5">
-                    Live across all feeds at once
+                  <span className="text-[10px] text-stone-500 block mt-0.5 leading-snug">
+                    Staggered offset across networks (0m, +45m, +120m)
                   </span>
                 </button>
               </div>
@@ -350,17 +400,41 @@ export function ScheduleNewPostModal({
                 <label className="text-xs font-bold text-[#4A3238]">
                   Post Copy
                 </label>
-                <span className={`text-[11px] font-mono ${isOverCharLimit ? 'text-red-600 font-bold' : 'text-stone-400'}`}>
-                  {content.length} / {minPlatformLimit} chars
-                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={!content.trim() || isGeneratingFromIdea}
+                    onClick={handleGenerateFromIdea}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-[#6B1F33] text-white hover:bg-[#521727] disabled:opacity-40 transition-all cursor-pointer shadow-xs"
+                    title="Type an idea and let AI generate complete engaging post copy"
+                  >
+                    {isGeneratingFromIdea ? (
+                      <>
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        <span>Generating copy…</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-3 h-3" />
+                        <span>✨ Generate from idea</span>
+                      </>
+                    )}
+                  </button>
+                  <span className={`text-[11px] font-mono ${isOverCharLimit ? 'text-red-600 font-bold' : 'text-stone-400'}`}>
+                    {content.length} / {minPlatformLimit} chars
+                  </span>
+                </div>
               </div>
               <textarea
                 rows={5}
                 value={content}
                 onChange={e => setContent(e.target.value)}
-                placeholder="What would you like to share on this dispatch? Write your hook and story here..."
+                placeholder="Type your idea or notes here (e.g. 'We launched our new feature and saw 300 signups'). Then click '✨ Generate from idea' above to create full post copy..."
                 className="w-full text-sm p-3 rounded-xl border border-[#E3D6C9] bg-white focus:outline-none focus:border-[#6B1F33] leading-relaxed"
               />
+              <p className="text-[10.5px] text-stone-400">
+                Tip: Enter a rough idea and click <b className="text-stone-600">✨ Generate from idea</b> to craft polished copy tailored for your selected channels.
+              </p>
             </div>
 
             {/* Hashtags */}

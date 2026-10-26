@@ -20,12 +20,18 @@ export async function GET(request: NextRequest) {
 
   let weekStart: Date;
   if (weekStartParam) {
-    weekStart = new Date(weekStartParam);
-    if (isNaN(weekStart.getTime())) {
-      return NextResponse.json({ error: 'Invalid weekStart date' }, { status: 400 });
+    // If param is YYYY-MM-DD or contains date prefix, extract date components directly
+    const dateMatch = weekStartParam.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (dateMatch) {
+      const [, y, m, d] = dateMatch.map(Number);
+      weekStart = new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0));
+    } else {
+      weekStart = new Date(weekStartParam);
+      if (isNaN(weekStart.getTime())) {
+        return NextResponse.json({ error: 'Invalid weekStart date' }, { status: 400 });
+      }
+      weekStart.setUTCHours(0, 0, 0, 0);
     }
-    // Normalize to midnight UTC (00:00:00) so morning posts on Monday are never dropped
-    weekStart.setUTCHours(0, 0, 0, 0);
   } else {
     // Default to this Monday (UTC)
     const now = new Date();
