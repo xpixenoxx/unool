@@ -964,9 +964,9 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
 
         {/* ═══ SECTION 3: Tools (4 Cards) ═══ */}
         <div className="tools">
-          {/* Card 1: Weekly Flight Plan */}
+          {/* Card 1: Weekly Planner */}
           <section className="card tool">
-            <span className="tag">7-Day Arc</span>
+            <span className="tag">7-Day Plan</span>
             <div className="vis">
               <div className="days">
                 {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, idx) => (
@@ -982,14 +982,14 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 ))}
               </div>
             </div>
-            <h3>Weekly Flight Plan</h3>
-            <div className="t2">Story in · Week of content out</div>
+            <h3>Plan Your Week in Minutes</h3>
+            <div className="t2">One paragraph in. A full week of posts out.</div>
             <p>
-              Type one honest paragraph about your week. Unool drafts, cascades, and schedules your
-              multi-network week.
+              Tell us what’s happening in your work this week. Unool turns it into a ready-to-publish
+              schedule across all your social platforms.
             </p>
             <Link href="/dashboard/schedule" className="btn d">
-              <span>Plan This Week</span>
+              <span>Plan My Week</span>
               <svg viewBox="0 0 24 24">
                 <path d="M5 12h14M13 6l6 6-6 6" />
               </svg>
@@ -999,7 +999,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           {/* Card 2: Content Studio */}
           <section className="card tool">
             <span className="tag">
-              {usageStats.postsThisMonth > 0 ? `${usageStats.postsThisMonth} Broadcasts` : 'Multi-Publish'}
+              {usageStats.postsThisMonth === 1 ? '1 Post Published' : `${usageStats.postsThisMonth ?? 0} Posts Published`}
             </span>
             <div className="vis">
               <div className="fan">
@@ -1009,9 +1009,9 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               </div>
             </div>
             <h3>Content Studio</h3>
-            <div className="t2">Write once, broadcast everywhere</div>
+            <div className="t2">Write once. Look professional everywhere.</div>
             <p>
-              AI adapts your content for LinkedIn, X, Threads, and more. Review and publish in one click.
+              Write your idea once, and AI shapes it to fit LinkedIn, X, Threads, and more. Review it, then publish everywhere in one click.
             </p>
             <Link href="/dashboard/studio" className="btn d">
               <span>Open Studio</span>
@@ -1021,8 +1021,9 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             </Link>
           </section>
 
-          {/* Card 3: Your Public Profile */}
+          {/* Card 3: Public Profile */}
           <section className="card tool">
+            <span className="tag">Live</span>
             <div className="vis">
               <div className="mini">
                 <div className="bar">
@@ -1037,9 +1038,9 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               </div>
             </div>
             <h3>Your Public Profile</h3>
-            <div className="t2">One link for everything</div>
+            <div className="t2">One link that shows who you are.</div>
             <p>
-              Professional landing page with links, credentials, and social proof — all in one place.
+              A professional page with your links, credentials, and proof of your work. Put it in your bio and turn every visitor into a connection.
             </p>
             <Link
               href={isProfileLive ? `/u/${profile?.subdomain}` : '/dashboard/profile'}
@@ -1047,7 +1048,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               rel={isProfileLive ? 'noopener noreferrer' : undefined}
               className="btn d"
             >
-              <span>{isProfileLive ? 'View Live Profile' : 'Set Up Profile'}</span>
+              <span>{isProfileLive ? 'View My Profile' : 'Set Up Profile'}</span>
               <svg viewBox="0 0 24 24">
                 <path d="M14 4h6v6M20 4l-9 9M18 14v5H5V6h5" />
               </svg>
@@ -1056,21 +1057,20 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
 
           {/* Card 4: Automation */}
           <section className="card tool">
-            <span className="tag">Auto-Pilot</span>
+            <span className="tag">Always On</span>
             <div className="vis">
               <div className="chat">
                 <span>Love this! How do I start?</span>
                 <span className="b">Sent you the link ✓</span>
               </div>
             </div>
-            <h3>Automation</h3>
-            <div className="t2">Auto-reply &amp; inbound leads</div>
+            <h3>Automated Replies</h3>
+            <div className="t2">Never miss a comment or message.</div>
             <p>
-              AI-powered comment and DM automation for Instagram &amp; LinkedIn. Auto-reply and convert audience
-              to leads.
+              Reply to comments and DMs on Instagram and LinkedIn automatically, and turn people who engage into real leads while you focus on creating.
             </p>
             <Link href="/dashboard/automation" className="btn d">
-              <span>Open Automation</span>
+              <span>Set Up Replies</span>
               <svg viewBox="0 0 24 24">
                 <path d="M5 12h14M13 6l6 6-6 6" />
               </svg>
