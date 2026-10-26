@@ -18,11 +18,9 @@ export async function GET(request: NextRequest) {
 
     const { userId, workspaceId } = auth;
 
-    // ─── All 3 fetches in parallel ──────────────────────────────────────────
-    // Previously: sequential (admin.getUserById → profile → workspace)
-    // Now: all fire at once, response arrives in ~1 RTT instead of 3
-    const [userResult, profile, workspace] = await Promise.all([
-      // User details — use listUsers with filter instead of expensive admin.getUserById
+    // ─── Parallel fetches for user context + pending posts count ───────────
+    const [userResult, profile, workspace, pendingPostsResult] = await Promise.all([
+      // User details
       supabaseAdmin.auth.admin.getUserById(userId),
       profileRepository.findByWorkspaceId(workspaceId),
       supabaseAdmin
@@ -30,9 +28,22 @@ export async function GET(request: NextRequest) {
         .select('id, name, plan')
         .eq('id', workspaceId)
         .single(),
+      (async () => {
+        try {
+          const { count, error } = await supabaseAdmin
+            .from('posts')
+            .select('id', { count: 'exact', head: true })
+            .eq('workspace_id', workspaceId)
+            .in('status', ['scheduled', 'publishing']);
+          return (!error && typeof count === 'number') ? count : 0;
+        } catch {
+          return 0;
+        }
+      })(),
     ]);
 
     const user = userResult.data?.user ?? null;
+    const pendingPostsCount = typeof pendingPostsResult === 'number' ? pendingPostsResult : 0;
 
     return NextResponse.json({
       user: user
@@ -60,6 +71,7 @@ export async function GET(request: NextRequest) {
             planTier: workspace.data.plan,
           }
         : null,
+      pendingPostsCount,
     });
   } catch (error) {
     console.error('Get user context failed:', error);

@@ -28,6 +28,7 @@ interface UserContext {
   user: User | null;
   profile: Profile | null;
   workspace: Workspace | null;
+  pendingPostsCount: number;
   loading: boolean;
   refetch: () => Promise<void>;
 }
@@ -38,6 +39,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
+  const [pendingPostsCount, setPendingPostsCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
 
   const fetchUserContext = async () => {
@@ -47,6 +49,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         setUser(null);
         setProfile(null);
         setWorkspace(null);
+        setPendingPostsCount(0);
         if (typeof window !== 'undefined' && window.location.pathname.startsWith('/dashboard')) {
           window.location.replace('/signin');
         }
@@ -57,6 +60,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         setUser(data.user);
         setProfile(data.profile);
         setWorkspace(data.workspace);
+        setPendingPostsCount(typeof data.pendingPostsCount === 'number' ? data.pendingPostsCount : 0);
       }
     } catch (error) {
       console.error('Failed to fetch user context:', error);
@@ -70,7 +74,16 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <UserContext.Provider value={{ user, profile, workspace, loading, refetch: fetchUserContext }}>
+    <UserContext.Provider
+      value={{
+        user,
+        profile,
+        workspace,
+        pendingPostsCount,
+        loading,
+        refetch: fetchUserContext,
+      }}
+    >
       {children}
     </UserContext.Provider>
   );

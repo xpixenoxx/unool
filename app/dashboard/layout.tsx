@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -72,102 +72,6 @@ interface NavSection {
   items: NavItem[];
 }
 
-const navSections: NavSection[] = [
-  {
-    items: [
-      {
-        id: 'overview',
-        name: 'Overview',
-        href: '/dashboard',
-        icon: LayoutGrid,
-        description: 'Dashboard home',
-        exact: true,
-      },
-    ],
-  },
-  {
-    title: 'Create',
-    items: [
-      {
-        id: 'studio',
-        name: 'Studio',
-        href: '/dashboard/studio',
-        icon: PenTool,
-        description: 'Create content',
-      },
-      {
-        id: 'flightplan',
-        name: 'Flight plan',
-        href: '/dashboard/flightplan',
-        icon: CalendarDays,
-        description: 'Plan & schedule content',
-      },
-      {
-        id: 'signal',
-        name: 'Signal',
-        href: '/dashboard/signal',
-        icon: Radio,
-        description: 'Publish & schedule',
-        badge: 3,
-      },
-      {
-        id: 'automation',
-        name: 'Automation',
-        href: '/dashboard/automation',
-        icon: Zap,
-        description: 'Instagram comment automation',
-      },
-    ],
-  },
-  {
-    title: 'Grow',
-    items: [
-      {
-        id: 'unlock-gates',
-        name: 'Unlock gates',
-        href: '/dashboard/unlock-gates',
-        icon: Lock,
-        description: 'Follow-to-unlock content gates',
-      },
-      {
-        id: 'referrals',
-        name: 'Referrals',
-        href: '/dashboard/referrals',
-        icon: Gift,
-        description: 'Earn rewards for referrals',
-      },
-    ],
-  },
-  {
-    title: 'Account',
-    items: [
-      {
-        id: 'profile',
-        name: 'Profile',
-        href: '/dashboard/profile',
-        icon: Globe,
-        description: 'Your public page',
-      },
-      {
-        id: 'billing',
-        name: 'Billing',
-        href: '/dashboard/billing',
-        icon: CreditCard,
-        description: 'Plans & subscription',
-      },
-      {
-        id: 'settings',
-        name: 'Settings',
-        href: '/dashboard/settings',
-        icon: Settings,
-        description: 'Account settings',
-      },
-    ],
-  },
-];
-
-const flatNavItems = navSections.flatMap((s) => s.items);
-
 function DashboardSidebar({
   sidebarOpen,
   setSidebarOpen,
@@ -175,10 +79,147 @@ function DashboardSidebar({
   sidebarOpen: boolean;
   setSidebarOpen: (v: boolean) => void;
 }) {
-  const { user, profile, loading } = useUserContext();
+  const { user, profile, pendingPostsCount, loading } = useUserContext();
   const pathname = usePathname();
   const router = useRouter();
   const [copied, setCopied] = useState(false);
+  const [dynamicPendingCount, setDynamicPendingCount] = useState<number>(pendingPostsCount || 0);
+
+  // Sync with context updates
+  useEffect(() => {
+    if (typeof pendingPostsCount === 'number') {
+      setDynamicPendingCount(pendingPostsCount);
+    }
+  }, [pendingPostsCount]);
+
+  // Real-time synchronization for pending posts count across window focus and publishing events
+  useEffect(() => {
+    const fetchLatestPending = async () => {
+      try {
+        const res = await fetch('/api/posts/pending-count', { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json();
+          if (typeof data.count === 'number') {
+            setDynamicPendingCount(data.count);
+          }
+        }
+      } catch {
+        // Ignore network drops
+      }
+    };
+
+    const handlePublishEvent = () => {
+      fetchLatestPending();
+    };
+
+    window.addEventListener('signal-strip-publish', handlePublishEvent);
+    window.addEventListener('focus', fetchLatestPending);
+
+    // Light background poll every 30 seconds
+    const interval = setInterval(fetchLatestPending, 30000);
+
+    return () => {
+      window.removeEventListener('signal-strip-publish', handlePublishEvent);
+      window.removeEventListener('focus', fetchLatestPending);
+      clearInterval(interval);
+    };
+  }, []);
+
+  const navSections: NavSection[] = useMemo(() => [
+    {
+      items: [
+        {
+          id: 'overview',
+          name: 'Overview',
+          href: '/dashboard',
+          icon: LayoutGrid,
+          description: 'Dashboard home',
+          exact: true,
+        },
+      ],
+    },
+    {
+      title: 'Create',
+      items: [
+        {
+          id: 'studio',
+          name: 'Studio',
+          href: '/dashboard/studio',
+          icon: PenTool,
+          description: 'Create content',
+        },
+        {
+          id: 'flightplan',
+          name: 'Flight plan',
+          href: '/dashboard/flightplan',
+          icon: CalendarDays,
+          description: 'Plan & schedule content',
+        },
+        {
+          id: 'signal',
+          name: 'Signal',
+          href: '/dashboard/signal',
+          icon: Radio,
+          description: 'Publish & schedule',
+          badge: dynamicPendingCount > 0 ? dynamicPendingCount : undefined,
+        },
+        {
+          id: 'automation',
+          name: 'Automation',
+          href: '/dashboard/automation',
+          icon: Zap,
+          description: 'Instagram comment automation',
+        },
+      ],
+    },
+    {
+      title: 'Grow',
+      items: [
+        {
+          id: 'unlock-gates',
+          name: 'Unlock gates',
+          href: '/dashboard/unlock-gates',
+          icon: Lock,
+          description: 'Follow-to-unlock content gates',
+        },
+        {
+          id: 'referrals',
+          name: 'Referrals',
+          href: '/dashboard/referrals',
+          icon: Gift,
+          description: 'Earn rewards for referrals',
+        },
+      ],
+    },
+    {
+      title: 'Account',
+      items: [
+        {
+          id: 'profile',
+          name: 'Profile',
+          href: '/dashboard/profile',
+          icon: Globe,
+          description: 'Your public page',
+        },
+        {
+          id: 'billing',
+          name: 'Billing',
+          href: '/dashboard/billing',
+          icon: CreditCard,
+          description: 'Plans & subscription',
+        },
+        {
+          id: 'settings',
+          name: 'Settings',
+          href: '/dashboard/settings',
+          icon: Settings,
+          description: 'Account settings',
+        },
+      ],
+    },
+  ], [dynamicPendingCount]);
+
+  const flatNavItems = useMemo(() => navSections.flatMap((s) => s.items), [navSections]);
 
   const handleSignOut = async () => {
     try {
@@ -357,11 +398,11 @@ function DashboardSidebar({
                       </div>
                     )}
 
-                    {/* Interactive Notification Badge (e.g. Signal '3' in Image 2) */}
+                    {/* Interactive Notification Badge (shows pending posts count when > 0) */}
                     {!isActive && item.badge !== undefined && (
                       <div
                         className="ml-auto mr-1 w-5 h-5 rounded-full bg-[#e2a458] text-[#17120e] text-[11px] font-bold flex items-center justify-center shadow-sm flex-shrink-0 transition-transform group-hover:scale-110"
-                        title={`${item.badge} active updates`}
+                        title={`${item.badge} pending ${item.badge === 1 ? 'post' : 'posts'}`}
                       >
                         {item.badge}
                       </div>
