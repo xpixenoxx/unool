@@ -979,6 +979,10 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
 
       studioToast.success('Saved as draft in Signal! Composer ready for your next post.');
 
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('signal-posts-updated'));
+      }
+
       // Clear post details right away so the user can create a new post
       setPostId(null);
       setSourceContent('');

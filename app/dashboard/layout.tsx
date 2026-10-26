@@ -108,18 +108,34 @@ function DashboardSidebar({
       }
     };
 
+    // Initial fetch on mount for instantaneous fresh count
+    fetchLatestPending();
+
     const handlePublishEvent = () => {
       fetchLatestPending();
     };
 
+    const handlePendingDirectUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent<{ count?: number }>;
+      if (typeof customEvent.detail?.count === 'number') {
+        setDynamicPendingCount(customEvent.detail.count);
+      } else {
+        fetchLatestPending();
+      }
+    };
+
     window.addEventListener('signal-strip-publish', handlePublishEvent);
+    window.addEventListener('signal-posts-updated', handlePublishEvent);
+    window.addEventListener('signal-pending-count-updated', handlePendingDirectUpdate);
     window.addEventListener('focus', fetchLatestPending);
 
-    // Light background poll every 30 seconds
-    const interval = setInterval(fetchLatestPending, 30000);
+    // Light background poll every 15 seconds
+    const interval = setInterval(fetchLatestPending, 15000);
 
     return () => {
       window.removeEventListener('signal-strip-publish', handlePublishEvent);
+      window.removeEventListener('signal-posts-updated', handlePublishEvent);
+      window.removeEventListener('signal-pending-count-updated', handlePendingDirectUpdate);
       window.removeEventListener('focus', fetchLatestPending);
       clearInterval(interval);
     };

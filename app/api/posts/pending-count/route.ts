@@ -11,13 +11,25 @@ export async function GET(request: NextRequest) {
   try {
     const auth = await getCurrentAuth(request);
     if (!auth) {
-      return NextResponse.json({ count: 0, scheduled: 0, publishing: 0 });
+      return NextResponse.json({ count: 0, drafts: 0, scheduled: 0, publishing: 0 });
     }
 
     const { workspaceId } = auth;
 
-    // Fetch scheduled and publishing counts in parallel with safe error boundaries
-    const [scheduled, publishing] = await Promise.all([
+    // Fetch draft, scheduled, and publishing counts in parallel with safe error boundaries
+    const [drafts, scheduled, publishing] = await Promise.all([
+      (async () => {
+        try {
+          const { count, error } = await supabaseAdmin
+            .from('posts')
+            .select('id', { count: 'exact', head: true })
+            .eq('workspace_id', workspaceId)
+            .eq('status', 'draft');
+          return (!error && typeof count === 'number') ? count : 0;
+        } catch {
+          return 0;
+        }
+      })(),
       (async () => {
         try {
           const { count, error } = await supabaseAdmin
@@ -44,14 +56,16 @@ export async function GET(request: NextRequest) {
       })(),
     ]);
 
-    const totalPending = scheduled + publishing;
+    const totalPending = drafts + scheduled + publishing;
 
     return NextResponse.json({
       count: totalPending,
+      drafts,
       scheduled,
       publishing,
     });
   } catch {
-    return NextResponse.json({ count: 0, scheduled: 0, publishing: 0 });
+    return NextResponse.json({ count: 0, drafts: 0, scheduled: 0, publishing: 0 });
   }
 }
+

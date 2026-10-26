@@ -355,6 +355,22 @@ export function SignalClient() {
             setPosts(fetched);
             // Unblock UI immediately once posts are in — don't wait for heavy analytics
             setLoading(false);
+
+            // Synchronize exact live pending drafts/posts count to sidebar
+            try {
+              const pendingCount = fetched.filter((p: any) => {
+                const isFailed = p.status === 'failed';
+                const hasPublished = Array.isArray(p.variants) && p.variants.some((v: any) => v.status === 'published');
+                if (isFailed && !hasPublished) return false;
+                return p.status === 'draft' || p.status === 'scheduled' || p.status === 'publishing' || !hasPublished;
+              }).length;
+
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('signal-pending-count-updated', { detail: { count: pendingCount } }));
+              }
+            } catch {
+              // Ignore event dispatch errors
+            }
           }
         })
         .catch(() => {});
@@ -1206,6 +1222,9 @@ function PostCard({
       toast.success(isFailedPost ? 'Failed dispatch dismissed' : 'Draft cancelled and removed');
       onDelete?.(post.id);
       onRefresh();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('signal-posts-updated', { detail: { postId: post.id } }));
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to remove draft');
       setIsDeleting(false);
