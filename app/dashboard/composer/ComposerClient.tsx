@@ -1930,9 +1930,9 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         backgroundSize: '20px 20px',
       }}
     >
-      <div className="flex gap-8 items-start max-w-[1400px] mx-auto">
-        {/* ───── Left Panel: Composer Form ───── */}
-        <div className="flex-1 min-w-0 space-y-6" style={{ maxWidth: 840 }}>
+      <div className="max-w-[1240px] mx-auto space-y-6">
+        {/* Top Header & Overview Context */}
+        <div className="space-y-6" style={{ maxWidth: 840 }}>
           {/* Header */}
           <div className="pb-2">
             <div className="flex items-start justify-between flex-wrap gap-4">
@@ -2223,7 +2223,12 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
             </div>
           </div>
         )}
+        </div>
 
+        {/* ───── Editor & Preview Row (Preview placed directly beside Editor) ───── */}
+        <div className="flex gap-8 items-start">
+          {/* Left Column: Editor Cards */}
+          <div className="flex-1 min-w-0 space-y-6" style={{ maxWidth: 840 }}>
         {/* Quick Broadcast (Screenshots 1 & 2) */}
         {mode === 'quick' && (
           <MotionBox variant="slide-up" delay={0.05}>
@@ -3035,8 +3040,8 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         )}
       </div>
 
-      {/* ───── Right Panel: iPhone Live Preview ───── */}
-      <div className="hidden lg:block sticky top-8 flex-shrink-0" style={{ width: 340 }}>
+      {/* ───── Right Panel: iPhone Live Preview (directly beside Write an Idea) ───── */}
+      <div className="hidden lg:block sticky top-6 flex-shrink-0" style={{ width: 340 }}>
         <IPhonePreview
           content={liveContent}
           media={media}
@@ -3049,6 +3054,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           selectedPlatforms={selectedPlatforms}
           drafts={drafts}
         />
+      </div>
       </div>
       </div>
 
