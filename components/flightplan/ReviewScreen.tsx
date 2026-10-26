@@ -367,11 +367,22 @@ export function ReviewScreen({
         }
       }
 
+      // Collect all media URLs from OTHER days to prevent week-level duplicates
+      const usedElsewhere = new Set<string>();
+      arc.weekPosts.forEach((p, idx) => {
+        if (idx !== dayIdx) {
+          (p.imageUrls || []).forEach(u => usedElsewhere.add(u));
+        }
+      });
+
+      let skippedDuplicates = 0;
+
       setArc(prev => {
         const posts = [...prev.weekPosts];
         const target = { ...posts[dayIdx] };
         const existing = target.imageUrls || [];
-        const newUnique = uploadedUrls.filter(u => !existing.includes(u));
+        const newUnique = uploadedUrls.filter(u => !existing.includes(u) && !usedElsewhere.has(u));
+        skippedDuplicates = uploadedUrls.length - newUnique.length;
         const updated = [...existing, ...newUnique].slice(0, 10);
 
         target.imageUrls = updated;
@@ -384,7 +395,11 @@ export function ReviewScreen({
         return { ...prev, weekPosts: posts };
       });
 
-      studioToast.success(`Added ${uploadedUrls.length} media file${uploadedUrls.length > 1 ? 's' : ''}`);
+      if (skippedDuplicates > 0) {
+        studioToast.generationFailed(`${skippedDuplicates} file${skippedDuplicates > 1 ? 's' : ''} skipped — already used in another post this week.`);
+      } else {
+        studioToast.success(`Added ${uploadedUrls.length} media file${uploadedUrls.length > 1 ? 's' : ''}`);
+      }
     } catch {
       studioToast.generationFailed('Failed to attach media file.');
     } finally {
@@ -601,8 +616,6 @@ export function ReviewScreen({
                 </div>
                 <div className="fp-flight-meta-pills">
                   <span className="fp-meta-pill">FLT: <b>FP-0{i + 1}</b></span>
-                  <span className="fp-meta-pill">GATE: <b>G0{i + 1}</b></span>
-                  <span className="fp-meta-pill">SEAT: <b>0{i + 1}A</b></span>
                   <span className="fp-meta-pill stub-pill">PASSENGER STUB</span>
                 </div>
               </div>
@@ -666,10 +679,6 @@ export function ReviewScreen({
                     </span>
                   )}
                 </div>
-
-                <p className="fp-sub" style={{ marginTop: 2 }}>
-                  Strategic Beat: {post.arcBeatReason}
-                </p>
 
                 {/* Platform Tabs Selector */}
                 <div className="fp-chs" style={{ marginTop: 14 }}>
@@ -755,8 +764,9 @@ export function ReviewScreen({
                     {charCount} of {maxChars} characters
                   </span>
                 </div>
+
                 <textarea
-                  rows={3}
+                  rows={2}
                   value={caption}
                   disabled={!isCurrentPlatformEnabled}
                   onChange={e => handleCaptionChange(i, activePlat, e.target.value)}
@@ -836,8 +846,7 @@ export function ReviewScreen({
                 {/* Photos or Video Drag-and-Drop Dropzone */}
                 <div className="fp-fld">
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span>CARGO / VISUAL MEDIA ({post.imageUrls?.length || 0} of 10)</span>
-                    <span style={{ fontSize: 11, color: 'var(--mu)' }}>Images, videos, PDFs</span>
+                    <span>CARGO / VISUAL MEDIA ({post.imageUrls?.length || 0}/10)</span>
                   </div>
 
                   <ImageDropZone

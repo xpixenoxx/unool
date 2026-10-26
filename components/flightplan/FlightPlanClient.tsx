@@ -163,13 +163,7 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
         }
       );
       if (success) {
-        if (isPreviewOnly) {
-          studioToast.success(
-            'Weekly flight plan scheduled! Connect social accounts in Settings whenever you are ready to publish automatically.'
-          );
-        } else {
-          studioToast.success('Flight plan scheduled for 7 days across your channels.');
-        }
+        // No intrusive popup toasts blocking the canvas view
         let targetOffset = 0;
         if (storyData?.weekStartDate) {
           const parts = storyData.weekStartDate.split('-').map(Number);

@@ -437,9 +437,14 @@ export function WeekCanvas({
   useEffect(() => {
     if (!autoTour) return;
 
+    // Auto-scroll to the story arc (flight stage) so user sees the posts
+    setTimeout(() => {
+      stageRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 300);
+
     setIsPlaying(true);
     setSel(0);
-    studioToast.info('Taking you on a tour through your scheduled week...');
+    // No toast — don't block the view
 
     let curStep = 0;
     const interval = setInterval(() => {
@@ -451,11 +456,10 @@ export function WeekCanvas({
         tourIntervalRef.current = null;
         setIsPlaying(false);
 
-        // Tour finished: smoothly return to current day's post!
+        // Tour finished: smoothly return to current day's post — no toast
         const todayDayIndex = (new Date().getDay() + 6) % 7;
         setTimeout(() => {
           setSel(todayDayIndex);
-          studioToast.success('Tour complete! Centered on today.');
           onTourComplete?.();
         }, 800);
       }
@@ -990,7 +994,6 @@ export function WeekCanvas({
               </div>
               <div className="fp-flight-meta-pills">
                 <span className="fp-meta-pill">SECTOR: <b>0{sel + 1}/07</b></span>
-                <span className="fp-meta-pill">GATE: <b>G0{sel + 1}</b></span>
                 <span className="fp-meta-pill stub-pill">DISPATCH STUB</span>
               </div>
             </div>
@@ -1043,8 +1046,6 @@ export function WeekCanvas({
               </div>
               <div className="fp-flight-meta-pills">
                 <span className="fp-meta-pill">FLIGHT: <b>FP-0{sel + 1}</b></span>
-                <span className="fp-meta-pill">GATE: <b>G0{sel + 1}</b></span>
-                <span className="fp-meta-pill">SEAT: <b>0{sel + 1}A</b></span>
                 <span className="fp-meta-pill stub-pill">{isSelPublished ? 'RECEIPT' : 'COUPON'}</span>
               </div>
             </div>
@@ -1132,63 +1133,49 @@ export function WeekCanvas({
                 <span>BOARDING PASS // STUB</span>
                 <span className="fp-stub-badge">FLIGHT FP-0{sel + 1}</span>
               </div>
-              <div className="fp-fld">
-                <span>
-                  {isSelPublished
-                    ? 'TOUCHDOWN TIME'
-                    : isSelGrounded
-                    ? 'GROUNDED AT'
-                    : isSelFailed
-                    ? 'DIVERTED AT'
-                    : 'SCHEDULED DEPARTURE'}
-                </span>
-                <b>{scheduledTimeFormatted}</b>
-                <em>
-                  {format(selDate, 'EEE d MMM')}.{' '}
-                  {isSelPublished
-                    ? 'Live on your channels.'
-                    : isSelGrounded
-                    ? 'Grounded, queue on hold.'
-                    : isSelFailed
-                    ? 'Publishing diverted. Needs attention.'
-                    : 'Optimal time for audience takeoff.'}
-                </em>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, alignItems: 'start' }}>
+                <div className="fp-fld">
+                  <span>
+                    {isSelPublished
+                      ? 'TOUCHDOWN TIME'
+                      : isSelGrounded
+                      ? 'GROUNDED AT'
+                      : isSelFailed
+                      ? 'DIVERTED AT'
+                      : 'DEPARTURE'}
+                  </span>
+                  <b>{scheduledTimeFormatted}</b>
+                  <small style={{ fontSize: 11, color: 'var(--mu)', marginTop: 2 }}>{format(selDate, 'EEE d MMM')}</small>
+                </div>
+                <div className="fp-fld">
+                  <span>FLIGHT STATUS</span>
+                  {isSelPublished ? (
+                    <span className="fp-chip landed">Landed, live</span>
+                  ) : isSelGrounded ? (
+                    <span className="fp-chip grounded">Grounded, hold</span>
+                  ) : isSelFailed ? (
+                    <span className="fp-chip diverted">Diverted</span>
+                  ) : isSelDraft ? (
+                    <span className="fp-chip awaiting">Awaiting clearance</span>
+                  ) : (
+                    <span className="fp-chip ok">Cleared for take-off</span>
+                  )}
+                </div>
               </div>
-              <div className="fp-fld">
-                <span>FLIGHT STATUS</span>
-                {isSelPublished ? (
-                  <span className="fp-chip landed">Landed, live</span>
-                ) : isSelGrounded ? (
-                  <span className="fp-chip grounded">Grounded, queue on hold</span>
-                ) : isSelFailed ? (
-                  <span className="fp-chip diverted">Diverted, needs attention</span>
-                ) : isSelDraft ? (
-                  <span className="fp-chip awaiting">Awaiting clearance</span>
-                ) : (
-                  <span className="fp-chip ok">Cleared for take-off</span>
-                )}
-              </div>
-              <div className="fp-fld">
-                <span>CARGO / VISUAL MEDIA</span>
-                <b>
-                  {selPost.platforms[0]?.mediaUrls?.length
-                    ? `${selPost.platforms[0].mediaUrls.length} media attached`
-                    : 'None attached'}
-                </b>
-                <em>
-                  {selPost.platforms[0]?.mediaUrls?.length
-                    ? 'Manifest payload verified.'
-                    : 'Visual cargo recommended for reach.'}
-                </em>
-              </div>
-              <div className="fp-fld">
-                <span>AUTO FIRST COMMENT</span>
-                <b>{selPost.platforms[0]?.autoFirstComment ? 'Active (CTA Link)' : 'Standby / None'}</b>
-                <em>
-                  {selPost.platforms[0]?.autoFirstComment
-                    ? 'Pinned CTA link dispatched 90s after touchdown.'
-                    : 'Direct link omitted to preserve reach.'}
-                </em>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, alignItems: 'start' }}>
+                <div className="fp-fld">
+                  <span>CARGO / MEDIA</span>
+                  <b style={{ fontSize: 12.5 }}>
+                    {selPost.platforms[0]?.mediaUrls?.length
+                      ? `${selPost.platforms[0].mediaUrls.length} attached`
+                      : 'None attached'}
+                  </b>
+                </div>
+                <div className="fp-fld">
+                  <span>FIRST COMMENT</span>
+                  <b style={{ fontSize: 12.5 }}>{selPost.platforms[0]?.autoFirstComment ? 'Active (CTA)' : 'None'}</b>
+                </div>
               </div>
 
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>

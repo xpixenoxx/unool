@@ -110,8 +110,8 @@ export const ImageDropZone = forwardRef<HTMLInputElement, ImageDropZoneInternalP
               className="flex flex-wrap gap-1.5 p-1.5 rounded-xl border transition-colors"
               style={{
                 backgroundColor: B.bg,
-                borderColor: isDragging ? B.accent : 'transparent',
-                background: isDragging ? B.accentBg : 'transparent',
+                borderColor: isDragging ? B.accent : isUploading ? B.accent : 'transparent',
+                background: isDragging || isUploading ? B.accentBg : 'transparent',
               }}
             >
               {images.map((imgUrl, idx) => (
@@ -152,31 +152,51 @@ export const ImageDropZone = forwardRef<HTMLInputElement, ImageDropZoneInternalP
                   )}
                 </button>
               )}
+
+              {/* Upload progress overlay when uploading to existing images */}
+              {isUploading && (
+                <div className="w-full flex items-center gap-2 px-1 py-0.5">
+                  <Loader2 className="w-3 h-3 animate-spin flex-none" style={{ color: B.accent }} />
+                  <span className="text-[10px] font-medium" style={{ color: B.accent }}>Uploading media...</span>
+                </div>
+              )}
             </div>
           )}
 
           {images.length === 0 && canAddMore && (
             <div
-              onClick={handleClick}
+              onClick={!isUploading ? handleClick : undefined}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-              className="py-1.5 px-3 rounded-lg border-2 border-dashed flex items-center justify-center gap-2 text-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+              className="py-1.5 px-3 rounded-lg border-2 flex items-center justify-center gap-2 text-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
               style={{
                 backgroundColor: B.bg,
-                borderColor: isDragging ? B.accent : B.border,
-                background: isDragging ? B.accentBg : 'transparent',
+                borderColor: isDragging ? B.accent : isUploading ? B.accent : B.border,
+                borderStyle: isDragging || isUploading ? 'solid' : 'dashed',
+                background: isDragging ? B.accentBg : isUploading ? B.accentBg : 'transparent',
+                cursor: isUploading ? 'wait' : 'pointer',
                 focusRingColor: B.accent,
                 focusRingOffsetColor: B.card,
               }}
             >
-              <ImagePlus className="w-4 h-4" style={{ color: B.textMuted }} />
-              <span className="text-xs font-medium" style={{ color: B.text }}>
-                No media attached
-              </span>
-              <span className="text-[10px]" style={{ color: B.textMuted }}>
-                (Drop media)
-              </span>
+              {isUploading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin flex-none" style={{ color: B.accent }} />
+                  <span className="text-xs font-semibold" style={{ color: B.accent }}>Uploading...</span>
+                </>
+              ) : isDragging ? (
+                <>
+                  <ImagePlus className="w-4 h-4" style={{ color: B.accent }} />
+                  <span className="text-xs font-medium" style={{ color: B.accent }}>Drop to attach</span>
+                </>
+              ) : (
+                <>
+                  <ImagePlus className="w-4 h-4" style={{ color: B.textMuted }} />
+                  <span className="text-xs font-medium" style={{ color: B.text }}>No media attached</span>
+                  <span className="text-[10px]" style={{ color: B.textMuted }}>(Drop media)</span>
+                </>
+              )}
             </div>
           )}
 
