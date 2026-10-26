@@ -1954,14 +1954,23 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       <div className="max-w-[1240px] mx-auto space-y-6">
         {/* Top Header */}
         <div className="pb-2">
-          <div>
-            <h1 className="text-5xl sm:text-6xl font-black tracking-tight bg-gradient-to-r from-[#604E38] via-[#8A6740] to-[#9F83A3] bg-clip-text text-transparent select-none">
-              Studio
-            </h1>
-            <div className="h-[3.5px] w-[110px] rounded-full bg-gradient-to-r from-[#B48850] via-[#C99C62] to-[#8B5CF6] mt-2 mb-3" />
-            <p className="text-sm sm:text-base text-[#382B1F] font-normal leading-relaxed">
-              Write once. AI adapts. You review. One click publishes everywhere.
-            </p>
+          <div className="flex items-end justify-between flex-wrap gap-4">
+            <div>
+              <h1 className="text-5xl sm:text-6xl font-black tracking-tight bg-gradient-to-r from-[#604E38] via-[#8A6740] to-[#9F83A3] bg-clip-text text-transparent select-none">
+                Studio
+              </h1>
+              <div className="h-[3.5px] w-[110px] rounded-full bg-gradient-to-r from-[#B48850] via-[#C99C62] to-[#8B5CF6] mt-2 mb-3" />
+              <p className="text-sm sm:text-base text-[#382B1F] font-normal leading-relaxed">
+                Write once. AI adapts. You review. One click publishes everywhere.
+              </p>
+            </div>
+            <Link
+              href="/dashboard/flightplan"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-[#FAF3E7] hover:bg-[#F3EAD9] text-[#785E3A] border border-[#E8DEC8] transition-all shadow-2xs shrink-0"
+            >
+              <Calendar className="w-3.5 h-3.5 text-[#785E3A]" />
+              <span>Schedule a week</span>
+            </Link>
           </div>
           <div className="border-b border-[#EADFC9] mt-6" />
         </div>
@@ -2182,46 +2191,6 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
               </p>
             </button>
           </div>
-
-          {/* Stepper Navigation (Only in AI Composer mode) */}
-          {mode === 'ai' && (
-            <div className="flex items-center justify-center gap-3 sm:gap-4 my-2 select-none flex-wrap">
-              <div className="flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-black text-white text-xs font-bold flex items-center justify-center">
-                  1
-                </span>
-                <span className="text-xs font-bold text-[#231C16]">Write Your Idea</span>
-              </div>
-              <div className="h-[2px] w-8 sm:w-16 bg-[#E5DBC7]" />
-              <div className="flex items-center gap-2">
-                <span
-                  className={cn(
-                    "w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center",
-                    drafts.some(d => d.status === 'ready' || d.status === 'generating')
-                      ? "bg-black text-white"
-                      : "border-2 border-[#231C16] text-[#231C16] bg-transparent"
-                  )}
-                >
-                  2
-                </span>
-                <span className="text-xs font-bold text-[#231C16]">Review &amp; Edit Drafts</span>
-              </div>
-              <div className="h-[2px] w-8 sm:w-16 bg-[#E5DBC7]" />
-              <div className="flex items-center gap-2">
-                <span
-                  className={cn(
-                    "w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center",
-                    readyCount > 0
-                      ? "bg-black text-white"
-                      : "border-2 border-[#231C16] text-[#231C16] bg-transparent"
-                  )}
-                >
-                  3
-                </span>
-                <span className="text-xs font-bold text-[#231C16]">Ready to Publish</span>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* ───── Editor & Preview Row (Preview placed directly beside Editor) ───── */}
@@ -2579,85 +2548,86 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
 
                 {/* Step 1 Footer Action Bar (Image 3) */}
                 <div className="pt-3 space-y-3">
+                  {/* Upper Row: Add Media (moved up) & Character count */}
                   <div className="flex items-center justify-between flex-wrap gap-3">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <input
+                        type="file"
+                        id="media-upload-ai"
+                        className="hidden"
+                        accept="image/*,video/*,application/pdf"
+                        onChange={handleFileUpload}
+                        disabled={isUploading}
+                        multiple
+                      />
+                      <button
+                        type="button"
+                        onClick={() => document.getElementById('media-upload-ai')?.click()}
+                        disabled={isUploading}
+                        className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-white text-[#231C16] border border-[#231C16] hover:bg-[#FAF7F2] flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all disabled:opacity-50"
+                      >
+                        {isUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImageIcon className="w-3.5 h-3.5 text-[#231C16]" />}
+                        <span>Add Media</span>
+                      </button>
+                      {media.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {media.map((m, i) => (
+                            <div key={i} className="relative inline-block">
+                              {m.type === 'document' ? (
+                                <div className="h-14 w-14 bg-[#FAF7F2] rounded-xl border border-[#EADBBD] flex flex-col items-center justify-center">
+                                  <FileText className="h-5 w-5 text-[#735A42]" />
+                                  <span className="text-[9px] mt-0.5 text-[#735A42]">PDF</span>
+                                </div>
+                              ) : m.type === 'video' ? (
+                                <video src={m.url} className="h-14 w-14 object-cover rounded-xl border border-[#EADBBD]" muted />
+                              ) : (
+                                <img src={m.url} alt="Upload preview" className="h-14 w-14 object-cover rounded-xl border border-[#EADBBD]" />
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => setMedia(prev => prev.filter((_, idx) => idx !== i))}
+                                className="absolute -top-1.5 -right-1.5 bg-black text-white rounded-full p-0.5 hover:bg-zinc-800"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                     <span className="text-xs text-[#735A42] font-medium">
                       {sourceContent.length} characters
                     </span>
-                    <div className="flex gap-2.5">
-                      <button
-                        type="button"
-                        onClick={() => generateDrafts(true)}
-                        disabled={isGenerating || !sourceContent.trim() || !profile || selectedPlatforms.length === 0}
-                        className="px-4 py-2 rounded-xl text-xs font-bold bg-white text-[#231C16] border border-[#231C16] hover:bg-[#FAF7F2] flex items-center gap-2 cursor-pointer shadow-2xs transition-all disabled:opacity-50"
-                      >
-                        {generatingType === 'selected' ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <FileText className="w-3.5 h-3.5 text-[#231C16]" />
-                        )}
-                        <span>Draft Selected</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => generateDrafts(false)}
-                        disabled={isGenerating || !sourceContent.trim() || !profile || connectedPlatforms.length === 0}
-                        className="px-4 py-2 rounded-xl text-xs font-bold bg-[#1C1611] text-white hover:bg-[#2D2319] flex items-center gap-2 cursor-pointer shadow-sm transition-all disabled:opacity-50"
-                      >
-                        {generatingType === 'all' ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
-                        ) : (
-                          <FileText className="w-3.5 h-3.5 text-white" />
-                        )}
-                        <span>Draft All</span>
-                      </button>
-                    </div>
                   </div>
 
-                  {/* Media Upload (AI Composer) */}
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <input
-                      type="file"
-                      id="media-upload-ai"
-                      className="hidden"
-                      accept="image/*,video/*,application/pdf"
-                      onChange={handleFileUpload}
-                      disabled={isUploading}
-                      multiple
-                    />
+                  {/* Lower Row: Draft Selected & Draft All (moved down) */}
+                  <div className="flex items-center justify-end gap-2.5 pt-1">
                     <button
                       type="button"
-                      onClick={() => document.getElementById('media-upload-ai')?.click()}
-                      disabled={isUploading}
-                      className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-white text-[#231C16] border border-[#231C16] hover:bg-[#FAF7F2] flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all disabled:opacity-50"
+                      onClick={() => generateDrafts(true)}
+                      disabled={isGenerating || !sourceContent.trim() || !profile || selectedPlatforms.length === 0}
+                      className="px-4 py-2 rounded-xl text-xs font-bold bg-white text-[#231C16] border border-[#231C16] hover:bg-[#FAF7F2] flex items-center gap-2 cursor-pointer shadow-2xs transition-all disabled:opacity-50"
                     >
-                      {isUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImageIcon className="w-3.5 h-3.5 text-[#231C16]" />}
-                      <span>Add Media</span>
+                      {generatingType === 'selected' ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <FileText className="w-3.5 h-3.5 text-[#231C16]" />
+                      )}
+                      <span>Draft Selected</span>
                     </button>
-                    {media.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {media.map((m, i) => (
-                          <div key={i} className="relative inline-block">
-                            {m.type === 'document' ? (
-                              <div className="h-14 w-14 bg-[#FAF7F2] rounded-xl border border-[#EADBBD] flex flex-col items-center justify-center">
-                                <FileText className="h-5 w-5 text-[#735A42]" />
-                                <span className="text-[9px] mt-0.5 text-[#735A42]">PDF</span>
-                              </div>
-                            ) : m.type === 'video' ? (
-                              <video src={m.url} className="h-14 w-14 object-cover rounded-xl border border-[#EADBBD]" muted />
-                            ) : (
-                              <img src={m.url} alt="Upload preview" className="h-14 w-14 object-cover rounded-xl border border-[#EADBBD]" />
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => setMedia(prev => prev.filter((_, idx) => idx !== i))}
-                              className="absolute -top-1.5 -right-1.5 bg-black text-white rounded-full p-0.5 hover:bg-zinc-800"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => generateDrafts(false)}
+                      disabled={isGenerating || !sourceContent.trim() || !profile || connectedPlatforms.length === 0}
+                      className="px-4 py-2 rounded-xl text-xs font-bold bg-[#1C1611] text-white hover:bg-[#2D2319] flex items-center gap-2 cursor-pointer shadow-sm transition-all disabled:opacity-50"
+                    >
+                      {generatingType === 'all' ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
+                      ) : (
+                        <FileText className="w-3.5 h-3.5 text-white" />
+                      )}
+                      <span>Draft All</span>
+                    </button>
                   </div>
                 </div>
               </div>
