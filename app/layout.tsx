@@ -1,14 +1,7 @@
 import type { Metadata } from 'next';
-import { Geist, Geist_Mono, Syne, Cormorant_Garamond, Plus_Jakarta_Sans } from 'next/font/google';
 import * as Sentry from "@sentry/nextjs";
 import './globals.css';
 import { Toaster } from 'sonner';
-
-const geist = Geist({ subsets: ['latin'], variable: '--font-geist', display: 'swap' });
-const geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-geist-mono', display: 'swap' });
-const syne = Syne({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'], variable: '--font-syne', display: 'swap' });
-const cormorant = Cormorant_Garamond({ subsets: ['latin'], weight: ['300', '400', '500', '600', '700'], variable: '--font-cormorant', display: 'swap' });
-const plusJakarta = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700'], variable: '--font-plus-jakarta', display: 'swap' });
 
 export const metadata: Metadata = {
   title: 'Unool — One Link + One Click',
@@ -35,7 +28,15 @@ function ErrorFallback({ error, resetError }: { error: unknown; componentStack: 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${geist.variable} ${geistMono.variable} ${syne.variable} ${cormorant.variable} ${plusJakarta.variable} font-sans antialiased`}>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=Geist+Mono:wght@100..900&family=Geist:wght@100..900&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Syne:wght@400;500;600;700;800&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body className="font-sans antialiased">
         <Sentry.ErrorBoundary fallback={ErrorFallback}>
           {children}
         </Sentry.ErrorBoundary>
@@ -51,4 +52,4 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </body>
     </html>
   );
-}
+}
