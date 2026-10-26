@@ -1957,29 +1957,27 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       }}
     >
       <div className="max-w-[1240px] mx-auto space-y-6">
-        {/* Top Header & Overview Context */}
-        <div className="space-y-6" style={{ maxWidth: 840 }}>
-          {/* Header */}
-          <div className="pb-2">
-            <div className="flex items-start justify-between flex-wrap gap-4">
-              <div>
-                <h1 className="text-5xl sm:text-6xl font-black tracking-tight bg-gradient-to-r from-[#604E38] via-[#8A6740] to-[#9F83A3] bg-clip-text text-transparent select-none">
-                  Studio
-                </h1>
-                <div className="h-[3.5px] w-[110px] rounded-full bg-gradient-to-r from-[#B48850] via-[#C99C62] to-[#8B5CF6] mt-2 mb-3" />
-                <p className="text-sm sm:text-base text-[#382B1F] font-normal leading-relaxed">
-                  Write once. AI adapts. You review. One click publishes everywhere.
-                </p>
-              </div>
-              <Link
-                href="/dashboard/schedule"
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-[#FAF3E7] hover:bg-[#F3EAD9] text-[#785E3A] border border-[#E8DEC8] transition-all shadow-2xs"
-              >
-                Plan Entire Week (Flight Plan)
-              </Link>
+        {/* Top Header */}
+        <div className="pb-2">
+          <div className="flex items-start justify-between flex-wrap gap-4">
+            <div>
+              <h1 className="text-5xl sm:text-6xl font-black tracking-tight bg-gradient-to-r from-[#604E38] via-[#8A6740] to-[#9F83A3] bg-clip-text text-transparent select-none">
+                Studio
+              </h1>
+              <div className="h-[3.5px] w-[110px] rounded-full bg-gradient-to-r from-[#B48850] via-[#C99C62] to-[#8B5CF6] mt-2 mb-3" />
+              <p className="text-sm sm:text-base text-[#382B1F] font-normal leading-relaxed">
+                Write once. AI adapts. You review. One click publishes everywhere.
+              </p>
             </div>
-            <div className="border-b border-[#EADFC9] mt-6" />
+            <Link
+              href="/dashboard/schedule"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-[#FAF3E7] hover:bg-[#F3EAD9] text-[#785E3A] border border-[#E8DEC8] transition-all shadow-2xs"
+            >
+              Plan Entire Week (Flight Plan)
+            </Link>
           </div>
+          <div className="border-b border-[#EADFC9] mt-6" />
+        </div>
 
         {/* Active Draft Review Header Banner */}
         <AnimatePresence>
@@ -1990,7 +1988,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -8, scale: 0.98 }}
               transition={{ type: 'spring', stiffness: 420, damping: 26 }}
-              className="relative overflow-hidden flex items-center justify-between px-5 py-3.5 rounded-2xl bg-gradient-to-r from-[#FAF6EE] via-[#FFFDF9] to-[#F5EFE4] dark:from-[#211A14] dark:via-[#261F18] dark:to-[#1C1610] border border-[#E0D5BE] dark:border-[#3E3225] shadow-[0_4px_20px_rgba(61,43,31,0.06)] flex-wrap gap-4"
+              className="w-full relative overflow-hidden flex items-center justify-between px-5 py-3.5 rounded-2xl bg-gradient-to-r from-[#FAF6EE] via-[#FFFDF9] to-[#F5EFE4] dark:from-[#211A14] dark:via-[#261F18] dark:to-[#1C1610] border border-[#E0D5BE] dark:border-[#3E3225] shadow-[0_4px_20px_rgba(61,43,31,0.06)] flex-wrap gap-4"
             >
               <div className="flex items-center gap-3.5 min-w-0">
                 <div className="w-9 h-9 rounded-xl bg-[#F0E6D2] dark:bg-[#2D2319] border border-[#D8C7A5] dark:border-[#4B3B2B] flex items-center justify-center shrink-0">
@@ -2043,7 +2041,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         {/* Plan error banner */}
         <AnimatePresence>
           {planError && (
-            <MotionBox key="plan-error" variant="slide-up">
+            <MotionBox key="plan-error" variant="slide-up" className="w-full">
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
                 <AlertTitle>Plan Limit Reached</AlertTitle>
@@ -2063,11 +2061,11 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           )}
         </AnimatePresence>
 
-        {/* Profile context bar - Premium Identity Card */}
+        {/* Profile context bar - Premium Identity Card (Extended full-width to right end, Image 1) */}
         <AnimatePresence mode="wait">
           {profileLoading && (
-            <MotionBox key="loading" variant="fade">
-              <div className="flex items-center gap-3 px-4 py-3.5 rounded-xl border border-[#EDE7DD] bg-white/80 backdrop-blur-sm">
+            <MotionBox key="loading" variant="fade" className="w-full">
+              <div className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border border-[#EDE7DD] bg-white/80 backdrop-blur-sm">
                 <Loader2 className="h-4 w-4 animate-spin text-[#C4A265]" />
                 <span className="text-sm text-[#8B7355] font-medium">Loading your profile&hellip;</span>
                 <div className="flex-1 h-4 bg-gradient-to-r from-[#EDE7DD] via-[#F5EFE2] to-[#EDE7DD] rounded-full animate-pulse ml-4" />
@@ -2075,8 +2073,8 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
             </MotionBox>
           )}
           {profile && !profileLoading && (
-            <MotionBox key="profile" variant="slide-up">
-              <div className="bg-white rounded-3xl border border-[#EADBBD] shadow-[0_2px_12px_rgba(61,43,31,0.03)] px-6 py-4 flex items-center justify-between flex-wrap gap-4">
+            <MotionBox key="profile" variant="slide-up" className="w-full">
+              <div className="w-full bg-white rounded-3xl border border-[#EADBBD] shadow-[0_2px_12px_rgba(61,43,31,0.03)] px-6 py-4 flex items-center justify-between flex-wrap gap-4">
                 <div className="flex items-center gap-4 min-w-0 flex-1">
                   {/* Avatar with green active status dot */}
                   <div className="relative flex-shrink-0">
@@ -2128,8 +2126,8 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           )}
 
           {!profile && !profileLoading && (
-            <MotionBox key="no-profile" variant="slide-up">
-              <div className="bg-white rounded-3xl border border-[#EADBBD] shadow-[0_2px_12px_rgba(61,43,31,0.03)] px-6 py-4 flex items-center justify-between flex-wrap gap-4">
+            <MotionBox key="no-profile" variant="slide-up" className="w-full">
+              <div className="w-full bg-white rounded-3xl border border-[#EADBBD] shadow-[0_2px_12px_rgba(61,43,31,0.03)] px-6 py-4 flex items-center justify-between flex-wrap gap-4">
                 <div className="flex items-center gap-4 min-w-0 flex-1">
                   <div className="w-12 h-12 rounded-2xl bg-[#65554B] text-white flex items-center justify-center font-bold text-lg shrink-0">
                     <span>V</span>
@@ -2152,8 +2150,8 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           )}
         </AnimatePresence>
 
-        {/* ── SignalDM Active Badge (Image 1) ── */}
-        <div className="flex items-center justify-between px-5 py-3.5 rounded-2xl bg-[#FBF9FE] border border-[#E9DEFA] flex-wrap gap-3">
+        {/* ── SignalDM Active Badge (Extended full-width to right end, Image 1) ── */}
+        <div className="w-full flex items-center justify-between px-5 py-3.5 rounded-2xl bg-[#FBF9FE] border border-[#E9DEFA] flex-wrap gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
             <Zap className="w-4 h-4 text-[#7C3AED] fill-[#7C3AED] shrink-0" />
             <span className="text-xs sm:text-sm font-bold text-[#7C3AED]">SignalDM Active</span>
@@ -2170,85 +2168,86 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         </div>
 
         {/* Mode Selector Cards (Side-by-Side Cards, Image 1 & 2) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <button
-            type="button"
-            onClick={() => setMode('ai')}
-            className={cn(
-              "p-5 rounded-2xl text-left transition-all cursor-pointer relative",
-              mode === 'ai'
-                ? "bg-white border-2 border-[#8B5CF6] shadow-[0_4px_20px_rgba(139,92,246,0.08)]"
-                : "bg-white/80 hover:bg-white border border-[#EADBBD]"
-            )}
-          >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#7C3AED] to-[#9333EA] flex items-center justify-center text-white shadow-xs">
-              <PenTool className="w-5 h-5 text-white" />
-            </div>
-            <p className="text-base font-bold text-[#231C16] mt-3.5">AI Composer</p>
-            <p className="text-xs text-[#735A42] mt-1">
-              AI will adapt it perfectly for each platform.
-            </p>
-          </button>
+        <div className="space-y-6" style={{ maxWidth: 840 }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <button
+              type="button"
+              onClick={() => setMode('ai')}
+              className={cn(
+                "p-5 rounded-2xl text-left transition-all cursor-pointer relative",
+                mode === 'ai'
+                  ? "bg-white border-2 border-[#8B5CF6] shadow-[0_4px_20px_rgba(139,92,246,0.08)]"
+                  : "bg-white/80 hover:bg-white border border-[#EADBBD]"
+              )}
+            >
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#7C3AED] to-[#9333EA] flex items-center justify-center text-white shadow-xs">
+                <PenTool className="w-5 h-5 text-white" />
+              </div>
+              <p className="text-base font-bold text-[#231C16] mt-3.5">AI Composer</p>
+              <p className="text-xs text-[#735A42] mt-1">
+                AI will adapt it perfectly for each platform.
+              </p>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setMode('quick')}
-            className={cn(
-              "p-5 rounded-2xl text-left transition-all cursor-pointer relative",
-              mode === 'quick'
-                ? "bg-white border-2 border-[#E05344] shadow-[0_8px_24px_rgba(224,83,68,0.15)]"
-                : "bg-white/80 hover:bg-white border border-[#EADBBD]"
-            )}
-          >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#E2A17E] to-[#CD825E] flex items-center justify-center text-white shadow-xs">
-              <Zap className="w-5 h-5 text-white fill-white" />
-            </div>
-            <p className="text-base font-bold text-[#231C16] mt-3.5">Quick Broadcast</p>
-            <p className="text-xs text-[#735A42] mt-1">
-              Publish identical content instantly — no AI adaptation.
-            </p>
-          </button>
-        </div>
-
-        {/* Stepper Navigation (Only in AI Composer mode) */}
-        {mode === 'ai' && (
-          <div className="flex items-center justify-center gap-3 sm:gap-4 my-2 select-none flex-wrap">
-            <div className="flex items-center gap-2">
-              <span className="w-6 h-6 rounded-full bg-black text-white text-xs font-bold flex items-center justify-center">
-                1
-              </span>
-              <span className="text-xs font-bold text-[#231C16]">Write Your Idea</span>
-            </div>
-            <div className="h-[2px] w-8 sm:w-16 bg-[#E5DBC7]" />
-            <div className="flex items-center gap-2">
-              <span
-                className={cn(
-                  "w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center",
-                  drafts.some(d => d.status === 'ready' || d.status === 'generating')
-                    ? "bg-black text-white"
-                    : "border-2 border-[#231C16] text-[#231C16] bg-transparent"
-                )}
-              >
-                2
-              </span>
-              <span className="text-xs font-bold text-[#231C16]">Review &amp; Edit Drafts</span>
-            </div>
-            <div className="h-[2px] w-8 sm:w-16 bg-[#E5DBC7]" />
-            <div className="flex items-center gap-2">
-              <span
-                className={cn(
-                  "w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center",
-                  readyCount > 0
-                    ? "bg-black text-white"
-                    : "border-2 border-[#231C16] text-[#231C16] bg-transparent"
-                )}
-              >
-                3
-              </span>
-              <span className="text-xs font-bold text-[#231C16]">Ready to Publish</span>
-            </div>
+            <button
+              type="button"
+              onClick={() => setMode('quick')}
+              className={cn(
+                "p-5 rounded-2xl text-left transition-all cursor-pointer relative",
+                mode === 'quick'
+                  ? "bg-white border-2 border-[#E05344] shadow-[0_8px_24px_rgba(224,83,68,0.15)]"
+                  : "bg-white/80 hover:bg-white border border-[#EADBBD]"
+              )}
+            >
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#E2A17E] to-[#CD825E] flex items-center justify-center text-white shadow-xs">
+                <Zap className="w-5 h-5 text-white fill-white" />
+              </div>
+              <p className="text-base font-bold text-[#231C16] mt-3.5">Quick Broadcast</p>
+              <p className="text-xs text-[#735A42] mt-1">
+                Publish identical content instantly — no AI adaptation.
+              </p>
+            </button>
           </div>
-        )}
+
+          {/* Stepper Navigation (Only in AI Composer mode) */}
+          {mode === 'ai' && (
+            <div className="flex items-center justify-center gap-3 sm:gap-4 my-2 select-none flex-wrap">
+              <div className="flex items-center gap-2">
+                <span className="w-6 h-6 rounded-full bg-black text-white text-xs font-bold flex items-center justify-center">
+                  1
+                </span>
+                <span className="text-xs font-bold text-[#231C16]">Write Your Idea</span>
+              </div>
+              <div className="h-[2px] w-8 sm:w-16 bg-[#E5DBC7]" />
+              <div className="flex items-center gap-2">
+                <span
+                  className={cn(
+                    "w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center",
+                    drafts.some(d => d.status === 'ready' || d.status === 'generating')
+                      ? "bg-black text-white"
+                      : "border-2 border-[#231C16] text-[#231C16] bg-transparent"
+                  )}
+                >
+                  2
+                </span>
+                <span className="text-xs font-bold text-[#231C16]">Review &amp; Edit Drafts</span>
+              </div>
+              <div className="h-[2px] w-8 sm:w-16 bg-[#E5DBC7]" />
+              <div className="flex items-center gap-2">
+                <span
+                  className={cn(
+                    "w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center",
+                    readyCount > 0
+                      ? "bg-black text-white"
+                      : "border-2 border-[#231C16] text-[#231C16] bg-transparent"
+                  )}
+                >
+                  3
+                </span>
+                <span className="text-xs font-bold text-[#231C16]">Ready to Publish</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ───── Editor & Preview Row (Preview placed directly beside Editor) ───── */}
