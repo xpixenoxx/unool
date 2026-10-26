@@ -2170,7 +2170,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
             className={cn(
               "p-5 rounded-2xl text-left transition-all cursor-pointer relative",
               mode === 'quick'
-                ? "bg-white border-2 border-[#8B5CF6] shadow-[0_4px_20px_rgba(139,92,246,0.08)]"
+                ? "bg-white border-2 border-[#E05344] shadow-[0_8px_24px_rgba(224,83,68,0.15)]"
                 : "bg-white/80 hover:bg-white border border-[#EADBBD]"
             )}
           >
@@ -2184,236 +2184,256 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           </button>
         </div>
 
-        {/* Stepper Navigation (Image 2) */}
-        <div className="flex items-center justify-center gap-3 sm:gap-4 my-2 select-none flex-wrap">
-          <div className="flex items-center gap-2">
-            <span className="w-6 h-6 rounded-full bg-black text-white text-xs font-bold flex items-center justify-center">
-              1
-            </span>
-            <span className="text-xs font-bold text-[#231C16]">Write Your Idea</span>
+        {/* Stepper Navigation (Only in AI Composer mode) */}
+        {mode === 'ai' && (
+          <div className="flex items-center justify-center gap-3 sm:gap-4 my-2 select-none flex-wrap">
+            <div className="flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-black text-white text-xs font-bold flex items-center justify-center">
+                1
+              </span>
+              <span className="text-xs font-bold text-[#231C16]">Write Your Idea</span>
+            </div>
+            <div className="h-[2px] w-8 sm:w-16 bg-[#E5DBC7]" />
+            <div className="flex items-center gap-2">
+              <span
+                className={cn(
+                  "w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center",
+                  drafts.some(d => d.status === 'ready' || d.status === 'generating')
+                    ? "bg-black text-white"
+                    : "border-2 border-[#231C16] text-[#231C16] bg-transparent"
+                )}
+              >
+                2
+              </span>
+              <span className="text-xs font-bold text-[#231C16]">Review &amp; Edit Drafts</span>
+            </div>
+            <div className="h-[2px] w-8 sm:w-16 bg-[#E5DBC7]" />
+            <div className="flex items-center gap-2">
+              <span
+                className={cn(
+                  "w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center",
+                  readyCount > 0
+                    ? "bg-black text-white"
+                    : "border-2 border-[#231C16] text-[#231C16] bg-transparent"
+                )}
+              >
+                3
+              </span>
+              <span className="text-xs font-bold text-[#231C16]">Ready to Publish</span>
+            </div>
           </div>
-          <div className="h-[2px] w-8 sm:w-16 bg-[#E5DBC7]" />
-          <div className="flex items-center gap-2">
-            <span
-              className={cn(
-                "w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center",
-                drafts.some(d => d.status === 'ready' || d.status === 'generating')
-                  ? "bg-black text-white"
-                  : "border-2 border-[#231C16] text-[#231C16] bg-transparent"
-              )}
-            >
-              2
-            </span>
-            <span className="text-xs font-bold text-[#231C16]">Review &amp; Edit Drafts</span>
-          </div>
-          <div className="h-[2px] w-8 sm:w-16 bg-[#E5DBC7]" />
-          <div className="flex items-center gap-2">
-            <span
-              className={cn(
-                "w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center",
-                readyCount > 0
-                  ? "bg-black text-white"
-                  : "border-2 border-[#231C16] text-[#231C16] bg-transparent"
-              )}
-            >
-              3
-            </span>
-            <span className="text-xs font-bold text-[#231C16]">Ready to Publish</span>
-          </div>
-        </div>
+        )}
 
-        {/* Quick Broadcast */}
+        {/* Quick Broadcast (Screenshots 1 & 2) */}
         {mode === 'quick' && (
           <MotionBox variant="slide-up" delay={0.05}>
-            <Card>
-              <CardHeader className="pb-3 flex flex-row items-start justify-between gap-4">
-                <div className="space-y-1">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Zap className="h-4 w-4 text-primary" />
-                    Quick Broadcast
-                  </CardTitle>
-                  <Text size="sm" color="muted">
+            <div
+              className={cn(
+                "rounded-3xl border border-[#EADBBD] border-t-[4px] border-t-[#E05344] bg-white p-6 sm:p-7 shadow-[0_4px_24px_rgba(61,43,31,0.03)] space-y-5 transition-colors",
+                isDragging && "bg-[#FAF7F2] border-dashed border-[#E05344]"
+              )}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+              {/* Header */}
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                  <div className="flex items-center gap-2.5">
+                    <Zap className="w-5 h-5 text-[#E05344] fill-[#E05344]" />
+                    <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[#231C16]">
+                      Quick Broadcast
+                    </h2>
+                  </div>
+                  <p className="text-sm text-[#7A6B5D] mt-1 font-normal">
                     Publish identical content to all connected platforms instantly — no AI adaptation.
-                  </Text>
+                  </p>
                 </div>
-                <Button
+                <button
                   type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setIsIdeaGeneratorOpen((prev) => !prev);
-                  }}
-                  className="h-8 text-xs font-semibold px-3 bg-white dark:bg-zinc-800 hover:bg-[#F5EFE2] dark:hover:bg-zinc-700 border-zinc-200 dark:border-zinc-700 text-[#8B7355] dark:text-zinc-200 hover:text-[#3D2B1F] flex items-center gap-1.5 cursor-pointer shrink-0 shadow-2xs"
+                  onClick={() => setIsIdeaGeneratorOpen((prev) => !prev)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-[#D8CEBE] bg-white text-xs font-semibold text-[#231C16] hover:bg-[#FAF7F2] transition-colors cursor-pointer shadow-2xs shrink-0"
                 >
-                  <Lightbulb className="w-3.5 h-3.5 text-[#C4A265]" />
+                  <span className="text-sm">💡</span>
                   <span>{isIdeaGeneratorOpen ? 'Hide ideas' : 'Generate ideas'}</span>
-                </Button>
-              </CardHeader>
-              <CardContent 
-                className={cn("space-y-4 transition-colors", isDragging && "bg-muted/50 rounded-lg")}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-              >
-                {/* Active Studio Persona Banner */}
-                {(profile?.studioProfile || profile?.onboardingAnswers) && (
-                  <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-[#FAF6EE] dark:bg-zinc-800/60 border border-[#E8E0D4] dark:border-zinc-800 text-xs text-[#8B7355] dark:text-zinc-300 transition-colors">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="w-3.5 h-3.5 text-[#C4A265] shrink-0" />
-                      <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-                        <span className="font-semibold text-zinc-900 dark:text-zinc-100">
-                          Active Persona:
-                        </span>
-                        <span className="font-medium text-zinc-800 dark:text-zinc-200 truncate">
-                          {profile?.studioProfile?.role || 'Creator'}
-                          {(profile?.studioProfile?.businessDomain || profile?.studioProfile?.doing)
-                            ? ` · ${profile?.studioProfile?.businessDomain || profile?.studioProfile?.doing}`
-                            : ''}
-                          {profile?.studioProfile?.businessStage
-                            ? ` · ${profile?.studioProfile?.businessStage}`
-                            : ''}
-                        </span>
-                      </div>
-                    </div>
-                    <Link
-                      href="/dashboard/settings?tab=persona"
-                      className="text-[11px] font-semibold text-[#8B7355] hover:text-[#3D2B1F] dark:text-zinc-400 dark:hover:text-zinc-200 shrink-0 underline underline-offset-2 ml-2"
-                    >
-                      Edit Persona
-                    </Link>
-                  </div>
-                )}
+                </button>
+              </div>
 
-                {/* Interactive Studio Idea Generator for Quick Broadcast */}
-                <StudioIdeaGenerator
-                  isOpen={isIdeaGeneratorOpen}
-                  onClose={() => setIsIdeaGeneratorOpen(false)}
-                  hasCompletedProfile={true}
-                  studioProfile={effectiveStudioProfile}
-                  onSelectIdea={(idea) => {
-                    const formattedIdea = idea.hook ? `${idea.hook}\n\n${idea.title}` : idea.title;
-                    setQuickContent(formattedIdea);
+              {/* Active Studio Persona Banner (Image 1) */}
+              <div className="flex items-center justify-between px-4 py-3 rounded-2xl bg-[#FAF6EE] border border-[#EADBBD] text-xs text-[#231C16]">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold text-[#231C16]">Active Persona:</span>
+                  <span className="text-[#231C16]">
+                    {profile?.studioProfile?.role || 'Creator'}
+                  </span>
+                </div>
+                <Link
+                  href="/dashboard/settings?tab=persona"
+                  className="font-bold text-[#231C16] underline underline-offset-2 hover:opacity-80 transition-opacity"
+                >
+                  Edit Persona
+                </Link>
+              </div>
+
+              {/* Interactive Studio Idea Generator for Quick Broadcast */}
+              <StudioIdeaGenerator
+                isOpen={isIdeaGeneratorOpen}
+                onClose={() => setIsIdeaGeneratorOpen(false)}
+                hasCompletedProfile={true}
+                studioProfile={effectiveStudioProfile}
+                onSelectIdea={(idea) => {
+                  const formattedIdea = idea.hook ? `${idea.hook}\n\n${idea.title}` : idea.title;
+                  setQuickContent(formattedIdea);
+                }}
+              />
+
+              {/* 4-Column Platform Selector */}
+              <PlatformSelector />
+
+              {/* Textarea */}
+              <Textarea
+                placeholder="What do you want to share? Drag and drop an image here, or type your exact text."
+                value={quickContent}
+                onChange={e => setQuickContent(e.target.value)}
+                className={cn(
+                  "min-h-[160px] resize-y select-text rounded-2xl border border-[#D8CEBE] p-4 font-mono text-sm text-[#231C16] bg-white focus-visible:ring-1 focus-visible:ring-[#E05344] focus-visible:border-[#E05344]",
+                  isDragging && "bg-transparent border-dashed border-[#E05344]"
+                )}
+                rows={7}
+              />
+
+              {/* Actions row: Character counter & Buttons (Image 2) */}
+              <div className="flex items-center justify-between flex-wrap gap-3 pt-1">
+                <span className={cn(
+                  'text-sm tabular-nums text-[#7A6B5D] font-medium',
+                  quickContent.length > 280 && 'text-destructive font-semibold'
+                )}>
+                  {quickContent.length} characters
+                  {quickContent.length > 280 && ' · exceeds X/Twitter limit (280)'}
+                </span>
+
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={handleSaveDraftAndClear}
+                    disabled={isSavingDraft}
+                    className="h-10 px-4 rounded-xl border border-[#231C16] bg-white text-xs font-semibold text-[#231C16] hover:bg-[#FAF7F2] transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                    title="Save this post as a draft in Signal and clear composer to create a new one"
+                  >
+                    {isSavingDraft ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Ticket className="w-3.5 h-3.5 text-[#E05344] fill-[#E05344]/15" />
+                    )}
+                    <span>Save as draft &amp; clear</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleDirectBroadcast(true)}
+                    disabled={isBroadcasting || !quickContent.trim() || !profile || selectedPlatforms.length === 0}
+                    className="h-10 px-4 rounded-xl border border-[#231C16] bg-white text-xs font-semibold text-[#231C16] hover:bg-[#FAF7F2] transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {broadcastingType === 'selected' ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Send className="w-3.5 h-3.5 text-[#231C16] fill-[#231C16]" />
+                    )}
+                    <span>Publish to Selected</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleDirectBroadcast(false)}
+                    disabled={isBroadcasting || !quickContent.trim() || !profile || connectedPlatforms.length === 0}
+                    className="h-10 px-4 rounded-xl bg-[#1C1611] hover:bg-black text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {broadcastingType === 'all' ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
+                    ) : (
+                      <Send className="w-3.5 h-3.5 text-white fill-white" />
+                    )}
+                    <span>Publish to All</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Add Media Button & Previews (Image 2) */}
+              <div className="pt-1">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <input
+                    type="file"
+                    id="media-upload-quick"
+                    className="hidden"
+                    accept="image/*,video/*,application/pdf"
+                    onChange={handleFileUpload}
+                    disabled={isUploading}
+                    multiple
+                  />
+                  <button
+                    type="button"
+                    onClick={() => document.getElementById('media-upload-quick')?.click()}
+                    disabled={isUploading}
+                    className="h-9 px-3.5 rounded-xl border border-[#231C16] bg-white text-xs font-semibold text-[#231C16] hover:bg-[#FAF7F2] transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                  >
+                    {isUploading ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <svg className="w-3.5 h-3.5 text-[#231C16]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                        <circle cx="8.5" cy="8.5" r="1.5" />
+                        <polyline points="21 15 16 10 5 21" />
+                      </svg>
+                    )}
+                    <span>Add Media</span>
+                  </button>
+
+                  {media.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {media.map((m, i) => (
+                        <div key={i} className="relative inline-block">
+                          {m.type === 'document' ? (
+                            <div className="h-14 w-14 bg-[#FAF6EE] rounded-xl border border-[#EADBBD] flex flex-col items-center justify-center">
+                              <FileText className="h-5 w-5 text-[#8C6D46]" />
+                              <span className="text-[10px] mt-0.5 font-bold text-[#8C6D46]">PDF</span>
+                            </div>
+                          ) : m.type === 'video' ? (
+                            <video src={m.url} className="h-14 w-14 object-cover rounded-xl border border-[#EADBBD]" muted />
+                          ) : (
+                            <img src={m.url} alt="Upload preview" className="h-14 w-14 object-cover rounded-xl border border-[#EADBBD]" />
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setMedia(prev => prev.filter((_, idx) => idx !== i))}
+                            className="absolute -top-1.5 -right-1.5 bg-[#1C1611] text-white rounded-full p-0.5 shadow-sm hover:bg-black"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Brand Materials Page Card for Quick Broadcast (Image 2) */}
+              <div className="pt-2">
+                <PostBrandMaterialsCard
+                  workspaceId={workspaceId}
+                  subdomain={(profile as any)?.subdomain || (user as any)?.subdomain || 'user'}
+                  postContent={quickContent}
+                  attachedSlug={attachedBrandSlug}
+                  onAttachPage={(slug, url) => {
+                    setAttachedBrandSlug(slug);
+                    setAttachedBrandUrl(url);
+                  }}
+                  onInsertLinkIntoDraft={(url) => {
+                    setQuickContent(prev => prev ? `${prev}\n\n${url}` : url);
+                    toast.success('Brand page link added to post draft!');
                   }}
                 />
-                <PlatformSelector />
-                <Textarea
-                  placeholder="What do you want to share? Drag and drop an image here, or type your exact text."
-                  value={quickContent}
-                  onChange={e => setQuickContent(e.target.value)}
-                  className={cn("min-h-[140px] resize-none select-text", isDragging && "bg-transparent border-dashed border-primary")}
-                  rows={6}
-                />
-                <div className="flex items-center justify-between flex-wrap gap-3">
-                  <span className={cn(
-                    'text-sm tabular-nums',
-                    quickContent.length > 280 ? 'text-destructive font-medium' : 'text-muted-foreground'
-                  )}>
-                    {quickContent.length} characters
-                    {quickContent.length > 280 && ' · exceeds X/Twitter limit (280)'}
-                  </span>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {(quickContent.trim() || postId) && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        type="button"
-                        onClick={handleSaveDraftAndClear}
-                        disabled={isSavingDraft}
-                        className="h-9 text-xs font-semibold flex items-center gap-1.5 px-3 bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 hover:bg-[#FAF6EE] text-[#3D2B1F] dark:text-zinc-200 cursor-pointer shadow-2xs"
-                        title="Save this post as a draft in Signal and clear composer to create a new one"
-                      >
-                        {isSavingDraft ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BookmarkPlus className="w-3.5 h-3.5 text-[#C4A265]" />}
-                        <span>Save as draft &amp; clear</span>
-                      </Button>
-                    )}
-                    <Button
-                      variant="outline"
-                      onClick={() => handleDirectBroadcast(true)}
-                      disabled={isBroadcasting || !quickContent.trim() || !profile || selectedPlatforms.length === 0}
-                    >
-                      {broadcastingType === 'selected' ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <Send className="mr-2 h-4 w-4" />
-                      )}
-                      Publish to Selected
-                    </Button>
-                    <Button
-                      onClick={() => handleDirectBroadcast(false)}
-                      disabled={isBroadcasting || !quickContent.trim() || !profile || connectedPlatforms.length === 0}
-                    >
-                      {broadcastingType === 'all' ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <Send className="mr-2 h-4 w-4" />
-                      )}
-                      Publish to All
-                    </Button>
-                  </div>
-                </div>
-                
-                {/* Media Upload (Quick Broadcast) */}
-                <div className="pt-2">
-                  <div className="flex items-center gap-4">
-                    <input
-                      type="file"
-                      id="media-upload-quick"
-                      className="hidden"
-                      accept="image/*,video/*,application/pdf"
-                      onChange={handleFileUpload}
-                      disabled={isUploading}
-                      multiple
-                    />
-                    <Button variant="outline" size="sm" type="button" onClick={() => document.getElementById('media-upload-quick')?.click()} disabled={isUploading}>
-                      {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImagePlus className="mr-2 h-4 w-4" />}
-                      Add Media
-                    </Button>
-                    {media.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {media.map((m, i) => (
-                          <div key={i} className="relative inline-block">
-                            {m.type === 'document' ? (
-                              <div className="h-16 w-16 bg-muted rounded-md border flex flex-col items-center justify-center">
-                                <FileText className="h-6 w-6 text-primary" />
-                                <span className="text-[10px] mt-1 text-muted-foreground">PDF</span>
-                              </div>
-                            ) : m.type === 'video' ? (
-                              <video src={m.url} className="h-16 w-16 object-cover rounded-md border" muted />
-                            ) : (
-                              <img src={m.url} alt="Upload preview" className="h-16 w-16 object-cover rounded-md border" />
-                            )}
-                            <button
-                              onClick={() => setMedia(prev => prev.filter((_, idx) => idx !== i))}
-                              className="absolute -top-2 -right-2 bg-background border rounded-full p-0.5 hover:bg-muted"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Brand Materials Page for this Post */}
-                  <div className="pt-2">
-                    <PostBrandMaterialsCard
-                      workspaceId={workspaceId}
-                      subdomain={(profile as any)?.subdomain || (user as any)?.subdomain || 'user'}
-                      postContent={quickContent}
-                      attachedSlug={attachedBrandSlug}
-                      onAttachPage={(slug, url) => {
-                        setAttachedBrandSlug(slug);
-                        setAttachedBrandUrl(url);
-                      }}
-                      onInsertLinkIntoDraft={(url) => {
-                        setQuickContent(prev => prev ? `${prev}\n\n${url}` : url);
-                        toast.success('Brand page link added to post draft!');
-                      }}
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </MotionBox>
         )}
 
