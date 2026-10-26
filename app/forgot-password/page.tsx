@@ -1,348 +1,420 @@
 'use client';
 
-import { useState, useRef, useEffect, KeyboardEvent, ClipboardEvent } from 'react';
+import React, { useState, useRef, useEffect, KeyboardEvent, ClipboardEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, ArrowLeft, Send, CheckCircle2 } from 'lucide-react';
-
-const C = {
-  oxblood: '#3A0B1A',
-  mahogany: '#5C1A1A',
-  terracotta: '#8C2A25',
-  clay: '#C84B31',
-  sand: '#D4B896',
-  cream: '#FFF9F2',
-  ink: '#1A0A05',
-};
+import { Loader2, ShieldCheck, Lock, Eye, EyeOff, CheckCircle2, ArrowRight } from 'lucide-react';
+import './forgot-password.css';
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [stage, setStage] = useState<'request' | 'otp' | 'success'>('request');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  
+
   // OTP State
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [cooldown, setCooldown] = useState(0);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
+  // Focus the first OTP input upon entering OTP stage
   useEffect(() => {
     if (stage === 'otp') {
-      setTimeout(() => otpRefs.current[0]?.focus(), 600);
-      setCooldown(300); // 5 minutes
+      const timer = setTimeout(() => otpRefs.current[0]?.focus(), 400);
+      return () => clearTimeout(timer);
     }
   }, [stage]);
 
+  // Cooldown countdown timer
   useEffect(() => {
     if (cooldown <= 0) return;
-    const t = setInterval(() => setCooldown(c => Math.max(0, c - 1)), 1000);
-    return () => clearInterval(t);
+    const interval = setInterval(() => {
+      setCooldown((c) => Math.max(0, c - 1));
+    }, 1000);
+    return () => clearInterval(interval);
   }, [cooldown]);
 
-  const handleRequest = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.includes('@')) { setError('Enter a valid email.'); return; }
+  // Stage 1: Request password reset OTP
+  const handleRequest = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const emailTrimmed = email.trim().toLowerCase();
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRe.test(emailTrimmed)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+
     setError('');
     setLoading(true);
+
     try {
       const res = await fetch('/api/auth/reset-password/request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+        body: JSON.stringify({ email: emailTrimmed }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+
       if (!res.ok && res.status !== 429) {
-        setError(data.message || 'Failed to request reset.');
-      } 
-      // In both success or failure (except rate-limit), we advance to conceal user existence
+        setError(data.message || 'Failed to request reset code.');
+      } else if (res.status === 429) {
+        setError(data.message || 'Too many attempts. Please wait.');
+        setLoading(false);
+        return;
+      }
+
+      // Advance to OTP stage (concealing account existence as per security guidelines)
       setStage('otp');
+      setCooldown(60);
     } catch {
-      setError('Network error.');
+      setError('Network error. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
   };
 
+  // OTP Input handlers
   const handleOtpChange = (i: number, val: string) => {
     const digit = val.replace(/\D/g, '').slice(-1);
     const next = [...otp];
     next[i] = digit;
     setOtp(next);
     setError('');
-    if (digit && i < 5) otpRefs.current[i + 1]?.focus();
+
+    if (digit && i < 5) {
+      otpRefs.current[i + 1]?.focus();
+    }
   };
 
   const handleOtpKeyDown = (i: number, e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Backspace' && !otp[i] && i > 0) otpRefs.current[i - 1]?.focus();
+    if (e.key === 'Backspace' && !otp[i] && i > 0) {
+      otpRefs.current[i - 1]?.focus();
+    }
   };
 
   const handleOtpPaste = (e: ClipboardEvent<HTMLInputElement>) => {
     e.preventDefault();
     const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
     const next = [...otp];
-    pasted.split('').forEach((ch, idx) => { next[idx] = ch; });
+    pasted.split('').forEach((ch, idx) => {
+      if (idx < 6) next[idx] = ch;
+    });
     setOtp(next);
+    setError('');
     otpRefs.current[Math.min(pasted.length, 5)]?.focus();
   };
 
+  // Stage 2: Verify OTP and update password
   const verifyAndUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     const token = otp.join('');
-    if (token.length < 6) { setError('Please enter 6-digit OTP.'); return; }
-    if (password.length < 8) { setError('Password must be at least 8 characters.'); return; }
-    
+    if (token.length < 6) {
+      setError('Please enter the full 6-digit code.');
+      return;
+    }
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters long.');
+      return;
+    }
+
     setLoading(true);
     setError('');
-    
+
     try {
       const res = await fetch('/api/auth/reset-password/verify-and-update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim().toLowerCase(), otp: token, password }),
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          otp: token,
+          password,
+        }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        setError(data.message || 'Invalid code.');
+        setError(data.message || 'Invalid or expired verification code.');
       } else {
         setStage('success');
-        setTimeout(() => router.push('/signin'), 3000);
+        setTimeout(() => {
+          router.push('/signin');
+        }, 3000);
       }
     } catch {
-      setError('Network error.');
+      setError('Network error. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  // UI structure mimics `signin` feed aesthetic
+  // Reset back to request stage
+  const handleTryAnotherEmail = () => {
+    setStage('request');
+    setOtp(['', '', '', '', '', '']);
+    setPassword('');
+    setError('');
+  };
+
+  // Live OTP preview digits string for the right-side visual chip
+  const livePreviewDigits =
+    stage === 'request'
+      ? '0 2 4 · 6 7 5'
+      : otp.map((d) => d || '·').join(' ');
+
   return (
-    <div 
-      className="min-h-screen w-full flex justify-center font-sans text-white selection:bg-[#C84B31]"
-      style={{ background: `linear-gradient(180deg, ${C.oxblood} 0%, ${C.terracotta} 40%, ${C.sand} 80%, ${C.cream} 100%)` }}
-    >
-      <div className="w-full max-w-7xl flex h-screen overflow-hidden">
-        
-        {/* Left Sidebar (Nav) */}
-        <div className="hidden sm:flex flex-col w-[80px] lg:w-[275px] shrink-0 border-r border-white/10 p-4">
-          <Link href="/" className="flex items-center gap-4 p-3 hover:bg-white/5 w-fit rounded-full transition-colors mb-4 group">
-            <ArrowLeft className="w-7 h-7 group-hover:-translate-x-1 transition-transform" />
-            <span className="hidden lg:block text-xl font-bold">Back to Site</span>
+    <div className="unool-forgot-page">
+      <div className="frame">
+        {/* Top Header */}
+        <header>
+          <Link href="/" className="mark" aria-label="Unool Home">
+            <img className="lg" src="/unool-icon.png" alt="Unool" />
+            Unool
           </Link>
-        </div>
+          <p>
+            Remember your password? <Link href="/signin">Sign in</Link>
+          </p>
+        </header>
 
-        {/* Center Feed */}
-        <div className="flex-1 w-full max-w-[600px] border-r border-white/10 flex flex-col h-full overflow-y-auto no-scrollbar relative bg-black/40 backdrop-blur-md">
-          {/* Header */}
-          <div className="sticky top-0 z-50 bg-black/60 backdrop-blur-xl border-b border-white/10 p-4 flex gap-8">
-            <Link href="/signin" className="text-[15px] font-bold text-white/50 hover:text-white transition-colors pb-2">
-              Sign In
-            </Link>
-            <div className="text-[15px] font-bold relative pb-2 text-white">
-              Reset Password
-              <div className="absolute bottom-0 left-0 right-0 h-1 rounded-t-full bg-[#C84B31]" />
-            </div>
-          </div>
+        {/* Scene Container: Form (Left) + Security Card (Right) */}
+        <div className="wrap">
+          <div className="scene">
+            {/* Left Column: Form Card */}
+            <main className="sc">
+              <div className="fc">
+                {stage === 'request' && (
+                  <>
+                    <span className="tag">Secure Recovery</span>
+                    <h1>
+                      <span>Regain access</span> to your studio.
+                    </h1>
+                    <p className="sub">
+                      Enter your verified email. We will send a single-use authentication code to safely reset your password.
+                    </p>
 
-          <div className="p-4 sm:p-6 pb-32">
-            
-            {/* Post 1: Unool Reset Request */}
-            <div className="relative z-10 w-full mb-6">
-              <div className="flex gap-4">
-                <div className="flex flex-col items-center">
-                  <div className="w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xl font-bold z-10 relative shadow-inner" style={{ background: `linear-gradient(135deg, ${C.clay}, ${C.terracotta})` }}>
-                    U
-                  </div>
-                  {/* Thread line connecting to next post */}
-                  <AnimatePresence>
-                    {(stage === 'otp' || stage === 'success') && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: '100%', opacity: 1 }}
-                        transition={{ duration: 0.5, ease: 'easeOut' }}
-                        className="w-0.5 mt-2 flex-grow rounded-full bg-white/20"
-                      />
-                    )}
-                  </AnimatePresence>
-                </div>
-                
-                <div className="flex-1 pt-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-bold text-[15px]">Unool</span>
-                    <span className="text-[15px] text-white/50 flex items-center gap-1">
-                      <CheckCircle2 className="w-4 h-4 text-white fill-[#C84B31]" /> @unool
-                    </span>
-                    <span className="text-[15px] text-white/40 ml-auto">now</span>
-                  </div>
-                  
-                  <p className="text-[15px] leading-relaxed mb-4 text-white/90">
-                    Forgot your password? 🧐 <br/>
-                    No worries. Reply with your email address and we'll send a code to reset it.
-                  </p>
-
-                  <AnimatePresence mode="wait">
-                    {stage === 'request' && (
-                      <motion.form
-                        key="request-form"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        onSubmit={handleRequest}
-                        className="rounded-2xl border border-white/20 bg-white/5 p-1 backdrop-blur-md overflow-hidden"
-                      >
-                        <div className="flex flex-col">
-                          <input
-                            type="email"
-                            placeholder="Email address"
-                            value={email}
-                            onChange={(e) => { setEmail(e.target.value); setError(''); }}
-                            disabled={loading}
-                            className="w-full bg-transparent border-none focus:ring-0 text-[15px] p-4 placeholder:text-white/40 text-white outline-none disabled:opacity-50"
-                          />
-                        </div>
-                        
-                        {error && (
-                          <p className="text-red-400 text-sm px-4 pb-2 font-medium">{error}</p>
-                        )}
-
-                        <div className="flex items-center justify-between p-3 bg-white/5 border-t border-white/10">
-                          <Link href="/signin" className="text-sm font-semibold hover:underline text-[#C84B31]">
-                            Back to Sign In
-                          </Link>
-                          
-                          <button
-                            type="submit"
-                            disabled={loading || !email}
-                            className="px-6 py-2 rounded-full font-bold text-[14px] text-white flex items-center gap-2 transition-transform active:scale-95 disabled:opacity-50 disabled:active:scale-100 bg-white text-black hover:bg-white/90"
-                          >
-                            {loading ? <Loader2 className="w-4 h-4 animate-spin text-black" /> : 'Send Code'} <Send className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </motion.form>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </div>
-            </div>
-
-            {/* Post 2: OTP and New Password */}
-            <AnimatePresence>
-              {(stage === 'otp' || stage === 'success') && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.2 }}
-                  className="relative z-10 w-full"
-                >
-                  <div className="flex gap-4">
-                    <div className="flex flex-col items-center">
-                      <div className="w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xl font-bold z-10 shadow-inner" style={{ background: `linear-gradient(135deg, ${C.clay}, ${C.terracotta})` }}>
-                        U
+                    <form onSubmit={handleRequest}>
+                      <label htmlFor="recovery-email">Email Address</label>
+                      <div className="f">
+                        <input
+                          id="recovery-email"
+                          type="email"
+                          placeholder="name@company.com"
+                          value={email}
+                          disabled={loading}
+                          autoComplete="email"
+                          onChange={(e) => {
+                            setEmail(e.target.value);
+                            setError('');
+                          }}
+                        />
                       </div>
-                    </div>
-                    
-                    <div className="flex-1 pt-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-bold text-[15px]">Unool</span>
-                        <span className="text-[15px] text-white/50 flex items-center gap-1">
-                          <CheckCircle2 className="w-4 h-4 text-white fill-[#C84B31]" /> @unool
-                        </span>
-                      </div>
-                      
-                      <p className="text-[15px] leading-relaxed mb-4 text-white/90">
-                        Check your inbox. We sent a 6-digit code. Enter it below along with your fresh password! 🔒
+
+                      <p className="err" role="alert">
+                        {error}
                       </p>
 
-                      <div className="rounded-2xl border border-white/20 bg-white/5 p-4 backdrop-blur-md">
-                        {stage === 'success' ? (
-                          <motion.div 
-                            initial={{ opacity: 0, scale: 0.8 }} 
-                            animate={{ opacity: 1, scale: 1 }} 
-                            className="mt-2 p-6 rounded-2xl border border-green-500/50 bg-green-500/10 flex flex-col items-center justify-center text-center gap-3"
-                          >
-                            <CheckCircle2 className="w-12 h-12 text-green-400" />
-                            <h3 className="text-xl font-bold text-green-400">Password Updated!</h3>
-                            <p className="text-sm text-green-400/80">Taking you back to Sign In...</p>
-                          </motion.div>
+                      <button
+                        className="btn"
+                        type="submit"
+                        disabled={loading || !email.trim()}
+                      >
+                        {loading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Sending Code...
+                          </>
                         ) : (
-                          <form onSubmit={verifyAndUpdate}>
-                            <div className="flex justify-between gap-2 mb-4">
-                              {otp.map((digit, i) => (
-                                <input
-                                  key={i}
-                                  ref={(el) => { otpRefs.current[i] = el; }}
-                                  type="text"
-                                  inputMode="numeric"
-                                  maxLength={1}
-                                  value={digit}
-                                  onChange={(e) => handleOtpChange(i, e.target.value)}
-                                  onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                                  onPaste={i === 0 ? handleOtpPaste : undefined}
-                                  disabled={loading}
-                                  className={`w-10 h-12 sm:w-12 sm:h-14 text-center text-xl font-bold rounded-xl border transition-all duration-200 outline-none bg-black/50 text-white
-                                    ${digit ? 'border-[#C84B31] shadow-[0_0_15px_rgba(200,75,49,0.3)]' : 'border-white/20'}
-                                    focus:border-[#C84B31] focus:ring-1 focus:ring-[#C84B31]
-                                  `}
-                                />
-                              ))}
-                            </div>
-
-                            <input
-                              type="password"
-                              placeholder="New Password (min 8 chars)"
-                              value={password}
-                              onChange={(e) => { setPassword(e.target.value); setError(''); }}
-                              disabled={loading}
-                              className="w-full mt-2 mb-2 bg-black/50 border border-white/20 rounded-xl focus:border-[#C84B31] focus:ring-1 focus:ring-[#C84B31] text-[15px] p-4 placeholder:text-white/40 text-white outline-none disabled:opacity-50 transition-all duration-200"
-                            />
-
-                            {error && (
-                              <p className="text-red-400 text-sm mt-2 font-medium text-center">{error}</p>
-                            )}
-                            
-                            <div className="flex flex-col sm:flex-row items-center justify-between mt-6 gap-4">
-                              <span className="text-sm font-medium text-white/50">
-                                {cooldown > 0 ? `Code expires in ${cooldown}s` : 'Code expired'}
-                              </span>
-                              
-                              <button
-                                type="submit"
-                                disabled={loading || otp.join('').length < 6 || password.length < 8}
-                                className="w-full sm:w-auto px-8 py-2.5 rounded-full font-bold text-[14px] text-black bg-white flex items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-50 disabled:active:scale-100 hover:bg-white/90"
-                              >
-                                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Reset Password'}
-                              </button>
-                            </div>
-                          </form>
+                          <>
+                            Send Verification Code
+                            <ArrowRight className="w-4 h-4" />
+                          </>
                         )}
+                      </button>
+
+                      <div className="sub-actions">
+                        <Link href="/signin" className="back-link">
+                          ← Back to Sign In
+                        </Link>
+                      </div>
+                    </form>
+                  </>
+                )}
+
+                {stage === 'otp' && (
+                  <>
+                    <span className="tag">Verification Code</span>
+                    <h1>
+                      <span>Verify your</span> identity.
+                    </h1>
+                    <p className="sub">
+                      We sent a 6-digit verification code to <strong>{email}</strong>. Enter it below along with your fresh password.
+                    </p>
+
+                    <form onSubmit={verifyAndUpdate}>
+                      <label>6-Digit Verification Code</label>
+                      <div className="otp-row">
+                        {otp.map((digit, i) => (
+                          <input
+                            key={i}
+                            ref={(el) => {
+                              otpRefs.current[i] = el;
+                            }}
+                            type="text"
+                            inputMode="numeric"
+                            maxLength={1}
+                            value={digit}
+                            disabled={loading}
+                            onChange={(e) => handleOtpChange(i, e.target.value)}
+                            onKeyDown={(e) => handleOtpKeyDown(i, e)}
+                            onPaste={i === 0 ? handleOtpPaste : undefined}
+                            className={`otp-box ${digit ? 'filled' : ''}`}
+                            aria-label={`Digit ${i + 1}`}
+                          />
+                        ))}
                       </div>
 
-                      {stage !== 'success' && (
-                        <button onClick={() => { setStage('request'); setOtp(['','','','','','']); setError(''); setPassword(''); }} className="text-sm font-semibold mt-4 text-white/50 hover:text-white transition-colors">
+                      <div style={{ marginTop: '12px' }}>
+                        <label htmlFor="new-password">New Password</label>
+                        <div className="f">
+                          <input
+                            id="new-password"
+                            type={showPassword ? 'text' : 'password'}
+                            placeholder="At least 8 characters"
+                            value={password}
+                            disabled={loading}
+                            style={{ paddingRight: '72px' }}
+                            onChange={(e) => {
+                              setPassword(e.target.value);
+                              setError('');
+                            }}
+                          />
+                          <button
+                            type="button"
+                            className="eye"
+                            onClick={() => setShowPassword((p) => !p)}
+                            aria-label={showPassword ? 'Hide password' : 'Show password'}
+                          >
+                            {showPassword ? (
+                              <>
+                                <EyeOff className="w-3.5 h-3.5" /> Hide
+                              </>
+                            ) : (
+                              <>
+                                <Eye className="w-3.5 h-3.5" /> Show
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+
+                      <p className="err" role="alert">
+                        {error}
+                      </p>
+
+                      <button
+                        className="btn"
+                        type="submit"
+                        disabled={loading || otp.join('').length < 6 || password.length < 8}
+                      >
+                        {loading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Updating Password...
+                          </>
+                        ) : (
+                          'Confirm & Reset Password'
+                        )}
+                      </button>
+
+                      <div className="sub-actions">
+                        <button
+                          type="button"
+                          className="back-link"
+                          onClick={handleTryAnotherEmail}
+                          disabled={loading}
+                        >
                           ← Try another email
                         </button>
-                      )}
+
+                        <button
+                          type="button"
+                          className="resend-link"
+                          disabled={cooldown > 0 || loading}
+                          onClick={() => handleRequest()}
+                        >
+                          {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
+                        </button>
+                      </div>
+                    </form>
+                  </>
+                )}
+
+                {stage === 'success' && (
+                  <div className="success-card">
+                    <div className="success-icon">
+                      <CheckCircle2 className="w-7 h-7" />
+                    </div>
+                    <span className="tag" style={{ background: '#dcfce7', color: '#15803d', marginBottom: 0 }}>
+                      Access Restored
+                    </span>
+                    <h1>Password Updated</h1>
+                    <p className="sub" style={{ marginBottom: 8 }}>
+                      Your credentials have been securely updated. Redirecting you to Sign In...
+                    </p>
+                    <div className="progress-bar">
+                      <div className="progress-fill" />
                     </div>
                   </div>
-                </motion.div>
+                )}
+              </div>
+            </main>
+
+            {/* Right Column: Security Card */}
+            <aside className="security-card" aria-label="Security Status">
+              <div className="otp-preview-chip">
+                <p>{stage === 'request' ? 'OTP Code Preview' : 'Entered Code'}</p>
+                <div className="otp-preview-digits">{livePreviewDigits}</div>
+              </div>
+
+              <div className={`shield-emblem ${stage === 'success' ? 'verified' : ''}`}>
+                {stage === 'success' ? (
+                  <ShieldCheck className="w-10 h-10" />
+                ) : (
+                  <Lock className="w-9 h-9" />
+                )}
+              </div>
+
+              <div className="trust-badge">
+                <Lock className="w-3.5 h-3.5" />
+                <span>Zero-Knowledge Encryption</span>
+              </div>
+
+              <div className="trust-badge">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Single-Use 5-Minute Expiry</span>
+              </div>
+
+              {stage === 'success' && (
+                <div className="trust-badge status">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
+                  <span>Credentials Verified</span>
+                </div>
               )}
-            </AnimatePresence>
+            </aside>
           </div>
         </div>
 
-        {/* Right Sidebar (Trending/Info) */}
-        <div className="hidden lg:flex flex-col w-[350px] shrink-0 p-6 pl-8">
-          <div className="bg-black/20 backdrop-blur-md rounded-2xl border border-white/10 p-4 mb-6">
-            <h2 className="text-xl font-bold mb-4">Security first.</h2>
-            <p className="text-sm text-white/60 mb-4 leading-relaxed">
-              We encrypt your credentials heavily to keep your accounts secure. Resetting your password securely helps maintain that safety.
-            </p>
+        {/* Footer */}
+        <footer>
+          <p>© {new Date().getFullYear()} Unool Inc. All rights reserved.</p>
+          <div style={{ display: 'flex', gap: '16px' }}>
+            <Link href="/privacy">Privacy</Link>
+            <Link href="/terms">Terms</Link>
+            <Link href="/contact">Support</Link>
           </div>
-        </div>
-
+        </footer>
       </div>
     </div>
   );
