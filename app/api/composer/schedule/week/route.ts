@@ -24,12 +24,14 @@ export async function GET(request: NextRequest) {
     if (isNaN(weekStart.getTime())) {
       return NextResponse.json({ error: 'Invalid weekStart date' }, { status: 400 });
     }
+    // Normalize to midnight UTC (00:00:00) so morning posts on Monday are never dropped
+    weekStart.setUTCHours(0, 0, 0, 0);
   } else {
     // Default to this Monday (UTC)
     const now = new Date();
     const dayOfWeek = now.getUTCDay(); // 0=Sun, 1=Mon...
     const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-    weekStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + daysToMonday));
+    weekStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + daysToMonday, 0, 0, 0, 0));
   }
 
   try {

@@ -99,6 +99,7 @@ export async function POST(request: NextRequest) {
               content: sanitized,
               hashtags: ContentGuard.filterHashtags(pf.hashtags ?? []),
               firstCommentHint: pf.firstCommentHint,
+              autoFirstComment: pf.autoFirstComment,
               mediaUrls: (pf.mediaUrls && pf.mediaUrls.length > 0)
                 ? pf.mediaUrls.map((m: any) => typeof m === 'string' ? { url: m, type: 'image' } : { url: m.url, type: m.type || (/\.(mp4|mov|webm)$/i.test(m.url) ? 'video' : /\.(pdf|ppt|pptx)$/i.test(m.url) ? 'document' : 'image') })
                 : (p.imageUrls && p.imageUrls.length > 0

@@ -42,7 +42,14 @@ export function getR2Client(): S3Client {
   const accessKeyId = process.env.CF_R2_ACCESS_KEY_ID;
   const secretAccessKey = process.env.CF_R2_SECRET_ACCESS_KEY;
 
-  if (!accountId || !accessKeyId || !secretAccessKey) {
+  if (
+    !accountId ||
+    !accessKeyId ||
+    !secretAccessKey ||
+    accountId === 'your-account-id' ||
+    accessKeyId === 'your-access-key-id' ||
+    secretAccessKey === 'your-secret-access-key'
+  ) {
     throw new Error(
       'Cloudflare R2 is not configured. ' +
         'Set CF_R2_ACCOUNT_ID, CF_R2_ACCESS_KEY_ID, and CF_R2_SECRET_ACCESS_KEY in your environment.'

@@ -172,51 +172,55 @@ export class ScheduleService {
       });
     }
 
-    const variantResults: ScheduleResult['variantResults'] = [];
+    // 2. For each platform variant, create the variant and enqueue in parallel
+    const variantResults = await Promise.all(
+      input.platforms.map(async (platformInput) => {
+        const variantScheduledAt = input.strategy === 'cascading' && platformInput.schedulingOffsetMinutes
+          ? new Date(input.baseScheduledAt.getTime() + platformInput.schedulingOffsetMinutes * 60_000)
+          : input.baseScheduledAt;
 
-    // 2. For each platform variant, create the variant and enqueue
-    for (const platformInput of input.platforms) {
-      const variantScheduledAt = input.strategy === 'cascading' && platformInput.schedulingOffsetMinutes
-        ? new Date(input.baseScheduledAt.getTime() + platformInput.schedulingOffsetMinutes * 60_000)
-        : input.baseScheduledAt;
+        const normalizedMedia = (platformInput.mediaUrls ?? []).filter(m => Boolean(m.url));
+        const finalMedia = await optimizeMediaForPlatform(normalizedMedia, platformInput.platform);
 
-      const normalizedMedia = (platformInput.mediaUrls ?? []).filter(m => Boolean(m.url));
-      const finalMedia = await optimizeMediaForPlatform(normalizedMedia, platformInput.platform);
+        const variant = await postRepository.createVariant({
+          postId: post.id,
+          platform: platformInput.platform,
+          adaptedContent: platformInput.content,
+          mediaUrls: finalMedia,
+          characterCount: platformInput.content.length,
+          hashtagStrategy: platformInput.hashtags,
+          firstCommentHint: platformInput.firstCommentHint,
+          status: 'scheduled',
+          scheduledAt: variantScheduledAt,
+        });
 
-      const variant = await postRepository.createVariant({
-        postId: post.id,
-        platform: platformInput.platform,
-        adaptedContent: platformInput.content,
-        mediaUrls: finalMedia,
-        characterCount: platformInput.content.length,
-        hashtagStrategy: platformInput.hashtags,
-        firstCommentHint: platformInput.firstCommentHint,
-      });
+        // 3. In cascading mode, enqueue per-variant. In simultaneous mode, enqueue once combined for the post below.
+        let qstashMessageId: string | null = null;
+        if (input.strategy === 'cascading') {
+          qstashMessageId = await queueService.enqueueScheduledPublishTask({
+            postId: post.id,
+            workspaceId: input.workspaceId,
+            variantId: variant.id,
+            scheduledAt: variantScheduledAt,
+            autoFirstComment: platformInput.autoFirstComment,
+          });
 
-      // 3. Enqueue the delayed QStash task
-      const qstashMessageId = await queueService.enqueueScheduledPublishTask({
-        postId: post.id,
-        workspaceId: input.workspaceId,
-        variantId: input.strategy === 'cascading' ? variant.id : undefined,
-        scheduledAt: variantScheduledAt,
-        autoFirstComment: platformInput.autoFirstComment,
-      });
+          if (qstashMessageId) {
+            await postRepository.updateVariant(variant.id, {
+              qstashMessageId,
+              autoFirstComment: platformInput.autoFirstComment,
+            });
+          }
+        }
 
-      // 4. Update variant with scheduled state and QStash messageId
-      await postRepository.updateVariant(variant.id, {
-        status: 'scheduled',
-        scheduledAt: variantScheduledAt,
-        qstashMessageId,
-        autoFirstComment: platformInput.autoFirstComment,
-      });
-
-      variantResults.push({
-        variantId: variant.id,
-        platform: platformInput.platform,
-        scheduledAt: variantScheduledAt,
-        qstashMessageId,
-      });
-    }
+        return {
+          variantId: variant.id,
+          platform: platformInput.platform,
+          scheduledAt: variantScheduledAt,
+          qstashMessageId,
+        };
+      })
+    );
 
     // 5. For simultaneous mode: enqueue ONE combined task for all variants
     if (input.strategy === 'simultaneous' && input.platforms.length > 0) {
@@ -253,7 +257,7 @@ export class ScheduleService {
   }
 
   /**
-   * Schedules a full 7-day content arc.
+   * Schedules a full 7-day content arc concurrently.
    * Creates a content_arc record and links all posts to it.
    */
   async scheduleArc(input: ScheduleArcInput): Promise<ScheduleArcResult> {
@@ -271,39 +275,41 @@ export class ScheduleService {
       endDate: endDate.toISOString().split('T')[0],
     });
 
-    // 2. Schedule each post in the arc
-    const scheduledPosts: ScheduleResult[] = [];
+    // 2. Schedule each post in the arc in parallel
+    const scheduledPosts = await Promise.all(
+      input.posts.map(async (arcPost) => {
+        let baseScheduledAt = computeScheduledAt(
+          input.weekStartDate,
+          arcPost.day,
+          arcPost.scheduledHour,
+          arcPost.scheduledMinute,
+          input.userTimezone
+        );
 
-    for (const arcPost of input.posts) {
-      let baseScheduledAt = computeScheduledAt(
-        input.weekStartDate,
-        arcPost.day,
-        arcPost.scheduledHour,
-        arcPost.scheduledMinute,
-        input.userTimezone
-      );
+        // Guard: Never schedule a post in the past
+        if (baseScheduledAt.getTime() <= Date.now()) {
+          logger.warn('Arc post scheduled time is in the past, bumping forward', {
+            original: baseScheduledAt.toISOString(),
+            arcBeat: arcPost.arcBeat,
+            day: arcPost.day,
+          });
+          // Bump to future, staggering by day index to avoid simultaneous collisions
+          baseScheduledAt = new Date(Date.now() + (arcPost.day + 1) * 5 * 60 * 1000);
+        }
 
-      // Guard: Never schedule a post in the past
-      if (baseScheduledAt.getTime() <= Date.now()) {
-        logger.warn('Arc post scheduled time is in the past, bumping forward', {
-          original: baseScheduledAt.toISOString(),
-          arcBeat: arcPost.arcBeat,
+        return this.schedulePost({
+          workspaceId: input.workspaceId,
+          profileId: input.profileId,
+          baseScheduledAt,
+          strategy: arcPost.strategy,
+          platforms: arcPost.platforms,
+          arcId: arc.id,
         });
-        // Bump to at least 5 minutes in the future
-        baseScheduledAt = new Date(Date.now() + 5 * 60 * 1000);
-      }
+      })
+    );
 
-      const result = await this.schedulePost({
-        workspaceId: input.workspaceId,
-        profileId: input.profileId,
-        baseScheduledAt,
-        strategy: arcPost.strategy,
-        platforms: arcPost.platforms,
-        arcId: arc.id,
-      });
-
-      scheduledPosts.push(result);
-    }
+    // Sort by scheduledAt for deterministic ordering
+    scheduledPosts.sort((a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime());
 
     logger.info('Content arc scheduled', {
       arcId: arc.id,

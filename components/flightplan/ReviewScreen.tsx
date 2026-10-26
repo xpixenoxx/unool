@@ -246,29 +246,75 @@ export function ReviewScreen({
     if (!files || files.length === 0) return;
     setIsUploadingByDay(prev => ({ ...prev, [dayIdx]: true }));
 
-    const urls = Array.from(files).map(f => {
-      if (typeof f === 'string') return f;
-      return URL.createObjectURL(f);
-    });
+    try {
+      const fileArray = Array.from(files);
+      const uploadedUrls: string[] = [];
 
-    setArc(prev => {
-      const posts = [...prev.weekPosts];
-      const target = { ...posts[dayIdx] };
-      const existing = target.imageUrls || [];
-      const updated = [...existing, ...urls].slice(0, 10);
+      for (const file of fileArray) {
+        if (typeof file === 'string') {
+          uploadedUrls.push(file);
+          continue;
+        }
 
-      target.imageUrls = updated;
-      target.platforms = target.platforms.map(p => ({
-        ...p,
-        mediaUrls: updated.map(u => ({ url: u, type: 'image' as const })),
-      }));
+        // 1. Try server storage upload first
+        let uploadSucceeded = false;
+        try {
+          const contentType = file.type || 'image/jpeg';
+          const res = await fetch('/api/composer/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename: file.name, contentType }),
+          });
+          const data = await res.json();
+          if (res.ok && data.signedUrl) {
+            const putRes = await fetch(data.signedUrl, {
+              method: 'PUT',
+              headers: { 'Content-Type': contentType },
+              body: file,
+            });
+            if (putRes.ok && data.url) {
+              uploadedUrls.push(data.url);
+              uploadSucceeded = true;
+            }
+          }
+        } catch {
+          // Fall through to Data URI fallback
+        }
 
-      posts[dayIdx] = target;
-      return { ...prev, weekPosts: posts };
-    });
+        // 2. Fallback to base64 Data URI (safe for both browser render & Node.js sharp processing)
+        if (!uploadSucceeded) {
+          const dataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+          uploadedUrls.push(dataUrl);
+        }
+      }
 
-    setIsUploadingByDay(prev => ({ ...prev, [dayIdx]: false }));
-    studioToast.success(`Added ${urls.length} media file${urls.length > 1 ? 's' : ''}`);
+      setArc(prev => {
+        const posts = [...prev.weekPosts];
+        const target = { ...posts[dayIdx] };
+        const existing = target.imageUrls || [];
+        const updated = [...existing, ...uploadedUrls].slice(0, 10);
+
+        target.imageUrls = updated;
+        target.platforms = target.platforms.map(p => ({
+          ...p,
+          mediaUrls: updated.map(u => ({ url: u, type: 'image' as const })),
+        }));
+
+        posts[dayIdx] = target;
+        return { ...prev, weekPosts: posts };
+      });
+
+      studioToast.success(`Added ${uploadedUrls.length} media file${uploadedUrls.length > 1 ? 's' : ''}`);
+    } catch {
+      studioToast.generationFailed('Failed to attach media file.');
+    } finally {
+      setIsUploadingByDay(prev => ({ ...prev, [dayIdx]: false }));
+    }
   };
 
   // Remove individual image from post

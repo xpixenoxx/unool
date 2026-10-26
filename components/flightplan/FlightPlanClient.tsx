@@ -82,6 +82,8 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
   const [signalDmEnabled, setSignalDmEnabled] = useState(() => memorySignalDmEnabled ?? true);
   const [isHoldActive, setIsHoldActive] = useState(false);
 
+  const [canvasWeekOffset, setCanvasWeekOffset] = useState<number>(0);
+
   const { generate: generateArc, approve: approveArc, loadCanvas, holdQueue } = useFlightPlanActions();
 
   // Load connected platforms
@@ -186,9 +188,26 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
         } else {
           studioToast.success('Flight plan scheduled for 7 days across your channels.');
         }
+        let targetOffset = 0;
+        if (storyData?.weekStartDate) {
+          const parts = storyData.weekStartDate.split('-').map(Number);
+          if (parts.length === 3) {
+            const scheduledStart = new Date(parts[0], parts[1] - 1, parts[2]);
+            const now = new Date();
+            const thisMonday = new Date(now);
+            const dayOfWeek = now.getDay();
+            const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+            thisMonday.setDate(thisMonday.getDate() + diffToMonday);
+            thisMonday.setHours(0, 0, 0, 0);
+            const diffDays = Math.round((scheduledStart.getTime() - thisMonday.getTime()) / (1000 * 60 * 60 * 24));
+            targetOffset = Math.max(0, Math.min(1, Math.round(diffDays / 7)));
+          }
+        }
+
+        setCanvasWeekOffset(targetOffset);
         setView('canvas');
         setArc(null);
-        loadCanvas(0);
+        loadCanvas(targetOffset);
       }
     } catch {
       // Error handled in hook
@@ -292,6 +311,7 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
             workspaceId={workspaceId}
             targetPostId={targetPostId}
             onNewArc={() => setView('story')}
+            initialWeekOffset={canvasWeekOffset}
           />
         )}
       </AnimatePresence>

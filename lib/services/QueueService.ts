@@ -78,9 +78,9 @@ class QueueService {
       return this.enqueuePublishTask(params.postId, params.workspaceId);
     }
 
-    const maxScheduleMs = 7 * 24 * 60 * 60 * 1000; // 7 days
+    const maxScheduleMs = 365 * 24 * 60 * 60 * 1000; // Up to 1 year
     if (params.scheduledAt.getTime() - nowMs > maxScheduleMs) {
-      logger.error('Scheduled time is more than 7 days in the future — rejected', {
+      logger.error('Scheduled time is more than 1 year in the future — rejected', {
         postId: params.postId,
         scheduledAt: params.scheduledAt.toISOString(),
       });

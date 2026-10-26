@@ -175,6 +175,7 @@ export function useFlightPlanActions(): UseFlightPlanActionsResult {
       const monday = new Date(weekStart);
       monday.setDate(monday.getDate() - monday.getDay() + (monday.getDay() === 0 ? -6 : 1)); // Monday
       monday.setDate(monday.getDate() + weekOffset * 7);
+      monday.setHours(0, 0, 0, 0); // Start of day so morning posts are not dropped
 
       const res = await fetch(`/api/composer/schedule/week?weekStart=${monday.toISOString()}`);
       if (!res.ok) {

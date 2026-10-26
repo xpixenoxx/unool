@@ -63,18 +63,23 @@ export function StoryIntake({
 }: StoryIntakeProps) {
   const { draft, saveDraft } = useFlightPlanDraft();
 
-  const nextMonday = useMemo(() => {
+  const defaultStartDate = useMemo(() => {
     const today = new Date();
-    const monday = startOfWeek(today, { weekStartsOn: 1 });
-    const diff = (monday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
-    return diff <= 0 ? addDays(monday, 7) : monday;
+    const thisMonday = startOfWeek(today, { weekStartsOn: 1 });
+    const day = today.getDay();
+    // On Friday (5), Saturday (6), or Sunday (0), default to the upcoming Monday
+    if (day === 0 || day >= 5) {
+      return addDays(thisMonday, 7);
+    }
+    // On Monday through Thursday, default to this week's Monday
+    return thisMonday;
   }, []);
 
   const [story, setStory] = useState(draft?.coreStory || '');
   const [changed, setChanged] = useState(draft?.whatChanged || '');
   const [wrong, setWrong] = useState(draft?.whatWentWrong || '');
   const [num, setNum] = useState(draft?.oneRealNumber || '');
-  const [startDate, setStartDate] = useState(draft?.weekStartDate || format(nextMonday, 'yyyy-MM-dd'));
+  const [startDate, setStartDate] = useState(draft?.weekStartDate || format(defaultStartDate, 'yyyy-MM-dd'));
   const [timezone, setTimezone] = useState(
     draft?.audienceTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata'
   );

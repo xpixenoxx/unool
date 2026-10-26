@@ -223,12 +223,12 @@ export class SupabasePostRepository implements IPostRepository {
       .from('posts')
       .select('*')
       .eq('workspace_id', workspaceId)
-      .eq('status', 'scheduled')
+      .in('status', ['scheduled', 'published', 'publishing'])
       .gte('scheduled_at', from.toISOString())
       .lte('scheduled_at', to.toISOString())
       .order('scheduled_at', { ascending: true });
     if (error) throw error;
-    return data.map(this.mapPostRow.bind(this));
+    return (data || []).map(this.mapPostRow.bind(this));
   }
 
   async findDueScheduledPosts(beforeDate: Date, workspaceId?: string): Promise<Post[]> {

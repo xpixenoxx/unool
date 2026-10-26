@@ -14,6 +14,7 @@ interface WeekCanvasProps {
   targetPostId?: string | null;
   onNewArc: () => void;
   onPostCountChange?: (count: number) => void;
+  initialWeekOffset?: number;
 }
 
 const BEATS = ['Hook', 'Context', 'Challenge', 'Proof', 'CTA', 'Community', 'Horizon'];
@@ -59,10 +60,17 @@ export function WeekCanvas({
   targetPostId,
   onNewArc,
   onPostCountChange,
+  initialWeekOffset = 0,
 }: WeekCanvasProps) {
   const [posts, setPosts] = useState<CanvasPost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [weekOffset, setWeekOffset] = useState(0);
+  const [weekOffset, setWeekOffset] = useState(initialWeekOffset);
+
+  useEffect(() => {
+    if (typeof initialWeekOffset === 'number' && initialWeekOffset !== weekOffset) {
+      setWeekOffset(initialWeekOffset);
+    }
+  }, [initialWeekOffset]);
   const [sel, setSel] = useState<number>(() => {
     const day = (new Date().getDay() + 6) % 7;
     return day;
