@@ -1949,32 +1949,27 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
 
   return (
     <div
-      className="min-h-screen py-8 px-4 sm:px-6 lg:px-8 -m-4 sm:-m-6 lg:-m-6"
-      style={{
-        backgroundColor: '#FAF8F5',
-        backgroundImage: 'radial-gradient(#D6CEBE 1.1px, transparent 1.1px)',
-        backgroundSize: '20px 20px',
-      }}
+      className="min-h-screen py-8 px-4 sm:px-6 lg:px-8 -m-4 sm:-m-6 lg:-m-6 bg-[#FAF8F5]"
     >
       <div className="max-w-[1240px] mx-auto space-y-6">
         {/* Top Header */}
         <div className="pb-2">
-          <div className="flex items-start justify-between flex-wrap gap-4">
-            <div>
-              <h1 className="text-5xl sm:text-6xl font-black tracking-tight bg-gradient-to-r from-[#604E38] via-[#8A6740] to-[#9F83A3] bg-clip-text text-transparent select-none">
-                Studio
-              </h1>
-              <div className="h-[3.5px] w-[110px] rounded-full bg-gradient-to-r from-[#B48850] via-[#C99C62] to-[#8B5CF6] mt-2 mb-3" />
-              <p className="text-sm sm:text-base text-[#382B1F] font-normal leading-relaxed">
-                Write once. AI adapts. You review. One click publishes everywhere.
-              </p>
+          <div>
+            <h1 className="text-5xl sm:text-6xl font-black tracking-tight bg-gradient-to-r from-[#604E38] via-[#8A6740] to-[#9F83A3] bg-clip-text text-transparent select-none">
+              Studio
+            </h1>
+            <div className="h-[3.5px] w-[110px] rounded-full bg-gradient-to-r from-[#B48850] via-[#C99C62] to-[#8B5CF6] mt-2 mb-3" />
+            <p className="text-sm sm:text-base text-[#382B1F] font-normal leading-relaxed">
+              Write once. AI adapts. You review. One click publishes everywhere.
+            </p>
+            <div className="mt-3.5">
+              <Link
+                href="/dashboard/schedule"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-[#FAF3E7] hover:bg-[#F3EAD9] text-[#785E3A] border border-[#E8DEC8] transition-all shadow-2xs"
+              >
+                Plan Entire Week (Flight Plan)
+              </Link>
             </div>
-            <Link
-              href="/dashboard/schedule"
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-[#FAF3E7] hover:bg-[#F3EAD9] text-[#785E3A] border border-[#E8DEC8] transition-all shadow-2xs"
-            >
-              Plan Entire Week (Flight Plan)
-            </Link>
           </div>
           <div className="border-b border-[#EADFC9] mt-6" />
         </div>
@@ -2282,7 +2277,12 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                 <button
                   type="button"
                   onClick={() => setIsIdeaGeneratorOpen((prev) => !prev)}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-[#D8CEBE] bg-white text-xs font-semibold text-[#231C16] hover:bg-[#FAF7F2] transition-colors cursor-pointer shadow-2xs shrink-0"
+                  className={cn(
+                    "inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer shadow-xs shrink-0",
+                    isIdeaGeneratorOpen
+                      ? "bg-gradient-to-r from-[#C4A265] to-[#B48850] text-white border border-[#B48850] shadow-[0_2px_8px_rgba(196,162,101,0.25)]"
+                      : "bg-gradient-to-r from-[#FDF8EE] via-[#FAF1D6] to-[#F5E6BA] text-[#7A5816] border border-[#D4AF37] hover:border-[#B48850] hover:from-[#FAF0D0] hover:to-[#F0DDAC] shadow-[0_2px_8px_rgba(212,175,55,0.2)] hover:scale-[1.02] active:scale-[0.98]"
+                  )}
                 >
                   <span className="text-sm">💡</span>
                   <span>{isIdeaGeneratorOpen ? 'Hide ideas' : 'Generate ideas'}</span>
@@ -2492,9 +2492,14 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   <button
                     type="button"
                     onClick={() => setIsIdeaGeneratorOpen(prev => !prev)}
-                    className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-white text-[#231C16] border border-[#E5DBC7] hover:bg-[#FAF7F2] shadow-2xs flex items-center gap-1.5 cursor-pointer shrink-0"
+                    className={cn(
+                      "inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer shadow-xs shrink-0",
+                      isIdeaGeneratorOpen
+                        ? "bg-gradient-to-r from-[#C4A265] to-[#B48850] text-white border border-[#B48850] shadow-[0_2px_8px_rgba(196,162,101,0.25)]"
+                        : "bg-gradient-to-r from-[#FDF8EE] via-[#FAF1D6] to-[#F5E6BA] text-[#7A5816] border border-[#D4AF37] hover:border-[#B48850] hover:from-[#FAF0D0] hover:to-[#F0DDAC] shadow-[0_2px_8px_rgba(212,175,55,0.2)] hover:scale-[1.02] active:scale-[0.98]"
+                    )}
                   >
-                    <span>💡</span>
+                    <span className="text-sm">💡</span>
                     <span>{isIdeaGeneratorOpen ? 'Hide ideas' : 'Generate ideas'}</span>
                   </button>
                 </div>
