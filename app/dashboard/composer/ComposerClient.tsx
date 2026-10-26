@@ -2280,17 +2280,76 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                 rows={7}
               />
 
-              {/* Actions row: Character counter & Buttons (Image 2) */}
-              <div className="flex items-center justify-between flex-wrap gap-3 pt-1">
-                <span className={cn(
-                  'text-sm tabular-nums text-[#7A6B5D] font-medium',
-                  quickContent.length > 280 && 'text-destructive font-semibold'
-                )}>
-                  {quickContent.length} characters
-                  {quickContent.length > 280 && ' · exceeds X/Twitter limit (280)'}
-                </span>
+              {/* Quick Broadcast Footer Action Bar */}
+              <div className="pt-3 space-y-3">
+                {/* Upper Row: Add Media & Previews on left, Character counter on right */}
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <input
+                      type="file"
+                      id="media-upload-quick"
+                      className="hidden"
+                      accept="image/*,video/*,application/pdf"
+                      onChange={handleFileUpload}
+                      disabled={isUploading}
+                      multiple
+                    />
+                    <button
+                      type="button"
+                      onClick={() => document.getElementById('media-upload-quick')?.click()}
+                      disabled={isUploading}
+                      className="h-9 px-3.5 rounded-xl border border-[#231C16] bg-white text-xs font-semibold text-[#231C16] hover:bg-[#FAF7F2] transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                    >
+                      {isUploading ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <svg className="w-3.5 h-3.5 text-[#231C16]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                          <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                          <circle cx="8.5" cy="8.5" r="1.5" />
+                          <polyline points="21 15 16 10 5 21" />
+                        </svg>
+                      )}
+                      <span>Add Media</span>
+                    </button>
 
-                <div className="flex items-center gap-2.5 flex-wrap">
+                    {media.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {media.map((m, i) => (
+                          <div key={i} className="relative inline-block">
+                            {m.type === 'document' ? (
+                              <div className="h-14 w-14 bg-[#FAF6EE] rounded-xl border border-[#EADBBD] flex flex-col items-center justify-center">
+                                <FileText className="h-5 w-5 text-[#8C6D46]" />
+                                <span className="text-[10px] mt-0.5 font-bold text-[#8C6D46]">PDF</span>
+                              </div>
+                            ) : m.type === 'video' ? (
+                              <video src={m.url} className="h-14 w-14 object-cover rounded-xl border border-[#EADBBD]" muted />
+                            ) : (
+                              <img src={m.url} alt="Upload preview" className="h-14 w-14 object-cover rounded-xl border border-[#EADBBD]" />
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => setMedia(prev => prev.filter((_, idx) => idx !== i))}
+                              className="absolute -top-1.5 -right-1.5 bg-[#1C1611] text-white rounded-full p-0.5 shadow-sm hover:bg-black"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <span className={cn(
+                    'text-sm tabular-nums text-[#7A6B5D] font-medium',
+                    quickContent.length > 280 && 'text-destructive font-semibold'
+                  )}>
+                    {quickContent.length} characters
+                    {quickContent.length > 280 && ' · exceeds X/Twitter limit (280)'}
+                  </span>
+                </div>
+
+                {/* Lower Row: Action buttons moved down (aligned right) */}
+                <div className="flex items-center justify-end gap-2.5 flex-wrap pt-1">
                   <button
                     type="button"
                     onClick={handleSaveDraftAndClear}
@@ -2333,64 +2392,6 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                     )}
                     <span>Publish to All</span>
                   </button>
-                </div>
-              </div>
-
-              {/* Add Media Button & Previews (Image 2) */}
-              <div className="pt-1">
-                <div className="flex items-center gap-3 flex-wrap">
-                  <input
-                    type="file"
-                    id="media-upload-quick"
-                    className="hidden"
-                    accept="image/*,video/*,application/pdf"
-                    onChange={handleFileUpload}
-                    disabled={isUploading}
-                    multiple
-                  />
-                  <button
-                    type="button"
-                    onClick={() => document.getElementById('media-upload-quick')?.click()}
-                    disabled={isUploading}
-                    className="h-9 px-3.5 rounded-xl border border-[#231C16] bg-white text-xs font-semibold text-[#231C16] hover:bg-[#FAF7F2] transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
-                  >
-                    {isUploading ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <svg className="w-3.5 h-3.5 text-[#231C16]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                        <circle cx="8.5" cy="8.5" r="1.5" />
-                        <polyline points="21 15 16 10 5 21" />
-                      </svg>
-                    )}
-                    <span>Add Media</span>
-                  </button>
-
-                  {media.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {media.map((m, i) => (
-                        <div key={i} className="relative inline-block">
-                          {m.type === 'document' ? (
-                            <div className="h-14 w-14 bg-[#FAF6EE] rounded-xl border border-[#EADBBD] flex flex-col items-center justify-center">
-                              <FileText className="h-5 w-5 text-[#8C6D46]" />
-                              <span className="text-[10px] mt-0.5 font-bold text-[#8C6D46]">PDF</span>
-                            </div>
-                          ) : m.type === 'video' ? (
-                            <video src={m.url} className="h-14 w-14 object-cover rounded-xl border border-[#EADBBD]" muted />
-                          ) : (
-                            <img src={m.url} alt="Upload preview" className="h-14 w-14 object-cover rounded-xl border border-[#EADBBD]" />
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => setMedia(prev => prev.filter((_, idx) => idx !== i))}
-                            className="absolute -top-1.5 -right-1.5 bg-[#1C1611] text-white rounded-full p-0.5 shadow-sm hover:bg-black"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
               </div>
 
@@ -2945,7 +2946,9 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                   <div className="rounded-3xl border border-[#EADBBD] bg-[#FAF6EE] p-6 sm:p-7 shadow-[0_4px_24px_rgba(61,43,31,0.03)] my-6">
                     <div className="mb-4">
                       <div className="flex items-center gap-2.5 flex-wrap">
-                        <span className="w-2.5 h-2.5 rounded-full bg-[#8C6D46] inline-block shrink-0" />
+                        <span className="flex items-center justify-center w-7 h-7 rounded-full bg-[#1A140E] text-white text-xs font-bold flex-shrink-0">
+                          3
+                        </span>
                         <h2 className="text-xl font-bold tracking-tight text-[#231C16]">
                           Ready to Publish
                         </h2>
@@ -2986,29 +2989,19 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
                         </button>
                       </div>
 
-                      {/* Slide to Publish All Button (Image 5) */}
+                      {/* Publish CTA Button */}
                       <button
                         type="button"
                         onClick={handlePublish}
                         disabled={isGenerating || isSchedulingPost || isPublishing}
-                        className="group relative select-none h-11 px-1.5 pr-4 rounded-full bg-[#1C1611] text-white flex items-center gap-3.5 shadow-xl hover:bg-black transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                        style={{ minWidth: 260 }}
+                        className="h-10 px-6 rounded-xl bg-[#1C1611] hover:bg-[#2D2319] text-white text-xs sm:text-sm font-bold transition-all cursor-pointer flex items-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <span className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-[#1C1611] shadow-sm flex-shrink-0 group-hover:scale-105 transition-transform">
-                          {isPublishing ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin text-[#1C1611]" />
-                          ) : (
-                            <Play className="w-3.5 h-3.5 fill-[#1C1611] translate-x-0.5 text-[#1C1611]" />
-                          )}
-                        </span>
-
-                        <span className="text-xs sm:text-sm font-bold tracking-wide text-white whitespace-nowrap flex-1 text-center">
-                          {isPublishing ? 'Publishing...' : 'Slide to Publish All'}
-                        </span>
-
-                        <span className="w-6 h-6 rounded-full bg-[#4A3B2F] text-[#FAF6EE] text-xs font-bold flex items-center justify-center flex-shrink-0">
-                          {readyCount}
-                        </span>
+                        {isPublishing ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
+                        ) : (
+                          <Send className="w-3.5 h-3.5 text-white" />
+                        )}
+                        <span>{isPublishing ? 'Publishing...' : 'Publish'}</span>
                       </button>
                     </div>
                   </div>
