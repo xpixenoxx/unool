@@ -22,15 +22,23 @@ interface WeekCanvasProps {
   connectedPlatforms?: PlatformType[];
 }
 
-const BEATS = ['Hook', 'Context', 'Challenge', 'Proof', 'CTA', 'Community', 'Horizon'];
+const BEATS = [
+  'Departure Hook',
+  'Cruising Altitude',
+  'Turbulence & Pivot',
+  'Flight Telemetry',
+  'Final Approach',
+  'Open Frequency',
+  'Next Horizon',
+];
 const SUBS = [
-  'The disruption',
-  'The backstory',
-  'The breakthrough',
-  'Evidence and data',
-  'The direct call',
-  'Weekend dialogue',
-  'The next chapter',
+  'The take-off disruption',
+  'The backstory & context',
+  'The breakthrough challenge',
+  'Evidence, numbers & proof',
+  'The direct conversion call',
+  'Weekend audience dialogue',
+  'The next voyage ahead',
 ];
 const TEN = [55, 28, 78, 58, 92, 45, 70];
 const MN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -144,8 +152,13 @@ export function WeekCanvas({
   const [isNewPostModalOpen, setIsNewPostModalOpen] = useState(false);
   const [newPostModalDate, setNewPostModalDate] = useState<Date>(() => new Date());
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isContentExpanded, setIsContentExpanded] = useState(false);
   const openedTargetPostIdRef = useRef<string | null>(null);
   const isFetchingTargetRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    setIsContentExpanded(false);
+  }, [sel, selectedPostIndexByDay]);
 
   const { loadCanvas, holdQueue, cancelPost } = useFlightPlanActions();
 
@@ -315,9 +328,9 @@ export function WeekCanvas({
     return s.size || 1;
   }, [posts]);
 
-  // Catmull points & curve
+  // Catmull points & curve (compact vertical height)
   const points = useMemo(() => {
-    return BEATS.map((_, i) => [80 + i * 140, 330 - TEN[i] * 2.6]);
+    return BEATS.map((_, i) => [80 + i * 140, 190 - TEN[i] * 1.3]);
   }, []);
 
   const splineD = useMemo(() => {
@@ -790,7 +803,7 @@ export function WeekCanvas({
 
         {/* SVG Flight Map */}
         <div className="fp-mapw">
-          <svg id="fp-map" ref={mapSvgRef} viewBox="0 0 1000 400" role="group" aria-label="Seven day flight path">
+          <svg id="fp-map" ref={mapSvgRef} viewBox="0 0 1000 250" role="group" aria-label="Seven day flight path">
             <defs>
               <linearGradient id="fp-g" x1="0" x2="1">
                 <stop offset="0" style={{ stopColor: 'var(--p1)' }} />
@@ -823,10 +836,10 @@ export function WeekCanvas({
             </text>
 
             {/* Tension Labels */}
-            <text x="10" y="82" className="fp-dy">
+            <text x="10" y="42" className="fp-dy">
               Climax
             </text>
-            <text x="10" y="338" className="fp-dy">
+            <text x="10" y="215" className="fp-dy">
               Calm
             </text>
 
@@ -856,12 +869,12 @@ export function WeekCanvas({
                     x1={x}
                     y1={y + 16}
                     x2={x}
-                    y2={352}
+                    y2={208}
                     stroke={c}
                     strokeOpacity={0.25}
                     strokeDasharray="3 5"
                   />
-                  <text x={x} y="372" textAnchor="middle" className="fp-dy">
+                  <text x={x} y="226" textAnchor="middle" className="fp-dy">
                     00:0{i + 1}:00
                   </text>
                   {isTodayDay && <circle className="pl" cx={x} cy={y} r={16} stroke={c} />}
@@ -967,11 +980,22 @@ export function WeekCanvas({
         )}
 
         {!isSelScheduled ? (
-          <div className="fp-tkt" style={{ ['--c' as any]: selColor }}>
+          <div className="fp-tkt has-header-band" style={{ ['--c' as any]: selColor }}>
+            <div className="fp-tkt-header-band">
+              <div className="fp-tkt-brand">
+                <span className="fp-airline-logo">✈ UNOOL AIRWAYS</span>
+                <span className="fp-flight-type">FLIGHT LOG // OPEN SKY</span>
+              </div>
+              <div className="fp-flight-meta-pills">
+                <span className="fp-meta-pill">SECTOR: <b>0{sel + 1}/07</b></span>
+                <span className="fp-meta-pill">GATE: <b>G0{sel + 1}</b></span>
+                <span className="fp-meta-pill stub-pill">DISPATCH STUB</span>
+              </div>
+            </div>
             <div className="main">
               <div className="fp-air">
                 <span>
-                  <i>✈</i> Open sky
+                  <i>✈</i> FLIGHT LOG // SECTOR 0{sel + 1} — OPEN SKY
                 </span>
                 <span>{format(selDate, 'EEEE d MMMM')}</span>
               </div>
@@ -982,8 +1006,12 @@ export function WeekCanvas({
               </p>
             </div>
             <div className="stub">
+              <div className="fp-stub-header">
+                <span>PASSENGER STUB</span>
+                <span>LEG 0{sel + 1}</span>
+              </div>
               <div className="fp-fld">
-                <span>Next step</span>
+                <span>NEXT DISPATCH ACTION</span>
                 <b>Schedule or plan</b>
                 <em>Plan a new week or schedule a single dispatch.</em>
               </div>
@@ -1005,7 +1033,19 @@ export function WeekCanvas({
             </div>
           </div>
         ) : (
-          <div className="fp-tkt" style={{ ['--c' as any]: selColor }}>
+          <div className="fp-tkt has-header-band" style={{ ['--c' as any]: selColor }}>
+            <div className="fp-tkt-header-band">
+              <div className="fp-tkt-brand">
+                <span className="fp-airline-logo">✈ UNOOL AIRWAYS</span>
+                <span className="fp-flight-type">{isSelPublished ? 'FLIGHT LOG // LANDED' : 'BOARDING PASS // FLIGHT READY'}</span>
+              </div>
+              <div className="fp-flight-meta-pills">
+                <span className="fp-meta-pill">FLIGHT: <b>FP-0{sel + 1}</b></span>
+                <span className="fp-meta-pill">GATE: <b>G0{sel + 1}</b></span>
+                <span className="fp-meta-pill">SEAT: <b>0{sel + 1}A</b></span>
+                <span className="fp-meta-pill stub-pill">{isSelPublished ? 'RECEIPT' : 'COUPON'}</span>
+              </div>
+            </div>
             {/* Stamp: Touched down / Diverted / Grounded / Awaiting clearance / Cleared for take-off */}
             {isSelPublished ? (
               <div className="fp-stamp touched-down">✓ Touched down</div>
@@ -1022,12 +1062,12 @@ export function WeekCanvas({
             <div className="main">
               <div className="fp-air">
                 <span>
-                  <i>✈</i> {isSelPublished ? `Flight log, day ${sel + 1} of 7` : `Boarding pass, day ${sel + 1} of 7`}
+                  <i>✈</i> {isSelPublished ? `FLIGHT LOG // SECTOR 0${sel + 1}` : `BOARDING PASS // FLIGHT LEG 0${sel + 1}`}
                 </span>
                 <span>{format(selDate, 'EEEE d MMMM')}</span>
               </div>
               <h3 className="fp-big" style={{ color: selColor }}>
-                {selPost.scheduleStrategy || selBeat}
+                {selBeat}
               </h3>
               <p className="fp-sub" style={{ marginTop: 2 }}>
                 {selSub}
@@ -1056,7 +1096,7 @@ export function WeekCanvas({
               </p>
 
               <div className="fp-lb" style={{ marginTop: 14 }}>
-                <span>What your followers will read</span>
+                <span>DISPATCH MANIFEST // AUDIENCE VIEW</span>
                 <span>{selPost.content.length} characters</span>
               </div>
 
@@ -1064,7 +1104,20 @@ export function WeekCanvas({
                 <i />
                 <div>
                   <b>unool</b>
-                  <p>{selPost.content}</p>
+                  <p>
+                    {selPost.content.length > 200 && !isContentExpanded
+                      ? `${selPost.content.slice(0, 190).trim()}…`
+                      : selPost.content}
+                  </p>
+                  {selPost.content.length > 200 && (
+                    <button
+                      type="button"
+                      className="fp-view-more-btn"
+                      onClick={() => setIsContentExpanded(prev => !prev)}
+                    >
+                      {isContentExpanded ? 'View less -' : 'View more +'}
+                    </button>
+                  )}
                   <small>
                     {format(selDate, 'EEE d')} at {scheduledTimeFormatted}
                   </small>
@@ -1073,15 +1126,19 @@ export function WeekCanvas({
             </div>
 
             <div className="stub">
+              <div className="fp-stub-header">
+                <span>BOARDING PASS // STUB</span>
+                <span className="fp-stub-badge">FLIGHT FP-0{sel + 1}</span>
+              </div>
               <div className="fp-fld">
                 <span>
                   {isSelPublished
-                    ? 'Landed at'
+                    ? 'TOUCHDOWN TIME'
                     : isSelGrounded
-                    ? 'Scheduled for'
+                    ? 'GROUNDED AT'
                     : isSelFailed
-                    ? 'Attempted at'
-                    : 'Goes live'}
+                    ? 'DIVERTED AT'
+                    : 'SCHEDULED DEPARTURE'}
                 </span>
                 <b>{scheduledTimeFormatted}</b>
                 <em>
@@ -1092,11 +1149,11 @@ export function WeekCanvas({
                     ? 'Grounded, queue on hold.'
                     : isSelFailed
                     ? 'Publishing diverted. Needs attention.'
-                    : 'Time picked for your audience.'}
+                    : 'Optimal time for audience takeoff.'}
                 </em>
               </div>
               <div className="fp-fld">
-                <span>Status</span>
+                <span>FLIGHT STATUS</span>
                 {isSelPublished ? (
                   <span className="fp-chip landed">Landed, live</span>
                 ) : isSelGrounded ? (
@@ -1106,29 +1163,29 @@ export function WeekCanvas({
                 ) : isSelDraft ? (
                   <span className="fp-chip awaiting">Awaiting clearance</span>
                 ) : (
-                  <span className="fp-chip ok">Scheduled</span>
+                  <span className="fp-chip ok">Cleared for take-off</span>
                 )}
               </div>
               <div className="fp-fld">
-                <span>Photos or video</span>
+                <span>CARGO / VISUAL MEDIA</span>
                 <b>
                   {selPost.platforms[0]?.mediaUrls?.length
-                    ? `${selPost.platforms[0].mediaUrls.length} added`
-                    : 'None yet'}
+                    ? `${selPost.platforms[0].mediaUrls.length} media attached`
+                    : 'None attached'}
                 </b>
                 <em>
                   {selPost.platforms[0]?.mediaUrls?.length
-                    ? 'Ready for publishing.'
-                    : 'At least one media item recommended.'}
+                    ? 'Manifest payload verified.'
+                    : 'Visual cargo recommended for reach.'}
                 </em>
               </div>
               <div className="fp-fld">
-                <span>Auto first comment</span>
-                <b>{selPost.platforms[0]?.autoFirstComment ? 'On' : 'Off'}</b>
+                <span>AUTO FIRST COMMENT</span>
+                <b>{selPost.platforms[0]?.autoFirstComment ? 'Active (CTA Link)' : 'Standby / None'}</b>
                 <em>
                   {selPost.platforms[0]?.autoFirstComment
-                    ? 'Adds conversation link in first comment.'
-                    : 'Nothing is added under your post.'}
+                    ? 'Pinned CTA link dispatched 90s after touchdown.'
+                    : 'Direct link omitted to preserve reach.'}
                 </em>
               </div>
 

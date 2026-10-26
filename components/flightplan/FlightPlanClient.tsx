@@ -24,11 +24,15 @@ function WritingWeekView() {
   const [step, setStep] = useState(0);
 
   useEffect(() => {
-    const t1 = setTimeout(() => setStep(1), 1150);
-    const t2 = setTimeout(() => setStep(2), 2300);
+    const t1 = setTimeout(() => setStep(1), 1200);
+    const t2 = setTimeout(() => setStep(2), 2600);
+    const t3 = setTimeout(() => setStep(3), 4200);
+    const t4 = setTimeout(() => setStep(4), 6000);
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
+      clearTimeout(t3);
+      clearTimeout(t4);
     };
   }, []);
 
@@ -42,7 +46,7 @@ function WritingWeekView() {
           padding: 24,
         }}
       >
-        <h2>Plotting your week</h2>
+        <h2>Plotting your flight plan</h2>
         <svg viewBox="0 0 600 120" style={{ width: '100%', marginTop: 14 }}>
           <path
             className="fp-draw"
@@ -51,13 +55,19 @@ function WritingWeekView() {
         </svg>
         <ol className="fp-steps">
           <li className={step >= 0 ? 'on' : ''}>
-            Structuring the weekly beats: Hook, Context, Challenge, Proof, CTA
+            Mapping narrative flight trajectory: Departure Hook, Cruising Altitude, Turbulence &amp; Pivot, Telemetry, Final Approach
           </li>
           <li className={step >= 1 ? 'on' : ''}>
-            Tailoring the copy for your channels
+            Synthesizing native platform copy for connected broadcast channels
           </li>
           <li className={step >= 2 ? 'on' : ''}>
-            Choosing the best publishing time for each day
+            Computing optimal audience takeoff windows for each flight leg
+          </li>
+          <li className={step >= 3 ? 'on' : ''}>
+            Calibrating tactical first-comment dispatch links (bypassing reach penalties)
+          </li>
+          <li className={step >= 4 ? 'on' : ''}>
+            Finalizing pre-flight manifest and clearance tickets
           </li>
         </ol>
       </div>
@@ -67,7 +77,6 @@ function WritingWeekView() {
 
 // ── In-Memory SWR Cache for 0ms Route Switching ──────────────────
 let memoryConnectedPlatforms: PlatformType[] | null = null;
-let memorySignalDmEnabled: boolean | null = null;
 
 function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
   const searchParams = useSearchParams();
@@ -79,13 +88,12 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
   const [isPreviewOnly, setIsPreviewOnly] = useState(false);
   const [storyData, setStoryData] = useState<StoryIntakeData | null>(null);
   const [connectedPlatforms, setConnectedPlatforms] = useState<PlatformType[]>(() => memoryConnectedPlatforms || []);
-  const [signalDmEnabled, setSignalDmEnabled] = useState(() => memorySignalDmEnabled ?? true);
-  const [isHoldActive, setIsHoldActive] = useState(false);
+  const [isHoldActive] = useState(false);
 
   const [canvasWeekOffset, setCanvasWeekOffset] = useState<number>(0);
   const [showTourAfterSchedule, setShowTourAfterSchedule] = useState(false);
 
-  const { generate: generateArc, approve: approveArc, loadCanvas, holdQueue } = useFlightPlanActions();
+  const { generate: generateArc, approve: approveArc, loadCanvas } = useFlightPlanActions();
 
   // Load connected platforms
   useEffect(() => {
@@ -106,33 +114,6 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
     }
     loadConnections();
   }, []);
-
-  // Check SignalDM automation status
-  useEffect(() => {
-    if (!workspaceId) return;
-    fetch(`/api/instagram/automation?workspaceId=${workspaceId}`, { credentials: 'include' })
-      .then(r => (r.ok ? r.json() : null))
-      .then(data => {
-        if (data && typeof data.enabled === 'boolean') {
-          memorySignalDmEnabled = data.enabled;
-          setSignalDmEnabled(data.enabled);
-        }
-      })
-      .catch(() => {});
-  }, [workspaceId]);
-
-  const handleToggleHold = async () => {
-    try {
-      const nextHold = !isHoldActive;
-      const ok = await holdQueue(nextHold, 3);
-      if (ok) {
-        setIsHoldActive(nextHold);
-        studioToast.info(nextHold ? 'Queue held. Scheduled posts paused.' : 'Queue released.');
-      }
-    } catch {
-      studioToast.error('Failed to toggle queue hold.');
-    }
-  };
 
   const handleGenerate = async (data: StoryIntakeData) => {
     setIsGenerating(true);
@@ -227,9 +208,6 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
             Flight{' '}
             <em style={{ fontStyle: 'italic', fontWeight: 600, color: 'var(--ac)' }}>Plan</em>
           </h1>
-          <p className="fp-sub">
-            One story, seven days. Tell us the turning point and we’ll plot the week across your channels.
-          </p>
         </div>
 
         <button
@@ -246,39 +224,6 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
         >
           {view === 'canvas' ? '+ Plan new week' : 'Cancel and exit'}
         </button>
-      </div>
-
-      {/* ─── Switches Row (.row) ─── */}
-      <div className="fp-row">
-        <div
-          className={`fp-sw ${signalDmEnabled ? 'on' : ''}`}
-          role="switch"
-          aria-checked={signalDmEnabled}
-          tabIndex={0}
-          onClick={() => {
-            const next = !signalDmEnabled;
-            setSignalDmEnabled(next);
-            studioToast.info(
-              next ? 'SignalDM is on' : 'SignalDM paused. Comments won’t start conversations.'
-            );
-          }}
-        >
-          <i />
-          <span>
-            <b>SignalDM is on</b> – comments on scheduled posts start an AI conversation
-          </span>
-        </div>
-
-        <div
-          className={`fp-sw amber ${isHoldActive ? 'on' : ''}`}
-          role="switch"
-          aria-checked={isHoldActive}
-          tabIndex={0}
-          onClick={handleToggleHold}
-        >
-          <i />
-          <span>{isHoldActive ? 'Grounded – queue on hold' : 'Hold my queue'}</span>
-        </div>
       </div>
 
       {/* ─── View Routing ─── */}

@@ -169,6 +169,13 @@ export const BEAT_COLORS: Record<string, string> = {
   CTA: '#9A6B8E',
   Community: '#5B8FC9',
   Horizon: '#C98A3A',
+  'Departure Hook': '#C0607A',
+  'Cruising Altitude': '#CC6B43',
+  'Turbulence & Pivot': '#C05A4C',
+  'Flight Telemetry': '#5E9E70',
+  'Final Approach': '#9A6B8E',
+  'Open Frequency': '#5B8FC9',
+  'Next Horizon': '#C98A3A',
 };
 
 export type DesignTokens = typeof B;

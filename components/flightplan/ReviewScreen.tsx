@@ -263,6 +263,27 @@ export function ReviewScreen({
     });
   };
 
+  // Delete or restore an entire day's post from the flight plan
+  const handleToggleDeleteDay = (dayIdx: number) => {
+    setArc(prev => {
+      const posts = [...prev.weekPosts];
+      const target = { ...posts[dayIdx] };
+      const nextDeleted = !target.deleted;
+      target.deleted = nextDeleted;
+      target.platforms = target.platforms.map(p => ({
+        ...p,
+        enabled: !nextDeleted,
+      }));
+      posts[dayIdx] = target;
+      return { ...prev, weekPosts: posts };
+    });
+    studioToast.success(
+      arc.weekPosts[dayIdx]?.deleted
+        ? `Restored Day ${dayIdx + 1} to flight plan`
+        : `Removed Day ${dayIdx + 1} from flight plan`
+    );
+  };
+
   // Toggle Auto First Comment for this day
   const handleToggleFirstComment = (dayIdx: number) => {
     setArc(prev => {
@@ -272,9 +293,23 @@ export function ReviewScreen({
 
       target.platforms = target.platforms.map(p => ({
         ...p,
-        autoFirstComment: hasAnyComment ? null : 'Comment FLIGHT to get the full story breakdown.',
+        autoFirstComment: hasAnyComment ? null : 'Read the full story breakdown & links here: https://unool.co',
       }));
 
+      posts[dayIdx] = target;
+      return { ...prev, weekPosts: posts };
+    });
+  };
+
+  // Update custom first comment / CTA link for a day
+  const handleFirstCommentTextChange = (dayIdx: number, text: string) => {
+    setArc(prev => {
+      const posts = [...prev.weekPosts];
+      const target = { ...posts[dayIdx] };
+      target.platforms = target.platforms.map(p => ({
+        ...p,
+        autoFirstComment: text,
+      }));
       posts[dayIdx] = target;
       return { ...prev, weekPosts: posts };
     });
@@ -336,7 +371,8 @@ export function ReviewScreen({
         const posts = [...prev.weekPosts];
         const target = { ...posts[dayIdx] };
         const existing = target.imageUrls || [];
-        const updated = [...existing, ...uploadedUrls].slice(0, 10);
+        const newUnique = uploadedUrls.filter(u => !existing.includes(u));
+        const updated = [...existing, ...newUnique].slice(0, 10);
 
         target.imageUrls = updated;
         target.platforms = target.platforms.map(p => ({
@@ -380,6 +416,7 @@ export function ReviewScreen({
     let missing = 0;
 
     arc.weekPosts.forEach(p => {
+      if (p.deleted) return;
       const enabledPlatforms = p.platforms.filter(plat => plat.enabled !== false);
       enabledPlatforms.forEach(plat => {
         const maxChars = PLATFORM_CONFIG[plat.platform as PlatformType]?.maxChars || 2200;
@@ -401,6 +438,7 @@ export function ReviewScreen({
   // Validation on Approval
   const handleApproveWithValidation = async () => {
     for (const post of arc.weekPosts) {
+      if (post.deleted) continue;
       for (const platform of post.platforms) {
         if (platform.enabled === false) continue;
 
@@ -429,8 +467,14 @@ export function ReviewScreen({
     const nowTime = new Date();
     const todayStart = startOfDay(nowTime);
 
-    // Filter out past days so scheduling covers the ongoing week starting from today
+    // Filter out past days or deleted days
     const sanitizedPosts = arc.weekPosts.map((post, i) => {
+      if (post.deleted) {
+        return {
+          ...post,
+          platforms: post.platforms.map(p => ({ ...p, enabled: false })),
+        };
+      }
       const dayDate = dateOf(i);
       const isPastDay = dayDate < todayStart;
       if (isPastDay) {
@@ -442,17 +486,18 @@ export function ReviewScreen({
       return post;
     });
 
-    const activePosts = sanitizedPosts.filter(p => p.platforms.some(plat => plat.enabled !== false));
+    const activePosts = sanitizedPosts.filter(p => !p.deleted && p.platforms.some(plat => plat.enabled !== false));
     if (activePosts.length === 0) {
-      studioToast.generationFailed('No upcoming posts to schedule. All days in this selection are in the past.');
+      studioToast.generationFailed('No active posts to schedule. All days are either deleted or in the past.');
       return;
     }
 
-    // Verify today's post time has not passed
+    // Verify today's post time has not passed (only for non-deleted, active posts)
     for (let i = 0; i < sanitizedPosts.length; i++) {
       const post = sanitizedPosts[i];
+      if (post.deleted) continue;
       const dayDate = dateOf(i);
-      if (isToday(dayDate)) {
+      if (isToday(dayDate) && post.platforms.some(p => p.enabled !== false)) {
         const postTime = new Date(dayDate);
         postTime.setHours(post.scheduledHour || 18, post.scheduledMinute || 0, 0, 0);
         if (postTime.getTime() <= nowTime.getTime()) {
@@ -478,10 +523,9 @@ export function ReviewScreen({
     <div className="space-y-6">
       {/* Header */}
       <div style={{ marginTop: 20 }}>
-        <h2>Review your week</h2>
+        <h2>Review your flight plan</h2>
         <p className="fp-sub">
-          Everything is written and timed. Review each day, attach photos or videos with drag &amp; drop, adjust
-          hashtags, and include or exclude platforms before approving.
+          Verify departure times, payload media, platform routing, and tactical first-comments before final takeoff clearance.
         </p>
       </div>
 
@@ -494,10 +538,15 @@ export function ReviewScreen({
               key={post.day}
               type="button"
               onClick={() => scrollToDay(i)}
-              style={{ ['--c' as any]: c }}
+              style={{
+                ['--c' as any]: c,
+                opacity: post.deleted ? 0.45 : 1,
+                textDecoration: post.deleted ? 'line-through' : 'none',
+              }}
+              title={post.deleted ? `Day ${i + 1} (${post.arcBeat}) is removed from schedule` : `Jump to Day ${i + 1}`}
             >
               {DN[i]}
-              <small>{post.arcBeat}</small>
+              <small>{post.deleted ? 'Removed' : post.arcBeat}</small>
             </button>
           );
         })}
@@ -510,6 +559,7 @@ export function ReviewScreen({
           const dayDate = dateOf(i);
           const isTodayPost = isToday(dayDate);
           const isPastDay = dayDate < startOfDay(now);
+          const isDeleted = Boolean(post.deleted);
 
           const activePlat =
             activePlatformByPost[i] ||
@@ -520,7 +570,7 @@ export function ReviewScreen({
           const currentDraft =
             post.platforms.find(p => p.platform === activePlat) || post.platforms[0];
 
-          const isCurrentPlatformEnabled = currentDraft?.enabled !== false;
+          const isCurrentPlatformEnabled = currentDraft?.enabled !== false && !isDeleted;
           const maxChars = PLATFORM_CONFIG[activePlat as PlatformType]?.maxChars || 2200;
           const caption = currentDraft?.content || '';
           const charCount = caption.length;
@@ -533,29 +583,74 @@ export function ReviewScreen({
           const isPastTime = isTodayPost && postDateTime.getTime() <= now.getTime();
 
           const ticketId = `FP-${two(dayDate.getMonth() + 1)}${two(dayDate.getDate())}-D${i + 1}-${timeStr.replace(':', '')}`;
-          const hasAutoComment = post.platforms.some(p => Boolean(p.autoFirstComment));
+          const currentCommentText = post.platforms.find(p => Boolean(p.autoFirstComment))?.autoFirstComment || '';
+          const hasAutoComment = Boolean(currentCommentText);
 
           return (
             <article
               key={post.day}
               id={`d${i}`}
-              className="fp-tkt day"
+              className={`fp-tkt day has-header-band ${isDeleted ? 'fp-tkt-deleted' : ''}`}
               style={{ ['--c' as any]: c }}
             >
+              {/* Vibrant Airline Boarding Pass Top Ribbon */}
+              <div className="fp-tkt-header-band">
+                <div className="fp-tkt-brand">
+                  <span className="fp-airline-logo">✈ UNOOL AIRWAYS</span>
+                  <span className="fp-flight-type">BOARDING PASS • CREATOR CLASS</span>
+                </div>
+                <div className="fp-flight-meta-pills">
+                  <span className="fp-meta-pill">FLT: <b>FP-0{i + 1}</b></span>
+                  <span className="fp-meta-pill">GATE: <b>G0{i + 1}</b></span>
+                  <span className="fp-meta-pill">SEAT: <b>0{i + 1}A</b></span>
+                  <span className="fp-meta-pill stub-pill">PASSENGER STUB</span>
+                </div>
+              </div>
+
+              {/* Deleted State Banner */}
+              {isDeleted && (
+                <div className="fp-deleted-banner">
+                  <div>
+                    <strong>Flight Leg 0{i + 1} ({post.arcBeat}) removed from schedule</strong>
+                    <p style={{ margin: 0, fontSize: 12, opacity: 0.85 }}>This post is grounded and will not be scheduled or published.</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="fp-btn"
+                    onClick={() => handleToggleDeleteDay(i)}
+                  >
+                    ↺ Restore post
+                  </button>
+                </div>
+              )}
+
               {/* Left Main Section */}
               <div className="main">
                 <div className="fp-air">
                   <span>
-                    <i>✈</i> Day {i + 1} of 7
+                    <i>✈</i> FLIGHT LEG 0{i + 1} // 07
                   </span>
-                  <span>{format(dayDate, 'EEEE d MMMM')}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span>{format(dayDate, 'EEEE d MMMM')}</span>
+                    <button
+                      type="button"
+                      className="fp-day-delete-btn"
+                      onClick={() => handleToggleDeleteDay(i)}
+                      title={isDeleted ? "Restore this day's post" : "Remove this day's post from schedule"}
+                    >
+                      {isDeleted ? '↺ Restore post' : '✕ Delete post'}
+                    </button>
+                  </div>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 4 }}>
-                  <h3 className="fp-big" style={{ color: c }}>
-                    {post.arcBeat}
-                  </h3>
-                  {isPastTime && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <h3 className="fp-big" style={{ color: c }}>
+                      {post.arcBeat}
+                    </h3>
+                    {isDeleted && <span className="fp-deleted-badge">DELETED</span>}
+                  </div>
+                  {isPastTime && !isDeleted && (
                     <span
                       style={{
                         background: 'var(--wabg)',
@@ -573,19 +668,20 @@ export function ReviewScreen({
                 </div>
 
                 <p className="fp-sub" style={{ marginTop: 2 }}>
-                  Why this day: {post.arcBeatReason}
+                  Strategic Beat: {post.arcBeatReason}
                 </p>
 
                 {/* Platform Tabs Selector */}
                 <div className="fp-chs" style={{ marginTop: 14 }}>
                   {post.platforms.map(p => {
                     const isTabActive = p.platform === activePlat;
-                    const isEnabled = p.enabled !== false;
+                    const isEnabled = p.enabled !== false && !isDeleted;
                     const meta = PLATFORM_META[p.platform];
                     return (
                       <button
                         key={p.platform}
                         type="button"
+                        disabled={isDeleted}
                         onClick={() =>
                           setActivePlatformByPost(prev => ({
                             ...prev,
@@ -622,12 +718,13 @@ export function ReviewScreen({
                   </div>
                   <button
                     type="button"
+                    disabled={isDeleted}
                     onClick={() => handleTogglePlatformEnabled(i, activePlat)}
                     className={`fp-ch ${isCurrentPlatformEnabled ? 'on' : ''}`}
                     style={{
                       padding: '4px 12px',
                       fontSize: 12,
-                      cursor: 'pointer',
+                      cursor: isDeleted ? 'not-allowed' : 'pointer',
                     }}
                   >
                     {isCurrentPlatformEnabled ? '✓ Included' : '✕ Excluded'}
@@ -635,7 +732,7 @@ export function ReviewScreen({
                 </div>
 
                 {/* Excluded notice if disabled */}
-                {!isCurrentPlatformEnabled && (
+                {!isCurrentPlatformEnabled && !isDeleted && (
                   <div
                     style={{
                       background: 'var(--acbg)',
@@ -653,13 +750,13 @@ export function ReviewScreen({
 
                 {/* Caption Editor */}
                 <div className="fp-lb" style={{ marginTop: 10 }}>
-                  <span>Post caption. This is what followers read.</span>
+                  <span>DISPATCH MANIFEST // AUDIENCE COPY</span>
                   <span className={isOver ? 'fp-bad' : 'fp-ok'}>
                     {charCount} of {maxChars} characters
                   </span>
                 </div>
                 <textarea
-                  rows={6}
+                  rows={4}
                   value={caption}
                   disabled={!isCurrentPlatformEnabled}
                   onChange={e => handleCaptionChange(i, activePlat, e.target.value)}
@@ -688,9 +785,14 @@ export function ReviewScreen({
 
               {/* Right Stub Section */}
               <div className="stub">
+                <div className="fp-stub-header">
+                  <span>BOARDING PASS // STUB</span>
+                  <span className="fp-stub-badge">FLIGHT FP-0{i + 1}</span>
+                </div>
+
                 <div className="fp-fld">
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span>Goes live at</span>
+                    <span>SCHEDULED DEPARTURE</span>
                     {isPastDay && (
                       <span style={{ fontSize: 10, color: 'var(--bad)', fontWeight: 700, textTransform: 'uppercase' }}>
                         Past date (skipped)
@@ -700,15 +802,15 @@ export function ReviewScreen({
                   <input
                     type="time"
                     value={timeStr}
-                    disabled={isPastDay}
+                    disabled={isPastDay || isDeleted}
                     onChange={e => handleTimeChange(i, e.target.value)}
                   />
                   <em>
                     {isPastDay
                       ? 'This date has already passed; this post will not be scheduled.'
-                      : 'Picked for your audience. Nudge time:'}
+                      : 'Picked for optimal engagement. Nudge time:'}
                   </em>
-                  {!isPastDay && (
+                  {!isPastDay && !isDeleted && (
                     <div className="fp-chs" style={{ marginTop: 4 }}>
                       {[5, 15, 30, 60].map(mins => (
                         <button
@@ -737,7 +839,7 @@ export function ReviewScreen({
                 {/* Photos or Video Drag-and-Drop Dropzone */}
                 <div className="fp-fld">
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span>Attached Media ({post.imageUrls?.length || 0} of 10)</span>
+                    <span>CARGO / VISUAL MEDIA ({post.imageUrls?.length || 0} of 10)</span>
                     <span style={{ fontSize: 11, color: 'var(--mu)' }}>Images, videos, PDFs</span>
                   </div>
 
@@ -753,21 +855,38 @@ export function ReviewScreen({
                   />
                 </div>
 
-                {/* Auto First Comment Switch */}
+                {/* Auto First Comment Switch & Editable CTA Input */}
                 <div className="fp-fld">
                   <div
                     className={`fp-sw ${hasAutoComment ? 'on' : ''}`}
                     role="switch"
                     tabIndex={0}
-                    onClick={() => handleToggleFirstComment(i)}
+                    onClick={() => !isDeleted && handleToggleFirstComment(i)}
+                    style={{ cursor: isDeleted ? 'not-allowed' : 'pointer' }}
                   >
                     <i />
-                    <span>Auto first comment</span>
+                    <span>AUTO FIRST COMMENT</span>
                   </div>
-                  <em>Adds call-to-action link under the post.</em>
+                  <em>Dispatches CTA link 90s after takeoff (bypasses LinkedIn &amp; X link penalties).</em>
+                  {hasAutoComment && (
+                    <div style={{ marginTop: 8 }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx2)', display: 'block', marginBottom: 4 }}>
+                        CTA Link / Comment text:
+                      </span>
+                      <input
+                        type="text"
+                        className="fp-first-comment-input"
+                        value={currentCommentText}
+                        disabled={isDeleted}
+                        onChange={e => handleFirstCommentTextChange(i, e.target.value)}
+                        placeholder="e.g. Read full story & links here: https://yourbrand.com"
+                        title="Call to action link posted in first comment 90 seconds after takeoff"
+                      />
+                    </div>
+                  )}
                 </div>
 
-                <BarcodeTicket code={ticketId} note="Updates with time" />
+                <BarcodeTicket code={ticketId} note={isDeleted ? 'Deleted flight' : 'Updates with time'} />
               </div>
             </article>
           );

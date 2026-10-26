@@ -155,7 +155,8 @@ function ScheduledPostModalContent({
     useCallback((variantId: string, media: Array<{ url: string; type: string }>) => {
       setEditedMediaUrls(prev => {
         const existing = prev[variantId] ?? currentVariant.mediaUrls ?? [];
-        return { ...prev, [variantId]: [...existing, ...media] };
+        const newUnique = media.filter(m => !existing.some(e => e.url === m.url));
+        return { ...prev, [variantId]: [...existing, ...newUnique] };
       });
     }, [])
   );
