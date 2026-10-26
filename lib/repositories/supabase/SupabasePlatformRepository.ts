@@ -219,6 +219,16 @@ export class SupabasePlatformRepository implements IPlatformRepository {
     return data.map(this.mapPostRow);
   }
 
+  async findPlatformPostsByVariantIds(variantIds: string[]): Promise<PlatformPost[]> {
+    if (variantIds.length === 0) return [];
+    const { data, error } = await this.supabase
+      .from('platform_posts')
+      .select('*')
+      .in('post_variant_id', variantIds);
+    if (error) throw error;
+    return (data || []).map(this.mapPostRow);
+  }
+
   async updateEngagement(id: string, engagement: Record<string, unknown>): Promise<PlatformPost> {
     const { data, error } = await this.supabase
       .from('platform_posts')

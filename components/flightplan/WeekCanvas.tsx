@@ -52,6 +52,61 @@ function catmull(p: number[][]): string[] {
 
 const two = (n: number) => String(n).padStart(2, '0');
 
+function getLivePlatformUrl(v: {
+  platform: string;
+  platformUrl?: string | null;
+  platformPostId?: string | null;
+}): string {
+  if (v.platformUrl && typeof v.platformUrl === 'string' && v.platformUrl.trim().startsWith('http')) {
+    return v.platformUrl.trim();
+  }
+
+  const rawId = v.platformPostId?.trim() || '';
+  const p = v.platform?.toLowerCase() || '';
+
+  switch (p) {
+    case 'linkedin':
+      return rawId ? `https://www.linkedin.com/feed/update/${rawId}` : 'https://www.linkedin.com/feed/';
+    case 'x':
+    case 'twitter':
+      return rawId ? `https://x.com/i/status/${rawId}` : 'https://x.com';
+    case 'bluesky':
+      if (rawId.startsWith('http')) return rawId;
+      if (rawId.includes('/')) return `https://bsky.app/profile/${rawId}`;
+      return rawId ? `https://bsky.app/profile/${rawId}` : 'https://bsky.app';
+    case 'facebook':
+      return rawId ? `https://www.facebook.com/${rawId}` : 'https://www.facebook.com';
+    case 'instagram':
+      return rawId ? `https://www.instagram.com/p/${rawId}/` : 'https://www.instagram.com';
+    case 'threads':
+      return rawId ? `https://www.threads.net/post/${rawId}` : 'https://www.threads.net';
+    case 'pinterest':
+      return rawId ? `https://www.pinterest.com/pin/${rawId}/` : 'https://www.pinterest.com';
+    case 'youtube':
+      return rawId ? `https://www.youtube.com/watch?v=${rawId}` : 'https://www.youtube.com';
+    case 'mastodon':
+      return rawId.startsWith('http') ? rawId : 'https://mastodon.social';
+    case 'reddit':
+      return rawId ? `https://www.reddit.com/comments/${rawId}` : 'https://www.reddit.com';
+    case 'discord':
+      return rawId.startsWith('http') ? rawId : 'https://discord.com/app';
+    case 'slack':
+      return rawId.startsWith('http') ? rawId : 'https://slack.com';
+    case 'devto':
+      return rawId ? `https://dev.to/articles/${rawId}` : 'https://dev.to';
+    case 'medium':
+      return rawId.startsWith('http') ? rawId : 'https://medium.com';
+    case 'hashnode':
+      return rawId.startsWith('http') ? rawId : 'https://hashnode.com';
+    case 'twitch':
+      return rawId ? `https://twitch.tv/${rawId}` : 'https://twitch.tv';
+    case 'dribbble':
+      return rawId ? `https://dribbble.com/shots/${rawId}` : 'https://dribbble.com';
+    default:
+      return 'https://unool.co/dashboard';
+  }
+}
+
 // Fixed star coordinates for reproducible starfield
 const STARS = Array.from({ length: 46 }, (_, i) => ({
   cx: ((i * 137 + 45) % 960) + 20,
@@ -483,6 +538,12 @@ export function WeekCanvas({
     }
   }, [selPost]);
 
+  const liveVariants = useMemo(() => {
+    if (!selPost) return [];
+    const published = (selPost.platforms || []).filter(p => p.status === 'published' || isSelPublished);
+    return published.length > 0 ? published : (selPost.platforms || []);
+  }, [selPost, isSelPublished]);
+
   const ticketId = useMemo(() => {
     const d = selDate;
     const timeStr = selPost?.scheduledAt
@@ -883,6 +944,28 @@ export function WeekCanvas({
 
       {/* ─── Boarding Pass Ticket (#ck / .tkt) ─── */}
       <div id="ck">
+        {/* Multiple Dispatches Switcher for this Day */}
+        {isSelScheduled && selDayPosts.length > 1 && (
+          <div className="fp-dispatches-bar">
+            <span className="fp-dispatches-title">Dispatches ({selDayPosts.length}):</span>
+            {selDayPosts.map((p, idx) => {
+              const isPActive = (selPost?.postId === p.postId);
+              const pTime = p.scheduledAt ? format(new Date(p.scheduledAt), 'h:mm a') : '';
+              const isPPublished = p.status === 'published' || p.platforms?.some(v => v.status === 'published');
+              return (
+                <button
+                  key={p.postId || idx}
+                  type="button"
+                  className={`fp-dispatch-tab ${isPActive ? 'active' : ''}`}
+                  onClick={() => setSelectedPostIndexByDay(prev => ({ ...prev, [sel]: idx }))}
+                >
+                  Flight {idx + 1}: {pTime} ({isPPublished ? 'Landed' : 'Scheduled'})
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {!isSelScheduled ? (
           <div className="fp-tkt" style={{ ['--c' as any]: selColor }}>
             <div className="main">
@@ -923,28 +1006,6 @@ export function WeekCanvas({
           </div>
         ) : (
           <div className="fp-tkt" style={{ ['--c' as any]: selColor }}>
-            {/* Multiple Dispatches Switcher for this Day */}
-            {selDayPosts.length > 1 && (
-              <div className="fp-dispatches-bar">
-                <span className="fp-dispatches-title">Dispatches ({selDayPosts.length}):</span>
-                {selDayPosts.map((p, idx) => {
-                  const isPActive = (selPost?.postId === p.postId);
-                  const pTime = p.scheduledAt ? format(new Date(p.scheduledAt), 'h:mm a') : '';
-                  const isPPublished = p.status === 'published' || p.platforms?.some(v => v.status === 'published');
-                  return (
-                    <button
-                      key={p.postId || idx}
-                      type="button"
-                      className={`fp-dispatch-tab ${isPActive ? 'active' : ''}`}
-                      onClick={() => setSelectedPostIndexByDay(prev => ({ ...prev, [sel]: idx }))}
-                    >
-                      Flight {idx + 1}: {pTime} ({isPPublished ? 'Landed' : 'Scheduled'})
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
             {/* Stamp: Touched down / Diverted / Grounded / Awaiting clearance / Cleared for take-off */}
             {isSelPublished ? (
               <div className="fp-stamp touched-down">✓ Touched down</div>
@@ -1073,12 +1134,42 @@ export function WeekCanvas({
 
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                 {isSelPublished ? (
-                  <button
-                    className="fp-btn"
-                    onClick={() => setSelectedPost(selPost)}
-                  >
-                    See it live
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      className="fp-btn"
+                      onClick={() => {
+                        const targetUrl = liveVariants[0]
+                          ? getLivePlatformUrl(liveVariants[0])
+                          : 'https://unool.co/dashboard';
+                        window.open(targetUrl, '_blank', 'noopener,noreferrer');
+                      }}
+                      title="Open post directly on the platform"
+                    >
+                      See it live ↗
+                    </button>
+                    {liveVariants.length > 1 && (
+                      <div className="fp-live-links-wrap">
+                        {liveVariants.map((lp) => {
+                          const meta = PLATFORM_META[lp.platform];
+                          const url = getLivePlatformUrl(lp);
+                          return (
+                            <a
+                              key={lp.variantId || lp.platform}
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="fp-platform-live-btn"
+                              title={`Open live post on ${meta?.name || lp.platform}`}
+                            >
+                              <span>{meta?.name || lp.platform}</span>
+                              <span style={{ fontSize: 10, opacity: 0.7 }}>↗</span>
+                            </a>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <>
                     <button

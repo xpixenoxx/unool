@@ -54,6 +54,7 @@ export interface IPlatformRepository {
   // Platform posts
   createPlatformPost(input: CreatePlatformPostInput): Promise<PlatformPost>;
   findPlatformPostsByVariant(variantId: string): Promise<PlatformPost[]>;
+  findPlatformPostsByVariantIds?(variantIds: string[]): Promise<PlatformPost[]>;
   findPlatformPostByPlatformPostId(platformPostId: string): Promise<PlatformPost | null>;
   updateEngagement(id: string, engagement: Record<string, unknown>): Promise<PlatformPost>;
 }

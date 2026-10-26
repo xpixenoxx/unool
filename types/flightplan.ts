@@ -188,6 +188,8 @@ export interface CanvasPlatformVariant {
   hashtags: string[];
   error?: string | null;
   schedulingOffsetMinutes?: number;
+  platformUrl?: string | null;
+  platformPostId?: string | null;
 }
 
 export interface CanvasPost {

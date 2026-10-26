@@ -37,6 +37,28 @@ export async function GET(request: NextRequest) {
   try {
     const canvas = await scheduleService.getWeekCanvas(workspaceId, weekStart);
 
+    // Look up platform_posts for published variants to get live platform URLs
+    const allVariants = canvas.flatMap(({ variants }) => variants);
+    const publishedVariantIds = allVariants
+      .filter(v => v.status === 'published')
+      .map(v => v.id);
+
+    const variantPlatformUrls = new Map<string, string>();
+    if (publishedVariantIds.length > 0) {
+      try {
+        const { SupabasePlatformRepository } = await import('@/lib/repositories/supabase/SupabasePlatformRepository');
+        const platformRepo = new SupabasePlatformRepository();
+        const platformPosts = await platformRepo.findPlatformPostsByVariantIds(publishedVariantIds);
+        for (const pp of platformPosts) {
+          if (pp.platformUrl) {
+            variantPlatformUrls.set(pp.postVariantId, pp.platformUrl);
+          }
+        }
+      } catch (err) {
+        logger.warn('Failed to fetch platform_posts for week canvas', { error: String(err) });
+      }
+    }
+
     // Shape the response for the frontend
     const posts = canvas.map(({ post, variants }) => {
       const effectiveStatus = (post.status === 'published' || variants.some(v => v.status === 'published'))
@@ -62,6 +84,8 @@ export async function GET(request: NextRequest) {
           error: v.error,
           mediaUrls: v.mediaUrls ?? [],
           hashtags: v.hashtagStrategy ?? [],
+          platformUrl: variantPlatformUrls.get(v.id) || null,
+          platformPostId: v.platformPostId || null,
         })),
       };
     });

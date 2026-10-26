@@ -1030,11 +1030,14 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 12px;
+  margin-top: 14px;
+  margin-bottom: 2px;
   flex-wrap: wrap;
-  padding: 6px 10px;
-  border-radius: 12px;
-  background: rgba(42, 26, 29, 0.04);
+  padding: 8px 14px;
+  border-radius: 14px;
+  background: var(--card);
+  border: 1px solid var(--bd);
+  box-shadow: 0 4px 16px -8px rgba(90, 14, 32, 0.08);
 }
 
 .fp-dispatches-title {
@@ -1046,13 +1049,14 @@
 
 .fp-dispatch-tab {
   font: 600 11.5px/1.2 "DM Sans", sans-serif;
-  padding: 4px 10px;
+  padding: 5px 12px;
   border-radius: 999px;
   border: 1px solid var(--bd);
   background: var(--card);
   color: var(--tx);
   cursor: pointer;
   transition: all 0.15s ease;
+  text-decoration: none;
 }
 
 .fp-dispatch-tab.active {
@@ -1065,6 +1069,36 @@
 .fp-dispatch-tab:hover:not(.active) {
   border-color: var(--btn);
   color: var(--tx);
+}
+
+.fp-live-links-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.fp-platform-live-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: 600 11.5px/1.2 "DM Sans", sans-serif;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--bd);
+  background: var(--card);
+  color: var(--tx);
+  text-decoration: none;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.fp-platform-live-btn:hover {
+  border-color: var(--btn);
+  color: var(--btn);
+  background: #fff;
+  transform: translateY(-1px);
 }
 
 /* ─── Review Screen Bar & Day Cards ────────────────────────── */
