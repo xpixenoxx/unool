@@ -668,20 +668,31 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     );
   };
 
-  // Recent Broadcasts (only successfully published posts)
-  const [allRecent, setAllRecent] = useState(false);
+  // Recent Broadcasts pagination (by default: 2, first 'show more': 5, second 'show more': all)
+  const [recentLimit, setRecentLimit] = useState<number>(2);
   const [openPostIds, setOpenPostIds] = useState<Record<string, boolean>>({});
   const publishedPosts = useMemo(
     () => (recentPosts || []).filter((post) => post.status === 'published'),
     [recentPosts]
   );
-  const displayPosts = allRecent ? publishedPosts : publishedPosts.slice(0, 2);
+  const displayPosts = useMemo(
+    () => publishedPosts.slice(0, recentLimit),
+    [publishedPosts, recentLimit]
+  );
+
+  const toggleRecentLimit = () => {
+    if (recentLimit === 2) {
+      setRecentLimit(5);
+    } else if (recentLimit === 5 && publishedPosts.length > 5) {
+      setRecentLimit(publishedPosts.length);
+    } else {
+      setRecentLimit(2);
+    }
+  };
 
   const togglePostOpen = (postId: string) => {
     setOpenPostIds((prev) => ({ ...prev, [postId]: !prev[postId] }));
   };
-
-  const STAGES = ['Draft', 'Scheduled', 'Published'];
 
   return (
     <div id="ov-root">
@@ -1215,11 +1226,6 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             {displayPosts.length > 0 ? (
               displayPosts.map((post) => {
                 const isOpen = !!openPostIds[post.id];
-                const stageIdx = STAGES.findIndex(
-                  (s) => s.toLowerCase() === post.status.toLowerCase()
-                );
-                const progressPct =
-                  post.status === 'published' ? 100 : post.status === 'scheduled' ? 60 : 30;
 
                 return (
                   <div
@@ -1244,26 +1250,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                     </div>
 
                     <div className="step">
-                      {stageIdx < 0 ? (
-                        <span className="cur">{post.status}</span>
-                      ) : (
-                        STAGES.map((sName, sIdx) => (
-                          <React.Fragment key={sName}>
-                            <span
-                              className={
-                                sIdx < stageIdx ? 'done' : sIdx === stageIdx ? 'cur' : ''
-                              }
-                            >
-                              {sIdx === stageIdx ? post.status : sName}
-                            </span>
-                            {sIdx < STAGES.length - 1 && <u />}
-                          </React.Fragment>
-                        ))
-                      )}
-                    </div>
-
-                    <div className="pr">
-                      <i style={{ width: `${progressPct}%` }} />
+                      <span className="cur">{post.status || 'published'}</span>
                     </div>
                   </div>
                 );
@@ -1279,9 +1266,9 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             <button
               type="button"
               className="more"
-              onClick={() => setAllRecent((prev) => !prev)}
+              onClick={toggleRecentLimit}
             >
-              {allRecent ? 'Show less' : 'Show more'}
+              {recentLimit >= publishedPosts.length ? 'Show less' : 'Show more'}
             </button>
           )}
         </section>
