@@ -546,10 +546,14 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     );
   };
 
-  // Recent Broadcasts
+  // Recent Broadcasts (only successfully published posts)
   const [allRecent, setAllRecent] = useState(false);
   const [openPostIds, setOpenPostIds] = useState<Record<string, boolean>>({});
-  const displayPosts = allRecent ? recentPosts : recentPosts.slice(0, 2);
+  const publishedPosts = useMemo(
+    () => (recentPosts || []).filter((post) => post.status === 'published'),
+    [recentPosts]
+  );
+  const displayPosts = allRecent ? publishedPosts : publishedPosts.slice(0, 2);
 
   const togglePostOpen = (postId: string) => {
     setOpenPostIds((prev) => ({ ...prev, [postId]: !prev[postId] }));
@@ -1144,12 +1148,12 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               })
             ) : (
               <div className="empty">
-                No broadcasts yet. Select New Post to create your first one.
+                No published broadcasts yet. Select New Post to create your first one.
               </div>
             )}
           </div>
 
-          {recentPosts.length > 2 && (
+          {publishedPosts.length > 2 && (
             <button
               type="button"
               className="more"

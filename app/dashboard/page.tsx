@@ -89,8 +89,8 @@ async function getDashboardData(): Promise<{
     // 2. Profile
     profileRepository.findByWorkspaceId(workspaceId),
 
-    // 3. Recent posts
-    postRepository.findByWorkspaceId(workspaceId, { limit: 10 }),
+    // 3. Recent posts (only successfully published posts)
+    postRepository.findByWorkspaceId(workspaceId, { status: 'published', limit: 10 }),
 
     // 4. Usage stats (internally also runs its queries in parallel)
     getCurrentUsage(supabaseAdmin, workspaceId, userId),
