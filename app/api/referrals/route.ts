@@ -35,7 +35,13 @@ export async function GET(request: NextRequest) {
       getReferralStats(user.id),
     ]);
 
-    return NextResponse.json(stats);
+    return NextResponse.json(stats, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      },
+    });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     logger.error('GET /api/referrals error', { error: err });

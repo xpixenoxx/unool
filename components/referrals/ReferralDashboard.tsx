@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  Gift, Copy, Check, Users, TrendingUp, Star, ExternalLink, ChevronRight
+  Gift, Copy, Check, Users, TrendingUp, Star, ExternalLink, ChevronRight, RefreshCw
 } from 'lucide-react';
 import type { ReferralCode, Referral } from '@/lib/referrals/service';
+import { getSupabaseBrowserClient } from '@/lib/supabase/browser';
 
 // ── Types for API response ─────────────────────────────────────────────────────
 
@@ -18,21 +19,100 @@ interface ReferralStats {
 export function ReferralDashboard({ workspaceId }: { workspaceId: string }) {
   const [stats, setStats] = useState<ReferralStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [copied, setCopied] = useState(false);
+  const isFetchingRef = useRef(false);
 
-  const fetchStats = useCallback(async () => {
+  const fetchStats = useCallback(async (isManualRefresh = false) => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+    if (isManualRefresh) setRefreshing(true);
+
     try {
-      const res = await fetch(`/api/referrals?workspaceId=${workspaceId}`);
-      const data = await res.json() as ReferralStats;
-      setStats(data);
+      const res = await fetch(`/api/referrals?workspaceId=${workspaceId}`, {
+        cache: 'no-store',
+      });
+      if (res.ok) {
+        const data = await res.json() as ReferralStats;
+        setStats(data);
+      }
     } catch {
       // ignore
     } finally {
+      isFetchingRef.current = false;
       setLoading(false);
+      if (isManualRefresh) setRefreshing(false);
     }
   }, [workspaceId]);
 
-  useEffect(() => { fetchStats(); }, [fetchStats]);
+  // Initial load
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+
+  // Periodic polling every 8 seconds when tab is visible
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetchStats();
+      }
+    }, 8000);
+
+    return () => clearInterval(interval);
+  }, [fetchStats]);
+
+  // Window focus and visibility change revalidation
+  useEffect(() => {
+    const handleRevalidate = () => {
+      if (typeof document === 'undefined' || document.visibilityState === 'visible') {
+        fetchStats();
+      }
+    };
+
+    window.addEventListener('focus', handleRevalidate);
+    document.addEventListener('visibilitychange', handleRevalidate);
+
+    return () => {
+      window.removeEventListener('focus', handleRevalidate);
+      document.removeEventListener('visibilitychange', handleRevalidate);
+    };
+  }, [fetchStats]);
+
+  // Supabase Realtime subscription for instant updates on new signups or conversions
+  useEffect(() => {
+    let channel: ReturnType<ReturnType<typeof getSupabaseBrowserClient>['channel']> | null = null;
+    try {
+      const supabase = getSupabaseBrowserClient();
+      channel = supabase
+        .channel(`referrals-sync-${workspaceId}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'referral_codes' },
+          () => {
+            fetchStats();
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'referrals' },
+          () => {
+            fetchStats();
+          }
+        )
+        .subscribe();
+    } catch (err) {
+      console.warn('[ReferralDashboard] Realtime subscription error:', err);
+    }
+
+    return () => {
+      if (channel) {
+        try {
+          const supabase = getSupabaseBrowserClient();
+          supabase.removeChannel(channel);
+        } catch {}
+      }
+    };
+  }, [workspaceId, fetchStats]);
 
   const referralUrl = stats?.code
     ? `${typeof window !== 'undefined' ? window.location.origin : ''}/signup?ref=${stats.code.code}`
@@ -60,12 +140,33 @@ export function ReferralDashboard({ workspaceId }: { workspaceId: string }) {
   return (
     <div className="ref-root">
       {/* Header */}
-      <div className="ref-header">
-        <div className="ref-header-icon"><Gift className="h-5 w-5" /></div>
-        <div>
-          <h1 className="ref-title">Referrals</h1>
-          <p className="ref-subtitle">Invite creators, earn AI credits and free months.</p>
+      <div className="ref-header" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
+          <div className="ref-header-icon"><Gift className="h-5 w-5" /></div>
+          <div>
+            <h1 className="ref-title">Referrals</h1>
+            <p className="ref-subtitle">Invite creators, earn AI credits and free months.</p>
+          </div>
         </div>
+        <button
+          type="button"
+          onClick={() => fetchStats(true)}
+          disabled={refreshing}
+          className="ref-btn ref-btn--share"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.375rem',
+            fontSize: '0.8125rem',
+            padding: '0.45rem 0.85rem',
+            cursor: refreshing ? 'not-allowed' : 'pointer',
+          }}
+          title="Check for new referral points"
+          aria-label="Refresh referral stats"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'ref-spinning' : ''}`} />
+          <span>{refreshing ? 'Refreshing...' : 'Refresh'}</span>
+        </button>
       </div>
 
       {/* How it works */}
