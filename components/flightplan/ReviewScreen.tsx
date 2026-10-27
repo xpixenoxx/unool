@@ -50,7 +50,9 @@ export function ReviewScreen({
 }: ReviewScreenProps) {
   const baseDate = useMemo(() => {
     const parsed = parseLocalDate(weekStartDate);
-    return startOfWeek(parsed, { weekStartsOn: 1 });
+    const today = startOfDay(new Date());
+    // Never anchor baseDate to a past day
+    return parsed < today ? today : parsed;
   }, [weekStartDate]);
 
   const dateOf = useCallback(
@@ -61,16 +63,23 @@ export function ReviewScreen({
   );
 
   const [arc, setArc] = useState<WeekArc>(() => {
-    const base = startOfWeek(parseLocalDate(weekStartDate), { weekStartsOn: 1 });
+    const parsed = parseLocalDate(weekStartDate);
     const now = new Date();
     const todayStart = startOfDay(now);
+    const base = parsed < todayStart ? todayStart : parsed;
+
+    // Do not generate or include posts for days that are in the past
+    const validPosts = (initialArc.weekPosts || []).filter((post, idx) => {
+      const postDayIndex = typeof post.day === 'number' ? post.day : idx;
+      const postDate = addDays(base, postDayIndex);
+      return postDate >= todayStart;
+    });
 
     return {
       ...initialArc,
-      weekPosts: (initialArc.weekPosts || []).map((post, idx) => {
+      weekPosts: validPosts.map((post, idx) => {
         const postDayIndex = typeof post.day === 'number' ? post.day : idx;
         const postDate = addDays(base, postDayIndex);
-        const isPostPast = postDate < todayStart;
         const isPostToday = isToday(postDate);
 
         let hour = post.scheduledHour || 18;
@@ -94,7 +103,7 @@ export function ReviewScreen({
           imageUrls: post.imageUrls || [],
           platforms: (post.platforms || []).map(p => ({
             ...p,
-            enabled: isPostPast ? false : p.enabled !== false,
+            enabled: p.enabled !== false,
             hashtags: p.hashtags || [],
             characterCount: p.content?.length || 0,
           })),

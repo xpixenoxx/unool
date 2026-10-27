@@ -28,9 +28,14 @@ export async function POST(request: NextRequest) {
       whatWentWrong = '',
       oneRealNumber = '',
       audienceTimezone = 'UTC',
-      weekStartDate,        // ISO date string e.g. "2026-10-12"
+      weekStartDate: rawWeekStartDate, // ISO date string e.g. "2026-10-12"
       selectedPlatforms,
     } = body;
+
+    // Never generate for past dates - clamp to today if omitted or in the past
+    const now = new Date();
+    const todayStr = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`;
+    const weekStartDate = (!rawWeekStartDate || rawWeekStartDate < todayStr) ? todayStr : rawWeekStartDate;
 
     if (!coreStory || typeof coreStory !== 'string') {
       return NextResponse.json(

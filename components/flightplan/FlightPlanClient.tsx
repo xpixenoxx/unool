@@ -149,26 +149,23 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
   };
 
   const handleApprove = async (approvedArc: WeekArc) => {
-    const normalizedMonday = storyData?.weekStartDate
-      ? (() => {
-          const parts = storyData.weekStartDate.split('-').map(Number);
-          const d = parts.length === 3 ? new Date(parts[0], parts[1] - 1, parts[2]) : new Date(storyData.weekStartDate);
-          return format(startOfWeek(isNaN(d.getTime()) ? new Date() : d, { weekStartsOn: 1 }), 'yyyy-MM-dd');
-        })()
-      : format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd');
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    const effectiveStartDate = storyData?.weekStartDate && storyData.weekStartDate >= todayStr
+      ? storyData.weekStartDate
+      : todayStr;
 
     setIsScheduling(true);
     try {
       const success = await approveArc(
         approvedArc,
         storyData
-          ? { ...storyData, weekStartDate: normalizedMonday }
+          ? { ...storyData, weekStartDate: effectiveStartDate }
           : {
               coreStory: '',
               whatChanged: '',
               whatWentWrong: '',
               oneRealNumber: '',
-              weekStartDate: normalizedMonday,
+              weekStartDate: effectiveStartDate,
               selectedPlatforms: [],
             }
       );
@@ -249,13 +246,11 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
             key="review"
             arc={arc}
             weekStartDate={
-              storyData?.weekStartDate
-                ? (() => {
-                    const parts = storyData.weekStartDate.split('-').map(Number);
-                    const d = parts.length === 3 ? new Date(parts[0], parts[1] - 1, parts[2]) : new Date(storyData.weekStartDate);
-                    return format(startOfWeek(isNaN(d.getTime()) ? new Date() : d, { weekStartsOn: 1 }), 'yyyy-MM-dd');
-                  })()
-                : format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
+              (() => {
+                const todayStr = format(new Date(), 'yyyy-MM-dd');
+                if (!storyData?.weekStartDate || storyData.weekStartDate < todayStr) return todayStr;
+                return storyData.weekStartDate;
+              })()
             }
             isPreviewOnly={isPreviewOnly}
             onApprove={handleApprove}
