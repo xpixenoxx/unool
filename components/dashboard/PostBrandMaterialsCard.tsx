@@ -323,35 +323,14 @@ export default function PostBrandMaterialsCard({
     >
       {/* ── Header ── */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div
-            style={{
-              width: 42,
-              height: 42,
-              borderRadius: 12,
-              background: '#FFEBE8',
-              color: '#E05344',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M2 12c2.5-3 5-3 7.5 0s5 3 7.5 0 5-3 7-0.5" />
-              <path d="M2 7c2.5-3 5-3 7.5 0s5 3 7.5 0 5-3 7-0.5" />
-              <path d="M2 17c2.5-3 5-3 7.5 0s5 3 7.5 0 5-3 7-0.5" />
-            </svg>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 16, fontWeight: 700, color: '#231C16', letterSpacing: '-0.01em' }}>
+              Brand Materials Page
+            </span>
           </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 16, fontWeight: 700, color: '#231C16', letterSpacing: '-0.01em' }}>
-                Brand Materials Page
-              </span>
-            </div>
-            <div style={{ fontSize: 12.5, color: '#735A42', marginTop: 2 }}>
-              Publish exclusive lookbooks, PDF guides, or download links at <span style={{ fontFamily: 'monospace', color: '#4A3B2F' }}>https://{subdomain}.unool.co/[slug]</span>
-            </div>
+          <div style={{ fontSize: 12.5, color: '#735A42', marginTop: 2 }}>
+            Publish exclusive lookbooks, PDF guides, or download links at <span style={{ fontFamily: 'monospace', color: '#4A3B2F' }}>https://{subdomain}.unool.co/[slug]</span>
           </div>
         </div>
 

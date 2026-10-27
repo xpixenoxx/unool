@@ -567,14 +567,7 @@ function IPhonePreview({
             transformOrigin: 'top center',
           }}
         >
-        {/* Hardware Buttons - Left: Action Button + Volume Up/Down */}
-        <div
-          className="absolute -left-[5px] top-24 w-[5px] h-6 rounded-l-md"
-          style={{
-            background: 'linear-gradient(to right, #6E747B, #9CA3AF, #6E747B)',
-            boxShadow: 'inset -1px 0 2px rgba(0,0,0,0.5)',
-          }}
-        />
+        {/* Hardware Buttons - Left: Volume Up/Down */}
         <div
           className="absolute -left-[5px] top-36 w-[5px] h-12 rounded-l-md"
           style={{
