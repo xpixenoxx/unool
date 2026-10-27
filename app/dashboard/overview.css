@@ -833,6 +833,15 @@
   opacity: 0.9;
 }
 
+#ov-root .tile[data-platform="slack"] .flood {
+  background: conic-gradient(from 180deg at 100% 100%, #36C5F0 0deg, #2EB67D 30deg, #ECB22E 60deg, #E01E5A 90deg, #36C5F0 360deg);
+}
+
+#ov-root .tile[data-platform="slack"]:not(.on):hover,
+#ov-root .tile[data-platform="slack"]:not(.on).hi {
+  border-color: #E01E5A;
+}
+
 #ov-root .bgm {
   position: absolute;
   right: -14px;
@@ -885,6 +894,11 @@
   display: block;
   border-radius: 8px;
   transition: transform 0.2s ease;
+  stroke: none;
+}
+
+#ov-root .lg svg * {
+  stroke: none;
 }
 
 #ov-root .tile:hover .lg svg,

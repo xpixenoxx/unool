@@ -466,11 +466,14 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     return combined.map((p, index) => {
       const isConnected = isConn(p.id);
       const pal = ALTERNATING_PALETTE[index % 2];
+      const isSlack = p.id === 'slack';
+      const slackGradient =
+        'conic-gradient(from 180deg at 100% 100%, #36C5F0 0deg, #2EB67D 30deg, #ECB22E 60deg, #E01E5A 90deg, #36C5F0 360deg)';
       return {
         ...p,
         connected: isConnected,
-        color: pal.color,
-        gradient: pal.gradient,
+        color: isSlack ? '#E01E5A' : pal.color,
+        gradient: isSlack ? slackGradient : pal.gradient,
       };
     });
   }, [connections]);
@@ -851,6 +854,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               return (
                 <div
                   key={p.id}
+                  data-platform={p.id}
                   className={`tile ${p.connected ? 'on' : ''} ${isHi ? 'hi' : ''}`}
                   onMouseEnter={() => setHoveredPlatformId(p.id)}
                   onMouseLeave={() => setHoveredPlatformId(null)}
