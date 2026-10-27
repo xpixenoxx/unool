@@ -17,13 +17,13 @@
   font-family: 'Lora', Georgia, serif;
   color: var(--ink);
   background: var(--bg);
-  padding: 0 0 28px 0;
+  padding: 8px 0 28px 0;
   line-height: 1.45;
   box-sizing: border-box;
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 #ov-root * {
@@ -64,6 +64,7 @@
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
+  padding: 6px 6px 0 6px;
   display: grid;
   gap: 22px;
   min-width: 0;
@@ -161,6 +162,7 @@
   width: 100%;
   max-width: 100%;
   min-width: 0;
+  padding-top: 6px;
 }
 
 #ov-root .hero {
@@ -368,10 +370,11 @@
   position: relative;
   box-sizing: border-box;
   will-change: transform;
+  transform-origin: center center;
 }
 
 #ov-root .stat:hover {
-  transform: scale(1.025);
+  transform: scale(1.02);
   box-shadow: 0 8px 24px -4px rgba(46, 32, 24, 0.12), 0 4px 0 var(--g2);
   border-color: var(--gold);
   z-index: 5;
