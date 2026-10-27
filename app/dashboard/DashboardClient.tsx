@@ -361,7 +361,7 @@ function InteractiveSparkline({
     const val = series[idx];
     const xPct = (idx / (series.length - 1)) * 100;
     const yVal = 44 - (val / maxVal) * 38;
-    const yPx = 10 + (yVal / 50) * 52;
+    const yPx = 4 + (yVal / 50) * 38;
 
     const daysAgo = (series.length - 1) - idx;
     let dateStr = 'Today';
