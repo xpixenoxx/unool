@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { format, addDays, startOfWeek, isToday } from 'date-fns';
+import { Loader2 } from 'lucide-react';
 import { ScheduledPostModal } from './ScheduledPostModal';
 import { ScheduleNewPostModal } from './ScheduleNewPostModal';
 import { BarcodeTicket } from './ui/BarcodeTicket';
@@ -123,6 +124,17 @@ const STARS = Array.from({ length: 46 }, (_, i) => ({
   opacity: (((i * 23) % 50) / 100 + 0.15).toFixed(2),
 }));
 
+// ── In-Memory SWR Cache for 0ms Route Switching ──────────────────
+const memoryCanvasPostsByWeek = new Map<number, CanvasPost[]>();
+
+export function invalidateFlightPlanCanvasCache(weekOffset?: number) {
+  if (typeof weekOffset === 'number') {
+    memoryCanvasPostsByWeek.delete(weekOffset);
+  } else {
+    memoryCanvasPostsByWeek.clear();
+  }
+}
+
 export function WeekCanvas({
   workspaceId,
   targetPostId,
@@ -134,8 +146,9 @@ export function WeekCanvas({
   isHoldActive = false,
   connectedPlatforms,
 }: WeekCanvasProps) {
-  const [posts, setPosts] = useState<CanvasPost[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const initialCached = memoryCanvasPostsByWeek.get(initialWeekOffset);
+  const [posts, setPosts] = useState<CanvasPost[]>(() => initialCached || []);
+  const [isLoading, setIsLoading] = useState(!memoryCanvasPostsByWeek.has(initialWeekOffset));
   const [weekOffset, setWeekOffset] = useState(initialWeekOffset);
 
   useEffect(() => {
@@ -183,12 +196,16 @@ export function WeekCanvas({
     [weekStart]
   );
 
-  const loadWeekCanvas = useCallback(async () => {
-    setIsLoading(true);
+  const loadWeekCanvas = useCallback(async (isBackgroundRevalidation = false) => {
+    if (!isBackgroundRevalidation && !memoryCanvasPostsByWeek.has(weekOffset)) {
+      setIsLoading(true);
+    }
     try {
       const loadedPosts = await loadCanvas(weekOffset);
-      setPosts(loadedPosts || []);
-      onPostCountChange?.(loadedPosts?.length || 0);
+      const safePosts = loadedPosts || [];
+      memoryCanvasPostsByWeek.set(weekOffset, safePosts);
+      setPosts(safePosts);
+      onPostCountChange?.(safePosts.length);
     } catch {
       // silent
     } finally {
@@ -197,8 +214,14 @@ export function WeekCanvas({
   }, [weekOffset, loadCanvas, onPostCountChange]);
 
   useEffect(() => {
-    loadWeekCanvas();
-  }, [loadWeekCanvas]);
+    if (memoryCanvasPostsByWeek.has(weekOffset)) {
+      setPosts(memoryCanvasPostsByWeek.get(weekOffset)!);
+      setIsLoading(false);
+      loadWeekCanvas(true);
+    } else {
+      loadWeekCanvas(false);
+    }
+  }, [weekOffset, loadWeekCanvas]);
 
   // Target post auto-open (supports both currently scheduled posts and unscheduled/draft posts)
   useEffect(() => {
@@ -257,6 +280,7 @@ export function WeekCanvas({
             const p: CanvasPost = data.post;
             openedTargetPostIdRef.current = targetPostId;
 
+            let postWeekOffset: number | null = null;
             // If post has a scheduledAt date, align weekOffset and day
             if (p.scheduledAt) {
               const postDate = new Date(p.scheduledAt);
@@ -267,6 +291,7 @@ export function WeekCanvas({
                 (mondayPostWeek.getTime() - mondayThisWeek.getTime()) / (7 * 24 * 60 * 60 * 1000)
               );
               if (diffWeeks >= 0 && diffWeeks <= 1) {
+                postWeekOffset = diffWeeks;
                 setWeekOffset(diffWeeks);
               }
               const dayIndex = (postDate.getDay() + 6) % 7;
@@ -276,7 +301,11 @@ export function WeekCanvas({
             // Merge into local posts state
             setPosts(prev => {
               if (prev.some(item => item.postId === p.postId)) return prev;
-              return [...prev, p];
+              const next = [...prev, p];
+              if (typeof postWeekOffset === 'number') {
+                memoryCanvasPostsByWeek.set(postWeekOffset, next);
+              }
+              return next;
             });
 
             // Open the review & edit modal
@@ -326,6 +355,18 @@ export function WeekCanvas({
     const s = new Set<string>();
     posts.forEach(p => p.platforms.forEach(v => s.add(v.platform)));
     return s.size || 1;
+  }, [posts]);
+
+  const weekMediaUrls = useMemo(() => {
+    const urls: string[] = [];
+    posts.forEach(p => {
+      p.platforms?.forEach(v => {
+        v.mediaUrls?.forEach(m => {
+          if (m?.url) urls.push(m.url);
+        });
+      });
+    });
+    return urls;
   }, [posts]);
 
   // Catmull points & curve (compact vertical height)
@@ -585,6 +626,7 @@ export function WeekCanvas({
       const ok = await cancelPost(selPost.postId);
       if (ok) {
         studioToast.success('Post removed from flight plan.');
+        invalidateFlightPlanCanvasCache(weekOffset);
         loadWeekCanvas();
       }
     } catch {
@@ -625,15 +667,21 @@ export function WeekCanvas({
           This week
         </button>
         <span className="sp" />
-        <span className="fp-stat">
-          <b>{scheduledCount}</b> scheduled, <b>{publishedCount}</b> landed, <b>{uniquePlatformsCount}</b> platform
-          {uniquePlatformsCount === 1 ? '' : 's'}
-        </span>
+        {isLoading && posts.length === 0 ? (
+          <span className="fp-stat" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-[#C0607A]" />
+            <span>Checking flight schedule...</span>
+          </span>
+        ) : (
+          <span className="fp-stat">
+            <b>{scheduledCount}</b> scheduled, <b>{publishedCount}</b> landed, <b>{uniquePlatformsCount}</b> platform
+            {uniquePlatformsCount === 1 ? '' : 's'}
+          </span>
+        )}
       </div>
 
       {/* ─── Week Calendar Strip (.cal) ─── */}
-      {posts.length > 0 && (
-        <section className="fp-cal" aria-label="Week calendar">
+      <section className="fp-cal" aria-label="Week calendar">
           <div className="fp-cin">
             <div className="fp-dhs">
               {DN.map((name, i) => {
@@ -689,7 +737,14 @@ export function WeekCanvas({
                       </div>
                     </div>
 
-                    {dayPosts.length === 0 ? (
+                    {isLoading && posts.length === 0 ? (
+                      <div className="fp-empty-day" style={{ opacity: 0.65 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '12px 0' }}>
+                          <Loader2 className="w-3 h-3 animate-spin text-[#C0607A]" />
+                          <span style={{ fontSize: 11, color: 'var(--mu)' }}>Checking...</span>
+                        </div>
+                      </div>
+                    ) : dayPosts.length === 0 ? (
                       <div className="fp-empty-day">
                         <span style={{ fontSize: 11, color: 'var(--mu)' }}>Open sky</span>
                         <button
@@ -775,7 +830,6 @@ export function WeekCanvas({
             </div>
           </div>
         </section>
-      )}
 
       {/* ─── Starfield Flight Stage (.stage) ─── */}
       <section className="fp-stage" ref={stageRef} onPointerMove={handleStagePointerMove}>
@@ -927,13 +981,23 @@ export function WeekCanvas({
             </g>
           </svg>
 
-          {/* Empty state overlay */}
-          {posts.length === 0 && (
+          {/* Empty state overlay (only show when confirmed empty after loading) */}
+          {!isLoading && posts.length === 0 && (
             <div className="fp-empty">
               <p>Nothing in flight this week. Give us one story and we’ll plot all seven days.</p>
               <button className="fp-btn gold" onClick={onNewArc}>
                 + Plan new week
               </button>
+            </div>
+          )}
+
+          {/* Loading state indicator on stage */}
+          {isLoading && posts.length === 0 && (
+            <div className="fp-empty" style={{ pointerEvents: 'none' }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 20, background: 'rgba(36, 7, 15, 0.65)', border: '1px solid rgba(246, 233, 226, 0.15)', color: 'var(--star)', fontSize: 13, backdropFilter: 'blur(8px)' }}>
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-[#C0607A]" />
+                <span>Checking flight schedule...</span>
+              </div>
             </div>
           )}
         </div>
@@ -985,7 +1049,47 @@ export function WeekCanvas({
           </div>
         )}
 
-        {!isSelScheduled ? (
+        {isLoading && posts.length === 0 ? (
+          <div className="fp-tkt has-header-band" style={{ ['--c' as any]: selColor }}>
+            <div className="fp-tkt-header-band">
+              <div className="fp-tkt-brand">
+                <span className="fp-airline-logo">✈ UNOOL AIRWAYS</span>
+                <span className="fp-flight-type">FLIGHT LOG // CHECKING MANIFEST</span>
+              </div>
+              <div className="fp-flight-meta-pills">
+                <span className="fp-meta-pill">SECTOR: <b>0{sel + 1}/07</b></span>
+                <span className="fp-meta-pill stub-pill">MANIFEST</span>
+              </div>
+            </div>
+            <div className="main">
+              <div className="fp-air">
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-[#C0607A]" />
+                  <i>✈</i> FLIGHT LOG // SECTOR 0{sel + 1} — CHECKING
+                </span>
+                <span>{format(selDate, 'EEEE d MMMM')}</span>
+              </div>
+              <h3 className="fp-big" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                Loading flight schedule...
+              </h3>
+              <p className="fp-sub">
+                Retrieving scheduled flight plans and landed dispatches for {format(selDate, 'EEEE d MMMM')}...
+              </p>
+            </div>
+            <div className="stub">
+              <div className="fp-stub-header">
+                <span>PASSENGER STUB</span>
+                <span>LEG 0{sel + 1}</span>
+              </div>
+              <div className="fp-fld">
+                <span>STATUS</span>
+                <b>Checking manifest</b>
+                <em>Connecting to flight control...</em>
+              </div>
+              <BarcodeTicket code="FP-CHECKING" note="Checking manifest..." />
+            </div>
+          </div>
+        ) : !isSelScheduled ? (
           <div className="fp-tkt has-header-band" style={{ ['--c' as any]: selColor }}>
             <div className="fp-tkt-header-band">
               <div className="fp-tkt-brand">
@@ -1266,6 +1370,7 @@ export function WeekCanvas({
             }
           }}
           onUpdated={() => {
+            invalidateFlightPlanCanvasCache(weekOffset);
             loadWeekCanvas();
             setSelectedPost(null);
             if (typeof window !== 'undefined' && window.location.search.includes('postId=')) {
@@ -1273,6 +1378,7 @@ export function WeekCanvas({
             }
           }}
           onCancelled={() => {
+            invalidateFlightPlanCanvasCache(weekOffset);
             loadWeekCanvas();
             setSelectedPost(null);
             if (typeof window !== 'undefined' && window.location.search.includes('postId=')) {
@@ -1292,8 +1398,10 @@ export function WeekCanvas({
           isOpen={isNewPostModalOpen}
           targetDate={newPostModalDate}
           connectedPlatforms={connectedPlatforms}
+          existingWeekMediaUrls={weekMediaUrls}
           onClose={() => setIsNewPostModalOpen(false)}
           onScheduled={() => {
+            invalidateFlightPlanCanvasCache(weekOffset);
             loadWeekCanvas();
             setIsNewPostModalOpen(false);
           }}

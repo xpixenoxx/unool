@@ -91,6 +91,42 @@ describe('ScheduleService.processDueScheduledPosts', () => {
     expect(result.failed).toBe(1);
     expect(result.errors.length).toBe(1);
     expect(result.errors[0].error).toContain('Token expired');
+    expect(updateStatusSpy).toHaveBeenCalledWith('post-fail-1', 'failed');
+  });
+
+  it('recovers and processes posts that were stuck in publishing', async () => {
+    const mockStuckPost = {
+      id: 'post-stuck-1',
+      profileId: 'prof-1',
+      workspaceId: 'ws-test',
+      content: 'Stuck post content',
+      status: 'publishing' as const,
+      scheduledAt: new Date(Date.now() - 3600_000),
+      publishedAt: null,
+      adaptationPromptVersion: null,
+      version: 1,
+      qstashMessageId: null,
+      scheduleStrategy: 'simultaneous' as const,
+      arcId: null,
+      createdAt: new Date(Date.now() - 3600_000),
+      updatedAt: new Date(Date.now() - 1800_000),
+    };
+
+    vi.spyOn(SupabasePostRepository.prototype, 'findDueScheduledPosts').mockResolvedValue([mockStuckPost]);
+    vi.spyOn(SupabasePostRepository.prototype, 'findDueScheduledVariants').mockResolvedValue([]);
+    const updateStatusSpy = vi.spyOn(SupabasePostRepository.prototype, 'updateStatus').mockResolvedValue(mockStuckPost);
+
+    vi.spyOn(publishService, 'publishToAllPlatforms').mockResolvedValue({
+      bluesky: { success: true, platformPostId: 'bsky-123' },
+      linkedin: { success: true, platformPostId: 'li-123' },
+    } as any);
+
+    const result = await scheduleService.processDueScheduledPosts('ws-test');
+
+    expect(result.processed).toBe(1);
+    expect(result.succeeded).toBe(1);
+    expect(result.failed).toBe(0);
+    expect(publishService.publishToAllPlatforms).toHaveBeenCalledWith('post-stuck-1', 'ws-test');
   });
 });
 

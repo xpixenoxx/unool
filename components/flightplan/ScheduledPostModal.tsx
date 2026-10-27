@@ -22,7 +22,7 @@ import {
   AutoFirstComment,
   FirstCommentHint,
 } from '@/components/flightplan/ui';
-import { useModalImageUpload } from '@/hooks/flightplan';
+import { useModalImageUpload, extractMediaFilename } from '@/hooks/flightplan';
 import { FLIGHTPLAN_CONSTANTS, PLATFORM_CONFIG } from '@/types/flightplan';
 import type { CanvasPost, CanvasPlatformVariant, PlatformType } from '@/types/flightplan';
 import { B, PLATFORM_META, MOTION, SPACING, RADIUS, SHADOW } from './design-tokens';
@@ -155,7 +155,16 @@ function ScheduledPostModalContent({
     useCallback((variantId: string, media: Array<{ url: string; type: string }>) => {
       setEditedMediaUrls(prev => {
         const existing = prev[variantId] ?? currentVariant.mediaUrls ?? [];
-        const newUnique = media.filter(m => !existing.some(e => e.url === m.url));
+        const existingNames = new Set(existing.map(e => extractMediaFilename(e.url)));
+        const newUnique = media.filter(m => {
+          const fn = extractMediaFilename(m.url);
+          if (existingNames.has(fn)) return false;
+          existingNames.add(fn);
+          return true;
+        });
+        if (newUnique.length < media.length) {
+          studioToast.error('Duplicate images were skipped.');
+        }
         return { ...prev, [variantId]: [...existing, ...newUnique] };
       });
     }, [])

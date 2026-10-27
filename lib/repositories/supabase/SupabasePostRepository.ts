@@ -246,7 +246,36 @@ export class SupabasePostRepository implements IPostRepository {
 
     const { data, error } = await query;
     if (error) throw error;
-    return (data || []).map(this.mapPostRow.bind(this));
+
+    // Self-heal: also recover posts stuck in 'publishing' state for > 5 minutes
+    const stuckThreshold = new Date(Date.now() - 5 * 60 * 1000);
+    let stuckQuery = this.supabase
+      .from('posts')
+      .select('*')
+      .eq('status', 'publishing')
+      .lte('updated_at', stuckThreshold.toISOString())
+      .order('updated_at', { ascending: true })
+      .limit(20);
+
+    if (workspaceId) {
+      stuckQuery = stuckQuery.eq('workspace_id', workspaceId);
+    }
+
+    const { data: stuckData, error: stuckError } = await stuckQuery;
+    if (stuckError) throw stuckError;
+
+    // Combine scheduled and stuck posts, deduplicating by ID
+    const combinedMap = new Map<string, Record<string, unknown>>();
+    for (const row of (data || [])) {
+      combinedMap.set(row.id as string, row);
+    }
+    for (const row of (stuckData || [])) {
+      if (!combinedMap.has(row.id as string)) {
+        combinedMap.set(row.id as string, row);
+      }
+    }
+
+    return Array.from(combinedMap.values()).map(this.mapPostRow.bind(this));
   }
 
   async findDueScheduledVariants(beforeDate: Date, workspaceId?: string): Promise<PostVariant[]> {

@@ -498,6 +498,7 @@ export class ScheduleService {
             results.failed++;
             const errStr = Object.values(publishResult).map((r: any) => r.error).filter(Boolean).join('; ') || 'All platform publishes failed';
             results.errors.push({ postId: post.id, error: errStr });
+            await postRepository.updateStatus(post.id, 'failed');
             logger.error('Due scheduled post failed across all platforms', { postId: post.id, error: new Error(errStr) });
           }
         } catch (publishErr) {

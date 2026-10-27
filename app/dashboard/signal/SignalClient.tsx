@@ -648,7 +648,9 @@ export function SignalClient() {
   // Filtered posts for feed
   const filteredPosts = useMemo(() => {
     const list = posts.filter(post => {
-      const isPublishing = post.status === 'publishing' || post.variants.some(v => v.status === 'publishing' || v.status === 'pending') || activePublishingPostIds.has(post.id);
+      const isStuck = (post.status === 'publishing' || post.variants.some(v => v.status === 'publishing' || v.status === 'pending')) &&
+        (Date.now() - new Date(post.updatedAt || post.createdAt).getTime()) > 5 * 60 * 1000;
+      const isPublishing = !isStuck && (post.status === 'publishing' || post.variants.some(v => v.status === 'publishing' || v.status === 'pending') || activePublishingPostIds.has(post.id));
 
       // Status filter
       if (filterStatus === 'published') {
@@ -698,7 +700,11 @@ export function SignalClient() {
   // Live overview metrics
   const liveStats = useMemo(() => {
     const total = posts.length;
-    const publishing = posts.filter(p => p.status === 'publishing' || p.variants.some(v => v.status === 'publishing' || v.status === 'pending') || activePublishingPostIds.has(p.id)).length;
+    const publishing = posts.filter(p => {
+      const isStuck = (p.status === 'publishing' || p.variants.some(v => v.status === 'publishing' || v.status === 'pending')) &&
+        (Date.now() - new Date(p.updatedAt || p.createdAt).getTime()) > 5 * 60 * 1000;
+      return !isStuck && (p.status === 'publishing' || p.variants.some(v => v.status === 'publishing' || v.status === 'pending') || activePublishingPostIds.has(p.id));
+    }).length;
     const published = posts.filter(p => p.variants.some(v => v.status === 'published')).length;
     const active = posts.filter(p => getPostAge(p.createdAt) === 'active' && p.variants.some(v => v.status === 'published')).length;
     const platformReach = new Set(posts.flatMap(p => p.variants.filter(v => v.status === 'published').map(v => v.platform))).size;
@@ -1157,10 +1163,14 @@ function PostCard({
   const failedVariants = post.variants.filter(v => v.status === 'failed');
   const draftVariants = post.variants.filter(v => v.status === 'draft');
 
-  // Active publishing detection: post is in progress of publishing to networks
-  const isActivelyPublishing = post.status === 'publishing' || publishingVariants.length > 0 || (isPublishingTracked && publishedVariants.length < post.variants.length);
+  // Stuck detection: if marked 'publishing' for more than 5 minutes, consider it stuck/failed
+  const isStuckPublishing = (post.status === 'publishing' || publishingVariants.length > 0) &&
+    (Date.now() - new Date(post.updatedAt || post.createdAt).getTime()) > 5 * 60 * 1000;
 
-  const isFailedPost = !isActivelyPublishing && (post.status === 'failed' || (failedVariants.length > 0 && publishedVariants.length === 0 && publishingVariants.length === 0 && draftVariants.length === 0));
+  // Active publishing detection: post is in progress of publishing to networks
+  const isActivelyPublishing = !isStuckPublishing && (post.status === 'publishing' || publishingVariants.length > 0 || (isPublishingTracked && publishedVariants.length < post.variants.length));
+
+  const isFailedPost = isStuckPublishing || (!isActivelyPublishing && (post.status === 'failed' || (failedVariants.length > 0 && publishedVariants.length === 0 && publishingVariants.length === 0 && draftVariants.length === 0)));
 
   // A post is a draft ONLY IF it is not currently publishing, not failed, and has no live dispatches
   const isDraft = !isFailedPost && !isActivelyPublishing && (post.status === 'draft' || publishedVariants.length === 0);

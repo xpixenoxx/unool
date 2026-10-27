@@ -18,7 +18,22 @@ export async function GET(request: NextRequest) {
   const shouldSync = request.nextUrl.searchParams.get('sync') === 'true';
 
   // Self-heal: process any scheduled posts that have become due in background without blocking GET
-  scheduleService.processDueScheduledPosts(workspaceId).catch(() => {});
+  try {
+    const { after } = await import('next/server');
+    if (typeof after === 'function') {
+      after(async () => {
+        try {
+          await scheduleService.processDueScheduledPosts(workspaceId);
+        } catch {
+          // Non-blocking self-healing error
+        }
+      });
+    } else {
+      scheduleService.processDueScheduledPosts(workspaceId).catch(() => {});
+    }
+  } catch {
+    scheduleService.processDueScheduledPosts(workspaceId).catch(() => {});
+  }
 
   // Trigger live engagement sync if requested
 

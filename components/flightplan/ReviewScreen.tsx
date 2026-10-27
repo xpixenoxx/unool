@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { format, addDays, isToday, startOfDay } from 'date-fns';
 import { BarcodeTicket } from './ui/BarcodeTicket';
 import { HashtagInput } from './ui/HashtagInput';
 import { ImageDropZone } from './ui/ImageDropZone';
 import { PlatformBrandLogo } from '@/components/dashboard/PlatformLogos';
 import { studioToast } from '@/components/dashboard/StudioToast';
+import { extractMediaFilename } from '@/hooks/flightplan';
 import { ContentGuard } from '@/lib/ai/ContentGuard';
 import { PLATFORM_CONFIG } from '@/types/flightplan';
 import type { WeekArc, ArcPost, ArcPlatformDraft, PlatformType } from '@/types/flightplan';
@@ -367,11 +368,11 @@ export function ReviewScreen({
         }
       }
 
-      // Collect all media URLs from OTHER days to prevent week-level duplicates
+      // Collect all media filenames from OTHER days to prevent week-level duplicates
       const usedElsewhere = new Set<string>();
       arc.weekPosts.forEach((p, idx) => {
         if (idx !== dayIdx) {
-          (p.imageUrls || []).forEach(u => usedElsewhere.add(u));
+          (p.imageUrls || []).forEach(u => usedElsewhere.add(extractMediaFilename(u)));
         }
       });
 
@@ -381,7 +382,15 @@ export function ReviewScreen({
         const posts = [...prev.weekPosts];
         const target = { ...posts[dayIdx] };
         const existing = target.imageUrls || [];
-        const newUnique = uploadedUrls.filter(u => !existing.includes(u) && !usedElsewhere.has(u));
+        const existingNames = new Set(existing.map(extractMediaFilename));
+        const newUnique = uploadedUrls.filter(u => {
+          const fn = extractMediaFilename(u);
+          if (existingNames.has(fn) || usedElsewhere.has(fn)) {
+            return false;
+          }
+          existingNames.add(fn);
+          return true;
+        });
         skippedDuplicates = uploadedUrls.length - newUnique.length;
         const updated = [...existing, ...newUnique].slice(0, 10);
 
@@ -525,12 +534,73 @@ export function ReviewScreen({
     onApprove({ ...arc, weekPosts: sanitizedPosts });
   };
 
+  const [activeDayIndex, setActiveDayIndex] = useState<number>(0);
+  const isProgrammaticScrollRef = useRef<boolean>(false);
+  const programmaticScrollTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   const scrollToDay = (idx: number) => {
+    setActiveDayIndex(idx);
+    isProgrammaticScrollRef.current = true;
+    if (programmaticScrollTimerRef.current) {
+      clearTimeout(programmaticScrollTimerRef.current);
+    }
+    programmaticScrollTimerRef.current = setTimeout(() => {
+      isProgrammaticScrollRef.current = false;
+    }, 1000);
+
     const el = document.getElementById(`d${idx}`);
     if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const sbar = document.querySelector('.fp-sbar') as HTMLElement | null;
+      const sbarHeight = sbar ? sbar.getBoundingClientRect().height : 80;
+      const rect = el.getBoundingClientRect();
+      const currentScrollY = window.pageYOffset || document.documentElement.scrollTop;
+      const targetY = currentScrollY + rect.top - sbarHeight - 16;
+
+      window.scrollTo({
+        top: Math.max(0, targetY),
+        behavior: 'smooth',
+      });
     }
   };
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (isProgrammaticScrollRef.current) return;
+      const sbar = document.querySelector('.fp-sbar') as HTMLElement | null;
+      const sbarHeight = sbar ? sbar.getBoundingClientRect().height : 80;
+      const threshold = sbarHeight + 60;
+
+      let currentActive = 0;
+      for (let i = 0; i < arc.weekPosts.length; i++) {
+        const el = document.getElementById(`d${i}`);
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          if (rect.top <= threshold) {
+            currentActive = i;
+          }
+        }
+      }
+      setActiveDayIndex(currentActive);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (programmaticScrollTimerRef.current) {
+        clearTimeout(programmaticScrollTimerRef.current);
+      }
+    };
+  }, [arc.weekPosts.length]);
+
+  useEffect(() => {
+    const sbar = document.querySelector('.fp-sbar') as HTMLElement | null;
+    if (sbar) {
+      const activeBtn = sbar.children[activeDayIndex] as HTMLElement | null;
+      if (activeBtn && typeof activeBtn.scrollIntoView === 'function') {
+        activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+      }
+    }
+  }, [activeDayIndex]);
 
   const now = new Date();
 
@@ -548,14 +618,16 @@ export function ReviewScreen({
       <div className="fp-sbar">
         {arc.weekPosts.map((post, i) => {
           const c = COL[i] || '#C0607A';
+          const isActive = i === activeDayIndex;
           return (
             <button
-              key={post.day}
+              key={post.day ?? i}
               type="button"
               onClick={() => scrollToDay(i)}
+              className={isActive ? 'active' : ''}
               style={{
                 ['--c' as any]: c,
-                opacity: post.deleted ? 0.45 : 1,
+                opacity: post.deleted ? (isActive ? 0.75 : 0.45) : 1,
                 textDecoration: post.deleted ? 'line-through' : 'none',
               }}
               title={post.deleted ? `Day ${i + 1} (${post.arcBeat}) is removed from schedule` : `Jump to Day ${i + 1}`}
@@ -603,10 +675,13 @@ export function ReviewScreen({
 
           return (
             <article
-              key={post.day}
+              key={post.day ?? i}
               id={`d${i}`}
               className={`fp-tkt day has-header-band ${isDeleted ? 'fp-tkt-deleted' : ''}`}
-              style={{ ['--c' as any]: c }}
+              style={{
+                ['--c' as any]: c,
+                scrollMarginTop: '110px',
+              }}
             >
               {/* Vibrant Airline Boarding Pass Top Ribbon */}
               <div className="fp-tkt-header-band">
