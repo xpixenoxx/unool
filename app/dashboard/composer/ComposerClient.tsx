@@ -439,24 +439,15 @@ function IPhonePreview({
   drafts = [],
   effectiveScale = 0.72,
 }: IPhonePreviewProps) {
-  const allPlatforms: PlatformType[] = [
-    'linkedin', 'x', 'threads', 'instagram', 'facebook', 'youtube', 'pinterest',
-    'bluesky', 'mastodon', 'dribbble', 'telegram', 'discord', 'slack', 'reddit',
-    'twitch', 'kick', 'medium', 'devto', 'hashnode', 'listmonk', 'warpcast',
-    'nostr', 'skool', 'whop', 'mewe', 'lemmy'
-  ];
-
   const defaultConnected: PlatformType[] = ['linkedin', 'threads', 'instagram', 'youtube', 'bluesky', 'telegram'];
 
-  const [viewAll, setViewAll] = useState(false);
   const [islandExpanded, setIslandExpanded] = useState(false);
 
   const activePreviews = useMemo(() => {
-    if (viewAll) return allPlatforms;
     if (connectedPlatforms.length > 0) return connectedPlatforms;
     if (selectedPlatforms.length > 0) return selectedPlatforms;
     return defaultConnected;
-  }, [viewAll, selectedPlatforms, connectedPlatforms, allPlatforms]);
+  }, [selectedPlatforms, connectedPlatforms]);
 
   const platformsToShow = activePreviews.length > 0 ? activePreviews : defaultConnected;
 
@@ -488,7 +479,7 @@ function IPhonePreview({
 
   return (
     <div className="flex flex-col items-center gap-2.5" style={{ width: previewWidth }}>
-      {/* ── Top Header Row (Image 2) ─────────────────────────── */}
+      {/* ── Top Header Row ─────────────────────────── */}
       <div className="flex items-center justify-between w-full px-1 text-xs font-semibold">
         <div className="flex items-center gap-1.5">
           <span className="relative flex h-2 w-2">
@@ -497,13 +488,6 @@ function IPhonePreview({
           </span>
           <span className="text-[#3D2B1F] font-semibold text-xs">iPhone 16 Pro Preview</span>
         </div>
-        <button
-          type="button"
-          onClick={() => setViewAll(!viewAll)}
-          className="text-[#8B7355] underline text-xs font-semibold hover:text-[#3D2B1F] cursor-pointer transition-colors"
-        >
-          {viewAll ? 'Active Platforms' : 'All 26 Apps'}
-        </button>
       </div>
 
       {/* ── Horizontal Bar Along Upper Edge of Mobile (Image 2) ── */}
