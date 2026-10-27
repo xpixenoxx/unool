@@ -167,32 +167,33 @@
   padding: 28px;
   position: relative;
   overflow: hidden;
-  background: radial-gradient(circle at var(--mx, 85%) var(--my, 10%), #f4e3bd, var(--card) 55%);
+  background: radial-gradient(circle at 85% 15%, #f4e3bd 0%, rgba(244, 227, 189, 0.5) 48%, var(--card) 92%),
+              linear-gradient(135deg, rgba(250, 236, 211, 0.42) 0%, var(--card) 85%);
   min-width: 0;
   max-width: 100%;
   box-sizing: border-box;
-  transition: background 0.6s ease;
 }
 
-/* Atmospheric Phase Theming for Hero Card */
-#ov-root .hero[data-phase="late-night"] {
-  background: radial-gradient(circle at var(--mx, 85%) var(--my, 10%), #e3e8f4, var(--card) 60%);
+/* Atmospheric Phase Theming for Hero Card: permanent warm ambient golden glow without cursor movement */
+#ov-root .hero[data-phase="late-night"],
+#ov-root .hero[data-phase="night"] {
+  background: radial-gradient(circle at 85% 15%, #f4e3bd 0%, rgba(244, 227, 189, 0.48) 48%, var(--card) 92%),
+              linear-gradient(135deg, rgba(250, 236, 211, 0.38) 0%, var(--card) 85%);
 }
 
 #ov-root .hero[data-phase="morning"] {
-  background: radial-gradient(circle at var(--mx, 85%) var(--my, 10%), #faecd3, var(--card) 60%);
+  background: radial-gradient(circle at 85% 15%, #faecd3 0%, rgba(250, 236, 211, 0.5) 48%, var(--card) 92%),
+              linear-gradient(135deg, rgba(250, 236, 211, 0.42) 0%, var(--card) 85%);
 }
 
 #ov-root .hero[data-phase="afternoon"] {
-  background: radial-gradient(circle at var(--mx, 85%) var(--my, 10%), #f5e2ba, var(--card) 60%);
+  background: radial-gradient(circle at 85% 15%, #f5e2ba 0%, rgba(245, 226, 186, 0.5) 48%, var(--card) 92%),
+              linear-gradient(135deg, rgba(245, 226, 186, 0.42) 0%, var(--card) 85%);
 }
 
 #ov-root .hero[data-phase="evening"] {
-  background: radial-gradient(circle at var(--mx, 85%) var(--my, 10%), #f8ded0, var(--card) 60%);
-}
-
-#ov-root .hero[data-phase="night"] {
-  background: radial-gradient(circle at var(--mx, 85%) var(--my, 10%), #ede7f6, var(--card) 60%);
+  background: radial-gradient(circle at 85% 15%, #f4e3bd 0%, rgba(248, 222, 208, 0.5) 48%, var(--card) 92%),
+              linear-gradient(135deg, rgba(244, 227, 189, 0.42) 0%, var(--card) 85%);
 }
 
 #ov-root h1 {

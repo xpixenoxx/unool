@@ -368,16 +368,6 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   const [hoveredPlatformId, setHoveredPlatformId] = useState<string | null>(null);
   const [tileOrigins, setTileOrigins] = useState<Record<string, [number, number]>>({});
 
-  // Hero card mouse movement for dynamic radial sheen
-  const heroRef = useRef<HTMLElement>(null);
-  const handleHeroMouseMove = (e: React.MouseEvent<HTMLElement>) => {
-    if (!heroRef.current) return;
-    const rect = heroRef.current.getBoundingClientRect();
-    const mx = ((e.clientX - rect.left) / rect.width) * 100;
-    const my = ((e.clientY - rect.top) / rect.height) * 100;
-    heroRef.current.style.setProperty('--mx', `${mx}%`);
-    heroRef.current.style.setProperty('--my', `${my}%`);
-  };
 
   // Toast state
   const [toastMsg, setToastMsg] = useState<string | null>(null);
@@ -571,11 +561,9 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
         <div className="top">
           {/* Hero Card */}
           <section
-            ref={heroRef}
             className="card hero"
             id="ov-hero"
             data-phase={hourlyGreeting.phase}
-            onMouseMove={handleHeroMouseMove}
           >
             <h1 suppressHydrationWarning>
               {hourlyGreeting.parts.prefix}
