@@ -154,9 +154,8 @@ export function useFlightPlanActions(): UseFlightPlanActionsResult {
 
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        studioToast.generationFailed(
-          json.error || 'Failed to schedule flight plan.',
-          { knowMoreUrl: '/terms' }
+        studioToast.error(
+          json.error || 'Failed to schedule flight plan.'
         );
         return false;
       }
@@ -164,9 +163,7 @@ export function useFlightPlanActions(): UseFlightPlanActionsResult {
       studioToast.success('Flight Plan approved and scheduled successfully!');
       return true;
     } catch {
-      studioToast.generationFailed('Failed to schedule flight plan. Please try again.', {
-        knowMoreUrl: '/terms',
-      });
+      studioToast.error('Failed to schedule flight plan. Please try again.');
       return false;
     }
   }, []);
@@ -180,13 +177,17 @@ export function useFlightPlanActions(): UseFlightPlanActionsResult {
 
       const res = await fetch(`/api/composer/schedule/week?weekStart=${weekStartStr}`);
       if (!res.ok) {
-        throw new Error('Failed to load week');
+        if (res.status === 401) {
+          // Unauthenticated or refreshing session — return empty gracefully
+          return [];
+        }
+        throw new Error(`Failed to load week (status ${res.status})`);
       }
 
       const data = await res.json();
       return data.posts ?? [];
-    } catch {
-      studioToast.generationFailed('Failed to load weekly schedule.', { knowMoreUrl: '/terms' });
+    } catch (err) {
+      console.warn('[useFlightPlanActions] loadCanvas warning:', err);
       return [];
     }
   }, []);
@@ -215,18 +216,14 @@ export function useFlightPlanActions(): UseFlightPlanActionsResult {
 
       const json = await res.json();
       if (!res.ok) {
-        studioToast.generationFailed(json.error || `Failed to update variant`, {
-          knowMoreUrl: '/terms',
-        });
+        studioToast.error(json.error || `Failed to update variant`);
         return null;
       }
 
       studioToast.success('Post variant updated successfully!');
       return json.variant;
     } catch {
-      studioToast.generationFailed('Failed to save changes to post variant.', {
-        knowMoreUrl: '/terms',
-      });
+      studioToast.error('Failed to save changes to post variant.');
       return null;
     }
   }, []);
@@ -237,14 +234,14 @@ export function useFlightPlanActions(): UseFlightPlanActionsResult {
   ): Promise<CanvasPost | null> => {
     try {
       if (newDate.getTime() <= Date.now()) {
-        studioToast.generationFailed('Cannot schedule in the past.', { knowMoreUrl: '/terms' });
+        studioToast.error('Cannot schedule in the past.');
         return null;
       }
 
       const endOfNextWeek = new Date();
       endOfNextWeek.setDate(endOfNextWeek.getDate() + 14);
       if (newDate.getTime() > endOfNextWeek.getTime()) {
-        studioToast.generationFailed('Cannot schedule more than 2 weeks out.', { knowMoreUrl: '/terms' });
+        studioToast.error('Cannot schedule more than 2 weeks out.');
         return null;
       }
 
@@ -256,9 +253,7 @@ export function useFlightPlanActions(): UseFlightPlanActionsResult {
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
-        studioToast.generationFailed(errJson.error || 'Failed to reschedule post', {
-          knowMoreUrl: '/terms',
-        });
+        studioToast.error(errJson.error || 'Failed to reschedule post');
         return null;
       }
 
@@ -266,7 +261,7 @@ export function useFlightPlanActions(): UseFlightPlanActionsResult {
       studioToast.success('Post rescheduled successfully!');
       return data.post;
     } catch {
-      studioToast.generationFailed('Failed to reschedule post.', { knowMoreUrl: '/terms' });
+      studioToast.error('Failed to reschedule post.');
       return null;
     }
   }, []);
@@ -275,13 +270,13 @@ export function useFlightPlanActions(): UseFlightPlanActionsResult {
     try {
       const res = await fetch(`/api/composer/schedule/${postId}`, { method: 'DELETE' });
       if (!res.ok) {
-        studioToast.generationFailed('Failed to cancel post.', { knowMoreUrl: '/terms' });
+        studioToast.error('Failed to cancel post.');
         return false;
       }
       studioToast.success('Post cancelled.');
       return true;
     } catch {
-      studioToast.generationFailed('Failed to cancel post.', { knowMoreUrl: '/terms' });
+      studioToast.error('Failed to cancel post.');
       return false;
     }
   }, []);
@@ -295,18 +290,14 @@ export function useFlightPlanActions(): UseFlightPlanActionsResult {
       });
 
       if (!res.ok) {
-        studioToast.generationFailed(hold ? 'Failed to hold queue.' : 'Failed to release queue.', {
-          knowMoreUrl: '/terms',
-        });
+        studioToast.error(hold ? 'Failed to hold queue.' : 'Failed to release queue.');
         return false;
       }
 
       studioToast.success(hold ? `Queue held for ${hours} hours.` : 'Queue released.');
       return true;
     } catch {
-      studioToast.generationFailed(hold ? 'Failed to hold queue.' : 'Failed to release queue.', {
-        knowMoreUrl: '/terms',
-      });
+      studioToast.error(hold ? 'Failed to hold queue.' : 'Failed to release queue.');
       return false;
     }
   }, []);

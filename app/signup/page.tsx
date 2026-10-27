@@ -86,10 +86,6 @@ function SignUpComponent() {
   const nmRef = useRef<HTMLInputElement>(null);
   const emRef = useRef<HTMLInputElement>(null);
   const pwRef = useRef<HTMLInputElement>(null);
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const capRef = useRef<HTMLParagraphElement>(null);
-  const tagRef = useRef<HTMLSpanElement>(null);
-  const stRef = useRef<HTMLParagraphElement>(null);
 
   // Validation Checks
   const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -212,6 +208,7 @@ function SignUpComponent() {
 
     setBusy(true);
     try {
+      const cleanRef = refCode.trim() || undefined;
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -219,7 +216,7 @@ function SignUpComponent() {
           name: name.trim(),
           email: email.trim().toLowerCase(),
           password,
-          ref: refCode || undefined,
+          ref: cleanRef,
         })
       });
       const data = await res.json();
@@ -227,7 +224,6 @@ function SignUpComponent() {
       if (!res.ok) {
         if (data.alreadyRegistered) {
           setEmailError('This email is already registered. Please sign in instead.');
-          if (btnRef.current) btnRef.current.textContent = 'Go to Sign In';
         } else {
           setPasswordError(data.message || 'Something went wrong. Please try again.');
         }
@@ -241,9 +237,6 @@ function SignUpComponent() {
 
       // Trigger completion animation on calendar
       setIsDone(true);
-      if (btnRef.current) btnRef.current.textContent = '✓ You’re in';
-      if (tagRef.current) tagRef.current.textContent = 'Welcome to Unool';
-      if (stRef.current) stRef.current.textContent = 'Account created. Opening your workspace.';
 
       // Transition to OTP verification if required by backend
       setTimeout(() => {
@@ -301,6 +294,15 @@ function SignUpComponent() {
         setBusy(false);
         setTimeout(() => otpRefs.current[0]?.focus(), 50);
       } else {
+        if (data.session?.access_token && data.session?.refresh_token) {
+          try {
+            const supabase = getSupabaseBrowserClient();
+            await supabase.auth.setSession({
+              access_token: data.session.access_token,
+              refresh_token: data.session.refresh_token,
+            });
+          } catch {}
+        }
         setStage('completed');
         setTimeout(() => {
           router.push(data.redirectTo || '/signin');
@@ -397,8 +399,8 @@ function SignUpComponent() {
           <main className="card">
             {stage === 'form' ? (
               <>
-                <span className="tag" id="tag" ref={tagRef}>
-                  Create your account
+                <span className="tag" id="tag">
+                  {isDone ? 'Welcome to Unool' : 'Create your account'}
                 </span>
 
                 <div className="sent">
@@ -575,20 +577,29 @@ function SignUpComponent() {
                   className="btn"
                   type="button"
                   id="go"
-                  ref={btnRef}
                   disabled={busy}
-                  onClick={handleSubmit}
+                  onClick={() => {
+                    if (emailError.includes('already registered')) {
+                      router.push(`/signin?email=${encodeURIComponent(email.trim().toLowerCase())}`);
+                    } else {
+                      handleSubmit();
+                    }
+                  }}
                 >
-                  {busy ? (
+                  {isDone ? (
+                    '✓ You’re in'
+                  ) : busy ? (
                     <>
                       <span className="spin"></span>Creating your account…
                     </>
+                  ) : emailError.includes('already registered') ? (
+                    'Go to Sign In →'
                   ) : (
                     'Create my account →'
                   )}
                 </button>
 
-                <p className="cap" id="cap" ref={capRef}>
+                <p className="cap" id="cap">
                   {captionText}
                 </p>
 
@@ -622,7 +633,9 @@ function SignUpComponent() {
                 <p className="terms">
                   By creating an account, you agree to the Terms of Service and Privacy Policy.
                 </p>
-                <p className="sr" role="status" id="st" ref={stRef}></p>
+                <p className="sr" role="status" id="st">
+                  {isDone ? 'Account created. Opening your workspace.' : ''}
+                </p>
               </>
             ) : stage === 'otp' ? (
               <div className="otp-wrap">
