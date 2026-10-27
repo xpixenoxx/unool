@@ -233,6 +233,9 @@ interface IPhonePreviewProps {
   connectedPlatforms?: PlatformType[];
   selectedPlatforms?: PlatformType[];
   drafts?: PlatformDraft[];
+  scaleMode?: 'fit' | '85' | '100';
+  onScaleModeChange?: (mode: 'fit' | '85' | '100') => void;
+  effectiveScale?: number;
 }
 
 function IPhoneBottomNavBar({
@@ -436,6 +439,9 @@ function IPhonePreview({
   connectedPlatforms = [],
   selectedPlatforms = [],
   drafts = [],
+  scaleMode = 'fit',
+  onScaleModeChange,
+  effectiveScale = 0.70,
 }: IPhonePreviewProps) {
   const allPlatforms: PlatformType[] = [
     'linkedin', 'x', 'threads', 'instagram', 'facebook', 'youtube', 'pinterest',
@@ -480,28 +486,60 @@ function IPhonePreview({
   const isOverLimit = charCount > charLimit;
 
   return (
-    <div className="flex flex-col items-center gap-3">
+    <div className="flex flex-col items-center gap-2">
       {/* ── Top App Switcher Dock ─────────────────────────── */}
-      <div className="flex flex-col items-center gap-2 w-full max-w-[340px]">
-        <div className="flex items-center justify-between w-full px-2 text-[11px] text-[#8B7355] font-semibold">
+      <div
+        className="flex flex-col items-center gap-1.5 w-full transition-all duration-300"
+        style={{ maxWidth: Math.max(260, Math.round(326 * effectiveScale)) }}
+      >
+        <div className="flex items-center justify-between w-full px-1 text-[11px] text-[#8B7355] font-semibold">
           <div className="flex items-center gap-1.5">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
             </span>
-            <span className="text-[#3D2B1F]">iPhone 16 Pro Preview</span>
+            <span className="text-[#3D2B1F] font-bold text-[11px]">iPhone 16 Pro</span>
           </div>
-          <button
-            type="button"
-            onClick={() => setViewAll(!viewAll)}
-            className="hover:text-[#3D2B1F] underline text-[11px] cursor-pointer transition-colors"
-          >
-            {viewAll ? 'Active Platforms' : 'All 26 Apps'}
-          </button>
+
+          <div className="flex items-center gap-1.5">
+            {/* Innovative Zoom & Fit segmented controls */}
+            {onScaleModeChange && (
+              <div className="flex items-center bg-[#F3ECE0] p-0.5 rounded-lg border border-[#E4DACB]">
+                {(['fit', '85', '100'] as const).map(mode => {
+                  const label = mode === 'fit' ? 'Fit' : `${mode}%`;
+                  const isSelected = scaleMode === mode;
+                  return (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => onScaleModeChange(mode)}
+                      className={cn(
+                        "px-1.5 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer leading-none",
+                        isSelected
+                          ? "bg-white text-[#231C16] shadow-2xs border border-[#D5C7B3]"
+                          : "text-[#8B7355] hover:text-[#231C16]"
+                      )}
+                      title={mode === 'fit' ? 'Auto-fit to screen without scrolling' : `${mode}% zoom`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setViewAll(!viewAll)}
+              className="hover:text-[#3D2B1F] underline text-[10px] font-medium cursor-pointer transition-colors whitespace-nowrap ml-0.5"
+            >
+              {viewAll ? 'Active' : 'All 26'}
+            </button>
+          </div>
         </div>
 
         {/* App Dock Squircle Carousel */}
-        <div className="flex gap-2 p-1.5 rounded-2xl shadow-sm border border-[#E8E0D4] bg-[#FFFDF9]/90 backdrop-blur-md w-full overflow-x-auto no-scrollbar scroll-smooth">
+        <div className="flex gap-1.5 p-1 rounded-2xl shadow-2xs border border-[#E8E0D4] bg-[#FFFDF9]/90 backdrop-blur-md w-full overflow-x-auto no-scrollbar scroll-smooth">
           {platformsToShow.map(p => {
             const pCfg = PLATFORM_CONFIG[p];
             const isActive = previewPlatform === p;
@@ -517,7 +555,7 @@ function IPhonePreview({
                 type="button"
                 onClick={() => setPreviewPlatform(p)}
                 className={cn(
-                  'relative group flex flex-col items-center gap-1 p-1 rounded-xl transition-all duration-200 flex-shrink-0 cursor-pointer',
+                  'relative group flex flex-col items-center gap-0.5 p-1 rounded-xl transition-all duration-200 flex-shrink-0 cursor-pointer',
                   isActive
                     ? 'scale-105'
                     : 'opacity-70 hover:opacity-100 hover:scale-100'
@@ -527,29 +565,29 @@ function IPhonePreview({
                 {/* Squircle App Icon */}
                 <div
                   className={cn(
-                    'relative w-9 h-9 rounded-[10px] flex items-center justify-center transition-all duration-200 overflow-hidden',
+                    'relative w-8 h-8 rounded-[9px] flex items-center justify-center transition-all duration-200 overflow-hidden',
                     isActive
-                      ? 'ring-2 ring-[#C4A265] ring-offset-2 scale-105 shadow-md'
-                      : 'hover:scale-105 hover:shadow-xs'
+                      ? 'ring-2 ring-[#C4A265] ring-offset-1 scale-105 shadow-xs'
+                      : 'hover:scale-105 hover:shadow-2xs'
                   )}
                 >
-                  <PlatformBrandLogo platform={p} size={30} />
+                  <PlatformBrandLogo platform={p} size={26} />
 
                   {/* Status Indicator Badge */}
                   {isGenerating && (
                     <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-amber-500 border-2 border-white animate-spin flex items-center justify-center text-[7px] text-white" />
                   )}
                   {isReady && !isDraftOverLimit && (
-                    <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border border-white" />
+                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 border border-white" />
                   )}
                   {(isError || isDraftOverLimit) && (
-                    <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-rose-500 border border-white" />
+                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-rose-500 border border-white" />
                   )}
                 </div>
 
                 <span
                   className={cn(
-                    'text-[10px] max-w-[42px] truncate leading-tight tracking-tight',
+                    'text-[9px] max-w-[38px] truncate leading-tight tracking-tight',
                     isActive ? 'font-bold text-[#3D2B1F]' : 'font-medium text-[#8B7355]'
                   )}
                 >
@@ -561,8 +599,22 @@ function IPhonePreview({
         </div>
       </div>
 
-      {/* ── Realistic iPhone 16 Pro Chassis ───────────────── */}
-      <div className="relative select-none" style={{ width: 326, height: 660 }}>
+      {/* ── Realistic iPhone 16 Pro Chassis (Scaled to fit without scroll) ── */}
+      <div
+        className="flex items-center justify-center transition-all duration-300"
+        style={{
+          width: Math.round(326 * effectiveScale),
+          height: Math.round(660 * effectiveScale),
+        }}
+      >
+        <div
+          className="relative select-none origin-top transition-transform duration-300 flex-shrink-0"
+          style={{
+            width: 326,
+            height: 660,
+            transform: `scale(${effectiveScale})`,
+          }}
+        >
         {/* Hardware Buttons - Left: Action Button + Volume Up/Down */}
         <div
           className="absolute -left-[5px] top-24 w-[5px] h-6 rounded-l-md"
@@ -779,9 +831,10 @@ function IPhonePreview({
           />
         </div>
       </div>
+      </div>
 
       {/* Live Sync Status Pill */}
-      <div className="flex items-center gap-2 text-xs font-medium text-[#8B7355] mt-0.5">
+      <div className="flex items-center gap-1.5 text-[10.5px] font-medium text-[#8B7355]">
         <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
         <span>Pixel-perfect {cfg?.name} client preview</span>
       </div>
@@ -848,6 +901,44 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
   });
   const [scheduleStrategy, setScheduleStrategy] = useState<'cascading' | 'simultaneous'>('cascading');
   const [isSchedulingPost, setIsSchedulingPost] = useState(false);
+
+  // ── Innovative Mobile Preview Scaling (Fits screen without scrolling) ──
+  const [scaleMode, setScaleMode] = useState<'fit' | '85' | '100'>('fit');
+  const [dynamicFitScale, setDynamicFitScale] = useState<number>(0.70);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('unool_composer_preview_scale_mode');
+      if (saved === 'fit' || saved === '85' || saved === '100') {
+        setScaleMode(saved);
+      }
+    }
+
+    const calculateFit = () => {
+      if (typeof window === 'undefined') return;
+      // Viewport height minus header & composer top offsets (~240px)
+      const available = window.innerHeight - 240;
+      const fit = Math.max(0.58, Math.min(0.76, Math.round((available / 660) * 100) / 100));
+      setDynamicFitScale(fit);
+    };
+
+    calculateFit();
+    window.addEventListener('resize', calculateFit);
+    return () => window.removeEventListener('resize', calculateFit);
+  }, []);
+
+  const effectiveScale = useMemo(() => {
+    if (scaleMode === '85') return 0.85;
+    if (scaleMode === '100') return 1.0;
+    return dynamicFitScale;
+  }, [scaleMode, dynamicFitScale]);
+
+  const handleScaleModeChange = (mode: 'fit' | '85' | '100') => {
+    setScaleMode(mode);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('unool_composer_preview_scale_mode', mode);
+    }
+  };
   // ── SignalDM automation badge state ─────────────────────────────────────────
   const [signalDmEnabled, setSignalDmEnabled] = useState(false);
   // ── Hook Scorer + Humanizer state ───────────────────────────────────────────
@@ -3013,7 +3104,10 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       </div>
 
       {/* ───── Right Panel: iPhone Live Preview (directly beside Write an Idea) ───── */}
-      <div className="hidden lg:block sticky top-6 flex-shrink-0" style={{ width: 340 }}>
+      <div
+        className="hidden lg:block sticky top-6 flex-shrink-0 transition-all duration-300"
+        style={{ width: effectiveScale <= 0.75 ? 270 : effectiveScale <= 0.85 ? 305 : 340 }}
+      >
         <IPhonePreview
           content={liveContent}
           media={media}
@@ -3025,6 +3119,9 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
           connectedPlatforms={connectedPlatforms}
           selectedPlatforms={selectedPlatforms}
           drafts={drafts}
+          scaleMode={scaleMode}
+          onScaleModeChange={handleScaleModeChange}
+          effectiveScale={effectiveScale}
         />
       </div>
       </div>
