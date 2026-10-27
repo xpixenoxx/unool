@@ -67,6 +67,7 @@ export function ScheduleNewPostModal({
   const mediaFileInputRef = useRef<HTMLInputElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGeneratingFromIdea, setIsGeneratingFromIdea] = useState(false);
+  const [platformVariants, setPlatformVariants] = useState<Record<string, { content: string; hashtags?: string[] }>>({});
 
   // Initialize modal state on open or targetDate change
   useEffect(() => {
@@ -74,6 +75,7 @@ export function ScheduleNewPostModal({
       setScheduledTime(getDefaultTimeForDate(targetDate));
       setSelectedPlatforms(availablePlatforms);
       setContent('');
+      setPlatformVariants({});
       setMediaUrls([]);
       setHashtags([]);
       setNewTagInput('');
@@ -133,17 +135,21 @@ export function ScheduleNewPostModal({
     return ContentGuard.validateSocialInput(content, { route: 'flightplan/schedule-new' });
   }, [content]);
 
-  // Shortest platform maxChars limit among selected platforms
-  const minPlatformLimit = useMemo(() => {
-    let min = 3000;
-    for (const p of selectedPlatforms) {
-      const cfg = PLATFORM_CONFIG[p];
-      if (cfg && cfg.maxChars < min) min = cfg.maxChars;
-    }
-    return min;
+  // Maximum character limit permitted among selected platforms (e.g. 3000 for LinkedIn, 2200 for Instagram)
+  const maxPlatformLimit = useMemo(() => {
+    if (selectedPlatforms.length === 0) return 3000;
+    return Math.max(...selectedPlatforms.map(p => PLATFORM_CONFIG[p]?.maxChars || 3000));
   }, [selectedPlatforms]);
 
-  const isOverCharLimit = content.length > minPlatformLimit;
+  const isOverCharLimit = content.length > maxPlatformLimit;
+
+  // Selected platforms whose limits are lower than current master content length
+  const overflowPlatforms = useMemo(() => {
+    return selectedPlatforms.filter(p => {
+      const cfg = PLATFORM_CONFIG[p];
+      return cfg && content.length > cfg.maxChars;
+    });
+  }, [selectedPlatforms, content.length]);
 
   const handleMediaUpload = async (files: FileList | File[]) => {
     const fileArray = Array.from(files);
@@ -270,6 +276,10 @@ export function ScheduleNewPostModal({
         throw new Error(data.error || 'Failed to generate post copy');
       }
 
+      if (data.variants && typeof data.variants === 'object') {
+        setPlatformVariants(data.variants);
+      }
+
       const firstAdapted =
         (data.variants && typeof data.variants === 'object' && (Object.values(data.variants)[0] as any)?.content)
         || data.adaptedPosts?.[0]?.content
@@ -315,12 +325,12 @@ export function ScheduleNewPostModal({
       studioToast.error('Please select at least one platform.');
       return;
     }
-    if (selectedPlatforms.some(p => p === 'instagram' || p === 'pinterest') && mediaUrls.length === 0) {
+    if (selectedPlatforms.length === 1 && (selectedPlatforms[0] === 'instagram' || selectedPlatforms[0] === 'pinterest') && mediaUrls.length === 0) {
       studioToast.error('Instagram and Pinterest dispatches require at least one attached image.');
       return;
     }
     if (isOverCharLimit) {
-      studioToast.error(`Content exceeds the character limit of ${minPlatformLimit} for the selected platform.`);
+      studioToast.error(`Content exceeds the character limit of ${maxPlatformLimit} for the selected platforms.`);
       return;
     }
     if (guardResult && !guardResult.safe) {
@@ -340,12 +350,22 @@ export function ScheduleNewPostModal({
           posts: [{
             scheduledAt: targetTimeDate.toISOString(),
             strategy,
-            platforms: selectedPlatforms.map(platform => ({
-              platform,
-              content: content.trim(),
-              hashtags,
-              mediaUrls: mediaUrls.map(m => ({ url: m.url, type: m.type || 'image' })),
-            })),
+            platforms: selectedPlatforms.map(platform => {
+              const maxChars = PLATFORM_CONFIG[platform]?.maxChars || 3000;
+              const customVariant = platformVariants[platform]?.content;
+              let platformContent = (customVariant || content).trim();
+              if (platformContent.length > maxChars) {
+                const truncated = platformContent.slice(0, maxChars);
+                const lastSpace = truncated.lastIndexOf(' ');
+                platformContent = lastSpace > maxChars * 0.8 ? truncated.slice(0, lastSpace) + '…' : truncated;
+              }
+              return {
+                platform,
+                content: platformContent,
+                hashtags: platformVariants[platform]?.hashtags || hashtags,
+                mediaUrls: mediaUrls.map(m => ({ url: m.url, type: m.type || 'image' })),
+              };
+            }),
           }],
         }),
       });
@@ -358,6 +378,9 @@ export function ScheduleNewPostModal({
       studioToast.success(
         `Post scheduled for ${format(targetTimeDate, 'EEEE d MMM')} at ${format(targetTimeDate, 'h:mm a')}!`
       );
+      if (selectedPlatforms.some(p => p === 'instagram' || p === 'pinterest') && mediaUrls.length === 0) {
+        studioToast.info('Note: Remember to attach media to your Instagram/Pinterest variant before takeoff.');
+      }
       onScheduled();
       onClose();
     } catch (err) {
@@ -554,7 +577,7 @@ export function ScheduleNewPostModal({
                     )}
                   </button>
                   <span className={`text-[11px] font-mono ${isOverCharLimit ? 'text-red-600 font-bold' : 'text-stone-400'}`}>
-                    {content.length} / {minPlatformLimit} chars
+                    {content.length} / {maxPlatformLimit} chars
                   </span>
                 </div>
               </div>
@@ -565,6 +588,14 @@ export function ScheduleNewPostModal({
                 placeholder="Detail your core story, metrics, or insights (e.g., 'We restructured our caching layer and reduced latency by 42% across 12,000 requests'). Click Generate from idea to synthesize full broadcast copy tailored for your active channels."
                 className="w-full text-sm p-3 rounded-xl border border-[#E3D6C9] bg-white focus:outline-none focus:border-[#6B1F33] leading-relaxed"
               />
+              {overflowPlatforms.length > 0 && !isOverCharLimit && (
+                <div className="flex items-center gap-1.5 text-[11px] text-amber-800 bg-amber-50 border border-amber-200/80 px-2.5 py-1.5 rounded-lg">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                  <span>
+                    Copy length ({content.length} chars) fits {selectedPlatforms.filter(p => !overflowPlatforms.includes(p)).map(p => PLATFORM_CONFIG[p]?.name || p).join(', ')}. {overflowPlatforms.map(p => PLATFORM_CONFIG[p]?.name || p).join(' & ')} dispatch will be auto-adapted to fit channel limits ({overflowPlatforms.map(p => `${PLATFORM_CONFIG[p]?.maxChars} chars`).join(', ')}).
+                  </span>
+                </div>
+              )}
               <p className="text-[10.5px] text-stone-400">
                 Tip: Enter your dispatch concept and click <b className="text-stone-600">Generate from idea</b> to craft polished copy tailored for your broadcast channels.
               </p>

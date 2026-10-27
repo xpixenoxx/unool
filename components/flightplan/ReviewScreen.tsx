@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { format, addDays, isToday, startOfDay } from 'date-fns';
+import { format, addDays, isToday, startOfDay, startOfWeek } from 'date-fns';
 import { BarcodeTicket } from './ui/BarcodeTicket';
 import { HashtagInput } from './ui/HashtagInput';
 import { ImageDropZone } from './ui/ImageDropZone';
@@ -48,7 +48,10 @@ export function ReviewScreen({
   onBack,
   isScheduling,
 }: ReviewScreenProps) {
-  const baseDate = useMemo(() => parseLocalDate(weekStartDate), [weekStartDate]);
+  const baseDate = useMemo(() => {
+    const parsed = parseLocalDate(weekStartDate);
+    return startOfWeek(parsed, { weekStartsOn: 1 });
+  }, [weekStartDate]);
 
   const dateOf = useCallback(
     (dayIndex: number) => {
@@ -58,14 +61,15 @@ export function ReviewScreen({
   );
 
   const [arc, setArc] = useState<WeekArc>(() => {
-    const base = parseLocalDate(weekStartDate);
+    const base = startOfWeek(parseLocalDate(weekStartDate), { weekStartsOn: 1 });
     const now = new Date();
     const todayStart = startOfDay(now);
 
     return {
       ...initialArc,
       weekPosts: (initialArc.weekPosts || []).map((post, idx) => {
-        const postDate = addDays(base, idx);
+        const postDayIndex = typeof post.day === 'number' ? post.day : idx;
+        const postDate = addDays(base, postDayIndex);
         const isPostPast = postDate < todayStart;
         const isPostToday = isToday(postDate);
 
@@ -493,21 +497,24 @@ export function ReviewScreen({
 
     // Filter out past days or deleted days
     const sanitizedPosts = arc.weekPosts.map((post, i) => {
+      const postDayIndex = typeof post.day === 'number' ? post.day : i;
       if (post.deleted) {
         return {
           ...post,
+          day: postDayIndex,
           platforms: post.platforms.map(p => ({ ...p, enabled: false })),
         };
       }
-      const dayDate = dateOf(i);
+      const dayDate = dateOf(postDayIndex);
       const isPastDay = dayDate < todayStart;
       if (isPastDay) {
         return {
           ...post,
+          day: postDayIndex,
           platforms: post.platforms.map(p => ({ ...p, enabled: false })),
         };
       }
-      return post;
+      return { ...post, day: postDayIndex };
     });
 
     const activePosts = sanitizedPosts.filter(p => !p.deleted && p.platforms.some(plat => plat.enabled !== false));
@@ -520,7 +527,8 @@ export function ReviewScreen({
     for (let i = 0; i < sanitizedPosts.length; i++) {
       const post = sanitizedPosts[i];
       if (post.deleted) continue;
-      const dayDate = dateOf(i);
+      const postDayIndex = typeof post.day === 'number' ? post.day : i;
+      const dayDate = dateOf(postDayIndex);
       if (isToday(dayDate) && post.platforms.some(p => p.enabled !== false)) {
         const postTime = new Date(dayDate);
         postTime.setHours(post.scheduledHour || 18, post.scheduledMinute || 0, 0, 0);
@@ -618,6 +626,9 @@ export function ReviewScreen({
       <div className="fp-sbar">
         {arc.weekPosts.map((post, i) => {
           const c = COL[i] || '#C0607A';
+          const postDayIndex = typeof post.day === 'number' ? post.day : i;
+          const dayDate = dateOf(postDayIndex);
+          const dayLabel = format(dayDate, 'EEE');
           const isActive = i === activeDayIndex;
           return (
             <button
@@ -630,9 +641,9 @@ export function ReviewScreen({
                 opacity: post.deleted ? (isActive ? 0.75 : 0.45) : 1,
                 textDecoration: post.deleted ? 'line-through' : 'none',
               }}
-              title={post.deleted ? `Day ${i + 1} (${post.arcBeat}) is removed from schedule` : `Jump to Day ${i + 1}`}
+              title={post.deleted ? `Day ${postDayIndex + 1} (${post.arcBeat}) is removed from schedule` : `Jump to Day ${postDayIndex + 1} (${format(dayDate, 'EEE d MMM')})`}
             >
-              {DN[i]}
+              {dayLabel}
               <small>{post.deleted ? 'Removed' : post.arcBeat}</small>
             </button>
           );
@@ -643,7 +654,8 @@ export function ReviewScreen({
       <div className="space-y-5">
         {arc.weekPosts.map((post, i) => {
           const c = COL[i] || '#C0607A';
-          const dayDate = dateOf(i);
+          const postDayIndex = typeof post.day === 'number' ? post.day : i;
+          const dayDate = dateOf(postDayIndex);
           const isTodayPost = isToday(dayDate);
           const isPastDay = dayDate < startOfDay(now);
           const isDeleted = Boolean(post.deleted);
@@ -669,7 +681,7 @@ export function ReviewScreen({
           postDateTime.setHours(post.scheduledHour || 18, post.scheduledMinute || 0, 0, 0);
           const isPastTime = isTodayPost && postDateTime.getTime() <= now.getTime();
 
-          const ticketId = `FP-${two(dayDate.getMonth() + 1)}${two(dayDate.getDate())}-D${i + 1}-${timeStr.replace(':', '')}`;
+          const ticketId = `FP-${two(dayDate.getMonth() + 1)}${two(dayDate.getDate())}-D${postDayIndex + 1}-${timeStr.replace(':', '')}`;
           const currentCommentText = post.platforms.find(p => Boolean(p.autoFirstComment))?.autoFirstComment || '';
           const hasAutoComment = Boolean(currentCommentText);
 
@@ -690,7 +702,7 @@ export function ReviewScreen({
                   <span className="fp-flight-type">BOARDING PASS • CREATOR CLASS</span>
                 </div>
                 <div className="fp-flight-meta-pills">
-                  <span className="fp-meta-pill">FLT: <b>FP-0{i + 1}</b></span>
+                  <span className="fp-meta-pill">FLT: <b>FP-0{postDayIndex + 1}</b></span>
                   <span className="fp-meta-pill stub-pill">PASSENGER STUB</span>
                 </div>
               </div>
@@ -699,7 +711,7 @@ export function ReviewScreen({
               {isDeleted && (
                 <div className="fp-deleted-banner">
                   <div>
-                    <strong>Flight Leg 0{i + 1} ({post.arcBeat}) removed from schedule</strong>
+                    <strong>Flight Leg 0{postDayIndex + 1} ({post.arcBeat}) removed from schedule</strong>
                     <p style={{ margin: 0, fontSize: 12, opacity: 0.85 }}>This post is grounded and will not be scheduled or published.</p>
                   </div>
                   <button
@@ -716,7 +728,7 @@ export function ReviewScreen({
               <div className="main">
                 <div className="fp-air">
                   <span>
-                    <i>✈</i> FLIGHT LEG 0{i + 1} // 07
+                    <i>✈</i> FLIGHT LEG 0{postDayIndex + 1} // 07
                   </span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <span>{format(dayDate, 'EEEE d MMMM')}</span>

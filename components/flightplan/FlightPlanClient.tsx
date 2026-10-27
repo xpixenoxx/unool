@@ -4,7 +4,7 @@ import React, { useState, useEffect, Suspense, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { format } from 'date-fns';
+import { format, startOfWeek } from 'date-fns';
 import { studioToast } from '@/components/dashboard/StudioToast';
 import { StoryIntake } from './StoryIntake';
 import { ReviewScreen } from './ReviewScreen';
@@ -149,18 +149,28 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
   };
 
   const handleApprove = async (approvedArc: WeekArc) => {
+    const normalizedMonday = storyData?.weekStartDate
+      ? (() => {
+          const parts = storyData.weekStartDate.split('-').map(Number);
+          const d = parts.length === 3 ? new Date(parts[0], parts[1] - 1, parts[2]) : new Date(storyData.weekStartDate);
+          return format(startOfWeek(isNaN(d.getTime()) ? new Date() : d, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+        })()
+      : format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd');
+
     setIsScheduling(true);
     try {
       const success = await approveArc(
         approvedArc,
-        storyData || {
-          coreStory: '',
-          whatChanged: '',
-          whatWentWrong: '',
-          oneRealNumber: '',
-          weekStartDate: format(new Date(), 'yyyy-MM-dd'),
-          selectedPlatforms: [],
-        }
+        storyData
+          ? { ...storyData, weekStartDate: normalizedMonday }
+          : {
+              coreStory: '',
+              whatChanged: '',
+              whatWentWrong: '',
+              oneRealNumber: '',
+              weekStartDate: normalizedMonday,
+              selectedPlatforms: [],
+            }
       );
       if (success) {
         // No intrusive popup toasts blocking the canvas view
@@ -238,7 +248,15 @@ function FlightPlanInner({ userId, workspaceId }: FlightPlanInnerProps) {
           <ReviewScreen
             key="review"
             arc={arc}
-            weekStartDate={storyData?.weekStartDate || format(new Date(), 'yyyy-MM-dd')}
+            weekStartDate={
+              storyData?.weekStartDate
+                ? (() => {
+                    const parts = storyData.weekStartDate.split('-').map(Number);
+                    const d = parts.length === 3 ? new Date(parts[0], parts[1] - 1, parts[2]) : new Date(storyData.weekStartDate);
+                    return format(startOfWeek(isNaN(d.getTime()) ? new Date() : d, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+                  })()
+                : format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
+            }
             isPreviewOnly={isPreviewOnly}
             onApprove={handleApprove}
             onBack={() => setView('story')}
