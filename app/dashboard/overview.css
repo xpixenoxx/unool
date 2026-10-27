@@ -361,18 +361,20 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  transition: 0.25s;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease, border-color 0.22s ease;
   min-width: 0;
   max-width: 100%;
   overflow: visible;
   position: relative;
   box-sizing: border-box;
+  will-change: transform;
 }
 
 #ov-root .stat:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 0 var(--g2);
+  transform: scale(1.025);
+  box-shadow: 0 8px 24px -4px rgba(46, 32, 24, 0.12), 0 4px 0 var(--g2);
   border-color: var(--gold);
+  z-index: 5;
 }
 
 #ov-root .stat .hd {
