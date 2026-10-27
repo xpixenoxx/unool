@@ -150,18 +150,140 @@ const ALL_PLATFORM_DEFS: Record<string, NetworkPlatformDef> = {
   manual: { id: 'manual', name: 'Manual / Other', mark: 'Ot' },
 };
 
-const ALTERNATING_PALETTE = [
-  {
-    // Blue gradient & color
-    gradient: 'linear-gradient(145deg, #1d6bf3, #0a3fb5)',
-    color: '#1565d8',
+const PLATFORM_BRAND_THEMES: Record<string, { color: string; gradient: string }> = {
+  linkedin: {
+    color: '#0A66C2',
+    gradient: 'linear-gradient(145deg, #0A66C2, #004182)',
   },
-  {
-    // Black gradient & color
-    gradient: 'linear-gradient(145deg, #2b2b2b, #0a0a0a)',
+  threads: {
     color: '#111111',
+    gradient: 'linear-gradient(145deg, #2b2b2b, #000000)',
   },
-];
+  instagram: {
+    color: '#E1306C',
+    gradient:
+      'conic-gradient(from 270deg at 100% 100%, #FFD521 0deg 20deg, #F50000 28deg 48deg, #B900B4 56deg 72deg, #7B00E0 80deg 90deg, #1B00E0 90deg)',
+  },
+  bluesky: {
+    color: '#0085FF',
+    gradient: 'linear-gradient(145deg, #208BFE, #0060DF)',
+  },
+  mastodon: {
+    color: '#6364FF',
+    gradient: 'linear-gradient(145deg, #6364FF, #4849D6)',
+  },
+  slack: {
+    color: '#E01E5A',
+    gradient:
+      'conic-gradient(from 270deg at 100% 100%, #36C5F0 0deg, #36C5F0 18deg, #2EB67D 26deg, #2EB67D 42deg, #ECB22E 50deg, #ECB22E 66deg, #E01E5A 74deg, #E01E5A 90deg, #36C5F0 90deg)',
+  },
+  telegram: {
+    color: '#229ED9',
+    gradient: 'linear-gradient(145deg, #2AABEE, #1E88C7)',
+  },
+  dribbble: {
+    color: '#EA4C89',
+    gradient: 'linear-gradient(145deg, #EA4C89, #C32361)',
+  },
+  x: {
+    color: '#000000',
+    gradient: 'linear-gradient(145deg, #2b2b2b, #000000)',
+  },
+  twitter: {
+    color: '#000000',
+    gradient: 'linear-gradient(145deg, #2b2b2b, #000000)',
+  },
+  facebook: {
+    color: '#1877F2',
+    gradient: 'linear-gradient(145deg, #1877F2, #0D56BA)',
+  },
+  youtube: {
+    color: '#FF0000',
+    gradient: 'linear-gradient(145deg, #FF0000, #C40000)',
+  },
+  pinterest: {
+    color: '#E60023',
+    gradient: 'linear-gradient(145deg, #E60023, #AD0018)',
+  },
+  reddit: {
+    color: '#FF4500',
+    gradient: 'linear-gradient(145deg, #FF4500, #CC3700)',
+  },
+  twitch: {
+    color: '#9146FF',
+    gradient: 'linear-gradient(145deg, #9146FF, #6427D6)',
+  },
+  discord: {
+    color: '#5865F2',
+    gradient: 'linear-gradient(145deg, #5865F2, #3B47C9)',
+  },
+  kick: {
+    color: '#53FC18',
+    gradient: 'linear-gradient(145deg, #53FC18, #0B0E0F)',
+  },
+  warpcast: {
+    color: '#8A63D2',
+    gradient: 'linear-gradient(145deg, #8A63D2, #6038B3)',
+  },
+  farcaster: {
+    color: '#8A63D2',
+    gradient: 'linear-gradient(145deg, #8A63D2, #6038B3)',
+  },
+  skool: {
+    color: '#FFC83B',
+    gradient: 'linear-gradient(145deg, #FFC83B, #E5A817)',
+  },
+  whop: {
+    color: '#FF5A00',
+    gradient: 'linear-gradient(145deg, #FF5A00, #D94400)',
+  },
+  mewe: {
+    color: '#2F435E',
+    gradient: 'linear-gradient(145deg, #2F435E, #1D2C3F)',
+  },
+  nostr: {
+    color: '#8B3FE8',
+    gradient: 'linear-gradient(145deg, #8B3FE8, #6924C2)',
+  },
+  medium: {
+    color: '#12100E',
+    gradient: 'linear-gradient(145deg, #24211D, #000000)',
+  },
+  lemmy: {
+    color: '#00BC8C',
+    gradient: 'linear-gradient(145deg, #00BC8C, #008A66)',
+  },
+  listmonk: {
+    color: '#0045FF',
+    gradient: 'linear-gradient(145deg, #0045FF, #002DB3)',
+  },
+  hashnode: {
+    color: '#2962FF',
+    gradient: 'linear-gradient(145deg, #2962FF, #1545C6)',
+  },
+  devto: {
+    color: '#0A0A0A',
+    gradient: 'linear-gradient(145deg, #2b2b2b, #0A0A0A)',
+  },
+  'dev.to': {
+    color: '#0A0A0A',
+    gradient: 'linear-gradient(145deg, #2b2b2b, #0A0A0A)',
+  },
+  whatsapp: {
+    color: '#25D366',
+    gradient: 'linear-gradient(145deg, #25D366, #128C7E)',
+  },
+  tiktok: {
+    color: '#FE2C55',
+    gradient:
+      'conic-gradient(from 270deg at 100% 100%, #25F4EE 0deg 45deg, #FE2C55 45deg 90deg)',
+  },
+  manual: {
+    color: '#6B7280',
+    gradient: 'linear-gradient(145deg, #6B7280, #4B5563)',
+  },
+};
+
 
 /* ─── Animated Counter ────────────────────────────────────── */
 
@@ -463,17 +585,17 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     const targetCount = Math.max(8, Math.ceil(connectedList.length / 4) * 4);
     const combined = [...connectedList, ...notConnectedList].slice(0, targetCount);
 
-    return combined.map((p, index) => {
+    return combined.map((p) => {
       const isConnected = isConn(p.id);
-      const pal = ALTERNATING_PALETTE[index % 2];
-      const isSlack = p.id === 'slack';
-      const slackGradient =
-        'conic-gradient(from 270deg at 100% 100%, #36C5F0 0deg, #36C5F0 18deg, #2EB67D 26deg, #2EB67D 42deg, #ECB22E 50deg, #ECB22E 66deg, #E01E5A 74deg, #E01E5A 90deg, #36C5F0 90deg)';
+      const theme = PLATFORM_BRAND_THEMES[p.id] || {
+        color: '#1565d8',
+        gradient: 'linear-gradient(145deg, #1d6bf3, #0a3fb5)',
+      };
       return {
         ...p,
         connected: isConnected,
-        color: isSlack ? '#E01E5A' : pal.color,
-        gradient: isSlack ? slackGradient : pal.gradient,
+        color: theme.color,
+        gradient: theme.gradient,
       };
     });
   }, [connections]);

@@ -842,6 +842,15 @@
   border-color: #E01E5A;
 }
 
+#ov-root .tile[data-platform="instagram"] .flood {
+  background: conic-gradient(from 270deg at 100% 100%, #FFD521 0deg 20deg, #F50000 28deg 48deg, #B900B4 56deg 72deg, #7B00E0 80deg 90deg, #1B00E0 90deg);
+}
+
+#ov-root .tile[data-platform="instagram"]:not(.on):hover,
+#ov-root .tile[data-platform="instagram"]:not(.on).hi {
+  border-color: #E1306C;
+}
+
 #ov-root .bgm {
   position: absolute;
   right: -14px;
@@ -894,11 +903,9 @@
   display: block;
   border-radius: 8px;
   transition: transform 0.2s ease;
-  stroke: none;
-}
-
-#ov-root .lg svg * {
-  stroke: none;
+  stroke: transparent;
+  stroke-width: 0;
+  fill: none;
 }
 
 #ov-root .tile:hover .lg svg,
