@@ -468,7 +468,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       const pal = ALTERNATING_PALETTE[index % 2];
       const isSlack = p.id === 'slack';
       const slackGradient =
-        'conic-gradient(from 180deg at 100% 100%, #36C5F0 0deg, #2EB67D 30deg, #ECB22E 60deg, #E01E5A 90deg, #36C5F0 360deg)';
+        'conic-gradient(from 270deg at 100% 100%, #36C5F0 0deg, #36C5F0 18deg, #2EB67D 26deg, #2EB67D 42deg, #ECB22E 50deg, #ECB22E 66deg, #E01E5A 74deg, #E01E5A 90deg, #36C5F0 90deg)';
       return {
         ...p,
         connected: isConnected,
