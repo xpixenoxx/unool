@@ -1060,50 +1060,195 @@ export default function BillingClient() {
         </div>
       </div>
 
-      {/* ── Payment Result Alert ──────────────────────────────── */}
+      {/* ── World-Class Designer Status Banner ──────────────────────────────── */}
       {paymentResult && (
-        <div style={{
-          padding: 16, borderRadius: 12, marginBottom: 24,
-          background: paymentResult.status === 'PAID'
-            ? '#ECFDF5' : '#FEF2F2',
-          border: `1px solid ${paymentResult.status === 'PAID'
-            ? '#A7F3D0' : '#FECACA'}`,
-          color: paymentResult.status === 'PAID' ? '#065F46' : '#991B1B',
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        }}>
-          <div>
-            <div style={{ fontWeight: 700 }}>
-              {paymentResult.status === 'PAID' ? '✓ Payment Successful' : '✗ Payment Issue'}
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            maxWidth: 820,
+            margin: '0 auto 28px',
+            padding: '16px 20px',
+            borderRadius: 16,
+            background: paymentResult.status === 'PAID'
+              ? 'linear-gradient(135deg, rgba(236, 253, 245, 0.95) 0%, #FFFFFF 100%)'
+              : 'linear-gradient(135deg, rgba(254, 242, 242, 0.95) 0%, #FFFFFF 100%)',
+            border: `1px solid ${paymentResult.status === 'PAID' ? '#A7F3D0' : '#FECACA'}`,
+            boxShadow: paymentResult.status === 'PAID'
+              ? '0 10px 30px -6px rgba(16, 185, 129, 0.15), 0 2px 6px rgba(16, 185, 129, 0.05)'
+              : '0 10px 30px -6px rgba(239, 68, 68, 0.15), 0 2px 6px rgba(239, 68, 68, 0.05)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 16,
+            fontFamily: "'DM Sans', system-ui, -apple-system, sans-serif",
+            animation: 'unoolFadeIn 0.3s ease',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            {/* Visual Icon Seal */}
+            <div
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: '50%',
+                background: paymentResult.status === 'PAID' ? '#ECFDF5' : '#FEF2F2',
+                border: `1.5px solid ${paymentResult.status === 'PAID' ? '#10B981' : '#F87171'}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                boxShadow: paymentResult.status === 'PAID'
+                  ? '0 2px 8px rgba(16, 185, 129, 0.2)'
+                  : '0 2px 8px rgba(239, 68, 68, 0.2)',
+              }}
+            >
+              {paymentResult.status === 'PAID' ? (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              ) : (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+              )}
             </div>
-            <div style={{ fontSize: 14, marginTop: 2, opacity: 0.9 }}>
-              {paymentResult.message}
+
+            {/* Typography */}
+            <div>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: 15,
+                  fontWeight: 800,
+                  color: paymentResult.status === 'PAID' ? '#065F46' : '#991B1B',
+                  letterSpacing: '-0.015em',
+                  fontFamily: "'Bricolage Grotesque', system-ui, sans-serif",
+                }}
+              >
+                <span>{paymentResult.status === 'PAID' ? 'Payment Approved & Verified' : 'Checkout Interrupted'}</span>
+                {paymentResult.status === 'PAID' && (
+                  <span
+                    style={{
+                      fontSize: 10.5,
+                      fontWeight: 700,
+                      color: '#047857',
+                      background: '#D1FAE5',
+                      padding: '2px 8px',
+                      borderRadius: 12,
+                      letterSpacing: '0.02em',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    Active
+                  </span>
+                )}
+              </div>
+              <div
+                style={{
+                  fontSize: 13,
+                  color: paymentResult.status === 'PAID' ? '#047857' : '#B91C1C',
+                  marginTop: 3,
+                  lineHeight: 1.4,
+                  fontWeight: 500,
+                }}
+              >
+                {paymentResult.message || (paymentResult.status === 'PAID' ? 'Your subscription was updated successfully. Creator capabilities are unlocked.' : 'Checkout was not completed.')}
+              </div>
             </div>
           </div>
+
+          {/* Dismiss Button */}
           <button
+            type="button"
             onClick={() => setPaymentResult(null)}
-            style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: 'inherit' }}
+            title="Dismiss notification"
+            aria-label="Dismiss"
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: '50%',
+              border: `1px solid ${paymentResult.status === 'PAID' ? '#A7F3D0' : '#FECACA'}`,
+              background: '#FFFFFF',
+              color: paymentResult.status === 'PAID' ? '#047857' : '#991B1B',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              transition: 'all 0.15s ease',
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.background = paymentResult.status === 'PAID' ? '#ECFDF5' : '#FEF2F2';
+              (e.currentTarget as HTMLElement).style.transform = 'scale(1.05)';
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.background = '#FFFFFF';
+              (e.currentTarget as HTMLElement).style.transform = 'scale(1)';
+            }}
           >
-            ×
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
           </button>
         </div>
       )}
 
       {verifying && (
-        <div style={{
-          padding: 16, borderRadius: 12, marginBottom: 24,
-          background: '#EFF6FF',
-          border: '1px solid #BFDBFE',
-          color: '#1D4ED8', display: 'flex', alignItems: 'center', gap: 12,
-          fontWeight: 600,
-        }}>
-          <div style={{
-            width: 20, height: 20,
-            border: '2px solid rgba(29, 78, 216, 0.3)',
-            borderTopColor: '#1D4ED8',
-            borderRadius: '50%',
-            animation: 'spin 0.8s linear infinite',
-          }} />
-          Verifying payment with Cashfree...
+        <div
+          style={{
+            maxWidth: 820,
+            margin: '0 auto 28px',
+            padding: '14px 20px',
+            borderRadius: 16,
+            background: 'linear-gradient(135deg, rgba(239, 246, 255, 0.95) 0%, #FFFFFF 100%)',
+            border: '1px solid #BFDBFE',
+            boxShadow: '0 10px 30px -6px rgba(59, 130, 246, 0.15), 0 2px 6px rgba(59, 130, 246, 0.05)',
+            color: '#1D4ED8',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 14,
+            fontFamily: "'DM Sans', system-ui, -apple-system, sans-serif",
+          }}
+        >
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: '50%',
+              background: '#EFF6FF',
+              border: '1.5px solid #93C5FD',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <div
+              style={{
+                width: 18,
+                height: 18,
+                border: '2.5px solid rgba(29, 78, 216, 0.25)',
+                borderTopColor: '#1D4ED8',
+                borderRadius: '50%',
+                animation: 'unoolSpin 0.7s linear infinite',
+              }}
+            />
+          </div>
+          <div>
+            <div style={{ fontSize: 14.5, fontWeight: 800, color: '#1E3A8A', letterSpacing: '-0.01em', fontFamily: "'Bricolage Grotesque', system-ui, sans-serif" }}>
+              Verifying Payment with Cashfree...
+            </div>
+            <div style={{ fontSize: 12.5, color: '#2563EB', marginTop: 2, fontWeight: 500 }}>
+              Listening for bank confirmation signal. Please keep this window open.
+            </div>
+          </div>
         </div>
       )}
 
