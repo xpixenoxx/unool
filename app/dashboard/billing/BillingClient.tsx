@@ -1371,7 +1371,40 @@ export default function BillingClient() {
               return (
                 <svg viewBox="0 0 48 30" width="42" height="26" fill="none">
                   <rect width="48" height="30" rx="5" fill="#FFFFFF" />
-                  <circ        return (
+                  <circle cx="19" cy="15" r="8.5" fill="#EB001B" />
+                  <circle cx="29" cy="15" r="8.5" fill="#F79E1B" />
+                  <path d="M24 9.6A8.5 8.5 0 0 1 27.1 15 8.5 8.5 0 0 1 24 20.4 8.5 8.5 0 0 1 20.9 15 8.5 8.5 0 0 1 24 9.6Z" fill="#FF5F00" />
+                </svg>
+              );
+            case 'rupay':
+              return (
+                <svg viewBox="0 0 48 30" width="42" height="26" fill="none">
+                  <rect width="48" height="30" rx="5" fill="#FFFFFF" />
+                  <path d="M10 8.5H21C23 8.5 24.5 10 24.5 12C24.5 14 23 15.5 21 15.5H14.5L21.5 21.5H17L10.5 16V21.5H8V8.5H10Z" fill="#097939" />
+                  <path d="M28 8.5L22.5 21.5H26.5L32 8.5H28Z" fill="#F26522" />
+                  <path d="M33 8.5L27.5 21.5H31.5L37 8.5H33Z" fill="#0072BC" />
+                </svg>
+              );
+            case 'amex':
+              return (
+                <svg viewBox="0 0 48 30" width="42" height="26" fill="none">
+                  <rect width="48" height="30" rx="5" fill="#006FCF" />
+                  <text x="24" y="19" fill="#FFFFFF" fontSize="9.5" fontWeight="900" fontFamily="system-ui, sans-serif" textAnchor="middle" letterSpacing="1">AMEX</text>
+                </svg>
+              );
+            default:
+              return (
+                <svg viewBox="0 0 48 30" width="42" height="26" fill="none">
+                  <rect width="48" height="30" rx="5" fill="#F1F5F9" stroke="#CBD5E1" strokeWidth="1" />
+                  <rect x="5" y="6" width="38" height="4" rx="1" fill="#94A3B8" />
+                  <circle cx="11" cy="18" r="2.5" fill="#64748B" />
+                  <circle cx="17" cy="18" r="2.5" fill="#94A3B8" />
+                </svg>
+              );
+          }
+        };
+
+        return (
           <div
             id="unool-checkout-vault"
             role="dialog"
