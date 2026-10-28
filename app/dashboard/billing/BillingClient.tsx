@@ -1395,8 +1395,8 @@ export default function BillingClient() {
             default:
               return (
                 <svg viewBox="0 0 48 30" width="42" height="26" fill="none">
-                  <rect width="48" height="30" rx="5" fill="#1F151B" stroke="rgba(229,169,60,0.3)" strokeWidth="1" />
-                  <rect x="5" y="6" width="38" height="4" rx="1" fill="rgba(229,169,60,0.4)" />
+                  <rect width="48" height="30" rx="5" fill="#FAF6F0" stroke="#DBCDC0" strokeWidth="1" />
+                  <rect x="5" y="6" width="38" height="4" rx="1" fill="#C84B31" opacity="0.3" />
                   <circle cx="11" cy="18" r="2.5" fill="#C84B31" />
                   <circle cx="17" cy="18" r="2.5" fill="#E5A93C" />
                 </svg>
@@ -1413,8 +1413,8 @@ export default function BillingClient() {
               position: 'fixed',
               inset: 0,
               zIndex: 10000,
-              background: '#0D080B',
-              color: '#FBF8F3',
+              background: '#FAF7F2',
+              color: '#1C0B09',
               overflowY: 'auto',
               WebkitOverflowScrolling: 'touch',
               display: 'flex',
@@ -1453,8 +1453,8 @@ export default function BillingClient() {
                 100% { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); }
               }
               @keyframes unoolSilkOrbGlow {
-                0%, 100% { opacity: 0.35; transform: scale(1); }
-                50% { opacity: 0.55; transform: scale(1.12); }
+                0%, 100% { opacity: 0.45; transform: scale(1); }
+                50% { opacity: 0.75; transform: scale(1.12); }
               }
               @keyframes unoolCardLightSweep {
                 0% { transform: translateX(-150%) skewX(-25deg); opacity: 0; }
@@ -1493,18 +1493,17 @@ export default function BillingClient() {
                 display: flex;
                 flex-direction: row;
                 border-radius: 28px;
-                background: linear-gradient(170deg, rgba(26, 17, 23, 0.92) 0%, rgba(16, 9, 13, 0.95) 100%);
-                border: 1px solid rgba(229, 169, 60, 0.28);
-                box-shadow: 0 35px 90px -15px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(255, 240, 215, 0.12);
-                backdrop-filter: blur(32px);
+                background: #FFFFFF;
+                border: 1px solid #EADBCC;
+                box-shadow: 0 30px 70px -15px rgba(61, 12, 26, 0.07), 0 1px 3px rgba(0, 0, 0, 0.03);
                 overflow: hidden;
                 min-height: 600px;
               }
               .unool-vault-sidebar {
-                width: 245px;
+                width: 250px;
                 flex-shrink: 0;
-                background: rgba(14, 8, 12, 0.7);
-                border-right: 1px solid rgba(229, 169, 60, 0.14);
+                background: #FAF6F0;
+                border-right: 1px solid #EADBCC;
                 padding: 24px 14px;
                 display: flex;
                 flex-direction: column;
@@ -1517,26 +1516,27 @@ export default function BillingClient() {
                 border-radius: 14px;
                 display: flex;
                 align-items: center;
-                justifyContent: space-between;
+                justify-content: space-between;
                 text-align: left;
                 cursor: pointer;
                 transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
                 border: 1px solid transparent;
+                background: transparent;
               }
               .unool-tab-nav-btn:hover {
-                background: rgba(229, 169, 60, 0.08);
-                border-color: rgba(229, 169, 60, 0.2);
+                background: #F3EBE0;
+                border-color: #E2D4C5;
               }
               .unool-tab-nav-btn.active {
-                background: linear-gradient(135deg, rgba(200, 75, 49, 0.22) 0%, rgba(124, 58, 237, 0.18) 100%);
-                border: 1px solid rgba(229, 169, 60, 0.45);
-                box-shadow: 0 4px 20px rgba(200, 75, 49, 0.15);
+                background: #FFFFFF;
+                border: 1px solid #C84B31;
+                box-shadow: 0 4px 18px rgba(200, 75, 49, 0.12);
               }
               .unool-primary-cta {
                 width: 100%;
                 padding: 15px 22px;
                 border-radius: 14px;
-                background: linear-gradient(135deg, #C84B31 0%, #A2273C 45%, #7C3AED 100%);
+                background: linear-gradient(135deg, #C84B31 0%, #A2273C 45%, #59191A 100%);
                 color: #FFFFFF;
                 font-size: 15px;
                 font-weight: 700;
@@ -1545,7 +1545,7 @@ export default function BillingClient() {
                 cursor: pointer;
                 display: flex;
                 align-items: center;
-                justifyContent: center;
+                justify-content: center;
                 gap: 10px;
                 box-shadow: 0 10px 28px -4px rgba(200, 75, 49, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.3);
                 transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
@@ -1574,7 +1574,7 @@ export default function BillingClient() {
                 .unool-vault-sidebar {
                   width: 100%;
                   border-right: none;
-                  border-bottom: 1px solid rgba(229, 169, 60, 0.14);
+                  border-bottom: 1px solid #EADBCC;
                   flex-direction: row;
                   overflow-x: auto;
                   padding: 12px;
@@ -1587,7 +1587,7 @@ export default function BillingClient() {
               }
             `}</style>
 
-            {/* ── Background Fluid Silk Wave Canvas ─────────────────────────── */}
+            {/* ── Background Fluid Silk Wave Canvas (Light Warm Ivory & Terracotta) ──── */}
             <div
               style={{
                 position: 'fixed',
@@ -1597,17 +1597,17 @@ export default function BillingClient() {
                 overflow: 'hidden',
               }}
             >
-              {/* Luminous Warm Wine & Honey Amber Radial Glows */}
+              {/* Luminous Warm Terracotta, Apricot & Honey Radial Glows */}
               <div
                 style={{
                   position: 'absolute',
                   top: '-10%',
-                  left: '15%',
-                  width: '750px',
-                  height: '750px',
+                  left: '12%',
+                  width: '800px',
+                  height: '800px',
                   borderRadius: '50%',
-                  background: 'radial-gradient(circle, rgba(200, 75, 49, 0.26) 0%, rgba(61, 12, 26, 0.18) 45%, transparent 70%)',
-                  filter: 'blur(100px)',
+                  background: 'radial-gradient(circle, rgba(200, 75, 49, 0.12) 0%, rgba(232, 165, 149, 0.08) 45%, transparent 70%)',
+                  filter: 'blur(90px)',
                   animation: 'unoolSilkOrbGlow 9s ease-in-out infinite',
                 }}
               />
@@ -1615,29 +1615,29 @@ export default function BillingClient() {
                 style={{
                   position: 'absolute',
                   bottom: '-15%',
-                  right: '10%',
-                  width: '700px',
-                  height: '700px',
+                  right: '8%',
+                  width: '750px',
+                  height: '750px',
                   borderRadius: '50%',
-                  background: 'radial-gradient(circle, rgba(124, 58, 237, 0.22) 0%, rgba(229, 169, 60, 0.16) 45%, transparent 70%)',
-                  filter: 'blur(110px)',
+                  background: 'radial-gradient(circle, rgba(229, 169, 60, 0.13) 0%, rgba(253, 246, 238, 0.08) 45%, transparent 70%)',
+                  filter: 'blur(100px)',
                   animation: 'unoolSilkOrbGlow 11s ease-in-out infinite 2.5s',
                 }}
               />
               <div
                 style={{
                   position: 'absolute',
-                  top: '45%',
+                  top: '40%',
                   left: '-10%',
-                  width: '500px',
-                  height: '500px',
+                  width: '550px',
+                  height: '550px',
                   borderRadius: '50%',
-                  background: 'radial-gradient(circle, rgba(229, 169, 60, 0.14) 0%, transparent 70%)',
+                  background: 'radial-gradient(circle, rgba(61, 12, 26, 0.05) 0%, transparent 70%)',
                   filter: 'blur(80px)',
                 }}
               />
 
-              {/* Multi-layered Hypnotic Silk Wave Curves in Unool Palette */}
+              {/* Multi-layered Hypnotic Silk Wave Curves in Soft Warm Cream & Blush */}
               <svg
                 style={{
                   position: 'absolute',
@@ -1645,8 +1645,8 @@ export default function BillingClient() {
                   height: '110%',
                   left: '-15%',
                   top: '-5%',
-                  opacity: 0.5,
-                  animation: 'unoolSilkWave1 20s ease-in-out infinite',
+                  opacity: 0.85,
+                  animation: 'unoolSilkWave1 22s ease-in-out infinite',
                 }}
                 viewBox="0 0 1600 1000"
                 fill="none"
@@ -1654,10 +1654,10 @@ export default function BillingClient() {
               >
                 <defs>
                   <linearGradient id="unoolSilkGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#C84B31" stopOpacity="0.45" />
-                    <stop offset="35%" stopColor="#59191A" stopOpacity="0.35" />
-                    <stop offset="70%" stopColor="#7C3AED" stopOpacity="0.25" />
-                    <stop offset="100%" stopColor="#E5A93C" stopOpacity="0.12" />
+                    <stop offset="0%" stopColor="#C84B31" stopOpacity="0.16" />
+                    <stop offset="35%" stopColor="#E8A595" stopOpacity="0.14" />
+                    <stop offset="70%" stopColor="#E5A93C" stopOpacity="0.12" />
+                    <stop offset="100%" stopColor="#FAF7F2" stopOpacity="0" />
                   </linearGradient>
                 </defs>
                 <path
@@ -1673,8 +1673,8 @@ export default function BillingClient() {
                   height: '110%',
                   left: '-10%',
                   top: '5%',
-                  opacity: 0.4,
-                  animation: 'unoolSilkWave2 24s ease-in-out infinite',
+                  opacity: 0.75,
+                  animation: 'unoolSilkWave2 26s ease-in-out infinite',
                 }}
                 viewBox="0 0 1600 1000"
                 fill="none"
@@ -1682,10 +1682,10 @@ export default function BillingClient() {
               >
                 <defs>
                   <linearGradient id="unoolSilkGrad2" x1="100%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" stopColor="#E5A93C" stopOpacity="0.32" />
-                    <stop offset="45%" stopColor="#832723" stopOpacity="0.22" />
-                    <stop offset="85%" stopColor="#3D0C1A" stopOpacity="0.15" />
-                    <stop offset="100%" stopColor="#0D080B" stopOpacity="0.0" />
+                    <stop offset="0%" stopColor="#E5A93C" stopOpacity="0.15" />
+                    <stop offset="45%" stopColor="#F5DCD5" stopOpacity="0.18" />
+                    <stop offset="85%" stopColor="#59191A" stopOpacity="0.06" />
+                    <stop offset="100%" stopColor="#FAF7F2" stopOpacity="0" />
                   </linearGradient>
                 </defs>
                 <path
@@ -1699,14 +1699,14 @@ export default function BillingClient() {
                 style={{
                   position: 'absolute',
                   inset: 0,
-                  backgroundImage: 'radial-gradient(rgba(245, 230, 205, 0.09) 1px, transparent 1px)',
-                  backgroundSize: '32px 32px',
-                  opacity: 0.4,
+                  backgroundImage: 'radial-gradient(rgba(140, 110, 95, 0.08) 1px, transparent 1px)',
+                  backgroundSize: '28px 28px',
+                  opacity: 0.6,
                 }}
               />
             </div>
 
-            {/* ── Top Executive Navigation & Guarantee Bar ──────────────────── */}
+            {/* ── Top Executive Navigation & Guarantee Bar (Pristine Warm Glass) ── */}
             <header
               style={{
                 position: 'sticky',
@@ -1717,9 +1717,9 @@ export default function BillingClient() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                background: 'rgba(13, 8, 11, 0.78)',
-                backdropFilter: 'blur(24px)',
-                borderBottom: '1px solid rgba(229, 169, 60, 0.16)',
+                background: 'rgba(250, 247, 242, 0.88)',
+                backdropFilter: 'blur(20px)',
+                borderBottom: '1px solid rgba(200, 75, 49, 0.12)',
                 flexShrink: 0,
               }}
             >
@@ -1734,24 +1734,25 @@ export default function BillingClient() {
                   gap: 8,
                   padding: '9px 16px',
                   borderRadius: 12,
-                  background: 'rgba(255, 245, 230, 0.05)',
-                  border: '1px solid rgba(229, 169, 60, 0.2)',
-                  color: '#F4ECE1',
+                  background: '#FFFFFF',
+                  border: '1px solid #E5D7C7',
+                  color: '#1C0B09',
                   fontSize: 13,
                   fontWeight: 600,
                   cursor: 'pointer',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
                   transition: 'all 0.18s ease',
                 }}
                 onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLElement).style.background = 'rgba(229, 169, 60, 0.12)';
-                  (e.currentTarget as HTMLElement).style.borderColor = 'rgba(229, 169, 60, 0.45)';
-                  (e.currentTarget as HTMLElement).style.color = '#FFFFFF';
+                  (e.currentTarget as HTMLElement).style.background = '#F5EFEB';
+                  (e.currentTarget as HTMLElement).style.borderColor = '#C84B31';
+                  (e.currentTarget as HTMLElement).style.color = '#C84B31';
                   (e.currentTarget as HTMLElement).style.transform = 'translateX(-2px)';
                 }}
                 onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLElement).style.background = 'rgba(255, 245, 230, 0.05)';
-                  (e.currentTarget as HTMLElement).style.borderColor = 'rgba(229, 169, 60, 0.2)';
-                  (e.currentTarget as HTMLElement).style.color = '#F4ECE1';
+                  (e.currentTarget as HTMLElement).style.background = '#FFFFFF';
+                  (e.currentTarget as HTMLElement).style.borderColor = '#E5D7C7';
+                  (e.currentTarget as HTMLElement).style.color = '#1C0B09';
                   (e.currentTarget as HTMLElement).style.transform = 'none';
                 }}
               >
@@ -1766,12 +1767,10 @@ export default function BillingClient() {
                 <span
                   className="unool-vault-font-heading"
                   style={{
-                    fontSize: 22,
+                    fontSize: 23,
                     fontWeight: 900,
                     letterSpacing: '-0.04em',
-                    background: 'linear-gradient(135deg, #FFFFFF 0%, #F5D38A 50%, #E5A93C 100%)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
+                    color: '#1C0B09',
                     textTransform: 'lowercase',
                   }}
                 >
@@ -1785,12 +1784,12 @@ export default function BillingClient() {
                     gap: 7,
                     padding: '4px 11px',
                     borderRadius: 20,
-                    background: 'rgba(229, 169, 60, 0.12)',
-                    border: '1px solid rgba(229, 169, 60, 0.35)',
+                    background: 'rgba(16, 185, 129, 0.1)',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
                     fontSize: 10.5,
                     fontWeight: 700,
                     letterSpacing: '0.08em',
-                    color: '#F5D38A',
+                    color: '#065F46',
                     textTransform: 'uppercase',
                   }}
                 >
@@ -1800,11 +1799,11 @@ export default function BillingClient() {
                       height: 6,
                       borderRadius: '50%',
                       background: '#10B981',
-                      boxShadow: '0 0 8px #10B981',
+                      boxShadow: '0 0 6px #10B981',
                       animation: 'unoolGoldBeacon 2s infinite',
                     }}
                   />
-                  Official Vault Checkout
+                  Official Atelier Checkout
                 </span>
               </div>
 
@@ -1816,12 +1815,12 @@ export default function BillingClient() {
                     alignItems: 'center',
                     gap: 6,
                     fontSize: 12,
-                    color: '#C7B9A5',
-                    fontWeight: 500,
+                    color: '#5C4A45',
+                    fontWeight: 600,
                   }}
                   className="sm:flex"
                 >
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#E5A93C" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#C84B31" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                   </svg>
                   <span className="unool-vault-font-body">256-Bit Bank Grade SSL</span>
@@ -1836,24 +1835,25 @@ export default function BillingClient() {
                     width: 36,
                     height: 36,
                     borderRadius: 12,
-                    border: '1px solid rgba(229, 169, 60, 0.2)',
-                    background: 'rgba(255, 245, 230, 0.05)',
-                    color: '#C7B9A5',
+                    border: '1px solid #E5D7C7',
+                    background: '#FFFFFF',
+                    color: '#5C4A45',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
                     transition: 'all 0.18s ease',
                   }}
                   onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLElement).style.background = 'rgba(200, 75, 49, 0.2)';
-                    (e.currentTarget as HTMLElement).style.borderColor = 'rgba(200, 75, 49, 0.5)';
-                    (e.currentTarget as HTMLElement).style.color = '#FFFFFF';
+                    (e.currentTarget as HTMLElement).style.background = '#FEE2E2';
+                    (e.currentTarget as HTMLElement).style.borderColor = '#EF4444';
+                    (e.currentTarget as HTMLElement).style.color = '#DC2626';
                   }}
                   onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLElement).style.background = 'rgba(255, 245, 230, 0.05)';
-                    (e.currentTarget as HTMLElement).style.borderColor = 'rgba(229, 169, 60, 0.2)';
-                    (e.currentTarget as HTMLElement).style.color = '#C7B9A5';
+                    (e.currentTarget as HTMLElement).style.background = '#FFFFFF';
+                    (e.currentTarget as HTMLElement).style.borderColor = '#E5D7C7';
+                    (e.currentTarget as HTMLElement).style.color = '#5C4A45';
                   }}
                 >
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -1877,14 +1877,13 @@ export default function BillingClient() {
               }}
             >
               <div className="unool-vault-layout">
-                {/* ── LEFT COLUMN: The "Executive Membership Pass" ───────────── */}
+                {/* ── LEFT COLUMN: The "Executive Ivory Membership Pass" ─────── */}
                 <div
                   style={{
-                    background: 'linear-gradient(175deg, rgba(28, 17, 24, 0.94) 0%, rgba(16, 9, 14, 0.96) 100%)',
-                    backdropFilter: 'blur(32px)',
+                    background: '#FFFFFF',
                     borderRadius: 28,
-                    border: '1px solid rgba(229, 169, 60, 0.32)',
-                    boxShadow: '0 30px 80px -15px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 240, 215, 0.16)',
+                    border: '1px solid #EADBCC',
+                    boxShadow: '0 30px 70px -15px rgba(61, 12, 26, 0.07), 0 1px 3px rgba(0, 0, 0, 0.03)',
                     padding: '32px 28px',
                     display: 'flex',
                     flexDirection: 'column',
@@ -1893,7 +1892,7 @@ export default function BillingClient() {
                     overflow: 'hidden',
                   }}
                 >
-                  {/* Ambient Gold Pass Watermark */}
+                  {/* Ambient Terracotta Pass Watermark */}
                   <div
                     style={{
                       position: 'absolute',
@@ -1902,7 +1901,7 @@ export default function BillingClient() {
                       width: 180,
                       height: 180,
                       borderRadius: '50%',
-                      background: 'radial-gradient(circle, rgba(229, 169, 60, 0.12) 0%, transparent 70%)',
+                      background: 'radial-gradient(circle, rgba(200, 75, 49, 0.08) 0%, transparent 70%)',
                       pointerEvents: 'none',
                     }}
                   />
@@ -1917,11 +1916,11 @@ export default function BillingClient() {
                           fontWeight: 800,
                           letterSpacing: '0.12em',
                           textTransform: 'uppercase',
-                          color: '#FDE68A',
-                          background: 'linear-gradient(135deg, rgba(229, 169, 60, 0.22) 0%, rgba(200, 75, 49, 0.18) 100%)',
+                          color: '#C84B31',
+                          background: 'rgba(200, 75, 49, 0.08)',
                           padding: '4px 11px',
                           borderRadius: 6,
-                          border: '1px solid rgba(229, 169, 60, 0.4)',
+                          border: '1px solid rgba(200, 75, 49, 0.25)',
                         }}
                       >
                         MEMBERSHIP PASS • {activeCheckout.planName.toUpperCase()}
@@ -1932,11 +1931,11 @@ export default function BillingClient() {
                         style={{
                           fontSize: 11.5,
                           fontWeight: 700,
-                          color: activeCheckout.billingCycle === 'annual' ? '#34D399' : '#FDE68A',
-                          background: activeCheckout.billingCycle === 'annual' ? 'rgba(16, 185, 129, 0.14)' : 'rgba(229, 169, 60, 0.14)',
+                          color: activeCheckout.billingCycle === 'annual' ? '#065F46' : '#9A3412',
+                          background: activeCheckout.billingCycle === 'annual' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(234, 88, 12, 0.08)',
                           padding: '3px 10px',
                           borderRadius: 20,
-                          border: activeCheckout.billingCycle === 'annual' ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid rgba(229, 169, 60, 0.3)',
+                          border: activeCheckout.billingCycle === 'annual' ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid rgba(234, 88, 12, 0.2)',
                         }}
                       >
                         {activeCheckout.billingCycle === 'annual' ? 'Annual (20% Founder Savings)' : 'Monthly Freedom'}
@@ -1946,9 +1945,9 @@ export default function BillingClient() {
                     <h2
                       className="unool-vault-font-heading"
                       style={{
-                        fontSize: 26,
+                        fontSize: 27,
                         fontWeight: 900,
-                        color: '#FFFFFF',
+                        color: '#1C0B09',
                         margin: '0 0 6px',
                         letterSpacing: '-0.03em',
                       }}
@@ -1958,8 +1957,8 @@ export default function BillingClient() {
                     <p
                       className="unool-vault-font-serif"
                       style={{
-                        fontSize: 15.5,
-                        color: '#D4C4B2',
+                        fontSize: 16.5,
+                        color: '#832723',
                         margin: 0,
                         lineHeight: 1.45,
                       }}
@@ -1971,48 +1970,46 @@ export default function BillingClient() {
                   {/* Financial Ledger Breakdown */}
                   <div
                     style={{
-                      background: 'rgba(12, 6, 10, 0.7)',
+                      background: '#FAF7F2',
                       borderRadius: 18,
-                      border: '1px solid rgba(229, 169, 60, 0.18)',
+                      border: '1px solid #EAE0D3',
                       padding: '20px 22px',
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14 }}>
-                      <span className="unool-vault-font-body" style={{ fontSize: 13, color: '#C7B9A5', fontWeight: 500 }}>
+                      <span className="unool-vault-font-body" style={{ fontSize: 13, color: '#5C4A45', fontWeight: 600 }}>
                         Base Subscription
                       </span>
-                      <span className="unool-vault-font-heading" style={{ fontSize: 26, fontWeight: 900, color: '#FFFFFF' }}>
+                      <span className="unool-vault-font-heading" style={{ fontSize: 26, fontWeight: 900, color: '#1C0B09' }}>
                         {activeCheckout.priceDisplay}
-                        <span className="unool-vault-font-body" style={{ fontSize: 13, fontWeight: 500, color: '#A59683', marginLeft: 4 }}>
+                        <span className="unool-vault-font-body" style={{ fontSize: 13, fontWeight: 500, color: '#7A6863', marginLeft: 4 }}>
                           {activeCheckout.billingCycle === 'annual' ? '/yr' : '/mo'}
                         </span>
                       </span>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12.5, color: '#A59683', marginBottom: 9 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12.5, color: '#5C4A45', marginBottom: 9 }}>
                       <span className="unool-vault-font-body">GST &amp; Government Levies</span>
-                      <span className="unool-vault-font-mono" style={{ color: '#34D399', fontWeight: 600 }}>Included (₹0.00)</span>
+                      <span className="unool-vault-font-mono" style={{ color: '#059669', fontWeight: 700 }}>Included (₹0.00)</span>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12.5, color: '#A59683', marginBottom: 14 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12.5, color: '#5C4A45', marginBottom: 14 }}>
                       <span className="unool-vault-font-body">Payment Gateway Charges</span>
-                      <span className="unool-vault-font-mono" style={{ color: '#34D399', fontWeight: 600 }}>Waived (₹0.00)</span>
+                      <span className="unool-vault-font-mono" style={{ color: '#059669', fontWeight: 700 }}>Waived (₹0.00)</span>
                     </div>
 
-                    <div style={{ height: 1, background: 'linear-gradient(90deg, transparent, rgba(229, 169, 60, 0.3), transparent)', margin: '12px 0 14px' }} />
+                    <div style={{ height: 1, background: 'linear-gradient(90deg, transparent, rgba(200, 75, 49, 0.25), transparent)', margin: '12px 0 14px' }} />
 
                     <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-                      <span className="unool-vault-font-body" style={{ fontSize: 14, fontWeight: 700, color: '#F4ECE1' }}>
+                      <span className="unool-vault-font-body" style={{ fontSize: 14, fontWeight: 700, color: '#1C0B09' }}>
                         Total Payable Today
                       </span>
                       <span
                         className="unool-vault-font-heading"
                         style={{
-                          fontSize: 26,
+                          fontSize: 27,
                           fontWeight: 900,
-                          background: 'linear-gradient(135deg, #FFFFFF 0%, #F5D38A 50%, #E5A93C 100%)',
-                          WebkitBackgroundClip: 'text',
-                          WebkitTextFillColor: 'transparent',
+                          color: '#C84B31',
                         }}
                       >
                         {activeCheckout.priceDisplay}
@@ -2020,7 +2017,7 @@ export default function BillingClient() {
                     </div>
                   </div>
 
-                  {/* Flagship Privileges (Curated Tactile Cards) */}
+                  {/* Flagship Privileges (Curated Tactile Ivory Cards) */}
                   <div>
                     <div
                       className="unool-vault-font-mono"
@@ -2029,7 +2026,7 @@ export default function BillingClient() {
                         fontWeight: 800,
                         letterSpacing: '0.1em',
                         textTransform: 'uppercase',
-                        color: '#A59683',
+                        color: '#8A756F',
                         marginBottom: 12,
                       }}
                     >
@@ -2041,7 +2038,7 @@ export default function BillingClient() {
                         { title: 'Unlimited High-Velocity AI Engines', sub: 'LinkedIn, X, Threads, Instagram auto-generation' },
                         { title: 'Multi-Network Autonomous Sync', sub: 'Intelligent schedule dispatch with zero manual work' },
                         { title: 'SignalDM Lead Concierge', sub: 'Instant conversion triggers and high-intent engagement' },
-                        { title: '4K Ultra-HD Media Studio', sub: 'Brand kits, lossless asset export, and watermarking removal' },
+                        { title: '4K Ultra-HD Media Studio', sub: 'Brand kits, lossless asset export, and watermark removal' },
                         { title: 'Dedicated Founder 24/7 SLA', sub: 'Direct line to core product engineering and priority servers' },
                       ].map((item, idx) => (
                         <div
@@ -2050,20 +2047,21 @@ export default function BillingClient() {
                             display: 'flex',
                             alignItems: 'flex-start',
                             gap: 10,
-                            padding: '8px 12px',
-                            borderRadius: 10,
-                            background: 'rgba(255, 245, 230, 0.03)',
-                            border: '1px solid rgba(229, 169, 60, 0.1)',
+                            padding: '9px 12px',
+                            borderRadius: 12,
+                            background: '#FFFFFF',
+                            border: '1px solid #EFE8DE',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
                           }}
                         >
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#E5A93C" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 2 }}>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#C84B31" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 2 }}>
                             <polyline points="20 6 9 17 4 12" />
                           </svg>
                           <div>
-                            <div className="unool-vault-font-body" style={{ fontSize: 12.5, fontWeight: 700, color: '#F4ECE1', lineHeight: 1.25 }}>
+                            <div className="unool-vault-font-body" style={{ fontSize: 12.5, fontWeight: 700, color: '#1C0B09', lineHeight: 1.25 }}>
                               {item.title}
                             </div>
-                            <div className="unool-vault-font-body" style={{ fontSize: 11, color: '#A59683', marginTop: 2 }}>
+                            <div className="unool-vault-font-body" style={{ fontSize: 11, color: '#63514C', marginTop: 2 }}>
                               {item.sub}
                             </div>
                           </div>
@@ -2075,9 +2073,9 @@ export default function BillingClient() {
                   {/* The Wax Seal Peace of Mind Guarantee */}
                   <div
                     style={{
-                      background: 'linear-gradient(135deg, rgba(200, 75, 49, 0.12) 0%, rgba(229, 169, 60, 0.08) 100%)',
+                      background: 'linear-gradient(135deg, #FFF7F2 0%, #FDF2EB 100%)',
                       borderRadius: 16,
-                      border: '1px solid rgba(229, 169, 60, 0.28)',
+                      border: '1px solid #F2D5C6',
                       padding: '16px 18px',
                       display: 'flex',
                       alignItems: 'center',
@@ -2089,13 +2087,13 @@ export default function BillingClient() {
                         width: 40,
                         height: 40,
                         borderRadius: '50%',
-                        background: 'linear-gradient(135deg, #E5A93C 0%, #C84B31 100%)',
+                        background: 'linear-gradient(135deg, #C84B31 0%, #832723 100%)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        color: '#0E080B',
+                        color: '#FFFFFF',
                         flexShrink: 0,
-                        boxShadow: '0 4px 14px rgba(200, 75, 49, 0.3)',
+                        boxShadow: '0 4px 14px rgba(200, 75, 49, 0.25)',
                       }}
                     >
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
@@ -2104,18 +2102,18 @@ export default function BillingClient() {
                     </div>
 
                     <div>
-                      <div className="unool-vault-font-heading" style={{ fontSize: 13, fontWeight: 800, color: '#FFFFFF', marginBottom: 2 }}>
+                      <div className="unool-vault-font-heading" style={{ fontSize: 13.5, fontWeight: 800, color: '#1C0B09', marginBottom: 2 }}>
                         Unconditional 1-Click Flexibility
                       </div>
-                      <div className="unool-vault-font-body" style={{ fontSize: 11.5, color: '#D4C4B2', lineHeight: 1.4 }}>
+                      <div className="unool-vault-font-body" style={{ fontSize: 11.5, color: '#63514C', lineHeight: 1.4 }}>
                         Cancel or pause your subscription anytime with zero friction directly from your settings. No lock-in, no questions asked.
                       </div>
                     </div>
                   </div>
 
                   {/* Concierge Support Line */}
-                  <div className="unool-vault-font-body" style={{ fontSize: 11.5, color: '#8E7F6F', textAlign: 'center' }}>
-                    Personal VIP billing concierge: <span style={{ color: '#F5D38A', fontWeight: 600 }}>founders@unool.com</span>
+                  <div className="unool-vault-font-body" style={{ fontSize: 11.5, color: '#7A6863', textAlign: 'center' }}>
+                    Personal VIP billing concierge: <span style={{ color: '#C84B31', fontWeight: 700 }}>founders@unool.com</span>
                   </div>
                 </div>
 
@@ -2129,12 +2127,12 @@ export default function BillingClient() {
                         fontSize: 9.5,
                         fontWeight: 800,
                         letterSpacing: '0.12em',
-                        color: '#E5A93C',
+                        color: '#8A756F',
                         textTransform: 'uppercase',
                         padding: '4px 8px 6px',
                       }}
                     >
-                      Instant in India
+                      Preferred in India
                     </div>
 
                     {/* Method 1: UPI ID */}
@@ -2150,11 +2148,11 @@ export default function BillingClient() {
                             width: 34,
                             height: 34,
                             borderRadius: 10,
-                            background: checkoutTab === 'upi' ? 'linear-gradient(135deg, #C84B31 0%, #7C3AED 100%)' : 'rgba(255, 245, 230, 0.05)',
+                            background: checkoutTab === 'upi' ? 'linear-gradient(135deg, #C84B31 0%, #832723 100%)' : '#EFE6DC',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            color: '#FFFFFF',
+                            color: checkoutTab === 'upi' ? '#FFFFFF' : '#4A3C38',
                             flexShrink: 0,
                             transition: 'all 0.18s ease',
                           }}
@@ -2164,10 +2162,10 @@ export default function BillingClient() {
                           </svg>
                         </div>
                         <div>
-                          <div className="unool-vault-font-heading" style={{ fontSize: 13.5, fontWeight: checkoutTab === 'upi' ? 800 : 700, color: checkoutTab === 'upi' ? '#FFFFFF' : '#E0D4C5' }}>
+                          <div className="unool-vault-font-heading" style={{ fontSize: 13.5, fontWeight: checkoutTab === 'upi' ? 800 : 700, color: checkoutTab === 'upi' ? '#1C0B09' : '#4A3C38' }}>
                             UPI ID / VPA
                           </div>
-                          <div className="unool-vault-font-body" style={{ fontSize: 11, color: '#A59683' }}>
+                          <div className="unool-vault-font-body" style={{ fontSize: 11, color: '#7A6863' }}>
                             GPay, PhonePe, Paytm
                           </div>
                         </div>
@@ -2179,11 +2177,11 @@ export default function BillingClient() {
                           fontSize: 9,
                           fontWeight: 800,
                           letterSpacing: '0.06em',
-                          color: '#FDE68A',
-                          background: 'rgba(229, 169, 60, 0.16)',
+                          color: '#C84B31',
+                          background: 'rgba(200, 75, 49, 0.1)',
                           padding: '2px 6px',
                           borderRadius: 4,
-                          border: '1px solid rgba(229, 169, 60, 0.4)',
+                          border: '1px solid rgba(200, 75, 49, 0.3)',
                           textTransform: 'uppercase',
                         }}
                       >
@@ -2209,11 +2207,11 @@ export default function BillingClient() {
                             width: 34,
                             height: 34,
                             borderRadius: 10,
-                            background: checkoutTab === 'qr' ? 'linear-gradient(135deg, #C84B31 0%, #7C3AED 100%)' : 'rgba(255, 245, 230, 0.05)',
+                            background: checkoutTab === 'qr' ? 'linear-gradient(135deg, #C84B31 0%, #832723 100%)' : '#EFE6DC',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            color: '#FFFFFF',
+                            color: checkoutTab === 'qr' ? '#FFFFFF' : '#4A3C38',
                             flexShrink: 0,
                             transition: 'all 0.18s ease',
                           }}
@@ -2227,10 +2225,10 @@ export default function BillingClient() {
                           </svg>
                         </div>
                         <div>
-                          <div className="unool-vault-font-heading" style={{ fontSize: 13.5, fontWeight: checkoutTab === 'qr' ? 800 : 700, color: checkoutTab === 'qr' ? '#FFFFFF' : '#E0D4C5' }}>
+                          <div className="unool-vault-font-heading" style={{ fontSize: 13.5, fontWeight: checkoutTab === 'qr' ? 800 : 700, color: checkoutTab === 'qr' ? '#1C0B09' : '#4A3C38' }}>
                             Scan QR Code
                           </div>
-                          <div className="unool-vault-font-body" style={{ fontSize: 11, color: '#A59683' }}>
+                          <div className="unool-vault-font-body" style={{ fontSize: 11, color: '#7A6863' }}>
                             Camera scan to pay
                           </div>
                         </div>
@@ -2242,11 +2240,11 @@ export default function BillingClient() {
                           fontSize: 9,
                           fontWeight: 800,
                           letterSpacing: '0.06em',
-                          color: '#34D399',
-                          background: 'rgba(16, 185, 129, 0.16)',
+                          color: '#065F46',
+                          background: 'rgba(16, 185, 129, 0.12)',
                           padding: '2px 6px',
                           borderRadius: 4,
-                          border: '1px solid rgba(16, 185, 129, 0.4)',
+                          border: '1px solid rgba(16, 185, 129, 0.3)',
                           textTransform: 'uppercase',
                         }}
                       >
@@ -2260,7 +2258,7 @@ export default function BillingClient() {
                         fontSize: 9.5,
                         fontWeight: 800,
                         letterSpacing: '0.12em',
-                        color: '#A59683',
+                        color: '#8A756F',
                         textTransform: 'uppercase',
                         padding: '16px 8px 6px',
                       }}
@@ -2281,11 +2279,11 @@ export default function BillingClient() {
                             width: 34,
                             height: 34,
                             borderRadius: 10,
-                            background: checkoutTab === 'cards' ? 'linear-gradient(135deg, #C84B31 0%, #7C3AED 100%)' : 'rgba(255, 245, 230, 0.05)',
+                            background: checkoutTab === 'cards' ? 'linear-gradient(135deg, #C84B31 0%, #832723 100%)' : '#EFE6DC',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            color: '#FFFFFF',
+                            color: checkoutTab === 'cards' ? '#FFFFFF' : '#4A3C38',
                             flexShrink: 0,
                             transition: 'all 0.18s ease',
                           }}
@@ -2296,10 +2294,10 @@ export default function BillingClient() {
                           </svg>
                         </div>
                         <div>
-                          <div className="unool-vault-font-heading" style={{ fontSize: 13.5, fontWeight: checkoutTab === 'cards' ? 800 : 700, color: checkoutTab === 'cards' ? '#FFFFFF' : '#E0D4C5' }}>
+                          <div className="unool-vault-font-heading" style={{ fontSize: 13.5, fontWeight: checkoutTab === 'cards' ? 800 : 700, color: checkoutTab === 'cards' ? '#1C0B09' : '#4A3C38' }}>
                             Titanium Cards
                           </div>
-                          <div className="unool-vault-font-body" style={{ fontSize: 11, color: '#A59683' }}>
+                          <div className="unool-vault-font-body" style={{ fontSize: 11, color: '#7A6863' }}>
                             Visa, MC, RuPay, Amex
                           </div>
                         </div>
@@ -2319,11 +2317,11 @@ export default function BillingClient() {
                             width: 34,
                             height: 34,
                             borderRadius: 10,
-                            background: checkoutTab === 'netbanking' ? 'linear-gradient(135deg, #C84B31 0%, #7C3AED 100%)' : 'rgba(255, 245, 230, 0.05)',
+                            background: checkoutTab === 'netbanking' ? 'linear-gradient(135deg, #C84B31 0%, #832723 100%)' : '#EFE6DC',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            color: '#FFFFFF',
+                            color: checkoutTab === 'netbanking' ? '#FFFFFF' : '#4A3C38',
                             flexShrink: 0,
                             transition: 'all 0.18s ease',
                           }}
@@ -2338,10 +2336,10 @@ export default function BillingClient() {
                           </svg>
                         </div>
                         <div>
-                          <div className="unool-vault-font-heading" style={{ fontSize: 13.5, fontWeight: checkoutTab === 'netbanking' ? 800 : 700, color: checkoutTab === 'netbanking' ? '#FFFFFF' : '#E0D4C5' }}>
+                          <div className="unool-vault-font-heading" style={{ fontSize: 13.5, fontWeight: checkoutTab === 'netbanking' ? 800 : 700, color: checkoutTab === 'netbanking' ? '#1C0B09' : '#4A3C38' }}>
                             Net Banking
                           </div>
-                          <div className="unool-vault-font-body" style={{ fontSize: 11, color: '#A59683' }}>
+                          <div className="unool-vault-font-body" style={{ fontSize: 11, color: '#7A6863' }}>
                             50+ Indian banks direct
                           </div>
                         </div>
@@ -2370,15 +2368,15 @@ export default function BillingClient() {
                                 style={{
                                   fontSize: 22,
                                   fontWeight: 900,
-                                  color: '#FFFFFF',
+                                  color: '#1C0B09',
                                   margin: '0 0 6px',
                                   letterSpacing: '-0.02em',
                                 }}
                               >
                                 Pay via UPI ID (VPA)
                               </h3>
-                              <p className="unool-vault-font-body" style={{ fontSize: 13.5, color: '#C7B9A5', margin: 0, lineHeight: 1.5 }}>
-                                Enter your Virtual Payment Address to trigger an instant collect notification on your Google Pay, PhonePe, Paytm, or BHIM app.
+                              <p className="unool-vault-font-body" style={{ fontSize: 13.5, color: '#5C4A45', margin: 0, lineHeight: 1.5 }}>
+                                Enter your Virtual Payment Address to receive an instant payment collect request on Google Pay, PhonePe, Paytm, or BHIM.
                               </p>
                             </div>
 
@@ -2387,7 +2385,7 @@ export default function BillingClient() {
                               <label
                                 htmlFor="upi-id-input"
                                 className="unool-vault-font-mono"
-                                style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: '#F5D38A', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}
+                                style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: '#C84B31', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}
                               >
                                 Virtual Payment Address (UPI ID)
                               </label>
@@ -2399,7 +2397,7 @@ export default function BillingClient() {
                                     left: 15,
                                     top: '50%',
                                     transform: 'translateY(-50%)',
-                                    color: '#E5A93C',
+                                    color: '#C84B31',
                                     fontWeight: 900,
                                     fontSize: 18,
                                   }}
@@ -2420,23 +2418,23 @@ export default function BillingClient() {
                                     width: '100%',
                                     padding: '15px 14px 15px 40px',
                                     borderRadius: 14,
-                                    border: upiError ? '1.5px solid #EF4444' : '1.5px solid rgba(229, 169, 60, 0.25)',
+                                    border: upiError ? '1.5px solid #EF4444' : '1.5px solid #DBCDC0',
                                     fontSize: 14.5,
-                                    color: '#FFFFFF',
-                                    background: 'rgba(10, 6, 9, 0.75)',
+                                    color: '#1C0B09',
+                                    background: '#FAF7F2',
                                     outline: 'none',
                                     boxSizing: 'border-box',
                                     transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
                                   }}
                                   onFocus={(e) => {
                                     if (!upiError) {
-                                      e.target.style.borderColor = '#E5A93C';
-                                      e.target.style.boxShadow = '0 0 0 3px rgba(229, 169, 60, 0.2)';
+                                      e.target.style.borderColor = '#C84B31';
+                                      e.target.style.boxShadow = '0 0 0 3px rgba(200, 75, 49, 0.15)';
                                     }
                                   }}
                                   onBlur={(e) => {
                                     if (!upiError) {
-                                      e.target.style.borderColor = 'rgba(229, 169, 60, 0.25)';
+                                      e.target.style.borderColor = '#DBCDC0';
                                       e.target.style.boxShadow = 'none';
                                     }
                                   }}
@@ -2458,7 +2456,7 @@ export default function BillingClient() {
                                 style={{
                                   fontSize: 10.5,
                                   fontWeight: 800,
-                                  color: '#A59683',
+                                  color: '#8A756F',
                                   textTransform: 'uppercase',
                                   letterSpacing: '0.08em',
                                   marginBottom: 10,
@@ -2476,24 +2474,24 @@ export default function BillingClient() {
                                     style={{
                                       padding: '6px 11px',
                                       borderRadius: 9,
-                                      border: '1px solid rgba(229, 169, 60, 0.2)',
-                                      background: 'rgba(255, 245, 230, 0.04)',
-                                      color: '#E0D4C5',
+                                      border: '1px solid #DBCDC0',
+                                      background: '#FAF7F2',
+                                      color: '#4A3C38',
                                       fontSize: 11.5,
                                       fontWeight: 600,
                                       cursor: 'pointer',
                                       transition: 'all 0.15s ease',
                                     }}
                                     onMouseEnter={(e) => {
-                                      (e.currentTarget as HTMLElement).style.background = 'rgba(229, 169, 60, 0.16)';
-                                      (e.currentTarget as HTMLElement).style.borderColor = 'rgba(229, 169, 60, 0.5)';
-                                      (e.currentTarget as HTMLElement).style.color = '#FFFFFF';
+                                      (e.currentTarget as HTMLElement).style.background = '#FFF5EE';
+                                      (e.currentTarget as HTMLElement).style.borderColor = '#C84B31';
+                                      (e.currentTarget as HTMLElement).style.color = '#C84B31';
                                       (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)';
                                     }}
                                     onMouseLeave={(e) => {
-                                      (e.currentTarget as HTMLElement).style.background = 'rgba(255, 245, 230, 0.04)';
-                                      (e.currentTarget as HTMLElement).style.borderColor = 'rgba(229, 169, 60, 0.2)';
-                                      (e.currentTarget as HTMLElement).style.color = '#E0D4C5';
+                                      (e.currentTarget as HTMLElement).style.background = '#FAF7F2';
+                                      (e.currentTarget as HTMLElement).style.borderColor = '#DBCDC0';
+                                      (e.currentTarget as HTMLElement).style.color = '#4A3C38';
                                       (e.currentTarget as HTMLElement).style.transform = 'none';
                                     }}
                                   >
@@ -2508,9 +2506,9 @@ export default function BillingClient() {
                                 style={{
                                   padding: '12px 16px',
                                   borderRadius: 12,
-                                  background: 'rgba(239, 68, 68, 0.14)',
-                                  border: '1px solid rgba(239, 68, 68, 0.4)',
-                                  color: '#FCA5A5',
+                                  background: '#FEF2F2',
+                                  border: '1px solid #FECACA',
+                                  color: '#DC2626',
                                   fontSize: 13,
                                   fontWeight: 500,
                                   marginBottom: 20,
@@ -2519,7 +2517,7 @@ export default function BillingClient() {
                                   gap: 9,
                                 }}
                               >
-                                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
                                   <circle cx="12" cy="12" r="10" />
                                   <line x1="12" y1="8" x2="12" y2="12" />
                                   <line x1="12" y1="16" x2="12.01" y2="16" />
@@ -2528,7 +2526,7 @@ export default function BillingClient() {
                               </div>
                             )}
 
-                            {/* Liquid Metal Primary CTA */}
+                            {/* Liquid Terracotta Primary CTA */}
                             <button
                               type="button"
                               id="submit-upi-pay-btn"
@@ -2570,10 +2568,10 @@ export default function BillingClient() {
                                 justifyContent: 'center',
                                 gap: 7,
                                 fontSize: 11.5,
-                                color: '#A59683',
+                                color: '#7A6863',
                               }}
                             >
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#E5A93C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#C84B31" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
                                 <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                               </svg>
@@ -2581,7 +2579,7 @@ export default function BillingClient() {
                             </div>
                           </div>
                         ) : (
-                          /* Dispatched State with Golden Sonar */
+                          /* Dispatched State with Terracotta Sonar */
                           <div style={{ textAlign: 'center', padding: '18px 8px' }}>
                             <div
                               style={{
@@ -2599,7 +2597,7 @@ export default function BillingClient() {
                                   position: 'absolute',
                                   inset: 0,
                                   borderRadius: '50%',
-                                  background: 'rgba(229, 169, 60, 0.25)',
+                                  background: 'rgba(200, 75, 49, 0.15)',
                                   animation: 'unoolRadarSonar 2.2s cubic-bezier(0, 0.2, 0.8, 1) infinite',
                                 }}
                               />
@@ -2608,7 +2606,7 @@ export default function BillingClient() {
                                   position: 'absolute',
                                   inset: 10,
                                   borderRadius: '50%',
-                                  background: 'rgba(200, 75, 49, 0.3)',
+                                  background: 'rgba(229, 169, 60, 0.2)',
                                   animation: 'unoolRadarSonar 2.2s cubic-bezier(0, 0.2, 0.8, 1) infinite 0.7s',
                                 }}
                               />
@@ -2618,12 +2616,12 @@ export default function BillingClient() {
                                   width: 62,
                                   height: 62,
                                   borderRadius: '50%',
-                                  background: 'linear-gradient(135deg, #C84B31 0%, #E5A93C 100%)',
+                                  background: 'linear-gradient(135deg, #C84B31 0%, #832723 100%)',
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
-                                  color: '#0E080B',
-                                  boxShadow: '0 8px 26px rgba(200, 75, 49, 0.5)',
+                                  color: '#FFFFFF',
+                                  boxShadow: '0 8px 24px rgba(200, 75, 49, 0.35)',
                                 }}
                               >
                                 <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -2633,12 +2631,12 @@ export default function BillingClient() {
                               </div>
                             </div>
 
-                            <h4 className="unool-vault-font-heading" style={{ fontSize: 20, fontWeight: 900, color: '#FFFFFF', margin: '0 0 6px' }}>
+                            <h4 className="unool-vault-font-heading" style={{ fontSize: 20, fontWeight: 900, color: '#1C0B09', margin: '0 0 6px' }}>
                               Payment Collect Request Dispatched
                             </h4>
-                            <p className="unool-vault-font-body" style={{ fontSize: 13.5, color: '#D4C4B2', margin: '0 0 22px', lineHeight: 1.5 }}>
+                            <p className="unool-vault-font-body" style={{ fontSize: 13.5, color: '#5C4A45', margin: '0 0 22px', lineHeight: 1.5 }}>
                               A real-time notification has been transmitted to{' '}
-                              <strong className="unool-vault-font-mono" style={{ color: '#F5D38A' }}>
+                              <strong className="unool-vault-font-mono" style={{ color: '#C84B31' }}>
                                 {upiIdInput.trim().toLowerCase()}
                               </strong>.
                             </p>
@@ -2646,19 +2644,19 @@ export default function BillingClient() {
                             {/* 3-Step Walkthrough Card */}
                             <div
                               style={{
-                                background: 'rgba(12, 6, 10, 0.75)',
-                                border: '1px solid rgba(229, 169, 60, 0.2)',
+                                background: '#FAF7F2',
+                                border: '1px solid #EAE0D3',
                                 borderRadius: 16,
                                 padding: '18px 20px',
                                 textAlign: 'left',
                                 fontSize: 13,
-                                color: '#E0D4C5',
+                                color: '#3D2E2B',
                                 lineHeight: 1.6,
                                 marginBottom: 22,
                               }}
                             >
-                              <div className="unool-vault-font-heading" style={{ fontWeight: 800, color: '#F5D38A', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 7 }}>
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#E5A93C" strokeWidth="2.4">
+                              <div className="unool-vault-font-heading" style={{ fontWeight: 800, color: '#1C0B09', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 7 }}>
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#C84B31" strokeWidth="2.4">
                                   <circle cx="12" cy="12" r="10" />
                                   <line x1="12" y1="16" x2="12" y2="12" />
                                   <line x1="12" y1="8" x2="12.01" y2="8" />
@@ -2680,9 +2678,9 @@ export default function BillingClient() {
                                 justifyContent: 'center',
                                 gap: 9,
                                 fontSize: 13,
-                                color: '#34D399',
+                                color: '#065F46',
                                 fontWeight: 700,
-                                background: 'rgba(16, 185, 129, 0.12)',
+                                background: 'rgba(16, 185, 129, 0.1)',
                                 border: '1px solid rgba(16, 185, 129, 0.3)',
                                 borderRadius: 12,
                                 padding: '12px 18px',
@@ -2695,7 +2693,7 @@ export default function BillingClient() {
                                   height: 8,
                                   borderRadius: '50%',
                                   background: '#10B981',
-                                  boxShadow: '0 0 8px #10B981',
+                                  boxShadow: '0 0 6px #10B981',
                                   animation: 'unoolGoldBeacon 1.5s infinite',
                                 }}
                               />
@@ -2712,7 +2710,7 @@ export default function BillingClient() {
                               style={{
                                 background: 'transparent',
                                 border: 'none',
-                                color: '#C7B9A5',
+                                color: '#7A6863',
                                 fontSize: 13,
                                 textDecoration: 'underline',
                                 cursor: 'pointer',
@@ -2735,19 +2733,19 @@ export default function BillingClient() {
                             style={{
                               fontSize: 22,
                               fontWeight: 900,
-                              color: '#FFFFFF',
+                              color: '#1C0B09',
                               margin: '0 0 6px',
                               letterSpacing: '-0.02em',
                             }}
                           >
                             Scan to Authorize Instantly
                           </h3>
-                          <p className="unool-vault-font-body" style={{ fontSize: 13.5, color: '#C7B9A5', margin: 0 }}>
+                          <p className="unool-vault-font-body" style={{ fontSize: 13.5, color: '#5C4A45', margin: 0 }}>
                             Point any mobile UPI scanner at the dynamic QR code below. Your plan activates instantaneously upon authorization.
                           </p>
                         </div>
 
-                        {/* Scanner Viewfinder with Live Laser Scanline */}
+                        {/* Scanner Viewfinder with Live Terracotta Laser Scanline */}
                         <div
                           style={{
                             width: 250,
@@ -2758,18 +2756,18 @@ export default function BillingClient() {
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            boxShadow: '0 16px 42px -4px rgba(200, 75, 49, 0.4), 0 0 0 1px rgba(255, 240, 215, 0.2)',
+                            boxShadow: '0 16px 42px -4px rgba(61, 12, 26, 0.1), 0 0 0 1px #EADBCC',
                             position: 'relative',
                             padding: 14,
                             boxSizing: 'border-box',
                             overflow: 'hidden',
                           }}
                         >
-                          {/* 4 Gold Viewfinder Reticle Corners */}
-                          <div style={{ position: 'absolute', top: -3, left: -3, width: 24, height: 24, borderTop: '4px solid #E5A93C', borderLeft: '4px solid #E5A93C', borderRadius: '7px 0 0 0' }} />
-                          <div style={{ position: 'absolute', top: -3, right: -3, width: 24, height: 24, borderTop: '4px solid #E5A93C', borderRight: '4px solid #E5A93C', borderRadius: '0 7px 0 0' }} />
-                          <div style={{ position: 'absolute', bottom: -3, left: -3, width: 24, height: 24, borderBottom: '4px solid #E5A93C', borderLeft: '4px solid #E5A93C', borderRadius: '0 0 0 7px' }} />
-                          <div style={{ position: 'absolute', bottom: -3, right: -3, width: 24, height: 24, borderBottom: '4px solid #E5A93C', borderRight: '4px solid #E5A93C', borderRadius: '0 0 7px 0' }} />
+                          {/* 4 Terracotta Viewfinder Reticle Corners */}
+                          <div style={{ position: 'absolute', top: -3, left: -3, width: 24, height: 24, borderTop: '4px solid #C84B31', borderLeft: '4px solid #C84B31', borderRadius: '7px 0 0 0' }} />
+                          <div style={{ position: 'absolute', top: -3, right: -3, width: 24, height: 24, borderTop: '4px solid #C84B31', borderRight: '4px solid #C84B31', borderRadius: '0 7px 0 0' }} />
+                          <div style={{ position: 'absolute', bottom: -3, left: -3, width: 24, height: 24, borderBottom: '4px solid #C84B31', borderLeft: '4px solid #C84B31', borderRadius: '0 0 0 7px' }} />
+                          <div style={{ position: 'absolute', bottom: -3, right: -3, width: 24, height: 24, borderBottom: '4px solid #C84B31', borderRight: '4px solid #C84B31', borderRadius: '0 0 7px 0' }} />
 
                           {/* Live Sweeping Laser Scanline */}
                           <div
@@ -2779,7 +2777,7 @@ export default function BillingClient() {
                               right: 12,
                               height: 3,
                               background: 'linear-gradient(90deg, transparent, #C84B31 20%, #E5A93C 50%, #C84B31 80%, transparent)',
-                              boxShadow: '0 0 14px #E5A93C, 0 0 6px #C84B31',
+                              boxShadow: '0 0 12px #C84B31, 0 0 6px #E5A93C',
                               animation: 'unoolScanlineMove 3s ease-in-out infinite',
                               pointerEvents: 'none',
                               zIndex: 10,
@@ -2799,7 +2797,7 @@ export default function BillingClient() {
                                   margin: '0 auto 12px',
                                 }}
                               />
-                              <span className="unool-vault-font-body" style={{ fontSize: 13, color: '#3D0C1A', fontWeight: 700 }}>
+                              <span className="unool-vault-font-body" style={{ fontSize: 13, color: '#1C0B09', fontWeight: 700 }}>
                                 Generating Secure QR...
                               </span>
                             </div>
@@ -2850,9 +2848,9 @@ export default function BillingClient() {
                               style={{
                                 fontSize: 11.5,
                                 fontWeight: 700,
-                                color: '#E0D4C5',
-                                background: 'rgba(255, 245, 230, 0.04)',
-                                border: '1px solid rgba(229, 169, 60, 0.16)',
+                                color: '#4A3C38',
+                                background: '#FAF7F2',
+                                border: '1px solid #E5D7C7',
                                 borderRadius: 7,
                                 padding: '4px 10px',
                               }}
@@ -2870,9 +2868,9 @@ export default function BillingClient() {
                             justifyContent: 'center',
                             gap: 9,
                             fontSize: 13,
-                            color: '#34D399',
+                            color: '#065F46',
                             fontWeight: 700,
-                            background: 'rgba(16, 185, 129, 0.12)',
+                            background: 'rgba(16, 185, 129, 0.1)',
                             border: '1px solid rgba(16, 185, 129, 0.3)',
                             borderRadius: 12,
                             padding: '12px 18px',
@@ -2885,7 +2883,7 @@ export default function BillingClient() {
                               height: 8,
                               borderRadius: '50%',
                               background: '#10B981',
-                              boxShadow: '0 0 8px #10B981',
+                              boxShadow: '0 0 6px #10B981',
                               animation: 'unoolGoldBeacon 1.5s infinite',
                             }}
                           />
@@ -2901,7 +2899,7 @@ export default function BillingClient() {
                               alignItems: 'center',
                               gap: 6,
                               fontSize: 13,
-                              color: '#F5D38A',
+                              color: '#C84B31',
                               fontWeight: 700,
                               textDecoration: 'none',
                               cursor: 'pointer',
@@ -2931,7 +2929,7 @@ export default function BillingClient() {
                             padding: '22px 24px',
                             background: 'linear-gradient(145deg, #22141C 0%, #11090F 50%, #2A1722 100%)',
                             color: '#FFFFFF',
-                            boxShadow: '0 25px 60px -10px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,240,215,0.22)',
+                            boxShadow: '0 25px 60px -10px rgba(61,12,26,0.3), inset 0 1px 0 rgba(255,240,215,0.22)',
                             border: '1px solid rgba(229, 169, 60, 0.35)',
                             position: 'relative',
                             overflow: 'hidden',
@@ -3045,7 +3043,7 @@ export default function BillingClient() {
                             <label
                               htmlFor="unool-card-number"
                               className="unool-vault-font-mono"
-                              style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: '#F5D38A', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 7 }}
+                              style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: '#C84B31', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 7 }}
                             >
                               Card Number
                             </label>
@@ -3067,21 +3065,21 @@ export default function BillingClient() {
                                   padding: '14px 14px',
                                   paddingRight: 72,
                                   borderRadius: 14,
-                                  border: '1.5px solid rgba(229, 169, 60, 0.25)',
+                                  border: '1.5px solid #DBCDC0',
                                   fontSize: 14.5,
                                   letterSpacing: '1px',
-                                  color: '#FFFFFF',
-                                  background: 'rgba(10, 6, 9, 0.75)',
+                                  color: '#1C0B09',
+                                  background: '#FAF7F2',
                                   outline: 'none',
                                   boxSizing: 'border-box',
                                   transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
                                 }}
                                 onFocus={(e) => {
-                                  e.target.style.borderColor = '#E5A93C';
-                                  e.target.style.boxShadow = '0 0 0 3px rgba(229, 169, 60, 0.2)';
+                                  e.target.style.borderColor = '#C84B31';
+                                  e.target.style.boxShadow = '0 0 0 3px rgba(200, 75, 49, 0.15)';
                                 }}
                                 onBlur={(e) => {
-                                  e.target.style.borderColor = 'rgba(229, 169, 60, 0.25)';
+                                  e.target.style.borderColor = '#DBCDC0';
                                   e.target.style.boxShadow = 'none';
                                 }}
                               />
@@ -3103,7 +3101,7 @@ export default function BillingClient() {
                             <label
                               htmlFor="unool-card-holder"
                               className="unool-vault-font-mono"
-                              style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: '#F5D38A', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 7 }}
+                              style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: '#C84B31', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 7 }}
                             >
                               Cardholder Name
                             </label>
@@ -3121,20 +3119,20 @@ export default function BillingClient() {
                                 width: '100%',
                                 padding: '14px 14px',
                                 borderRadius: 14,
-                                border: '1.5px solid rgba(229, 169, 60, 0.25)',
+                                border: '1.5px solid #DBCDC0',
                                 fontSize: 14,
-                                color: '#FFFFFF',
-                                background: 'rgba(10, 6, 9, 0.75)',
+                                color: '#1C0B09',
+                                background: '#FAF7F2',
                                 outline: 'none',
                                 boxSizing: 'border-box',
                                 transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
                               }}
                               onFocus={(e) => {
-                                e.target.style.borderColor = '#E5A93C';
-                                e.target.style.boxShadow = '0 0 0 3px rgba(229, 169, 60, 0.2)';
+                                e.target.style.borderColor = '#C84B31';
+                                e.target.style.boxShadow = '0 0 0 3px rgba(200, 75, 49, 0.15)';
                               }}
                               onBlur={(e) => {
-                                e.target.style.borderColor = 'rgba(229, 169, 60, 0.25)';
+                                e.target.style.borderColor = '#DBCDC0';
                                 e.target.style.boxShadow = 'none';
                               }}
                             />
@@ -3146,7 +3144,7 @@ export default function BillingClient() {
                               <label
                                 htmlFor="unool-card-expiry"
                                 className="unool-vault-font-mono"
-                                style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: '#F5D38A', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 7 }}
+                                style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: '#C84B31', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 7 }}
                               >
                                 Expiry (MM/YY)
                               </label>
@@ -3166,20 +3164,20 @@ export default function BillingClient() {
                                   width: '100%',
                                   padding: '14px 14px',
                                   borderRadius: 14,
-                                  border: '1.5px solid rgba(229, 169, 60, 0.25)',
+                                  border: '1.5px solid #DBCDC0',
                                   fontSize: 14,
-                                  color: '#FFFFFF',
-                                  background: 'rgba(10, 6, 9, 0.75)',
+                                  color: '#1C0B09',
+                                  background: '#FAF7F2',
                                   outline: 'none',
                                   boxSizing: 'border-box',
                                   transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
                                 }}
                                 onFocus={(e) => {
-                                  e.target.style.borderColor = '#E5A93C';
-                                  e.target.style.boxShadow = '0 0 0 3px rgba(229, 169, 60, 0.2)';
+                                  e.target.style.borderColor = '#C84B31';
+                                  e.target.style.boxShadow = '0 0 0 3px rgba(200, 75, 49, 0.15)';
                                 }}
                                 onBlur={(e) => {
-                                  e.target.style.borderColor = 'rgba(229, 169, 60, 0.25)';
+                                  e.target.style.borderColor = '#DBCDC0';
                                   e.target.style.boxShadow = 'none';
                                 }}
                               />
@@ -3189,7 +3187,7 @@ export default function BillingClient() {
                               <label
                                 htmlFor="unool-card-cvv"
                                 className="unool-vault-font-mono"
-                                style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: '#F5D38A', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 7 }}
+                                style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: '#C84B31', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 7 }}
                               >
                                 CVV / CVC
                               </label>
@@ -3209,21 +3207,21 @@ export default function BillingClient() {
                                   width: '100%',
                                   padding: '14px 14px',
                                   borderRadius: 14,
-                                  border: '1.5px solid rgba(229, 169, 60, 0.25)',
+                                  border: '1.5px solid #DBCDC0',
                                   fontSize: 14,
                                   letterSpacing: '3px',
-                                  color: '#FFFFFF',
-                                  background: 'rgba(10, 6, 9, 0.75)',
+                                  color: '#1C0B09',
+                                  background: '#FAF7F2',
                                   outline: 'none',
                                   boxSizing: 'border-box',
                                   transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
                                 }}
                                 onFocus={(e) => {
-                                  e.target.style.borderColor = '#E5A93C';
-                                  e.target.style.boxShadow = '0 0 0 3px rgba(229, 169, 60, 0.2)';
+                                  e.target.style.borderColor = '#C84B31';
+                                  e.target.style.boxShadow = '0 0 0 3px rgba(200, 75, 49, 0.15)';
                                 }}
                                 onBlur={(e) => {
-                                  e.target.style.borderColor = 'rgba(229, 169, 60, 0.25)';
+                                  e.target.style.borderColor = '#DBCDC0';
                                   e.target.style.boxShadow = 'none';
                                 }}
                               />
@@ -3235,9 +3233,9 @@ export default function BillingClient() {
                               style={{
                                 padding: '12px 16px',
                                 borderRadius: 12,
-                                background: 'rgba(239, 68, 68, 0.14)',
-                                border: '1px solid rgba(239, 68, 68, 0.4)',
-                                color: '#FCA5A5',
+                                background: '#FEF2F2',
+                                border: '1px solid #FECACA',
+                                color: '#DC2626',
                                 fontSize: 13,
                                 fontWeight: 500,
                                 marginBottom: 20,
@@ -3246,7 +3244,7 @@ export default function BillingClient() {
                                 gap: 9,
                               }}
                             >
-                              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
                                 <circle cx="12" cy="12" r="10" />
                                 <line x1="12" y1="8" x2="12" y2="12" />
                                 <line x1="12" y1="16" x2="12.01" y2="16" />
@@ -3300,10 +3298,10 @@ export default function BillingClient() {
                               justifyContent: 'center',
                               gap: 6,
                               fontSize: 11.5,
-                              color: '#A59683',
+                              color: '#7A6863',
                             }}
                           >
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#E5A93C" strokeWidth="2">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#C84B31" strokeWidth="2">
                               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                             </svg>
                             <span>256-bit SSL • RBI Tokenization Compliant • Zero Raw Storage</span>
@@ -3321,14 +3319,14 @@ export default function BillingClient() {
                             style={{
                               fontSize: 22,
                               fontWeight: 900,
-                              color: '#FFFFFF',
+                              color: '#1C0B09',
                               margin: '0 0 6px',
                               letterSpacing: '-0.02em',
                             }}
                           >
                             Select Net Banking Gateway
                           </h3>
-                          <p className="unool-vault-font-body" style={{ fontSize: 13.5, color: '#C7B9A5', margin: 0 }}>
+                          <p className="unool-vault-font-body" style={{ fontSize: 13.5, color: '#5C4A45', margin: 0 }}>
                             Choose your preferred banking institution for instant direct debit authorization through Cashfree.
                           </p>
                         </div>
@@ -3356,9 +3354,9 @@ export default function BillingClient() {
                                 style={{
                                   padding: '16px 12px',
                                   borderRadius: 16,
-                                  border: isSelected ? '2px solid #E5A93C' : '1px solid rgba(229, 169, 60, 0.18)',
-                                  background: isSelected ? 'linear-gradient(135deg, rgba(200, 75, 49, 0.22) 0%, rgba(229, 169, 60, 0.16) 100%)' : 'rgba(12, 6, 10, 0.65)',
-                                  color: isSelected ? '#FFFFFF' : '#E0D4C5',
+                                  border: isSelected ? '2px solid #C84B31' : '1px solid #EADBCC',
+                                  background: isSelected ? '#FFF7F2' : '#FAF7F2',
+                                  color: '#1C0B09',
                                   cursor: 'pointer',
                                   display: 'flex',
                                   flexDirection: 'column',
@@ -3367,7 +3365,7 @@ export default function BillingClient() {
                                   gap: 7,
                                   transition: 'all 0.18s ease',
                                   textAlign: 'center',
-                                  boxShadow: isSelected ? '0 6px 20px rgba(229, 169, 60, 0.25)' : 'none',
+                                  boxShadow: isSelected ? '0 6px 20px rgba(200, 75, 49, 0.15)' : 'none',
                                 }}
                               >
                                 <span
@@ -3375,11 +3373,11 @@ export default function BillingClient() {
                                   style={{
                                     fontSize: 11,
                                     fontWeight: 800,
-                                    color: b.badgeColor === '#004C8F' ? '#60A5FA' : b.badgeColor === '#225894' ? '#93C5FD' : '#FCA5A5',
-                                    background: 'rgba(255, 245, 230, 0.08)',
+                                    color: b.badgeColor === '#004C8F' ? '#1D4ED8' : b.badgeColor === '#225894' ? '#2563EB' : '#B91C1C',
+                                    background: '#FFFFFF',
                                     padding: '3px 9px',
                                     borderRadius: 6,
-                                    border: '1px solid rgba(229, 169, 60, 0.2)',
+                                    border: '1px solid #E5D7C7',
                                   }}
                                 >
                                   {b.short}
@@ -3397,7 +3395,7 @@ export default function BillingClient() {
                           <label
                             htmlFor="unool-bank-select"
                             className="unool-vault-font-mono"
-                            style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: '#F5D38A', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}
+                            style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: '#C84B31', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}
                           >
                             Or Select Other Indian Bank (50+ Supported):
                           </label>
@@ -3418,23 +3416,23 @@ export default function BillingClient() {
                               width: '100%',
                               padding: '14px 14px',
                               borderRadius: 14,
-                              border: '1.5px solid rgba(229, 169, 60, 0.25)',
+                              border: '1.5px solid #DBCDC0',
                               fontSize: 14,
-                              color: '#FFFFFF',
-                              background: '#150A11',
+                              color: '#1C0B09',
+                              background: '#FAF7F2',
                               outline: 'none',
                               boxSizing: 'border-box',
                               cursor: 'pointer',
                             }}
                           >
-                            <optgroup label="Popular Banks" style={{ background: '#150A11', color: '#FFFFFF' }}>
+                            <optgroup label="Popular Banks">
                               {POPULAR_BANKS.map((b) => (
                                 <option key={b.code} value={b.code}>
                                   {b.name}
                                 </option>
                               ))}
                             </optgroup>
-                            <optgroup label="All Other Indian Banks" style={{ background: '#150A11', color: '#FFFFFF' }}>
+                            <optgroup label="All Other Indian Banks">
                               {ALL_OTHER_BANKS.map((b) => (
                                 <option key={b.code} value={b.code}>
                                   {b.name}
@@ -3449,9 +3447,9 @@ export default function BillingClient() {
                             style={{
                               padding: '12px 16px',
                               borderRadius: 12,
-                              background: 'rgba(239, 68, 68, 0.14)',
-                              border: '1px solid rgba(239, 68, 68, 0.4)',
-                              color: '#FCA5A5',
+                              background: '#FEF2F2',
+                              border: '1px solid #FECACA',
+                              color: '#DC2626',
                               fontSize: 13,
                               fontWeight: 500,
                               marginBottom: 20,
@@ -3460,7 +3458,7 @@ export default function BillingClient() {
                               gap: 9,
                             }}
                           >
-                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
                               <circle cx="12" cy="12" r="10" />
                               <line x1="12" y1="8" x2="12" y2="12" />
                               <line x1="12" y1="16" x2="12.01" y2="16" />
@@ -3474,16 +3472,16 @@ export default function BillingClient() {
                             style={{
                               padding: '16px 18px',
                               borderRadius: 14,
-                              background: 'rgba(16, 185, 129, 0.14)',
-                              border: '1px solid rgba(16, 185, 129, 0.35)',
+                              background: '#ECFDF5',
+                              border: '1px solid #A7F3D0',
                               marginBottom: 22,
                               textAlign: 'center',
                             }}
                           >
-                            <div className="unool-vault-font-heading" style={{ fontSize: 14, fontWeight: 800, color: '#34D399', marginBottom: 4 }}>
+                            <div className="unool-vault-font-heading" style={{ fontSize: 14, fontWeight: 800, color: '#065F46', marginBottom: 4 }}>
                               Redirecting to {selectedBankName} Portal
                             </div>
-                            <div className="unool-vault-font-body" style={{ fontSize: 12.5, color: '#A7F3D0' }}>
+                            <div className="unool-vault-font-body" style={{ fontSize: 12.5, color: '#047857' }}>
                               Please complete authorization on your bank portal. Membership updates automatically upon confirmation.
                             </div>
                           </div>
@@ -3503,6 +3501,51 @@ export default function BillingClient() {
                                   width: 18,
                                   height: 18,
                                   border: '2px solid rgba(255, 255, 255, 0.3)',
+                                  borderTopColor: '#FFFFFF',
+                                  borderRadius: '50%',
+                                  animation: 'unoolSpinFast 0.7s linear infinite',
+                                }}
+                              />
+                              <span>Connecting to {selectedBankName}...</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>Proceed with {selectedBankName} Gateway</span>
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="5" y1="12" x2="19" y2="12" />
+                                <polyline points="12 5 19 12 12 19" />
+                              </svg>
+                            </>
+                          )}
+                        </button>
+
+                        <div
+                          className="unool-vault-font-body"
+                          style={{
+                            marginTop: 16,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 6,
+                            fontSize: 11.5,
+                            color: '#7A6863',
+                          }}
+                        >
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#C84B31" strokeWidth="2">
+                            <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                          </svg>
+                          <span>Direct 256-Bit Encrypted Indian Banking Gateway</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </main>
+          </div>
+        );
+      })()}0.3)',
                                   borderTopColor: '#FFFFFF',
                                   borderRadius: '50%',
                                   animation: 'unoolSpinFast 0.7s linear infinite',
