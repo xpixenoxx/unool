@@ -1409,17 +1409,16 @@ export default function BillingClient() {
             id="unool-checkout-vault"
             role="dialog"
             aria-modal="true"
+            className="unool-co-viewport"
             style={{
               position: 'fixed',
               inset: 0,
               zIndex: 10000,
-              background: '#F8FAFC',
+              background: 'radial-gradient(circle at 50% 25%, #F8FAFC 0%, #EDF2F7 100%)',
               color: '#0F172A',
-              overflowY: 'auto',
-              WebkitOverflowScrolling: 'touch',
               display: 'flex',
-              flexDirection: 'column',
-              minHeight: '100vh',
+              alignItems: 'center',
+              justifyContent: 'center',
               fontFamily: "'DM Sans', system-ui, -apple-system, sans-serif",
             }}
           >
@@ -1444,18 +1443,131 @@ export default function BillingClient() {
                 50% { transform: scale(1.25); opacity: 0.6; }
               }
 
+              /* Desktop Lock: Zero Scrolling & Centered Designer Stage */
+              @media (min-width: 900px) {
+                .unool-co-viewport {
+                  height: 100vh !important;
+                  max-height: 100vh !important;
+                  overflow: hidden !important;
+                }
+                .unool-co-stage {
+                  width: 100% !important;
+                  max-width: 920px !important;
+                  height: 100vh !important;
+                  max-height: 100vh !important;
+                  overflow: hidden !important;
+                  display: flex !important;
+                  flex-direction: column !important;
+                  align-items: center !important;
+                  justify-content: center !important;
+                  padding: 14px 20px !important;
+                  box-sizing: border-box !important;
+                }
+                .unool-co-header-bar {
+                  width: 100% !important;
+                  max-width: 920px !important;
+                  display: flex !important;
+                  align-items: center !important;
+                  justify-content: space-between !important;
+                  margin-bottom: 10px !important;
+                  flex-shrink: 0 !important;
+                }
+                .unool-co-monolith {
+                  display: grid !important;
+                  grid-template-columns: 340px 1fr !important;
+                  width: 100% !important;
+                  max-width: 920px !important;
+                  height: min(520px, calc(100vh - 84px)) !important;
+                  max-height: 520px !important;
+                  border-radius: 20px !important;
+                  border: 1px solid rgba(203, 213, 225, 0.9) !important;
+                  background: #FFFFFF !important;
+                  box-shadow: 0 20px 48px -12px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.04) !important;
+                  overflow: hidden !important;
+                  flex-shrink: 0 !important;
+                }
+                .unool-co-left-pane {
+                  background: #F8FAFC !important;
+                  border-right: 1px solid #E2E8F0 !important;
+                  padding: 22px 24px !important;
+                  display: flex !important;
+                  flex-direction: column !important;
+                  justify-content: space-between !important;
+                  overflow: hidden !important;
+                }
+                .unool-co-right-pane {
+                  background: #FFFFFF !important;
+                  padding: 20px 26px 14px !important;
+                  display: flex !important;
+                  flex-direction: column !important;
+                  justify-content: space-between !important;
+                  overflow-y: auto !important;
+                }
+              }
+
+              /* Mobile & Small Screens */
+              @media (max-width: 899px) {
+                .unool-co-viewport {
+                  height: 100vh !important;
+                  overflow-y: auto !important;
+                  -webkit-overflow-scrolling: touch !important;
+                  display: block !important;
+                }
+                .unool-co-stage {
+                  padding: 14px 14px 40px !important;
+                  width: 100% !important;
+                  box-sizing: border-box !important;
+                }
+                .unool-co-header-bar {
+                  width: 100% !important;
+                  display: flex !important;
+                  align-items: center !important;
+                  justify-content: space-between !important;
+                  margin-bottom: 12px !important;
+                }
+                .unool-co-monolith {
+                  display: flex !important;
+                  flex-direction: column !important;
+                  width: 100% !important;
+                  border-radius: 16px !important;
+                  border: 1px solid #E2E8F0 !important;
+                  background: #FFFFFF !important;
+                  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06) !important;
+                }
+                .unool-co-left-pane {
+                  background: #F8FAFC !important;
+                  border-bottom: 1px solid #E2E8F0 !important;
+                  padding: 20px 18px !important;
+                  display: flex !important;
+                  flex-direction: column !important;
+                  gap: 16px !important;
+                }
+                .unool-co-right-pane {
+                  background: #FFFFFF !important;
+                  padding: 20px 18px !important;
+                  display: flex !important;
+                  flex-direction: column !important;
+                  gap: 18px !important;
+                }
+                .unool-co-tab-grid {
+                  grid-template-columns: repeat(2, 1fr) !important;
+                }
+              }
+
               .unool-co-tab-btn {
-                padding: 10px 14px;
-                border-radius: 10px;
-                font-size: 13.5px;
-                font-weight: 600;
+                padding: 7px 10px;
+                border-radius: 8px;
+                font-size: 12.5px;
+                font-weight: 700;
                 display: flex;
                 align-items: center;
-                justifyContent: center;
-                gap: 7px;
+                justify-content: center;
+                gap: 6px;
                 cursor: pointer;
-                transition: all 0.16s ease;
+                transition: all 0.15s ease;
                 border: 1px solid transparent;
+                background: transparent;
+                color: #475569;
               }
               .unool-co-tab-btn:hover:not(.active) {
                 background: #E2E8F0;
@@ -1464,216 +1576,170 @@ export default function BillingClient() {
               .unool-co-tab-btn.active {
                 background: #0F172A;
                 color: #FFFFFF;
-                box-shadow: 0 2px 8px rgba(15, 23, 42, 0.18);
+                box-shadow: 0 2px 6px rgba(15, 23, 42, 0.16);
               }
 
               .unool-co-pay-btn {
                 width: 100%;
-                height: 50px;
-                border-radius: 12px;
+                height: 44px;
+                border-radius: 10px;
                 background: #0F172A;
                 color: #FFFFFF;
-                font-size: 15.5px;
+                font-size: 14px;
                 font-weight: 700;
                 letter-spacing: -0.01em;
                 border: none;
                 cursor: pointer;
                 display: flex;
                 align-items: center;
-                justifyContent: center;
+                justify-content: center;
                 gap: 8px;
-                box-shadow: 0 4px 14px rgba(15, 23, 42, 0.18);
-                transition: all 0.16s ease;
+                box-shadow: 0 3px 12px rgba(15, 23, 42, 0.16);
+                transition: all 0.15s ease;
               }
               .unool-co-pay-btn:hover:not(:disabled) {
                 background: #1E293B;
                 transform: translateY(-1px);
-                box-shadow: 0 6px 20px rgba(15, 23, 42, 0.25);
+                box-shadow: 0 5px 16px rgba(15, 23, 42, 0.22);
               }
               .unool-co-pay-btn:disabled {
                 opacity: 0.55;
                 cursor: not-allowed;
                 transform: none;
               }
-
-              .unool-co-layout {
-                display: grid;
-                grid-template-columns: minmax(320px, 390px) 1fr;
-                gap: 36px;
-                width: 100%;
-                max-width: 1060px;
-                margin: 0 auto;
-                align-items: start;
-              }
-
-              @media (max-width: 860px) {
-                .unool-co-layout {
-                  grid-template-columns: 1fr;
-                  gap: 24px;
-                }
-                .unool-co-tab-grid {
-                  grid-template-columns: repeat(2, 1fr) !important;
-                }
-              }
             `}</style>
 
-            {/* ── Top Header Navigation ─────────────────────────────────── */}
-            <header
-              style={{
-                position: 'sticky',
-                top: 0,
-                zIndex: 50,
-                height: 64,
-                padding: '0 24px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                background: '#FFFFFF',
-                borderBottom: '1px solid #E2E8F0',
-                flexShrink: 0,
-              }}
-            >
-              {/* Return to plans */}
-              <button
-                type="button"
-                onClick={closeAndCleanCashfree}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '8px 14px',
-                  borderRadius: 10,
-                  background: '#F8FAFC',
-                  border: '1px solid #E2E8F0',
-                  color: '#334155',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLElement).style.background = '#F1F5F9';
-                  (e.currentTarget as HTMLElement).style.color = '#0F172A';
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLElement).style.background = '#F8FAFC';
-                  (e.currentTarget as HTMLElement).style.color = '#334155';
-                }}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M19 12H5M12 19l-7-7 7-7" />
-                </svg>
-                <span>Return to Plans</span>
-              </button>
+            {/* ── Precision Centered Stage ───────────────────────────────── */}
+            <main className="unool-co-stage">
 
-              {/* Logo & Security Lockup */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span
-                  className="unool-co-heading"
-                  style={{
-                    fontSize: 22,
-                    fontWeight: 900,
-                    color: '#0F172A',
-                    letterSpacing: '-0.04em',
-                  }}
-                >
-                  unool
-                </span>
-                <span
+              {/* ── Grid-Aligned Stage Header (Same Width as Monolith) ─────── */}
+              <div className="unool-co-header-bar">
+                {/* Return to plans */}
+                <button
+                  type="button"
+                  onClick={closeAndCleanCashfree}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: 6,
-                    padding: '3px 10px',
-                    borderRadius: 20,
-                    background: '#ECFDF5',
-                    border: '1px solid #A7F3D0',
-                    fontSize: 11.5,
-                    fontWeight: 700,
-                    color: '#047857',
+                    padding: '6px 12px',
+                    borderRadius: 8,
+                    background: '#FFFFFF',
+                    border: '1px solid #CBD5E1',
+                    color: '#334155',
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLElement).style.background = '#F8FAFC';
+                    (e.currentTarget as HTMLElement).style.color = '#0F172A';
+                    (e.currentTarget as HTMLElement).style.borderColor = '#94A3B8';
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLElement).style.background = '#FFFFFF';
+                    (e.currentTarget as HTMLElement).style.color = '#334155';
+                    (e.currentTarget as HTMLElement).style.borderColor = '#CBD5E1';
                   }}
                 >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M19 12H5M12 19l-7-7 7-7" />
+                  </svg>
+                  <span>Return to Plans</span>
+                </button>
+
+                {/* Centered Brand & Security Lockup */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span
+                    className="unool-co-heading"
+                    style={{
+                      fontSize: 21,
+                      fontWeight: 900,
+                      color: '#0F172A',
+                      letterSpacing: '-0.04em',
+                    }}
+                  >
+                    unool
+                  </span>
                   <span
                     style={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: '50%',
-                      background: '#10B981',
-                      animation: 'unoolPulse 2s infinite',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 5,
+                      padding: '2.5px 8px',
+                      borderRadius: 20,
+                      background: '#ECFDF5',
+                      border: '1px solid #A7F3D0',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: '#047857',
                     }}
-                  />
-                  Secure Checkout
-                </span>
-              </div>
+                  >
+                    <span
+                      style={{
+                        width: 5,
+                        height: 5,
+                        borderRadius: '50%',
+                        background: '#10B981',
+                        animation: 'unoolPulse 2s infinite',
+                      }}
+                    />
+                    Secure Checkout
+                  </span>
+                </div>
 
-              {/* Close Button */}
-              <button
-                type="button"
-                onClick={closeAndCleanCashfree}
-                title="Close checkout (Esc)"
-                aria-label="Close"
-                style={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: 10,
-                  border: '1px solid #E2E8F0',
-                  background: '#F8FAFC',
-                  color: '#64748B',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'all 0.15s ease',
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLElement).style.background = '#FEE2E2';
-                  (e.currentTarget as HTMLElement).style.borderColor = '#FECACA';
-                  (e.currentTarget as HTMLElement).style.color = '#DC2626';
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLElement).style.background = '#F8FAFC';
-                  (e.currentTarget as HTMLElement).style.borderColor = '#E2E8F0';
-                  (e.currentTarget as HTMLElement).style.color = '#64748B';
-                }}
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </header>
-
-            {/* ── Main Stage ────────────────────────────────────────────── */}
-            <main
-              style={{
-                flex: '1 1 auto',
-                padding: '36px 20px 64px',
-                display: 'flex',
-                alignItems: 'flex-start',
-                justifyContent: 'center',
-              }}
-            >
-              <div className="unool-co-layout">
-                {/* ── LEFT COLUMN: Order Summary ─────────────────────────── */}
-                <div
+                {/* Close Button */}
+                <button
+                  type="button"
+                  onClick={closeAndCleanCashfree}
+                  title="Close checkout (Esc)"
+                  aria-label="Close"
                   style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 8,
+                    border: '1px solid #CBD5E1',
                     background: '#FFFFFF',
-                    borderRadius: 20,
-                    border: '1px solid #E2E8F0',
-                    padding: '30px 26px',
-                    boxShadow: '0 4px 20px -2px rgba(15, 23, 42, 0.04)',
+                    color: '#64748B',
+                    cursor: 'pointer',
                     display: 'flex',
-                    flexDirection: 'column',
-                    gap: 22,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLElement).style.background = '#FEE2E2';
+                    (e.currentTarget as HTMLElement).style.borderColor = '#FECACA';
+                    (e.currentTarget as HTMLElement).style.color = '#DC2626';
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLElement).style.background = '#FFFFFF';
+                    (e.currentTarget as HTMLElement).style.borderColor = '#CBD5E1';
+                    (e.currentTarget as HTMLElement).style.color = '#64748B';
                   }}
                 >
-                  {/* Plan Header */}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* ── Monolithic Studio Card ─────────────────────────────────── */}
+              <div className="unool-co-monolith">
+
+                {/* ── LEFT PANE: Order & Membership Overview ──────────────── */}
+                <div className="unool-co-left-pane">
+                  {/* Top: Plan & Price Hero */}
                   <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                       <span
                         style={{
-                          fontSize: 11,
-                          fontWeight: 700,
+                          fontSize: 10.5,
+                          fontWeight: 800,
                           textTransform: 'uppercase',
                           letterSpacing: '0.06em',
                           color: '#1D4ED8',
@@ -1687,7 +1753,7 @@ export default function BillingClient() {
                       </span>
                       <span
                         style={{
-                          fontSize: 11,
+                          fontSize: 10.5,
                           fontWeight: 700,
                           color: activeCheckout.billingCycle === 'annual' ? '#047857' : '#475569',
                           background: activeCheckout.billingCycle === 'annual' ? '#ECFDF5' : '#F1F5F9',
@@ -1696,94 +1762,63 @@ export default function BillingClient() {
                           border: activeCheckout.billingCycle === 'annual' ? '1px solid #A7F3D0' : '1px solid #E2E8F0',
                         }}
                       >
-                        {activeCheckout.billingCycle === 'annual' ? 'Annual (20% Off)' : 'Monthly Plan'}
+                        {activeCheckout.billingCycle === 'annual' ? 'Annual (20% Off)' : 'Monthly Pass'}
                       </span>
                     </div>
 
                     <h2
                       className="unool-co-heading"
                       style={{
-                        fontSize: 26,
+                        fontSize: 21,
                         fontWeight: 900,
                         color: '#0F172A',
-                        margin: '0 0 6px',
+                        margin: '0 0 3px',
                         letterSpacing: '-0.03em',
                       }}
                     >
                       Upgrade to {activeCheckout.planName}
                     </h2>
-                    <p style={{ fontSize: 13.5, color: '#64748B', margin: 0, lineHeight: 1.45 }}>
+                    <p style={{ fontSize: 12, color: '#64748B', margin: 0, lineHeight: 1.35 }}>
                       {selectedPlan?.tagline || 'Professional brand, zero third-party branding.'}
                     </p>
-                  </div>
 
-                  {/* Clean Financial Ledger */}
-                  <div
-                    style={{
-                      background: '#F8FAFC',
-                      borderRadius: 14,
-                      border: '1px solid #E2E8F0',
-                      padding: '16px 18px',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
-                      <span style={{ fontSize: 13, color: '#64748B', fontWeight: 500 }}>
-                        Subscription Fee
-                      </span>
-                      <span className="unool-co-heading" style={{ fontSize: 24, fontWeight: 900, color: '#0F172A' }}>
-                        {activeCheckout.priceDisplay}
-                        <span style={{ fontSize: 13, fontWeight: 500, color: '#64748B', marginLeft: 3 }}>
-                          {activeCheckout.billingCycle === 'annual' ? '/yr' : '/mo'}
-                        </span>
-                      </span>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12.5, color: '#64748B', marginBottom: 8 }}>
-                      <span>Gateway &amp; Processing Fees</span>
-                      <span style={{ color: '#059669', fontWeight: 700 }}>Included (₹0)</span>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12.5, color: '#64748B', marginBottom: 12 }}>
-                      <span>Taxes &amp; GST</span>
-                      <span style={{ color: '#059669', fontWeight: 700 }}>All-inclusive</span>
-                    </div>
-
-                    <div style={{ height: 1, background: '#E2E8F0', margin: '10px 0 12px' }} />
-
-                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: '#0F172A' }}>
-                        Total Due Today
-                      </span>
-                      <span className="unool-co-heading" style={{ fontSize: 24, fontWeight: 900, color: '#0F172A' }}>
+                    {/* Compact Price Hero */}
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, margin: '12px 0 2px' }}>
+                      <span className="unool-co-heading" style={{ fontSize: 32, fontWeight: 900, color: '#0F172A', letterSpacing: '-0.04em' }}>
                         {activeCheckout.priceDisplay}
                       </span>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: '#64748B' }}>
+                        {activeCheckout.billingCycle === 'annual' ? '/ year' : '/ month'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 11, color: '#059669', fontWeight: 700 }}>
+                      Includes taxes &amp; gateway fees • Zero hidden charges
                     </div>
                   </div>
 
-                  {/* Unlocked Privileges */}
-                  <div>
+                  {/* Middle: 4 Key Privileges */}
+                  <div style={{ margin: '10px 0' }}>
                     <div
                       style={{
-                        fontSize: 11,
-                        fontWeight: 700,
+                        fontSize: 10.5,
+                        fontWeight: 800,
                         textTransform: 'uppercase',
                         letterSpacing: '0.06em',
                         color: '#64748B',
-                        marginBottom: 10,
+                        marginBottom: 7,
                       }}
                     >
-                      What you're unlocking:
+                      Privileges Unlocked:
                     </div>
-                    <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 9 }}>
+                    <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
                       {[
-                        'Unlimited AI adaptations across LinkedIn, X, Threads, IG',
-                        'Autonomous smart multi-platform schedule & publishing',
+                        'Unlimited AI Adapters (LinkedIn, X, Threads, IG)',
+                        'Autonomous smart multi-platform schedule sync',
                         'SignalDM smart high-intent lead conversion concierge',
                         'Full 4K Ultra-HD media studio & brand asset kits',
-                        'Priority 24/7 dedicated creator SLA support',
                       ].map((item, idx) => (
-                        <li key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 9, fontSize: 12.5, color: '#334155', lineHeight: 1.35 }}>
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 2 }}>
+                        <li key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 7, fontSize: 11.8, color: '#334155', lineHeight: 1.35 }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}>
                             <polyline points="20 6 9 17 4 12" />
                           </svg>
                           <span>{item}</span>
@@ -1792,60 +1827,46 @@ export default function BillingClient() {
                     </ul>
                   </div>
 
-                  {/* 100% Flexible Subscription Assurance */}
+                  {/* Bottom: 100% Flexible Subscription Reassurance */}
                   <div
                     style={{
                       background: '#F0FDF4',
                       border: '1px solid #DCFCE7',
-                      borderRadius: 12,
-                      padding: '13px 15px',
+                      borderRadius: 10,
+                      padding: '8px 11px',
                       display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: 10,
+                      alignItems: 'center',
+                      gap: 8,
                     }}
                   >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
                       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                     </svg>
                     <div>
-                      <div style={{ fontSize: 12.5, fontWeight: 700, color: '#166534', marginBottom: 2 }}>
+                      <div style={{ fontSize: 11.5, fontWeight: 700, color: '#166534', lineHeight: 1.2 }}>
                         100% Flexible Subscription
                       </div>
-                      <div style={{ fontSize: 11.5, color: '#15803D', lineHeight: 1.4 }}>
-                        Cancel anytime with a single click inside your billing settings. Zero lock-in, zero hidden cancellation fees.
+                      <div style={{ fontSize: 10.5, color: '#15803D', lineHeight: 1.2, marginTop: 1 }}>
+                        Cancel anytime with 1 click in billing settings. Zero lock-in.
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* ── RIGHT COLUMN: Payment Console ───────────────────────── */}
-                <div
-                  style={{
-                    background: '#FFFFFF',
-                    borderRadius: 20,
-                    border: '1px solid #E2E8F0',
-                    padding: '30px 28px',
-                    boxShadow: '0 4px 20px -2px rgba(15, 23, 42, 0.04)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    minWidth: 0,
-                  }}
-                >
-                  <div style={{ marginBottom: 16 }}>
-                    <div style={{ fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748B', marginBottom: 10 }}>
-                      Select Payment Method
-                    </div>
-
+                {/* ── RIGHT PANE: Precision Payment Console ────────────────── */}
+                <div className="unool-co-right-pane">
+                  <div>
                     {/* Horizontal High-Clarity Segmented Tabs */}
                     <div
                       className="unool-co-tab-grid"
                       style={{
                         display: 'grid',
                         gridTemplateColumns: 'repeat(4, 1fr)',
-                        gap: 6,
+                        gap: 4,
                         background: '#F1F5F9',
-                        padding: 5,
-                        borderRadius: 12,
+                        padding: 3,
+                        borderRadius: 10,
+                        marginBottom: 14,
                       }}
                     >
                       {/* Tab 1: UPI ID */}
@@ -1855,7 +1876,7 @@ export default function BillingClient() {
                         onClick={() => setCheckoutTab('upi')}
                         className={`unool-co-tab-btn ${checkoutTab === 'upi' ? 'active' : ''}`}
                       >
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                           <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
                         </svg>
                         <span>UPI ID</span>
@@ -1873,7 +1894,7 @@ export default function BillingClient() {
                         }}
                         className={`unool-co-tab-btn ${checkoutTab === 'qr' ? 'active' : ''}`}
                       >
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                           <rect width="6" height="6" x="3" y="3" rx="1.5" />
                           <rect width="6" height="6" x="15" y="3" rx="1.5" />
                           <rect width="6" height="6" x="3" y="15" rx="1.5" />
@@ -1890,7 +1911,7 @@ export default function BillingClient() {
                         onClick={() => setCheckoutTab('cards')}
                         className={`unool-co-tab-btn ${checkoutTab === 'cards' ? 'active' : ''}`}
                       >
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                           <rect width="20" height="14" x="2" y="5" rx="3" />
                           <line x1="2" x2="22" y1="10" y2="10" />
                         </svg>
@@ -1904,7 +1925,7 @@ export default function BillingClient() {
                         onClick={() => setCheckoutTab('netbanking')}
                         className={`unool-co-tab-btn ${checkoutTab === 'netbanking' ? 'active' : ''}`}
                       >
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                           <line x1="3" x2="21" y1="22" y2="22" />
                           <line x1="6" x2="6" y1="18" y2="11" />
                           <line x1="10" x2="10" y1="18" y2="11" />
@@ -1915,912 +1936,910 @@ export default function BillingClient() {
                         <span>Net Banking</span>
                       </button>
                     </div>
-                  </div>
 
-                  <div style={{ height: 1, background: '#F1F5F9', margin: '6px 0 20px' }} />
+                    {/* ── TAB 1: UPI ID / VPA ───────────────────────────────── */}
+                    {checkoutTab === 'upi' && (
+                      <div>
+                        {!upiSent ? (
+                          <div>
+                            <div style={{ marginBottom: 10 }}>
+                              <h3 className="unool-co-heading" style={{ fontSize: 16, fontWeight: 800, color: '#0F172A', margin: '0 0 2px' }}>
+                                Pay via UPI ID
+                              </h3>
+                              <p style={{ fontSize: 12, color: '#64748B', margin: 0, lineHeight: 1.4 }}>
+                                Instant collect request transmitted directly to Google Pay, PhonePe, Paytm, or BHIM.
+                              </p>
+                            </div>
 
-                  {/* ── TAB 1: UPI ID / VPA ─────────────────────────────────── */}
-                  {checkoutTab === 'upi' && (
-                    <div>
-                      {!upiSent ? (
-                        <div>
-                          <div style={{ marginBottom: 18 }}>
-                            <h3 className="unool-co-heading" style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', margin: '0 0 4px' }}>
-                              Pay via UPI ID
-                            </h3>
-                            <p style={{ fontSize: 13, color: '#64748B', margin: 0, lineHeight: 1.45 }}>
-                              Enter your Virtual Payment Address (VPA) to receive an instant payment collect request on Google Pay, PhonePe, Paytm, or BHIM.
-                            </p>
-                          </div>
-
-                          {/* UPI ID Input */}
-                          <div style={{ marginBottom: 18 }}>
-                            <label
-                              htmlFor="upi-id-input"
-                              style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}
-                            >
-                              UPI ID / VPA
-                            </label>
-                            <div style={{ position: 'relative' }}>
-                              <span
-                                style={{
-                                  position: 'absolute',
-                                  left: 14,
-                                  top: '50%',
-                                  transform: 'translateY(-50%)',
-                                  color: '#64748B',
-                                  fontWeight: 700,
-                                  fontSize: 16,
-                                }}
+                            {/* UPI ID Input */}
+                            <div style={{ marginBottom: 12 }}>
+                              <label
+                                htmlFor="upi-id-input"
+                                style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: '#334155', marginBottom: 5 }}
                               >
-                                @
-                              </span>
-                              <input
-                                type="text"
-                                id="upi-id-input"
-                                value={upiIdInput}
-                                onChange={(e) => {
-                                  setUpiIdInput(e.target.value);
-                                  setUpiError(null);
-                                }}
-                                placeholder="e.g. yourname@okhdfcbank or 9876543210@upi"
-                                className="unool-co-mono"
-                                style={{
-                                  width: '100%',
-                                  padding: '13px 14px 13px 38px',
-                                  borderRadius: 10,
-                                  border: upiError ? '1.5px solid #EF4444' : '1.5px solid #CBD5E1',
-                                  fontSize: 14.5,
-                                  color: '#0F172A',
-                                  background: '#FFFFFF',
-                                  outline: 'none',
-                                  boxSizing: 'border-box',
-                                  transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
-                                }}
-                                onFocus={(e) => {
-                                  if (!upiError) {
-                                    e.target.style.borderColor = '#0F172A';
-                                    e.target.style.boxShadow = '0 0 0 3px rgba(15, 23, 42, 0.08)';
-                                  }
-                                }}
-                                onBlur={(e) => {
-                                  if (!upiError) {
-                                    e.target.style.borderColor = '#CBD5E1';
-                                    e.target.style.boxShadow = 'none';
-                                  }
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    handlePayWithUpi();
-                                  }
-                                }}
-                                autoFocus
-                              />
-                            </div>
-                          </div>
-
-                          {/* Popular UPI Handles */}
-                          <div style={{ marginBottom: 22 }}>
-                            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#64748B', marginBottom: 8 }}>
-                              Popular UPI Handles (click to append):
-                            </div>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                              {['@okhdfcbank', '@okaxis', '@oksbi', '@okicici', '@ybl', '@paytm', '@ibl', '@apl'].map((handle) => (
-                                <button
-                                  key={handle}
-                                  type="button"
-                                  onClick={() => handleAppendUpiChip(handle)}
-                                  className="unool-co-mono"
+                                UPI ID / VPA
+                              </label>
+                              <div style={{ position: 'relative' }}>
+                                <span
                                   style={{
-                                    padding: '5px 10px',
-                                    borderRadius: 8,
-                                    border: '1px solid #E2E8F0',
-                                    background: '#F8FAFC',
-                                    color: '#334155',
-                                    fontSize: 12,
-                                    fontWeight: 600,
-                                    cursor: 'pointer',
-                                    transition: 'all 0.15s ease',
-                                  }}
-                                  onMouseEnter={(e) => {
-                                    (e.currentTarget as HTMLElement).style.background = '#E2E8F0';
-                                    (e.currentTarget as HTMLElement).style.color = '#0F172A';
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    (e.currentTarget as HTMLElement).style.background = '#F8FAFC';
-                                    (e.currentTarget as HTMLElement).style.color = '#334155';
+                                    position: 'absolute',
+                                    left: 12,
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    color: '#64748B',
+                                    fontWeight: 700,
+                                    fontSize: 14,
                                   }}
                                 >
-                                  {handle}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          {upiError && (
-                            <div
-                              style={{
-                                padding: '11px 14px',
-                                borderRadius: 10,
-                                background: '#FEF2F2',
-                                border: '1px solid #FECACA',
-                                color: '#DC2626',
-                                fontSize: 13,
-                                fontWeight: 500,
-                                marginBottom: 18,
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 8,
-                              }}
-                            >
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                                <circle cx="12" cy="12" r="10" />
-                                <line x1="12" y1="8" x2="12" y2="12" />
-                                <line x1="12" y1="16" x2="12.01" y2="16" />
-                              </svg>
-                              <span>{upiError}</span>
-                            </div>
-                          )}
-
-                          {/* Primary Authorize Button */}
-                          <button
-                            type="button"
-                            id="submit-upi-pay-btn"
-                            onClick={handlePayWithUpi}
-                            disabled={upiSubmitting || !upiIdInput.trim()}
-                            className="unool-co-pay-btn unool-co-heading"
-                          >
-                            {upiSubmitting ? (
-                              <>
-                                <div
-                                  style={{
-                                    width: 17,
-                                    height: 17,
-                                    border: '2px solid rgba(255, 255, 255, 0.3)',
-                                    borderTopColor: '#FFFFFF',
-                                    borderRadius: '50%',
-                                    animation: 'unoolSpin 0.7s linear infinite',
+                                  @
+                                </span>
+                                <input
+                                  type="text"
+                                  id="upi-id-input"
+                                  value={upiIdInput}
+                                  onChange={(e) => {
+                                    setUpiIdInput(e.target.value);
+                                    setUpiError(null);
                                   }}
+                                  placeholder="e.g. yourname@okhdfcbank or 9876543210@upi"
+                                  className="unool-co-mono"
+                                  style={{
+                                    width: '100%',
+                                    padding: '9px 12px 9px 32px',
+                                    borderRadius: 9,
+                                    border: upiError ? '1.5px solid #EF4444' : '1.5px solid #CBD5E1',
+                                    fontSize: 13,
+                                    color: '#0F172A',
+                                    background: '#FFFFFF',
+                                    outline: 'none',
+                                    boxSizing: 'border-box',
+                                    transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
+                                  }}
+                                  onFocus={(e) => {
+                                    if (!upiError) {
+                                      e.target.style.borderColor = '#0F172A';
+                                      e.target.style.boxShadow = '0 0 0 3px rgba(15, 23, 42, 0.08)';
+                                    }
+                                  }}
+                                  onBlur={(e) => {
+                                    if (!upiError) {
+                                      e.target.style.borderColor = '#CBD5E1';
+                                      e.target.style.boxShadow = 'none';
+                                    }
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault();
+                                      handlePayWithUpi();
+                                    }
+                                  }}
+                                  autoFocus
                                 />
-                                <span>Sending Collect Request...</span>
-                              </>
-                            ) : (
-                              <>
-                                <span>Authorize {activeCheckout.priceDisplay} via UPI</span>
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                                  <line x1="5" y1="12" x2="19" y2="12" />
-                                  <polyline points="12 5 19 12 12 19" />
-                                </svg>
-                              </>
-                            )}
-                          </button>
-                        </div>
-                      ) : (
-                        /* Dispatched State */
-                        <div style={{ textAlign: 'center', padding: '16px 8px' }}>
-                          <div
-                            style={{
-                              width: 58,
-                              height: 58,
-                              borderRadius: '50%',
-                              background: '#ECFDF5',
-                              border: '2px solid #10B981',
-                              margin: '0 auto 16px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              color: '#059669',
-                            }}
-                          >
-                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                              <rect width="14" height="20" x="5" y="2" rx="2" ry="2" />
-                              <path d="M12 18h.01" />
-                            </svg>
-                          </div>
-
-                          <h4 className="unool-co-heading" style={{ fontSize: 19, fontWeight: 900, color: '#0F172A', margin: '0 0 6px' }}>
-                            Collect Request Sent
-                          </h4>
-                          <p style={{ fontSize: 13.5, color: '#475569', margin: '0 0 20px', lineHeight: 1.5 }}>
-                            A payment collect notification of <strong>{activeCheckout.priceDisplay}</strong> has been transmitted to{' '}
-                            <strong className="unool-co-mono" style={{ color: '#0F172A' }}>
-                              {upiIdInput.trim().toLowerCase()}
-                            </strong>.
-                          </p>
-
-                          <div
-                            style={{
-                              background: '#F8FAFC',
-                              border: '1px solid #E2E8F0',
-                              borderRadius: 12,
-                              padding: '16px 18px',
-                              textAlign: 'left',
-                              fontSize: 13,
-                              color: '#334155',
-                              lineHeight: 1.6,
-                              marginBottom: 20,
-                            }}
-                          >
-                            <div style={{ fontWeight: 700, color: '#0F172A', marginBottom: 8 }}>
-                              How to complete:
+                              </div>
                             </div>
-                            <ol style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                              <li>Open your UPI app (Google Pay, PhonePe, Paytm, or BHIM).</li>
-                              <li>Approve the incoming payment request from Cashfree / Unool.</li>
-                              <li>Enter your UPI PIN to finalize your membership.</li>
-                            </ol>
-                          </div>
 
-                          <div
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: 8,
-                              fontSize: 12.5,
-                              color: '#047857',
-                              fontWeight: 700,
-                              background: '#ECFDF5',
-                              border: '1px solid #A7F3D0',
-                              borderRadius: 10,
-                              padding: '10px 14px',
-                              marginBottom: 16,
-                            }}
-                          >
-                            <span
-                              style={{
-                                width: 7,
-                                height: 7,
-                                borderRadius: '50%',
-                                background: '#10B981',
-                                animation: 'unoolPulse 1.5s infinite',
-                              }}
-                            />
-                            <span>Waiting for approval on your mobile device...</span>
-                          </div>
+                            {/* Popular UPI Handles */}
+                            <div style={{ marginBottom: 14 }}>
+                              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#64748B', marginBottom: 5 }}>
+                                Popular Bank Handles (Click to append):
+                              </div>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                                {['@okhdfcbank', '@okaxis', '@oksbi', '@okicici', '@ybl', '@paytm', '@ibl', '@apl'].map((handle) => (
+                                  <button
+                                    key={handle}
+                                    type="button"
+                                    onClick={() => handleAppendUpiChip(handle)}
+                                    className="unool-co-mono"
+                                    style={{
+                                      padding: '2.5px 7px',
+                                      borderRadius: 6,
+                                      border: '1px solid #E2E8F0',
+                                      background: '#F8FAFC',
+                                      color: '#334155',
+                                      fontSize: 10.5,
+                                      fontWeight: 600,
+                                      cursor: 'pointer',
+                                      transition: 'all 0.15s ease',
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      (e.currentTarget as HTMLElement).style.background = '#E2E8F0';
+                                      (e.currentTarget as HTMLElement).style.color = '#0F172A';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      (e.currentTarget as HTMLElement).style.background = '#F8FAFC';
+                                      (e.currentTarget as HTMLElement).style.color = '#334155';
+                                    }}
+                                  >
+                                    {handle}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
 
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setUpiSent(false);
-                              setUpiSubmitting(false);
-                            }}
-                            style={{
-                              background: 'transparent',
-                              border: 'none',
-                              color: '#64748B',
-                              fontSize: 12.5,
-                              textDecoration: 'underline',
-                              cursor: 'pointer',
-                              padding: 4,
-                            }}
-                          >
-                            Need to modify UPI ID or retry?
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                            {upiError && (
+                              <div
+                                style={{
+                                  padding: '7px 10px',
+                                  borderRadius: 8,
+                                  background: '#FEF2F2',
+                                  border: '1px solid #FECACA',
+                                  color: '#DC2626',
+                                  fontSize: 11.5,
+                                  fontWeight: 500,
+                                  marginBottom: 10,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 6,
+                                }}
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                                  <circle cx="12" cy="12" r="10" />
+                                  <line x1="12" y1="8" x2="12" y2="12" />
+                                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                                </svg>
+                                <span>{upiError}</span>
+                              </div>
+                            )}
 
-                  {/* ── TAB 2: SCAN QR CODE ─────────────────────────────────── */}
-                  {checkoutTab === 'qr' && (
-                    <div style={{ textAlign: 'center', padding: '10px 4px' }}>
-                      <div style={{ marginBottom: 18 }}>
-                        <h3 className="unool-co-heading" style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', margin: '0 0 4px' }}>
-                          Scan to Pay via Any UPI App
-                        </h3>
-                        <p style={{ fontSize: 13, color: '#64748B', margin: 0 }}>
-                          Point your phone camera or any UPI app scanner at the code below to pay {activeCheckout.priceDisplay}.
-                        </p>
-                      </div>
-
-                      {/* QR Viewfinder */}
-                      <div
-                        style={{
-                          width: 230,
-                          height: 230,
-                          margin: '0 auto 18px',
-                          background: '#FFFFFF',
-                          borderRadius: 16,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          border: '2px solid #E2E8F0',
-                          boxShadow: '0 4px 16px -2px rgba(15, 23, 42, 0.06)',
-                          position: 'relative',
-                          padding: 12,
-                          boxSizing: 'border-box',
-                        }}
-                      >
-                        {qrLoading ? (
-                          <div style={{ textAlign: 'center' }}>
-                            <div
-                              style={{
-                                width: 32,
-                                height: 32,
-                                border: '3px solid #E2E8F0',
-                                borderTopColor: '#0F172A',
-                                borderRadius: '50%',
-                                animation: 'unoolSpin 0.8s linear infinite',
-                                margin: '0 auto 10px',
-                              }}
-                            />
-                            <span style={{ fontSize: 12.5, color: '#64748B', fontWeight: 600 }}>
-                              Generating QR...
-                            </span>
-                          </div>
-                        ) : qrImageUrl || qrString ? (
-                          <img
-                            src={
-                              qrImageUrl ||
-                              `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=4&data=${encodeURIComponent(
-                                qrString || ''
-                              )}`
-                            }
-                            alt="Dynamic UPI QR Code"
-                            style={{
-                              width: 200,
-                              height: 200,
-                              borderRadius: 8,
-                              objectFit: 'contain',
-                            }}
-                          />
-                        ) : (
-                          <div style={{ textAlign: 'center', padding: 10 }}>
+                            {/* Primary Authorize Button */}
                             <button
                               type="button"
-                              onClick={() => handleGenerateQr(activeCheckout)}
+                              id="submit-upi-pay-btn"
+                              onClick={handlePayWithUpi}
+                              disabled={upiSubmitting || !upiIdInput.trim()}
                               className="unool-co-pay-btn unool-co-heading"
-                              style={{ padding: '8px 16px', fontSize: 13, height: 'auto' }}
                             >
-                              Generate QR Code
+                              {upiSubmitting ? (
+                                <>
+                                  <div
+                                    style={{
+                                      width: 15,
+                                      height: 15,
+                                      border: '2px solid rgba(255, 255, 255, 0.3)',
+                                      borderTopColor: '#FFFFFF',
+                                      borderRadius: '50%',
+                                      animation: 'unoolSpin 0.7s linear infinite',
+                                    }}
+                                  />
+                                  <span>Dispatching Collect Request...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span>Authorize {activeCheckout.priceDisplay} via UPI</span>
+                                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                                    <line x1="5" y1="12" x2="19" y2="12" />
+                                    <polyline points="12 5 19 12 12 19" />
+                                  </svg>
+                                </>
+                              )}
                             </button>
                           </div>
-                        )}
-                      </div>
-
-                      {/* Ecosystem Badges */}
-                      <div
-                        style={{
-                          display: 'flex',
-                          flexWrap: 'wrap',
-                          justifyContent: 'center',
-                          gap: 6,
-                          marginBottom: 16,
-                        }}
-                      >
-                        {['Google Pay', 'PhonePe', 'Paytm', 'BHIM', 'Cred', 'Amazon Pay'].map((app) => (
-                          <span
-                            key={app}
-                            style={{
-                              fontSize: 11,
-                              fontWeight: 600,
-                              color: '#475569',
-                              background: '#F1F5F9',
-                              borderRadius: 6,
-                              padding: '3px 8px',
-                            }}
-                          >
-                            {app}
-                          </span>
-                        ))}
-                      </div>
-
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: 8,
-                          fontSize: 12.5,
-                          color: '#047857',
-                          fontWeight: 700,
-                          background: '#ECFDF5',
-                          border: '1px solid #A7F3D0',
-                          borderRadius: 10,
-                          padding: '10px 14px',
-                          marginBottom: 14,
-                        }}
-                      >
-                        <span
-                          style={{
-                            width: 7,
-                            height: 7,
-                            borderRadius: '50%',
-                            background: '#10B981',
-                            animation: 'unoolPulse 1.5s infinite',
-                          }}
-                        />
-                        <span>Listening for scan &amp; instant bank confirmation...</span>
-                      </div>
-
-                      {qrString && (
-                        <a
-                          href={qrString}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 5,
-                            fontSize: 12.5,
-                            color: '#1D4ED8',
-                            fontWeight: 700,
-                            textDecoration: 'none',
-                          }}
-                        >
-                          <span>Paying on this phone? Tap to open UPI app</span>
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                            <polyline points="15 3 21 3 21 9" />
-                            <line x1="10" y1="14" x2="21" y2="3" />
-                          </svg>
-                        </a>
-                      )}
-                    </div>
-                  )}
-
-                  {/* ── TAB 3: CARDS ────────────────────────────────────────── */}
-                  {checkoutTab === 'cards' && (
-                    <div>
-                      <div style={{ marginBottom: 18 }}>
-                        <h3 className="unool-co-heading" style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', margin: '0 0 4px' }}>
-                          Pay with Card
-                        </h3>
-                        <p style={{ fontSize: 13, color: '#64748B', margin: 0 }}>
-                          Visa, Mastercard, RuPay, and American Express accepted.
-                        </p>
-                      </div>
-
-                      {/* Card Number */}
-                      <div style={{ marginBottom: 14 }}>
-                        <label
-                          htmlFor="unool-card-number"
-                          style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}
-                        >
-                          Card Number
-                        </label>
-                        <div style={{ position: 'relative' }}>
-                          <input
-                            type="text"
-                            id="unool-card-number"
-                            value={cardNumber}
-                            onChange={(e) => {
-                              const val = formatCardNumber(e.target.value);
-                              setCardNumber(val);
-                              setCardError(null);
-                            }}
-                            placeholder="4000 1234 5678 9010"
-                            maxLength={19}
-                            className="unool-co-mono"
-                            style={{
-                              width: '100%',
-                              padding: '12px 14px',
-                              paddingRight: 64,
-                              borderRadius: 10,
-                              border: '1.5px solid #CBD5E1',
-                              fontSize: 14.5,
-                              letterSpacing: '1px',
-                              color: '#0F172A',
-                              background: '#FFFFFF',
-                              outline: 'none',
-                              boxSizing: 'border-box',
-                            }}
-                            onFocus={(e) => {
-                              e.target.style.borderColor = '#0F172A';
-                              e.target.style.boxShadow = '0 0 0 3px rgba(15, 23, 42, 0.08)';
-                            }}
-                            onBlur={(e) => {
-                              e.target.style.borderColor = '#CBD5E1';
-                              e.target.style.boxShadow = 'none';
-                            }}
-                          />
-                          <div style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)' }}>
-                            {renderBrandBadge(cardBrand.brand)}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Cardholder Name */}
-                      <div style={{ marginBottom: 14 }}>
-                        <label
-                          htmlFor="unool-card-holder"
-                          style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}
-                        >
-                          Cardholder Name
-                        </label>
-                        <input
-                          type="text"
-                          id="unool-card-holder"
-                          value={cardHolder}
-                          onChange={(e) => {
-                            setCardHolder(e.target.value);
-                            setCardError(null);
-                          }}
-                          placeholder="Name as printed on card"
-                          style={{
-                            width: '100%',
-                            padding: '12px 14px',
-                            borderRadius: 10,
-                            border: '1.5px solid #CBD5E1',
-                            fontSize: 14,
-                            color: '#0F172A',
-                            background: '#FFFFFF',
-                            outline: 'none',
-                            boxSizing: 'border-box',
-                          }}
-                          onFocus={(e) => {
-                            e.target.style.borderColor = '#0F172A';
-                            e.target.style.boxShadow = '0 0 0 3px rgba(15, 23, 42, 0.08)';
-                          }}
-                          onBlur={(e) => {
-                            e.target.style.borderColor = '#CBD5E1';
-                            e.target.style.boxShadow = 'none';
-                          }}
-                        />
-                      </div>
-
-                      {/* Expiry & CVV */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
-                        <div>
-                          <label
-                            htmlFor="unool-card-expiry"
-                            style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}
-                          >
-                            Expiry (MM/YY)
-                          </label>
-                          <input
-                            type="text"
-                            id="unool-card-expiry"
-                            value={cardExpiry}
-                            onChange={(e) => {
-                              const val = formatExpiry(e.target.value);
-                              setCardExpiry(val);
-                              setCardError(null);
-                            }}
-                            placeholder="MM/YY"
-                            maxLength={5}
-                            className="unool-co-mono"
-                            style={{
-                              width: '100%',
-                              padding: '12px 14px',
-                              borderRadius: 10,
-                              border: '1.5px solid #CBD5E1',
-                              fontSize: 14,
-                              color: '#0F172A',
-                              background: '#FFFFFF',
-                              outline: 'none',
-                              boxSizing: 'border-box',
-                            }}
-                            onFocus={(e) => {
-                              e.target.style.borderColor = '#0F172A';
-                              e.target.style.boxShadow = '0 0 0 3px rgba(15, 23, 42, 0.08)';
-                            }}
-                            onBlur={(e) => {
-                              e.target.style.borderColor = '#CBD5E1';
-                              e.target.style.boxShadow = 'none';
-                            }}
-                          />
-                        </div>
-
-                        <div>
-                          <label
-                            htmlFor="unool-card-cvv"
-                            style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}
-                          >
-                            CVV / CVC
-                          </label>
-                          <input
-                            type="password"
-                            id="unool-card-cvv"
-                            value={cardCvv}
-                            onChange={(e) => {
-                              const digits = e.target.value.replace(/\D/g, '').slice(0, 4);
-                              setCardCvv(digits);
-                              setCardError(null);
-                            }}
-                            placeholder="•••"
-                            maxLength={4}
-                            className="unool-co-mono"
-                            style={{
-                              width: '100%',
-                              padding: '12px 14px',
-                              borderRadius: 10,
-                              border: '1.5px solid #CBD5E1',
-                              fontSize: 14,
-                              letterSpacing: '2px',
-                              color: '#0F172A',
-                              background: '#FFFFFF',
-                              outline: 'none',
-                              boxSizing: 'border-box',
-                            }}
-                            onFocus={(e) => {
-                              e.target.style.borderColor = '#0F172A';
-                              e.target.style.boxShadow = '0 0 0 3px rgba(15, 23, 42, 0.08)';
-                            }}
-                            onBlur={(e) => {
-                              e.target.style.borderColor = '#CBD5E1';
-                              e.target.style.boxShadow = 'none';
-                            }}
-                          />
-                        </div>
-                      </div>
-
-                      {cardError && (
-                        <div
-                          style={{
-                            padding: '11px 14px',
-                            borderRadius: 10,
-                            background: '#FEF2F2',
-                            border: '1px solid #FECACA',
-                            color: '#DC2626',
-                            fontSize: 13,
-                            fontWeight: 500,
-                            marginBottom: 18,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 8,
-                          }}
-                        >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                            <circle cx="12" cy="12" r="10" />
-                            <line x1="12" y1="8" x2="12" y2="12" />
-                            <line x1="12" y1="16" x2="12.01" y2="16" />
-                          </svg>
-                          <span>{cardError}</span>
-                        </div>
-                      )}
-
-                      <button
-                        type="button"
-                        id="unool-submit-card-pay"
-                        onClick={handlePayWithCard}
-                        disabled={cardSubmitting || !cardNumber || !cardHolder || !cardExpiry || !cardCvv}
-                        className="unool-co-pay-btn unool-co-heading"
-                      >
-                        {cardSubmitting ? (
-                          <>
+                        ) : (
+                          /* Dispatched State */
+                          <div style={{ textAlign: 'center', padding: '6px 4px' }}>
                             <div
                               style={{
-                                width: 17,
-                                height: 17,
-                                border: '2px solid rgba(255, 255, 255, 0.3)',
-                                borderTopColor: '#FFFFFF',
+                                width: 40,
+                                height: 40,
                                 borderRadius: '50%',
-                                animation: 'unoolSpin 0.7s linear infinite',
-                              }}
-                            />
-                            <span>Securing 3D Bank Channel...</span>
-                          </>
-                        ) : (
-                          <>
-                            <span>Pay {activeCheckout.priceDisplay} via Card</span>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                              <line x1="5" y1="12" x2="19" y2="12" />
-                              <polyline points="12 5 19 12 12 19" />
-                            </svg>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  )}
-
-                  {/* ── TAB 4: NET BANKING ──────────────────────────────────── */}
-                  {checkoutTab === 'netbanking' && (
-                    <div>
-                      <div style={{ marginBottom: 18 }}>
-                        <h3 className="unool-co-heading" style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', margin: '0 0 4px' }}>
-                          Select Your Bank
-                        </h3>
-                        <p style={{ fontSize: 13, color: '#64748B', margin: 0 }}>
-                          Direct debit authorization supported for all major Indian banks.
-                        </p>
-                      </div>
-
-                      {/* Top 6 Banks */}
-                      <div
-                        style={{
-                          display: 'grid',
-                          gridTemplateColumns: 'repeat(3, 1fr)',
-                          gap: 10,
-                          marginBottom: 18,
-                        }}
-                      >
-                        {POPULAR_BANKS.map((b) => {
-                          const isSelected = selectedBank === b.code;
-                          return (
-                            <button
-                              key={b.code}
-                              type="button"
-                              onClick={() => {
-                                setSelectedBank(b.code);
-                                setSelectedBankName(b.name);
-                                setNetbankingError(null);
-                              }}
-                              style={{
-                                padding: '12px 10px',
-                                borderRadius: 10,
-                                border: isSelected ? '2px solid #0F172A' : '1px solid #E2E8F0',
-                                background: isSelected ? '#F1F5F9' : '#FFFFFF',
-                                color: '#0F172A',
-                                cursor: 'pointer',
+                                background: '#ECFDF5',
+                                border: '2px solid #10B981',
+                                margin: '0 auto 8px',
                                 display: 'flex',
-                                flexDirection: 'column',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                gap: 5,
-                                transition: 'all 0.15s ease',
-                                textAlign: 'center',
+                                color: '#059669',
+                              }}
+                            >
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <rect width="14" height="20" x="5" y="2" rx="2" ry="2" />
+                                <path d="M12 18h.01" />
+                              </svg>
+                            </div>
+
+                            <h4 className="unool-co-heading" style={{ fontSize: 16, fontWeight: 900, color: '#0F172A', margin: '0 0 3px' }}>
+                              Collect Request Sent
+                            </h4>
+                            <p style={{ fontSize: 12, color: '#475569', margin: '0 0 10px', lineHeight: 1.4 }}>
+                              Notification of <strong>{activeCheckout.priceDisplay}</strong> sent to{' '}
+                              <strong className="unool-co-mono" style={{ color: '#0F172A' }}>
+                                {upiIdInput.trim().toLowerCase()}
+                              </strong>.
+                            </p>
+
+                            <div
+                              style={{
+                                background: '#F8FAFC',
+                                border: '1px solid #E2E8F0',
+                                borderRadius: 10,
+                                padding: '8px 12px',
+                                textAlign: 'left',
+                                fontSize: 11.5,
+                                color: '#334155',
+                                lineHeight: 1.4,
+                                marginBottom: 10,
+                              }}
+                            >
+                              <div style={{ fontWeight: 700, color: '#0F172A', marginBottom: 3 }}>
+                                How to approve:
+                              </div>
+                              <ol style={{ margin: 0, paddingLeft: 16, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                <li>Open your UPI App (Google Pay, PhonePe, Paytm).</li>
+                                <li>Approve the incoming request from Cashfree / Unool.</li>
+                                <li>Enter your UPI PIN to activate membership.</li>
+                              </ol>
+                            </div>
+
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 6,
+                                fontSize: 11.5,
+                                color: '#047857',
+                                fontWeight: 700,
+                                background: '#ECFDF5',
+                                border: '1px solid #A7F3D0',
+                                borderRadius: 8,
+                                padding: '7px 10px',
+                                marginBottom: 8,
                               }}
                             >
                               <span
                                 style={{
-                                  fontSize: 10.5,
-                                  fontWeight: 800,
-                                  color: b.badgeColor === '#004C8F' ? '#1D4ED8' : b.badgeColor === '#225894' ? '#2563EB' : '#DC2626',
-                                  background: '#F8FAFC',
-                                  padding: '2px 7px',
-                                  borderRadius: 5,
-                                  border: '1px solid #E2E8F0',
+                                  width: 6,
+                                  height: 6,
+                                  borderRadius: '50%',
+                                  background: '#10B981',
+                                  animation: 'unoolPulse 1.5s infinite',
                                 }}
-                              >
-                                {b.short}
-                              </span>
-                              <span style={{ fontSize: 12.5, fontWeight: isSelected ? 800 : 600 }}>
-                                {b.name}
-                              </span>
+                              />
+                              <span>Waiting for approval on mobile...</span>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setUpiSent(false);
+                                setUpiSubmitting(false);
+                              }}
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: '#64748B',
+                                fontSize: 11.5,
+                                textDecoration: 'underline',
+                                cursor: 'pointer',
+                                padding: 2,
+                              }}
+                            >
+                              Modify UPI ID or retry
                             </button>
-                          );
-                        })}
+                          </div>
+                        )}
                       </div>
+                    )}
 
-                      {/* Other Banks Dropdown */}
-                      <div style={{ marginBottom: 20 }}>
-                        <label
-                          htmlFor="unool-bank-select"
-                          style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}
-                        >
-                          Or select other bank (50+ available):
-                        </label>
-                        <select
-                          id="unool-bank-select"
-                          value={selectedBank}
-                          onChange={(e) => {
-                            const code = e.target.value;
-                            setSelectedBank(code);
-                            const found =
-                              POPULAR_BANKS.find((b) => b.code === code) ||
-                              ALL_OTHER_BANKS.find((b) => b.code === code);
-                            setSelectedBankName(found?.name || 'Selected Bank');
-                            setNetbankingError(null);
-                          }}
-                          style={{
-                            width: '100%',
-                            padding: '12px 14px',
-                            borderRadius: 10,
-                            border: '1.5px solid #CBD5E1',
-                            fontSize: 14,
-                            color: '#0F172A',
-                            background: '#FFFFFF',
-                            outline: 'none',
-                            boxSizing: 'border-box',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          <optgroup label="Popular Banks">
-                            {POPULAR_BANKS.map((b) => (
-                              <option key={b.code} value={b.code}>
-                                {b.name}
-                              </option>
-                            ))}
-                          </optgroup>
-                          <optgroup label="All Other Indian Banks">
-                            {ALL_OTHER_BANKS.map((b) => (
-                              <option key={b.code} value={b.code}>
-                                {b.name}
-                              </option>
-                            ))}
-                          </optgroup>
-                        </select>
-                      </div>
+                    {/* ── TAB 2: SCAN QR CODE ─────────────────────────────────── */}
+                    {checkoutTab === 'qr' && (
+                      <div style={{ textAlign: 'center', padding: '4px 2px' }}>
+                        <div style={{ marginBottom: 10 }}>
+                          <h3 className="unool-co-heading" style={{ fontSize: 16, fontWeight: 800, color: '#0F172A', margin: '0 0 2px' }}>
+                            Scan to Pay via Any UPI App
+                          </h3>
+                          <p style={{ fontSize: 12, color: '#64748B', margin: 0 }}>
+                            Point your phone camera or any UPI scanner at the code below to pay {activeCheckout.priceDisplay}.
+                          </p>
+                        </div>
 
-                      {netbankingError && (
+                        {/* QR Viewfinder */}
                         <div
                           style={{
-                            padding: '11px 14px',
-                            borderRadius: 10,
-                            background: '#FEF2F2',
-                            border: '1px solid #FECACA',
-                            color: '#DC2626',
-                            fontSize: 13,
-                            fontWeight: 500,
-                            marginBottom: 18,
+                            width: 175,
+                            height: 175,
+                            margin: '0 auto 10px',
+                            background: '#FFFFFF',
+                            borderRadius: 14,
                             display: 'flex',
                             alignItems: 'center',
-                            gap: 8,
+                            justifyContent: 'center',
+                            border: '1.5px solid #E2E8F0',
+                            boxShadow: '0 4px 16px -2px rgba(15, 23, 42, 0.06)',
+                            position: 'relative',
+                            padding: 8,
+                            boxSizing: 'border-box',
                           }}
                         >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                            <circle cx="12" cy="12" r="10" />
-                            <line x1="12" y1="8" x2="12" y2="12" />
-                            <line x1="12" y1="16" x2="12.01" y2="16" />
-                          </svg>
-                          <span>{netbankingError}</span>
-                        </div>
-                      )}
-
-                      {netbankingRedirecting && (
-                        <div
-                          style={{
-                            padding: '14px 16px',
-                            borderRadius: 10,
-                            background: '#ECFDF5',
-                            border: '1px solid #A7F3D0',
-                            marginBottom: 18,
-                            textAlign: 'center',
-                          }}
-                        >
-                          <div style={{ fontSize: 13.5, fontWeight: 800, color: '#065F46', marginBottom: 3 }}>
-                            Redirecting to {selectedBankName} Portal
-                          </div>
-                          <div style={{ fontSize: 12, color: '#047857' }}>
-                            Please authorize payment on your bank screen. Unool will update automatically.
-                          </div>
-                        </div>
-                      )}
-
-                      <button
-                        type="button"
-                        id="unool-submit-netbanking-pay"
-                        onClick={handlePayWithNetbanking}
-                        disabled={netbankingSubmitting}
-                        className="unool-co-pay-btn unool-co-heading"
-                      >
-                        {netbankingSubmitting ? (
-                          <>
-                            <div
+                          {qrLoading ? (
+                            <div style={{ textAlign: 'center' }}>
+                              <div
+                                style={{
+                                  width: 28,
+                                  height: 28,
+                                  border: '3px solid #E2E8F0',
+                                  borderTopColor: '#0F172A',
+                                  borderRadius: '50%',
+                                  animation: 'unoolSpin 0.8s linear infinite',
+                                  margin: '0 auto 8px',
+                                }}
+                              />
+                              <span style={{ fontSize: 12, color: '#64748B', fontWeight: 600 }}>
+                                Generating QR...
+                              </span>
+                            </div>
+                          ) : qrImageUrl || qrString ? (
+                            <img
+                              src={
+                                qrImageUrl ||
+                                `https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=2&data=${encodeURIComponent(
+                                  qrString || ''
+                                )}`
+                              }
+                              alt="Dynamic UPI QR Code"
                               style={{
-                                width: 17,
-                                height: 17,
-                                border: '2px solid rgba(255, 255, 255, 0.3)',
-                                borderTopColor: '#FFFFFF',
-                                borderRadius: '50%',
-                                animation: 'unoolSpin 0.7s linear infinite',
+                                width: 155,
+                                height: 155,
+                                borderRadius: 8,
+                                objectFit: 'contain',
                               }}
                             />
-                            <span>Connecting to {selectedBankName}...</span>
-                          </>
-                        ) : (
-                          <>
-                            <span>Proceed with {selectedBankName}</span>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                              <line x1="5" y1="12" x2="19" y2="12" />
-                              <polyline points="12 5 19 12 12 19" />
-                            </svg>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  )}
+                          ) : (
+                            <div style={{ textAlign: 'center', padding: 8 }}>
+                              <button
+                                type="button"
+                                onClick={() => handleGenerateQr(activeCheckout)}
+                                className="unool-co-pay-btn unool-co-heading"
+                                style={{ padding: '6px 14px', fontSize: 12.5, height: 'auto' }}
+                              >
+                                Generate QR Code
+                              </button>
+                            </div>
+                          )}
+                        </div>
 
-                  {/* ── Security Trust Footer ───────────────────────────────── */}
-                  <div
-                    style={{
-                      marginTop: 22,
-                      paddingTop: 16,
-                      borderTop: '1px solid #F1F5F9',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 6,
-                      fontSize: 12,
-                      color: '#64748B',
-                    }}
-                  >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
-                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                    </svg>
-                    <span>Direct Cashfree UPI Collect • Bank-Grade 256-Bit SSL Protection</span>
+                        {/* Ecosystem Badges */}
+                        <div
+                          style={{
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            justifyContent: 'center',
+                            gap: 5,
+                            marginBottom: 10,
+                          }}
+                        >
+                          {['Google Pay', 'PhonePe', 'Paytm', 'BHIM', 'Cred', 'Amazon Pay'].map((app) => (
+                            <span
+                              key={app}
+                              style={{
+                                fontSize: 10.5,
+                                fontWeight: 600,
+                                color: '#475569',
+                                background: '#F1F5F9',
+                                borderRadius: 5,
+                                padding: '2px 7px',
+                              }}
+                            >
+                              {app}
+                            </span>
+                          ))}
+                        </div>
+
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 6,
+                            fontSize: 11.5,
+                            color: '#047857',
+                            fontWeight: 700,
+                            background: '#ECFDF5',
+                            border: '1px solid #A7F3D0',
+                            borderRadius: 8,
+                            padding: '7px 10px',
+                            marginBottom: 8,
+                          }}
+                        >
+                          <span
+                            style={{
+                              width: 6,
+                              height: 6,
+                              borderRadius: '50%',
+                              background: '#10B981',
+                              animation: 'unoolPulse 1.5s infinite',
+                            }}
+                          />
+                          <span>Listening for scan &amp; instant bank confirmation...</span>
+                        </div>
+
+                        {qrString && (
+                          <a
+                            href={qrString}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
+                              fontSize: 11.5,
+                              color: '#1D4ED8',
+                              fontWeight: 700,
+                              textDecoration: 'none',
+                            }}
+                          >
+                            <span>Paying on this phone? Tap to open UPI app</span>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                              <polyline points="15 3 21 3 21 9" />
+                              <line x1="10" y1="14" x2="21" y2="3" />
+                            </svg>
+                          </a>
+                        )}
+                      </div>
+                    )}
+
+                    {/* ── TAB 3: CARDS ────────────────────────────────────────── */}
+                    {checkoutTab === 'cards' && (
+                      <div>
+                        <div style={{ marginBottom: 12 }}>
+                          <h3 className="unool-co-heading" style={{ fontSize: 16, fontWeight: 800, color: '#0F172A', margin: '0 0 2px' }}>
+                            Pay with Card
+                          </h3>
+                          <p style={{ fontSize: 12, color: '#64748B', margin: 0 }}>
+                            Visa, Mastercard, RuPay, and American Express accepted.
+                          </p>
+                        </div>
+
+                        {/* Card Number */}
+                        <div style={{ marginBottom: 10 }}>
+                          <label
+                            htmlFor="unool-card-number"
+                            style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: '#334155', marginBottom: 4 }}
+                          >
+                            Card Number
+                          </label>
+                          <div style={{ position: 'relative' }}>
+                            <input
+                              type="text"
+                              id="unool-card-number"
+                              value={cardNumber}
+                              onChange={(e) => {
+                                const val = formatCardNumber(e.target.value);
+                                setCardNumber(val);
+                                setCardError(null);
+                              }}
+                              placeholder="4000 1234 5678 9010"
+                              maxLength={19}
+                              className="unool-co-mono"
+                              style={{
+                                width: '100%',
+                                padding: '9px 12px',
+                                paddingRight: 56,
+                                borderRadius: 9,
+                                border: '1.5px solid #CBD5E1',
+                                fontSize: 13.5,
+                                letterSpacing: '1px',
+                                color: '#0F172A',
+                                background: '#FFFFFF',
+                                outline: 'none',
+                                boxSizing: 'border-box',
+                              }}
+                              onFocus={(e) => {
+                                e.target.style.borderColor = '#0F172A';
+                                e.target.style.boxShadow = '0 0 0 3px rgba(15, 23, 42, 0.08)';
+                              }}
+                              onBlur={(e) => {
+                                e.target.style.borderColor = '#CBD5E1';
+                                e.target.style.boxShadow = 'none';
+                              }}
+                            />
+                            <div style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)' }}>
+                              {renderBrandBadge(cardBrand.brand)}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Cardholder Name */}
+                        <div style={{ marginBottom: 10 }}>
+                          <label
+                            htmlFor="unool-card-holder"
+                            style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: '#334155', marginBottom: 4 }}
+                          >
+                            Cardholder Name
+                          </label>
+                          <input
+                            type="text"
+                            id="unool-card-holder"
+                            value={cardHolder}
+                            onChange={(e) => {
+                              setCardHolder(e.target.value);
+                              setCardError(null);
+                            }}
+                            placeholder="Name as printed on card"
+                            style={{
+                              width: '100%',
+                              padding: '9px 12px',
+                              borderRadius: 9,
+                              border: '1.5px solid #CBD5E1',
+                              fontSize: 13,
+                              color: '#0F172A',
+                              background: '#FFFFFF',
+                              outline: 'none',
+                              boxSizing: 'border-box',
+                            }}
+                            onFocus={(e) => {
+                              e.target.style.borderColor = '#0F172A';
+                              e.target.style.boxShadow = '0 0 0 3px rgba(15, 23, 42, 0.08)';
+                            }}
+                            onBlur={(e) => {
+                              e.target.style.borderColor = '#CBD5E1';
+                              e.target.style.boxShadow = 'none';
+                            }}
+                          />
+                        </div>
+
+                        {/* Expiry & CVV */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+                          <div>
+                            <label
+                              htmlFor="unool-card-expiry"
+                              style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: '#334155', marginBottom: 4 }}
+                            >
+                              Expiry (MM/YY)
+                            </label>
+                            <input
+                              type="text"
+                              id="unool-card-expiry"
+                              value={cardExpiry}
+                              onChange={(e) => {
+                                const val = formatExpiry(e.target.value);
+                                setCardExpiry(val);
+                                setCardError(null);
+                              }}
+                              placeholder="MM/YY"
+                              maxLength={5}
+                              className="unool-co-mono"
+                              style={{
+                                width: '100%',
+                                padding: '9px 12px',
+                                borderRadius: 9,
+                                border: '1.5px solid #CBD5E1',
+                                fontSize: 13,
+                                color: '#0F172A',
+                                background: '#FFFFFF',
+                                outline: 'none',
+                                boxSizing: 'border-box',
+                              }}
+                              onFocus={(e) => {
+                                e.target.style.borderColor = '#0F172A';
+                                e.target.style.boxShadow = '0 0 0 3px rgba(15, 23, 42, 0.08)';
+                              }}
+                              onBlur={(e) => {
+                                e.target.style.borderColor = '#CBD5E1';
+                                e.target.style.boxShadow = 'none';
+                              }}
+                            />
+                          </div>
+
+                          <div>
+                            <label
+                              htmlFor="unool-card-cvv"
+                              style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: '#334155', marginBottom: 4 }}
+                            >
+                              CVV / CVC
+                            </label>
+                            <input
+                              type="password"
+                              id="unool-card-cvv"
+                              value={cardCvv}
+                              onChange={(e) => {
+                                const digits = e.target.value.replace(/\D/g, '').slice(0, 4);
+                                setCardCvv(digits);
+                                setCardError(null);
+                              }}
+                              placeholder="•••"
+                              maxLength={4}
+                              className="unool-co-mono"
+                              style={{
+                                width: '100%',
+                                padding: '9px 12px',
+                                borderRadius: 9,
+                                border: '1.5px solid #CBD5E1',
+                                fontSize: 13,
+                                letterSpacing: '2px',
+                                color: '#0F172A',
+                                background: '#FFFFFF',
+                                outline: 'none',
+                                boxSizing: 'border-box',
+                              }}
+                              onFocus={(e) => {
+                                e.target.style.borderColor = '#0F172A';
+                                e.target.style.boxShadow = '0 0 0 3px rgba(15, 23, 42, 0.08)';
+                              }}
+                              onBlur={(e) => {
+                                e.target.style.borderColor = '#CBD5E1';
+                                e.target.style.boxShadow = 'none';
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        {cardError && (
+                          <div
+                            style={{
+                              padding: '8px 12px',
+                              borderRadius: 8,
+                              background: '#FEF2F2',
+                              border: '1px solid #FECACA',
+                              color: '#DC2626',
+                              fontSize: 12,
+                              fontWeight: 500,
+                              marginBottom: 12,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 6,
+                            }}
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                              <circle cx="12" cy="12" r="10" />
+                              <line x1="12" y1="8" x2="12" y2="12" />
+                              <line x1="12" y1="16" x2="12.01" y2="16" />
+                            </svg>
+                            <span>{cardError}</span>
+                          </div>
+                        )}
+
+                        <button
+                          type="button"
+                          id="unool-submit-card-pay"
+                          onClick={handlePayWithCard}
+                          disabled={cardSubmitting || !cardNumber || !cardHolder || !cardExpiry || !cardCvv}
+                          className="unool-co-pay-btn unool-co-heading"
+                        >
+                          {cardSubmitting ? (
+                            <>
+                              <div
+                                style={{
+                                  width: 15,
+                                  height: 15,
+                                  border: '2px solid rgba(255, 255, 255, 0.3)',
+                                  borderTopColor: '#FFFFFF',
+                                  borderRadius: '50%',
+                                  animation: 'unoolSpin 0.7s linear infinite',
+                                }}
+                              />
+                              <span>Securing 3D Bank Channel...</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>Pay {activeCheckout.priceDisplay} via Card</span>
+                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="5" y1="12" x2="19" y2="12" />
+                                <polyline points="12 5 19 12 12 19" />
+                              </svg>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
+
+                    {/* ── TAB 4: NET BANKING ──────────────────────────────────── */}
+                    {checkoutTab === 'netbanking' && (
+                      <div>
+                        <div style={{ marginBottom: 12 }}>
+                          <h3 className="unool-co-heading" style={{ fontSize: 16, fontWeight: 800, color: '#0F172A', margin: '0 0 2px' }}>
+                            Select Your Bank
+                          </h3>
+                          <p style={{ fontSize: 12, color: '#64748B', margin: 0 }}>
+                            Direct debit authorization supported for all major Indian banks.
+                          </p>
+                        </div>
+
+                        {/* Top 6 Banks */}
+                        <div
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(3, 1fr)',
+                            gap: 8,
+                            marginBottom: 12,
+                          }}
+                        >
+                          {POPULAR_BANKS.map((b) => {
+                            const isSelected = selectedBank === b.code;
+                            return (
+                              <button
+                                key={b.code}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedBank(b.code);
+                                  setSelectedBankName(b.name);
+                                  setNetbankingError(null);
+                                }}
+                                style={{
+                                  padding: '8px 6px',
+                                  borderRadius: 8,
+                                  border: isSelected ? '2px solid #0F172A' : '1px solid #E2E8F0',
+                                  background: isSelected ? '#F1F5F9' : '#FFFFFF',
+                                  color: '#0F172A',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: 3,
+                                  transition: 'all 0.15s ease',
+                                  textAlign: 'center',
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    fontSize: 10,
+                                    fontWeight: 800,
+                                    color: b.badgeColor === '#004C8F' ? '#1D4ED8' : b.badgeColor === '#225894' ? '#2563EB' : '#DC2626',
+                                    background: '#F8FAFC',
+                                    padding: '1.5px 6px',
+                                    borderRadius: 4,
+                                    border: '1px solid #E2E8F0',
+                                  }}
+                                >
+                                  {b.short}
+                                </span>
+                                <span style={{ fontSize: 11.5, fontWeight: isSelected ? 800 : 600 }}>
+                                  {b.name}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* Other Banks Dropdown */}
+                        <div style={{ marginBottom: 14 }}>
+                          <label
+                            htmlFor="unool-bank-select"
+                            style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: '#334155', marginBottom: 4 }}
+                          >
+                            Or select other bank (50+ available):
+                          </label>
+                          <select
+                            id="unool-bank-select"
+                            value={selectedBank}
+                            onChange={(e) => {
+                              const code = e.target.value;
+                              setSelectedBank(code);
+                              const found =
+                                POPULAR_BANKS.find((b) => b.code === code) ||
+                                ALL_OTHER_BANKS.find((b) => b.code === code);
+                              setSelectedBankName(found?.name || 'Selected Bank');
+                              setNetbankingError(null);
+                            }}
+                            style={{
+                              width: '100%',
+                              padding: '9px 12px',
+                              borderRadius: 9,
+                              border: '1.5px solid #CBD5E1',
+                              fontSize: 13,
+                              color: '#0F172A',
+                              background: '#FFFFFF',
+                              outline: 'none',
+                              boxSizing: 'border-box',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <optgroup label="Popular Banks">
+                              {POPULAR_BANKS.map((b) => (
+                                <option key={b.code} value={b.code}>
+                                  {b.name}
+                                </option>
+                              ))}
+                            </optgroup>
+                            <optgroup label="All Other Indian Banks">
+                              {ALL_OTHER_BANKS.map((b) => (
+                                <option key={b.code} value={b.code}>
+                                  {b.name}
+                                </option>
+                              ))}
+                            </optgroup>
+                          </select>
+                        </div>
+
+                        {netbankingError && (
+                          <div
+                            style={{
+                              padding: '8px 12px',
+                              borderRadius: 8,
+                              background: '#FEF2F2',
+                              border: '1px solid #FECACA',
+                              color: '#DC2626',
+                              fontSize: 12,
+                              fontWeight: 500,
+                              marginBottom: 12,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 6,
+                            }}
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                              <circle cx="12" cy="12" r="10" />
+                              <line x1="12" y1="8" x2="12" y2="12" />
+                              <line x1="12" y1="16" x2="12.01" y2="16" />
+                            </svg>
+                            <span>{netbankingError}</span>
+                          </div>
+                        )}
+
+                        {netbankingRedirecting && (
+                          <div
+                            style={{
+                              padding: '10px 12px',
+                              borderRadius: 8,
+                              background: '#ECFDF5',
+                              border: '1px solid #A7F3D0',
+                              marginBottom: 12,
+                              textAlign: 'center',
+                            }}
+                          >
+                            <div style={{ fontSize: 12.5, fontWeight: 800, color: '#065F46', marginBottom: 2 }}>
+                              Redirecting to {selectedBankName} Portal
+                            </div>
+                            <div style={{ fontSize: 11.5, color: '#047857' }}>
+                              Please authorize payment on your bank screen. Unool will update automatically.
+                            </div>
+                          </div>
+                        )}
+
+                        <button
+                          type="button"
+                          id="unool-submit-netbanking-pay"
+                          onClick={handlePayWithNetbanking}
+                          disabled={netbankingSubmitting}
+                          className="unool-co-pay-btn unool-co-heading"
+                        >
+                          {netbankingSubmitting ? (
+                            <>
+                              <div
+                                style={{
+                                  width: 15,
+                                  height: 15,
+                                  border: '2px solid rgba(255, 255, 255, 0.3)',
+                                  borderTopColor: '#FFFFFF',
+                                  borderRadius: '50%',
+                                  animation: 'unoolSpin 0.7s linear infinite',
+                                }}
+                              />
+                              <span>Connecting to {selectedBankName}...</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>Proceed with {selectedBankName}</span>
+                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="5" y1="12" x2="19" y2="12" />
+                                <polyline points="12 5 19 12 12 19" />
+                              </svg>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
+
+                    {/* ── Security Trust Footer ───────────────────────────────── */}
+                    <div
+                      style={{
+                        marginTop: 14,
+                        paddingTop: 10,
+                        borderTop: '1px solid #F1F5F9',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 6,
+                        fontSize: 11,
+                        color: '#64748B',
+                      }}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                      </svg>
+                      <span>Direct Cashfree Native UPI Collect • 256-Bit Bank Encryption</span>
+                    </div>
                   </div>
                 </div>
               </div>
