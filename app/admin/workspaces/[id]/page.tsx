@@ -42,6 +42,7 @@ import {
   SelectValue,
 } from '@/components/ui';
 import { MotionBox } from '@/components/ui/motion';
+import { SectionGuide } from '@/components/admin/section-guide';
 
 interface WorkspaceMember {
   id: string;
@@ -94,6 +95,13 @@ interface WorkspaceDetail {
   platformConnections: PlatformConnection[];
   totalPosts: number;
 }
+
+const planBadgeColors: Record<string, string> = {
+  spark: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
+  creator: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  pro: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+  studio: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+};
 
 function formatAmount(paise: number, currency: string = 'INR'): string {
   const amount = paise / 100;
@@ -240,7 +248,7 @@ export default function WorkspaceDetailPage() {
                   <Text size="2xl" weight="bold" color="foreground">
                     {workspace.name}
                   </Text>
-                  <Badge variant="outline" className="capitalize text-sm">
+                  <Badge variant="outline" className={cn('capitalize text-sm', planBadgeColors[workspace.plan] || '')}>
                     {workspace.plan}
                   </Badge>
                   <Badge
@@ -253,6 +261,11 @@ export default function WorkspaceDetailPage() {
                   >
                     {workspace.planStatus}
                   </Badge>
+                  <SectionGuide
+                    title="Workspace Identity & Plan"
+                    description="Workspace overview and current subscription entitlements. Modifying the plan directly changes feature quotas (connected platforms, schedule queue depth, and member limits)."
+                    example="Plan: Creator (₹799/mo)\nChannels: Up to 3 accounts\nPosts: 60 scheduled posts/mo"
+                  />
                 </Flex>
                 <Text size="xs" color="muted" className="font-mono mt-1">
                   ID: {workspace.id}
@@ -307,7 +320,14 @@ export default function WorkspaceDetailPage() {
           <TabsContent value="members">
             <Card>
               <CardHeader>
-                <CardTitle>Team Members</CardTitle>
+                <Flex align="center" gap={2}>
+                  <CardTitle>Team Members</CardTitle>
+                  <SectionGuide
+                    title="Workspace Team"
+                    description="Users who have access to this workspace. Roles include OWNER (full billing & management), ADMIN (post & platform management), and MEMBER (content creation)."
+                    example="Owner: priya@studio.com\nEditor: rohit@studio.com (joined 12 Oct 2026)"
+                  />
+                </Flex>
                 <CardDescription>Users associated with this workspace</CardDescription>
               </CardHeader>
               <CardContent>
@@ -358,7 +378,14 @@ export default function WorkspaceDetailPage() {
           <TabsContent value="payments">
             <Card>
               <CardHeader>
-                <CardTitle>Payment Orders & Subscription</CardTitle>
+                <Flex align="center" gap={2}>
+                  <CardTitle>Payment Orders & Subscription</CardTitle>
+                  <SectionGuide
+                    title="Workspace Billing History"
+                    description="All invoices, payment orders, and active recurring subscriptions linked directly to this workspace."
+                    example="Active Subscription: Pro (Annual)\nLast Payment: ₹19,990 (PAID via UPI)"
+                  />
+                </Flex>
                 <CardDescription>Billing history for this workspace</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -422,7 +449,14 @@ export default function WorkspaceDetailPage() {
           <TabsContent value="platforms">
             <Card>
               <CardHeader>
-                <CardTitle>Connected Platforms</CardTitle>
+                <Flex align="center" gap={2}>
+                  <CardTitle>Connected Platforms</CardTitle>
+                  <SectionGuide
+                    title="Social Platform Integrations"
+                    description="OAuth accounts connected to this workspace for automated publishing (LinkedIn, Twitter/X, Instagram, Facebook, Threads)."
+                    example="Platform: linkedin\nAccount: @agency_official\nStatus: Connected"
+                  />
+                </Flex>
                 <CardDescription>Social media accounts linked to this workspace</CardDescription>
               </CardHeader>
               <CardContent>
@@ -521,4 +555,3 @@ export default function WorkspaceDetailPage() {
     </Box>
   );
 }
-

@@ -17,8 +17,6 @@ import {
   Flex,
   Text,
   Card,
-
-
   CardContent,
   Badge,
   Button,
@@ -34,7 +32,8 @@ import {
   DialogFooter,
   Label,
 } from '@/components/ui';
-
+import { SectionGuide } from '@/components/admin/section-guide';
+import { cn } from '@/lib/utils';
 
 interface User {
   id: string;
@@ -44,6 +43,13 @@ interface User {
   plan: string;
   suspended?: boolean;
 }
+
+const planBadgeColors: Record<string, string> = {
+  spark: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
+  creator: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  pro: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+  studio: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+};
 
 interface UserTableProps {
   users: User[];
@@ -95,7 +101,7 @@ function UserTable({
   };
 
   const deleteUser = async (userId: string) => {
-    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
+    if (!confirm('Are you sure you want to permanently delete this user? This will remove their auth credentials and memberships.')) return;
     try {
       const res = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete user');
@@ -151,7 +157,9 @@ function UserTable({
                       </Badge>
                     </td>
                     <td className="p-4">
-                      <Badge variant="secondary" size="sm" className="capitalize">{user.plan}</Badge>
+                      <Badge variant="outline" size="sm" className={cn('capitalize', planBadgeColors[user.plan] || '')}>
+                        {user.plan}
+                      </Badge>
                     </td>
                     <td className="p-4">
                       {user.suspended ? (
@@ -170,11 +178,11 @@ function UserTable({
                     <td className="p-4 text-right">
                       <Flex gap={2} end>
                         {user.suspended ? (
-                          <Button variant="ghost" size="icon" onClick={() => unsuspendUser(user.id)} title="Unsuspend">
+                          <Button variant="ghost" size="icon" onClick={() => unsuspendUser(user.id)} title="Unsuspend (restore login)">
                             <UserCheck className="h-4 w-4 text-green-600 dark:text-green-400" />
                           </Button>
                         ) : (
-                          <Button variant="ghost" size="icon" onClick={() => suspendUser(user.id)} title="Suspend">
+                          <Button variant="ghost" size="icon" onClick={() => suspendUser(user.id)} title="Suspend (lock login for 24h)">
                             <Ban className="h-4 w-4 text-destructive" />
                           </Button>
                         )}
@@ -183,7 +191,7 @@ function UserTable({
                             <Edit className="h-4 w-4" />
                           </a>
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => deleteUser(user.id)} title="Delete">
+                        <Button variant="ghost" size="icon" onClick={() => deleteUser(user.id)} title="Delete permanently">
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </Flex>
@@ -287,14 +295,21 @@ export default function AdminUsersPage() {
 
   return (
     <Box className="space-y-6">
-      <Flex between className="flex-wrap gap-4">
+      <Flex between className="flex-wrap gap-4 items-center">
         <Box>
-          <Text size="3xl" weight="bold">Users</Text>
-          <Text color="muted">Manage all platform users and their access</Text>
+          <Flex align="center" gap={2}>
+            <Text size="3xl" weight="bold">Platform Users</Text>
+            <SectionGuide
+              title="Users Directory"
+              description="Displays all registered accounts in Supabase Auth. Admins can view individual user activity, provision new accounts with pre-verified status, suspend malicious actors, or inspect associated workspace memberships."
+              example="User: user@example.com\nWorkspaces: 2 (1 owner, 1 member)\nPlan: creator"
+            />
+          </Flex>
+          <Text color="muted">Manage platform users, investigate account health, and control login access</Text>
         </Box>
         <Flex gap={3} className="items-center">
           <Input
-            placeholder="Search users..."
+            placeholder="Search by email..."
             value={searchQuery}
             onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
             className="w-80"
@@ -333,7 +348,7 @@ export default function AdminUsersPage() {
           <DialogHeader>
             <DialogTitle>Add Platform User</DialogTitle>
             <DialogDescription>
-              Create a new user account with immediate verified status.
+              Create a new user account with immediate email-confirmed status in Supabase Auth.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -352,7 +367,7 @@ export default function AdminUsersPage() {
               <Input
                 id="create-user-password"
                 type="password"
-                placeholder="Leave blank for invitation only"
+                placeholder="Leave blank to let user sign in via magic link"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
               />

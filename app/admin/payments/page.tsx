@@ -10,6 +10,7 @@ import {
   Textarea,
 } from '@/components/ui';
 import { MotionBox, hoverLift } from '@/components/ui/motion';
+import { SectionGuide } from '@/components/admin/section-guide';
 import { useState, useEffect, useCallback } from 'react';
 
 interface PaymentOrder {
@@ -161,8 +162,15 @@ export default function PaymentsPage() {
       <MotionBox variant="fade">
         <Flex between className="items-center">
           <Box>
-            <Text size="2xl" weight="bold" color="foreground">Payments</Text>
-            <Text size="sm" color="muted">Manage payment orders and revenue</Text>
+            <Flex align="center" gap={2}>
+              <Text size="2xl" weight="bold" color="foreground">Payments & Revenue</Text>
+              <SectionGuide
+                title="Payments Overview"
+                description="Live transaction dashboard integrated with Cashfree PG. All amounts are captured in Indian paise (divided by 100 for INR display). Every status change is recorded in the immutable audit log."
+                example="Total Revenue: ₹1,48,500\nMRR: ₹45,200 (Active subscriptions)\nPAID orders grant automatic workspace plan upgrades."
+              />
+            </Flex>
+            <Text size="sm" color="muted">Manage Cashfree payment orders, reconcile payments, and audit revenue</Text>
           </Box>
           <Button variant="outline" size="sm" onClick={() => { fetchOrders(); fetchMetrics(); }}>
             <RefreshCw className="h-4 w-4 mr-2" />
@@ -179,7 +187,14 @@ export default function PaymentsPage() {
               <CardContent className="pt-6">
                 <Flex between className="items-start">
                   <Box>
-                    <Text size="sm" color="muted">Total Revenue</Text>
+                    <Flex align="center" gap={1.5}>
+                      <Text size="sm" color="muted">Total Revenue</Text>
+                      <SectionGuide
+                        title="All-Time Revenue"
+                        description="Cumulative sum of all settled Cashfree orders with PAID status."
+                        example="₹2,45,000 from 182 successful payments"
+                      />
+                    </Flex>
                     <Text size="2xl" weight="bold" color="foreground">
                       {formatAmount(metrics.totalRevenuePaise)}
                     </Text>
@@ -197,7 +212,14 @@ export default function PaymentsPage() {
               <CardContent className="pt-6">
                 <Flex between className="items-start">
                   <Box>
-                    <Text size="sm" color="muted">This Month</Text>
+                    <Flex align="center" gap={1.5}>
+                      <Text size="sm" color="muted">This Month</Text>
+                      <SectionGuide
+                        title="Current Month Revenue"
+                        description="Revenue collected from the 1st of the current month to today."
+                        example="₹38,400 (vs ₹32,100 previous month)"
+                      />
+                    </Flex>
                     <Text size="2xl" weight="bold" color="foreground">
                       {formatAmount(metrics.revenueThisMonthPaise)}
                     </Text>
@@ -220,7 +242,14 @@ export default function PaymentsPage() {
               <CardContent className="pt-6">
                 <Flex between className="items-start">
                   <Box>
-                    <Text size="sm" color="muted">MRR</Text>
+                    <Flex align="center" gap={1.5}>
+                      <Text size="sm" color="muted">MRR</Text>
+                      <SectionGuide
+                        title="Monthly Recurring Revenue"
+                        description="Normalized recurring revenue normalized from active monthly and annualized subscription contracts."
+                        example="₹45,200/mo across 42 active recurring subscribers"
+                      />
+                    </Flex>
                     <Text size="2xl" weight="bold" color="foreground">
                       {formatAmount(metrics.mrr)}
                     </Text>
@@ -241,7 +270,14 @@ export default function PaymentsPage() {
               <CardContent className="pt-6">
                 <Flex between className="items-start">
                   <Box>
-                    <Text size="sm" color="muted">Orders</Text>
+                    <Flex align="center" gap={1.5}>
+                      <Text size="sm" color="muted">Orders Health</Text>
+                      <SectionGuide
+                        title="Order Conversion"
+                        description="Conversion ratio between attempted orders and successfully completed transactions."
+                        example="142 paid / 160 total (12 failed, 6 refunded)"
+                      />
+                    </Flex>
                     <Text size="2xl" weight="bold" color="foreground">
                       {metrics.paidOrders} / {metrics.totalOrders}
                     </Text>
@@ -263,29 +299,36 @@ export default function PaymentsPage() {
       <MotionBox variant="fade" delay={0.1}>
         <Card>
           <CardContent className="pt-6">
-            <Flex gap={3} className="flex-col sm:flex-row">
-              <div className="relative flex-1">
+            <Flex gap={3} className="flex-col sm:flex-row items-center">
+              <div className="relative flex-1 w-full">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search by order ID or payment ID..."
+                  placeholder="Search by order ID or Cashfree payment ID..."
                   className="pl-10"
                   value={search}
                   onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                 />
               </div>
-              <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-                <SelectTrigger className="w-[160px]">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="PENDING">Pending</SelectItem>
-                  <SelectItem value="PAID">Paid</SelectItem>
-                  <SelectItem value="FAILED">Failed</SelectItem>
-                  <SelectItem value="EXPIRED">Expired</SelectItem>
-                  <SelectItem value="REFUNDED">Refunded</SelectItem>
-                </SelectContent>
-              </Select>
+              <Flex align="center" gap={2} className="w-full sm:w-auto">
+                <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="PENDING">Pending</SelectItem>
+                    <SelectItem value="PAID">Paid</SelectItem>
+                    <SelectItem value="FAILED">Failed</SelectItem>
+                    <SelectItem value="EXPIRED">Expired</SelectItem>
+                    <SelectItem value="REFUNDED">Refunded</SelectItem>
+                  </SelectContent>
+                </Select>
+                <SectionGuide
+                  title="Payment Statuses"
+                  description="PENDING: Customer initiated checkout. PAID: Webhook verified payment. FAILED: Bank/UPI declined. EXPIRED: Session timed out (15 mins). REFUNDED: Returned to source."
+                  example="Filter by 'PAID' to see confirmed customer transactions."
+                />
+              </Flex>
             </Flex>
           </CardContent>
         </Card>
@@ -296,8 +339,15 @@ export default function PaymentsPage() {
         <Card>
           <CardHeader>
             <Flex between className="items-center">
-              <CardTitle>Payment Orders</CardTitle>
-              <Text size="sm" color="muted">{total} total</Text>
+              <Flex align="center" gap={2}>
+                <CardTitle>Payment Orders</CardTitle>
+                <SectionGuide
+                  title="Orders Table & Actions"
+                  description="Lists every payment session generated through Cashfree PG. Click the Eye icon to view detailed payment method, webhook metadata, and IDs. Click the Refresh icon to manually reconcile or force status updates."
+                  example="Order: cf_ord_8f93...\nAmount: ₹499 (Creator Monthly)\nStatus: PAID (UPI - Google Pay)"
+                />
+              </Flex>
+              <Text size="sm" color="muted">{total} total orders</Text>
             </Flex>
           </CardHeader>
           <CardContent>
@@ -327,58 +377,58 @@ export default function PaymentsPage() {
                   <tbody>
                     {orders.map((order) => (
                       <tr key={order.id} className="border-b hover:bg-muted/50 transition-colors">
-                          <td className="py-3 px-2">
-                            <Text size="sm" className="font-mono truncate max-w-[120px]" title={order.cfOrderId}>
-                              {order.cfOrderId}
-                            </Text>
-                          </td>
-                          <td className="py-3 px-2">
-                            <Text size="sm" className="truncate max-w-[140px]">
-                              {order.workspaceName || order.workspaceId.slice(0, 8)}
-                            </Text>
-                          </td>
-                          <td className="py-3 px-2">
-                            <Badge variant="outline" className="capitalize">
-                              {order.planId} · {order.billingCycle}
-                            </Badge>
-                          </td>
-                          <td className="py-3 px-2">
-                            <Text size="sm" weight="medium">
-                              {formatAmount(order.amountPaise, order.currency)}
-                            </Text>
-                          </td>
-                          <td className="py-3 px-2">
-                            <Badge className={cn('text-xs', statusColors[order.status])}>
-                              {order.status}
-                            </Badge>
-                          </td>
-                          <td className="py-3 px-2">
-                            <Text size="sm" color="muted">{order.paymentMethod || '—'}</Text>
-                          </td>
-                          <td className="py-3 px-2">
-                            <Text size="xs" color="muted">{formatDate(order.createdAt)}</Text>
-                          </td>
-                          <td className="py-3 px-2">
-                            <Flex gap={1}>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setDetailOrder(order)}
-                                title="View details"
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => { setSelectedOrder(order); setNewStatus(order.status); }}
-                                title="Change status"
-                              >
-                                <RefreshCw className="h-4 w-4" />
-                              </Button>
-                            </Flex>
-                          </td>
-                        </tr>
+                        <td className="py-3 px-2">
+                          <Text size="sm" className="font-mono truncate max-w-[120px]" title={order.cfOrderId}>
+                            {order.cfOrderId}
+                          </Text>
+                        </td>
+                        <td className="py-3 px-2">
+                          <Text size="sm" className="truncate max-w-[140px]">
+                            {order.workspaceName || order.workspaceId.slice(0, 8)}
+                          </Text>
+                        </td>
+                        <td className="py-3 px-2">
+                          <Badge variant="outline" className="capitalize">
+                            {order.planId} · {order.billingCycle}
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-2">
+                          <Text size="sm" weight="medium">
+                            {formatAmount(order.amountPaise, order.currency)}
+                          </Text>
+                        </td>
+                        <td className="py-3 px-2">
+                          <Badge className={cn('text-xs', statusColors[order.status])}>
+                            {order.status}
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-2">
+                          <Text size="sm" color="muted">{order.paymentMethod || '—'}</Text>
+                        </td>
+                        <td className="py-3 px-2">
+                          <Text size="xs" color="muted">{formatDate(order.createdAt)}</Text>
+                        </td>
+                        <td className="py-3 px-2">
+                          <Flex gap={1}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setDetailOrder(order)}
+                              title="View details"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => { setSelectedOrder(order); setNewStatus(order.status); }}
+                              title="Change status"
+                            >
+                              <RefreshCw className="h-4 w-4" />
+                            </Button>
+                          </Flex>
+                        </td>
+                      </tr>
                     ))}
                   </tbody>
                 </table>
@@ -449,7 +499,7 @@ export default function PaymentsPage() {
             <div className="space-y-2">
               <Text size="sm" weight="medium">Reason *</Text>
               <Textarea
-                placeholder="Why are you changing this status?"
+                placeholder="Why are you changing this status? (Required for audit log)"
                 value={statusReason}
                 onChange={(e) => setStatusReason(e.target.value)}
                 rows={3}
@@ -518,4 +568,3 @@ export default function PaymentsPage() {
     </Box>
   );
 }
-

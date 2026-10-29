@@ -35,6 +35,7 @@ import {
   DialogFooter,
 } from '@/components/ui';
 import { MotionBox } from '@/components/ui/motion';
+import { SectionGuide } from '@/components/admin/section-guide';
 
 interface PostItem {
   id: string;
@@ -94,7 +95,7 @@ export default function ContentModerationPage() {
   }, [fetchPosts]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this post?')) return;
+    if (!confirm('Are you sure you want to delete this post? This removes it permanently from the queue and publishing history.')) return;
     try {
       const res = await fetch(`/api/admin/content?id=${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete post');
@@ -111,9 +112,16 @@ export default function ContentModerationPage() {
       <MotionBox variant="fade">
         <Flex between className="items-center">
           <Box>
-            <Text size="2xl" weight="bold" color="foreground">
-              Content Moderation
-            </Text>
+            <Flex align="center" gap={2}>
+              <Text size="2xl" weight="bold" color="foreground">
+                Content Moderation
+              </Text>
+              <SectionGuide
+                title="Content Moderation"
+                description="Global overview of all posts drafted, queued, or dispatched across all customer workspaces. Allows super admins to inspect flagged content, preview post formatting, and purge abusive or policy-violating posts."
+                example="Search keywords (e.g., 'crypto', 'giveaway') to audit suspicious posts before scheduled publication."
+              />
+            </Flex>
             <Text size="sm" color="muted">
               Inspect and moderate posts across all workspaces
             </Text>
@@ -128,8 +136,8 @@ export default function ContentModerationPage() {
       <MotionBox variant="fade" delay={0.05}>
         <Card>
           <CardContent className="pt-6">
-            <Flex gap={3} className="flex-col sm:flex-row">
-              <div className="relative flex-1">
+            <Flex gap={3} className="flex-col sm:flex-row items-center">
+              <div className="relative flex-1 w-full">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search post text..."
@@ -141,24 +149,31 @@ export default function ContentModerationPage() {
                   }}
                 />
               </div>
-              <Select
-                value={statusFilter}
-                onValueChange={(v) => {
-                  setStatusFilter(v);
-                  setPage(1);
-                }}
-              >
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="published">Published</SelectItem>
-                  <SelectItem value="scheduled">Scheduled</SelectItem>
-                  <SelectItem value="draft">Draft</SelectItem>
-                  <SelectItem value="failed">Failed</SelectItem>
-                </SelectContent>
-              </Select>
+              <Flex align="center" gap={2} className="w-full sm:w-auto">
+                <Select
+                  value={statusFilter}
+                  onValueChange={(v) => {
+                    setStatusFilter(v);
+                    setPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="published">Published</SelectItem>
+                    <SelectItem value="scheduled">Scheduled</SelectItem>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="failed">Failed</SelectItem>
+                  </SelectContent>
+                </Select>
+                <SectionGuide
+                  title="Post Statuses"
+                  description="SCHEDULED: Queued in BullMQ for future delivery.\nPUBLISHED: Successfully broadcast to social networks.\nFAILED: Rejected by provider API (e.g. token expired, rate limit).\nDRAFT: Incomplete post."
+                  example="Filter by 'failed' to troubleshoot client OAuth issues."
+                />
+              </Flex>
             </Flex>
           </CardContent>
         </Card>
@@ -169,7 +184,14 @@ export default function ContentModerationPage() {
         <Card>
           <CardHeader>
             <Flex between className="items-center">
-              <CardTitle>Posts ({total})</CardTitle>
+              <Flex align="center" gap={2}>
+                <CardTitle>Posts ({total})</CardTitle>
+                <SectionGuide
+                  title="Post Actions"
+                  description="Eye icon opens full markdown/rich-text preview with exact schedule timestamp. Trash icon permanently removes post from database."
+                  example="Click Eye to inspect full copy and hashtags of long-form posts."
+                />
+              </Flex>
               <Text size="sm" color="muted">
                 Page {page} of {totalPages}
               </Text>
@@ -249,22 +271,22 @@ export default function ContentModerationPage() {
             {totalPages > 1 && (
               <Flex between className="items-center mt-4 pt-4 border-t">
                 <Text size="sm" color="muted">
-                  Showing {(page - 1) * 20 + 1} to {Math.min(page * 20, total)} of {total} posts
+                  Showing {(page - 1) * 20 + 1} to {Math.min(page * 20, total)} of {total}
                 </Text>
                 <Flex gap={2}>
                   <Button
                     variant="outline"
                     size="sm"
-                    disabled={page === 1}
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page === 1}
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
-                    disabled={page === totalPages}
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages}
                   >
                     <ChevronRight className="h-4 w-4" />
                   </Button>
@@ -276,56 +298,50 @@ export default function ContentModerationPage() {
       </MotionBox>
 
       {/* Preview Dialog */}
-      <Dialog open={!!previewPost} onOpenChange={(open) => !open && setPreviewPost(null)}>
-        <DialogContent className="max-w-xl">
+      <Dialog open={!!previewPost} onOpenChange={(open) => { if (!open) setPreviewPost(null); }}>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Post Preview & Details</DialogTitle>
+            <DialogTitle>Post Preview</DialogTitle>
             <DialogDescription>
               Workspace: {previewPost?.workspaceName} · Status: {previewPost?.status}
             </DialogDescription>
           </DialogHeader>
-
           {previewPost && (
-            <div className="space-y-4 py-4">
-              <Box className="p-4 rounded-lg bg-muted/40 border whitespace-pre-wrap text-sm leading-relaxed max-h-72 overflow-y-auto">
-                {previewPost.content}
-              </Box>
+            <div className="space-y-4 py-2">
+              <div className="p-4 rounded-lg bg-muted/40 border">
+                <Text size="sm" className="whitespace-pre-wrap">
+                  {previewPost.content || 'No text content'}
+                </Text>
+              </div>
 
-              <div className="grid grid-cols-2 gap-3 text-xs text-muted-foreground border-t pt-3">
+              <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground border-t pt-3">
                 <div>
-                  <Text weight="medium">Post ID:</Text>
-                  <Text className="font-mono">{previewPost.id}</Text>
-                </div>
-                <div>
-                  <Text weight="medium">Created At:</Text>
+                  <Text weight="medium" color="foreground">Created</Text>
                   <Text>{new Date(previewPost.createdAt).toLocaleString()}</Text>
                 </div>
                 {previewPost.scheduledAt && (
                   <div>
-                    <Text weight="medium">Scheduled For:</Text>
+                    <Text weight="medium" color="foreground">Scheduled For</Text>
                     <Text>{new Date(previewPost.scheduledAt).toLocaleString()}</Text>
                   </div>
                 )}
                 {previewPost.publishedAt && (
                   <div>
-                    <Text weight="medium">Published At:</Text>
+                    <Text weight="medium" color="foreground">Published At</Text>
                     <Text>{new Date(previewPost.publishedAt).toLocaleString()}</Text>
                   </div>
                 )}
               </div>
             </div>
           )}
-
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPreviewPost(null)}>
-              Close
-            </Button>
+            <Button variant="outline" onClick={() => setPreviewPost(null)}>Close</Button>
             {previewPost && (
               <Button
                 variant="destructive"
                 onClick={() => handleDelete(previewPost.id)}
               >
-                <Trash2 className="mr-2 h-4 w-4" /> Delete Post
+                Delete Post
               </Button>
             )}
           </DialogFooter>
@@ -334,4 +350,3 @@ export default function ContentModerationPage() {
     </Box>
   );
 }
-

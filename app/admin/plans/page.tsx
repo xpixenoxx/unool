@@ -34,7 +34,7 @@ import {
   DialogFooter,
   Label,
 } from '@/components/ui';
-
+import { SectionGuide } from '@/components/admin/section-guide';
 import { useState, useEffect, useCallback } from 'react';
 import { Plan } from '@/lib/repositories/interfaces/IAdminRepository';
 
@@ -58,8 +58,15 @@ function PlanTable({
   return (
     <Card variant="default" padding="none">
       <CardHeader className="px-6 py-4 border-b">
-        <Flex between>
-          <CardTitle>Pricing Plans</CardTitle>
+        <Flex between className="items-center">
+          <Flex align="center" gap={2}>
+            <CardTitle>Pricing Plans</CardTitle>
+            <SectionGuide
+              title="Pricing Plans Table"
+              description="Controls all commercial tiers shown on the customer pricing and checkout pages. Toggle Active to enable or disable new customer subscriptions for that tier. Inactive tiers remain valid for existing subscribers."
+              example="Spark: Free tier ($0)\nCreator: $9/mo ($90/yr)\nPro: $29/mo ($290/yr)\nStudio: $79/mo ($790/yr)"
+            />
+          </Flex>
           <Button variant="outline" size="sm" onClick={onOpenCreate}>
             <Plus className="mr-2 h-4 w-4" /> New Plan
           </Button>
@@ -306,9 +313,16 @@ export default function AdminPlansPage() {
 
   return (
     <Box className="space-y-6">
-      <Flex between className="flex-wrap gap-4">
+      <Flex between className="flex-wrap gap-4 items-center">
         <Box>
-          <Text size="3xl" weight="bold">Plans</Text>
+          <Flex align="center" gap={2}>
+            <Text size="3xl" weight="bold">Plans Configuration</Text>
+            <SectionGuide
+              title="Pricing & Plan Tiers"
+              description="Configure the platform plans, USD rates, sorting order, and active availability. These tiers determine the feature flags and limits injected into client workspaces."
+              example="ID: creator | Monthly: $9 | Yearly: $90 | Active: Yes"
+            />
+          </Flex>
           <Text color="muted">Manage pricing plans, features, and limits</Text>
         </Box>
         <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)}>
@@ -343,7 +357,7 @@ export default function AdminPlansPage() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="plan-id">Plan ID * (unique, e.g. &apos;enterprise&apos;)</Label>
+              <Label htmlFor="plan-id">Plan ID * (unique slug, e.g. &apos;studio&apos;)</Label>
               <Input id="plan-id" value={createId} onChange={(e) => setCreateId(e.target.value)} />
             </div>
             <div className="space-y-2">

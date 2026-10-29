@@ -17,9 +17,10 @@ import {
   Gift,
   FileText,
   Share2,
+  ShieldCheck,
 } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Box, Flex, Text, Button } from '@/components/ui';
 import { MotionBox } from '@/components/ui/motion';
@@ -39,14 +40,35 @@ const navigation = [
   { name: 'Settings', href: '/admin/settings', icon: Settings },
 ];
 
+interface CurrentAdminInfo {
+  userId: string;
+  email: string;
+  role: string;
+}
+
 export function AdminSidebar({ collapsed = false, onToggle }: { collapsed?: boolean; onToggle: () => void }) {
   const pathname = usePathname();
-  const router = useRouter();
   const [isCollapsed, setIsCollapsed] = React.useState(collapsed);
+  const [adminUser, setAdminUser] = React.useState<CurrentAdminInfo | null>(null);
 
   React.useEffect(() => {
     setIsCollapsed(collapsed);
   }, [collapsed]);
+
+  React.useEffect(() => {
+    let mounted = true;
+    fetch('/admin/api/me')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (mounted && data?.admin) {
+          setAdminUser(data.admin);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleToggle = () => {
     setIsCollapsed(!isCollapsed);
@@ -74,7 +96,7 @@ export function AdminSidebar({ collapsed = false, onToggle }: { collapsed?: bool
         >
           <Box className="flex items-center gap-3 shrink-0">
             <Box className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <LayoutDashboard className="h-5 w-5" />
+              <ShieldCheck className="h-5 w-5" />
             </Box>
             {!isCollapsed && (
               <Text weight="bold" size="lg" color="foreground">
@@ -131,17 +153,17 @@ export function AdminSidebar({ collapsed = false, onToggle }: { collapsed?: bool
         {/* User Info & Logout */}
         {!isCollapsed && (
           <Box className="flex-shrink-0 border-t p-4">
-            <Flex between className="items-center gap-4">
+            <Flex between className="items-center gap-3">
               <Box className="flex-1 min-w-0">
-                <Text size="sm" weight="medium" color="foreground" className="truncate">
-                  Admin User
+                <Text size="sm" weight="semibold" color="foreground" className="truncate" title={adminUser?.email || 'Admin'}>
+                  {adminUser?.email || 'Admin'}
                 </Text>
-                <Text size="xs" color="muted" className="truncate">
-                  super_admin
+                <Text size="xs" color="muted" className="truncate uppercase font-mono">
+                  {adminUser?.role ? adminUser.role.replace('_', ' ') : 'super admin'}
                 </Text>
               </Box>
-              <Button variant="ghost" size="sm" onClick={handleLogout}>
-                Log Out <LogOut className="ml-1 h-3 w-3" />
+              <Button variant="ghost" size="icon" onClick={handleLogout} title="Log Out" aria-label="Log Out">
+                <LogOut className="h-4 w-4" />
               </Button>
             </Flex>
           </Box>
@@ -156,7 +178,6 @@ interface AdminLayoutProps {
 }
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
-  const router = useRouter();
   const pathname = usePathname();
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
 
@@ -188,7 +209,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               Admin Dashboard
             </Text>
             <Flex gap={3} className="items-center">
-              <Button variant="ghost" size="icon" asChild>
+              <Button variant="ghost" size="icon" asChild title="Open User App">
                 <a href="/dashboard" target="_blank" rel="noopener noreferrer">
                   <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />

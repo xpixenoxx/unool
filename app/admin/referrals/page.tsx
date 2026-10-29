@@ -28,6 +28,7 @@ import {
   TabsContent,
 } from '@/components/ui';
 import { MotionBox } from '@/components/ui/motion';
+import { SectionGuide } from '@/components/admin/section-guide';
 
 interface ReferralCodeItem {
   id: string;
@@ -136,9 +137,16 @@ export default function ReferralsAdminPage() {
       <MotionBox variant="fade">
         <Flex between className="items-center">
           <Box>
-            <Text size="2xl" weight="bold" color="foreground">
-              Referral Management
-            </Text>
+            <Flex align="center" gap={2}>
+              <Text size="2xl" weight="bold" color="foreground">
+                Referral Management
+              </Text>
+              <SectionGuide
+                title="Referral & Affiliate Engine"
+                description="Tracks user invitation links (unool.co?ref=CODE), signup tracking, and subscription conversions. Successful conversions automatically reward the referrer with free bonus months."
+                example="Referral: USHA10 -> 40 clicks -> 8 signups -> 2 paid conversions -> 2 free months awarded."
+              />
+            </Flex>
             <Text size="sm" color="muted">
               Track affiliate codes, referral conversions, and rewarded free months
             </Text>
@@ -154,25 +162,53 @@ export default function ReferralsAdminPage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <Card>
             <CardContent className="pt-6">
-              <Text size="xs" color="muted">Active Codes</Text>
+              <Flex align="center" gap={1.5}>
+                <Text size="xs" color="muted">Active Codes</Text>
+                <SectionGuide
+                  title="Active Codes"
+                  description="Number of personalized referral links created by users."
+                  example="42 total referral links generated"
+                />
+              </Flex>
               <Text size="2xl" weight="bold" className="mt-1">{codesTotal}</Text>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <Text size="xs" color="muted">Total Signups</Text>
+              <Flex align="center" gap={1.5}>
+                <Text size="xs" color="muted">Total Signups</Text>
+                <SectionGuide
+                  title="Referred Signups"
+                  description="Users who registered with an active referral cookie attached."
+                  example="118 users registered through invite links"
+                />
+              </Flex>
               <Text size="2xl" weight="bold" className="mt-1 text-blue-600 dark:text-blue-400">{totalSignups}</Text>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <Text size="xs" color="muted">Paid Conversions</Text>
+              <Flex align="center" gap={1.5}>
+                <Text size="xs" color="muted">Paid Conversions</Text>
+                <SectionGuide
+                  title="Paid Conversions"
+                  description="Referred users who purchased a paid monthly or annual subscription."
+                  example="24 users upgraded to Creator or Pro"
+                />
+              </Flex>
               <Text size="2xl" weight="bold" className="mt-1 text-green-600 dark:text-green-400">{totalConversions}</Text>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <Text size="xs" color="muted">Free Months Rewarded</Text>
+              <Flex align="center" gap={1.5}>
+                <Text size="xs" color="muted">Free Months Rewarded</Text>
+                <SectionGuide
+                  title="Months Rewarded"
+                  description="Total subscription period extensions credited to affiliates."
+                  example="24 free months credited to referrers"
+                />
+              </Flex>
               <Text size="2xl" weight="bold" className="mt-1 text-purple-600 dark:text-purple-400">{totalMonthsEarned}</Text>
             </CardContent>
           </Card>
@@ -196,7 +232,14 @@ export default function ReferralsAdminPage() {
             <Card>
               <CardHeader>
                 <Flex between className="items-center flex-wrap gap-4">
-                  <CardTitle>Referral Codes</CardTitle>
+                  <Flex align="center" gap={2}>
+                    <CardTitle>Referral Codes</CardTitle>
+                    <SectionGuide
+                      title="Codes Table"
+                      description="Displays each user's unique referral link with engagement funnel metrics: clicks -> signups -> conversions."
+                      example="Code: USHA2026\nClicks: 240\nSignups: 32\nPaid: 5"
+                    />
+                  </Flex>
                   <div className="relative w-72">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -279,7 +322,14 @@ export default function ReferralsAdminPage() {
           <TabsContent value="log">
             <Card>
               <CardHeader>
-                <CardTitle>Referral Events</CardTitle>
+                <Flex align="center" gap={2}>
+                  <CardTitle>Referral Events</CardTitle>
+                  <SectionGuide
+                    title="Audit Log of Referrals"
+                    description="Individual records matching who referred whom, their current lifecycle status, and whether the free month reward has been dispatched."
+                    example="Referrer: 8fa9... | Referred: c012... | Status: rewarded"
+                  />
+                </Flex>
               </CardHeader>
               <CardContent>
                 {logLoading ? (
@@ -351,4 +401,3 @@ export default function ReferralsAdminPage() {
     </Box>
   );
 }
-

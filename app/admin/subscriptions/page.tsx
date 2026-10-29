@@ -10,6 +10,7 @@ import {
   Textarea,
 } from '@/components/ui';
 import { MotionBox } from '@/components/ui/motion';
+import { SectionGuide } from '@/components/admin/section-guide';
 import { useState, useEffect, useCallback } from 'react';
 
 interface Subscription {
@@ -42,6 +43,13 @@ const statusColors: Record<string, string> = {
   paused: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
   cancelled: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
   expired: 'bg-gray-100 text-gray-500 dark:bg-gray-900/30 dark:text-gray-500',
+};
+
+const planBadgeColors: Record<string, string> = {
+  spark: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
+  creator: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  pro: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+  studio: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
 };
 
 function formatAmount(paise: number, currency: string = 'INR'): string {
@@ -165,7 +173,14 @@ export default function SubscriptionsPage() {
       <MotionBox variant="fade">
         <Flex between className="items-center">
           <Box>
-            <Text size="2xl" weight="bold" color="foreground">Subscriptions</Text>
+            <Flex align="center" gap={2}>
+              <Text size="2xl" weight="bold" color="foreground">Subscriptions</Text>
+              <SectionGuide
+                title="Subscriptions Management"
+                description="Controls workspace billing contracts and recurring access limits. Admins can extend subscription periods as goodwill gestures, upgrade/downgrade plan tiers immediately, or cancel subscriptions on demand."
+                example="Active subscription: Creator (Monthly)\nCurrent Period End: 15 Nov 2026\nAction: Extend to 30 Nov 2026 without charging customer."
+              />
+            </Flex>
             <Text size="sm" color="muted">Manage user subscriptions — cancel, extend, or change plans</Text>
           </Box>
           <Button variant="outline" size="sm" onClick={fetchSubscriptions}>
@@ -179,31 +194,38 @@ export default function SubscriptionsPage() {
       <MotionBox variant="fade" delay={0.05}>
         <Card>
           <CardContent className="pt-6">
-            <Flex gap={3} className="flex-col sm:flex-row">
-              <div className="relative flex-1">
+            <Flex gap={3} className="flex-col sm:flex-row items-center">
+              <div className="relative flex-1 w-full">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search by subscription ID or plan..."
+                  placeholder="Search by subscription ID, workspace, or plan..."
                   className="pl-10"
                   value={search}
                   onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                 />
               </div>
-              <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="created">Created</SelectItem>
-                  <SelectItem value="authorized">Authorized</SelectItem>
-                  <SelectItem value="past_due">Past Due</SelectItem>
-                  <SelectItem value="paused">Paused</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                  <SelectItem value="expired">Expired</SelectItem>
-                </SelectContent>
-              </Select>
+              <Flex align="center" gap={2} className="w-full sm:w-auto">
+                <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="created">Created</SelectItem>
+                    <SelectItem value="authorized">Authorized</SelectItem>
+                    <SelectItem value="past_due">Past Due</SelectItem>
+                    <SelectItem value="paused">Paused</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                    <SelectItem value="expired">Expired</SelectItem>
+                  </SelectContent>
+                </Select>
+                <SectionGuide
+                  title="Subscription Lifecycle"
+                  description="ACTIVE: Currently recurring & features unlocked. PAST_DUE: Payment failed, grace period active. PAUSED: Customer voluntarily frozen. CANCELLED: Terminated, falls back to Spark free tier."
+                  example="Filter by 'past_due' to identify accounts at risk of churning."
+                />
+              </Flex>
             </Flex>
           </CardContent>
         </Card>
@@ -214,7 +236,14 @@ export default function SubscriptionsPage() {
         <Card>
           <CardHeader>
             <Flex between className="items-center">
-              <CardTitle>All Subscriptions</CardTitle>
+              <Flex align="center" gap={2}>
+                <CardTitle>All Subscriptions</CardTitle>
+                <SectionGuide
+                  title="Row Actions"
+                  description="Eye: View full subscription metadata and cycle dates.\nCalendar+: Extend period end date by N days (goodwill credit).\nArrows: Change plan tier (immediate entitlement adjust).\nX: Cancel subscription immediately."
+                  example="Click Calendar+ to extend an active subscriber's billing date by 14 days."
+                />
+              </Flex>
               <Text size="sm" color="muted">{total} total</Text>
             </Flex>
           </CardHeader>
@@ -244,56 +273,56 @@ export default function SubscriptionsPage() {
                   <tbody>
                     {subscriptions.map((sub) => (
                       <tr key={sub.id} className="border-b hover:bg-muted/50 transition-colors">
-                          <td className="py-3 px-2">
-                            <Text size="sm" className="truncate max-w-[160px]">
-                              {sub.workspaceName || sub.workspaceId.slice(0, 8)}
-                            </Text>
-                          </td>
-                          <td className="py-3 px-2">
-                            <Badge variant="outline" className="capitalize">
-                              {sub.planId} · {sub.billingCycle}
-                            </Badge>
-                          </td>
-                          <td className="py-3 px-2">
-                            <Text size="sm" weight="medium">
-                              {formatAmount(sub.amountPaise, sub.currency)}
-                            </Text>
-                          </td>
-                          <td className="py-3 px-2">
-                            <Badge className={cn('text-xs', statusColors[sub.status] || '')}>
-                              {sub.status.replace('_', ' ')}
-                            </Badge>
-                            {sub.cancelAtPeriodEnd && (
-                              <Text size="xs" color="muted" className="mt-1">cancels at end</Text>
+                        <td className="py-3 px-2">
+                          <Text size="sm" className="truncate max-w-[160px]" title={sub.workspaceName || sub.workspaceId}>
+                            {sub.workspaceName || sub.workspaceId.slice(0, 8)}
+                          </Text>
+                        </td>
+                        <td className="py-3 px-2">
+                          <Badge variant="outline" className={cn('capitalize', planBadgeColors[sub.planId] || '')}>
+                            {sub.planId} · {sub.billingCycle}
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-2">
+                          <Text size="sm" weight="medium">
+                            {formatAmount(sub.amountPaise, sub.currency)}
+                          </Text>
+                        </td>
+                        <td className="py-3 px-2">
+                          <Badge className={cn('text-xs', statusColors[sub.status] || '')}>
+                            {sub.status.replace('_', ' ')}
+                          </Badge>
+                          {sub.cancelAtPeriodEnd && (
+                            <Text size="xs" color="muted" className="mt-1 block">cancels at end</Text>
+                          )}
+                        </td>
+                        <td className="py-3 px-2">
+                          <Text size="xs" color="muted">{formatDate(sub.currentPeriodEnd)}</Text>
+                        </td>
+                        <td className="py-3 px-2">
+                          <Text size="xs" color="muted">{formatDate(sub.createdAt)}</Text>
+                        </td>
+                        <td className="py-3 px-2">
+                          <Flex gap={1}>
+                            <Button variant="ghost" size="icon" onClick={() => openAction(sub, 'view')} title="View details">
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            {sub.status === 'active' && (
+                              <>
+                                <Button variant="ghost" size="icon" onClick={() => openAction(sub, 'extend')} title="Extend subscription">
+                                  <CalendarPlus className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" onClick={() => openAction(sub, 'change_plan')} title="Change plan">
+                                  <ArrowUpDown className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" onClick={() => openAction(sub, 'cancel')} title="Cancel subscription" className="text-destructive hover:text-destructive">
+                                  <XCircle className="h-4 w-4" />
+                                </Button>
+                              </>
                             )}
-                          </td>
-                          <td className="py-3 px-2">
-                            <Text size="xs" color="muted">{formatDate(sub.currentPeriodEnd)}</Text>
-                          </td>
-                          <td className="py-3 px-2">
-                            <Text size="xs" color="muted">{formatDate(sub.createdAt)}</Text>
-                          </td>
-                          <td className="py-3 px-2">
-                            <Flex gap={1}>
-                              <Button variant="ghost" size="icon" onClick={() => openAction(sub, 'view')} title="View details">
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              {sub.status === 'active' && (
-                                <>
-                                  <Button variant="ghost" size="icon" onClick={() => openAction(sub, 'extend')} title="Extend subscription">
-                                    <CalendarPlus className="h-4 w-4" />
-                                  </Button>
-                                  <Button variant="ghost" size="icon" onClick={() => openAction(sub, 'change_plan')} title="Change plan">
-                                    <ArrowUpDown className="h-4 w-4" />
-                                  </Button>
-                                  <Button variant="ghost" size="icon" onClick={() => openAction(sub, 'cancel')} title="Cancel subscription" className="text-destructive hover:text-destructive">
-                                    <XCircle className="h-4 w-4" />
-                                  </Button>
-                                </>
-                              )}
-                            </Flex>
-                          </td>
-                        </tr>
+                          </Flex>
+                        </td>
+                      </tr>
                     ))}
                   </tbody>
                 </table>
@@ -390,7 +419,7 @@ export default function SubscriptionsPage() {
             <div className="space-y-2">
               <Text size="sm" weight="medium">Reason *</Text>
               <Textarea
-                placeholder="Why are you cancelling this subscription?"
+                placeholder="Why are you cancelling this subscription? (Logged to audit)"
                 value={actionReason}
                 onChange={(e) => setActionReason(e.target.value)}
                 rows={3}
@@ -430,7 +459,7 @@ export default function SubscriptionsPage() {
             <div className="space-y-2">
               <Text size="sm" weight="medium">Reason *</Text>
               <Textarea
-                placeholder="Why are you extending this subscription?"
+                placeholder="Why are you extending this subscription? (e.g. Customer support goodwill)"
                 value={actionReason}
                 onChange={(e) => setActionReason(e.target.value)}
                 rows={3}
@@ -513,4 +542,3 @@ export default function SubscriptionsPage() {
     </Box>
   );
 }
-

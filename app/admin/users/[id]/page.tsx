@@ -34,6 +34,8 @@ import {
   AvatarFallback,
 } from '@/components/ui';
 import { MotionBox } from '@/components/ui/motion';
+import { SectionGuide } from '@/components/admin/section-guide';
+import { cn } from '@/lib/utils';
 
 interface UserWorkspace {
   id: string;
@@ -79,6 +81,13 @@ interface UserDetail {
   paymentOrders: PaymentOrder[];
   referralCode: ReferralCode | null;
 }
+
+const planBadgeColors: Record<string, string> = {
+  spark: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
+  creator: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  pro: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+  studio: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+};
 
 function formatAmount(paise: number, currency: string = 'INR'): string {
   const amount = paise / 100;
@@ -236,6 +245,11 @@ export default function UserDetailPage() {
                         Active
                       </Badge>
                     )}
+                    <SectionGuide
+                      title="User Identity & Status"
+                      description="User account profile directly sourced from Supabase Auth auth.users table. Suspending sets a temporary 24-hour ban until timestamp, preventing password or magic link sign-ins."
+                      example="Status: Active\nWorkspaces: 2\nLast sign-in: 28 Oct 2026"
+                    />
                   </Flex>
                   <Text size="xs" color="muted" className="font-mono mt-1">
                     ID: {user.id}
@@ -287,7 +301,14 @@ export default function UserDetailPage() {
           <TabsContent value="workspaces">
             <Card>
               <CardHeader>
-                <CardTitle>Workspaces</CardTitle>
+                <Flex align="center" gap={2}>
+                  <CardTitle>Workspaces</CardTitle>
+                  <SectionGuide
+                    title="User Workspaces"
+                    description="Workspaces where this user has membership (as owner, admin, or member). Click the link icon on the right to navigate directly to the workspace administration view."
+                    example="Workspace: Pixel Studios\nRole: Owner\nPlan: Creator (Active)"
+                  />
+                </Flex>
                 <CardDescription>Workspaces where this user has membership</CardDescription>
               </CardHeader>
               <CardContent>
@@ -312,7 +333,9 @@ export default function UserDetailPage() {
                             <td className="py-3 px-2 font-medium">{ws.name}</td>
                             <td className="py-3 px-2 capitalize">{ws.role}</td>
                             <td className="py-3 px-2">
-                              <Badge variant="outline" className="capitalize">{ws.plan || 'free'}</Badge>
+                              <Badge variant="outline" className={cn('capitalize', planBadgeColors[ws.plan] || '')}>
+                                {ws.plan || 'spark'}
+                              </Badge>
                             </td>
                             <td className="py-3 px-2">
                               <Badge className="capitalize">{ws.plan_status || 'active'}</Badge>
@@ -341,7 +364,14 @@ export default function UserDetailPage() {
           <TabsContent value="payments">
             <Card>
               <CardHeader>
-                <CardTitle>Payment History</CardTitle>
+                <Flex align="center" gap={2}>
+                  <CardTitle>Payment History</CardTitle>
+                  <SectionGuide
+                    title="User Payments"
+                    description="Individual checkout sessions initiated by this user across all their workspaces."
+                    example="cf_ord_901a...\nPlan: Pro (Annual)\nAmount: ₹19,990 (Paid via Credit Card)"
+                  />
+                </Flex>
                 <CardDescription>Recent payment orders for this user</CardDescription>
               </CardHeader>
               <CardContent>
@@ -387,7 +417,14 @@ export default function UserDetailPage() {
           <TabsContent value="referral">
             <Card>
               <CardHeader>
-                <CardTitle>Referral Program</CardTitle>
+                <Flex align="center" gap={2}>
+                  <CardTitle>Referral Program</CardTitle>
+                  <SectionGuide
+                    title="User Referral Stats"
+                    description="Tracks clicks, signups, and paid conversions generated through this user's unique referral link."
+                    example="Code: USHA2026\nClicks: 140\nSignups: 22\nPaid conversions: 4"
+                  />
+                </Flex>
                 <CardDescription>Referral performance and rewards</CardDescription>
               </CardHeader>
               <CardContent>
@@ -421,4 +458,3 @@ export default function UserDetailPage() {
     </Box>
   );
 }
-

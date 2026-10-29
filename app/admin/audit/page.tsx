@@ -1,10 +1,11 @@
 'use client';
 
 import * as React from 'react';
-import { ChevronLeft, ChevronRight, User, Clock, Hash, FileText, Loader2, Download } from 'lucide-react';
+import { ChevronLeft, ChevronRight, User, Clock, Hash, FileText, Loader2, Download, RefreshCw } from 'lucide-react';
 
 import { Box, Flex, Text, Card, CardHeader, CardTitle, CardContent, Badge, Button, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui';
 import { MotionBox } from '@/components/ui/motion';
+import { SectionGuide } from '@/components/admin/section-guide';
 import { useState, useEffect, useMemo } from 'react';
 
 interface AdminAuditLog {
@@ -97,7 +98,6 @@ function LogTable({
 }) {
   const userMap = useMemo(() => new Map(adminUsers.map(u => [u.id, u])), [adminUsers]);
 
-
   const start = (page - 1) * pageSize;
   const end = start + pageSize;
   const paginatedLogs = logs.slice(start, end);
@@ -105,9 +105,16 @@ function LogTable({
   return (
     <Card variant="default" padding="none">
       <CardHeader className="px-6 py-4 border-b">
-        <Flex between className="flex-wrap gap-4">
-          <CardTitle>Audit Log</CardTitle>
-          <Flex gap={3}>
+        <Flex between className="flex-wrap gap-4 items-center">
+          <Flex align="center" gap={2}>
+            <CardTitle>Audit Log Records</CardTitle>
+            <SectionGuide
+              title="Audit Log Records"
+              description="Chronological record of every administrative action executed across the panel. Tracks exact admin email, sha256-hashed IP address for GDPR compliance, and detailed change metadata."
+              example="Action: Workspace Plan Update\nTarget: Acme Agency (uuid)\nAdmin: usha@pixenox.com\nDetails: { oldPlan: 'spark', newPlan: 'pro' }"
+            />
+          </Flex>
+          <Flex gap={3} className="items-center">
             <Select value={String(pageSize)} onValueChange={v => { onPageSizeChange(Number(v)); onPageChange(1); }}>
               <SelectTrigger className="w-[140px]">
                 <SelectValue placeholder="Page size" />
@@ -247,8 +254,6 @@ export default function AdminAuditPage() {
   const [pageSize, setPageSize] = useState(20);
   const [searchQuery, setSearchQuery] = useState('');
 
-
-
   const fetchData = React.useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -309,9 +314,16 @@ export default function AdminAuditPage() {
 
   return (
     <MotionBox variant="fade" className="space-y-6">
-      <Flex between className="flex-wrap gap-4">
+      <Flex between className="flex-wrap gap-4 items-center">
         <Box>
-          <Text size="3xl" weight="bold">Audit Log</Text>
+          <Flex align="center" gap={2}>
+            <Text size="3xl" weight="bold">Security Audit Log</Text>
+            <SectionGuide
+              title="Security & Compliance Audit"
+              description="Immutable security log verifying every modification executed in the admin system. Meets SOC2 compliance requirements. Metadata includes exact before/after states of changed entities."
+              example="Filter by 'user_suspend' or 'workspace_plan_update' to trace who made specific changes and when."
+            />
+          </Flex>
           <Text color="muted">Track all administrative actions across the platform</Text>
         </Box>
         <Flex gap={3} className="items-center">
@@ -321,8 +333,8 @@ export default function AdminAuditPage() {
             onChange={e => { setSearchQuery(e.target.value); setPage(1); }}
             className="w-80"
           />
-          <Button variant="ghost" size="sm" onClick={fetchData}>
-            <Loader2 className="mr-2 h-4 w-4" /> Refresh
+          <Button variant="outline" size="sm" onClick={fetchData}>
+            <RefreshCw className="mr-2 h-4 w-4" /> Refresh
           </Button>
         </Flex>
       </Flex>

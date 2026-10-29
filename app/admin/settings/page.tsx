@@ -46,6 +46,7 @@ import {
   TabsContent,
 } from '@/components/ui';
 import { MotionBox } from '@/components/ui/motion';
+import { SectionGuide } from '@/components/admin/section-guide';
 
 interface AdminUser {
   id: string;
@@ -163,9 +164,16 @@ export default function AdminSettingsPage() {
       <MotionBox variant="fade">
         <Flex between className="items-center">
           <Box>
-            <Text size="2xl" weight="bold" color="foreground">
-              Settings & Administration
-            </Text>
+            <Flex align="center" gap={2}>
+              <Text size="2xl" weight="bold" color="foreground">
+                Settings & Administration
+              </Text>
+              <SectionGuide
+                title="Settings & System Governance"
+                description="Manage administrative permissions, check multi-service infrastructure health, and review cryptographic security protocols protecting the UNOOL platform."
+                example="Super Admin role bypasses granular restrictions. Sub-admins are bound by explicit permission flags."
+              />
+            </Flex>
             <Text size="sm" color="muted">
               Manage administrator roles, system health, and security controls
             </Text>
@@ -197,7 +205,14 @@ export default function AdminSettingsPage() {
               <CardHeader>
                 <Flex between className="items-center flex-wrap gap-4">
                   <div>
-                    <CardTitle>Admin Users</CardTitle>
+                    <Flex align="center" gap={2}>
+                      <CardTitle>Admin Users</CardTitle>
+                      <SectionGuide
+                        title="Admin Roster"
+                        description="Privileged accounts stored in the admin_users database table. Super admins can provision new team members with scoped permissions (e.g. support tier with content-only access)."
+                        example="Email: usha@pixenox.com\nRole: super_admin\nStatus: Active"
+                      />
+                    </Flex>
                     <CardDescription>Authorized users with access to the UNOOL Admin Panel</CardDescription>
                   </div>
                   <Button onClick={() => setAddDialogOpen(true)}>
@@ -419,7 +434,7 @@ export default function AdminSettingsPage() {
                     To set or reset any admin user password securely using Argon2id, run the included CLI script from the repository root:
                   </Text>
                   <pre className="p-3 bg-muted rounded font-mono text-xs overflow-x-auto">
-                    npx tsx scripts/set-admin-password.ts &lt;admin_email&gt; &lt;new_password&gt;
+                    npx tsx scripts/create-admin-user.ts &lt;admin_email&gt; &lt;new_password&gt;
                   </pre>
                 </Box>
 
@@ -511,4 +526,3 @@ export default function AdminSettingsPage() {
     </Box>
   );
 }
-

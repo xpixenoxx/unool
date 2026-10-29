@@ -20,10 +20,7 @@ import {
   Box,
 } from '@/components/ui';
 import {
-
-
   Activity,
-
   Building2,
   Users,
   Eye,
@@ -35,6 +32,7 @@ import {
   hoverLift,
   staggerItem,
 } from '@/components/ui/motion';
+import { SectionGuide } from '@/components/admin/section-guide';
 
 interface WorkspaceAdminView {
   id: string;
@@ -104,29 +102,21 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
     {
       label: 'Total Workspaces',
       value: analytics.totalWorkspaces.toLocaleString(),
-      change: '+12%',
-      changeType: 'increase' as const,
       icon: <Building2 className="h-5 w-5" />,
     },
     {
       label: 'Total Users',
       value: analytics.totalUsers.toLocaleString(),
-      change: '+8%',
-      changeType: 'increase' as const,
       icon: <Users className="h-5 w-5" />,
     },
     {
       label: 'Profile Views (30d)',
       value: analytics.totalProfileViews.toLocaleString(),
-      change: '+23%',
-      changeType: 'increase' as const,
       icon: <Eye className="h-5 w-5" />,
     },
     {
       label: 'Link Clicks (30d)',
       value: analytics.totalLinkClicks.toLocaleString(),
-      change: '+15%',
-      changeType: 'increase' as const,
       icon: <ExternalLink className="h-5 w-5" />,
     },
   ];
@@ -161,28 +151,36 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
         </Flex>
         <Flex gap={3}>
           <Button variant="outline" asChild>
-            <Link href="/admin/analytics"><Activity className="mr-2 h-4 w-4" /> Full Analytics</Link>
+            <Link href="/admin/analytics"><Activity className="mr-2 h-4 w-4" />Full Analytics</Link>
           </Button>
           <Button asChild>
-            <Link href="/admin/workspaces"><Building2 className="mr-2 h-4 w-4" /> Workspaces</Link>
+            <Link href="/admin/workspaces"><Building2 className="mr-2 h-4 w-4" />Workspaces</Link>
           </Button>
         </Flex>
       </Flex>
 
       {/* Metrics Grid */}
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        {metrics.map((metric, index) => (
-          <MotionBox variants={staggerItem} custom={index} key={metric.label} {...hoverLift}>
-            <MetricCard
-              value={metric.value}
-              label={metric.label}
-              change={metric.change}
-              changeType={metric.changeType}
-              icon={metric.icon}
-              padding="lg"
-            />
-          </MotionBox>
-        ))}
+      <div>
+        <Flex align="center" gap={2} className="mb-3">
+          <Text size="sm" weight="semibold" color="muted" className="uppercase tracking-wide">Platform Metrics</Text>
+          <SectionGuide
+            title="Platform Metrics"
+            description="Live counts pulled from the database. Profile Views and Link Clicks are totals for the last 30 days. Workspaces and Users are all-time counts."
+            example="Workspaces: 142  |  Users: 389\nProfile Views (30d): 12,847\nLink Clicks (30d): 4,321"
+          />
+        </Flex>
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {metrics.map((metric, index) => (
+            <MotionBox variants={staggerItem} custom={index} key={metric.label} {...hoverLift}>
+              <MetricCard
+                value={metric.value}
+                label={metric.label}
+                icon={metric.icon}
+                padding="lg"
+              />
+            </MotionBox>
+          ))}
+        </div>
       </div>
 
       {/* Charts & Activity */}
@@ -193,31 +191,42 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
             <CardHeader>
               <Flex between>
                 <Flex column gap={1}>
-                  <CardTitle>Events by Type (30d)</CardTitle>
+                  <Flex align="center" gap={2}>
+                    <CardTitle>Events by Type (30d)</CardTitle>
+                    <SectionGuide
+                      title="Events by Type"
+                      description="Breakdown of all analytics events recorded in the last 30 days, grouped by type. Each event is triggered by a user action on Unool."
+                      example="profile_view — 8,400 (user visited /u/username)\nlink_click — 3,200 (clicked a bio link)\npost_publish — 210 (scheduled post went live)"
+                    />
+                  </Flex>
                   <CardDescription>Distribution of analytics events</CardDescription>
                 </Flex>
               </Flex>
             </CardHeader>
             <CardContent>
               <Flex column gap={3}>
-                {Object.entries(analytics.eventsByType)
-                  .sort(([, a], [, b]) => b - a)
-                  .map(([type, count]) => (
-                    <Flex key={type} between className="items-center">
-                      <Flex align="center" gap={2}>
-                        <Badge variant="outline" size="sm">{type}</Badge>
+                {Object.entries(analytics.eventsByType).length > 0 ? (
+                  Object.entries(analytics.eventsByType)
+                    .sort(([, a], [, b]) => b - a)
+                    .map(([type, count]) => (
+                      <Flex key={type} between className="items-center">
+                        <Flex align="center" gap={2}>
+                          <Badge variant="outline" size="sm">{type}</Badge>
+                        </Flex>
+                        <Flex align="center" gap={2}>
+                          <Text weight="medium" className="w-16 text-right">{count.toLocaleString()}</Text>
+                          <Box className="h-2 bg-muted rounded-full flex-1 max-w-[200px]" role="progressbar" aria-valuenow={count} aria-valuemin={0} aria-valuemax={Math.max(...Object.values(analytics.eventsByType))}>
+                            <Box
+                              className="h-full bg-primary rounded-full transition-all duration-500"
+                              style={{ width: `${(count / Math.max(...Object.values(analytics.eventsByType))) * 100}%` }}
+                            />
+                          </Box>
+                        </Flex>
                       </Flex>
-                      <Flex align="center" gap={2}>
-                        <Text weight="medium" className="w-16 text-right">{count.toLocaleString()}</Text>
-                        <Box className="h-2 bg-muted rounded-full flex-1 max-w-[200px]" role="progressbar" aria-valuenow={count} aria-valuemin={0} aria-valuemax={Math.max(...Object.values(analytics.eventsByType))}>
-                          <Box
-                            className="h-full bg-primary rounded-full transition-all duration-500"
-                            style={{ width: `${(count / Math.max(...Object.values(analytics.eventsByType))) * 100}%` }}
-                          />
-                        </Box>
-                      </Flex>
-                    </Flex>
-                  ))}
+                    ))
+                ) : (
+                  <Text color="muted" className="text-center py-8">No event data for the last 30 days</Text>
+                )}
               </Flex>
             </CardContent>
           </Card>
@@ -229,7 +238,14 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
             <CardHeader>
               <Flex between>
                 <Flex column gap={1}>
-                  <CardTitle>Activity (Last 30 Days)</CardTitle>
+                  <Flex align="center" gap={2}>
+                    <CardTitle>Activity (Last 30 Days)</CardTitle>
+                    <SectionGuide
+                      title="Activity Chart"
+                      description="Daily total event volume across the entire platform for the last 30 days. A spike indicates a viral post, campaign, or product launch."
+                      example="Day 1: 120 events\nDay 15: 540 events (spike — campaign launched)\nDay 30: 310 events"
+                    />
+                  </Flex>
                   <CardDescription>Daily event volume</CardDescription>
                 </Flex>
               </Flex>
@@ -258,7 +274,11 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
                         fill="url(#activityGradient)"
                       />
                     </>
-                  ) : null}
+                  ) : (
+                    <text x="200" y="90" textAnchor="middle" fill="var(--muted-foreground)" fontSize="14">
+                      No activity data yet
+                    </text>
+                  )}
                 </svg>
               </Box>
             </CardContent>
@@ -273,7 +293,14 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
             <CardHeader>
               <Flex between>
                 <Flex column gap={1}>
-                  <CardTitle>Top Links</CardTitle>
+                  <Flex align="center" gap={2}>
+                    <CardTitle>Top Links</CardTitle>
+                    <SectionGuide
+                      title="Top Links"
+                      description="The 10 most-clicked links across all user profiles, ranked by total clicks in the last 30 days. Link type shows the category (website, instagram, twitter, etc.)."
+                      example="Type: instagram\nURL: instagram.com/myshop\nClicks: 1,240"
+                    />
+                  </Flex>
                   <CardDescription>Most clicked links across all profiles</CardDescription>
                 </Flex>
               </Flex>
@@ -302,7 +329,7 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
                   ))}
                 </Box>
               ) : (
-                <Text color="muted" className="text-center py-8">No link click data available</Text>
+                <Text color="muted" className="text-center py-8">No link click data available yet</Text>
               )}
             </CardContent>
           </Card>
@@ -313,7 +340,14 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
             <CardHeader>
               <Flex between>
                 <Flex column gap={1}>
-                  <CardTitle>Top Profiles</CardTitle>
+                  <Flex align="center" gap={2}>
+                    <CardTitle>Top Profiles</CardTitle>
+                    <SectionGuide
+                      title="Top Profiles"
+                      description="The 10 most-visited public profile pages (unool.co/u/username) in the last 30 days. High view counts indicate active creators or viral content."
+                      example="Profile: Priya Sharma\nViews: 3,400 in 30d\nProfile ID: abc12345"
+                    />
+                  </Flex>
                   <CardDescription>Most viewed profiles</CardDescription>
                 </Flex>
               </Flex>
@@ -338,7 +372,7 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
                   ))}
                 </Box>
               ) : (
-                <Text color="muted" className="text-center py-8">No profile view data available</Text>
+                <Text color="muted" className="text-center py-8">No profile view data available yet</Text>
               )}
             </CardContent>
           </Card>
@@ -352,7 +386,14 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
             <CardHeader>
               <Flex between>
                 <Flex column gap={1}>
-                  <CardTitle>Recent Workspaces</CardTitle>
+                  <Flex align="center" gap={2}>
+                    <CardTitle>Recent Workspaces</CardTitle>
+                    <SectionGuide
+                      title="Recent Workspaces"
+                      description="The 5 most recently created workspaces. Each workspace has a plan (spark/creator/pro/studio), member count, posts published this month, and connected social profiles."
+                      example="Name: Pixel Studio\nPlan: creator  |  Status: active\nMembers: 3  |  Posts: 12  |  Profiles: 4"
+                    />
+                  </Flex>
                   <CardDescription>Latest workspaces created</CardDescription>
                 </Flex>
                 <Button variant="ghost" size="sm" asChild>
@@ -397,7 +438,14 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
             <CardHeader>
               <Flex between>
                 <Flex column gap={1}>
-                  <CardTitle>Recent Users</CardTitle>
+                  <Flex align="center" gap={2}>
+                    <CardTitle>Recent Users</CardTitle>
+                    <SectionGuide
+                      title="Recent Users"
+                      description="The 5 most recently registered users via Supabase Auth. Each shows their email, number of workspaces they belong to, and their current plan tier."
+                      example="Email: priya@gmail.com\nWorkspaces: 1  |  Plan: creator\nJoined: Oct 28, 2026"
+                    />
+                  </Flex>
                   <CardDescription>Latest user registrations</CardDescription>
                 </Flex>
                 <Button variant="ghost" size="sm" asChild>
@@ -419,7 +467,7 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
                           <Text weight="medium" className="truncate">{user.email}</Text>
                           <Flex gap={2} style={{ flexWrap: 'wrap' }}>
                             <Badge variant="outline" size="sm">{user.workspaceCount} workspaces</Badge>
-                            <Badge variant="secondary" size="sm">{user.plan}</Badge>
+                            <PlanBadge plan={user.plan} />
                           </Flex>
                         </Box>
                       </Flex>
@@ -443,7 +491,14 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
           <CardHeader>
             <Flex between>
               <Flex column gap={1}>
-                <CardTitle>Pricing Plans</CardTitle>
+                <Flex align="center" gap={2}>
+                  <CardTitle>Pricing Plans</CardTitle>
+                  <SectionGuide
+                    title="Pricing Plans"
+                    description="The subscription tiers available on Unool. Prices are stored in USD. Limits define what users on each plan can do (profiles, posts/month, team members, etc.)."
+                    example="spark — ₹0/mo (free, 1 profile, 10 posts)\ncreator — ₹499/mo (3 profiles, 60 posts)\npro — ₹999/mo (10 profiles, unlimited)\nstudio — ₹2499/mo (team features)"
+                  />
+                </Flex>
                 <CardDescription>Manage your subscription tiers</CardDescription>
               </Flex>
               <Button variant="ghost" size="sm" asChild>
@@ -488,7 +543,7 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
                 </Box>
               ))}
               {plans.length === 0 && (
-                <Text color="muted" className="text-center py-8 w-full">No plans configured</Text>
+                <Text color="muted" className="text-center py-8 w-full">No plans configured yet</Text>
               )}
             </Flex>
           </CardContent>
@@ -514,10 +569,10 @@ function PlanStatusBadge({ status }: { status: string }) {
 
 function PlanBadge({ plan }: { plan: string }) {
   const planColors: Record<string, string> = {
-    free: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
-    starter: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+    spark: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
+    creator: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
     pro: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-    enterprise: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+    studio: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
   };
 
   return (

@@ -1,29 +1,17 @@
 import { Suspense } from 'react';
-import { Shield } from 'lucide-react';
-import { Box, Flex, Text } from '@/components/ui';
-import { MotionBox } from '@/components/ui/motion';
+import { Shield, Loader2 } from 'lucide-react';
 import { EmailLoginForm } from './EmailLoginForm';
 
 function LoadingFallback() {
   return (
-    <MotionBox
-      variant="fade"
-      className="min-h-screen flex items-center justify-center bg-muted/30 px-4 py-12"
-    >
-      <Box className="w-full max-w-md">
-        <Flex centerX className="mb-4">
-          <Box className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-            <Shield className="h-7 w-7" />
-          </Box>
-        </Flex>
-        <Text size="xl" weight="bold" className="text-center" color="foreground">
-          Admin Dashboard
-        </Text>
-        <Text size="lg" className="text-center" color="muted">
-          Loading...
-        </Text>
-      </Box>
-    </MotionBox>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 px-4">
+      <div className="flex flex-col items-center gap-4">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg">
+          <Shield className="h-8 w-8" />
+        </div>
+        <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+      </div>
+    </div>
   );
 }
 

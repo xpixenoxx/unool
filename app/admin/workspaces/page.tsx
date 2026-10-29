@@ -9,7 +9,6 @@ import {
   Edit,
   Trash2,
   Plus,
-  Loader2,
 } from 'lucide-react';
 
 import {
@@ -41,7 +40,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui';
-
+import { SectionGuide } from '@/components/admin/section-guide';
 import { useState, useEffect } from 'react';
 
 interface Workspace {
@@ -110,7 +109,7 @@ function WorkspaceTable({
   onOpenCreate,
 }: WorkspaceTableProps) {
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to delete workspace "${name}"?`)) return;
+    if (!confirm(`Are you sure you want to delete workspace "${name}"? This action removes all connected channels, posts, and member associations.`)) return;
     try {
       const res = await fetch(`/api/admin/workspaces/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Delete failed');
@@ -123,8 +122,15 @@ function WorkspaceTable({
   return (
     <Card variant="default" padding="none">
       <CardHeader className="px-6 py-4 border-b">
-        <Flex between>
-          <CardTitle>All Workspaces</CardTitle>
+        <Flex between className="items-center">
+          <Flex align="center" gap={2}>
+            <CardTitle>All Workspaces</CardTitle>
+            <SectionGuide
+              title="Workspaces Table"
+              description="Each workspace represents an isolated operational team with its own social channels, scheduling queues, and billing tier. Click the three dots menu to inspect detailed membership, change subscription tiers, or delete the workspace."
+              example="Workspace: Growth Agency\nPlan: Pro (Active)\nMembers: 5  |  Posts/Mo: 48  |  Profiles: 6"
+            />
+          </Flex>
           <Button variant="outline" size="sm" onClick={onOpenCreate}>
             <Plus className="mr-2 h-4 w-4" /> New Workspace
           </Button>
@@ -298,9 +304,16 @@ export default function AdminWorkspacesPage() {
 
   return (
     <Box className="space-y-6">
-      <Flex between className="flex-wrap gap-4">
+      <Flex between className="flex-wrap gap-4 items-center">
         <Box>
-          <Text size="3xl" weight="bold">Workspaces</Text>
+          <Flex align="center" gap={2}>
+            <Text size="3xl" weight="bold">Workspaces</Text>
+            <SectionGuide
+              title="Workspaces Management"
+              description="A workspace is the root container for scheduled posts, team collaborators, social channels, and subscription billing. Filter by plan or status to identify commercial accounts."
+              example="Total Workspaces: 64\nSpark: 48  |  Creator: 10  |  Pro: 5  |  Studio: 1"
+            />
+          </Flex>
           <Text color="muted">Manage all workspaces, plans, and subscriptions</Text>
         </Box>
         <Flex gap={3} className="items-center flex-wrap">
@@ -379,16 +392,26 @@ export default function AdminWorkspacesPage() {
               <Label htmlFor="ws-name">Workspace Name *</Label>
               <Input
                 id="ws-name"
-                placeholder="Acme Media Co."
+                placeholder="e.g. Acme Marketing Studio"
                 value={newWsName}
                 onChange={(e) => setNewWsName(e.target.value)}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="ws-plan">Plan Tier</Label>
+              <Label htmlFor="ws-owner">Owner Email (optional)</Label>
+              <Input
+                id="ws-owner"
+                type="email"
+                placeholder="Assign existing user as workspace owner"
+                value={newWsOwner}
+                onChange={(e) => setNewWsOwner(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ws-plan">Initial Plan</Label>
               <Select value={newWsPlan} onValueChange={setNewWsPlan}>
                 <SelectTrigger id="ws-plan">
-                  <SelectValue placeholder="Select plan" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="spark">Spark (Free)</SelectItem>
@@ -398,25 +421,11 @@ export default function AdminWorkspacesPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="ws-owner">Owner User Email (optional)</Label>
-              <Input
-                id="ws-owner"
-                type="email"
-                placeholder="user@example.com"
-                value={newWsOwner}
-                onChange={(e) => setNewWsOwner(e.target.value)}
-              />
-              <Text size="xs" color="muted">
-                If the user exists, they will be granted Owner role in this workspace.
-              </Text>
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleCreateWorkspace} disabled={creating || !newWsName.trim()}>
-              {creating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Create Workspace
+            <Button onClick={handleCreateWorkspace} disabled={creating}>
+              {creating ? 'Creating...' : 'Create Workspace'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Loader2, Download, BarChart3, TrendingUp, TrendingDown, Eye, MousePointerClick, Link2, ExternalLink } from 'lucide-react';
+import { Loader2, Download, BarChart3, Eye, MousePointerClick, Link2, ExternalLink } from 'lucide-react';
 
 import {
   Box,
@@ -14,7 +14,6 @@ import {
   CardContent,
   Badge,
   Button,
-
   Select,
   SelectContent,
   SelectItem,
@@ -26,6 +25,7 @@ import {
   Progress,
 } from '@/components/ui';
 import { MotionBox, hoverLift, staggerItem } from '@/components/ui/motion';
+import { SectionGuide } from '@/components/admin/section-guide';
 
 interface AnalyticsSummary {
   totalProfileViews: number;
@@ -39,48 +39,79 @@ interface AnalyticsSummary {
   topProfiles: Array<{ profileId: string; name: string; views: number }>;
 }
 
-function DashboardStats({ analytics }: { analytics: AnalyticsSummary }) {
+function DashboardStats({ analytics, days }: { analytics: AnalyticsSummary; days: number }) {
   const stats = [
-    { label: 'Profile Views (30d)', value: analytics.totalProfileViews.toLocaleString(), change: '+12%', trend: 'up' as const, icon: <Eye className="h-5 w-5" />, color: 'text-blue-600' },
-    { label: 'Link Clicks (30d)', value: analytics.totalLinkClicks.toLocaleString(), change: '+8%', trend: 'up' as const, icon: <MousePointerClick className="h-5 w-5" />, color: 'text-green-600' },
-    { label: 'Posts Published (30d)', value: analytics.totalPostsPublished.toLocaleString(), change: '+23%', trend: 'up' as const, icon: <BarChart3 className="h-5 w-5" />, color: 'text-purple-600' },
-    { label: 'Active Workspaces', value: analytics.totalWorkspaces.toLocaleString(), change: '+5%', trend: 'up' as const, icon: <Link2 className="h-5 w-5" />, color: 'text-orange-600' },
+    {
+      label: `Profile Views (${days}d)`,
+      value: analytics.totalProfileViews.toLocaleString(),
+      icon: <Eye className="h-5 w-5" />,
+      color: 'text-blue-600',
+      description: 'Total visits to public profile pages (/u/username) in the selected time window.',
+    },
+    {
+      label: `Link Clicks (${days}d)`,
+      value: analytics.totalLinkClicks.toLocaleString(),
+      icon: <MousePointerClick className="h-5 w-5" />,
+      color: 'text-green-600',
+      description: 'Clicks recorded on links displayed on user bio profiles in the selected time window.',
+    },
+    {
+      label: `Posts Published (${days}d)`,
+      value: analytics.totalPostsPublished.toLocaleString(),
+      icon: <BarChart3 className="h-5 w-5" />,
+      color: 'text-purple-600',
+      description: 'Scheduled posts that were successfully dispatched to connected social networks.',
+    },
+    {
+      label: 'Active Workspaces',
+      value: analytics.totalWorkspaces.toLocaleString(),
+      icon: <Link2 className="h-5 w-5" />,
+      color: 'text-orange-600',
+      description: 'Total active workspaces currently configured on the platform.',
+    },
   ];
 
   return (
-    <Box className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      {stats.map((stat, index) => (
-        <MotionBox key={stat.label} variants={staggerItem} custom={index} {...hoverLift}>
-          <Card variant="metric" padding="lg">
-            <CardContent className="space-y-3">
-              <Flex between className="pt-1">
-                <Text size="sm" weight="medium" color="muted">{stat.label}</Text>
-                <Box className={`flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 ${stat.color}`}>{stat.icon}</Box>
-              </Flex>
-              <Flex alignItems="baseline" gap={2}>
-                <Text size="3xl" weight="bold" color="foreground">{stat.value}</Text>
-                <Badge variant={stat.trend === 'up' ? 'success' : 'destructive'} className="text-xs gap-1">
-                  {stat.trend === 'up' ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                  {stat.change}
-                </Badge>
-              </Flex>
-            </CardContent>
-          </Card>
-        </MotionBox>
-      ))}
+    <Box className="space-y-3">
+      <Flex align="center" gap={2}>
+        <Text size="sm" weight="semibold" color="muted" className="uppercase tracking-wide">Key Metrics</Text>
+        <SectionGuide
+          title="Analytics Overview"
+          description="Live metrics computed directly from event log aggregations. No interpolated or simulated data."
+          example={`Profile Views (${days}d): 14,250\nLink Clicks (${days}d): 4,890\nPosts Published: 312\nActive Workspaces: 85`}
+        />
+      </Flex>
+      <Box className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {stats.map((stat, index) => (
+          <MotionBox key={stat.label} variants={staggerItem} custom={index} {...hoverLift}>
+            <Card variant="metric" padding="lg">
+              <CardContent className="space-y-3">
+                <Flex between className="pt-1">
+                  <Text size="sm" weight="medium" color="muted">{stat.label}</Text>
+                  <Box className={`flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 ${stat.color}`}>{stat.icon}</Box>
+                </Flex>
+                <Flex alignItems="baseline" gap={2}>
+                  <Text size="3xl" weight="bold" color="foreground">{stat.value}</Text>
+                </Flex>
+                <Text size="xs" color="muted" className="line-clamp-1">{stat.description}</Text>
+              </CardContent>
+            </Card>
+          </MotionBox>
+        ))}
+      </Box>
     </Box>
   );
 }
 
 function EventsChart({ eventsLast30Days }: { eventsLast30Days: Array<{ date: string; count: number }> }) {
   if (!eventsLast30Days.length) {
-    return <Text color="muted" className="text-center py-8">No event data available</Text>;
+    return <Text color="muted" className="text-center py-8">No event data available in this timeframe</Text>;
   }
 
-  const maxCount = Math.max(...eventsLast30Days.map(e => e.count));
+  const maxCount = Math.max(...eventsLast30Days.map(e => e.count), 1);
   const points = eventsLast30Days.map((d, i) => {
     const x = (i / (eventsLast30Days.length - 1 || 1)) * 400;
-    const y = 160 - (d.count / (maxCount || 1)) * 140;
+    const y = 160 - (d.count / maxCount) * 140;
     return { x, y, date: d.date, count: d.count };
   });
 
@@ -99,7 +130,7 @@ function EventsChart({ eventsLast30Days }: { eventsLast30Days: Array<{ date: str
         <path d={areaPath} fill="url(#eventsGradient)" />
         <path d={linePath} stroke="var(--primary)" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
         {points.map((p, i) => (
-          <circle key={i} cx={p.x} cy={p.y} r={4} fill="var(--background)" stroke="var(--primary)" strokeWidth="2" />
+          <circle key={i} cx={p.x} cy={p.y} r={3} fill="var(--background)" stroke="var(--primary)" strokeWidth="2" />
         ))}
       </svg>
     </Box>
@@ -109,6 +140,10 @@ function EventsChart({ eventsLast30Days }: { eventsLast30Days: Array<{ date: str
 function EventTypeBreakdown({ eventsByType }: { eventsByType: Record<string, number> }) {
   const total = Object.values(eventsByType).reduce((a, b) => a + b, 0);
   const sorted = Object.entries(eventsByType).sort(([, a], [, b]) => b - a);
+
+  if (!sorted.length) {
+    return <Text color="muted" className="text-center py-8">No event type data available</Text>;
+  }
 
   return (
     <Box className="space-y-4">
@@ -206,6 +241,43 @@ export default function AdminAnalyticsPage() {
     fetchAnalytics();
   }, [fetchAnalytics]);
 
+  const handleExportCsv = () => {
+    if (!analytics) return;
+
+    let csv = `Section,Key,Value\n`;
+    csv += `Summary,Profile Views (${days}d),${analytics.totalProfileViews}\n`;
+    csv += `Summary,Link Clicks (${days}d),${analytics.totalLinkClicks}\n`;
+    csv += `Summary,Posts Published (${days}d),${analytics.totalPostsPublished}\n`;
+    csv += `Summary,Total Workspaces,${analytics.totalWorkspaces}\n`;
+    csv += `Summary,Total Users,${analytics.totalUsers}\n\n`;
+
+    csv += `Event Types,Type,Count\n`;
+    Object.entries(analytics.eventsByType).forEach(([k, v]) => {
+      csv += `Event Types,"${k}",${v}\n`;
+    });
+    csv += `\n`;
+
+    csv += `Top Links,Type,URL,Clicks\n`;
+    analytics.topLinks.forEach((l) => {
+      csv += `Top Links,"${l.linkType}","${l.url}",${l.clicks}\n`;
+    });
+    csv += `\n`;
+
+    csv += `Top Profiles,Profile ID,Name,Views\n`;
+    analytics.topProfiles.forEach((p) => {
+      csv += `Top Profiles,"${p.profileId}","${p.name}",${p.views}\n`;
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `unool-analytics-${days}d.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   if (loading && !analytics) {
     return (
       <MotionBox variant="fade">
@@ -224,7 +296,6 @@ export default function AdminAnalyticsPage() {
                   <SelectItem value="90">Last 90 days</SelectItem>
                 </SelectContent>
               </Select>
-              <Button asChild variant="outline"><a href="/admin/analytics/export">Export <Download className="ml-2 h-4 w-4" /></a></Button>
             </Flex>
           </Flex>
           <Card variant="default" padding="lg">
@@ -264,13 +335,15 @@ export default function AdminAnalyticsPage() {
               <SelectItem value="90">Last 90 days</SelectItem>
             </SelectContent>
           </Select>
-          <Button asChild variant="outline"><a href="/admin/analytics/export">Export <Download className="ml-2 h-4 w-4" /></a></Button>
+          <Button variant="outline" onClick={handleExportCsv} disabled={!analytics}>
+            <Download className="mr-2 h-4 w-4" /> Export CSV
+          </Button>
         </Flex>
       </Flex>
 
       {analytics && (
         <>
-          <DashboardStats analytics={analytics} />
+          <DashboardStats analytics={analytics} days={days} />
 
           <Flex gap={6} style={{ flexWrap: 'wrap' }}>
             <MotionBox variants={staggerItem} custom={4} className="flex-1 min-w-[400px]" {...hoverLift}>
@@ -278,7 +351,14 @@ export default function AdminAnalyticsPage() {
                 <CardHeader>
                   <Flex between>
                     <Flex column gap={1}>
-                      <CardTitle>Events Over Time</CardTitle>
+                      <Flex align="center" gap={2}>
+                        <CardTitle>Events Over Time</CardTitle>
+                        <SectionGuide
+                          title="Events Over Time"
+                          description="Daily trend of total analytics events logged across the platform over the selected timeframe."
+                          example="Displays daily peaks. For example, 1,200 events recorded on launch day, tapering to 350 daily baseline."
+                        />
+                      </Flex>
                       <CardDescription>Daily event volume (last {days} days)</CardDescription>
                     </Flex>
                   </Flex>
@@ -294,7 +374,14 @@ export default function AdminAnalyticsPage() {
                 <CardHeader>
                   <Flex between>
                     <Flex column gap={1}>
-                      <CardTitle>Event Types</CardTitle>
+                      <Flex align="center" gap={2}>
+                        <CardTitle>Event Types</CardTitle>
+                        <SectionGuide
+                          title="Event Types Breakdown"
+                          description="Relative share of user interactions across all tracked channels (e.g., profile views, bio clicks, media downloads)."
+                          example="profile_view: 68% (8,200)\nlink_click: 28% (3,400)\npost_publish: 4% (480)"
+                        />
+                      </Flex>
                       <CardDescription>Breakdown of analytics events</CardDescription>
                     </Flex>
                   </Flex>
@@ -312,7 +399,14 @@ export default function AdminAnalyticsPage() {
                 <CardHeader>
                   <Flex between>
                     <Flex column gap={1}>
-                      <CardTitle>Top Links</CardTitle>
+                      <Flex align="center" gap={2}>
+                        <CardTitle>Top Links</CardTitle>
+                        <SectionGuide
+                          title="Top Links"
+                          description="Bio links with the highest engagement across all user profiles in the platform."
+                          example="Type: instagram\nURL: https://instagram.com/mybrand\nClicks: 1,420"
+                        />
+                      </Flex>
                       <CardDescription>Most clicked links across all profiles</CardDescription>
                     </Flex>
                   </Flex>
@@ -328,7 +422,14 @@ export default function AdminAnalyticsPage() {
                 <CardHeader>
                   <Flex between>
                     <Flex column gap={1}>
-                      <CardTitle>Top Profiles</CardTitle>
+                      <Flex align="center" gap={2}>
+                        <CardTitle>Top Profiles</CardTitle>
+                        <SectionGuide
+                          title="Top Profiles"
+                          description="Public unool.co/u/username creator profiles with the highest unique traffic and visit count."
+                          example="Name: Rohan Sharma\nProfile ID: rohan_dev\nViews: 5,420"
+                        />
+                      </Flex>
                       <CardDescription>Most viewed profiles</CardDescription>
                     </Flex>
                   </Flex>

@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui';
 import { MotionBox } from '@/components/ui/motion';
+import { SectionGuide } from '@/components/admin/section-guide';
 
 interface PlatformConn {
   id: string;
@@ -67,7 +68,7 @@ export default function PlatformConnectionsPage() {
   }, [fetchConnections]);
 
   const handleDisconnect = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to disconnect ${name}?`)) return;
+    if (!confirm(`Are you sure you want to disconnect ${name}? This will revoke publishing access until re-authenticated.`)) return;
     try {
       const res = await fetch(`/api/admin/platforms?id=${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to disconnect');
@@ -83,9 +84,16 @@ export default function PlatformConnectionsPage() {
       <MotionBox variant="fade">
         <Flex between className="items-center">
           <Box>
-            <Text size="2xl" weight="bold" color="foreground">
-              Platform Connections
-            </Text>
+            <Flex align="center" gap={2}>
+              <Text size="2xl" weight="bold" color="foreground">
+                Platform Connections
+              </Text>
+              <SectionGuide
+                title="Social Platform Integrations"
+                description="Audits all OAuth token associations across LinkedIn, Twitter/X, Instagram, Facebook, and Pinterest. Displays token expiry status so admins can alert customers before schedule queues fail due to expired OAuth tokens."
+                example="LinkedIn token expires in 60 days.\nInstagram Page token is perpetual until user password change."
+              />
+            </Flex>
             <Text size="sm" color="muted">
               Monitor and manage all connected social media accounts across workspaces
             </Text>
@@ -98,21 +106,31 @@ export default function PlatformConnectionsPage() {
 
       {/* Stats Cards */}
       <MotionBox variant="fade" delay={0.05}>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-          <Card>
-            <CardContent className="pt-6">
-              <Text size="xs" color="muted">Total Connections</Text>
-              <Text size="2xl" weight="bold" className="mt-1">{connections.length}</Text>
-            </CardContent>
-          </Card>
-          {Object.entries(platformStats).map(([platform, count]) => (
-            <Card key={platform}>
+        <div className="space-y-2">
+          <Flex align="center" gap={2}>
+            <Text size="sm" weight="semibold" color="muted" className="uppercase tracking-wide">Connected Channels Distribution</Text>
+            <SectionGuide
+              title="Platform Breakdown"
+              description="Aggregated count of active OAuth credentials per network provider."
+              example="Instagram: 28 accounts | LinkedIn: 22 accounts | Twitter: 14 accounts"
+            />
+          </Flex>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+            <Card>
               <CardContent className="pt-6">
-                <Text size="xs" color="muted" className="capitalize">{platform}</Text>
-                <Text size="2xl" weight="bold" className="mt-1">{count}</Text>
+                <Text size="xs" color="muted">Total Connections</Text>
+                <Text size="2xl" weight="bold" className="mt-1">{connections.length}</Text>
               </CardContent>
             </Card>
-          ))}
+            {Object.entries(platformStats).map(([platform, count]) => (
+              <Card key={platform}>
+                <CardContent className="pt-6">
+                  <Text size="xs" color="muted" className="capitalize">{platform}</Text>
+                  <Text size="2xl" weight="bold" className="mt-1">{count}</Text>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       </MotionBox>
 
@@ -121,7 +139,14 @@ export default function PlatformConnectionsPage() {
         <Card>
           <CardHeader>
             <Flex between className="items-center flex-wrap gap-4">
-              <CardTitle>Connected Accounts</CardTitle>
+              <Flex align="center" gap={2}>
+                <CardTitle>Connected Accounts</CardTitle>
+                <SectionGuide
+                  title="Accounts Table"
+                  description="Displays handle, associated workspace, OAuth status, and expiry timestamp. Click the workspace link to view full owner details, or click Trash to force disconnect an account."
+                  example="Handle: @mybrand_official\nWorkspace: Acme Agency\nStatus: Connected"
+                />
+              </Flex>
               <Flex gap={3}>
                 <Select value={platformFilter} onValueChange={setPlatformFilter}>
                   <SelectTrigger className="w-[150px]">
@@ -233,4 +258,3 @@ export default function PlatformConnectionsPage() {
     </Box>
   );
 }
-
