@@ -3,15 +3,15 @@
 import * as React from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Eye, EyeOff, Loader2, Mail, Lock, Shield } from 'lucide-react';
-import { Box, Flex, Text, Input, Button, Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui';
+import { Box, Flex, Input, Button, Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui';
 
 export function EmailLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get('redirect') || '/admin';
 
-  const [email, setEmail] = React.useState('asd@asd.com');
-  const [password, setPassword] = React.useState('asd@asd.com');
+  const [email, setEmail] = React.useState('');
+  const [password, setPassword] = React.useState('');
   const [showPassword, setShowPassword] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -22,13 +22,12 @@ export function EmailLoginForm() {
     setError(null);
 
     try {
-      const credentials = btoa(`${email}:${password}`);
       const response = await fetch('/admin/api/login', {
         method: 'POST',
         headers: {
-          'Authorization': `Basic ${credentials}`,
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({ email, password }),
       });
 
       if (response.ok) {
@@ -84,7 +83,7 @@ export function EmailLoginForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="pl-10"
-                placeholder="asd@asd.com"
+                placeholder="admin@example.com"
                 disabled={loading}
                 autoComplete="email"
                 required
@@ -104,7 +103,7 @@ export function EmailLoginForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="pl-10 pr-10"
-                placeholder="asd@asd.com"
+                placeholder="Enter your password"
                 disabled={loading}
                 autoComplete="current-password"
                 required
@@ -140,14 +139,6 @@ export function EmailLoginForm() {
           </Button>
         </form>
       </CardContent>
-      <CardFooter className="flex flex-col gap-2 pt-4">
-        <Text size="sm" color="muted" className="text-center">
-          Default credentials: asd@asd.com / asd@asd.com
-        </Text>
-        <Text size="xs" color="muted" className="text-center">
-          Enter credentials above to access admin panel
-        </Text>
-      </CardFooter>
     </Card>
   );
 }

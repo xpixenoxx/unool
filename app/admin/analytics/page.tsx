@@ -1,8 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { Loader2, Calendar, Download, BarChart3, TrendingUp, TrendingDown, Eye, MousePointerClick, Link2, ExternalLink } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Loader2, Download, BarChart3, TrendingUp, TrendingDown, Eye, MousePointerClick, Link2, ExternalLink } from 'lucide-react';
+
 import {
   Box,
   Flex,
@@ -14,7 +14,7 @@ import {
   CardContent,
   Badge,
   Button,
-  Input,
+
   Select,
   SelectContent,
   SelectItem,
@@ -25,7 +25,7 @@ import {
   AvatarFallback,
   Progress,
 } from '@/components/ui';
-import { MotionBox, MotionStack, hoverLift, staggerItem } from '@/components/ui/motion';
+import { MotionBox, hoverLift, staggerItem } from '@/components/ui/motion';
 
 interface AnalyticsSummary {
   totalProfileViews: number;

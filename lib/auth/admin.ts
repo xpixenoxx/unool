@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
+import { verifyAdminJwt } from '@/lib/auth/admin-jwt';
+import { getAdminApiRateLimit } from '@/lib/middleware/admin-rate-limit';
 
 const adminClient = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
 
@@ -14,27 +16,52 @@ export interface AdminAuthContext {
   workspaceId?: string;
 }
 
+/**
+ * Authenticate the current admin request.
+ *
+ * Resolution order:
+ *   1. `admin_session` cookie  (set by /admin/api/login)
+ *   2. `Authorization: Bearer <token>` header  (for API clients)
+ *
+ * The token is verified cryptographically (HMAC-SHA256 + expiry), then
+ * the admin record is re-fetched from the database to ensure the account
+ * still exists and is active.
+ */
 export async function getCurrentAdmin(request: NextRequest): Promise<AdminAuthContext | null> {
-  const authHeader = request.headers.get('authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return null;
+  // ── Extract token ──────────────────────────────────────────
+  let token: string | null = null;
+
+  // 1. Cookie (primary — browser sessions)
+  const cookieToken = request.cookies.get('admin_session')?.value;
+  if (cookieToken) {
+    token = cookieToken;
   }
 
-  const token = authHeader.substring(7).trim();
+  // 2. Bearer header (fallback — API clients / scripts)
+  if (!token) {
+    const authHeader = request.headers.get('authorization');
+    if (authHeader?.startsWith('Bearer ')) {
+      token = authHeader.substring(7).trim();
+    }
+  }
+
   if (!token) return null;
 
-  // Verify the JWT token and get the user
-  const { data: { user }, error } = await adminClient.auth.getUser(token);
-  if (error || !user) return null;
+  // ── Verify JWT signature + expiry ──────────────────────────
+  const payload = verifyAdminJwt(token);
+  if (!payload) return null;
 
-  // Check if user is an admin
+  // ── Verify admin still exists and is active in the DB ──────
   const { data: adminUser } = await adminClient
     .from('admin_users')
-    .select('*')
-    .eq('id', user.id)
+    .select('id, email, role, permissions, is_active')
+    .eq('id', payload.adminId)
     .single();
 
   if (!adminUser) return null;
+
+  // Respect the is_active flag (account may have been disabled since JWT was issued)
+  if (adminUser.is_active === false) return null;
 
   return {
     admin: {
@@ -56,6 +83,23 @@ export async function requireAdmin(
       { error: 'Admin authentication required', code: 'UNAUTHORIZED' },
       { status: 401 }
     );
+  }
+
+  // Rate limit admin API calls per admin
+  const apiRateLimit = getAdminApiRateLimit();
+  if (apiRateLimit) {
+    const { success } = await apiRateLimit.limit(auth.admin.userId);
+    if (!success) {
+      return NextResponse.json(
+        { error: 'Too many admin API requests. Please slow down.', code: 'RATE_LIMITED' },
+        { status: 429 }
+      );
+    }
+  }
+
+  // Super admins bypass all granular permission checks
+  if (auth.admin.role === 'super_admin') {
+    return auth;
   }
 
   if (requiredPermission && !auth.admin.permissions[requiredPermission]) {

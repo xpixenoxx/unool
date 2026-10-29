@@ -1,28 +1,67 @@
 'use client';
 
 import * as React from 'react';
-import { Search, ChevronLeft, ChevronRight, MoreVertical, Edit, Trash2, Plus, Loader2, Shield, DollarSign, ToggleLeft, ToggleRight } from 'lucide-react';
+import {
+  MoreVertical,
+  Edit,
+  Trash2,
+  Plus,
+  Loader2,
+  DollarSign,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Box, Flex, Text, Card, CardHeader, CardTitle, CardContent, Badge, Button, Input, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui';
-import { MotionBox, MotionStack, hoverLift, staggerItem } from '@/components/ui/motion';
-import { useState, useEffect } from 'react';
-import { Plan, CreatePlanInput, UpdatePlanInput } from '@/lib/repositories/interfaces/IAdminRepository';
+import {
+  Box,
+  Flex,
+  Text,
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Badge,
+  Button,
+  Input,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  Label,
+} from '@/components/ui';
+
+import { useState, useEffect, useCallback } from 'react';
+import { Plan } from '@/lib/repositories/interfaces/IAdminRepository';
 
 interface PlanTableProps {
   plans: Plan[];
   loading: boolean;
   onToggleActive: (plan: Plan) => void;
   onDelete: (plan: Plan) => void;
+  onEdit: (plan: Plan) => void;
+  onOpenCreate: () => void;
 }
 
-function PlanTable({ plans, loading, onToggleActive, onDelete }: PlanTableProps) {
+function PlanTable({
+  plans,
+  loading,
+  onToggleActive,
+  onDelete,
+  onEdit,
+  onOpenCreate,
+}: PlanTableProps) {
   return (
     <Card variant="default" padding="none">
       <CardHeader className="px-6 py-4 border-b">
         <Flex between>
           <CardTitle>Pricing Plans</CardTitle>
-          <Button asChild variant="outline" size="sm">
-            <a href="/admin/plans/new"><Plus className="mr-2 h-4 w-4" /> New Plan</a>
+          <Button variant="outline" size="sm" onClick={onOpenCreate}>
+            <Plus className="mr-2 h-4 w-4" /> New Plan
           </Button>
         </Flex>
       </CardHeader>
@@ -31,82 +70,92 @@ function PlanTable({ plans, loading, onToggleActive, onDelete }: PlanTableProps)
           <Box className="p-12 text-center">
             <DollarSign className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
             <Text weight="medium">No plans configured</Text>
-            <Text size="sm" color="muted" className="mt-1">Create your first pricing plan to get started</Text>
-            <Button asChild variant="outline" className="mt-3" size="sm">
-              <a href="/admin/plans/new">Create Plan</a>
+            <Text size="sm" color="muted" className="mt-1">
+              Create your first pricing plan to get started
+            </Text>
+            <Button variant="outline" className="mt-3" size="sm" onClick={onOpenCreate}>
+              Create Plan
             </Button>
           </Box>
         ) : (
-          <>
-            <Box className="overflow-x-auto">
-              <table className="w-full" role="table">
-                <thead>
-                  <tr className="border-b bg-muted/50">
-                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Plan</th>
-                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Monthly</th>
-                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Yearly</th>
-                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Order</th>
-                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Status</th>
-                    <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground">Actions</th>
+          <Box className="overflow-x-auto">
+            <table className="w-full text-sm" role="table">
+              <thead>
+                <tr className="border-b bg-muted/50">
+                  <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Plan</th>
+                  <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Monthly</th>
+                  <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Yearly</th>
+                  <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Order</th>
+                  <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Status</th>
+                  <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {plans.map((plan) => (
+                  <tr key={plan.id} className="border-b hover:bg-muted/30 transition-colors">
+                    <td className="p-4">
+                      <Box>
+                        <Text weight="medium">{plan.name}</Text>
+                        <Text size="xs" color="muted" className="font-mono truncate">{plan.id}</Text>
+                        {plan.description && (
+                          <Text size="sm" color="muted" className="line-clamp-1 mt-1">
+                            {plan.description}
+                          </Text>
+                        )}
+                      </Box>
+                    </td>
+                    <td className="p-4">
+                      <Text weight="medium">${plan.priceMonthlyUsd}</Text>
+                      <Text size="xs" color="muted">/month</Text>
+                    </td>
+                    <td className="p-4">
+                      <Text weight="medium">${plan.priceYearlyUsd}</Text>
+                      <Text size="xs" color="muted">/year</Text>
+                    </td>
+                    <td className="p-4">
+                      <Badge variant="secondary" size="sm">{plan.sortOrder}</Badge>
+                    </td>
+                    <td className="p-4">
+                      <button
+                        type="button"
+                        onClick={() => onToggleActive(plan)}
+                        className={cn(
+                          'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium cursor-pointer transition-colors',
+                          plan.isActive
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                            : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400'
+                        )}
+                      >
+                        {plan.isActive ? 'Active' : 'Inactive'}
+                      </button>
+                    </td>
+                    <td className="p-4 text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreVertical className="h-4 w-4" />
+                            <span className="sr-only">Open menu</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => onEdit(plan)}>
+                            <Edit className="mr-2 h-4 w-4" /> Edit Plan
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => onDelete(plan)}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" /> Delete Plan
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {plans.map((plan) => (
-                    <tr key={plan.id} className="border-b hover:bg-muted/30 transition-colors">
-                      <td className="p-4">
-                        <Box>
-                          <Text weight="medium"> {plan.name} </Text>
-                          <Text size="xs" color="muted" className="font-mono truncate">{plan.id}</Text>
-                          {plan.description && <Text size="sm" color="muted" className="line-clamp-1 mt-1">{plan.description}</Text>}
-                        </Box>
-                      </td>
-                      <td className="p-4">
-                        <Text weight="medium">${plan.priceMonthlyUsd}</Text>
-                        <Text size="xs" color="muted">/month</Text>
-                      </td>
-                      <td className="p-4">
-                        <Text weight="medium">${plan.priceYearlyUsd}</Text>
-                        <Text size="xs" color="muted">/year</Text>
-                      </td>
-                      <td className="p-4"><Badge variant="secondary" size="sm">{plan.sortOrder}</Badge></td>
-                      <td className="p-4">
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={plan.isActive}
-                            onChange={() => onToggleActive(plan)}
-                            className="sr-only peer"
-                          />
-                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/30 dark:peer-focus:ring-primary/30 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
-                        </label>
-                      </td>
-                      <td className="p-4 text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreVertical className="h-4 w-4" />
-                              <span className="sr-only">Open menu</span>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem asChild>
-                              <a href={`/admin/plans/${plan.id}`}>
-                                <Edit className="mr-2 h-4 w-4" /> Edit Plan
-                              </a>
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => onDelete(plan)}>
-                              <Trash2 className="mr-2 h-4 w-4" /> Delete Plan
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </Box>
-          </>
+                ))}
+              </tbody>
+            </table>
+          </Box>
         )}
       </CardContent>
     </Card>
@@ -114,11 +163,30 @@ function PlanTable({ plans, loading, onToggleActive, onDelete }: PlanTableProps)
 }
 
 export default function AdminPlansPage() {
-  const [plans, setPlans] = React.useState<Plan[]>([]);
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const fetchPlans = React.useCallback(async () => {
+  // Create Dialog
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createId, setCreateId] = useState('');
+  const [createName, setCreateName] = useState('');
+  const [createDesc, setCreateDesc] = useState('');
+  const [createMonthly, setCreateMonthly] = useState('0');
+  const [createYearly, setCreateYearly] = useState('0');
+  const [createOrder, setCreateOrder] = useState('0');
+
+  // Edit Dialog
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [editMonthly, setEditMonthly] = useState('0');
+  const [editYearly, setEditYearly] = useState('0');
+  const [editOrder, setEditOrder] = useState('0');
+  const [saving, setSaving] = useState(false);
+
+  const fetchPlans = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -133,7 +201,7 @@ export default function AdminPlansPage() {
     }
   }, []);
 
-  React.useEffect(() => {
+  useEffect(() => {
     fetchPlans();
   }, [fetchPlans]);
 
@@ -142,11 +210,10 @@ export default function AdminPlansPage() {
       const res = await fetch(`/api/admin/plans/${plan.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ isActive: !plan.isActive }),
       });
       if (!res.ok) throw new Error('Failed to update plan');
-      fetchPlans();
+      await fetchPlans();
     } catch (err) {
       console.error('Failed to toggle plan:', err);
     }
@@ -155,43 +222,97 @@ export default function AdminPlansPage() {
   const handleDelete = async (plan: Plan) => {
     if (!confirm(`Are you sure you want to delete "${plan.name}"? This action cannot be undone.`)) return;
     try {
-      const res = await fetch(`/api/admin/plans/${plan.id}`, { method: 'DELETE', credentials: 'include' });
+      const res = await fetch(`/api/admin/plans/${plan.id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete plan');
-      fetchPlans();
+      await fetchPlans();
     } catch (err) {
       console.error('Failed to delete plan:', err);
     }
   };
 
-  if (loading && !plans.length) {
-    return (
-      <MotionBox variant="fade">
-        <Box className="space-y-6">
-          <Flex between>
-            <Box>
-              <Text size="3xl" weight="bold">Plans</Text>
-              <Text color="muted">Manage pricing plans and subscriptions</Text>
-            </Box>
-          </Flex>
-          <Card variant="default" padding="lg">
-            <CardContent className="flex items-center justify-center h-64">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </CardContent>
-          </Card>
-        </Box>
-      </MotionBox>
-    );
-  }
+  const handleCreate = async () => {
+    if (!createId || !createName) {
+      alert('Plan ID and Name are required');
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch('/api/admin/plans', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: createId.trim().toLowerCase(),
+          name: createName.trim(),
+          description: createDesc.trim() || undefined,
+          priceMonthlyUsd: parseFloat(createMonthly) || 0,
+          priceYearlyUsd: parseFloat(createYearly) || 0,
+          sortOrder: parseInt(createOrder) || 0,
+          isActive: true,
+          features: {},
+          limits: {},
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to create plan');
+      }
+      setCreateOpen(false);
+      setCreateId('');
+      setCreateName('');
+      setCreateDesc('');
+      await fetchPlans();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to create plan');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const openEdit = (plan: Plan) => {
+    setEditingPlan(plan);
+    setEditName(plan.name);
+    setEditDesc(plan.description || '');
+    setEditMonthly(plan.priceMonthlyUsd.toString());
+    setEditYearly(plan.priceYearlyUsd.toString());
+    setEditOrder(plan.sortOrder.toString());
+    setEditOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingPlan) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/admin/plans/${editingPlan.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editName.trim(),
+          description: editDesc.trim() || undefined,
+          priceMonthlyUsd: parseFloat(editMonthly) || 0,
+          priceYearlyUsd: parseFloat(editYearly) || 0,
+          sortOrder: parseInt(editOrder) || 0,
+        }),
+      });
+      if (!res.ok) throw new Error('Failed to update plan');
+      setEditOpen(false);
+      setEditingPlan(null);
+      await fetchPlans();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to save changes');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
-    <MotionBox variant="fade" className="space-y-6">
+    <Box className="space-y-6">
       <Flex between className="flex-wrap gap-4">
         <Box>
           <Text size="3xl" weight="bold">Plans</Text>
           <Text color="muted">Manage pricing plans, features, and limits</Text>
         </Box>
-        <Button asChild variant="outline" size="sm">
-          <a href="/admin/plans/new"><Plus className="mr-2 h-4 w-4" /> Create Plan</a>
+        <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" /> Create Plan
         </Button>
       </Flex>
 
@@ -204,9 +325,100 @@ export default function AdminPlansPage() {
         </Card>
       )}
 
-      <MotionStack space={6} stagger={0.05}>
-        <PlanTable plans={plans} loading={loading} onToggleActive={handleToggleActive} onDelete={handleDelete} />
-      </MotionStack>
-    </MotionBox>
+      <PlanTable
+        plans={plans}
+        loading={loading}
+        onToggleActive={handleToggleActive}
+        onDelete={handleDelete}
+        onEdit={openEdit}
+        onOpenCreate={() => setCreateOpen(true)}
+      />
+
+      {/* Create Dialog */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Pricing Plan</DialogTitle>
+            <DialogDescription>Define a new subscription tier for the platform.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="plan-id">Plan ID * (unique, e.g. &apos;enterprise&apos;)</Label>
+              <Input id="plan-id" value={createId} onChange={(e) => setCreateId(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="plan-name">Display Name *</Label>
+              <Input id="plan-name" value={createName} onChange={(e) => setCreateName(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="plan-desc">Description</Label>
+              <Input id="plan-desc" value={createDesc} onChange={(e) => setCreateDesc(e.target.value)} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="plan-monthly">Price Monthly ($)</Label>
+                <Input id="plan-monthly" type="number" value={createMonthly} onChange={(e) => setCreateMonthly(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="plan-yearly">Price Yearly ($)</Label>
+                <Input id="plan-yearly" type="number" value={createYearly} onChange={(e) => setCreateYearly(e.target.value)} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="plan-order">Sort Order (0, 1, 2...)</Label>
+              <Input id="plan-order" type="number" value={createOrder} onChange={(e) => setCreateOrder(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+            <Button onClick={handleCreate} disabled={saving || !createId || !createName}>
+              {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Create Plan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Plan: {editingPlan?.name}</DialogTitle>
+            <DialogDescription>Update pricing and display details.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Display Name</Label>
+              <Input id="edit-name" value={editName} onChange={(e) => setEditName(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-desc">Description</Label>
+              <Input id="edit-desc" value={editDesc} onChange={(e) => setEditDesc(e.target.value)} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-monthly">Price Monthly ($)</Label>
+                <Input id="edit-monthly" type="number" value={editMonthly} onChange={(e) => setEditMonthly(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-yearly">Price Yearly ($)</Label>
+                <Input id="edit-yearly" type="number" value={editYearly} onChange={(e) => setEditYearly(e.target.value)} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-order">Sort Order</Label>
+              <Input id="edit-order" type="number" value={editOrder} onChange={(e) => setEditOrder(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveEdit} disabled={saving}>
+              {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Box>
   );
 }

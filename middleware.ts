@@ -23,32 +23,33 @@ const publicAdminPaths = [
   '/admin/api/logout',
 ];
 
-// Simple admin credentials
-const ADMIN_CREDENTIALS = {
-  username: 'asd@asd.com',
-  password: 'asd@asd.com',
-};
-
-function validateAdminAuth(request: NextRequest): boolean {
-  const adminSession = request.cookies.get('admin_session')?.value;
-  if (adminSession === 'authenticated') {
-    return true;
-  }
-
-  const authHeader = request.headers.get('authorization');
-  if (authHeader && authHeader.startsWith('Basic ')) {
-    try {
-      const credentials = Buffer.from(authHeader.slice(6), 'base64').toString();
-      const [username, password] = credentials.split(':');
-      if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
-        return true;
-      }
-    } catch {
-      // Ignore decode errors
+function decodeBase64Url(str: string): string {
+  try {
+    if (typeof Buffer !== 'undefined') {
+      return Buffer.from(str, 'base64url').toString();
     }
-  }
+  } catch {}
+  return atob(str.replace(/-/g, '+').replace(/_/g, '/'));
+}
 
-  return false;
+// Admin session validation — checks signed JWT cookie structure and expiry.
+// Full signature verification happens in API routes via requireAdmin().
+// This is a lightweight check so the edge middleware stays fast.
+function validateAdminAuth(request: NextRequest): boolean {
+  const token = request.cookies.get('admin_session')?.value;
+  if (!token) return false;
+
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return false;
+    const payload = JSON.parse(decodeBase64Url(parts[1]));
+    if (!payload.adminId || !payload.exp) return false;
+    // Reject expired tokens
+    if (payload.exp < Math.floor(Date.now() / 1000)) return false;
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function isPublicPath(pathname: string): boolean {
@@ -94,28 +95,6 @@ export async function middleware(request: NextRequest) {
       loginUrl.searchParams.set('redirect', pathname);
       const response = NextResponse.redirect(loginUrl);
       return response;
-    }
-
-    // Set cookie if authenticated via Basic Auth
-    const authHeader = request.headers.get('authorization');
-    if (authHeader && authHeader.startsWith('Basic ')) {
-      try {
-        const credentials = Buffer.from(authHeader.slice(6), 'base64').toString();
-        const [username, password] = credentials.split(':');
-        if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
-          const response = NextResponse.next();
-          response.cookies.set('admin_session', 'authenticated', {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: 60 * 60 * 24 * 7,
-            path: '/admin',
-          });
-          return response;
-        }
-      } catch {
-        // Ignore
-      }
     }
 
     return NextResponse.next();

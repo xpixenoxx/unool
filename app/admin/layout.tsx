@@ -1,18 +1,39 @@
 'use client';
 
 import * as React from 'react';
-import { LayoutDashboard, Users, Building2, CreditCard, BarChart3, ClipboardList, Settings, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Users,
+  Building2,
+  CreditCard,
+  BarChart3,
+  ClipboardList,
+  Settings,
+  LogOut,
+  ChevronLeft,
+  ChevronRight,
+  Receipt,
+  Layers,
+  Gift,
+  FileText,
+  Share2,
+} from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { Box, Flex, Text, Avatar, AvatarImage, AvatarFallback, Button } from '@/components/ui';
+import { Box, Flex, Text, Button } from '@/components/ui';
 import { MotionBox } from '@/components/ui/motion';
 
 const navigation = [
   { name: 'Overview', href: '/admin', icon: LayoutDashboard },
   { name: 'Users', href: '/admin/users', icon: Users },
   { name: 'Workspaces', href: '/admin/workspaces', icon: Building2 },
-  { name: 'Plans', href: '/admin/plans', icon: CreditCard },
+  { name: 'Payments', href: '/admin/payments', icon: CreditCard },
+  { name: 'Subscriptions', href: '/admin/subscriptions', icon: Receipt },
+  { name: 'Content', href: '/admin/content', icon: FileText },
+  { name: 'Platforms', href: '/admin/platforms', icon: Share2 },
+  { name: 'Plans', href: '/admin/plans', icon: Layers },
+  { name: 'Referrals', href: '/admin/referrals', icon: Gift },
   { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
   { name: 'Audit Log', href: '/admin/audit', icon: ClipboardList },
   { name: 'Settings', href: '/admin/settings', icon: Settings },
@@ -77,13 +98,13 @@ export function AdminSidebar({ collapsed = false, onToggle }: { collapsed?: bool
         <nav className="flex-1 overflow-y-auto px-2 py-4" role="navigation" aria-label="Admin navigation">
           <Flex column style={{ gap: 4 }}>
             {navigation.map((item) => {
-              const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+              const isActive = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href + '/'));
               const Icon = item.icon;
               return (
                 <MotionBox
                   key={item.name}
                   variant="fade"
-                  delay={navigation.indexOf(item) * 0.03}
+                  delay={navigation.indexOf(item) * 0.02}
                   whileHover={!isCollapsed ? { x: 4 } : undefined}
                   whileTap={{ scale: 0.98 }}
                 >
@@ -137,6 +158,7 @@ interface AdminLayoutProps {
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
 
   const handleLogout = async () => {
@@ -144,6 +166,14 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     router.push('/admin/login');
     router.refresh();
   };
+
+  if (pathname === '/admin/login') {
+    return (
+      <Box className="min-h-screen bg-muted/30 flex items-center justify-center p-4">
+        {children}
+      </Box>
+    );
+  }
 
   return (
     <Box className="min-h-screen bg-background">

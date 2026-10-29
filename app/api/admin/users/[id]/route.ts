@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentAdmin, requireAdmin } from '@/lib/auth/admin';
+import { requireAdmin } from '@/lib/auth/admin';
 import { adminRepository } from '@/lib/repositories/supabase/SupabaseAdminRepository';
-import type { UpdateAdminUserInput } from '@/lib/repositories/interfaces/IAdminRepository';
+import { createClient } from '@supabase/supabase-js';
+import { config } from '@/lib/config/schema';
 
-// GET /api/admin/users/[id] - Get single admin user
+const adminClient = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
+// GET /api/admin/users/[id] - Get single platform user with full details (or admin user if requested)
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -13,18 +16,84 @@ export async function GET(
 
   try {
     const { id } = await params;
-    const adminUser = await adminRepository.getAdminUserById(id);
-    if (!adminUser) {
-      return NextResponse.json({ error: 'Admin user not found' }, { status: 404 });
+    const { searchParams } = new URL(request.url);
+    const type = searchParams.get('type');
+
+    if (type === 'admin') {
+      const adminUser = await adminRepository.getAdminUserById(id);
+      if (!adminUser) {
+        return NextResponse.json({ error: 'Admin user not found' }, { status: 404 });
+      }
+      return NextResponse.json(adminUser);
     }
-    return NextResponse.json(adminUser);
+
+    // Try fetching platform user from Auth
+    const { data: userData, error: userError } = await adminClient.auth.admin.getUserById(id);
+
+    if (userError || !userData?.user) {
+      // Fallback: check if it's an admin user
+      const adminUser = await adminRepository.getAdminUserById(id);
+      if (adminUser) return NextResponse.json(adminUser);
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    const user = userData.user;
+
+    // Parallel fetch related details: workspaces, payment orders, referral code
+    const [workspacesRes, paymentsRes, referralCodeRes] = await Promise.all([
+      adminClient
+        .from('workspace_members')
+        .select('role, created_at, workspaces(*)')
+        .eq('user_id', id),
+      adminClient
+        .from('payment_orders')
+        .select('*')
+        .eq('user_id', id)
+        .order('created_at', { ascending: false })
+        .limit(20),
+      adminClient
+        .from('referral_codes')
+        .select('*')
+        .eq('user_id', id)
+        .single(),
+    ]);
+
+    interface MemberRow {
+      role: string;
+      created_at: string;
+      workspaces?: Record<string, unknown> | null;
+    }
+
+    const workspaces = ((workspacesRes.data || []) as unknown as MemberRow[]).map((m) => ({
+      role: m.role,
+      joinedAt: m.created_at,
+      ...(m.workspaces || {}),
+    }));
+
+    const bannedUntilStr = (user as { banned_until?: string | null }).banned_until;
+    const isSuspended = !!(bannedUntilStr && new Date(bannedUntilStr) > new Date());
+
+    return NextResponse.json({
+      id: user.id,
+      email: user.email || '',
+      phone: user.phone || null,
+      createdAt: user.created_at,
+      lastSignInAt: user.last_sign_in_at || null,
+      isSuspended,
+      bannedUntil: bannedUntilStr || null,
+      userMetadata: user.user_metadata || {},
+      appMetadata: user.app_metadata || {},
+      workspaces,
+      paymentOrders: paymentsRes.data || [],
+      referralCode: referralCodeRes.data || null,
+    });
   } catch (error) {
-    console.error('Failed to get admin user:', error);
-    return NextResponse.json({ error: 'Failed to get admin user' }, { status: 500 });
+    console.error('Failed to get user details:', error);
+    return NextResponse.json({ error: 'Failed to get user details' }, { status: 500 });
   }
 }
 
-// PATCH /api/admin/users/[id] - Update admin user
+// PATCH /api/admin/users/[id] - Update user (admin user role/permissions or platform user metadata)
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -35,34 +104,51 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { role, permissions } = body as UpdateAdminUserInput;
+    const { role, permissions, userMetadata, email } = body;
 
-    // Prevent self-demotion
-    if (id === auth.admin.userId && role && role !== 'super_admin') {
-      return NextResponse.json({ error: 'Cannot change your own role' }, { status: 400 });
+    // If role or permissions provided, try admin user update first
+    if (role !== undefined || permissions !== undefined) {
+      if (id === auth.admin.userId && role && role !== 'super_admin') {
+        return NextResponse.json({ error: 'Cannot change your own role' }, { status: 400 });
+      }
+
+      const adminUser = await adminRepository.updateAdminUser(id, { role, permissions });
+      if (adminUser) {
+        await adminRepository.logAdminAction(
+          auth.admin.userId,
+          'admin_user_update',
+          'admin_user',
+          id,
+          { role, permissions }
+        );
+        return NextResponse.json(adminUser);
+      }
     }
 
-    const adminUser = await adminRepository.updateAdminUser(id, { role, permissions });
-    if (!adminUser) {
-      return NextResponse.json({ error: 'Admin user not found' }, { status: 404 });
-    }
+    // Otherwise, update platform auth user
+    const updatePayload: Record<string, unknown> = {};
+    if (email) updatePayload.email = email;
+    if (userMetadata) updatePayload.user_metadata = userMetadata;
+
+    const { data: updated, error } = await adminClient.auth.admin.updateUserById(id, updatePayload);
+    if (error) throw error;
 
     await adminRepository.logAdminAction(
       auth.admin.userId,
-      'admin_user_update',
-      'admin_user',
+      'user_update',
+      'user',
       id,
-      { role, permissions }
+      updatePayload
     );
 
-    return NextResponse.json(adminUser);
+    return NextResponse.json({ success: true, user: updated.user });
   } catch (error) {
-    console.error('Failed to update admin user:', error);
-    return NextResponse.json({ error: 'Failed to update admin user' }, { status: 500 });
+    console.error('Failed to update user:', error);
+    return NextResponse.json({ error: 'Failed to update user' }, { status: 500 });
   }
 }
 
-// DELETE /api/admin/users/[id] - Delete admin user
+// DELETE /api/admin/users/[id] - Delete user
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -73,27 +159,32 @@ export async function DELETE(
   try {
     const { id } = await params;
 
-    // Prevent self-deletion
+    // Prevent self-deletion if current admin
     if (id === auth.admin.userId) {
       return NextResponse.json({ error: 'Cannot delete yourself' }, { status: 400 });
     }
 
-    const success = await adminRepository.deleteAdminUser(id);
-    if (!success) {
-      return NextResponse.json({ error: 'Admin user not found' }, { status: 404 });
+    // Try deleting from auth.users (which cascades or cleans up platform user)
+    const { error: authError } = await adminClient.auth.admin.deleteUser(id);
+    if (authError) {
+      // Try admin_users
+      const success = await adminRepository.deleteAdminUser(id);
+      if (!success) {
+        return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      }
     }
 
     await adminRepository.logAdminAction(
       auth.admin.userId,
-      'admin_user_delete',
-      'admin_user',
+      'user_delete',
+      'user',
       id,
       {}
     );
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Failed to delete admin user:', error);
-    return NextResponse.json({ error: 'Failed to delete admin user' }, { status: 500 });
+    console.error('Failed to delete user:', error);
+    return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 });
   }
 }

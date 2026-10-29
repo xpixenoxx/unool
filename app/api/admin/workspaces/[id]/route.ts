@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentAdmin, requireAdmin } from '@/lib/auth/admin';
+import { requireAdmin } from '@/lib/auth/admin';
 import { adminRepository } from '@/lib/repositories/supabase/SupabaseAdminRepository';
 import { clearPlanCache } from '@/lib/plan-enforcement';
+import { createClient } from '@supabase/supabase-js';
+import { config } from '@/lib/config/schema';
 
-// GET /api/admin/workspaces/[id] - Get single workspace
+const adminClient = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+
+// GET /api/admin/workspaces/[id] - Get workspace with full details
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -17,7 +21,49 @@ export async function GET(
     if (!workspace) {
       return NextResponse.json({ error: 'Workspace not found' }, { status: 404 });
     }
-    return NextResponse.json(workspace);
+
+    // Parallel fetch related details
+    const [membersRes, subscriptionRes, paymentsRes, platformsRes, postsCountRes] = await Promise.all([
+      adminClient.from('workspace_members').select('*').eq('workspace_id', id),
+      adminClient.from('subscriptions').select('*').eq('workspace_id', id).maybeSingle(),
+      adminClient.from('payment_orders').select('*').eq('workspace_id', id).order('created_at', { ascending: false }).limit(20),
+      adminClient.from('platform_connections').select('*').eq('workspace_id', id),
+      adminClient.from('posts').select('id', { count: 'exact', head: true }).eq('workspace_id', id),
+    ]);
+
+    interface WorkspaceMemberRow {
+      id: string;
+      user_id: string;
+      role: string;
+      created_at: string;
+    }
+
+    // Resolve emails for members
+    const members = await Promise.all(
+      ((membersRes.data || []) as unknown as WorkspaceMemberRow[]).map(async (m) => {
+        let email = 'Unknown';
+        try {
+          const { data } = await adminClient.auth.admin.getUserById(m.user_id);
+          email = data?.user?.email || 'Unknown';
+        } catch { }
+        return {
+          id: m.id,
+          userId: m.user_id,
+          email,
+          role: m.role,
+          createdAt: m.created_at,
+        };
+      })
+    );
+
+    return NextResponse.json({
+      ...workspace,
+      members,
+      subscription: subscriptionRes.data || null,
+      paymentOrders: paymentsRes.data || [],
+      platformConnections: platformsRes.data || [],
+      totalPosts: postsCountRes.count || 0,
+    });
   } catch (error) {
     console.error('Failed to get workspace:', error);
     return NextResponse.json({ error: 'Failed to get workspace' }, { status: 500 });
@@ -35,7 +81,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { plan, planStatus } = body;
+    const { plan, planStatus, planExpiresAt } = body;
 
     let workspace = null;
 
@@ -53,7 +99,6 @@ export async function PATCH(
         { newPlan: plan }
       );
 
-      // Clear plan cache for the new plan
       clearPlanCache(plan);
     }
 
@@ -69,6 +114,26 @@ export async function PATCH(
         'workspace',
         id,
         { newStatus: planStatus }
+      );
+    }
+
+    if (planExpiresAt !== undefined) {
+      const { data, error } = await adminClient
+        .from('workspaces')
+        .update({ plan_expires_at: planExpiresAt, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select('*')
+        .single();
+
+      if (error) throw error;
+      workspace = data;
+
+      await adminRepository.logAdminAction(
+        auth.admin.userId,
+        'workspace_expiry_change',
+        'workspace',
+        id,
+        { newExpiresAt: planExpiresAt }
       );
     }
 
@@ -89,11 +154,6 @@ export async function DELETE(
 
   try {
     const { id } = await params;
-
-    // Use service role to delete
-    const { createClient } = await import('@supabase/supabase-js');
-    const { config } = await import('@/lib/config/schema');
-    const adminClient = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
 
     const { error } = await adminClient
       .from('workspaces')

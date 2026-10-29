@@ -1,10 +1,40 @@
 'use client';
 
 import * as React from 'react';
-import { Search, ChevronLeft, ChevronRight, MoreVertical, Edit, Trash2, Shield, UserPlus, Loader2, Ban, UserCheck } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Box, Flex, Text, Card, CardHeader, CardTitle, CardContent, Badge, Button, Input, Avatar, AvatarImage, AvatarFallback } from '@/components/ui';
-import { MotionBox, MotionStack, hoverLift, staggerContainer, staggerItem } from '@/components/ui/motion';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Edit,
+  Trash2,
+  UserPlus,
+  Loader2,
+  Ban,
+  UserCheck,
+} from 'lucide-react';
+
+import {
+  Box,
+  Flex,
+  Text,
+  Card,
+
+
+  CardContent,
+  Badge,
+  Button,
+  Input,
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  Label,
+} from '@/components/ui';
+
 
 interface User {
   id: string;
@@ -25,14 +55,28 @@ interface UserTableProps {
   searchQuery: string;
   onSearch: (query: string) => void;
   loading: boolean;
+  onRefresh: () => void;
 }
 
-function UserTable({ users, total, page, pageSize, totalPages, onPageChange, searchQuery, onSearch, loading }: UserTableProps) {
+function UserTable({
+  users,
+  total,
+  page,
+  pageSize,
+  totalPages,
+  onPageChange,
+  loading,
+  onRefresh,
+}: UserTableProps) {
   const suspendUser = async (userId: string) => {
     try {
-      const res = await fetch(`/api/admin/users/${userId}/suspend`, { method: 'POST', credentials: 'include' });
+      const res = await fetch(`/api/admin/users/${userId}/suspend`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: 'Admin suspended from users table' }),
+      });
       if (!res.ok) throw new Error('Failed to suspend user');
-      // Refresh would happen via parent
+      onRefresh();
     } catch (err) {
       console.error('Failed to suspend user:', err);
     }
@@ -40,8 +84,11 @@ function UserTable({ users, total, page, pageSize, totalPages, onPageChange, sea
 
   const unsuspendUser = async (userId: string) => {
     try {
-      const res = await fetch(`/api/admin/users/${userId}/unsuspend`, { method: 'POST', credentials: 'include' });
+      const res = await fetch(`/api/admin/users/${userId}/unsuspend`, {
+        method: 'POST',
+      });
       if (!res.ok) throw new Error('Failed to unsuspend user');
+      onRefresh();
     } catch (err) {
       console.error('Failed to unsuspend user:', err);
     }
@@ -50,8 +97,9 @@ function UserTable({ users, total, page, pageSize, totalPages, onPageChange, sea
   const deleteUser = async (userId: string) => {
     if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
     try {
-      const res = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE', credentials: 'include' });
+      const res = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete user');
+      onRefresh();
     } catch (err) {
       console.error('Failed to delete user:', err);
     }
@@ -61,7 +109,7 @@ function UserTable({ users, total, page, pageSize, totalPages, onPageChange, sea
     <Card variant="default" padding="none">
       <CardContent className="p-0">
         <Box className="overflow-x-auto">
-          <table className="w-full" role="table">
+          <table className="w-full text-sm" role="table">
             <thead>
               <tr className="border-b bg-muted/50">
                 <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">User</th>
@@ -85,7 +133,10 @@ function UserTable({ users, total, page, pageSize, totalPages, onPageChange, sea
                     <td className="p-4">
                       <Flex align="center" gap={3} className="min-w-0">
                         <Avatar className="h-10 w-10">
-                          <AvatarImage src={`https://api.dicebear.com/7.x/identicon/svg?seed=${user.email}`} alt={user.email} />
+                          <AvatarImage
+                            src={`https://api.dicebear.com/7.x/identicon/svg?seed=${user.email}`}
+                            alt={user.email}
+                          />
                           <AvatarFallback>{user.email.charAt(0).toUpperCase()}</AvatarFallback>
                         </Avatar>
                         <div className="min-w-0">
@@ -95,16 +146,22 @@ function UserTable({ users, total, page, pageSize, totalPages, onPageChange, sea
                       </Flex>
                     </td>
                     <td className="p-4">
-                      <Badge variant="outline" size="sm">{user.workspaceCount} workspace{user.workspaceCount !== 1 ? 's' : ''}</Badge>
+                      <Badge variant="outline" size="sm">
+                        {user.workspaceCount} workspace{user.workspaceCount !== 1 ? 's' : ''}
+                      </Badge>
                     </td>
                     <td className="p-4">
-                      <Badge variant="secondary" size="sm">{user.plan}</Badge>
+                      <Badge variant="secondary" size="sm" className="capitalize">{user.plan}</Badge>
                     </td>
                     <td className="p-4">
                       {user.suspended ? (
-                        <Badge variant="destructive" size="sm"><Ban className="mr-1 h-3 w-3" /> Suspended</Badge>
+                        <Badge variant="destructive" size="sm">
+                          <Ban className="mr-1 h-3 w-3" /> Suspended
+                        </Badge>
                       ) : (
-                        <Badge variant="success" size="sm"><UserCheck className="mr-1 h-3 w-3" /> Active</Badge>
+                        <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" size="sm">
+                          <UserCheck className="mr-1 h-3 w-3" /> Active
+                        </Badge>
                       )}
                     </td>
                     <td className="p-4">
@@ -114,7 +171,7 @@ function UserTable({ users, total, page, pageSize, totalPages, onPageChange, sea
                       <Flex gap={2} end>
                         {user.suspended ? (
                           <Button variant="ghost" size="icon" onClick={() => unsuspendUser(user.id)} title="Unsuspend">
-                            <UserCheck className="h-4 w-4 text-success" />
+                            <UserCheck className="h-4 w-4 text-green-600 dark:text-green-400" />
                           </Button>
                         ) : (
                           <Button variant="ghost" size="icon" onClick={() => suspendUser(user.id)} title="Suspend">
@@ -122,7 +179,9 @@ function UserTable({ users, total, page, pageSize, totalPages, onPageChange, sea
                           </Button>
                         )}
                         <Button variant="ghost" size="icon" asChild title="View Details">
-                          <a href={`/admin/users/${user.id}`}><Edit className="h-4 w-4" /></a>
+                          <a href={`/admin/users/${user.id}`}>
+                            <Edit className="h-4 w-4" />
+                          </a>
                         </Button>
                         <Button variant="ghost" size="icon" onClick={() => deleteUser(user.id)} title="Delete">
                           <Trash2 className="h-4 w-4 text-destructive" />
@@ -165,6 +224,12 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
+  // Add User Dialog
+  const [addDialogOpen, setAddDialogOpen] = React.useState(false);
+  const [newEmail, setNewEmail] = React.useState('');
+  const [newPassword, setNewPassword] = React.useState('');
+  const [submitting, setSubmitting] = React.useState(false);
+
   const totalPages = Math.ceil(total / pageSize);
 
   const fetchUsers = React.useCallback(async () => {
@@ -189,37 +254,53 @@ export default function AdminUsersPage() {
     fetchUsers();
   }, [fetchUsers]);
 
-  if (loading && !users.length) {
-    return (
-      <MotionBox variant="fade">
-        <Box className="space-y-6">
-          <Flex between>
-            <Box>
-              <Text size="3xl" weight="bold">Users</Text>
-              <Text color="muted">Manage all platform users</Text>
-            </Box>
-          </Flex>
-          <Card variant="default" padding="lg">
-            <CardContent className="flex items-center justify-center h-64">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </CardContent>
-          </Card>
-        </Box>
-      </MotionBox>
-    );
-  }
+  const handleCreateUser = async () => {
+    if (!newEmail || !newEmail.includes('@')) {
+      alert('Valid email is required');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'platform',
+          email: newEmail,
+          password: newPassword || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to create user');
+      }
+      setAddDialogOpen(false);
+      setNewEmail('');
+      setNewPassword('');
+      await fetchUsers();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to create user');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
-    <MotionBox variant="fade" className="space-y-6">
+    <Box className="space-y-6">
       <Flex between className="flex-wrap gap-4">
         <Box>
           <Text size="3xl" weight="bold">Users</Text>
           <Text color="muted">Manage all platform users and their access</Text>
         </Box>
         <Flex gap={3} className="items-center">
-          <Input placeholder="Search users..." value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }} className="w-80" />
-          <Button asChild>
-            <a href="/admin/users/new"><UserPlus className="mr-2 h-4 w-4" /> Add User</a>
+          <Input
+            placeholder="Search users..."
+            value={searchQuery}
+            onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+            className="w-80"
+          />
+          <Button onClick={() => setAddDialogOpen(true)}>
+            <UserPlus className="mr-2 h-4 w-4" /> Add User
           </Button>
         </Flex>
       </Flex>
@@ -233,19 +314,59 @@ export default function AdminUsersPage() {
         </Card>
       )}
 
-      <MotionStack space={6} stagger={0.05}>
-        <UserTable
-          users={users}
-          total={total}
-          page={page}
-          pageSize={pageSize}
-          totalPages={totalPages}
-          onPageChange={setPage}
-          searchQuery={searchQuery}
-          onSearch={setSearchQuery}
-          loading={loading}
-        />
-      </MotionStack>
-    </MotionBox>
+      <UserTable
+        users={users}
+        total={total}
+        page={page}
+        pageSize={pageSize}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        searchQuery={searchQuery}
+        onSearch={setSearchQuery}
+        loading={loading}
+        onRefresh={fetchUsers}
+      />
+
+      {/* Add User Dialog */}
+      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Platform User</DialogTitle>
+            <DialogDescription>
+              Create a new user account with immediate verified status.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="create-user-email">Email Address *</Label>
+              <Input
+                id="create-user-email"
+                type="email"
+                placeholder="user@example.com"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="create-user-password">Initial Password (optional)</Label>
+              <Input
+                id="create-user-password"
+                type="password"
+                placeholder="Leave blank for invitation only"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleCreateUser} disabled={submitting}>
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Create User
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Box>
   );
 }

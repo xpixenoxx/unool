@@ -1,7 +1,17 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   const response = NextResponse.json({ success: true });
-  response.cookies.delete('admin_session');
+  // Clear cookie from both root and /admin paths
+  response.cookies.set('admin_session', '', {
+    path: '/',
+    maxAge: 0,
+    httpOnly: true,
+  });
+  response.cookies.set('admin_session', '', {
+    path: '/admin',
+    maxAge: 0,
+    httpOnly: true,
+  });
   return response;
 }

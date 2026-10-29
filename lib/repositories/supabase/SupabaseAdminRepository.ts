@@ -14,7 +14,16 @@ import type {
   ListWorkspacesParams,
   ListUsersParams,
   AnalyticsSummary,
-  AdminAuditLog
+  AdminAuditLog,
+  PaymentOrderAdminView,
+  SubscriptionAdminView,
+  WebhookEventAdminView,
+  ReferralCodeAdminView,
+  ReferralAdminView,
+  RevenueMetrics,
+  ListPaymentOrdersParams,
+  ListSubscriptionsParams,
+  ListReferralCodesParams,
 } from '@/lib/repositories/interfaces/IAdminRepository';
 
 const adminClient = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
@@ -514,6 +523,437 @@ export class SupabaseAdminRepository implements IAdminRepository {
     return true;
   }
 
+  // ===== Payment Orders =====
+
+  async listPaymentOrders(params?: ListPaymentOrdersParams): Promise<PaginatedResult<PaymentOrderAdminView>> {
+    const page = params?.page ?? 1;
+    const pageSize = params?.pageSize ?? 20;
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    let query = adminClient
+      .from('payment_orders')
+      .select('*, workspaces!inner(name)', { count: 'exact' });
+
+    if (params?.search) {
+      // Search by cf_order_id or workspace name
+      query = query.or(`cf_order_id.ilike.%${params.search}%,cf_payment_id.ilike.%${params.search}%`);
+    }
+    if (params?.status) {
+      query = query.eq('status', params.status);
+    }
+    if (params?.planId) {
+      query = query.eq('plan_id', params.planId);
+    }
+    if (params?.workspaceId) {
+      query = query.eq('workspace_id', params.workspaceId);
+    }
+    if (params?.dateFrom) {
+      query = query.gte('created_at', params.dateFrom);
+    }
+    if (params?.dateTo) {
+      query = query.lte('created_at', params.dateTo);
+    }
+
+    const sortColumn = this.mapPaymentSortColumn(params?.sortBy ?? 'createdAt');
+    query = applySorting(query, sortColumn, params?.sortOrder ?? 'desc');
+    query = query.range(from, to);
+
+    const { data, error, count } = await query;
+    if (error) throw error;
+
+    const orders = (data || []).map((row: any) => this.mapPaymentOrder(row));
+
+    return buildPagination(orders, count ?? 0, page, pageSize);
+  }
+
+  async getPaymentOrderById(id: string): Promise<PaymentOrderAdminView | null> {
+    const { data, error } = await adminClient
+      .from('payment_orders')
+      .select('*, workspaces(name)')
+      .eq('id', id)
+      .single();
+
+    if (error || !data) return null;
+    return this.mapPaymentOrder(data);
+  }
+
+  async updatePaymentOrderStatus(
+    id: string,
+    status: string,
+    adminUserId: string,
+    reason: string
+  ): Promise<PaymentOrderAdminView | null> {
+    const { data, error } = await adminClient
+      .from('payment_orders')
+      .update({
+        status,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .select('*, workspaces(name)')
+      .single();
+
+    if (error) throw error;
+
+    // Append admin override metadata
+    if (data) {
+      const existingMeta = data.metadata || {};
+      await adminClient
+        .from('payment_orders')
+        .update({
+          metadata: {
+            ...existingMeta,
+            admin_override: {
+              by: adminUserId,
+              reason,
+              previousStatus: data.status,
+              newStatus: status,
+              at: new Date().toISOString(),
+            },
+          },
+          status,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id);
+    }
+
+    await this.logAdminAction(adminUserId, 'payment_status_update', 'payment_order', id, {
+      newStatus: status,
+      reason,
+    });
+
+    // Re-fetch to get final state
+    return this.getPaymentOrderById(id);
+  }
+
+  // ===== Subscriptions =====
+
+  async listSubscriptions(params?: ListSubscriptionsParams): Promise<PaginatedResult<SubscriptionAdminView>> {
+    const page = params?.page ?? 1;
+    const pageSize = params?.pageSize ?? 20;
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    let query = adminClient
+      .from('subscriptions')
+      .select('*, workspaces!inner(name)', { count: 'exact' });
+
+    if (params?.search) {
+      query = query.or(`cf_subscription_id.ilike.%${params.search}%,plan_id.ilike.%${params.search}%`);
+    }
+    if (params?.status) {
+      query = query.eq('status', params.status);
+    }
+    if (params?.planId) {
+      query = query.eq('plan_id', params.planId);
+    }
+    if (params?.workspaceId) {
+      query = query.eq('workspace_id', params.workspaceId);
+    }
+
+    const sortColumn = this.mapSubscriptionSortColumn(params?.sortBy ?? 'createdAt');
+    query = applySorting(query, sortColumn, params?.sortOrder ?? 'desc');
+    query = query.range(from, to);
+
+    const { data, error, count } = await query;
+    if (error) throw error;
+
+    const subs = (data || []).map((row: any) => this.mapSubscription(row));
+
+    return buildPagination(subs, count ?? 0, page, pageSize);
+  }
+
+  async getSubscriptionById(id: string): Promise<SubscriptionAdminView | null> {
+    const { data, error } = await adminClient
+      .from('subscriptions')
+      .select('*, workspaces(name)')
+      .eq('id', id)
+      .single();
+
+    if (error || !data) return null;
+    return this.mapSubscription(data);
+  }
+
+  async adminCancelSubscription(
+    id: string,
+    adminUserId: string,
+    reason: string
+  ): Promise<SubscriptionAdminView | null> {
+    const now = new Date().toISOString();
+    const { data, error } = await adminClient
+      .from('subscriptions')
+      .update({
+        status: 'cancelled',
+        cancelled_at: now,
+        cancel_at_period_end: false,
+        updated_at: now,
+      })
+      .eq('id', id)
+      .select('*, workspaces(name)')
+      .single();
+
+    if (error) throw error;
+
+    await this.logAdminAction(adminUserId, 'subscription_cancel', 'subscription', id, { reason });
+
+    // Also update the workspace plan status
+    if (data) {
+      await adminClient
+        .from('workspaces')
+        .update({ plan_status: 'cancelled', updated_at: now })
+        .eq('id', data.workspace_id);
+    }
+
+    return data ? this.mapSubscription(data) : null;
+  }
+
+  async adminExtendSubscription(
+    id: string,
+    newPeriodEnd: string,
+    adminUserId: string,
+    reason: string
+  ): Promise<SubscriptionAdminView | null> {
+    const now = new Date().toISOString();
+    const { data, error } = await adminClient
+      .from('subscriptions')
+      .update({
+        current_period_end: newPeriodEnd,
+        status: 'active',
+        updated_at: now,
+      })
+      .eq('id', id)
+      .select('*, workspaces(name)')
+      .single();
+
+    if (error) throw error;
+
+    await this.logAdminAction(adminUserId, 'subscription_extend', 'subscription', id, {
+      newPeriodEnd,
+      reason,
+    });
+
+    // Also update the workspace plan expiry
+    if (data) {
+      await adminClient
+        .from('workspaces')
+        .update({
+          plan_status: 'active',
+          plan_expires_at: newPeriodEnd,
+          updated_at: now,
+        })
+        .eq('id', data.workspace_id);
+    }
+
+    return data ? this.mapSubscription(data) : null;
+  }
+
+  async adminChangePlan(
+    subscriptionId: string,
+    newPlanId: string,
+    newAmountPaise: number,
+    adminUserId: string,
+    reason: string
+  ): Promise<SubscriptionAdminView | null> {
+    const now = new Date().toISOString();
+
+    // Get current subscription to record old plan
+    const current = await this.getSubscriptionById(subscriptionId);
+    if (!current) return null;
+
+    const { data, error } = await adminClient
+      .from('subscriptions')
+      .update({
+        plan_id: newPlanId,
+        amount_paise: newAmountPaise,
+        updated_at: now,
+      })
+      .eq('id', subscriptionId)
+      .select('*, workspaces(name)')
+      .single();
+
+    if (error) throw error;
+
+    await this.logAdminAction(adminUserId, 'subscription_change_plan', 'subscription', subscriptionId, {
+      oldPlanId: current.planId,
+      newPlanId,
+      oldAmountPaise: current.amountPaise,
+      newAmountPaise,
+      reason,
+    });
+
+    // Also update the workspace plan
+    if (data) {
+      await adminClient
+        .from('workspaces')
+        .update({ plan: newPlanId, updated_at: now })
+        .eq('id', data.workspace_id);
+    }
+
+    return data ? this.mapSubscription(data) : null;
+  }
+
+  // ===== Revenue Metrics =====
+
+  async getRevenueMetrics(days: number = 30): Promise<RevenueMetrics> {
+    const now = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
+    const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59).toISOString();
+
+    // Fetch all needed data in parallel
+    const [
+      allOrdersResult,
+      thisMonthOrdersResult,
+      prevMonthOrdersResult,
+      activeSubsResult,
+      cancelledSubsResult,
+    ] = await Promise.all([
+      adminClient.from('payment_orders').select('id, status, plan_id, amount_paise, created_at'),
+      adminClient.from('payment_orders').select('amount_paise').eq('status', 'PAID').gte('created_at', thisMonthStart),
+      adminClient.from('payment_orders').select('amount_paise').eq('status', 'PAID').gte('created_at', prevMonthStart).lte('created_at', prevMonthEnd),
+      adminClient.from('subscriptions').select('id, amount_paise, billing_cycle', { count: 'exact', head: false }).eq('status', 'active'),
+      adminClient.from('subscriptions').select('id', { count: 'exact', head: true }).eq('status', 'cancelled'),
+    ]);
+
+    const allOrders = allOrdersResult.data || [];
+    const thisMonthOrders = thisMonthOrdersResult.data || [];
+    const prevMonthOrders = prevMonthOrdersResult.data || [];
+    const activeSubs = activeSubsResult.data || [];
+
+    // Compute totals
+    const paidOrders = allOrders.filter(o => o.status === 'PAID');
+    const totalRevenuePaise = paidOrders.reduce((sum, o) => sum + (o.amount_paise || 0), 0);
+    const revenueThisMonthPaise = thisMonthOrders.reduce((sum, o) => sum + (o.amount_paise || 0), 0);
+    const revenuePrevMonthPaise = prevMonthOrders.reduce((sum, o) => sum + (o.amount_paise || 0), 0);
+
+    // MRR: sum of active monthly + (annual / 12)
+    const mrr = activeSubs.reduce((sum, s) => {
+      if (s.billing_cycle === 'annual') return sum + Math.round(s.amount_paise / 12);
+      return sum + (s.amount_paise || 0);
+    }, 0);
+
+    // Revenue by plan
+    const planMap = new Map<string, { totalPaise: number; orderCount: number }>();
+    paidOrders.forEach(o => {
+      const entry = planMap.get(o.plan_id) || { totalPaise: 0, orderCount: 0 };
+      entry.totalPaise += o.amount_paise || 0;
+      entry.orderCount++;
+      planMap.set(o.plan_id, entry);
+    });
+
+    // Revenue last N days
+    const dayMap = new Map<string, { totalPaise: number; orderCount: number }>();
+    paidOrders
+      .filter(o => new Date(o.created_at) >= startDate)
+      .forEach(o => {
+        const day = o.created_at.split('T')[0];
+        const entry = dayMap.get(day) || { totalPaise: 0, orderCount: 0 };
+        entry.totalPaise += o.amount_paise || 0;
+        entry.orderCount++;
+        dayMap.set(day, entry);
+      });
+
+    return {
+      totalRevenuePaise,
+      revenueThisMonthPaise,
+      revenuePrevMonthPaise,
+      totalOrders: allOrders.length,
+      paidOrders: paidOrders.length,
+      failedOrders: allOrders.filter(o => o.status === 'FAILED').length,
+      refundedOrders: allOrders.filter(o => o.status === 'REFUNDED').length,
+      activeSubscriptions: activeSubsResult.count ?? activeSubs.length,
+      cancelledSubscriptions: cancelledSubsResult.count ?? 0,
+      mrr,
+      revenueByPlan: Array.from(planMap.entries()).map(([planId, data]) => ({
+        planId,
+        totalPaise: data.totalPaise,
+        orderCount: data.orderCount,
+      })),
+      revenueLast30Days: Array.from(dayMap.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([date, data]) => ({
+          date,
+          totalPaise: data.totalPaise,
+          orderCount: data.orderCount,
+        })),
+    };
+  }
+
+  // ===== Webhook Events =====
+
+  async listWebhookEvents(page: number = 1, pageSize: number = 20): Promise<PaginatedResult<WebhookEventAdminView>> {
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    const { data, error, count } = await adminClient
+      .from('webhook_events')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    if (error) throw error;
+
+    const events = (data || []).map(this.mapWebhookEvent);
+    return buildPagination(events, count ?? 0, page, pageSize);
+  }
+
+  // ===== Referral Codes & Referrals =====
+
+  async listReferralCodes(params?: ListReferralCodesParams): Promise<PaginatedResult<ReferralCodeAdminView>> {
+    const page = params?.page ?? 1;
+    const pageSize = params?.pageSize ?? 20;
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    let query = adminClient
+      .from('referral_codes')
+      .select('*, workspaces(name)', { count: 'exact' });
+
+    if (params?.search) {
+      query = query.ilike('code', `%${params.search}%`);
+    }
+
+    const sortColumn = this.mapReferralCodeSortColumn(params?.sortBy ?? 'createdAt');
+    query = applySorting(query, sortColumn, params?.sortOrder ?? 'desc');
+    query = query.range(from, to);
+
+    const { data, error, count } = await query;
+    if (error) throw error;
+
+    const codes = (data || []).map((row: any) => this.mapReferralCode(row));
+    return buildPagination(codes, count ?? 0, page, pageSize);
+  }
+
+  async listReferrals(
+    page: number = 1,
+    pageSize: number = 20,
+    referralCode?: string
+  ): Promise<PaginatedResult<ReferralAdminView>> {
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    let query = adminClient
+      .from('referrals')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false });
+
+    if (referralCode) {
+      query = query.eq('referral_code', referralCode);
+    }
+
+    query = query.range(from, to);
+
+    const { data, error, count } = await query;
+    if (error) throw error;
+
+    const referrals = (data || []).map(this.mapReferral);
+    return buildPagination(referrals, count ?? 0, page, pageSize);
+  }
+
   // ===== Mappers =====
 
   private mapAdminUser(row: { id: string; email: string; role: 'super_admin' | 'admin' | 'support'; permissions: Record<string, unknown>; last_login_at: string | null; created_at: string; updated_at: string }): AdminUser {
@@ -576,6 +1016,94 @@ export class SupabaseAdminRepository implements IAdminRepository {
     };
   }
 
+  private mapPaymentOrder(row: any): PaymentOrderAdminView {
+    return {
+      id: row.id,
+      workspaceId: row.workspace_id,
+      workspaceName: row.workspaces?.name,
+      userId: row.user_id,
+      cfOrderId: row.cf_order_id,
+      planId: row.plan_id,
+      billingCycle: row.billing_cycle,
+      amountPaise: row.amount_paise,
+      currency: row.currency,
+      status: row.status,
+      cfPaymentId: row.cf_payment_id,
+      paymentMethod: row.payment_method,
+      paymentSessionId: row.payment_session_id,
+      idempotencyKey: row.idempotency_key,
+      metadata: row.metadata || {},
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  private mapSubscription(row: any): SubscriptionAdminView {
+    return {
+      id: row.id,
+      workspaceId: row.workspace_id,
+      workspaceName: row.workspaces?.name,
+      userId: row.user_id,
+      cfSubscriptionId: row.cf_subscription_id,
+      planId: row.plan_id,
+      billingCycle: row.billing_cycle,
+      status: row.status,
+      amountPaise: row.amount_paise,
+      currency: row.currency,
+      currentPeriodStart: row.current_period_start,
+      currentPeriodEnd: row.current_period_end,
+      trialEnd: row.trial_end,
+      cancelAtPeriodEnd: row.cancel_at_period_end || false,
+      cancelledAt: row.cancelled_at,
+      paymentMethod: row.payment_method,
+      metadata: row.metadata || {},
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  private mapWebhookEvent(row: { id: string; cf_payment_id: string; order_id: string | null; event_type: string; processed: boolean; raw_payload: Record<string, unknown>; created_at: string }): WebhookEventAdminView {
+    return {
+      id: row.id,
+      cfPaymentId: row.cf_payment_id,
+      orderId: row.order_id,
+      eventType: row.event_type,
+      processed: row.processed,
+      rawPayload: row.raw_payload || {},
+      createdAt: row.created_at,
+    };
+  }
+
+  private mapReferralCode(row: any): ReferralCodeAdminView {
+    return {
+      id: row.id,
+      userId: row.user_id,
+      workspaceId: row.workspace_id,
+      workspaceName: row.workspaces?.name,
+      code: row.code,
+      clickCount: row.click_count || 0,
+      signupCount: row.signup_count || 0,
+      conversionCount: row.conversion_count || 0,
+      rewardsEarned: row.rewards_earned || 0,
+      monthsEarned: row.months_earned || 0,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  private mapReferral(row: { id: string; referrer_user_id: string; referred_user_id: string; referral_code: string; status: 'signed_up' | 'converted' | 'rewarded'; reward_type: string | null; reward_applied_at: string | null; created_at: string }): ReferralAdminView {
+    return {
+      id: row.id,
+      referrerUserId: row.referrer_user_id,
+      referredUserId: row.referred_user_id,
+      referralCode: row.referral_code,
+      status: row.status,
+      rewardType: row.reward_type,
+      rewardAppliedAt: row.reward_applied_at,
+      createdAt: row.created_at,
+    };
+  }
+
   private mapSortColumn(sortBy: string): string {
     const map: Record<string, string> = {
       email: 'email',
@@ -592,6 +1120,34 @@ export class SupabaseAdminRepository implements IAdminRepository {
       plan: 'plan',
       memberCount: 'member_count',
       postsThisMonth: 'posts_this_month',
+    };
+    return map[sortBy] || 'created_at';
+  }
+
+  private mapPaymentSortColumn(sortBy: string): string {
+    const map: Record<string, string> = {
+      createdAt: 'created_at',
+      amount: 'amount_paise',
+      status: 'status',
+    };
+    return map[sortBy] || 'created_at';
+  }
+
+  private mapSubscriptionSortColumn(sortBy: string): string {
+    const map: Record<string, string> = {
+      createdAt: 'created_at',
+      amount: 'amount_paise',
+      status: 'status',
+      currentPeriodEnd: 'current_period_end',
+    };
+    return map[sortBy] || 'created_at';
+  }
+
+  private mapReferralCodeSortColumn(sortBy: string): string {
+    const map: Record<string, string> = {
+      createdAt: 'created_at',
+      signupCount: 'signup_count',
+      conversionCount: 'conversion_count',
     };
     return map[sortBy] || 'created_at';
   }

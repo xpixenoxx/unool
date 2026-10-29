@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { cn } from '@/lib/utils';
+
 import {
   MetricCard,
   Card,
@@ -20,10 +20,10 @@ import {
   Box,
 } from '@/components/ui';
 import {
-  ArrowUp,
-  ArrowDown,
+
+
   Activity,
-  UserPlus,
+
   Building2,
   Users,
   Eye,
@@ -164,7 +164,7 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
             <Link href="/admin/analytics"><Activity className="mr-2 h-4 w-4" /> Full Analytics</Link>
           </Button>
           <Button asChild>
-            <Link href="/admin/workspaces/new"><UserPlus className="mr-2 h-4 w-4" /> New Workspace</Link>
+            <Link href="/admin/workspaces"><Building2 className="mr-2 h-4 w-4" /> Workspaces</Link>
           </Button>
         </Flex>
       </Flex>
@@ -372,7 +372,7 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
                         <Box className="min-w-0">
                           <Text weight="medium" className="truncate">{ws.name}</Text>
                           <Flex gap={2} style={{ flexWrap: 'wrap' }}>
-                            <Badge variant="outline" size="sm">{ws.plan}</Badge>
+                            <PlanBadge plan={ws.plan} />
                             <PlanStatusBadge status={ws.planStatus} />
                           </Flex>
                         </Box>
@@ -481,7 +481,7 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
                         ))}
                       </Flex>
                       <Button variant="outline" size="sm" className="w-full" asChild>
-                        <Link href={`/admin/plans/${plan.id}`}>Edit Plan</Link>
+                        <Link href="/admin/plans">Manage Plans</Link>
                       </Button>
                     </CardContent>
                   </Card>

@@ -134,6 +134,138 @@ export interface AdminAuditLog {
   createdAt: string;
 }
 
+// ===== Payment & Subscription Types =====
+
+export interface PaymentOrderAdminView {
+  id: string;
+  workspaceId: string;
+  workspaceName?: string;
+  userId: string;
+  userEmail?: string;
+  cfOrderId: string;
+  planId: string;
+  billingCycle: 'monthly' | 'annual';
+  amountPaise: number;
+  currency: string;
+  status: 'PENDING' | 'PAID' | 'FAILED' | 'EXPIRED' | 'REFUNDED';
+  cfPaymentId: string | null;
+  paymentMethod: string | null;
+  paymentSessionId: string | null;
+  idempotencyKey: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SubscriptionAdminView {
+  id: string;
+  workspaceId: string;
+  workspaceName?: string;
+  userId: string;
+  userEmail?: string;
+  cfSubscriptionId: string | null;
+  planId: string;
+  billingCycle: 'monthly' | 'annual';
+  status: 'created' | 'authorized' | 'active' | 'past_due' | 'paused' | 'cancelled' | 'expired';
+  amountPaise: number;
+  currency: string;
+  currentPeriodStart: string | null;
+  currentPeriodEnd: string | null;
+  trialEnd: string | null;
+  cancelAtPeriodEnd: boolean;
+  cancelledAt: string | null;
+  paymentMethod: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WebhookEventAdminView {
+  id: string;
+  cfPaymentId: string;
+  orderId: string | null;
+  eventType: string;
+  processed: boolean;
+  rawPayload: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface ReferralCodeAdminView {
+  id: string;
+  userId: string;
+  userEmail?: string;
+  workspaceId: string;
+  workspaceName?: string;
+  code: string;
+  clickCount: number;
+  signupCount: number;
+  conversionCount: number;
+  rewardsEarned: number;
+  monthsEarned: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ReferralAdminView {
+  id: string;
+  referrerUserId: string;
+  referrerEmail?: string;
+  referredUserId: string;
+  referredEmail?: string;
+  referralCode: string;
+  status: 'signed_up' | 'converted' | 'rewarded';
+  rewardType: string | null;
+  rewardAppliedAt: string | null;
+  createdAt: string;
+}
+
+export interface RevenueMetrics {
+  totalRevenuePaise: number;
+  revenueThisMonthPaise: number;
+  revenuePrevMonthPaise: number;
+  totalOrders: number;
+  paidOrders: number;
+  failedOrders: number;
+  refundedOrders: number;
+  activeSubscriptions: number;
+  cancelledSubscriptions: number;
+  mrr: number; // Monthly Recurring Revenue in paise
+  revenueByPlan: Array<{ planId: string; totalPaise: number; orderCount: number }>;
+  revenueLast30Days: Array<{ date: string; totalPaise: number; orderCount: number }>;
+}
+
+export interface ListPaymentOrdersParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  status?: string;
+  planId?: string;
+  workspaceId?: string;
+  sortBy?: 'createdAt' | 'amount' | 'status';
+  sortOrder?: 'asc' | 'desc';
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export interface ListSubscriptionsParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  status?: string;
+  planId?: string;
+  workspaceId?: string;
+  sortBy?: 'createdAt' | 'amount' | 'status' | 'currentPeriodEnd';
+  sortOrder?: 'asc' | 'desc';
+}
+
+export interface ListReferralCodesParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  sortBy?: 'createdAt' | 'signupCount' | 'conversionCount';
+  sortOrder?: 'asc' | 'desc';
+}
+
 export interface IAdminRepository {
   // Admin Users
   getAdminUserById(id: string): Promise<AdminUser | null>;
@@ -169,6 +301,28 @@ export interface IAdminRepository {
   listAllUsers(params?: ListUsersParams): Promise<PaginatedResult<{ id: string; email: string; createdAt: string; workspaceCount: number; plan: string }>>;
   suspendUser(userId: string, adminUserId: string, reason: string): Promise<boolean>;
   unsuspendUser(userId: string, adminUserId: string): Promise<boolean>;
+
+  // Payment Orders
+  listPaymentOrders(params?: ListPaymentOrdersParams): Promise<PaginatedResult<PaymentOrderAdminView>>;
+  getPaymentOrderById(id: string): Promise<PaymentOrderAdminView | null>;
+  updatePaymentOrderStatus(id: string, status: string, adminUserId: string, reason: string): Promise<PaymentOrderAdminView | null>;
+
+  // Subscriptions
+  listSubscriptions(params?: ListSubscriptionsParams): Promise<PaginatedResult<SubscriptionAdminView>>;
+  getSubscriptionById(id: string): Promise<SubscriptionAdminView | null>;
+  adminCancelSubscription(id: string, adminUserId: string, reason: string): Promise<SubscriptionAdminView | null>;
+  adminExtendSubscription(id: string, newPeriodEnd: string, adminUserId: string, reason: string): Promise<SubscriptionAdminView | null>;
+  adminChangePlan(subscriptionId: string, newPlanId: string, newAmountPaise: number, adminUserId: string, reason: string): Promise<SubscriptionAdminView | null>;
+
+  // Revenue Metrics
+  getRevenueMetrics(days?: number): Promise<RevenueMetrics>;
+
+  // Webhook Events
+  listWebhookEvents(page?: number, pageSize?: number): Promise<PaginatedResult<WebhookEventAdminView>>;
+
+  // Referral Codes & Referrals
+  listReferralCodes(params?: ListReferralCodesParams): Promise<PaginatedResult<ReferralCodeAdminView>>;
+  listReferrals(page?: number, pageSize?: number, referralCode?: string): Promise<PaginatedResult<ReferralAdminView>>;
 }
 
 export interface IAnalyticsRepository {

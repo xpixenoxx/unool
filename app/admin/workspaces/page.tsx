@@ -1,10 +1,47 @@
 'use client';
 
 import * as React from 'react';
-import { Search, ChevronLeft, ChevronRight, MoreVertical, Building2, Edit, Trash2, Users, Plus, Loader2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Box, Flex, Text, Card, CardHeader, CardTitle, CardContent, Button, Badge, Input, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui';
-import { MotionBox, MotionStack, hoverLift, staggerItem, fadeIn, slideUp } from '@/components/ui/motion';
+import {
+  ChevronLeft,
+  ChevronRight,
+  MoreVertical,
+  Building2,
+  Edit,
+  Trash2,
+  Plus,
+  Loader2,
+} from 'lucide-react';
+
+import {
+  Box,
+  Flex,
+  Text,
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Button,
+  Badge,
+  Input,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui';
+
 import { useState, useEffect } from 'react';
 
 interface Workspace {
@@ -30,14 +67,16 @@ interface WorkspaceTableProps {
   onSearch: (query: string) => void;
   searchQuery: string;
   loading: boolean;
+  onRefresh: () => void;
+  onOpenCreate: () => void;
 }
 
 function PlanBadge({ plan }: { plan: string }) {
   const colors: Record<string, string> = {
-    free: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
-    starter: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+    spark: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
+    creator: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
     pro: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-    enterprise: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+    studio: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
   };
   return (
     <Badge variant="outline" className={colors[plan] || 'bg-muted text-muted-foreground'} size="sm">
@@ -51,22 +90,43 @@ function PlanStatusBadge({ status }: { status: string }) {
     active: { variant: 'success', label: 'Active' },
     trialing: { variant: 'default', label: 'Trial' },
     past_due: { variant: 'warning', label: 'Past Due' },
-    canceled: { variant: 'destructive', label: 'Canceled' },
+    cancelled: { variant: 'destructive', label: 'Cancelled' },
+    canceled: { variant: 'destructive', label: 'Cancelled' },
     paused: { variant: 'outline', label: 'Paused' },
-    free: { variant: 'outline', label: 'Free' },
   };
   const config = statusConfig[status] || { variant: 'outline', label: status };
   return <Badge variant={config.variant} size="sm">{config.label}</Badge>;
 }
 
-function WorkspaceTable({ workspaces, total, page, pageSize, totalPages, onPageChange, onSearch, searchQuery, loading }: WorkspaceTableProps) {
+function WorkspaceTable({
+  workspaces,
+  total,
+  page,
+  pageSize,
+  totalPages,
+  onPageChange,
+  loading,
+  onRefresh,
+  onOpenCreate,
+}: WorkspaceTableProps) {
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to delete workspace "${name}"?`)) return;
+    try {
+      const res = await fetch(`/api/admin/workspaces/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Delete failed');
+      onRefresh();
+    } catch {
+      alert('Failed to delete workspace');
+    }
+  };
+
   return (
     <Card variant="default" padding="none">
       <CardHeader className="px-6 py-4 border-b">
         <Flex between>
           <CardTitle>All Workspaces</CardTitle>
-          <Button variant="outline" size="sm" asChild>
-            <a href="/admin/workspaces/new"><Plus className="mr-2 h-4 w-4" /> New Workspace</a>
+          <Button variant="outline" size="sm" onClick={onOpenCreate}>
+            <Plus className="mr-2 h-4 w-4" /> New Workspace
           </Button>
         </Flex>
       </CardHeader>
@@ -76,13 +136,13 @@ function WorkspaceTable({ workspaces, total, page, pageSize, totalPages, onPageC
             <Building2 className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
             <Text weight="medium">No workspaces found</Text>
             <Text size="sm" color="muted" className="mt-1">Get started by creating a workspace</Text>
-            <Button variant="outline" size="sm" className="mt-3" asChild>
-              <a href="/admin/workspaces/new">Create Workspace</a>
+            <Button variant="outline" size="sm" className="mt-3" onClick={onOpenCreate}>
+              Create Workspace
             </Button>
           </Box>
         ) : (
           <Box className="overflow-x-auto">
-            <table className="w-full" role="table">
+            <table className="w-full text-sm" role="table">
               <thead>
                 <tr className="border-b bg-muted/50">
                   <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Workspace</th>
@@ -110,7 +170,7 @@ function WorkspaceTable({ workspaces, total, page, pageSize, totalPages, onPageC
                     <td className="px-6 py-4"><Text size="sm">{ws.postsThisMonth}</Text></td>
                     <td className="px-6 py-4"><Text size="sm">{ws.profileCount}</Text></td>
                     <td className="px-6 py-4"><Text size="sm" color="muted">{new Date(ws.createdAt).toLocaleDateString()}</Text></td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -121,16 +181,14 @@ function WorkspaceTable({ workspaces, total, page, pageSize, totalPages, onPageC
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem asChild>
                             <a href={`/admin/workspaces/${ws.id}`}>
-                              <Edit className="mr-2 h-4 w-4" /> View Details
-                            </a>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem asChild>
-                            <a href={`/admin/workspaces/${ws.id}/edit`}>
-                              <Building2 className="mr-2 h-4 w-4" /> Edit Plan
+                              <Edit className="mr-2 h-4 w-4" /> View Details & Plan
                             </a>
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-destructive focus:text-destructive">
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => handleDelete(ws.id, ws.name)}
+                          >
                             <Trash2 className="mr-2 h-4 w-4" /> Delete Workspace
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -164,15 +222,22 @@ function WorkspaceTable({ workspaces, total, page, pageSize, totalPages, onPageC
 }
 
 export default function AdminWorkspacesPage() {
-  const [workspaces, setWorkspaces] = React.useState<Workspace[]>([]);
-  const [total, setTotal] = React.useState(0);
-  const [page, setPage] = React.useState(1);
-  const [pageSize] = React.useState(20);
-  const [searchQuery, setSearchQuery] = React.useState('');
-  const [planFilter, setPlanFilter] = React.useState('');
-  const [statusFilter, setStatusFilter] = React.useState('');
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(20);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [planFilter, setPlanFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Create Workspace Dialog
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [newWsName, setNewWsName] = useState('');
+  const [newWsPlan, setNewWsPlan] = useState('spark');
+  const [newWsOwner, setNewWsOwner] = useState('');
+  const [creating, setCreating] = useState(false);
 
   const totalPages = Math.ceil(total / pageSize);
 
@@ -200,49 +265,80 @@ export default function AdminWorkspacesPage() {
     fetchWorkspaces();
   }, [fetchWorkspaces]);
 
-  if (loading && !workspaces.length) {
-    return (
-      <MotionBox variant="fade">
-        <Box className="space-y-6">
-          <Flex between>
-            <Box>
-              <Text size="3xl" weight="bold">Workspaces</Text>
-              <Text color="muted">Manage all workspaces and their subscriptions</Text>
-            </Box>
-          </Flex>
-          <Card variant="default" padding="lg">
-            <CardContent className="flex items-center justify-center h-64">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </CardContent>
-          </Card>
-        </Box>
-      </MotionBox>
-    );
-  }
+  const handleCreateWorkspace = async () => {
+    if (!newWsName.trim()) {
+      alert('Workspace name is required');
+      return;
+    }
+    setCreating(true);
+    try {
+      const res = await fetch('/api/admin/workspaces', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newWsName.trim(),
+          plan: newWsPlan,
+          ownerEmail: newWsOwner.trim() || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to create workspace');
+      }
+      setCreateDialogOpen(false);
+      setNewWsName('');
+      setNewWsOwner('');
+      await fetchWorkspaces();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to create workspace');
+    } finally {
+      setCreating(false);
+    }
+  };
 
   return (
-    <MotionBox variant="fade" className="space-y-6">
+    <Box className="space-y-6">
       <Flex between className="flex-wrap gap-4">
         <Box>
           <Text size="3xl" weight="bold">Workspaces</Text>
           <Text color="muted">Manage all workspaces, plans, and subscriptions</Text>
         </Box>
-        <Flex gap={3} className="items-center">
-          <Input placeholder="Search workspaces..." value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }} className="w-64" />
-          <select value={planFilter} onChange={(e) => { setPlanFilter(e.target.value); setPage(1); }} className="rounded-md border border-input bg-background px-3 py-2 text-sm" style={{ width: 160 }}>
-            <option value="">All Plans</option>
-            <option value="free">Free</option>
-            <option value="starter">Starter</option>
-            <option value="pro">Pro</option>
-            <option value="enterprise">Enterprise</option>
-          </select>
-          <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} className="rounded-md border border-input bg-background px-3 py-2 text-sm" style={{ width: 160 }}>
-            <option value="">All Status</option>
-            <option value="active">Active</option>
-            <option value="trialing">Trialing</option>
-            <option value="past_due">Past Due</option>
-            <option value="canceled">Canceled</option>
-          </select>
+        <Flex gap={3} className="items-center flex-wrap">
+          <Input
+            placeholder="Search workspaces..."
+            value={searchQuery}
+            onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+            className="w-60"
+          />
+          <Select value={planFilter || 'all'} onValueChange={(v) => { setPlanFilter(v === 'all' ? '' : v); setPage(1); }}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="All Plans" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Plans</SelectItem>
+              <SelectItem value="spark">Spark (Free)</SelectItem>
+              <SelectItem value="creator">Creator</SelectItem>
+              <SelectItem value="pro">Pro</SelectItem>
+              <SelectItem value="studio">Studio</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={statusFilter || 'all'} onValueChange={(v) => { setStatusFilter(v === 'all' ? '' : v); setPage(1); }}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="All Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="trialing">Trialing</SelectItem>
+              <SelectItem value="past_due">Past Due</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Button onClick={() => setCreateDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" /> New Workspace
+          </Button>
         </Flex>
       </Flex>
 
@@ -255,19 +351,76 @@ export default function AdminWorkspacesPage() {
         </Card>
       )}
 
-      <MotionStack space={6} stagger={0.05}>
-        <WorkspaceTable
-          workspaces={workspaces}
-          total={total}
-          page={page}
-          pageSize={pageSize}
-          totalPages={totalPages}
-          onPageChange={setPage}
-          onSearch={setSearchQuery}
-          searchQuery={searchQuery}
-          loading={loading}
-        />
-      </MotionStack>
-    </MotionBox>
+      <WorkspaceTable
+        workspaces={workspaces}
+        total={total}
+        page={page}
+        pageSize={pageSize}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        onSearch={setSearchQuery}
+        searchQuery={searchQuery}
+        loading={loading}
+        onRefresh={fetchWorkspaces}
+        onOpenCreate={() => setCreateDialogOpen(true)}
+      />
+
+      {/* Create Workspace Dialog */}
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New Workspace</DialogTitle>
+            <DialogDescription>
+              Provision a new workspace and assign an initial plan tier.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="ws-name">Workspace Name *</Label>
+              <Input
+                id="ws-name"
+                placeholder="Acme Media Co."
+                value={newWsName}
+                onChange={(e) => setNewWsName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ws-plan">Plan Tier</Label>
+              <Select value={newWsPlan} onValueChange={setNewWsPlan}>
+                <SelectTrigger id="ws-plan">
+                  <SelectValue placeholder="Select plan" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="spark">Spark (Free)</SelectItem>
+                  <SelectItem value="creator">Creator</SelectItem>
+                  <SelectItem value="pro">Pro</SelectItem>
+                  <SelectItem value="studio">Studio</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ws-owner">Owner User Email (optional)</Label>
+              <Input
+                id="ws-owner"
+                type="email"
+                placeholder="user@example.com"
+                value={newWsOwner}
+                onChange={(e) => setNewWsOwner(e.target.value)}
+              />
+              <Text size="xs" color="muted">
+                If the user exists, they will be granted Owner role in this workspace.
+              </Text>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleCreateWorkspace} disabled={creating || !newWsName.trim()}>
+              {creating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Create Workspace
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Box>
   );
 }

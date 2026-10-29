@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentAdmin, requireAdmin } from '@/lib/auth/admin';
+import { requireAdmin } from '@/lib/auth/admin';
 import { adminRepository } from '@/lib/repositories/supabase/SupabaseAdminRepository';
-import type { CreatePlanInput, UpdatePlanInput } from '@/lib/repositories/interfaces/IAdminRepository';
+import type { CreatePlanInput } from '@/lib/repositories/interfaces/IAdminRepository';
 
 // GET /api/admin/plans - List all plans
 export async function GET(request: NextRequest) {

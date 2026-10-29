@@ -2,9 +2,9 @@
 
 import * as React from 'react';
 import { ChevronLeft, ChevronRight, User, Clock, Hash, FileText, Loader2, Download } from 'lucide-react';
-import { cn } from '@/lib/utils';
+
 import { Box, Flex, Text, Card, CardHeader, CardTitle, CardContent, Badge, Button, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui';
-import { MotionBox, MotionStack, hoverLift, fadeIn, slideUp } from '@/components/ui/motion';
+import { MotionBox } from '@/components/ui/motion';
 import { useState, useEffect, useMemo } from 'react';
 
 interface AdminAuditLog {
@@ -97,7 +97,7 @@ function LogTable({
 }) {
   const userMap = useMemo(() => new Map(adminUsers.map(u => [u.id, u])), [adminUsers]);
 
-  const totalItems = logs.length;
+
   const start = (page - 1) * pageSize;
   const end = start + pageSize;
   const paginatedLogs = logs.slice(start, end);
@@ -247,7 +247,7 @@ export default function AdminAuditPage() {
   const [pageSize, setPageSize] = useState(20);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const totalPages = Math.ceil(logs.length / pageSize);
+
 
   const fetchData = React.useCallback(async () => {
     setLoading(true);
