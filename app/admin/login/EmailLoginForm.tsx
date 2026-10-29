@@ -1,12 +1,12 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { Eye, EyeOff, Loader2, Mail, Lock, Shield } from 'lucide-react';
 import { Box, Flex, Input, Button, Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui';
 
 export function EmailLoginForm() {
-  const router = useRouter();
+
   const searchParams = useSearchParams();
   const redirect = searchParams.get('redirect') || '/admin';
 
@@ -31,8 +31,8 @@ export function EmailLoginForm() {
       });
 
       if (response.ok) {
-        router.push(redirect);
-        router.refresh();
+        window.location.href = redirect;
+        return;
       } else {
         const data = await response.json().catch(() => ({}));
         setError(data.error || 'Invalid credentials');

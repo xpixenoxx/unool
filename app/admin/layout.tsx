@@ -55,8 +55,7 @@ export function AdminSidebar({ collapsed = false, onToggle }: { collapsed?: bool
 
   const handleLogout = async () => {
     await fetch('/admin/api/logout', { method: 'POST' });
-    router.push('/admin/login');
-    router.refresh();
+    window.location.href = '/admin/login';
   };
 
   return (
@@ -163,8 +162,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   const handleLogout = async () => {
     await fetch('/admin/api/logout', { method: 'POST' });
-    router.push('/admin/login');
-    router.refresh();
+    window.location.href = '/admin/login';
   };
 
   if (pathname === '/admin/login') {
