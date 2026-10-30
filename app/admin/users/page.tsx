@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import {
   ChevronLeft,
   ChevronRight,
@@ -200,9 +201,9 @@ function UserTable({
                           </Button>
                         )}
                         <Button variant="ghost" size="icon" asChild title="View Details">
-                          <a href={`/admin/users/${user.id}`}>
+                          <Link href={`/admin/users/${user.id}`} prefetch={true}>
                             <Edit className="h-4 w-4" />
-                          </a>
+                          </Link>
                         </Button>
                         <Button
                           variant="ghost"
@@ -251,13 +252,15 @@ function UserTable({
   );
 }
 
+let cachedUsersData: { data: User[]; total: number } | null = null;
+
 export default function AdminUsersPage() {
-  const [users, setUsers] = React.useState<User[]>([]);
-  const [total, setTotal] = React.useState(0);
+  const [users, setUsers] = React.useState<User[]>(cachedUsersData?.data || []);
+  const [total, setTotal] = React.useState(cachedUsersData?.total || 0);
   const [page, setPage] = React.useState(1);
   const [pageSize] = React.useState(20);
   const [searchQuery, setSearchQuery] = React.useState('');
-  const [loading, setLoading] = React.useState(true);
+  const [loading, setLoading] = React.useState(!cachedUsersData);
   const [error, setError] = React.useState<string | null>(null);
 
   // Add User Dialog
@@ -269,7 +272,7 @@ export default function AdminUsersPage() {
   const totalPages = Math.ceil(total / pageSize);
 
   const fetchUsers = React.useCallback(async () => {
-    setLoading(true);
+    if (!cachedUsersData) setLoading(true);
     setError(null);
     try {
       const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
@@ -279,6 +282,9 @@ export default function AdminUsersPage() {
       const data = await res.json();
       setUsers(data.data || []);
       setTotal(data.total || 0);
+      if (page === 1 && !searchQuery) {
+        cachedUsersData = { data: data.data || [], total: data.total || 0 };
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {

@@ -169,9 +169,11 @@ function PlanTable({
   );
 }
 
+let cachedPlansData: Plan[] | null = null;
+
 export default function AdminPlansPage() {
-  const [plans, setPlans] = useState<Plan[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [plans, setPlans] = useState<Plan[]>(cachedPlansData || []);
+  const [loading, setLoading] = useState(!cachedPlansData);
   const [error, setError] = useState<string | null>(null);
 
   // Create Dialog
@@ -194,13 +196,14 @@ export default function AdminPlansPage() {
   const [saving, setSaving] = useState(false);
 
   const fetchPlans = useCallback(async () => {
-    setLoading(true);
+    if (!cachedPlansData) setLoading(true);
     setError(null);
     try {
       const res = await fetch('/api/admin/plans');
       if (!res.ok) throw new Error('Failed to fetch plans');
       const data = await res.json();
       setPlans(data || []);
+      cachedPlansData = data || [];
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {

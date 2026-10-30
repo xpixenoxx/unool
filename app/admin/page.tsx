@@ -26,14 +26,26 @@ async function verifyAdminSession() {
   return payload;
 }
 
+let cachedAdminData: any = null;
+let lastAdminDataFetch = 0;
+const ADMIN_DATA_CACHE_TTL = 15000; // 15 seconds cache matching live polling interval
+
 async function getAdminData() {
+  const now = Date.now();
+  if (cachedAdminData && now - lastAdminDataFetch < ADMIN_DATA_CACHE_TTL) {
+    return cachedAdminData;
+  }
+
   const [analytics, workspaces, users, plans] = await Promise.all([
     adminRepository.getAnalyticsSummary(),
     adminRepository.listWorkspaces({ page: 1, pageSize: 5, sortBy: 'createdAt', sortOrder: 'desc' }),
     adminRepository.listAllUsers({ page: 1, pageSize: 5, sortBy: 'createdAt', sortOrder: 'desc' }),
     adminRepository.listPlans(),
   ]);
-  return { analytics, workspaces, users, plans };
+
+  cachedAdminData = { analytics, workspaces, users, plans };
+  lastAdminDataFetch = now;
+  return cachedAdminData;
 }
 
 export default async function AdminPage() {

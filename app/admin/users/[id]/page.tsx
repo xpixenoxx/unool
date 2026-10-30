@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft,
@@ -360,9 +361,9 @@ export default function UserDetailPage() {
                             </td>
                             <td className="py-3 px-2 text-right">
                               <Button variant="ghost" size="sm" asChild>
-                                <a href={`/admin/workspaces/${ws.id}`}>
+                                <Link href={`/admin/workspaces/${ws.id}`} prefetch={true}>
                                   <ExternalLink className="h-4 w-4" />
-                                </a>
+                                </Link>
                               </Button>
                             </td>
                           </tr>

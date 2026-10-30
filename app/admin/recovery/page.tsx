@@ -47,9 +47,11 @@ interface RecoverableItem {
   timestamp: string;
 }
 
+let cachedRecoveryItems: RecoverableItem[] | null = null;
+
 export default function AdminRecoveryPage() {
-  const [items, setItems] = React.useState<RecoverableItem[]>([]);
-  const [loading, setLoading] = React.useState(true);
+  const [items, setItems] = React.useState<RecoverableItem[]>(cachedRecoveryItems || []);
+  const [loading, setLoading] = React.useState(!cachedRecoveryItems);
   const [refreshing, setRefreshing] = React.useState(false);
   const [filter, setFilter] = React.useState<'all' | 'deleted' | 'suspended'>('all');
   const [searchQuery, setSearchQuery] = React.useState('');
@@ -58,12 +60,14 @@ export default function AdminRecoveryPage() {
 
   const fetchItems = React.useCallback(async (showIndicator = false) => {
     if (showIndicator) setRefreshing(true);
-    else setLoading(true);
+    else if (!cachedRecoveryItems) setLoading(true);
     try {
       const res = await fetch('/api/admin/recovery');
       if (res.ok) {
         const data = await res.json();
-        setItems(data.items || []);
+        const list = data.items || [];
+        setItems(list);
+        cachedRecoveryItems = list;
       } else {
         console.error('Failed to load recovery items');
       }

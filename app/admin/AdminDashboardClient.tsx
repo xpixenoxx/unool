@@ -285,26 +285,28 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
             <span className="hidden sm:inline">Refresh</span>
           </Button>
 
-          {/* CTA Button - Opens Interactive User Plan Breakdown Window */}
+          {/* CTA Button - Opens User Insights Subpage */}
           <Button
             variant="default"
             size="sm"
-            onClick={() => setIsPlanModalOpen(true)}
+            asChild
             className="h-9 gap-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-xs font-medium cursor-pointer"
-            title="Open Interactive User Plan Distribution & 30-Day Growth Graph"
+            title="View User Plan Distribution & Full Insights"
           >
-            <PieChart className="h-4 w-4" />
-            <span>User Breakdown</span>
-            <Badge variant="secondary" className="bg-white/20 text-white text-[10px] py-0 px-1.5 font-normal ml-0.5">
-              Live Graph
-            </Badge>
+            <Link href="/admin/user-insights" prefetch={true}>
+              <PieChart className="h-4 w-4" />
+              <span>User Insights</span>
+              <Badge variant="secondary" className="bg-white/20 text-white text-[10px] py-0 px-1.5 font-normal ml-0.5">
+                Live
+              </Badge>
+            </Link>
           </Button>
 
           <Button variant="outline" asChild>
-            <Link href="/admin/analytics"><Activity className="mr-2 h-4 w-4" />Full Analytics</Link>
+            <Link href="/admin/analytics" prefetch={true}><Activity className="mr-2 h-4 w-4" />Full Analytics</Link>
           </Button>
           <Button asChild>
-            <Link href="/admin/workspaces"><Building2 className="mr-2 h-4 w-4" />Workspaces</Link>
+            <Link href="/admin/workspaces" prefetch={true}><Building2 className="mr-2 h-4 w-4" />Workspaces</Link>
           </Button>
         </Flex>
       </Flex>
@@ -333,25 +335,26 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
                     variants={staggerItem}
                     custom={index}
                     {...hoverLift}
-                    onClick={() => setIsPlanModalOpen(true)}
                     className="cursor-pointer group relative"
                   >
-                    <MetricCard
-                      value={metric.value}
-                      label={metric.label}
-                      icon={metric.icon}
-                      change={metric.change}
-                      changeType={metric.changeType}
-                      padding="lg"
-                      className="border-primary/20 hover:border-primary/50 transition-colors relative"
-                    />
-                    {/* Visual action badge inside card */}
-                    <div className="absolute top-3.5 right-12 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Badge variant="outline" className="text-[10px] py-0 px-1.5 gap-0.5 bg-primary/10 text-primary border-primary/30">
-                        <PieChart className="h-2.5 w-2.5" />
-                        Breakdown ↗
-                      </Badge>
-                    </div>
+                    <Link href="/admin/user-insights" prefetch={true} className="block">
+                      <MetricCard
+                        value={metric.value}
+                        label={metric.label}
+                        icon={metric.icon}
+                        change={metric.change}
+                        changeType={metric.changeType}
+                        padding="lg"
+                        className="border-primary/20 hover:border-primary/50 transition-colors relative"
+                      />
+                      {/* Visual action badge inside card */}
+                      <div className="absolute top-3.5 right-12 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Badge variant="outline" className="text-[10px] py-0 px-1.5 gap-0.5 bg-primary/10 text-primary border-primary/30">
+                          <PieChart className="h-2.5 w-2.5" />
+                          Insights ↗
+                        </Badge>
+                      </div>
+                    </Link>
                   </MotionBox>
 
                   {/* Real-time Hover Tooltip: Users registered in the past 1 month */}
@@ -658,7 +661,7 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
                 </CardDescription>
               </Flex>
               <Button variant="ghost" size="sm" asChild>
-                <Link href="/admin/recovery">
+                <Link href="/admin/recovery" prefetch={true}>
                   View Recovery Center <ArrowRight className="ml-1 h-4 w-4" />
                 </Link>
               </Button>
@@ -772,7 +775,7 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
                   <CardDescription>Latest workspaces created</CardDescription>
                 </Flex>
                 <Button variant="ghost" size="sm" asChild>
-                  <Link href="/admin/workspaces">View All <ArrowRight className="ml-1 h-4 w-4" /></Link>
+                  <Link href="/admin/workspaces" prefetch={true}>View All <ArrowRight className="ml-1 h-4 w-4" /></Link>
                 </Button>
               </Flex>
             </CardHeader>
@@ -824,7 +827,7 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
                   <CardDescription>Latest user registrations</CardDescription>
                 </Flex>
                 <Button variant="ghost" size="sm" asChild>
-                  <Link href="/admin/users">View All <ArrowRight className="ml-1 h-4 w-4" /></Link>
+                  <Link href="/admin/users" prefetch={true}>View All <ArrowRight className="ml-1 h-4 w-4" /></Link>
                 </Button>
               </Flex>
             </CardHeader>
@@ -877,7 +880,7 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
                 <CardDescription>Manage your subscription tiers</CardDescription>
               </Flex>
               <Button variant="ghost" size="sm" asChild>
-                <Link href="/admin/plans">Manage Plans <ArrowRight className="ml-1 h-4 w-4" /></Link>
+                <Link href="/admin/plans" prefetch={true}>Manage Plans <ArrowRight className="ml-1 h-4 w-4" /></Link>
               </Button>
             </Flex>
           </CardHeader>
@@ -911,7 +914,7 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
                         ))}
                       </Flex>
                       <Button variant="outline" size="sm" className="w-full" asChild>
-                        <Link href="/admin/plans">Manage Plans</Link>
+                        <Link href="/admin/plans" prefetch={true}>Manage Plans</Link>
                       </Button>
                     </CardContent>
                   </Card>

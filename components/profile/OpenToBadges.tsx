@@ -169,6 +169,7 @@ export function OpenToBadges({ intents, compact = false, darkMode = false, class
 interface OpenToSelectorProps {
   selected: string[];
   onChange: (intents: string[]) => void;
+  hideHeaderIcon?: boolean;
   /** Design system colors from the editor */
   colors: {
     bg: string;
@@ -181,7 +182,7 @@ interface OpenToSelectorProps {
   };
 }
 
-export function OpenToSelector({ selected, onChange, colors }: OpenToSelectorProps) {
+export function OpenToSelector({ selected, onChange, hideHeaderIcon = true, colors }: OpenToSelectorProps) {
   const toggle = (id: string) => {
     if (selected.includes(id)) {
       onChange(selected.filter(s => s !== id));
@@ -193,16 +194,18 @@ export function OpenToSelector({ selected, onChange, colors }: OpenToSelectorPro
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2.5">
-        <div className="p-2 rounded-lg" style={{ backgroundColor: colors.accentBg }}>
-          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" style={{ color: colors.accent }}>
-            <circle cx="10" cy="10" r="7.5" stroke="currentColor" strokeWidth="1.5" />
-            <path d="M10 6v4l2.5 2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </div>
+        {!hideHeaderIcon && (
+          <div className="p-2 rounded-lg" style={{ backgroundColor: colors.accentBg }}>
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" style={{ color: colors.accent }}>
+              <circle cx="10" cy="10" r="7.5" stroke="currentColor" strokeWidth="1.5" />
+              <path d="M10 6v4l2.5 2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+        )}
         <div>
           <h3 className="text-sm font-semibold" style={{ color: colors.text }}>Open to</h3>
           <p className="text-xs mt-0.5" style={{ color: colors.textMuted }}>
-            Tell visitors what you're available for right now.
+            Tell visitors what you&apos;re available for right now.
           </p>
         </div>
       </div>

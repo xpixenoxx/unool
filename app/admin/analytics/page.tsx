@@ -314,20 +314,23 @@ function TopProfilesTable({ topProfiles }: { topProfiles: Array<{
   );
 }
 
+let cachedAnalyticsMap: Record<number, AnalyticsSummary> = {};
+
 export default function AdminAnalyticsPage() {
-  const [analytics, setAnalytics] = React.useState<AnalyticsSummary | null>(null);
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
   const [days, setDays] = React.useState(30);
+  const [analytics, setAnalytics] = React.useState<AnalyticsSummary | null>(cachedAnalyticsMap[30] || null);
+  const [loading, setLoading] = React.useState(!cachedAnalyticsMap[30]);
+  const [error, setError] = React.useState<string | null>(null);
 
   const fetchAnalytics = React.useCallback(async () => {
-    setLoading(true);
+    if (!cachedAnalyticsMap[days]) setLoading(true);
     setError(null);
     try {
       const res = await fetch(`/api/admin/analytics?days=${days}`);
       if (!res.ok) throw new Error('Failed to fetch analytics');
       const data = await res.json();
       setAnalytics(data);
+      cachedAnalyticsMap[days] = data;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {

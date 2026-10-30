@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Globe,
   Sparkles,
   Loader2,
   Trash2,
@@ -20,12 +19,10 @@ import {
   Copy,
   Check,
   User,
-  BadgeCheck,
   Building2,
   Briefcase,
   FileText,
   MessageSquare,
-  Sparkle,
   ShieldCheck,
 } from 'lucide-react';
 import { OpenToSelector, OPEN_TO_INTENTS } from '@/components/profile/OpenToBadges';
@@ -560,14 +557,13 @@ export function PresenceClient(_props: PresenceClientProps) {
           <div>
             <div className="flex items-center gap-2 mb-1.5">
               <span
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase shadow-sm"
+                className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase shadow-sm"
                 style={{
                   background: 'linear-gradient(135deg, #FFF4EE 0%, #FAF0FF 50%, #EFF6FF 100%)',
                   color: T.coral,
                   border: '1px solid rgba(225, 77, 42, 0.25)',
                 }}
               >
-                <Sparkle className="w-3.5 h-3.5 fill-current text-orange-500" />
                 Public Identity Studio
               </span>
             </div>
@@ -671,9 +667,6 @@ export function PresenceClient(_props: PresenceClientProps) {
                   <h2 className="text-lg font-bold truncate tracking-tight" style={{ color: T.text }}>
                     {profile.name || 'Your Name'}
                   </h2>
-                  {claimedSubdomain && (
-                    <BadgeCheck className="w-4 h-4 flex-shrink-0 text-sky-500 fill-sky-100" />
-                  )}
                 </div>
                 <p className="text-xs truncate max-w-lg mt-0.5" style={{ color: T.textMuted }}>
                   {profile.headline || profile.role ? `${profile.role || ''}${profile.company ? ` @ ${profile.company}` : ''} ${profile.headline ? `· ${profile.headline}` : ''}` : 'Add your role & headline below'}
@@ -683,15 +676,14 @@ export function PresenceClient(_props: PresenceClientProps) {
                 <div className="flex flex-wrap items-center gap-2 mt-2.5">
                   {claimedSubdomain ? (
                     <span
-                      className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold transition-colors"
+                      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold transition-colors"
                       style={{ backgroundColor: T.skyBg, color: T.sky, border: `1px solid ${T.skyBorder}` }}
                     >
-                      <Globe className="w-3 h-3 text-sky-500" />
                       {claimedSubdomain}.unool.co
                     </span>
                   ) : (
                     <span
-                      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold text-amber-800 bg-amber-50 border border-amber-200"
+                      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold text-amber-800 bg-amber-50 border border-amber-200"
                     >
                       Handle not claimed yet
                     </span>
@@ -699,20 +691,18 @@ export function PresenceClient(_props: PresenceClientProps) {
 
                   {profile.links && profile.links.length > 0 && (
                     <span
-                      className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold"
+                      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold"
                       style={{ backgroundColor: T.violetBg, color: T.violet, border: `1px solid ${T.violetBorder}` }}
                     >
-                      <LinkIcon className="w-3 h-3 text-violet-500" />
                       {profile.links.length} {profile.links.length === 1 ? 'link' : 'links'}
                     </span>
                   )}
 
                   {profile.proofPoints && profile.proofPoints.length > 0 && (
                     <span
-                      className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold"
+                      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold"
                       style={{ backgroundColor: T.emeraldBg, color: T.emerald, border: `1px solid ${T.emeraldBorder}` }}
                     >
-                      <CheckCircle2 className="w-3 h-3 text-emerald-500" />
                       {profile.proofPoints.length} proofs
                     </span>
                   )}
@@ -836,14 +826,7 @@ export function PresenceClient(_props: PresenceClientProps) {
             }`}
           />
 
-          <div className="flex flex-col sm:flex-row sm:items-center gap-4 ml-2">
-            <motion.div
-              animate={generating ? { rotate: [0, 10, -10, 0], scale: [1, 1.08, 1] } : {}}
-              transition={{ repeat: Infinity, duration: 2 }}
-              className="p-3 rounded-2xl flex-shrink-0 bg-gradient-to-br from-orange-500 via-rose-500 to-violet-600 text-white shadow-md shadow-orange-500/20"
-            >
-              <Sparkles className="h-5 w-5" />
-            </motion.div>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 ml-1">
             <div className="flex-1">
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-bold tracking-tight" style={{ color: T.text }}>
@@ -891,7 +874,7 @@ export function PresenceClient(_props: PresenceClientProps) {
               <button
                 onClick={handleGenerate}
                 disabled={generating || !sourceUrl.trim()}
-                className="px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 disabled:opacity-40 flex items-center gap-2 flex-shrink-0 text-white shadow-md shadow-orange-500/20 hover:shadow-orange-500/30 hover:scale-[1.02] active:scale-[0.98]"
+                className="px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 disabled:opacity-40 flex items-center justify-center gap-2 flex-shrink-0 text-white shadow-md shadow-orange-500/20 hover:shadow-orange-500/30 hover:scale-[1.02] active:scale-[0.98]"
                 style={{
                   background: generating
                     ? 'linear-gradient(135deg, #F97316 0%, #E11D48 50%, #8B5CF6 100%)'
@@ -904,10 +887,7 @@ export function PresenceClient(_props: PresenceClientProps) {
                     <span>Casting Magic...</span>
                   </>
                 ) : (
-                  <>
-                    <Sparkles className="h-4 w-4" />
-                    <span>Autofill</span>
-                  </>
+                  <span>Autofill</span>
                 )}
               </button>
             </div>
@@ -1011,25 +991,13 @@ export function PresenceClient(_props: PresenceClientProps) {
           }}
         >
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div
-                className="p-2.5 rounded-xl flex-shrink-0 shadow-sm"
-                style={{
-                  background: 'linear-gradient(135deg, #E0F2FE 0%, #EDE9FE 100%)',
-                  color: T.sky,
-                  border: '1px solid rgba(2, 132, 199, 0.2)',
-                }}
-              >
-                <Globe className="h-4 w-4 text-sky-600" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold tracking-tight" style={{ color: T.text }}>
-                  Profile URL (Subdomain)
-                </h3>
-                <p className="text-xs mt-0.5" style={{ color: T.textMuted }}>
-                  Choose the custom link where your profile will live.
-                </p>
-              </div>
+            <div>
+              <h3 className="text-sm font-bold tracking-tight" style={{ color: T.text }}>
+                Profile URL (Subdomain)
+              </h3>
+              <p className="text-xs mt-0.5" style={{ color: T.textMuted }}>
+                Choose the custom link where your profile will live.
+              </p>
             </div>
 
             {claimedSubdomain && (

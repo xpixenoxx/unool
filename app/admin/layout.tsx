@@ -19,9 +19,10 @@ import {
   Share2,
   ShieldCheck,
   RotateCcw,
+  PieChart,
 } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Box, Flex, Text, Button } from '@/components/ui';
 import { MotionBox } from '@/components/ui/motion';
@@ -29,6 +30,7 @@ import { MotionBox } from '@/components/ui/motion';
 const navigation = [
   { name: 'Overview', href: '/admin', icon: LayoutDashboard },
   { name: 'Users', href: '/admin/users', icon: Users },
+  { name: 'User Insights', href: '/admin/user-insights', icon: PieChart },
   { name: 'Workspaces', href: '/admin/workspaces', icon: Building2 },
   { name: 'Recovery', href: '/admin/recovery', icon: RotateCcw },
   { name: 'Payments', href: '/admin/payments', icon: CreditCard },
@@ -48,21 +50,26 @@ interface CurrentAdminInfo {
   role: string;
 }
 
+let cachedAdminUser: CurrentAdminInfo | null = null;
+
 export function AdminSidebar({ collapsed = false, onToggle }: { collapsed?: boolean; onToggle: () => void }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [isCollapsed, setIsCollapsed] = React.useState(collapsed);
-  const [adminUser, setAdminUser] = React.useState<CurrentAdminInfo | null>(null);
+  const [adminUser, setAdminUser] = React.useState<CurrentAdminInfo | null>(cachedAdminUser);
 
   React.useEffect(() => {
     setIsCollapsed(collapsed);
   }, [collapsed]);
 
   React.useEffect(() => {
+    if (cachedAdminUser) return;
     let mounted = true;
     fetch('/admin/api/me')
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (mounted && data?.admin) {
+          cachedAdminUser = data.admin;
           setAdminUser(data.admin);
         }
       })
@@ -130,9 +137,11 @@ export function AdminSidebar({ collapsed = false, onToggle }: { collapsed?: bool
                   delay={navigation.indexOf(item) * 0.02}
                   whileHover={!isCollapsed ? { x: 4 } : undefined}
                   whileTap={{ scale: 0.98 }}
+                  onMouseEnter={() => router.prefetch(item.href)}
                 >
                   <Link
                     href={item.href}
+                    prefetch={true}
                     className={cn(
                       'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150',
                       isActive

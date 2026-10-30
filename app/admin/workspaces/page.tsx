@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import {
   ChevronLeft,
   ChevronRight,
@@ -186,9 +187,9 @@ function WorkspaceTable({
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem asChild>
-                            <a href={`/admin/workspaces/${ws.id}`}>
+                            <Link href={`/admin/workspaces/${ws.id}`} prefetch={true}>
                               <Edit className="mr-2 h-4 w-4" /> View Details & Plan
-                            </a>
+                            </Link>
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
@@ -227,15 +228,17 @@ function WorkspaceTable({
   );
 }
 
+let cachedWorkspacesData: { data: Workspace[]; total: number } | null = null;
+
 export default function AdminWorkspacesPage() {
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [total, setTotal] = useState(0);
+  const [workspaces, setWorkspaces] = useState<Workspace[]>(cachedWorkspacesData?.data || []);
+  const [total, setTotal] = useState(cachedWorkspacesData?.total || 0);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
   const [searchQuery, setSearchQuery] = useState('');
   const [planFilter, setPlanFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!cachedWorkspacesData);
   const [error, setError] = useState<string | null>(null);
 
   // Create Workspace Dialog
@@ -248,7 +251,7 @@ export default function AdminWorkspacesPage() {
   const totalPages = Math.ceil(total / pageSize);
 
   const fetchWorkspaces = React.useCallback(async () => {
-    setLoading(true);
+    if (!cachedWorkspacesData) setLoading(true);
     setError(null);
     try {
       const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
@@ -260,6 +263,9 @@ export default function AdminWorkspacesPage() {
       const data = await res.json();
       setWorkspaces(data.data || []);
       setTotal(data.total || 0);
+      if (page === 1 && !searchQuery && !planFilter && !statusFilter) {
+        cachedWorkspacesData = { data: data.data || [], total: data.total || 0 };
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {

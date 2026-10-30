@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import {
   Loader2,
   RefreshCw,
@@ -212,9 +213,9 @@ export default function PlatformConnectionsPage() {
                         </td>
                         <td className="py-3 px-2">
                           <Button variant="link" size="sm" className="p-0 h-auto" asChild>
-                            <a href={`/admin/workspaces/${conn.workspaceId}`}>
+                            <Link href={`/admin/workspaces/${conn.workspaceId}`} prefetch={true}>
                               {conn.workspaceName} <ExternalLink className="ml-1 h-3 w-3" />
-                            </a>
+                            </Link>
                           </Button>
                         </td>
                         <td className="py-3 px-2">
