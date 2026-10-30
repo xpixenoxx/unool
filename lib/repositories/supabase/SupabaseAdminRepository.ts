@@ -22,6 +22,7 @@ import type {
   ReferralAdminView,
   RevenueMetrics,
   RecoverableProfileItem,
+  UserBreakdownData,
   ListPaymentOrdersParams,
   ListSubscriptionsParams,
   ListReferralCodesParams,
@@ -471,12 +472,23 @@ export class SupabaseAdminRepository implements IAdminRepository {
       }
     }
 
+    let userBreakdown: UserBreakdownData | undefined;
+    try {
+      userBreakdown = await this.getUserPlanDistribution();
+    } catch {
+      // Graceful fallback if user distribution calculation fails
+    }
+
     return {
       totalProfileViews: eventsByType['profile_view'] || 0,
       totalLinkClicks: (eventsByType['link_click'] || 0) + (eventsByType['profile_cta_click'] || 0),
       totalPostsPublished: totalPostsPublished || 0,
       totalWorkspaces: totalWorkspaces || 0,
-      totalUsers: totalUsers || 0,
+      totalUsers: userBreakdown?.total || totalUsers || 0,
+      newUsersLast30Days: userBreakdown?.newUsersLast30Days || 0,
+      usersByPlan: userBreakdown?.byPlan || {},
+      userRegistrationsLast30Days: userBreakdown?.registrationsLast30Days || [],
+      userBreakdown,
       eventsByType,
       eventsLast30Days: Object.entries(eventsByDay)
         .sort(([a], [b]) => a.localeCompare(b))
@@ -644,6 +656,142 @@ export class SupabaseAdminRepository implements IAdminRepository {
     const total = userArray.length === pageSize ? (page * pageSize) + 1 : (page - 1) * pageSize + activeUsers.length;
 
     return buildPagination(data, total, page, pageSize);
+  }
+
+  async getUserPlanDistribution(): Promise<UserBreakdownData> {
+    const defaultData: UserBreakdownData = {
+      total: 0,
+      newUsersLast30Days: 0,
+      byPlan: { free: 0, spark: 0, creator: 0, pro: 0, studio: 0 },
+      planDetails: [],
+      registrationsLast30Days: [],
+      recentUsers: [],
+    };
+
+    try {
+      const usersRes = await Promise.resolve(adminClient.auth?.admin?.listUsers?.({ perPage: 1000 })).catch(() => null);
+      const usersData = usersRes?.data;
+      if (!usersData?.users) {
+        return defaultData;
+      }
+
+      const rawUsers = usersData.users || [];
+      const activeUsers = rawUsers.filter((u) => {
+        const meta = (u as Record<string, any>).user_metadata;
+        return meta?.is_deleted !== true;
+      });
+
+      const total = activeUsers.length;
+      const now = new Date();
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+      // Pre-populate last 30 days
+      const dateMap: Record<string, number> = {};
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+        dateMap[d.toISOString().split('T')[0]] = 0;
+      }
+
+      // Map users to workspace plans
+      const userIds = activeUsers.map((u) => u.id);
+      const workspacesByUser = new Map<string, string[]>();
+
+      if (userIds.length > 0) {
+        try {
+          const { data: wm } = await adminClient
+            .from('workspace_members')
+            .select('user_id, workspaces ( plan )')
+            .in('user_id', userIds);
+
+          (wm || []).forEach((row: any) => {
+            const current = workspacesByUser.get(row.user_id) || [];
+            if (row.workspaces) {
+              if (Array.isArray(row.workspaces)) {
+                row.workspaces.forEach((w: any) => {
+                  if (w?.plan) current.push(w.plan);
+                });
+              } else if (row.workspaces.plan) {
+                current.push(row.workspaces.plan);
+              }
+            }
+            workspacesByUser.set(row.user_id, current);
+          });
+        } catch {
+          // Graceful fallback for workspace_members lookup
+        }
+      }
+
+      let newUsersLast30Days = 0;
+      const byPlan: Record<string, number> = {
+        free: 0,
+        spark: 0,
+        creator: 0,
+        pro: 0,
+        studio: 0,
+      };
+
+      const recentUsers: Array<{
+        id: string;
+        email: string;
+        plan: string;
+        createdAt: string;
+        isSuspended: boolean;
+      }> = [];
+
+      activeUsers.forEach((u) => {
+        const createdDate = new Date(u.created_at);
+        if (createdDate >= thirtyDaysAgo) {
+          newUsersLast30Days++;
+        }
+
+        const dayStr = u.created_at.split('T')[0];
+        if (dateMap[dayStr] !== undefined) {
+          dateMap[dayStr]++;
+        }
+
+        const plans = workspacesByUser.get(u.id) || [];
+        const plan = (plans[0] || 'free').toLowerCase();
+        byPlan[plan] = (byPlan[plan] || 0) + 1;
+
+        const bannedUntil = (u as Record<string, any>).banned_until;
+        const isSuspended = !!(bannedUntil && new Date(bannedUntil) > now);
+
+        recentUsers.push({
+          id: u.id,
+          email: u.email || '',
+          plan,
+          createdAt: u.created_at,
+          isSuspended,
+        });
+      });
+
+      const planDetails = Object.entries(byPlan)
+        .filter(([, count]) => count > 0)
+        .map(([plan, count]) => ({
+          plan,
+          count,
+          percentage: total > 0 ? Math.round((count / total) * 1000) / 10 : 0,
+        }))
+        .sort((a, b) => b.count - a.count);
+
+      const registrationsLast30Days = Object.entries(dateMap)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([date, count]) => ({ date, count }));
+
+      recentUsers.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      return {
+        total,
+        newUsersLast30Days,
+        byPlan,
+        planDetails,
+        registrationsLast30Days,
+        recentUsers: recentUsers.slice(0, 50),
+      };
+    } catch (err) {
+      console.error('Failed to get user plan distribution:', err);
+      return defaultData;
+    }
   }
 
   async suspendUser(userId: string, adminUserId: string, reason: string): Promise<boolean> {

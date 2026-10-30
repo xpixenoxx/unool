@@ -31,13 +31,18 @@ import {
   Trash2,
   Ban,
   ShieldCheck,
+  PieChart,
 } from 'lucide-react';
 import {
   MotionBox,
   hoverLift,
   staggerItem,
+  AnimatePresence,
+  motion,
 } from '@/components/ui/motion';
 import { SectionGuide } from '@/components/admin/section-guide';
+import { UserPlanDistributionModal } from '@/components/admin/UserPlanDistributionModal';
+import type { UserBreakdownData } from '@/lib/repositories/interfaces/IAdminRepository';
 
 interface WorkspaceAdminView {
   id: string;
@@ -83,6 +88,10 @@ interface AnalyticsSummary {
   totalPostsPublished: number;
   totalWorkspaces: number;
   totalUsers: number;
+  newUsersLast30Days?: number;
+  usersByPlan?: Record<string, number>;
+  userRegistrationsLast30Days?: Array<{ date: string; count: number }>;
+  userBreakdown?: UserBreakdownData;
   eventsByType: Record<string, number>;
   eventsLast30Days: Array<{ date: string; count: number }>;
   topLinks: Array<{
@@ -133,6 +142,8 @@ interface AdminDashboardClientProps {
 export default function AdminDashboardClient({ initialData }: AdminDashboardClientProps) {
   const [analytics, setAnalytics] = React.useState<AnalyticsSummary>(initialData.analytics);
   const [isRefreshing, setIsRefreshing] = React.useState(false);
+  const [isPlanModalOpen, setIsPlanModalOpen] = React.useState(false);
+  const [isUserHovered, setIsUserHovered] = React.useState(false);
   const { workspaces, users, plans } = initialData;
 
   const refreshAnalytics = React.useCallback(async (showIndicator = false) => {
@@ -229,6 +240,9 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
       label: 'Total Users',
       value: analytics.totalUsers.toLocaleString(),
       icon: <Users className="h-5 w-5" />,
+      change: `+${analytics.newUsersLast30Days ?? 0} in 30d`,
+      changeType: 'increase' as const,
+      isTotalUsers: true,
     },
     {
       label: 'Profile Views (30d)',
@@ -241,7 +255,6 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
       icon: <ExternalLink className="h-5 w-5" />,
     },
   ];
-
 
   return (
     <Box className="space-y-6">
@@ -271,6 +284,22 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
             <RefreshCw className={isRefreshing ? 'h-3.5 w-3.5 animate-spin' : 'h-3.5 w-3.5'} />
             <span className="hidden sm:inline">Refresh</span>
           </Button>
+
+          {/* CTA Button - Opens Interactive User Plan Breakdown Window */}
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => setIsPlanModalOpen(true)}
+            className="h-9 gap-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-xs font-medium cursor-pointer"
+            title="Open Interactive User Plan Distribution & 30-Day Growth Graph"
+          >
+            <PieChart className="h-4 w-4" />
+            <span>User Breakdown</span>
+            <Badge variant="secondary" className="bg-white/20 text-white text-[10px] py-0 px-1.5 font-normal ml-0.5">
+              Live Graph
+            </Badge>
+          </Button>
+
           <Button variant="outline" asChild>
             <Link href="/admin/analytics"><Activity className="mr-2 h-4 w-4" />Full Analytics</Link>
           </Button>
@@ -291,16 +320,111 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
           />
         </Flex>
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {metrics.map((metric, index) => (
-            <MotionBox variants={staggerItem} custom={index} key={metric.label} {...hoverLift}>
-              <MetricCard
-                value={metric.value}
-                label={metric.label}
-                icon={metric.icon}
-                padding="lg"
-              />
-            </MotionBox>
-          ))}
+          {metrics.map((metric, index) => {
+            if (metric.isTotalUsers) {
+              return (
+                <div
+                  key={metric.label}
+                  className="relative"
+                  onMouseEnter={() => setIsUserHovered(true)}
+                  onMouseLeave={() => setIsUserHovered(false)}
+                >
+                  <MotionBox
+                    variants={staggerItem}
+                    custom={index}
+                    {...hoverLift}
+                    onClick={() => setIsPlanModalOpen(true)}
+                    className="cursor-pointer group relative"
+                  >
+                    <MetricCard
+                      value={metric.value}
+                      label={metric.label}
+                      icon={metric.icon}
+                      change={metric.change}
+                      changeType={metric.changeType}
+                      padding="lg"
+                      className="border-primary/20 hover:border-primary/50 transition-colors relative"
+                    />
+                    {/* Visual action badge inside card */}
+                    <div className="absolute top-3.5 right-12 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Badge variant="outline" className="text-[10px] py-0 px-1.5 gap-0.5 bg-primary/10 text-primary border-primary/30">
+                        <PieChart className="h-2.5 w-2.5" />
+                        Breakdown ↗
+                      </Badge>
+                    </div>
+                  </MotionBox>
+
+                  {/* Real-time Hover Tooltip: Users registered in the past 1 month */}
+                  <AnimatePresence>
+                    {isUserHovered && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 4, scale: 0.98 }}
+                        transition={{ duration: 0.15, ease: 'easeOut' }}
+                        className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 z-50 w-72 pointer-events-none"
+                      >
+                        <div className="rounded-2xl border border-primary/30 bg-popover/95 p-4 shadow-2xl backdrop-blur-md text-popover-foreground ring-1 ring-black/5 dark:ring-white/10">
+                          <div className="flex items-center justify-between gap-2 mb-2.5">
+                            <div className="flex items-center gap-1.5">
+                              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                              <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                                Past 1 Month Signups
+                              </span>
+                            </div>
+                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-normal">
+                              Real-time
+                            </Badge>
+                          </div>
+
+                          <div className="flex items-baseline justify-between gap-2">
+                            <div>
+                              <div className="text-2xl font-bold text-foreground">
+                                +{analytics.newUsersLast30Days ?? 0}
+                                <span className="text-xs font-normal text-muted-foreground ml-1.5">users</span>
+                              </div>
+                              <div className="text-[11px] text-muted-foreground mt-0.5">
+                                registered in the past 30 days
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                                {analytics.totalUsers > 0
+                                  ? `${Math.round(((analytics.newUsersLast30Days ?? 0) / analytics.totalUsers) * 100)}%`
+                                  : '0%'}
+                              </div>
+                              <div className="text-[10px] text-muted-foreground">of total base</div>
+                            </div>
+                          </div>
+
+                          <div className="mt-3 pt-2.5 border-t border-border/60 flex items-center justify-between text-[11px] font-medium text-primary">
+                            <span className="flex items-center gap-1">
+                              <PieChart className="h-3 w-3" />
+                              Click to view plan graph
+                            </span>
+                            <span className="text-xs">↗</span>
+                          </div>
+                        </div>
+                        {/* Tooltip triangle beak */}
+                        <div className="w-3 h-3 bg-popover border-r border-b border-primary/30 rotate-45 mx-auto -mt-1.5 shadow-xs" />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            }
+
+            return (
+              <MotionBox variants={staggerItem} custom={index} key={metric.label} {...hoverLift}>
+                <MetricCard
+                  value={metric.value}
+                  label={metric.label}
+                  icon={metric.icon}
+                  padding="lg"
+                />
+              </MotionBox>
+            );
+          })}
         </div>
       </div>
 
@@ -800,6 +924,13 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
           </CardContent>
         </Card>
       </MotionBox>
+
+      {/* Interactive User Plan Distribution Modal */}
+      <UserPlanDistributionModal
+        isOpen={isPlanModalOpen}
+        onClose={() => setIsPlanModalOpen(false)}
+        initialBreakdown={analytics.userBreakdown}
+      />
     </Box>
   );
 }

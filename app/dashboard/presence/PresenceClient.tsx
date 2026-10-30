@@ -182,6 +182,31 @@ let memoryPresenceClaimedSubdomain: string | null = null;
 export function PresenceClient(_props: PresenceClientProps) {
   const [activeTab, setActiveTab] = useState<TabValue>('profile');
   const [generating, setGenerating] = useState(false);
+  const [magicStep, setMagicStep] = useState(0);
+  const [showMagicSuccess, setShowMagicSuccess] = useState(false);
+  const magicTimersRef = useRef<NodeJS.Timeout[]>([]);
+
+  const playMagicChime = useCallback(() => {
+    try {
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof window.AudioContext }).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const now = ctx.currentTime;
+      const freqs = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6 major chord
+      freqs.forEach((f, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(f, now + i * 0.08);
+        gain.gain.setValueAtTime(0.03, now + i * 0.08);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.08 + 0.4);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now + i * 0.08);
+        osc.stop(now + i * 0.08 + 0.45);
+      });
+    } catch {}
+  }, []);
   const [claimingSubdomain, setClaimingSubdomain] = useState(false);
   const [deletingSubdomain, setDeletingSubdomain] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
@@ -279,6 +304,18 @@ export function PresenceClient(_props: PresenceClientProps) {
   const handleGenerate = async () => {
     if (!sourceUrl.trim()) return;
     setGenerating(true);
+    setShowMagicSuccess(false);
+    setMagicStep(0);
+
+    // Clear any previous timers
+    magicTimersRef.current.forEach(clearTimeout);
+    magicTimersRef.current = [];
+
+    // Progressive step animations while AI extracts
+    magicTimersRef.current.push(setTimeout(() => setMagicStep(1), 1100));
+    magicTimersRef.current.push(setTimeout(() => setMagicStep(2), 2400));
+    magicTimersRef.current.push(setTimeout(() => setMagicStep(3), 4000));
+
     let urlToUse = sourceUrl.trim();
     if (!/^https?:\/\//i.test(urlToUse)) {
       urlToUse = `https://${urlToUse}`;
@@ -320,7 +357,14 @@ export function PresenceClient(_props: PresenceClientProps) {
           ? ext.proofPoints.map(p => ({ type: p.type, value: p.value, url: p.url || '' }))
           : prev.proofPoints,
       }));
-      toast.success('Profile autofill complete!');
+
+      // Trigger magic celebration burst & chime
+      setShowMagicSuccess(true);
+      playMagicChime();
+      toast.success('✨ Profile magically autofilled!');
+
+      const hideTimer = setTimeout(() => setShowMagicSuccess(false), 5000);
+      magicTimersRef.current.push(hideTimer);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to generate profile';
       toast.error(msg);
@@ -727,20 +771,79 @@ export function PresenceClient(_props: PresenceClientProps) {
         <motion.div
           variants={fadeUp}
           transition={transition}
-          className="rounded-2xl p-5 relative overflow-hidden transition-all duration-200"
+          className="rounded-2xl p-5 relative overflow-hidden transition-all duration-300"
           style={{
-            background: 'linear-gradient(135deg, #FFFFFF 0%, #FFFDF9 50%, #FAF6FF 100%)',
-            border: `1px solid ${T.cardBorder}`,
-            boxShadow: T.shadowSm,
+            background: generating
+              ? 'linear-gradient(135deg, #FFFFFF 0%, #FFF8F3 40%, #F5F0FF 100%)'
+              : showMagicSuccess
+              ? 'linear-gradient(135deg, #FFFFFF 0%, #F0FDF4 50%, #FAF5FF 100%)'
+              : 'linear-gradient(135deg, #FFFFFF 0%, #FFFDF9 50%, #FAF6FF 100%)',
+            border: generating
+              ? '1.5px solid rgba(139, 92, 246, 0.55)'
+              : showMagicSuccess
+              ? '1.5px solid rgba(16, 185, 129, 0.55)'
+              : `1px solid ${T.cardBorder}`,
+            boxShadow: generating
+              ? '0 0 32px -4px rgba(249, 115, 22, 0.3), 0 0 24px -4px rgba(139, 92, 246, 0.25)'
+              : showMagicSuccess
+              ? '0 0 28px -4px rgba(16, 185, 129, 0.3)'
+              : T.shadowSm,
           }}
         >
-          {/* Gradient left accent line */}
-          <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-orange-500 via-rose-500 to-violet-600" />
+          {/* Floating magic stardust particles while extracting */}
+          {generating && (
+            <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-2xl">
+              {[...Array(6)].map((_, i) => (
+                <motion.div
+                  key={i}
+                  className="absolute"
+                  style={{
+                    left: `${15 + i * 14}%`,
+                    bottom: '20%',
+                  }}
+                  animate={{
+                    opacity: [0, 0.9, 0],
+                    y: [-10, -60],
+                    scale: [0.6, 1.3, 0.5],
+                    rotate: [0, 180],
+                  }}
+                  transition={{
+                    repeat: Infinity,
+                    duration: 1.8 + (i % 3) * 0.4,
+                    delay: i * 0.22,
+                    ease: 'easeOut',
+                  }}
+                >
+                  <Sparkles
+                    className="w-4 h-4"
+                    style={{
+                      color: ['#F97316', '#8B5CF6', '#EC4899', '#06B6D4', '#EAB308', '#10B981'][i],
+                    }}
+                  />
+                </motion.div>
+              ))}
+            </div>
+          )}
+
+          {/* Gradient left accent line with animated pulse while generating */}
+          <div
+            className={`absolute top-0 left-0 w-1.5 h-full transition-all duration-300 ${
+              generating
+                ? 'bg-gradient-to-b from-orange-500 via-rose-500 to-violet-600 animate-pulse'
+                : showMagicSuccess
+                ? 'bg-gradient-to-b from-emerald-400 to-teal-500'
+                : 'bg-gradient-to-b from-orange-500 via-rose-500 to-violet-600'
+            }`}
+          />
 
           <div className="flex flex-col sm:flex-row sm:items-center gap-4 ml-2">
-            <div className="p-3 rounded-2xl flex-shrink-0 bg-gradient-to-br from-orange-500 via-rose-500 to-violet-600 text-white shadow-md shadow-orange-500/20">
+            <motion.div
+              animate={generating ? { rotate: [0, 10, -10, 0], scale: [1, 1.08, 1] } : {}}
+              transition={{ repeat: Infinity, duration: 2 }}
+              className="p-3 rounded-2xl flex-shrink-0 bg-gradient-to-br from-orange-500 via-rose-500 to-violet-600 text-white shadow-md shadow-orange-500/20"
+            >
               <Sparkles className="h-5 w-5" />
-            </div>
+            </motion.div>
             <div className="flex-1">
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-bold tracking-tight" style={{ color: T.text }}>
@@ -762,32 +865,43 @@ export function PresenceClient(_props: PresenceClientProps) {
               </p>
             </div>
             <div className="flex w-full sm:w-auto items-center gap-2">
-              <div className="relative flex-1 sm:w-72">
+              <div className="relative flex-1 sm:w-72 overflow-hidden rounded-xl">
                 <input
                   placeholder="https://linkedin.com/in/yourname"
                   value={sourceUrl}
                   onChange={e => setSourceUrl(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') handleGenerate(); }}
-                  className="px-3.5 py-2.5 text-sm rounded-xl w-full focus:outline-none transition-all duration-200 shadow-inner"
+                  className="px-3.5 py-2.5 text-sm rounded-xl w-full focus:outline-none transition-all duration-200 shadow-inner font-medium"
                   style={{
                     backgroundColor: T.inputBg,
-                    border: `1px solid ${T.inputBorder}`,
+                    border: generating ? '1.5px solid rgba(139, 92, 246, 0.5)' : `1px solid ${T.inputBorder}`,
                     color: T.text,
                   }}
                 />
+
+                {/* Laser scan beam over input while generating */}
+                {generating && (
+                  <motion.div
+                    className="absolute inset-y-0 w-24 bg-gradient-to-r from-transparent via-purple-400/35 via-orange-400/35 to-transparent pointer-events-none rounded-xl"
+                    animate={{ x: ['-80%', '320%'] }}
+                    transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}
+                  />
+                )}
               </div>
               <button
                 onClick={handleGenerate}
                 disabled={generating || !sourceUrl.trim()}
-                className="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 disabled:opacity-40 flex items-center gap-2 flex-shrink-0 text-white shadow-md shadow-orange-500/20 hover:shadow-orange-500/30 hover:scale-[1.02] active:scale-[0.98]"
+                className="px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 disabled:opacity-40 flex items-center gap-2 flex-shrink-0 text-white shadow-md shadow-orange-500/20 hover:shadow-orange-500/30 hover:scale-[1.02] active:scale-[0.98]"
                 style={{
-                  background: 'linear-gradient(135deg, #C85A32 0%, #D9683E 50%, #8B5CF6 100%)',
+                  background: generating
+                    ? 'linear-gradient(135deg, #F97316 0%, #E11D48 50%, #8B5CF6 100%)'
+                    : 'linear-gradient(135deg, #C85A32 0%, #D9683E 50%, #8B5CF6 100%)',
                 }}
               >
                 {generating ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Extracting...</span>
+                    <Sparkles className="h-4 w-4 animate-spin text-amber-200" />
+                    <span>Casting Magic...</span>
                   </>
                 ) : (
                   <>
@@ -798,6 +912,64 @@ export function PresenceClient(_props: PresenceClientProps) {
               </button>
             </div>
           </div>
+
+          {/* Progressive AI Live Extraction Stepper */}
+          <AnimatePresence>
+            {generating && (
+              <motion.div
+                initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                animate={{ opacity: 1, height: 'auto', marginTop: 14 }}
+                exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                className="w-full pt-3 border-t border-purple-100/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 overflow-hidden ml-2 pr-2"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="relative flex h-2.5 w-2.5 flex-shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-purple-600" />
+                  </span>
+                  <motion.span
+                    key={magicStep}
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-xs font-semibold text-purple-900"
+                  >
+                    {magicStep === 0 && `Connecting to ${sourceUrl.replace(/^https?:\/\//, '').split('/')[0] || 'website'}...`}
+                    {magicStep === 1 && 'Reading portfolio, bio, headline & career role...'}
+                    {magicStep === 2 && 'Detecting credentials, proof metrics & social handles...'}
+                    {magicStep >= 3 && 'Synthesizing your public presence with AI magic...'}
+                  </motion.span>
+                </div>
+                <div className="flex items-center gap-1.5 text-[11px] font-bold text-orange-600 bg-orange-50 px-2.5 py-0.5 rounded-full border border-orange-200/60 shadow-xs flex-shrink-0">
+                  <Sparkles className="w-3 h-3 text-orange-500 animate-spin" />
+                  <span>AI Scanning Live</span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Magic Celebration Banner upon completion */}
+          <AnimatePresence>
+            {showMagicSuccess && (
+              <motion.div
+                initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                animate={{ opacity: 1, height: 'auto', marginTop: 14 }}
+                exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                className="w-full pt-3 border-t border-emerald-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 overflow-hidden ml-2 pr-2"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="p-1 rounded-full bg-emerald-100 text-emerald-600 flex-shrink-0">
+                    <Sparkles className="w-3.5 h-3.5 fill-current" />
+                  </span>
+                  <span className="text-xs font-bold text-emerald-800">
+                    ✨ Magic autofill complete! Bio, headline & social proof populated below.
+                  </span>
+                </div>
+                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 shadow-xs flex-shrink-0">
+                  ✓ Synced
+                </span>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
 
         {/* ═══ OPEN TO — AVAILABILITY INTENTS ═══ */}

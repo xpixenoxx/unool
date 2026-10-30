@@ -480,4 +480,87 @@ describe('SupabaseAdminRepository - Recovery Management', () => {
       })
     );
   });
+
+  describe('getUserPlanDistribution', () => {
+    let repository: SupabaseAdminRepository;
+
+    beforeEach(() => {
+      vi.clearAllMocks();
+      repository = new SupabaseAdminRepository();
+    });
+
+    it('calculates plan distribution, 30d signups, and excludes deleted users', async () => {
+      const now = new Date();
+      const recentSignup = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000).toISOString();
+      const oldSignup = new Date(now.getTime() - 45 * 24 * 60 * 60 * 1000).toISOString();
+
+      const mockUsers = [
+        {
+          id: 'user-pro-1',
+          email: 'pro@unool.co',
+          created_at: recentSignup,
+          user_metadata: {},
+        },
+        {
+          id: 'user-free-1',
+          email: 'free@unool.co',
+          created_at: recentSignup,
+          user_metadata: {},
+        },
+        {
+          id: 'user-old-1',
+          email: 'old@unool.co',
+          created_at: oldSignup,
+          user_metadata: {},
+        },
+        {
+          id: 'user-deleted-1',
+          email: 'deleted@unool.co',
+          created_at: recentSignup,
+          user_metadata: { is_deleted: true },
+        },
+      ];
+
+      mockAuthAdmin.listUsers.mockResolvedValue({
+        data: { users: mockUsers },
+        error: null,
+      });
+
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'workspace_members') {
+          return {
+            select: vi.fn().mockReturnValue({
+              in: vi.fn().mockResolvedValue({
+                data: [
+                  { user_id: 'user-pro-1', workspaces: [{ plan: 'pro' }] },
+                  { user_id: 'user-free-1', workspaces: [{ plan: 'free' }] },
+                ],
+                error: null,
+              }),
+            }),
+          };
+        }
+        return {
+          select: vi.fn().mockReturnValue({
+            in: vi.fn().mockResolvedValue({ data: [], error: null }),
+          }),
+        };
+      });
+
+      const distribution = await repository.getUserPlanDistribution();
+
+      expect(distribution.total).toBe(3);
+      expect(distribution.newUsersLast30Days).toBe(2);
+      expect(distribution.byPlan['pro']).toBe(1);
+      expect(distribution.byPlan['free']).toBe(2);
+      expect(distribution.planDetails).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ plan: 'free', count: 2 }),
+          expect.objectContaining({ plan: 'pro', count: 1 }),
+        ])
+      );
+      expect(distribution.registrationsLast30Days).toHaveLength(30);
+      expect(distribution.recentUsers).toHaveLength(3);
+    });
+  });
 });

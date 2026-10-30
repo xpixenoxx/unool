@@ -110,12 +110,38 @@ export interface ListUsersParams {
   sortOrder?: 'asc' | 'desc';
 }
 
+export interface UserBreakdownData {
+  total: number;
+  newUsersLast30Days: number;
+  byPlan: Record<string, number>;
+  planDetails: Array<{
+    plan: string;
+    count: number;
+    percentage: number;
+  }>;
+  registrationsLast30Days: Array<{
+    date: string;
+    count: number;
+  }>;
+  recentUsers?: Array<{
+    id: string;
+    email: string;
+    plan: string;
+    createdAt: string;
+    isSuspended: boolean;
+  }>;
+}
+
 export interface AnalyticsSummary {
   totalProfileViews: number;
   totalLinkClicks: number;
   totalPostsPublished: number;
   totalWorkspaces: number;
   totalUsers: number;
+  newUsersLast30Days?: number;
+  usersByPlan?: Record<string, number>;
+  userRegistrationsLast30Days?: Array<{ date: string; count: number }>;
+  userBreakdown?: UserBreakdownData;
   eventsByType: Record<string, number>;
   eventsLast30Days: Array<{ date: string; count: number }>;
   topLinks: Array<{
@@ -329,6 +355,7 @@ export interface IAdminRepository {
   // User Management
   getUserById(userId: string): Promise<{ id: string; email: string; createdAt: string } | null>;
   listAllUsers(params?: ListUsersParams): Promise<PaginatedResult<{ id: string; email: string; createdAt: string; workspaceCount: number; plan: string; suspended?: boolean }>>;
+  getUserPlanDistribution(): Promise<UserBreakdownData>;
   suspendUser(userId: string, adminUserId: string, reason: string): Promise<boolean>;
   unsuspendUser(userId: string, adminUserId: string): Promise<boolean>;
 
