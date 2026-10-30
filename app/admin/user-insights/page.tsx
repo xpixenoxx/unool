@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import * as React from 'react';
 import Link from 'next/link';
@@ -26,6 +26,7 @@ import {
   Badge,
   Button,
 } from '@/components/ui';
+import { InteractiveSignupChart } from '@/components/admin/interactive-signup-chart';
 
 // ---- Types ----
 interface PlanDetail { plan: string; count: number; percentage: number; }
@@ -301,11 +302,8 @@ export default function UserInsightsPage() {
     { label: '2+ channels', value: platformStats.multiChannelUsers, color: '#8b5cf6' },
   ].filter(d => d.value > 0);
 
-  // Growth sparkline (30d)
+  // Growth data (30d registrations)
   const regData = userBreakdown.registrationsLast30Days || [];
-  const maxReg = Math.max(...regData.map(d => d.count), 1);
-  const sparkW = 280;
-  const sparkH = 60;
 
   return (
     <Box className="space-y-6 pb-10">
@@ -398,70 +396,11 @@ export default function UserInsightsPage() {
           </CardContent>
         </Card>
 
-        {/* 30-Day Registration Growth */}
-        <Card variant="analytics" padding="lg" className="border-border/60">
-          <CardHeader className="pb-2">
-            <Flex align="center" gap={2}>
-              <TrendingUp className="h-4 w-4 text-emerald-500" />
-              <CardTitle>30-Day Signups</CardTitle>
-            </Flex>
-            <CardDescription>Daily new user registrations (last 30 days)</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-baseline gap-3 mb-4">
-              <span className="text-3xl font-bold text-emerald-500">+{userBreakdown.newUsersLast30Days}</span>
-              <span className="text-sm text-muted-foreground">new users this month</span>
-            </div>
-            {regData.length > 0 ? (
-              <svg width={sparkW} height={sparkH + 20} viewBox={`0 0 ${sparkW} ${sparkH + 20}`} className="w-full">
-                <defs>
-                  <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#10b981" stopOpacity="0.4" />
-                    <stop offset="100%" stopColor="#10b981" stopOpacity="0.02" />
-                  </linearGradient>
-                </defs>
-                {/* area fill */}
-                <path
-                  d={[
-                    `M 0 ${sparkH}`,
-                    ...regData.map((d, i) => {
-                      const x = (i / (regData.length - 1)) * sparkW;
-                      const y = sparkH - (d.count / maxReg) * sparkH;
-                      return `L ${x} ${y}`;
-                    }),
-                    `L ${sparkW} ${sparkH}`,
-                    'Z',
-                  ].join(' ')}
-                  fill="url(#sparkGrad)"
-                />
-                {/* line */}
-                <polyline
-                  points={regData.map((d, i) => {
-                    const x = (i / (regData.length - 1)) * sparkW;
-                    const y = sparkH - (d.count / maxReg) * sparkH;
-                    return `${x},${y}`;
-                  }).join(' ')}
-                  fill="none"
-                  stroke="#10b981"
-                  strokeWidth="2"
-                  strokeLinejoin="round"
-                  strokeLinecap="round"
-                />
-                {/* dots at weekends/peaks */}
-                {regData.map((d, i) => {
-                  if (d.count !== Math.max(...regData.map(r => r.count)) && d.count === 0) return null;
-                  const x = (i / (regData.length - 1)) * sparkW;
-                  const y = sparkH - (d.count / maxReg) * sparkH;
-                  return <circle key={i} cx={x} cy={y} r={d.count > 0 ? 2.5 : 0} fill="#10b981" />;
-                })}
-                <text x={0} y={sparkH + 16} fontSize="9" fill="#888">{regData[0]?.date}</text>
-                <text x={sparkW} y={sparkH + 16} fontSize="9" fill="#888" textAnchor="end">{regData[regData.length - 1]?.date}</text>
-              </svg>
-            ) : (
-              <Text color="muted" size="sm">No registration data yet</Text>
-            )}
-          </CardContent>
-        </Card>
+        {/* 30-Day Registration Growth (Interactive) */}
+        <InteractiveSignupChart
+          data={regData}
+          initialNewUsersCount={userBreakdown.newUsersLast30Days}
+        />
       </div>
 
       {/* Row 3: Posts by Platform */}
