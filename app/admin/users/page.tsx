@@ -33,6 +33,7 @@ import {
   Label,
 } from '@/components/ui';
 import { SectionGuide } from '@/components/admin/section-guide';
+import { ActionReasonDialog } from '@/components/admin/action-reason-dialog';
 import { cn } from '@/lib/utils';
 
 interface User {
@@ -74,18 +75,36 @@ function UserTable({
   loading,
   onRefresh,
 }: UserTableProps) {
-  const suspendUser = async (userId: string) => {
-    try {
+  const [actionDialog, setActionDialog] = React.useState<{
+    isOpen: boolean;
+    actionType: 'suspend' | 'delete';
+    user: User | null;
+  }>({
+    isOpen: false,
+    actionType: 'suspend',
+    user: null,
+  });
+
+  const handleDialogConfirm = async (reason: string) => {
+    if (!actionDialog.user) return;
+    const userId = actionDialog.user.id;
+
+    if (actionDialog.actionType === 'suspend') {
       const res = await fetch(`/api/admin/users/${userId}/suspend`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason: 'Admin suspended from users table' }),
+        body: JSON.stringify({ reason }),
       });
       if (!res.ok) throw new Error('Failed to suspend user');
-      onRefresh();
-    } catch (err) {
-      console.error('Failed to suspend user:', err);
+    } else {
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason }),
+      });
+      if (!res.ok) throw new Error('Failed to delete user');
     }
+    onRefresh();
   };
 
   const unsuspendUser = async (userId: string) => {
@@ -97,17 +116,6 @@ function UserTable({
       onRefresh();
     } catch (err) {
       console.error('Failed to unsuspend user:', err);
-    }
-  };
-
-  const deleteUser = async (userId: string) => {
-    if (!confirm('Are you sure you want to permanently delete this user? This will remove their auth credentials and memberships.')) return;
-    try {
-      const res = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed to delete user');
-      onRefresh();
-    } catch (err) {
-      console.error('Failed to delete user:', err);
     }
   };
 
@@ -182,7 +190,12 @@ function UserTable({
                             <UserCheck className="h-4 w-4 text-green-600 dark:text-green-400" />
                           </Button>
                         ) : (
-                          <Button variant="ghost" size="icon" onClick={() => suspendUser(user.id)} title="Suspend (lock login for 24h)">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setActionDialog({ isOpen: true, actionType: 'suspend', user })}
+                            title="Suspend user account"
+                          >
                             <Ban className="h-4 w-4 text-destructive" />
                           </Button>
                         )}
@@ -191,7 +204,12 @@ function UserTable({
                             <Edit className="h-4 w-4" />
                           </a>
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => deleteUser(user.id)} title="Delete permanently">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setActionDialog({ isOpen: true, actionType: 'delete', user })}
+                          title="Move to Deleted & Recovery"
+                        >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </Flex>
@@ -219,6 +237,16 @@ function UserTable({
           </div>
         )}
       </CardContent>
+
+      {actionDialog.user && (
+        <ActionReasonDialog
+          isOpen={actionDialog.isOpen}
+          onClose={() => setActionDialog({ isOpen: false, actionType: 'suspend', user: null })}
+          onConfirm={handleDialogConfirm}
+          actionType={actionDialog.actionType}
+          targetEmail={actionDialog.user.email}
+        />
+      )}
     </Card>
   );
 }

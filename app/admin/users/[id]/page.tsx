@@ -35,6 +35,7 @@ import {
 } from '@/components/ui';
 import { MotionBox } from '@/components/ui/motion';
 import { SectionGuide } from '@/components/admin/section-guide';
+import { ActionReasonDialog } from '@/components/admin/action-reason-dialog';
 import { cn } from '@/lib/utils';
 
 interface UserWorkspace {
@@ -104,6 +105,13 @@ export default function UserDetailPage() {
   const [loading, setLoading] = React.useState(true);
   const [actionLoading, setActionLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [actionDialog, setActionDialog] = React.useState<{
+    isOpen: boolean;
+    actionType: 'suspend' | 'delete';
+  }>({
+    isOpen: false,
+    actionType: 'suspend',
+  });
 
   const fetchUser = React.useCallback(async () => {
     if (!userId) return;
@@ -125,19 +133,14 @@ export default function UserDetailPage() {
     fetchUser();
   }, [fetchUser]);
 
-  const handleToggleSuspend = async () => {
+  const handleUnsuspend = async () => {
     if (!user) return;
     setActionLoading(true);
     try {
-      const endpoint = user.isSuspended
-        ? `/api/admin/users/${userId}/unsuspend`
-        : `/api/admin/users/${userId}/suspend`;
-      const res = await fetch(endpoint, {
+      const res = await fetch(`/api/admin/users/${userId}/unsuspend`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason: 'Admin toggle from user detail' }),
       });
-      if (!res.ok) throw new Error('Action failed');
+      if (!res.ok) throw new Error('Unsuspend failed');
       await fetchUser();
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Action failed');
@@ -146,16 +149,24 @@ export default function UserDetailPage() {
     }
   };
 
-  const handleDelete = async () => {
-    if (!confirm('Are you sure you want to permanently delete this user?')) return;
-    setActionLoading(true);
-    try {
-      const res = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Delete failed');
+  const handleDialogConfirm = async (reason: string) => {
+    if (!user) return;
+    if (actionDialog.actionType === 'suspend') {
+      const res = await fetch(`/api/admin/users/${userId}/suspend`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason }),
+      });
+      if (!res.ok) throw new Error('Failed to suspend user');
+      await fetchUser();
+    } else {
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason }),
+      });
+      if (!res.ok) throw new Error('Failed to delete user');
       router.push('/admin/users');
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Delete failed');
-      setActionLoading(false);
     }
   };
 
@@ -191,30 +202,34 @@ export default function UserDetailPage() {
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to Users
           </Button>
           <Flex gap={2}>
-            <Button
-              variant={user.isSuspended ? 'outline' : 'destructive'}
-              size="sm"
-              onClick={handleToggleSuspend}
-              disabled={actionLoading}
-            >
-              {user.isSuspended ? (
-                <>
-                  <UserCheck className="mr-2 h-4 w-4 text-green-500" /> Unsuspend User
-                </>
-              ) : (
-                <>
-                  <Ban className="mr-2 h-4 w-4" /> Suspend User
-                </>
-              )}
-            </Button>
+            {user.isSuspended ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleUnsuspend}
+                disabled={actionLoading}
+              >
+                <UserCheck className="mr-2 h-4 w-4 text-green-500" /> Unsuspend User
+              </Button>
+            ) : (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setActionDialog({ isOpen: true, actionType: 'suspend' })}
+                disabled={actionLoading}
+              >
+                <Ban className="mr-2 h-4 w-4" /> Suspend User
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"
-              onClick={handleDelete}
+              onClick={() => setActionDialog({ isOpen: true, actionType: 'delete' })}
               disabled={actionLoading}
               className="text-destructive hover:text-destructive"
+              title="Delete account (move to recovery)"
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="h-4 w-4 mr-1" /> Delete
             </Button>
           </Flex>
         </Flex>
@@ -455,6 +470,15 @@ export default function UserDetailPage() {
           </TabsContent>
         </Tabs>
       </MotionBox>
+      {user && (
+        <ActionReasonDialog
+          isOpen={actionDialog.isOpen}
+          onClose={() => setActionDialog((prev) => ({ ...prev, isOpen: false }))}
+          onConfirm={handleDialogConfirm}
+          actionType={actionDialog.actionType}
+          targetEmail={user.email}
+        />
+      )}
     </Box>
   );
 }

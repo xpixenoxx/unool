@@ -371,6 +371,24 @@ describe('SupabaseAdminRepository - Recovery Management', () => {
     });
 
     mockFrom.mockImplementation((table: string) => {
+      if (table === 'deleted_accounts') {
+        return {
+          select: vi.fn().mockReturnValue({
+            is: vi.fn().mockReturnValue({
+              order: vi.fn().mockResolvedValue({ data: [], error: null }),
+            }),
+          }),
+        };
+      }
+      if (table === 'admin_audit_log' || table === 'admin_audit_logs') {
+        return {
+          select: vi.fn().mockReturnValue({
+            in: vi.fn().mockReturnValue({
+              order: vi.fn().mockResolvedValue({ data: [], error: null }),
+            }),
+          }),
+        };
+      }
       if (table === 'profiles') {
         return {
           select: vi.fn().mockReturnValue({
@@ -409,15 +427,24 @@ describe('SupabaseAdminRepository - Recovery Management', () => {
   });
 
   it('recovers soft-deleted profile and unsuspends user account', async () => {
-    const mockUpdate = vi.fn().mockReturnValue({
+    const mockProfileUpdate = vi.fn().mockReturnValue({
       eq: vi.fn().mockResolvedValue({ error: null }),
+    });
+
+    const mockDeletedAccountsUpdate = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        is: vi.fn().mockResolvedValue({ error: null }),
+      }),
     });
 
     const mockInsert = vi.fn().mockResolvedValue({ error: null });
 
     mockFrom.mockImplementation((table: string) => {
       if (table === 'profiles') {
-        return { update: mockUpdate };
+        return { update: mockProfileUpdate };
+      }
+      if (table === 'deleted_accounts') {
+        return { update: mockDeletedAccountsUpdate };
       }
       if (table === 'admin_audit_log' || table === 'admin_audit_logs') {
         return { insert: mockInsert };
@@ -425,6 +452,10 @@ describe('SupabaseAdminRepository - Recovery Management', () => {
       return {};
     });
 
+    mockAuthAdmin.getUserById.mockResolvedValue({
+      data: { user: { id: 'user-del-1', user_metadata: { is_deleted: true } } },
+      error: null,
+    });
     mockAuthAdmin.updateUserById.mockResolvedValue({ data: { user: null }, error: null });
 
     const result = await repository.recoverProfileOrAccount({
@@ -434,13 +465,19 @@ describe('SupabaseAdminRepository - Recovery Management', () => {
     });
 
     expect(result).toBe(true);
-    expect(mockUpdate).toHaveBeenCalledWith(
+    expect(mockProfileUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
         deleted_at: null,
       })
     );
-    expect(mockAuthAdmin.updateUserById).toHaveBeenCalledWith('user-del-1', {
-      ban_duration: 'none',
-    });
+    expect(mockAuthAdmin.updateUserById).toHaveBeenCalledWith(
+      'user-del-1',
+      expect.objectContaining({
+        ban_duration: 'none',
+        user_metadata: expect.objectContaining({
+          is_deleted: false,
+        }),
+      })
+    );
   });
 });

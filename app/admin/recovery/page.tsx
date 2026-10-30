@@ -227,7 +227,7 @@ export default function AdminRecoveryPage() {
           <Flex between className="items-center">
             <Box>
               <Text size="xs" color="muted" weight="medium" className="uppercase tracking-wider">
-                Deleted Profiles
+                Deleted Accounts & Profiles
               </Text>
               <Text size="2xl" weight="bold" className="mt-1 text-rose-600 dark:text-rose-400">
                 {deletedCount}
@@ -417,7 +417,7 @@ export default function AdminRecoveryPage() {
                               size="sm"
                               className="border-rose-300 text-rose-700 bg-rose-50 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800 gap-1"
                             >
-                              <Trash2 className="h-3 w-3" /> Deleted Profile
+                              <Trash2 className="h-3 w-3" /> {item.profileId ? 'Deleted Profile' : 'Deleted Account'}
                             </Badge>
                           ) : (
                             <Badge

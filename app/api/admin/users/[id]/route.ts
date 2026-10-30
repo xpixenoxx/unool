@@ -148,7 +148,7 @@ export async function PATCH(
   }
 }
 
-// DELETE /api/admin/users/[id] - Delete user
+// DELETE /api/admin/users/[id] - Soft-delete user and archive to deleted_accounts table
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -164,25 +164,72 @@ export async function DELETE(
       return NextResponse.json({ error: 'Cannot delete yourself' }, { status: 400 });
     }
 
-    // Try deleting from auth.users (which cascades or cleans up platform user)
-    const { error: authError } = await adminClient.auth.admin.deleteUser(id);
-    if (authError) {
+    const body = await request.json().catch(() => ({}));
+    const reason = (body?.reason as string) || 'Deleted by admin';
+
+    // 1. Fetch user data before archiving
+    const { data: userData } = await adminClient.auth.admin.getUserById(id);
+    if (!userData?.user) {
       // Try admin_users
       const success = await adminRepository.deleteAdminUser(id);
       if (!success) {
         return NextResponse.json({ error: 'User not found' }, { status: 404 });
       }
+      await adminRepository.logAdminAction(auth.admin.userId, 'user_delete', 'user', id, { reason });
+      return NextResponse.json({ success: true });
     }
+
+    const { data: userProfiles } = await adminClient.from('profiles').select('*').eq('user_id', id);
+    const { data: userMemberships } = await adminClient.from('workspace_members').select('*').eq('user_id', id);
+    const { data: userWorkspaces } = await adminClient.from('workspaces').select('*').eq('owner_id', id);
+
+    // 2. Insert into deleted_accounts table
+    try {
+      await adminClient.from('deleted_accounts').insert({
+        user_id: id,
+        email: userData.user.email || 'unknown',
+        reason,
+        deleted_by: auth.admin.userId,
+        user_data: userData.user,
+        profiles_data: userProfiles || [],
+        workspaces_data: userWorkspaces || [],
+        workspace_members_data: userMemberships || [],
+        deleted_at: new Date().toISOString(),
+      });
+    } catch (insertErr) {
+      console.warn('Note: deleted_accounts table insert warning:', insertErr);
+    }
+
+    // 3. Soft-delete profiles by setting deleted_at
+    await adminClient
+      .from('profiles')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('user_id', id);
+
+    // 4. Ban the user and flag in metadata so active queries exclude them
+    const existingMeta = userData.user.user_metadata || {};
+    await adminClient.auth.admin.updateUserById(id, {
+      ban_duration: '876000h',
+      user_metadata: {
+        ...existingMeta,
+        is_deleted: true,
+        deleted_at: new Date().toISOString(),
+        deleted_reason: reason,
+      },
+    });
+
+    // 5. Sign out active sessions
+    await adminClient.auth.admin.signOut(id).catch(() => {});
 
     await adminRepository.logAdminAction(
       auth.admin.userId,
       'user_delete',
       'user',
       id,
-      {}
+      { reason }
     );
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, message: 'Account archived to deleted_accounts table' });
   } catch (error) {
     console.error('Failed to delete user:', error);
     return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 });
