@@ -17,8 +17,15 @@ export async function GET(request: NextRequest) {
     const { data: { user } } = await userClient.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const workspaceId = request.nextUrl.searchParams.get('workspaceId');
-    if (!workspaceId) return NextResponse.json({ error: 'workspaceId required' }, { status: 400 });
+    let workspaceId = request.nextUrl.searchParams.get('workspaceId');
+    if (!workspaceId) {
+      const { data: member } = await supabase
+        .from('workspace_members')
+        .select('workspace_id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      workspaceId = (member as { workspace_id?: string } | null)?.workspace_id || user.id;
+    }
 
     // Get display name for code generation
     const { data: profile } = await supabase

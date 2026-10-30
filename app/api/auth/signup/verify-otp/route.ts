@@ -136,6 +136,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Auto-generate unique referral code for the new user immediately
+    if (userData?.user?.id) {
+      try {
+        const { getOrCreateReferralCode } = await import('@/lib/referrals/service');
+        await getOrCreateReferralCode(userData.user.id, userData.user.id, name);
+      } catch {
+        // non-fatal, will be created on dashboard visit
+      }
+    }
+
     logger.info('Signup complete — Supabase user created', {
       userId: userData?.user?.id,
       email:  emailLower,

@@ -41,9 +41,18 @@ function SignUpComponent() {
         sessionStorage.setItem('unool_ref', urlRef);
         document.cookie = `unool_ref=${encodeURIComponent(urlRef)}; path=/; max-age=2592000; SameSite=Lax`;
       } catch {}
+      // Track referral link click — fire and forget, non-blocking
+      fetch('/api/referrals/click', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: urlRef }),
+      }).catch(() => {});
     } else {
       try {
-        const stored = sessionStorage.getItem('unool_ref');
+        // Check sessionStorage first, then fall back to cookie
+        const fromSession = sessionStorage.getItem('unool_ref');
+        const fromCookie = document.cookie.match(/(?:^|;\s*)unool_ref=([^;]+)/)?.[1];
+        const stored = fromSession || (fromCookie ? decodeURIComponent(fromCookie) : null);
         if (stored) setRefCode(stored);
       } catch {}
     }

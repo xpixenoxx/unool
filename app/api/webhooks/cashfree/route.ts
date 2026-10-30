@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyWebhookSignature } from '@/lib/billing/cashfree';
 import { markOrderPaid, markOrderFailed, recordWebhookEvent, upsertSubscription, findOrderByCfOrderId } from '@/lib/billing/subscription';
+import { recordReferralConversion } from '@/lib/referrals/service';
 import { logger } from '@/lib/logger';
-import type { CashfreeWebhookPayload } from '@/lib/billing/cashfree';
+import type { CashfreeWebhookPayload, PlanId, BillingCycle, Currency } from '@/lib/billing/cashfree';
 
 /**
  * POST /api/webhooks/cashfree
@@ -111,12 +112,24 @@ export async function POST(request: NextRequest) {
               await upsertSubscription({
                 workspaceId: tags.workspace_id,
                 userId: orderRecord.user_id,
-                planId: tags.plan_id as any,
-                billingCycle: (tags.billing_cycle as any) || 'monthly',
+                planId: tags.plan_id as PlanId,
+                billingCycle: (tags.billing_cycle as BillingCycle) || 'monthly',
                 amountPaise: Math.round(order.order_amount * 100),
-                currency: (order.order_currency as any) || 'INR',
+                currency: (order.order_currency as Currency) || 'INR',
                 status: 'active',
               });
+
+              // ── Referral conversion: reward the referrer ──────
+              // Non-blocking: if this user was referred, mark them converted and
+              // grant the referrer 1 free month of AI credits.
+              try {
+                await recordReferralConversion(orderRecord.user_id);
+              } catch (refErr) {
+                logger.error('Referral conversion failed (non-fatal)', {
+                  error: refErr instanceof Error ? refErr : new Error(String(refErr)),
+                  userId: orderRecord.user_id,
+                });
+              }
             }
           }
 

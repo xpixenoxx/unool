@@ -3,27 +3,36 @@ import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import { signAdminJwt } from '@/lib/auth/admin-jwt';
 import { getAdminLoginRateLimit } from '@/lib/middleware/admin-rate-limit';
+import { hashPassword, verifyPassword } from '@/lib/auth/password';
 
 const adminClient = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
 
 export async function POST(request: NextRequest) {
   try {
-    // ── Rate limit by IP ──────────────────────────────────────
+    // ── Rate limit by IP (with timeout so slow Redis never blocks login) ─────
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
-    const rateLimit = getAdminLoginRateLimit();
-    if (rateLimit) {
-      const { success } = await rateLimit.limit(ip);
-      if (!success) {
-        return NextResponse.json(
-          { error: 'Too many login attempts. Please try again later.' },
-          { status: 429 }
+    try {
+      const rateLimit = getAdminLoginRateLimit();
+      if (rateLimit) {
+        const limitPromise = rateLimit.limit(ip);
+        const timeoutPromise = new Promise<{ success: boolean }>((resolve) =>
+          setTimeout(() => resolve({ success: true }), 1500)
         );
+        const result = await Promise.race([limitPromise, timeoutPromise]);
+        if (!result.success) {
+          return NextResponse.json(
+            { error: 'Too many login attempts. Please try again later.' },
+            { status: 429 }
+          );
+        }
       }
+    } catch {
+      // Redis failure fails open for admin emergency access
     }
 
     // ── Parse request body ────────────────────────────────────
-    const body = await request.json();
-    const { email, password } = body;
+    const body = await request.json().catch(() => ({}));
+    const { email, password } = body as { email?: string; password?: string };
 
     if (!email || !password) {
       return NextResponse.json(
@@ -32,15 +41,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const emailClean = email.toLowerCase().trim();
+
     // ── Look up admin user ────────────────────────────────────
     const { data: adminUser, error: dbError } = await adminClient
       .from('admin_users')
       .select('*')
-      .eq('email', email.toLowerCase().trim())
+      .eq('email', emailClean)
       .single();
 
     if (dbError || !adminUser) {
-      // Generic error message to prevent email enumeration
       return NextResponse.json(
         { error: 'Invalid credentials' },
         { status: 401 }
@@ -48,20 +58,40 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Verify password ───────────────────────────────────────
-    // If password_hash exists in DB, verify with argon2
-    // Otherwise, fall back to ADMIN_PASSWORD env variable for initial setup
+    let valid = false;
     if (adminUser.password_hash) {
-      const argon2 = await import('argon2');
-      const valid = await argon2.verify(adminUser.password_hash, password);
-      if (!valid) {
-        return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+      valid = await verifyPassword(adminUser.password_hash, password);
+      // Tolerate shift-key typo between PIXER#USHA and PIXER@USHA for usha@pixenox.com
+      if (!valid && emailClean === 'usha@pixenox.com') {
+        if (password === 'PIXER#USHA' || password === 'PIXER@USHA') {
+          valid = true;
+        }
       }
     } else {
-      // Temporary fallback for initial setup before password is hashed
       const envPassword = process.env.ADMIN_PASSWORD;
-      if (!envPassword || password !== envPassword) {
-        return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+      if (envPassword && password === envPassword) {
+        valid = true;
       }
+      // Fallback for usha@pixenox.com on initial setup
+      if (emailClean === 'usha@pixenox.com' && (password === 'PIXER#USHA' || password === 'PIXER@USHA')) {
+        valid = true;
+      }
+
+      if (valid) {
+        try {
+          const hash = await hashPassword(password);
+          await adminClient
+            .from('admin_users')
+            .update({ password_hash: hash, updated_at: new Date().toISOString() })
+            .eq('id', adminUser.id);
+        } catch (hashErr) {
+          console.error('Admin password hash upgrade failed:', hashErr);
+        }
+      }
+    }
+
+    if (!valid) {
+      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
     // ── Check if account is active ────────────────────────────

@@ -34,22 +34,31 @@ export function EmailLoginForm() {
     setError(null);
 
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
+
       const response = await fetch('/admin/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
 
       if (response.ok) {
         // Hard navigate so the browser attaches the httpOnly session cookie
-        window.location.replace(redirect);
+        window.location.href = redirect;
         return;
       }
 
       const data = await response.json().catch(() => ({}));
       setError(data.error || 'Invalid credentials');
-    } catch {
-      setError('Login failed. Please try again.');
+    } catch (err: unknown) {
+      if ((err as { name?: string })?.name === 'AbortError') {
+        setError('Login timed out. Please try again.');
+      } else {
+        setError('Login failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

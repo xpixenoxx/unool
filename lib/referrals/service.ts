@@ -47,15 +47,16 @@ export interface Referral {
 // ── Code Generation ────────────────────────────────────────────────────────────
 
 function generateCode(name: string): string {
-  // Use first 6 chars of name (alphanumeric only) + 4 random chars
-  const namePart = name.replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase();
-  const bytes = new Uint8Array(3);
+  const clean = (name || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+  const prefix = clean.length >= 3 ? clean.slice(0, 4) : 'UNO';
+  const charset = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const bytes = new Uint8Array(4);
   crypto.getRandomValues(bytes);
-  const randPart = Array.from(bytes, (b) => b.toString(36).padStart(2, '0'))
-    .join('')
-    .toUpperCase()
-    .slice(0, 4);
-  return `${namePart}${randPart}`;
+  let suffix = '';
+  for (let i = 0; i < 4; i++) {
+    suffix += charset[bytes[i] % charset.length];
+  }
+  return `${prefix}${suffix}`;
 }
 
 // ── Public API ─────────────────────────────────────────────────────────────────
@@ -106,19 +107,25 @@ export async function getOrCreateReferralCode(
  * Returns the code record so the caller can embed the ref param in signup.
  */
 export async function recordReferralClick(code: string): Promise<ReferralCode | null> {
+  const cleanCode = (code || '').trim().toUpperCase();
+  if (!cleanCode) return null;
+
   const { data, error } = await supabase
     .from('referral_codes')
     .select('*')
-    .eq('code', code)
-    .single();
+    .eq('code', cleanCode)
+    .maybeSingle();
 
   if (error || !data) return null;
 
   // Increment click count
   await supabase
     .from('referral_codes')
-    .update({ click_count: (data as Record<string, unknown>).click_count as number + 1, updated_at: new Date().toISOString() })
-    .eq('code', code);
+    .update({
+      click_count: ((data as Record<string, unknown>).click_count as number || 0) + 1,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('code', cleanCode);
 
   return rowToCode(data as Record<string, unknown>);
 }
@@ -131,12 +138,15 @@ export async function recordReferralSignup(
   referredUserId: string,
   referralCode: string
 ): Promise<void> {
+  const cleanCode = (referralCode || '').trim().toUpperCase();
+  if (!cleanCode) return;
+
   // Look up referral code owner
   const { data: codeRow, error: codeErr } = await supabase
     .from('referral_codes')
     .select('*')
-    .eq('code', referralCode)
-    .single();
+    .eq('code', cleanCode)
+    .maybeSingle();
 
   if (codeErr || !codeRow) {
     logger.warn('recordReferralSignup: code not found', { referralCode });
@@ -180,7 +190,7 @@ export async function recordReferralSignup(
       signup_count: (code.signup_count as number) + 1,
       updated_at: new Date().toISOString(),
     })
-    .eq('code', referralCode);
+    .eq('code', cleanCode);
 
   // Give referrer 200 AI credits for free signup
   await grantAiCredits(referrerUserId, REWARD_FREE_SIGNUP_CREDITS, 'referral_signup');
@@ -247,6 +257,35 @@ export async function recordReferralConversion(referredUserId: string): Promise<
       .eq('code', referralCode);
   }
 
+  // Also extend active subscription by 30 days if referrer has one
+  try {
+    const { data: sub } = await supabase
+      .from('subscriptions')
+      .select('id, current_period_end, workspace_id')
+      .eq('user_id', referrerUserId)
+      .eq('status', 'active')
+      .maybeSingle();
+
+    if (sub && sub.current_period_end) {
+      const currentEnd = new Date(sub.current_period_end);
+      const newEnd = new Date(Math.max(currentEnd.getTime(), Date.now()) + 30 * 24 * 60 * 60 * 1000).toISOString();
+      await supabase
+        .from('subscriptions')
+        .update({ current_period_end: newEnd, updated_at: new Date().toISOString() })
+        .eq('id', sub.id);
+
+      if (sub.workspace_id) {
+        await supabase
+          .from('workspaces')
+          .update({ plan_expires_at: newEnd, updated_at: new Date().toISOString() })
+          .eq('id', sub.workspace_id);
+      }
+      logger.info('Referrer subscription extended by 30 days', { referrerUserId, newEnd });
+    }
+  } catch (subErr) {
+    logger.warn('Failed to extend referrer subscription (non-fatal)', { subErr });
+  }
+
   logger.info('Referral conversion recorded + month credits granted', {
     referrerUserId,
     referredUserId,
@@ -281,12 +320,9 @@ export async function getReferralStats(userId: string): Promise<{
 
 async function grantAiCredits(userId: string, credits: number, reason: string): Promise<void> {
   try {
-    // ai_usage table tracks credits used; we add negative usage = credit grant
-    // Or we could use a separate credits_balance table. For now, log it.
-    // In the next sprint, integrate with ai_usage or credits_balance.
     logger.info('AI credits granted', { userId, credits, reason });
 
-    // Read current rewards_earned, then write incremented value
+    // 1. Update rewards_earned counter on referral_codes (the visible tally)
     const { data: existing } = await supabase
       .from('referral_codes')
       .select('rewards_earned')
@@ -299,6 +335,20 @@ async function grantAiCredits(userId: string, credits: number, reason: string): 
         .from('referral_codes')
         .update({ rewards_earned: curr + credits, updated_at: new Date().toISOString() })
         .eq('user_id', userId);
+    }
+
+    // 2. Log to referral_rewards ledger (best-effort; table may not exist yet)
+    try {
+      await supabase
+        .from('referral_rewards')
+        .insert({
+          user_id: userId,
+          credits,
+          reason,
+          created_at: new Date().toISOString(),
+        });
+    } catch {
+      // ignore error if table does not exist
     }
   } catch (err) {
     logger.error('grantAiCredits failed', {
