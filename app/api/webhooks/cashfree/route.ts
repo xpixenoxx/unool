@@ -3,7 +3,8 @@ import { verifyWebhookSignature } from '@/lib/billing/cashfree';
 import { markOrderPaid, markOrderFailed, recordWebhookEvent, upsertSubscription, findOrderByCfOrderId } from '@/lib/billing/subscription';
 import { recordReferralConversion } from '@/lib/referrals/service';
 import { logger } from '@/lib/logger';
-import type { CashfreeWebhookPayload, PlanId, BillingCycle, Currency } from '@/lib/billing/cashfree';
+import type { CashfreeWebhookPayload } from '@/lib/billing/cashfree';
+import type { PlanId, BillingCycle, Currency } from '@/lib/billing/plans';
 
 /**
  * POST /api/webhooks/cashfree

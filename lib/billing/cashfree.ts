@@ -7,6 +7,7 @@
 import crypto from 'crypto';
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
+export type { PlanId, BillingCycle, Currency } from '@/lib/billing/plans';
 
 // ── Types ───────────────────────────────────────────────────────
 
