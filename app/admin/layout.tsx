@@ -18,6 +18,7 @@ import {
   FileText,
   Share2,
   ShieldCheck,
+  RotateCcw,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -29,6 +30,7 @@ const navigation = [
   { name: 'Overview', href: '/admin', icon: LayoutDashboard },
   { name: 'Users', href: '/admin/users', icon: Users },
   { name: 'Workspaces', href: '/admin/workspaces', icon: Building2 },
+  { name: 'Recovery', href: '/admin/recovery', icon: RotateCcw },
   { name: 'Payments', href: '/admin/payments', icon: CreditCard },
   { name: 'Subscriptions', href: '/admin/subscriptions', icon: Receipt },
   { name: 'Content', href: '/admin/content', icon: FileText },

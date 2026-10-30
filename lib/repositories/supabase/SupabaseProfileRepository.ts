@@ -38,6 +38,7 @@ export class SupabaseProfileRepository implements IProfileRepository {
         ((row.studio_profile as any) ??
         ((row.theme as Record<string, unknown>)?.studio_profile as any) ??
         null),
+      deletedAt: row.deleted_at ? new Date(row.deleted_at as string) : null,
       createdAt: new Date(row.created_at as string),
       updatedAt: new Date(row.updated_at as string),
     };
@@ -207,7 +208,23 @@ export class SupabaseProfileRepository implements IProfileRepository {
   async delete(id: string): Promise<void> {
     const { error } = await this.supabase
       .from('profiles')
-      .delete()
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', id);
+
+    if (error) {
+      // Fallback if deleted_at column is not present
+      const { error: hardErr } = await this.supabase
+        .from('profiles')
+        .delete()
+        .eq('id', id);
+      if (hardErr) throw hardErr;
+    }
+  }
+
+  async recover(id: string): Promise<void> {
+    const { error } = await this.supabase
+      .from('profiles')
+      .update({ deleted_at: null, updated_at: new Date().toISOString() })
       .eq('id', id);
 
     if (error) {

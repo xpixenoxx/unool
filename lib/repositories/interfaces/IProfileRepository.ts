@@ -70,6 +70,7 @@ export interface Profile {
   onboardingAnswers?: OnboardingAnswers | null;
   studioProfile?: StudioProfile | null;
   authorizedViewers?: ProfileViewer[];
+  deletedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -107,6 +108,7 @@ export interface IProfileRepository {
   findBySubdomain(subdomain: string): Promise<Profile | null>;
   update(id: string, input: UpdateProfileInput, expectedVersion: number): Promise<Profile>;
   delete(id: string): Promise<void>;
+  recover(id: string): Promise<void>;
   
   // Viewer management
   addViewer(profileId: string, viewerUserId: string): Promise<void>;

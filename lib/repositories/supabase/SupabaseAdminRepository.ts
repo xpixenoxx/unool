@@ -21,6 +21,7 @@ import type {
   ReferralCodeAdminView,
   ReferralAdminView,
   RevenueMetrics,
+  RecoverableProfileItem,
   ListPaymentOrdersParams,
   ListSubscriptionsParams,
   ListReferralCodesParams,
@@ -629,6 +630,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
         createdAt: user.created_at,
         workspaceCount: ws.count,
         plan: ws.plans[0] || 'free',
+        suspended: !!((user as Record<string, any>).banned_until && new Date((user as Record<string, any>).banned_until) > new Date()),
       };
     });
 
@@ -657,6 +659,145 @@ export class SupabaseAdminRepository implements IAdminRepository {
     if (error) throw error;
 
     await this.logAdminAction(adminUserId, 'user_unsuspend', 'user', userId, {});
+    return true;
+  }
+
+  // ===== Profile & Account Recovery =====
+
+  async listDeletedAndSuspendedProfiles(): Promise<RecoverableProfileItem[]> {
+    const items: RecoverableProfileItem[] = [];
+
+    // 1. Fetch soft-deleted profiles from profiles table
+    try {
+      const { data: deletedRows, error: pErr } = await adminClient
+        .from('profiles')
+        .select('id, user_id, workspace_id, subdomain, name, avatar_url, deleted_at, updated_at')
+        .not('deleted_at', 'is', null);
+
+      if (!pErr && deletedRows && deletedRows.length > 0) {
+        for (const row of deletedRows) {
+          let email = 'Unknown user';
+          try {
+            const { data: uData } = await adminClient.auth.admin.getUserById(row.user_id);
+            if (uData?.user?.email) {
+              email = uData.user.email;
+            }
+          } catch {
+            // ignore auth lookup error
+          }
+
+          items.push({
+            id: `del-${row.id}`,
+            type: 'deleted',
+            profileId: row.id,
+            userId: row.user_id,
+            subdomain: row.subdomain,
+            name: row.name || row.subdomain || 'Unnamed Profile',
+            email,
+            avatarUrl: row.avatar_url || null,
+            workspaceId: row.workspace_id,
+            reason: 'Profile marked as deleted',
+            timestamp: row.deleted_at || row.updated_at || new Date().toISOString(),
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching deleted profiles:', err);
+    }
+
+    // 2. Fetch suspended users from auth.users
+    try {
+      const { data: usersData, error: uErr } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
+      if (!uErr && usersData?.users) {
+        const now = new Date();
+        const suspendedUsers = usersData.users.filter((u) => {
+          const bannedUntil = (u as Record<string, any>).banned_until;
+          return !!(bannedUntil && new Date(bannedUntil) > now);
+        });
+
+        if (suspendedUsers.length > 0) {
+          const userIds = suspendedUsers.map(u => u.id);
+          const { data: profs } = await adminClient
+            .from('profiles')
+            .select('id, user_id, workspace_id, subdomain, name, avatar_url, deleted_at')
+            .in('user_id', userIds);
+
+          const profsByUser = new Map<string, any>();
+          (profs || []).forEach(p => profsByUser.set(p.user_id, p));
+
+          for (const u of suspendedUsers) {
+            const prof = profsByUser.get(u.id);
+            const alreadyInDeleted = prof?.id && items.some(item => item.profileId === prof.id);
+            if (!alreadyInDeleted) {
+              items.push({
+                id: `susp-${u.id}`,
+                type: 'suspended',
+                profileId: prof?.id || null,
+                userId: u.id,
+                subdomain: prof?.subdomain || null,
+                name: prof?.name || (u.email ? u.email.split('@')[0] : 'Suspended User'),
+                email: u.email || 'No email',
+                avatarUrl: prof?.avatar_url || null,
+                workspaceId: prof?.workspace_id || null,
+                reason: 'Account suspended / banned by admin',
+                timestamp: (u as Record<string, any>).banned_until || new Date().toISOString(),
+              });
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching suspended users:', err);
+    }
+
+    return items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }
+
+  async recoverProfileOrAccount({
+    profileId,
+    userId,
+    adminUserId,
+  }: {
+    profileId?: string | null;
+    userId?: string | null;
+    adminUserId: string;
+  }): Promise<boolean> {
+    // 1. If profileId provided, restore profile by clearing deleted_at
+    if (profileId) {
+      const { error: pErr } = await adminClient
+        .from('profiles')
+        .update({
+          deleted_at: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', profileId);
+
+      if (pErr) {
+        console.error('Failed to recover profile:', pErr);
+        throw pErr;
+      }
+
+      await this.logAdminAction(adminUserId, 'profile_recover', 'profile', profileId, {
+        recoveredAt: new Date().toISOString(),
+      });
+    }
+
+    // 2. If userId provided, unsuspend the user in Supabase auth
+    if (userId) {
+      const { error: uErr } = await adminClient.auth.admin.updateUserById(userId, {
+        ban_duration: 'none',
+      });
+
+      if (uErr) {
+        console.error('Failed to unsuspend user during recovery:', uErr);
+        if (!profileId) throw uErr;
+      } else {
+        await this.logAdminAction(adminUserId, 'user_unsuspend', 'user', userId, {
+          reason: 'Recovered via Admin Recovery panel',
+        });
+      }
+    }
+
     return true;
   }
 

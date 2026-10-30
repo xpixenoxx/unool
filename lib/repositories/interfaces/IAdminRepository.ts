@@ -250,6 +250,20 @@ export interface RevenueMetrics {
   revenueLast30Days: Array<{ date: string; totalPaise: number; orderCount: number }>;
 }
 
+export interface RecoverableProfileItem {
+  id: string;
+  type: 'deleted' | 'suspended';
+  profileId: string | null;
+  userId: string;
+  subdomain: string | null;
+  name: string | null;
+  email: string;
+  avatarUrl: string | null;
+  workspaceId: string | null;
+  reason: string;
+  timestamp: string;
+}
+
 export interface ListPaymentOrdersParams {
   page?: number;
   pageSize?: number;
@@ -314,9 +328,13 @@ export interface IAdminRepository {
 
   // User Management
   getUserById(userId: string): Promise<{ id: string; email: string; createdAt: string } | null>;
-  listAllUsers(params?: ListUsersParams): Promise<PaginatedResult<{ id: string; email: string; createdAt: string; workspaceCount: number; plan: string }>>;
+  listAllUsers(params?: ListUsersParams): Promise<PaginatedResult<{ id: string; email: string; createdAt: string; workspaceCount: number; plan: string; suspended?: boolean }>>;
   suspendUser(userId: string, adminUserId: string, reason: string): Promise<boolean>;
   unsuspendUser(userId: string, adminUserId: string): Promise<boolean>;
+
+  // Profile & Account Recovery
+  listDeletedAndSuspendedProfiles(): Promise<RecoverableProfileItem[]>;
+  recoverProfileOrAccount(params: { profileId?: string | null; userId?: string | null; adminUserId: string }): Promise<boolean>;
 
   // Payment Orders
   listPaymentOrders(params?: ListPaymentOrdersParams): Promise<PaginatedResult<PaymentOrderAdminView>>;

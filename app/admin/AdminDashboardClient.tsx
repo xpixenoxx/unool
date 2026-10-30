@@ -27,6 +27,10 @@ import {
   ExternalLink,
   ArrowRight,
   RefreshCw,
+  RotateCcw,
+  Trash2,
+  Ban,
+  ShieldCheck,
 } from 'lucide-react';
 import {
   MotionBox,
@@ -101,6 +105,20 @@ interface AnalyticsSummary {
   }>;
 }
 
+interface RecoverableDashboardItem {
+  id: string;
+  type: 'deleted' | 'suspended';
+  profileId: string | null;
+  userId: string;
+  subdomain: string | null;
+  name: string | null;
+  email: string;
+  avatarUrl: string | null;
+  workspaceId: string | null;
+  reason: string;
+  timestamp: string;
+}
+
 interface InitialData {
   analytics: AnalyticsSummary;
   workspaces: { data: WorkspaceAdminView[]; total: number; page: number; pageSize: number; totalPages: number };
@@ -132,15 +150,66 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
     }
   }, []);
 
+  const [recoveryItems, setRecoveryItems] = React.useState<RecoverableDashboardItem[]>([]);
+  const [recoveringId, setRecoveringId] = React.useState<string | null>(null);
+
+  const fetchRecoveryItems = React.useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/recovery');
+      if (res.ok) {
+        const data = await res.json();
+        setRecoveryItems(data.items || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch recovery items in dashboard:', err);
+    }
+  }, []);
+
+  const handleDashboardRecover = async (item: RecoverableDashboardItem) => {
+    const confirmationText =
+      item.type === 'deleted'
+        ? `Are you sure you want to recover profile "${item.name || item.subdomain}"?`
+        : `Are you sure you want to unsuspend user "${item.email}"?`;
+    if (!confirm(confirmationText)) return;
+
+    setRecoveringId(item.id);
+    try {
+      const res = await fetch('/api/admin/recovery', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          profileId: item.profileId,
+          userId: item.userId,
+          type: item.type,
+        }),
+      });
+      if (res.ok) {
+        setRecoveryItems((prev) => prev.filter((i) => i.id !== item.id));
+        refreshAnalytics(false);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || 'Failed to recover account/profile');
+      }
+    } catch {
+      alert('Failed to recover account/profile');
+    } finally {
+      setRecoveringId(null);
+    }
+  };
+
   React.useEffect(() => {
+    fetchRecoveryItems();
+
     // Real-time polling every 15 seconds
     const interval = setInterval(() => {
       refreshAnalytics(false);
+      fetchRecoveryItems();
     }, 15000);
 
     // Refresh immediately when window regains focus
     const handleFocus = () => {
       refreshAnalytics(false);
+      fetchRecoveryItems();
     };
     window.addEventListener('focus', handleFocus);
 
@@ -148,7 +217,7 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
       clearInterval(interval);
       window.removeEventListener('focus', handleFocus);
     };
-  }, [refreshAnalytics]);
+  }, [refreshAnalytics, fetchRecoveryItems]);
 
   const metrics = [
     {
@@ -173,21 +242,6 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
     },
   ];
 
-  // Pre-compute SVG paths for activity chart
-  const activityLinePath = React.useMemo(() => {
-    if (!analytics.eventsLast30Days.length) return '';
-    const maxCount = Math.max(...analytics.eventsLast30Days.map(e => e.count));
-    return analytics.eventsLast30Days.map((d, i) => {
-      const x = (i / Math.max(1, analytics.eventsLast30Days.length - 1)) * 400;
-      const y = 180 - (d.count / (maxCount || 1)) * 160;
-      return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
-    }).join(' ');
-  }, [analytics.eventsLast30Days]);
-
-  const activityAreaPath = React.useMemo(() => {
-    if (!activityLinePath) return '';
-    return `${activityLinePath} L 400 180 L 0 180 Z`;
-  }, [activityLinePath]);
 
   return (
     <Box className="space-y-6">
@@ -250,108 +304,52 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
         </div>
       </div>
 
-      {/* Charts & Activity */}
-      <Flex gap={6} style={{ flexWrap: 'wrap' }}>
-        {/* Events by Type */}
-        <MotionBox variants={staggerItem} custom={4} className="flex-1 min-w-[400px]" {...hoverLift}>
-          <Card variant="analytics" padding="lg">
-            <CardHeader>
-              <Flex between>
-                <Flex column gap={1}>
-                  <Flex align="center" gap={2}>
-                    <CardTitle>Events by Type (30d)</CardTitle>
-                    <SectionGuide
-                      title="Events by Type"
-                      description="Breakdown of all analytics events recorded in the last 30 days, grouped by type. Each event is triggered by a user action on Unool."
-                      example="profile_view — 8,400 (user visited /u/username)\nlink_click — 3,200 (clicked a bio link)\npost_publish — 210 (scheduled post went live)"
-                    />
-                  </Flex>
-                  <CardDescription>Distribution of analytics events</CardDescription>
+      {/* Events by Type */}
+      <MotionBox variants={staggerItem} custom={4} className="w-full" {...hoverLift}>
+        <Card variant="analytics" padding="lg">
+          <CardHeader>
+            <Flex between>
+              <Flex column gap={1}>
+                <Flex align="center" gap={2}>
+                  <CardTitle>Events by Type (30d)</CardTitle>
+                  <SectionGuide
+                    title="Events by Type"
+                    description="Breakdown of all analytics events recorded in the last 30 days, grouped by type. Each event is triggered by a user action on Unool."
+                    example="profile_view — 8,400 (user visited /u/username)\nlink_click — 3,200 (clicked a bio link)\npost_publish — 210 (scheduled post went live)"
+                  />
                 </Flex>
+                <CardDescription>Distribution of analytics events</CardDescription>
               </Flex>
-            </CardHeader>
-            <CardContent>
-              <Flex column gap={3}>
-                {Object.entries(analytics.eventsByType).length > 0 ? (
-                  Object.entries(analytics.eventsByType)
-                    .sort(([, a], [, b]) => b - a)
-                    .map(([type, count]) => (
-                      <Flex key={type} between className="items-center">
-                        <Flex align="center" gap={2}>
-                          <Badge variant="outline" size="sm">{type}</Badge>
-                        </Flex>
-                        <Flex align="center" gap={2}>
-                          <Text weight="medium" className="w-16 text-right">{count.toLocaleString()}</Text>
-                          <Box className="h-2 bg-muted rounded-full flex-1 max-w-[200px]" role="progressbar" aria-valuenow={count} aria-valuemin={0} aria-valuemax={Math.max(...Object.values(analytics.eventsByType))}>
-                            <Box
-                              className="h-full bg-primary rounded-full transition-all duration-500"
-                              style={{ width: `${(count / Math.max(...Object.values(analytics.eventsByType))) * 100}%` }}
-                            />
-                          </Box>
-                        </Flex>
+            </Flex>
+          </CardHeader>
+          <CardContent>
+            <Flex column gap={3}>
+              {Object.entries(analytics.eventsByType).length > 0 ? (
+                Object.entries(analytics.eventsByType)
+                  .sort(([, a], [, b]) => b - a)
+                  .map(([type, count]) => (
+                    <Flex key={type} between className="items-center">
+                      <Flex align="center" gap={2}>
+                        <Badge variant="outline" size="sm">{type}</Badge>
                       </Flex>
-                    ))
-                ) : (
-                  <Text color="muted" className="text-center py-8">No event data for the last 30 days</Text>
-                )}
-              </Flex>
-            </CardContent>
-          </Card>
-        </MotionBox>
-
-        {/* Events Over Time */}
-        <MotionBox variants={staggerItem} custom={5} className="flex-1 min-w-[400px]" {...hoverLift}>
-          <Card variant="analytics" padding="lg">
-            <CardHeader>
-              <Flex between>
-                <Flex column gap={1}>
-                  <Flex align="center" gap={2}>
-                    <CardTitle>Activity (Last 30 Days)</CardTitle>
-                    <SectionGuide
-                      title="Activity Chart"
-                      description="Daily total event volume across the entire platform for the last 30 days. A spike indicates a viral post, campaign, or product launch."
-                      example="Day 1: 120 events\nDay 15: 540 events (spike — campaign launched)\nDay 30: 310 events"
-                    />
-                  </Flex>
-                  <CardDescription>Daily event volume</CardDescription>
-                </Flex>
-              </Flex>
-            </CardHeader>
-            <CardContent>
-              <Box className="h-48">
-                <svg viewBox="0 0 400 180" className="w-full h-full" role="img" aria-label="Activity chart">
-                  <defs>
-                    <linearGradient id="activityGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.3" />
-                      <stop offset="100%" stopColor="var(--primary)" stopOpacity="0" />
-                    </linearGradient>
-                  </defs>
-                  {analytics.eventsLast30Days.length > 0 ? (
-                    <>
-                      <path
-                        d={activityLinePath}
-                        stroke="var(--primary)"
-                        strokeWidth="2"
-                        fill="none"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                      <path
-                        d={activityAreaPath}
-                        fill="url(#activityGradient)"
-                      />
-                    </>
-                  ) : (
-                    <text x="200" y="90" textAnchor="middle" fill="var(--muted-foreground)" fontSize="14">
-                      No activity data yet
-                    </text>
-                  )}
-                </svg>
-              </Box>
-            </CardContent>
-          </Card>
-        </MotionBox>
-      </Flex>
+                      <Flex align="center" gap={3}>
+                        <Text weight="medium" className="w-16 text-right">{count.toLocaleString()}</Text>
+                        <Box className="h-2 bg-muted rounded-full w-40 sm:w-64 md:w-80 overflow-hidden" role="progressbar" aria-valuenow={count} aria-valuemin={0} aria-valuemax={Math.max(...Object.values(analytics.eventsByType))}>
+                          <Box
+                            className="h-full bg-primary rounded-full transition-all duration-500"
+                            style={{ width: `${(count / Math.max(...Object.values(analytics.eventsByType))) * 100}%` }}
+                          />
+                        </Box>
+                      </Flex>
+                    </Flex>
+                  ))
+              ) : (
+                <Text color="muted" className="text-center py-8">No event data for the last 30 days</Text>
+              )}
+            </Flex>
+          </CardContent>
+        </Card>
+      </MotionBox>
 
       {/* Top Links & Top Profiles */}
       <Flex gap={6} style={{ flexWrap: 'wrap' }}>
@@ -511,6 +509,126 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
           </Card>
         </MotionBox>
       </Flex>
+
+      {/* Deleted & Suspended Profiles (Recovery) */}
+      <MotionBox variants={staggerItem} custom={7} className="w-full" {...hoverLift}>
+        <Card variant="analytics" padding="lg">
+          <CardHeader>
+            <Flex between className="items-center flex-wrap gap-2">
+              <Flex column gap={1}>
+                <Flex align="center" gap={2}>
+                  <CardTitle>Deleted & Suspended Profiles</CardTitle>
+                  <SectionGuide
+                    title="Profile & Account Recovery"
+                    description="Profiles that were soft-deleted or users that were suspended. Admins can restore them with one click using the Recover button."
+                    example="Deleted: @priya (subdomain preserved)\nSuspended: raj@agency.co (login locked)\nClick Recover to restore."
+                  />
+                  {recoveryItems.length > 0 && (
+                    <Badge variant="destructive" size="sm" className="font-mono">
+                      {recoveryItems.length} requiring action
+                    </Badge>
+                  )}
+                </Flex>
+                <CardDescription>
+                  Manage and restore creator accounts and deleted profiles
+                </CardDescription>
+              </Flex>
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/admin/recovery">
+                  View Recovery Center <ArrowRight className="ml-1 h-4 w-4" />
+                </Link>
+              </Button>
+            </Flex>
+          </CardHeader>
+          <CardContent>
+            {recoveryItems.length > 0 ? (
+              <Box className="space-y-3">
+                {recoveryItems.slice(0, 5).map((item) => {
+                  const isRecovering = recoveringId === item.id;
+                  return (
+                    <Box
+                      key={item.id}
+                      className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors border border-muted/50"
+                    >
+                      <Flex align="center" gap={3} className="min-w-0">
+                        <Avatar className="h-9 w-9 shrink-0">
+                          <AvatarImage
+                            src={
+                              item.avatarUrl ||
+                              `https://api.dicebear.com/7.x/identicon/svg?seed=${item.profileId || item.userId}`
+                            }
+                            alt={item.name || item.email}
+                          />
+                          <AvatarFallback>
+                            {(item.name || item.email).charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <Box className="min-w-0">
+                          <Flex align="center" gap={2} className="flex-wrap">
+                            <Text weight="medium" size="sm" className="truncate">
+                              {item.name || item.email}
+                            </Text>
+                            {item.subdomain && (
+                              <Badge variant="outline" size="sm" className="font-mono text-[10px] px-1.5 py-0">
+                                @{item.subdomain}
+                              </Badge>
+                            )}
+                            {item.type === 'deleted' ? (
+                              <Badge
+                                variant="outline"
+                                size="sm"
+                                className="border-rose-300 text-rose-700 bg-rose-50 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800 text-[10px] px-1.5 py-0 gap-1"
+                              >
+                                <Trash2 className="h-2.5 w-2.5" /> Deleted
+                              </Badge>
+                            ) : (
+                              <Badge
+                                variant="outline"
+                                size="sm"
+                                className="border-amber-300 text-amber-700 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800 text-[10px] px-1.5 py-0 gap-1"
+                              >
+                                <Ban className="h-2.5 w-2.5" /> Suspended
+                              </Badge>
+                            )}
+                          </Flex>
+                          <Text size="xs" color="muted" className="truncate mt-0.5">
+                            {item.email} • {new Date(item.timestamp).toLocaleDateString()}
+                          </Text>
+                        </Box>
+                      </Flex>
+                      <Button
+                        variant="default"
+                        size="sm"
+                        disabled={isRecovering}
+                        onClick={() => handleDashboardRecover(item)}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white dark:bg-emerald-600 dark:hover:bg-emerald-700 gap-1.5 h-8 text-xs font-medium shrink-0 ml-3"
+                        title={`Recover ${item.name || item.email}`}
+                      >
+                        <RotateCcw className={isRecovering ? 'h-3.5 w-3.5 animate-spin' : 'h-3.5 w-3.5'} />
+                        <span>{isRecovering ? 'Recovering...' : 'Recover'}</span>
+                      </Button>
+                    </Box>
+                  );
+                })}
+              </Box>
+            ) : (
+              <Flex align="center" gap={3} className="p-4 rounded-xl bg-muted/30 border border-muted">
+                <Box className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400">
+                  <ShieldCheck className="h-5 w-5" />
+                </Box>
+                <Box>
+                  <Text size="sm" weight="medium">
+                    No Deleted or Suspended Profiles
+                  </Text>
+                  <Text size="xs" color="muted">
+                    All creator accounts and public profiles are active in good standing. Any profile marked deleted or user suspended by an admin can be recovered directly from this section.
+                  </Text>
+                </Box>
+              </Flex>
+            )}
+          </CardContent>
+        </Card>
+      </MotionBox>
 
       {/* Recent Workspaces & Users */}
       <Flex gap={6} style={{ flexWrap: 'wrap' }}>

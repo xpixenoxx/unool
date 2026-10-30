@@ -6,6 +6,7 @@ const { mockFrom, mockRpc, mockAuthAdmin } = vi.hoisted(() => ({
   mockAuthAdmin: {
     listUsers: vi.fn().mockResolvedValue({ data: { users: [] }, error: null }),
     getUserById: vi.fn().mockResolvedValue({ data: { user: null }, error: null }),
+    updateUserById: vi.fn().mockResolvedValue({ data: { user: null }, error: null }),
   },
 }));
 
@@ -324,5 +325,122 @@ describe('SupabaseAdminRepository - getAnalyticsSummary', () => {
     expect(summary.topProfiles[0].name).toBe('Profile (prof-unk)');
     expect(summary.topProfiles[0].profileId).toBe('prof-unknown-1234');
     expect(summary.topProfiles[0].views).toBe(1);
+  });
+});
+
+describe('SupabaseAdminRepository - Recovery Management', () => {
+  let repository: SupabaseAdminRepository;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    repository = new SupabaseAdminRepository();
+  });
+
+  it('lists soft-deleted profiles and suspended users', async () => {
+    // Deleted profiles mock
+    const mockDeletedProfiles = [
+      {
+        id: 'prof-del-1',
+        user_id: 'user-del-1',
+        workspace_id: 'ws-1',
+        subdomain: 'deletedcreator',
+        name: 'Deleted Creator',
+        avatar_url: 'https://example.com/del.png',
+        deleted_at: '2026-10-25T10:00:00Z',
+        updated_at: '2026-10-25T10:00:00Z',
+      },
+    ];
+
+    // Suspended users mock
+    const mockSuspendedUsers = [
+      {
+        id: 'user-susp-2',
+        email: 'suspended@agency.io',
+        banned_until: '2099-01-01T00:00:00Z',
+      },
+    ];
+
+    mockAuthAdmin.getUserById.mockResolvedValue({
+      data: { user: { id: 'user-del-1', email: 'deleted@creator.com' } },
+      error: null,
+    });
+
+    mockAuthAdmin.listUsers.mockResolvedValue({
+      data: { users: mockSuspendedUsers },
+      error: null,
+    });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'profiles') {
+        return {
+          select: vi.fn().mockReturnValue({
+            not: vi.fn().mockResolvedValue({ data: mockDeletedProfiles, error: null }),
+            in: vi.fn().mockResolvedValue({
+              data: [
+                {
+                  id: 'prof-susp-2',
+                  user_id: 'user-susp-2',
+                  workspace_id: 'ws-2',
+                  subdomain: 'suspendeduser',
+                  name: 'Suspended User',
+                  avatar_url: null,
+                  deleted_at: null,
+                },
+              ],
+              error: null,
+            }),
+          }),
+        };
+      }
+      return {
+        select: vi.fn().mockReturnValue({
+          in: vi.fn().mockResolvedValue({ data: [], error: null }),
+        }),
+      };
+    });
+
+    const items = await repository.listDeletedAndSuspendedProfiles();
+
+    expect(items).toHaveLength(2);
+    expect(items.find((i) => i.type === 'deleted')?.subdomain).toBe('deletedcreator');
+    expect(items.find((i) => i.type === 'deleted')?.email).toBe('deleted@creator.com');
+    expect(items.find((i) => i.type === 'suspended')?.subdomain).toBe('suspendeduser');
+    expect(items.find((i) => i.type === 'suspended')?.email).toBe('suspended@agency.io');
+  });
+
+  it('recovers soft-deleted profile and unsuspends user account', async () => {
+    const mockUpdate = vi.fn().mockReturnValue({
+      eq: vi.fn().mockResolvedValue({ error: null }),
+    });
+
+    const mockInsert = vi.fn().mockResolvedValue({ error: null });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'profiles') {
+        return { update: mockUpdate };
+      }
+      if (table === 'admin_audit_log' || table === 'admin_audit_logs') {
+        return { insert: mockInsert };
+      }
+      return {};
+    });
+
+    mockAuthAdmin.updateUserById.mockResolvedValue({ data: { user: null }, error: null });
+
+    const result = await repository.recoverProfileOrAccount({
+      profileId: 'prof-del-1',
+      userId: 'user-del-1',
+      adminUserId: 'admin-123',
+    });
+
+    expect(result).toBe(true);
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deleted_at: null,
+      })
+    );
+    expect(mockAuthAdmin.updateUserById).toHaveBeenCalledWith('user-del-1', {
+      ban_duration: 'none',
+    });
   });
 });
