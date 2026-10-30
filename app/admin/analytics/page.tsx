@@ -35,7 +35,16 @@ interface AnalyticsSummary {
   totalUsers: number;
   eventsByType: Record<string, number>;
   eventsLast30Days: Array<{ date: string; count: number }>;
-  topLinks: Array<{ linkType: string; url: string; clicks: number }>;
+  topLinks: Array<{
+    linkType: string;
+    url: string;
+    clicks: number;
+    title?: string | null;
+    profileId?: string | null;
+    profileName?: string | null;
+    profileSubdomain?: string | null;
+    profileAvatarUrl?: string | null;
+  }>;
   topProfiles: Array<{
     profileId: string;
     name: string;
@@ -167,7 +176,16 @@ function EventTypeBreakdown({ eventsByType }: { eventsByType: Record<string, num
   );
 }
 
-function TopLinksTable({ topLinks }: { topLinks: Array<{ linkType: string; url: string; clicks: number }> }) {
+function TopLinksTable({ topLinks }: { topLinks: Array<{
+  linkType: string;
+  url: string;
+  clicks: number;
+  title?: string | null;
+  profileId?: string | null;
+  profileName?: string | null;
+  profileSubdomain?: string | null;
+  profileAvatarUrl?: string | null;
+}> }) {
   if (!topLinks.length) {
     return <Text color="muted" className="text-center py-8">No link click data available</Text>;
   }
@@ -175,20 +193,68 @@ function TopLinksTable({ topLinks }: { topLinks: Array<{ linkType: string; url: 
   return (
     <Box className="space-y-3">
       {topLinks.slice(0, 10).map((link, index) => (
-        <Box key={`${link.linkType}-${link.url}-${index}`} className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors">
-          <Flex align="center" gap={3} className="min-w-0">
-            <Box className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <Box
+          key={`${link.linkType}-${link.url}-${link.profileId || index}`}
+          className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors"
+        >
+          <Flex align="center" gap={3} className="min-w-0 flex-1">
+            <Box className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <Link2 className="h-4 w-4" />
             </Box>
-            <Box className="min-w-0">
-              <Text weight="medium" size="sm" className="truncate">{link.linkType}</Text>
-              <Text size="xs" color="muted" className="truncate font-mono">{link.url.length > 60 ? link.url.substring(0, 60) + '...' : link.url}</Text>
+            <Box className="min-w-0 flex-1">
+              <Flex align="center" gap={2} className="flex-wrap">
+                <Text weight="medium" size="sm" className="truncate max-w-[260px]">
+                  {link.title || link.url.replace(/^https?:\/\//i, '')}
+                </Text>
+                <Badge variant="outline" size="sm" className="capitalize text-[10px] px-1.5 py-0">
+                  {link.linkType}
+                </Badge>
+              </Flex>
+
+              {/* Profile attribution */}
+              <Flex align="center" gap={1.5} className="mt-1">
+                {link.profileId && (
+                  <Avatar className="h-4 w-4">
+                    <AvatarImage
+                      src={link.profileAvatarUrl || `https://api.dicebear.com/7.x/identicon/svg?seed=${link.profileId}`}
+                      alt={link.profileName || 'Profile'}
+                    />
+                    <AvatarFallback className="text-[9px]">
+                      {(link.profileName || 'P').charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                )}
+                <Text size="xs" color="muted" className="truncate font-mono">
+                  {link.profileName ? (
+                    link.profileSubdomain ? (
+                      <a
+                        href={`/u/${link.profileSubdomain}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="hover:underline text-foreground/80 hover:text-foreground inline-flex items-center gap-1"
+                        title={`View public profile /u/${link.profileSubdomain}`}
+                      >
+                        <span>{link.profileName}</span>
+                        <span className="text-muted-foreground">(@{link.profileSubdomain})</span>
+                      </a>
+                    ) : (
+                      <span>{link.profileName}</span>
+                    )
+                  ) : (
+                    <span className="truncate">{link.url}</span>
+                  )}
+                </Text>
+              </Flex>
             </Box>
           </Flex>
-          <Flex align="center" gap={3} className="shrink-0">
-            <Badge variant="secondary" size="sm">{link.clicks} clicks</Badge>
-            <Button variant="ghost" size="icon" asChild>
-              <a href={link.url} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-3 w-3" /></a>
+          <Flex align="center" gap={2} className="shrink-0 ml-3">
+            <Badge variant="secondary" size="sm">
+              {link.clicks} {link.clicks === 1 ? 'click' : 'clicks'}
+            </Badge>
+            <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+              <a href={link.url} target="_blank" rel="noopener noreferrer" title={`Open ${link.url}`}>
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
             </Button>
           </Flex>
         </Box>
@@ -289,9 +355,9 @@ export default function AdminAnalyticsPage() {
     });
     csv += `\n`;
 
-    csv += `Top Links,Type,URL,Clicks\n`;
+    csv += `Top Links,URL,Type,Label,Profile Name,Subdomain,Profile ID,Clicks\n`;
     analytics.topLinks.forEach((l) => {
-      csv += `Top Links,"${l.linkType}","${l.url}",${l.clicks}\n`;
+      csv += `Top Links,"${l.url}","${l.linkType}","${l.title || ''}","${l.profileName || ''}","${l.profileSubdomain || ''}","${l.profileId || ''}",${l.clicks}\n`;
     });
     csv += `\n`;
 

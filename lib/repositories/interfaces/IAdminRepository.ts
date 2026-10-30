@@ -118,7 +118,16 @@ export interface AnalyticsSummary {
   totalUsers: number;
   eventsByType: Record<string, number>;
   eventsLast30Days: Array<{ date: string; count: number }>;
-  topLinks: Array<{ linkType: string; url: string; clicks: number }>;
+  topLinks: Array<{
+    linkType: string;
+    url: string;
+    clicks: number;
+    title?: string | null;
+    profileId?: string | null;
+    profileName?: string | null;
+    profileSubdomain?: string | null;
+    profileAvatarUrl?: string | null;
+  }>;
   topProfiles: Array<{
     profileId: string;
     name: string;

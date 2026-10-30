@@ -332,7 +332,14 @@ export class SupabaseAdminRepository implements IAdminRepository {
     // Aggregate
     const eventsByType: Record<string, number> = {};
     const eventsByDay: Record<string, number> = {};
-    const linkClicks: Record<string, number> = {};
+    interface LinkClickAggregate {
+      url: string;
+      linkType: string;
+      title?: string | null;
+      profileId?: string | null;
+      clicks: number;
+    }
+    const linkClicksMap = new Map<string, LinkClickAggregate>();
     const profileViews: Record<string, number> = {};
 
     events?.forEach((e) => {
@@ -341,10 +348,36 @@ export class SupabaseAdminRepository implements IAdminRepository {
       const day = e.created_at.split('T')[0];
       eventsByDay[day] = (eventsByDay[day] || 0) + 1;
 
-      if (e.event_type === 'link_click' && e.event_data?.['url']) {
-        const key = `${e.event_data['link_type'] || 'unknown'}:${e.event_data['url']}`;
-        linkClicks[key] = (linkClicks[key] || 0) + 1;
+      // Extract link clicks (supporting link_click and profile_cta_click)
+      if (e.event_type === 'link_click' || e.event_type === 'profile_cta_click') {
+        const evData = (e.event_data || {}) as Record<string, any>;
+        const rawUrl = evData['link_url'] || evData['url'] || evData['linkUrl'] || evData['href'];
+        const pId = e.profile_id || evData['profile_id'] || evData['profileId'] || null;
+
+        if (rawUrl && typeof rawUrl === 'string') {
+          const url = rawUrl.trim();
+          const linkType = (evData['link_type'] || evData['linkType'] || evData['cta_type'] || 'website').toLowerCase();
+          const linkText = evData['link_text'] || evData['linkText'] || evData['label'] || evData['title'] || null;
+
+          const key = `${pId || 'unknown'}|||${url}`;
+          const existing = linkClicksMap.get(key);
+          if (existing) {
+            existing.clicks += 1;
+            if (!existing.title && linkText) {
+              existing.title = linkText;
+            }
+          } else {
+            linkClicksMap.set(key, {
+              url,
+              linkType,
+              title: linkText,
+              profileId: pId,
+              clicks: 1,
+            });
+          }
+        }
       }
+
       const profileId = e.profile_id || (e.event_data as Record<string, any>)?.['profile_id'];
       if (e.event_type === 'profile_view' && profileId) {
         profileViews[profileId] = (profileViews[profileId] || 0) + 1;
@@ -357,12 +390,23 @@ export class SupabaseAdminRepository implements IAdminRepository {
       .slice(0, 10);
     const topProfileIds = sortedProfileEntries.map(([id]) => id);
 
-    // Fetch profile details for real names, subdomains, and avatars
-    const fetchProfilesPromise = topProfileIds.length > 0
+    // Extract top 10 links by click count
+    const sortedLinkEntries = Array.from(linkClicksMap.values())
+      .sort((a, b) => b.clicks - a.clicks)
+      .slice(0, 10);
+    const linkProfileIds = sortedLinkEntries
+      .map((l) => l.profileId)
+      .filter((id): id is string => Boolean(id));
+
+    // Combine all profile IDs needed for both Top Profiles and Top Links
+    const allProfileIdsToFetch = Array.from(new Set([...topProfileIds, ...linkProfileIds]));
+
+    // Fetch profile details for real names, subdomains, avatars, and custom links in parallel
+    const fetchProfilesPromise = allProfileIdsToFetch.length > 0
       ? adminClient
           .from('profiles')
-          .select('id, name, subdomain, avatar_url')
-          .in('id', topProfileIds)
+          .select('id, name, subdomain, avatar_url, links')
+          .in('id', allProfileIdsToFetch)
       : Promise.resolve({ data: [] as any[], error: null });
 
     // Get workspace/user counts and profile data in parallel
@@ -385,6 +429,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
       name: string;
       subdomain?: string | null;
       avatarUrl?: string | null;
+      links?: Array<{ label: string; url: string; type: string }>;
     }>();
 
     const foundProfileIds = new Set<string>();
@@ -397,12 +442,13 @@ export class SupabaseAdminRepository implements IAdminRepository {
           name: resolvedName || `Profile (${p.id.slice(0, 8)})`,
           subdomain: p.subdomain || null,
           avatarUrl: p.avatar_url || null,
+          links: Array.isArray(p.links) ? p.links : [],
         });
       });
     }
 
     // Fallback lookup: check if any missing IDs belong to workspaces
-    const missingProfileIds = topProfileIds.filter((id) => !foundProfileIds.has(id));
+    const missingProfileIds = allProfileIdsToFetch.filter((id) => !foundProfileIds.has(id));
     if (missingProfileIds.length > 0) {
       try {
         const { data: wsData } = await adminClient
@@ -426,7 +472,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
     return {
       totalProfileViews: eventsByType['profile_view'] || 0,
-      totalLinkClicks: eventsByType['link_click'] || 0,
+      totalLinkClicks: (eventsByType['link_click'] || 0) + (eventsByType['profile_cta_click'] || 0),
       totalPostsPublished: totalPostsPublished || 0,
       totalWorkspaces: totalWorkspaces || 0,
       totalUsers: totalUsers || 0,
@@ -434,13 +480,30 @@ export class SupabaseAdminRepository implements IAdminRepository {
       eventsLast30Days: Object.entries(eventsByDay)
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([date, count]) => ({ date, count })),
-      topLinks: Object.entries(linkClicks)
-        .sort(([, a], [, b]) => b - a)
-        .slice(0, 10)
-        .map(([key, clicks]) => {
-          const [linkType, url] = key.split(':');
-          return { linkType, url, clicks };
-        }),
+      topLinks: sortedLinkEntries.map((link) => {
+        const profile = link.profileId ? profileMap.get(link.profileId) : null;
+        let displayTitle = link.title;
+        if (!displayTitle && profile?.links) {
+          const matching = profile.links.find((l: any) => {
+            if (!l?.url) return false;
+            return l.url === link.url || l.url.replace(/\/$/, '') === link.url.replace(/\/$/, '');
+          });
+          if (matching?.label) {
+            displayTitle = matching.label;
+          }
+        }
+
+        return {
+          linkType: link.linkType,
+          url: link.url,
+          title: displayTitle || null,
+          clicks: link.clicks,
+          profileId: link.profileId || null,
+          profileName: profile?.name || (link.profileId ? `Profile (${link.profileId.slice(0, 8)})` : null),
+          profileSubdomain: profile?.subdomain || null,
+          profileAvatarUrl: profile?.avatarUrl || null,
+        };
+      }),
       topProfiles: sortedProfileEntries.map(([profileId, views]) => {
         const details = profileMap.get(profileId);
         return {
