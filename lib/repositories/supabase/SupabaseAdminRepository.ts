@@ -345,17 +345,84 @@ export class SupabaseAdminRepository implements IAdminRepository {
         const key = `${e.event_data['link_type'] || 'unknown'}:${e.event_data['url']}`;
         linkClicks[key] = (linkClicks[key] || 0) + 1;
       }
-      if (e.event_type === 'profile_view' && e.profile_id) {
-        profileViews[e.profile_id] = (profileViews[e.profile_id] || 0) + 1;
+      const profileId = e.profile_id || (e.event_data as Record<string, any>)?.['profile_id'];
+      if (e.event_type === 'profile_view' && profileId) {
+        profileViews[profileId] = (profileViews[profileId] || 0) + 1;
       }
     });
 
-    // Get workspace/user counts
-    const [{ count: totalWorkspaces }, { count: totalUsers }, { count: totalPostsPublished }] = await Promise.all([
+    // Extract top 10 profiles by view count
+    const sortedProfileEntries = Object.entries(profileViews)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 10);
+    const topProfileIds = sortedProfileEntries.map(([id]) => id);
+
+    // Fetch profile details for real names, subdomains, and avatars
+    const fetchProfilesPromise = topProfileIds.length > 0
+      ? adminClient
+          .from('profiles')
+          .select('id, name, subdomain, avatar_url')
+          .in('id', topProfileIds)
+      : Promise.resolve({ data: [] as any[], error: null });
+
+    // Get workspace/user counts and profile data in parallel
+    const [
+      { count: totalWorkspaces },
+      { count: totalUsers },
+      { count: totalPostsPublished },
+      profilesRes,
+    ] = await Promise.all([
       adminClient.from('workspaces').select('id', { count: 'exact', head: true }),
-      adminClient.from('profiles').select('id', { count: 'exact', head: true }).limit(1).then(() => adminClient.auth.admin.listUsers()).then(r => ({ count: r.data.users.length })),
+      Promise.resolve(adminClient.from('profiles').select('id', { count: 'exact', head: true }).limit(1))
+        .then(() => adminClient.auth.admin.listUsers())
+        .then((r) => ({ count: r?.data?.users?.length ?? 0 }))
+        .catch(() => ({ count: 0 })),
       adminClient.from('posts').select('id', { count: 'exact', head: true }).eq('status', 'published'),
+      fetchProfilesPromise,
     ]);
+
+    const profileMap = new Map<string, {
+      name: string;
+      subdomain?: string | null;
+      avatarUrl?: string | null;
+    }>();
+
+    const foundProfileIds = new Set<string>();
+
+    if (profilesRes && 'data' in profilesRes && Array.isArray(profilesRes.data)) {
+      profilesRes.data.forEach((p: any) => {
+        foundProfileIds.add(p.id);
+        const resolvedName = p.name?.trim() || (p.subdomain ? `@${p.subdomain}` : '');
+        profileMap.set(p.id, {
+          name: resolvedName || `Profile (${p.id.slice(0, 8)})`,
+          subdomain: p.subdomain || null,
+          avatarUrl: p.avatar_url || null,
+        });
+      });
+    }
+
+    // Fallback lookup: check if any missing IDs belong to workspaces
+    const missingProfileIds = topProfileIds.filter((id) => !foundProfileIds.has(id));
+    if (missingProfileIds.length > 0) {
+      try {
+        const { data: wsData } = await adminClient
+          .from('workspaces')
+          .select('id, name, slug')
+          .in('id', missingProfileIds);
+
+        if (wsData && Array.isArray(wsData)) {
+          wsData.forEach((w: any) => {
+            profileMap.set(w.id, {
+              name: w.name || `Workspace (${w.id.slice(0, 8)})`,
+              subdomain: w.slug || null,
+              avatarUrl: null,
+            });
+          });
+        }
+      } catch {
+        // Ignore fallback lookup failures
+      }
+    }
 
     return {
       totalProfileViews: eventsByType['profile_view'] || 0,
@@ -374,10 +441,17 @@ export class SupabaseAdminRepository implements IAdminRepository {
           const [linkType, url] = key.split(':');
           return { linkType, url, clicks };
         }),
-      topProfiles: Object.entries(profileViews)
-        .sort(([, a], [, b]) => b - a)
-        .slice(0, 10)
-        .map(([profileId, views]) => ({ profileId, name: 'Profile', views })),
+      topProfiles: sortedProfileEntries.map(([profileId, views]) => {
+        const details = profileMap.get(profileId);
+        return {
+          profileId,
+          name: details?.name || `Profile (${profileId.slice(0, 8)})`,
+          subdomain: details?.subdomain || null,
+          avatarUrl: details?.avatarUrl || null,
+          handle: details?.subdomain ? `@${details.subdomain}` : null,
+          views,
+        };
+      }),
     };
   }
 

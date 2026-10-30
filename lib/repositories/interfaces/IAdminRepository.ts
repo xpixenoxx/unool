@@ -119,7 +119,14 @@ export interface AnalyticsSummary {
   eventsByType: Record<string, number>;
   eventsLast30Days: Array<{ date: string; count: number }>;
   topLinks: Array<{ linkType: string; url: string; clicks: number }>;
-  topProfiles: Array<{ profileId: string; name: string; views: number }>;
+  topProfiles: Array<{
+    profileId: string;
+    name: string;
+    views: number;
+    subdomain?: string | null;
+    avatarUrl?: string | null;
+    handle?: string | null;
+  }>;
 }
 
 export interface AdminAuditLog {

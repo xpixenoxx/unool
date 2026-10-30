@@ -36,7 +36,14 @@ interface AnalyticsSummary {
   eventsByType: Record<string, number>;
   eventsLast30Days: Array<{ date: string; count: number }>;
   topLinks: Array<{ linkType: string; url: string; clicks: number }>;
-  topProfiles: Array<{ profileId: string; name: string; views: number }>;
+  topProfiles: Array<{
+    profileId: string;
+    name: string;
+    views: number;
+    subdomain?: string | null;
+    avatarUrl?: string | null;
+    handle?: string | null;
+  }>;
 }
 
 function DashboardStats({ analytics, days }: { analytics: AnalyticsSummary; days: number }) {
@@ -190,7 +197,14 @@ function TopLinksTable({ topLinks }: { topLinks: Array<{ linkType: string; url: 
   );
 }
 
-function TopProfilesTable({ topProfiles }: { topProfiles: Array<{ profileId: string; name: string; views: number }> }) {
+function TopProfilesTable({ topProfiles }: { topProfiles: Array<{
+  profileId: string;
+  name: string;
+  views: number;
+  subdomain?: string | null;
+  avatarUrl?: string | null;
+  handle?: string | null;
+}> }) {
   if (!topProfiles.length) {
     return <Text color="muted" className="text-center py-8">No profile view data available</Text>;
   }
@@ -201,12 +215,30 @@ function TopProfilesTable({ topProfiles }: { topProfiles: Array<{ profileId: str
         <Box key={`${profile.profileId}-${index}`} className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors">
           <Flex align="center" gap={3} className="min-w-0">
             <Avatar className="h-8 w-8">
-              <AvatarImage src={`https://api.dicebear.com/7.x/identicon/svg?seed=${profile.profileId}`} alt={profile.name} />
-              <AvatarFallback>{profile.name.charAt(0).toUpperCase()}</AvatarFallback>
+              <AvatarImage
+                src={profile.avatarUrl || `https://api.dicebear.com/7.x/identicon/svg?seed=${profile.profileId}`}
+                alt={profile.name}
+              />
+              <AvatarFallback>{(profile.name || 'P').charAt(0).toUpperCase()}</AvatarFallback>
             </Avatar>
             <Box className="min-w-0">
-              <Text weight="medium" size="sm" className="truncate">{profile.name}</Text>
-              <Text size="xs" color="muted" className="truncate font-mono">{profile.profileId.substring(0, 8)}...</Text>
+              <Flex align="center" gap={1.5}>
+                <Text weight="medium" size="sm" className="truncate">{profile.name}</Text>
+                {profile.subdomain && (
+                  <a
+                    href={`/u/${profile.subdomain}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-muted-foreground hover:text-foreground inline-flex items-center"
+                    title={`Open public profile /u/${profile.subdomain}`}
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                )}
+              </Flex>
+              <Text size="xs" color="muted" className="truncate font-mono" title={profile.profileId}>
+                {profile.subdomain ? `@${profile.subdomain} • ` : ''}ID: {profile.profileId.substring(0, 8)}...
+              </Text>
             </Box>
           </Flex>
           <Badge variant="secondary" size="sm">{profile.views} views</Badge>
@@ -263,9 +295,9 @@ export default function AdminAnalyticsPage() {
     });
     csv += `\n`;
 
-    csv += `Top Profiles,Profile ID,Name,Views\n`;
+    csv += `Top Profiles,Profile ID,Subdomain,Name,Views\n`;
     analytics.topProfiles.forEach((p) => {
-      csv += `Top Profiles,"${p.profileId}","${p.name}",${p.views}\n`;
+      csv += `Top Profiles,"${p.profileId}","${p.subdomain || ''}","${p.name}",${p.views}\n`;
     });
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });

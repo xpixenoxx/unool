@@ -81,7 +81,14 @@ interface AnalyticsSummary {
   eventsByType: Record<string, number>;
   eventsLast30Days: Array<{ date: string; count: number }>;
   topLinks: Array<{ linkType: string; url: string; clicks: number }>;
-  topProfiles: Array<{ profileId: string; name: string; views: number }>;
+  topProfiles: Array<{
+    profileId: string;
+    name: string;
+    views: number;
+    subdomain?: string | null;
+    avatarUrl?: string | null;
+    handle?: string | null;
+  }>;
 }
 
 interface InitialData {
@@ -359,12 +366,30 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
                     <Box key={`${profile.profileId}-${index}`} className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors">
                       <Flex align="center" gap={3} className="min-w-0">
                         <Avatar className="h-8 w-8">
-                          <AvatarImage src={`https://api.dicebear.com/7.x/identicon/svg?seed=${profile.profileId}`} alt={profile.name} />
-                          <AvatarFallback>{profile.name.charAt(0).toUpperCase()}</AvatarFallback>
+                          <AvatarImage
+                            src={profile.avatarUrl || `https://api.dicebear.com/7.x/identicon/svg?seed=${profile.profileId}`}
+                            alt={profile.name}
+                          />
+                          <AvatarFallback>{(profile.name || 'P').charAt(0).toUpperCase()}</AvatarFallback>
                         </Avatar>
                         <Box className="min-w-0">
-                          <Text weight="medium" size="sm" className="truncate">{profile.name}</Text>
-                          <Text size="xs" color="muted" className="truncate font-mono">{profile.profileId.substring(0, 8)}...</Text>
+                          <Flex align="center" gap={1.5}>
+                            <Text weight="medium" size="sm" className="truncate">{profile.name}</Text>
+                            {profile.subdomain && (
+                              <a
+                                href={`/u/${profile.subdomain}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-muted-foreground hover:text-foreground inline-flex items-center"
+                                title={`Open public profile /u/${profile.subdomain}`}
+                              >
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            )}
+                          </Flex>
+                          <Text size="xs" color="muted" className="truncate font-mono" title={profile.profileId}>
+                            {profile.subdomain ? `@${profile.subdomain} • ` : ''}ID: {profile.profileId.substring(0, 8)}...
+                          </Text>
                         </Box>
                       </Flex>
                       <Badge variant="secondary" size="sm">{profile.views} views</Badge>
