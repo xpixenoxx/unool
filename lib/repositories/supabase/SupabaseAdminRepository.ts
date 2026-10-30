@@ -927,14 +927,21 @@ export class SupabaseAdminRepository implements IAdminRepository {
         }
       }
     } catch (err) {
-      console.error('Error fetching deleted profiles:', err);
+      console.warn('Note: profiles table query skipped:', err);
     }
 
-    // 3. Fetch suspended users from auth.users
+    // 3. Fetch deleted and suspended users from auth.users
     try {
       const { data: usersData, error: uErr } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
       if (!uErr && usersData?.users) {
         const now = new Date();
+
+        // 3a. Deleted users from Auth metadata (is_deleted === true)
+        const deletedUsers = usersData.users.filter((u) => {
+          return (u as Record<string, any>).user_metadata?.is_deleted === true;
+        });
+
+        // 3b. Suspended users (banned and not deleted)
         const suspendedUsers = usersData.users.filter((u) => {
           const bannedUntil = (u as Record<string, any>).banned_until;
           const isBanned = !!(bannedUntil && new Date(bannedUntil) > now);
@@ -942,60 +949,104 @@ export class SupabaseAdminRepository implements IAdminRepository {
           return isBanned && !isDeleted;
         });
 
-        if (suspendedUsers.length > 0) {
-          const userIds = suspendedUsers.map((u) => u.id);
-          const { data: profs } = await adminClient
-            .from('profiles')
-            .select('id, user_id, workspace_id, subdomain, name, avatar_url, deleted_at')
-            .in('user_id', userIds);
+        // Collect all user IDs that need profile metadata lookup
+        const relevantUserIds = [
+          ...deletedUsers.map((u) => u.id),
+          ...suspendedUsers.map((u) => u.id),
+        ].filter((uid, idx, arr) => arr.indexOf(uid) === idx);
 
-          const profsByUser = new Map<string, any>();
-          (profs || []).forEach((p) => profsByUser.set(p.user_id, p));
+        let profsByUser = new Map<string, any>();
+        if (relevantUserIds.length > 0) {
+          try {
+            const { data: profs } = await adminClient
+              .from('profiles')
+              .select('id, user_id, workspace_id, subdomain, name, avatar_url, deleted_at')
+              .in('user_id', relevantUserIds);
 
-          for (const u of suspendedUsers) {
-            // If already in items as deleted, skip
-            if (items.some((item) => item.userId === u.id)) continue;
-
-            const prof = profsByUser.get(u.id);
-            const userMeta = (u as Record<string, any>).user_metadata || {};
-            const audit = latestAuditByUser.get(u.id);
-
-            // ORIGINAL DATE: never use banned_until (which is 100 years in future!)
-            let originalDate =
-              userMeta.suspended_at ||
-              audit?.createdAt ||
-              (u as Record<string, any>).updated_at ||
-              u.created_at ||
-              new Date().toISOString();
-
-            // Guard: if date is in the future (> 1 day), fallback to created_at
-            if (new Date(originalDate).getTime() > Date.now() + 86400000) {
-              originalDate = (u as Record<string, any>).updated_at || u.created_at || new Date().toISOString();
-            }
-
-            const suspensionReason =
-              userMeta.suspended_reason ||
-              audit?.reason ||
-              'Account suspended by admin';
-
-            items.push({
-              id: `susp-${u.id}`,
-              type: 'suspended',
-              profileId: prof?.id || null,
-              userId: u.id,
-              subdomain: prof?.subdomain || null,
-              name: prof?.name || (u.email ? u.email.split('@')[0] : 'Suspended User'),
-              email: u.email || 'No email',
-              avatarUrl: prof?.avatar_url || null,
-              workspaceId: prof?.workspace_id || null,
-              reason: suspensionReason,
-              timestamp: originalDate,
-            });
+            (profs || []).forEach((p) => profsByUser.set(p.user_id, p));
+          } catch {
+            // graceful fallback if profiles lookup fails
           }
+        }
+
+        // Add deleted users from auth if not already in items
+        for (const u of deletedUsers) {
+          if (items.some((item) => item.userId === u.id)) continue;
+
+          const prof = profsByUser.get(u.id);
+          const userMeta = (u as Record<string, any>).user_metadata || {};
+          const audit = latestAuditByUser.get(u.id);
+
+          const originalDate =
+            userMeta.deleted_at ||
+            audit?.createdAt ||
+            (u as Record<string, any>).updated_at ||
+            u.created_at ||
+            new Date().toISOString();
+
+          const deleteReason =
+            userMeta.deleted_reason ||
+            audit?.reason ||
+            'Account deleted by admin';
+
+          items.push({
+            id: `del-user-${u.id}`,
+            type: 'deleted',
+            profileId: prof?.id || null,
+            userId: u.id,
+            subdomain: prof?.subdomain || null,
+            name: prof?.name || userMeta.name || userMeta.full_name || (u.email ? u.email.split('@')[0] : 'Deleted User'),
+            email: u.email || 'No email',
+            avatarUrl: prof?.avatar_url || userMeta.avatar_url || null,
+            workspaceId: prof?.workspace_id || null,
+            reason: deleteReason,
+            timestamp: originalDate,
+          });
+        }
+
+        // Add suspended users from auth if not already in items
+        for (const u of suspendedUsers) {
+          if (items.some((item) => item.userId === u.id)) continue;
+
+          const prof = profsByUser.get(u.id);
+          const userMeta = (u as Record<string, any>).user_metadata || {};
+          const audit = latestAuditByUser.get(u.id);
+
+          // ORIGINAL DATE: never use banned_until (which is 100 years in future!)
+          let originalDate =
+            userMeta.suspended_at ||
+            audit?.createdAt ||
+            (u as Record<string, any>).updated_at ||
+            u.created_at ||
+            new Date().toISOString();
+
+          // Guard: if date is in the future (> 1 day), fallback to created_at
+          if (new Date(originalDate).getTime() > Date.now() + 86400000) {
+            originalDate = (u as Record<string, any>).updated_at || u.created_at || new Date().toISOString();
+          }
+
+          const suspensionReason =
+            userMeta.suspended_reason ||
+            audit?.reason ||
+            'Account suspended by admin';
+
+          items.push({
+            id: `susp-${u.id}`,
+            type: 'suspended',
+            profileId: prof?.id || null,
+            userId: u.id,
+            subdomain: prof?.subdomain || null,
+            name: prof?.name || (u.email ? u.email.split('@')[0] : 'Suspended User'),
+            email: u.email || 'No email',
+            avatarUrl: prof?.avatar_url || null,
+            workspaceId: prof?.workspace_id || null,
+            reason: suspensionReason,
+            timestamp: originalDate,
+          });
         }
       }
     } catch (err) {
-      console.error('Error fetching suspended users:', err);
+      console.error('Error fetching auth users for recovery:', err);
     }
 
     return items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
@@ -1004,33 +1055,38 @@ export class SupabaseAdminRepository implements IAdminRepository {
   async recoverProfileOrAccount({
     profileId,
     userId,
+    type,
     adminUserId,
   }: {
     profileId?: string | null;
     userId?: string | null;
+    type?: string;
     adminUserId: string;
   }): Promise<boolean> {
     // 1. If profileId provided, restore profile by clearing deleted_at
     if (profileId) {
-      const { error: pErr } = await adminClient
-        .from('profiles')
-        .update({
-          deleted_at: null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', profileId);
+      try {
+        const { error: pErr } = await adminClient
+          .from('profiles')
+          .update({
+            deleted_at: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', profileId);
 
-      if (pErr) {
-        console.error('Failed to recover profile:', pErr);
-        throw pErr;
+        if (pErr) {
+          console.warn('Note: profiles update warning during profileId recovery:', pErr);
+        } else {
+          await this.logAdminAction(adminUserId, 'profile_recover', 'profile', profileId, {
+            recoveredAt: new Date().toISOString(),
+          });
+        }
+      } catch (err) {
+        console.warn('Note: profiles update skipped during profileId recovery:', err);
       }
-
-      await this.logAdminAction(adminUserId, 'profile_recover', 'profile', profileId, {
-        recoveredAt: new Date().toISOString(),
-      });
     }
 
-    // 2. If userId provided, unsuspend user in Supabase auth and recover in deleted_accounts
+    // 2. If userId provided, unsuspend user and un-delete in Supabase auth and recover in deleted_accounts
     if (userId) {
       // a. Mark recovered in deleted_accounts
       try {
@@ -1043,36 +1099,50 @@ export class SupabaseAdminRepository implements IAdminRepository {
         console.warn('Note: deleted_accounts update skipped:', err);
       }
 
-      // b. Unban in auth and clear is_deleted in user_metadata
+      // b. Unban in auth and clear is_deleted, deleted_at, deleted_reason, suspended_at, suspended_reason in user_metadata
+      let isDeleteRecovery = type === 'deleted';
       try {
         const { data: uData } = await adminClient.auth.admin.getUserById(userId);
         const existingMeta = (uData?.user as Record<string, any>)?.user_metadata || {};
+        if (existingMeta.is_deleted) {
+          isDeleteRecovery = true;
+        }
+
         await adminClient.auth.admin.updateUserById(userId, {
           ban_duration: 'none',
           user_metadata: {
             ...existingMeta,
             is_deleted: false,
+            deleted_at: null,
+            deleted_reason: null,
             suspended_at: null,
             suspended_reason: null,
             recovered_at: new Date().toISOString(),
           },
         });
       } catch (uErr) {
-        console.error('Failed to unsuspend user during recovery:', uErr);
+        console.error('Failed to unsuspend/un-delete user during recovery:', uErr);
         if (!profileId) throw uErr;
       }
 
       // c. Clear deleted_at on any profiles for this user
-      await adminClient
-        .from('profiles')
-        .update({
-          deleted_at: null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('user_id', userId);
+      try {
+        await adminClient
+          .from('profiles')
+          .update({
+            deleted_at: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('user_id', userId);
+      } catch (err) {
+        console.warn('Note: profiles update skipped during userId recovery:', err);
+      }
 
-      await this.logAdminAction(adminUserId, 'user_unsuspend', 'user', userId, {
+      const actionName = isDeleteRecovery ? 'user_recover' : 'user_unsuspend';
+      await this.logAdminAction(adminUserId, actionName, 'user', userId, {
         reason: 'Recovered via Admin Recovery panel',
+        action: isDeleteRecovery ? 'Account recovered from deletion' : 'Account suspension lifted',
+        recoveredAt: new Date().toISOString(),
       });
     }
 

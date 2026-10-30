@@ -121,6 +121,7 @@ describe('Admin Recovery API Routes', () => {
       expect(adminRepository.recoverProfileOrAccount).toHaveBeenCalledWith({
         profileId: 'p-1',
         userId: 'u-1',
+        type: 'deleted',
         adminUserId: 'admin-1',
       });
     });

@@ -201,10 +201,14 @@ export async function DELETE(
     }
 
     // 3. Soft-delete profiles by setting deleted_at
-    await adminClient
-      .from('profiles')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('user_id', id);
+    try {
+      await adminClient
+        .from('profiles')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('user_id', id);
+    } catch (profErr) {
+      console.warn('Note: profiles table update warning:', profErr);
+    }
 
     // 4. Ban the user and flag in metadata so active queries exclude them
     const existingMeta = userData.user.user_metadata || {};

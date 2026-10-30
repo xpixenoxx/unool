@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { profileId, userId } = body;
+    const { profileId, userId, type } = body;
 
     if (!profileId && !userId) {
       return NextResponse.json(
@@ -43,6 +43,7 @@ export async function POST(request: NextRequest) {
     await adminRepository.recoverProfileOrAccount({
       profileId: profileId || null,
       userId: userId || null,
+      type: type || (profileId && !userId ? 'profile' : undefined),
       adminUserId: auth.admin.userId,
     });
 

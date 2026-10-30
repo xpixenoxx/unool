@@ -361,7 +361,7 @@ export interface IAdminRepository {
 
   // Profile & Account Recovery
   listDeletedAndSuspendedProfiles(): Promise<RecoverableProfileItem[]>;
-  recoverProfileOrAccount(params: { profileId?: string | null; userId?: string | null; adminUserId: string }): Promise<boolean>;
+  recoverProfileOrAccount(params: { profileId?: string | null; userId?: string | null; type?: string; adminUserId: string }): Promise<boolean>;
 
   // Payment Orders
   listPaymentOrders(params?: ListPaymentOrdersParams): Promise<PaginatedResult<PaymentOrderAdminView>>;

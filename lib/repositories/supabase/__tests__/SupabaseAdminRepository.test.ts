@@ -476,6 +476,107 @@ describe('SupabaseAdminRepository - Recovery Management', () => {
         ban_duration: 'none',
         user_metadata: expect.objectContaining({
           is_deleted: false,
+          deleted_at: null,
+          deleted_reason: null,
+        }),
+      })
+    );
+  });
+
+  it('lists deleted accounts directly from auth.users when not in profiles or deleted_accounts', async () => {
+    mockAuthAdmin.listUsers.mockResolvedValue({
+      data: {
+        users: [
+          {
+            id: 'user-del-auth',
+            email: 'authdeleted@company.com',
+            user_metadata: {
+              is_deleted: true,
+              deleted_reason: 'Account closed by admin',
+              deleted_at: '2026-10-28T12:00:00Z',
+            },
+          },
+        ],
+      },
+      error: null,
+    });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'deleted_accounts') {
+        return {
+          select: vi.fn().mockReturnValue({
+            is: vi.fn().mockReturnValue({
+              order: vi.fn().mockResolvedValue({ data: [], error: null }),
+            }),
+          }),
+        };
+      }
+      if (table === 'profiles') {
+        return {
+          select: vi.fn().mockReturnValue({
+            not: vi.fn().mockResolvedValue({ data: [], error: null }),
+            in: vi.fn().mockResolvedValue({ data: [], error: null }),
+          }),
+        };
+      }
+      return {
+        select: vi.fn().mockReturnValue({
+          in: vi.fn().mockReturnValue({
+            order: vi.fn().mockResolvedValue({ data: [], error: null }),
+          }),
+        }),
+      };
+    });
+
+    const items = await repository.listDeletedAndSuspendedProfiles();
+
+    expect(items).toHaveLength(1);
+    expect(items[0].type).toBe('deleted');
+    expect(items[0].userId).toBe('user-del-auth');
+    expect(items[0].email).toBe('authdeleted@company.com');
+    expect(items[0].reason).toBe('Account closed by admin');
+  });
+
+  it('recovers deleted user account even when no profileId is provided', async () => {
+    const mockAuthAdminUpdate = vi.fn().mockResolvedValue({ data: { user: null }, error: null });
+    mockAuthAdmin.getUserById.mockResolvedValue({
+      data: { user: { id: 'user-del-only', user_metadata: { is_deleted: true } } },
+      error: null,
+    });
+    mockAuthAdmin.updateUserById = mockAuthAdminUpdate;
+
+    const mockProfileUpdate = vi.fn().mockReturnValue({
+      eq: vi.fn().mockResolvedValue({ error: null }),
+    });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'profiles') return { update: mockProfileUpdate };
+      if (table === 'deleted_accounts') {
+        return {
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              is: vi.fn().mockResolvedValue({ error: null }),
+            }),
+          }),
+        };
+      }
+      return { insert: vi.fn().mockResolvedValue({ error: null }) };
+    });
+
+    const result = await repository.recoverProfileOrAccount({
+      userId: 'user-del-only',
+      type: 'deleted',
+      adminUserId: 'admin-123',
+    });
+
+    expect(result).toBe(true);
+    expect(mockAuthAdminUpdate).toHaveBeenCalledWith(
+      'user-del-only',
+      expect.objectContaining({
+        ban_duration: 'none',
+        user_metadata: expect.objectContaining({
+          is_deleted: false,
+          deleted_at: null,
+          deleted_reason: null,
         }),
       })
     );

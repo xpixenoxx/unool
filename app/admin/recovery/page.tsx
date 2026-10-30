@@ -86,7 +86,7 @@ export default function AdminRecoveryPage() {
   const handleRecover = async (item: RecoverableItem) => {
     const confirmationText =
       item.type === 'deleted'
-        ? `Are you sure you want to recover profile "${item.name || item.subdomain}"? This will restore public access and un-delete the profile.`
+        ? `Are you sure you want to recover ${item.profileId ? 'profile' : 'account'} "${item.name || item.email || item.subdomain}"? This will restore active access and reinstate the account.`
         : `Are you sure you want to unsuspend user "${item.email}"? This will lift the login ban and restore active access.`;
 
     if (!confirm(confirmationText)) return;
@@ -112,11 +112,14 @@ export default function AdminRecoveryPage() {
 
       setActionMessage({
         type: 'success',
-        text: `Successfully recovered ${item.type === 'deleted' ? 'profile' : 'account'} for ${item.name || item.email}!`,
+        text: `Successfully recovered ${item.type === 'deleted' ? (item.profileId ? 'profile' : 'account') : 'account'} for ${item.name || item.email}!`,
       });
 
       // Remove recovered item from state immediately for responsive feel
       setItems((prev) => prev.filter((i) => i.id !== item.id));
+      if (cachedRecoveryItems) {
+        cachedRecoveryItems = cachedRecoveryItems.filter((i) => i.id !== item.id);
+      }
 
       // Refresh in background
       setTimeout(() => fetchItems(false), 500);
@@ -277,7 +280,7 @@ export default function AdminRecoveryPage() {
             className="gap-1.5"
           >
             <Trash2 className="h-3.5 w-3.5" />
-            Deleted Profiles ({deletedCount})
+            Deleted Accounts & Profiles ({deletedCount})
           </Button>
           <Button
             variant={filter === 'suspended' ? 'default' : 'outline'}
