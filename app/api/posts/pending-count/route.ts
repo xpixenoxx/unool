@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
     const totalPending = drafts + scheduled + publishing;
 
     return NextResponse.json({
-      count: totalPending,
+      count: drafts,
       drafts,
       scheduled,
       publishing,

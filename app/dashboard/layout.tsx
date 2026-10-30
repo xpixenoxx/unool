@@ -75,11 +75,11 @@ function DashboardSidebar({
   sidebarOpen: boolean;
   setSidebarOpen: (v: boolean) => void;
 }) {
-  const { user, profile, pendingPostsCount, loading } = useUserContext();
+  const { user, profile, workspace, pendingPostsCount, loading } = useUserContext();
   const pathname = usePathname();
   const router = useRouter();
   const [copied, setCopied] = useState(false);
-  const [dynamicPendingCount, setDynamicPendingCount] = useState<number>(pendingPostsCount || 12);
+  const [dynamicPendingCount, setDynamicPendingCount] = useState<number>(pendingPostsCount || 0);
 
   // Sync with context updates
   useEffect(() => {
@@ -88,16 +88,15 @@ function DashboardSidebar({
     }
   }, [pendingPostsCount]);
 
-  // Real-time synchronization for pending posts count across window focus and publishing events
+  // Real-time synchronization for 24h drafts count across window focus, custom events, and periodic time decay
   useEffect(() => {
-    const fetchLatestPending = async () => {
+    const fetchLatestDrafts = async () => {
       try {
         const res = await fetch('/api/posts/pending-count', { credentials: 'include' });
         if (res.ok) {
           const data = await res.json();
-          if (typeof data.count === 'number') {
-            setDynamicPendingCount(data.count);
-          }
+          const count = typeof data.drafts === 'number' ? data.drafts : (typeof data.count === 'number' ? data.count : 0);
+          setDynamicPendingCount(count);
         }
       } catch {
         // Ignore network drops
@@ -105,10 +104,10 @@ function DashboardSidebar({
     };
 
     // Initial fetch on mount for instantaneous fresh count
-    fetchLatestPending();
+    fetchLatestDrafts();
 
     const handlePublishEvent = () => {
-      fetchLatestPending();
+      fetchLatestDrafts();
     };
 
     const handlePendingDirectUpdate = (e: Event) => {
@@ -116,26 +115,73 @@ function DashboardSidebar({
       if (typeof customEvent.detail?.count === 'number') {
         setDynamicPendingCount(customEvent.detail.count);
       } else {
-        fetchLatestPending();
+        fetchLatestDrafts();
       }
     };
 
     window.addEventListener('signal-strip-publish', handlePublishEvent);
     window.addEventListener('signal-posts-updated', handlePublishEvent);
     window.addEventListener('signal-pending-count-updated', handlePendingDirectUpdate);
-    window.addEventListener('focus', fetchLatestPending);
+    window.addEventListener('focus', fetchLatestDrafts);
 
-    // Light background poll every 15 seconds
-    const interval = setInterval(fetchLatestPending, 15000);
+    // Periodic poll every 30 seconds so time-decay automatically drops drafts past 24h
+    const interval = setInterval(fetchLatestDrafts, 30000);
 
     return () => {
       window.removeEventListener('signal-strip-publish', handlePublishEvent);
       window.removeEventListener('signal-posts-updated', handlePublishEvent);
       window.removeEventListener('signal-pending-count-updated', handlePendingDirectUpdate);
-      window.removeEventListener('focus', fetchLatestPending);
+      window.removeEventListener('focus', fetchLatestDrafts);
       clearInterval(interval);
     };
   }, []);
+
+  // Supabase Realtime live updates for drafts specific to this user/workspace
+  useEffect(() => {
+    const workspaceId = workspace?.id;
+    if (!workspaceId) return;
+
+    let channel: any = null;
+    let isMounted = true;
+
+    (async () => {
+      try {
+        const { getSupabaseBrowserClient } = await import('@/lib/supabase/browser');
+        const supabase = getSupabaseBrowserClient();
+
+        channel = supabase.channel(`sidebar-drafts-live-${workspaceId}`)
+          .on(
+            'postgres_changes' as any,
+            { event: '*', schema: 'public', table: 'posts', filter: `workspace_id=eq.${workspaceId}` },
+            async () => {
+              if (!isMounted) return;
+              try {
+                const res = await fetch('/api/posts/pending-count', { credentials: 'include' });
+                if (res.ok) {
+                  const data = await res.json();
+                  const count = typeof data.drafts === 'number' ? data.drafts : (typeof data.count === 'number' ? data.count : 0);
+                  if (isMounted) setDynamicPendingCount(count);
+                }
+              } catch {
+                // Ignore network drops
+              }
+            }
+          )
+          .subscribe();
+      } catch (err) {
+        console.warn('[DashboardSidebar] Realtime subscription notice', err);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+      if (channel) {
+        import('@/lib/supabase/browser').then(({ getSupabaseBrowserClient }) => {
+          getSupabaseBrowserClient().removeChannel(channel);
+        }).catch(() => {});
+      }
+    };
+  }, [workspace?.id]);
 
   const navSections: NavSection[] = useMemo(() => [
     {
@@ -173,7 +219,7 @@ function DashboardSidebar({
           href: '/dashboard/signal',
           icon: Radio,
           description: 'Publish & schedule',
-          badge: dynamicPendingCount > 0 ? dynamicPendingCount : 12,
+          badge: dynamicPendingCount > 0 ? dynamicPendingCount : undefined,
         },
         {
           id: 'automation',
@@ -369,7 +415,7 @@ function DashboardSidebar({
                   {!isActive && item.badge !== undefined && (
                     <div
                       className="ml-auto mr-1.5 px-2 min-w-[22px] h-[20px] rounded-full bg-[#C8613D] text-white text-[11px] font-bold flex items-center justify-center shadow-2xs flex-shrink-0"
-                      title={`${item.badge} pending`}
+                      title={`${item.badge} pending ${item.badge === 1 ? 'draft' : 'drafts'} (past 24h)`}
                     >
                       {item.badge}
                     </div>

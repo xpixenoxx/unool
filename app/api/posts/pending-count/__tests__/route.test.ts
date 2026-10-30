@@ -72,7 +72,7 @@ describe('/api/posts/pending-count route', () => {
     expect(data.drafts).toBe(4);
     expect(data.scheduled).toBe(1);
     expect(data.publishing).toBe(0);
-    expect(data.count).toBe(5);
+    expect(data.count).toBe(4);
   });
 
   it('handles database errors gracefully and returns safe fallback', async () => {

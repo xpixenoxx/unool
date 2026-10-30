@@ -360,19 +360,14 @@ export function SignalClient() {
             try {
               const now = Date.now();
               const twentyFourHoursAgo = now - 24 * 60 * 60 * 1000;
-              const pendingCount = fetched.filter((p: any) => {
-                const isFailed = p.status === 'failed';
-                const hasPublished = Array.isArray(p.variants) && p.variants.some((v: any) => v.status === 'published');
-                if (isFailed || hasPublished || p.status === 'published') return false;
-
-                // Scope to drafts (not published) created in the past 24 hours
+              const draftCount = fetched.filter((p: any) => {
+                if (p.status !== 'draft') return false;
                 const postTime = new Date(p.createdAt || p.created_at).getTime();
-                const isWithin24h = !isNaN(postTime) && postTime >= twentyFourHoursAgo;
-                return isWithin24h && (p.status === 'draft' || p.status === 'scheduled' || p.status === 'publishing' || !hasPublished);
+                return !isNaN(postTime) && postTime >= twentyFourHoursAgo;
               }).length;
 
               if (typeof window !== 'undefined') {
-                window.dispatchEvent(new CustomEvent('signal-pending-count-updated', { detail: { count: pendingCount } }));
+                window.dispatchEvent(new CustomEvent('signal-pending-count-updated', { detail: { count: draftCount } }));
               }
             } catch {
               // Ignore event dispatch errors

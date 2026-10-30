@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
             .from('posts')
             .select('id', { count: 'exact', head: true })
             .eq('workspace_id', workspaceId)
-            .in('status', ['draft', 'scheduled', 'publishing'])
+            .eq('status', 'draft')
             .gte('created_at', since24h);
           return (!error && typeof count === 'number') ? count : 0;
         } catch {
