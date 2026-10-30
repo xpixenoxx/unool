@@ -249,6 +249,20 @@ export class PublishService {
     });
 
     const publishPromises = variants.map(async (variant) => {
+      if (variant.status === 'published') {
+        logger.info(`PublishService: variant ${variant.platform} already published — skipping duplicate dispatch`, {
+          postId,
+          variantId: variant.id,
+        });
+        return {
+          platform: variant.platform,
+          result: ok({
+            success: true,
+            platformPostId: variant.platformPostId || undefined,
+          }),
+        };
+      }
+
       logger.info(`PublishService: starting publish for ${variant.platform}`, {
         postId,
         variantId: variant.id,

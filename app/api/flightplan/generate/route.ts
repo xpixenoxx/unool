@@ -176,11 +176,27 @@ export async function POST(request: NextRequest) {
           adaptationPromptVersion: PostAdapter['PROMPT_VERSION'],
         });
 
-        // If scheduled, update status
+        // If scheduled, update status and enqueue via QStash
         if (scheduledAt) {
+          let qstashMessageId: string | null = null;
+          if (config.QSTASH_TOKEN) {
+            try {
+              const { queueService } = await import('@/lib/services/QueueService');
+              qstashMessageId = await queueService.enqueueScheduledPublishTask({
+                postId: post.id,
+                workspaceId,
+                scheduledAt,
+              });
+            } catch (qErr) {
+              logger.warn('Failed to enqueue flight plan post in QStash', { postId: post.id, error: qErr });
+            }
+          }
+
           await postRepository.update(post.id, {
             status: 'scheduled',
             scheduledAt,
+            qstashMessageId,
+            scheduleStrategy: 'simultaneous',
           });
         }
 

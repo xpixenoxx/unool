@@ -88,9 +88,9 @@ class QueueService {
     }
 
     try {
-      // v2 API: notBefore is in milliseconds
-      const notBeforeMs = params.scheduledAt.getTime();
-      const dedupeKey = `schedule-${params.postId}-${params.variantId ?? 'all'}-${notBeforeMs}`;
+      // QStash API expects notBefore as a Unix timestamp in seconds
+      const notBeforeSeconds = Math.floor(params.scheduledAt.getTime() / 1000);
+      const dedupeKey = `schedule-${params.postId}-${params.variantId ?? 'all'}-${notBeforeSeconds}`;
 
       const res = await this.client.publishJSON({
         url: this.webhookUrl,
@@ -101,8 +101,11 @@ class QueueService {
           autoFirstComment: params.autoFirstComment ?? null,
           isScheduled: true,
         },
-        notBefore: notBeforeMs,
+        notBefore: notBeforeSeconds,
         retries: 3,
+        headers: {
+          'Upstash-Timeout': '300s',
+        },
         deduplicationId: dedupeKey,
       });
 

@@ -36,11 +36,32 @@ async function handler(request: NextRequest) {
         return NextResponse.json({ error: 'Missing signature' }, { status: 401 });
       }
       const rawBody = await request.text();
-      const isValid = await receiver.verify({
-        signature,
-        body: rawBody,
-        url: config.NEXT_PUBLIC_APP_URL + '/api/webhooks/qstash/publish',
-      });
+      const configuredUrl = config.NEXT_PUBLIC_APP_URL + '/api/webhooks/qstash/publish';
+      let isValid = false;
+      try {
+        isValid = await receiver.verify({
+          signature,
+          body: rawBody,
+          url: configuredUrl,
+          clockTolerance: 300, // 5 minutes tolerance for delayed dispatches / clock drift
+        });
+      } catch {
+        isValid = false;
+      }
+
+      if (!isValid && request.url && request.url !== configuredUrl) {
+        try {
+          isValid = await receiver.verify({
+            signature,
+            body: rawBody,
+            url: request.url,
+            clockTolerance: 300,
+          });
+        } catch {
+          isValid = false;
+        }
+      }
+
       if (!isValid) {
         logger.warn('QStash webhook: invalid signature');
         return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
@@ -98,6 +119,12 @@ async function handlePublish(body: Record<string, unknown>, _request: NextReques
     // Post was cancelled or reset to draft — skip without retrying
     logger.info('QStash scheduled publish: post reverted to draft — skipping', { postId });
     return NextResponse.json({ skipped: true, reason: 'post_cancelled' });
+  }
+
+  if (isScheduled && post.status === 'published') {
+    // Self-healing or previous dispatch already published this post — skip to prevent duplicate dispatches
+    logger.info('QStash scheduled publish: post already published — skipping duplicate', { postId });
+    return NextResponse.json({ skipped: true, reason: 'already_published' });
   }
 
   // ── First-comment dispatch ─────────────────────────────────────────────
@@ -183,9 +210,34 @@ async function handlePublish(body: Record<string, unknown>, _request: NextReques
 
   // ── Standard: publish all variants for this post ───────────────────────
   logger.info('QStash background publish executing', { postId, workspaceId, isScheduled });
-  await publishService.publishToAllPlatforms(postId, workspaceId);
+  const publishResults = await publishService.publishToAllPlatforms(postId, workspaceId);
 
-  return NextResponse.json({ success: true });
+  // ── Auto first-comment dispatch for Flight Plan / simultaneous variants ──
+  try {
+    const postVariants = await postRepository.findVariantsByPostId(postId);
+    const { queueService } = await import('@/lib/services/QueueService');
+    for (const v of postVariants) {
+      const comment = v.autoFirstComment || v.firstCommentHint;
+      if (v.status === 'published' && comment && v.platformPostId) {
+        await queueService.enqueueScheduledPublishTask({
+          postId,
+          workspaceId,
+          variantId: `first-comment:${v.id}:${v.platformPostId}`,
+          scheduledAt: new Date(Date.now() + 90_000),
+          autoFirstComment: comment,
+        });
+        logger.info('Dispatched first-comment task for variant', {
+          postId,
+          variantId: v.id,
+          platform: v.platform,
+        });
+      }
+    }
+  } catch (err) {
+    logger.warn('Failed to enqueue auto first-comments after batch publish', { postId, error: err });
+  }
+
+  return NextResponse.json({ success: true, results: publishResults });
 }
 
 export const POST = handler;

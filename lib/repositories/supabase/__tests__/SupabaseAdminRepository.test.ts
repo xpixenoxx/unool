@@ -664,4 +664,179 @@ describe('SupabaseAdminRepository - Recovery Management', () => {
       expect(distribution.recentUsers).toHaveLength(3);
     });
   });
+
+  describe('SupabaseAdminRepository - Workspaces live metrics', () => {
+    let repository: SupabaseAdminRepository;
+
+    beforeEach(() => {
+      vi.clearAllMocks();
+      repository = new SupabaseAdminRepository();
+    });
+
+    it('aggregates real member count, profile count excluding soft-deleted, and posts this month in listWorkspaces', async () => {
+      const mockWorkspaces = [
+        {
+          id: 'ws-1',
+          name: 'My Workspace 1',
+          plan: 'free',
+          plan_status: 'active',
+          plan_expires_at: null,
+          stripe_customer_id: null,
+          stripe_subscription_id: null,
+          trial_ends_at: null,
+          created_at: '2026-10-30T00:00:00Z',
+          updated_at: '2026-10-30T00:00:00Z',
+        },
+        {
+          id: 'ws-2',
+          name: 'My Workspace 2',
+          plan: 'creator',
+          plan_status: 'active',
+          plan_expires_at: null,
+          stripe_customer_id: null,
+          stripe_subscription_id: null,
+          trial_ends_at: null,
+          created_at: '2026-10-29T00:00:00Z',
+          updated_at: '2026-10-29T00:00:00Z',
+        },
+      ];
+
+      const mockMembers = [
+        { workspace_id: 'ws-1' },
+        { workspace_id: 'ws-1' },
+        { workspace_id: 'ws-2' },
+      ];
+
+      const mockProfiles = [
+        { workspace_id: 'ws-1', deleted_at: null },
+        { workspace_id: 'ws-1', deleted_at: '2026-10-25T10:00:00Z' },
+        { workspace_id: 'ws-2', deleted_at: null },
+      ];
+
+      const mockPosts = [
+        { workspace_id: 'ws-1' },
+        { workspace_id: 'ws-1' },
+        { workspace_id: 'ws-1' },
+      ];
+
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'workspaces') {
+          return {
+            select: vi.fn().mockReturnValue({
+              order: vi.fn().mockReturnValue({
+                range: vi.fn().mockResolvedValue({ data: mockWorkspaces, error: null, count: 2 }),
+              }),
+            }),
+          };
+        }
+        if (table === 'workspace_members') {
+          return {
+            select: vi.fn().mockReturnValue({
+              in: vi.fn().mockResolvedValue({ data: mockMembers, error: null }),
+            }),
+          };
+        }
+        if (table === 'profiles') {
+          return {
+            select: vi.fn().mockReturnValue({
+              in: vi.fn().mockResolvedValue({ data: mockProfiles, error: null }),
+            }),
+          };
+        }
+        if (table === 'posts') {
+          return {
+            select: vi.fn().mockReturnValue({
+              in: vi.fn().mockReturnValue({
+                gte: vi.fn().mockResolvedValue({ data: mockPosts, error: null }),
+              }),
+            }),
+          };
+        }
+        return {
+          select: vi.fn().mockReturnValue({
+            in: vi.fn().mockResolvedValue({ data: [], error: null }),
+          }),
+        };
+      });
+
+      const result = await repository.listWorkspaces({ page: 1, pageSize: 20 });
+
+      expect(result.total).toBe(2);
+      expect(result.data).toHaveLength(2);
+
+      const ws1 = result.data.find((w) => w.id === 'ws-1')!;
+      expect(ws1.memberCount).toBe(2);
+      expect(ws1.profileCount).toBe(1);
+      expect(ws1.postsThisMonth).toBe(3);
+
+      const ws2 = result.data.find((w) => w.id === 'ws-2')!;
+      expect(ws2.memberCount).toBe(1);
+      expect(ws2.profileCount).toBe(1);
+      expect(ws2.postsThisMonth).toBe(0);
+    });
+
+    it('computes live counts for getWorkspaceById', async () => {
+      const mockWorkspace = {
+        id: 'ws-single',
+        name: 'Single Workspace',
+        plan: 'pro',
+        plan_status: 'active',
+        plan_expires_at: null,
+        stripe_customer_id: null,
+        stripe_subscription_id: null,
+        trial_ends_at: null,
+        created_at: '2026-10-27T00:00:00Z',
+        updated_at: '2026-10-27T00:00:00Z',
+      };
+
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'workspaces') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                single: vi.fn().mockResolvedValue({ data: mockWorkspace, error: null }),
+              }),
+            }),
+          };
+        }
+        if (table === 'workspace_members') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({ count: 4, error: null }),
+            }),
+          };
+        }
+        if (table === 'profiles') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                is: vi.fn().mockResolvedValue({ count: 2, error: null }),
+              }),
+            }),
+          };
+        }
+        if (table === 'posts') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                gte: vi.fn().mockResolvedValue({ count: 12, error: null }),
+              }),
+            }),
+          };
+        }
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({ count: 0, error: null }),
+          }),
+        };
+      });
+
+      const ws = await repository.getWorkspaceById('ws-single');
+      expect(ws).not.toBeNull();
+      expect(ws?.id).toBe('ws-single');
+      expect(ws?.memberCount).toBe(4);
+      expect(ws?.profileCount).toBe(2);
+      expect(ws?.postsThisMonth).toBe(12);
+    });
+  });
 });

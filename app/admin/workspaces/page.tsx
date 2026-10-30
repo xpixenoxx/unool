@@ -10,7 +10,9 @@ import {
   Edit,
   Trash2,
   Plus,
+  RefreshCw,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 import {
   Box,
@@ -250,15 +252,16 @@ export default function AdminWorkspacesPage() {
 
   const totalPages = Math.ceil(total / pageSize);
 
-  const fetchWorkspaces = React.useCallback(async () => {
-    if (!cachedWorkspacesData) setLoading(true);
+  const fetchWorkspaces = React.useCallback(async (isRefresh = false) => {
+    if (!cachedWorkspacesData || isRefresh) setLoading(true);
     setError(null);
     try {
       const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
       if (searchQuery) params.append('search', searchQuery);
       if (planFilter) params.append('plan', planFilter);
       if (statusFilter) params.append('planStatus', statusFilter);
-      const res = await fetch(`/api/admin/workspaces?${params.toString()}`);
+      if (isRefresh) params.append('_t', String(Date.now()));
+      const res = await fetch(`/api/admin/workspaces?${params.toString()}`, { cache: 'no-store' });
       if (!res.ok) throw new Error('Failed to fetch workspaces');
       const data = await res.json();
       setWorkspaces(data.data || []);
@@ -300,7 +303,7 @@ export default function AdminWorkspacesPage() {
       setCreateDialogOpen(false);
       setNewWsName('');
       setNewWsOwner('');
-      await fetchWorkspaces();
+      await fetchWorkspaces(true);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to create workspace');
     } finally {
@@ -355,6 +358,10 @@ export default function AdminWorkspacesPage() {
             </SelectContent>
           </Select>
 
+          <Button variant="outline" size="sm" onClick={() => fetchWorkspaces(true)} disabled={loading}>
+            <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} /> Refresh
+          </Button>
+
           <Button onClick={() => setCreateDialogOpen(true)}>
             <Plus className="mr-2 h-4 w-4" /> New Workspace
           </Button>
@@ -365,7 +372,7 @@ export default function AdminWorkspacesPage() {
         <Card variant="error" padding="md">
           <CardContent className="flex items-center justify-between">
             <Text color="destructive">Error: {error}</Text>
-            <Button variant="ghost" size="sm" onClick={fetchWorkspaces}>Retry</Button>
+            <Button variant="ghost" size="sm" onClick={() => fetchWorkspaces(true)}>Retry</Button>
           </CardContent>
         </Card>
       )}
@@ -380,7 +387,7 @@ export default function AdminWorkspacesPage() {
         onSearch={setSearchQuery}
         searchQuery={searchQuery}
         loading={loading}
-        onRefresh={fetchWorkspaces}
+        onRefresh={() => fetchWorkspaces(true)}
         onOpenCreate={() => setCreateDialogOpen(true)}
       />
 

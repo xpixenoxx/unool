@@ -1,7 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { scheduleService } from '../ScheduleService';
-import { publishService } from '../PublishService';
-import { SupabasePostRepository } from '@/lib/repositories/supabase/SupabasePostRepository';
 
 vi.mock('@/lib/logger', () => ({
   logger: {
@@ -18,9 +15,22 @@ vi.mock('@/lib/services/QueueService', () => ({
   },
 }));
 
+import { scheduleService } from '../ScheduleService';
+import { publishService } from '../PublishService';
+import { SupabasePostRepository } from '@/lib/repositories/supabase/SupabasePostRepository';
+import { SupabaseWorkspaceRepository } from '@/lib/repositories/supabase/SupabaseWorkspaceRepository';
+
 describe('ScheduleService.processDueScheduledPosts', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(SupabaseWorkspaceRepository.prototype, 'findById').mockResolvedValue({
+      id: 'ws-test',
+      name: 'Test WS',
+      ownerId: 'user-1',
+      plan: 'pro',
+      settings: {},
+      createdAt: new Date(),
+    });
   });
 
   it('publishes due scheduled posts and updates status to published', async () => {
@@ -127,6 +137,46 @@ describe('ScheduleService.processDueScheduledPosts', () => {
     expect(result.succeeded).toBe(1);
     expect(result.failed).toBe(0);
     expect(publishService.publishToAllPlatforms).toHaveBeenCalledWith('post-stuck-1', 'ws-test');
+  });
+
+  it('skips due scheduled posts if workspace queue is held', async () => {
+    const mockHeldPost = {
+      id: 'post-held-1',
+      profileId: 'prof-1',
+      workspaceId: 'ws-held',
+      content: 'Held post content',
+      status: 'scheduled' as const,
+      scheduledAt: new Date(Date.now() - 60_000),
+      publishedAt: null,
+      adaptationPromptVersion: null,
+      version: 1,
+      qstashMessageId: null,
+      scheduleStrategy: 'simultaneous' as const,
+      arcId: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    vi.spyOn(SupabasePostRepository.prototype, 'findDueScheduledPosts').mockResolvedValue([mockHeldPost]);
+    vi.spyOn(SupabasePostRepository.prototype, 'findDueScheduledVariants').mockResolvedValue([]);
+
+    // Mock workspace repository to return queue_held_until in the future
+    const futureHold = new Date(Date.now() + 3600_000).toISOString();
+    vi.spyOn(SupabaseWorkspaceRepository.prototype, 'findById').mockResolvedValue({
+      id: 'ws-held',
+      name: 'Held WS',
+      ownerId: 'user-1',
+      plan: 'pro',
+      settings: { queue_held_until: futureHold },
+      createdAt: new Date(),
+    });
+
+    const result = await scheduleService.processDueScheduledPosts('ws-held');
+
+    expect(result.processed).toBe(0);
+    expect(result.succeeded).toBe(0);
+    expect(result.failed).toBe(0);
+    expect(publishService.publishToAllPlatforms).not.toHaveBeenCalled();
   });
 });
 

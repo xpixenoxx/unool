@@ -27,7 +27,11 @@ export async function GET(request: NextRequest) {
     };
 
     const result = await adminRepository.listWorkspaces(params);
-    return NextResponse.json(result);
+    return NextResponse.json(result, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+      },
+    });
   } catch (error) {
     console.error('Failed to list workspaces:', error);
     return NextResponse.json({ error: 'Failed to list workspaces' }, { status: 500 });

@@ -1,5 +1,6 @@
 import { logger } from '@/lib/logger';
 import { SupabasePostRepository } from '@/lib/repositories/supabase/SupabasePostRepository';
+import { SupabaseWorkspaceRepository } from '@/lib/repositories/supabase/SupabaseWorkspaceRepository';
 import { queueService } from '@/lib/services/QueueService';
 import { publishService } from '@/lib/services/PublishService';
 import type {
@@ -15,6 +16,7 @@ import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 
 const postRepository = new SupabasePostRepository();
+const workspaceRepository = new SupabaseWorkspaceRepository();
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -472,8 +474,23 @@ export class ScheduleService {
     try {
       // 1. Process posts whose scheduled_at has arrived
       const duePosts = await postRepository.findDueScheduledPosts(now, workspaceId);
-
       for (const post of duePosts) {
+        // Check if queue is held for this workspace
+        try {
+          const ws = await workspaceRepository.findById(post.workspaceId);
+          const heldUntil = (ws?.settings as Record<string, unknown> | null)?.queue_held_until;
+          if (heldUntil && new Date(heldUntil as string) > now) {
+            logger.info('Skipping due post because queue is held for workspace', {
+              postId: post.id,
+              workspaceId: post.workspaceId,
+              heldUntil,
+            });
+            continue;
+          }
+        } catch (wsErr) {
+          logger.warn('Failed to check workspace queue hold, proceeding with due post', { postId: post.id, error: wsErr });
+        }
+
         // Prevent concurrent double-execution: atomically transition to 'publishing'
         try {
           await postRepository.updateStatus(post.id, 'publishing');
@@ -494,6 +511,27 @@ export class ScheduleService {
           if (anySuccess) {
             results.succeeded++;
             logger.info('Due scheduled post published successfully', { postId: post.id });
+
+            // Dispatch auto first-comments via QStash if configured
+            if (config.QSTASH_TOKEN) {
+              try {
+                const variants = await postRepository.findVariantsByPostId(post.id);
+                for (const v of variants) {
+                  const comment = v.autoFirstComment || v.firstCommentHint;
+                  if (v.status === 'published' && comment && v.platformPostId) {
+                    await queueService.enqueueScheduledPublishTask({
+                      postId: post.id,
+                      workspaceId: post.workspaceId,
+                      variantId: `first-comment:${v.id}:${v.platformPostId}`,
+                      scheduledAt: new Date(Date.now() + 90_000),
+                      autoFirstComment: comment,
+                    });
+                  }
+                }
+              } catch (fcErr) {
+                logger.warn('Failed to dispatch first comment in processDueScheduledPosts', { postId: post.id, error: fcErr });
+              }
+            }
           } else {
             results.failed++;
             const errStr = Object.values(publishResult).map((r: any) => r.error).filter(Boolean).join('; ') || 'All platform publishes failed';

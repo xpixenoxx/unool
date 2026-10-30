@@ -12,6 +12,7 @@ import {
   Trash2,
   ExternalLink,
   Edit,
+  Globe,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -94,6 +95,8 @@ interface WorkspaceDetail {
   subscription: WorkspaceSubscription | null;
   paymentOrders: PaymentOrder[];
   platformConnections: PlatformConnection[];
+  profiles?: Array<{ id: string; subdomain: string; name: string | null; created_at: string }>;
+  profileCount?: number;
   totalPosts: number;
 }
 
@@ -138,7 +141,7 @@ export default function WorkspaceDetailPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/admin/workspaces/${workspaceId}`);
+      const res = await fetch(`/api/admin/workspaces/${workspaceId}?_t=${Date.now()}`, { cache: 'no-store' });
       if (!res.ok) throw new Error('Workspace not found');
       const data = await res.json();
       setWorkspace(data);
@@ -293,6 +296,10 @@ export default function WorkspaceDetailPage() {
                   <Text weight="medium">{workspace.members.length}</Text>
                 </div>
                 <div>
+                  <Text size="xs" color="muted">Profiles</Text>
+                  <Text weight="medium">{workspace.profileCount ?? workspace.profiles?.length ?? 0}</Text>
+                </div>
+                <div>
                   <Text size="xs" color="muted">Posts</Text>
                   <Text weight="medium">{workspace.totalPosts}</Text>
                 </div>
@@ -308,6 +315,9 @@ export default function WorkspaceDetailPage() {
           <TabsList>
             <TabsTrigger value="members" className="flex items-center gap-2">
               <Users className="h-4 w-4" /> Members ({workspace.members.length})
+            </TabsTrigger>
+            <TabsTrigger value="profiles" className="flex items-center gap-2">
+              <Globe className="h-4 w-4" /> Profiles ({workspace.profiles?.length ?? workspace.profileCount ?? 0})
             </TabsTrigger>
             <TabsTrigger value="payments" className="flex items-center gap-2">
               <CreditCard className="h-4 w-4" /> Payments ({workspace.paymentOrders.length})
@@ -479,6 +489,56 @@ export default function WorkspaceDetailPage() {
                         </Text>
                       </Box>
                     ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Profiles Tab */}
+          <TabsContent value="profiles">
+            <Card>
+              <CardHeader>
+                <Flex align="center" gap={2}>
+                  <CardTitle>Connected Profiles</CardTitle>
+                  <SectionGuide
+                    title="Workspace Profiles"
+                    description="Portfolio and landing profiles linked directly to this workspace."
+                    example="Profile: priya\nURL: priya.unool.co"
+                  />
+                </Flex>
+                <CardDescription>Profiles created inside this workspace</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {!workspace.profiles || workspace.profiles.length === 0 ? (
+                  <Text color="muted" className="py-6 text-center">No profiles found</Text>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b text-left">
+                          <th className="py-3 px-2 font-medium text-muted-foreground">Name</th>
+                          <th className="py-3 px-2 font-medium text-muted-foreground">Subdomain</th>
+                          <th className="py-3 px-2 font-medium text-muted-foreground">Created</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {workspace.profiles.map((p) => (
+                          <tr key={p.id} className="border-b hover:bg-muted/40 transition-colors">
+                            <td className="py-3 px-2">
+                              <Text weight="medium">{p.name || 'Unnamed'}</Text>
+                              <Text size="xs" color="muted" className="font-mono">{p.id}</Text>
+                            </td>
+                            <td className="py-3 px-2 font-mono text-xs">
+                              {p.subdomain ? `${p.subdomain}.unool.co` : '—'}
+                            </td>
+                            <td className="py-3 px-2 text-muted-foreground text-xs">
+                              {new Date(p.created_at).toLocaleDateString()}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </CardContent>

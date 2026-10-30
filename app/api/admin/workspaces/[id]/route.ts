@@ -23,12 +23,13 @@ export async function GET(
     }
 
     // Parallel fetch related details
-    const [membersRes, subscriptionRes, paymentsRes, platformsRes, postsCountRes] = await Promise.all([
+    const [membersRes, subscriptionRes, paymentsRes, platformsRes, postsCountRes, profilesRes] = await Promise.all([
       adminClient.from('workspace_members').select('*').eq('workspace_id', id),
       adminClient.from('subscriptions').select('*').eq('workspace_id', id).maybeSingle(),
       adminClient.from('payment_orders').select('*').eq('workspace_id', id).order('created_at', { ascending: false }).limit(20),
       adminClient.from('platform_connections').select('*').eq('workspace_id', id),
       adminClient.from('posts').select('id', { count: 'exact', head: true }).eq('workspace_id', id),
+      adminClient.from('profiles').select('id, subdomain, name, created_at').eq('workspace_id', id).is('deleted_at', null),
     ]);
 
     interface WorkspaceMemberRow {
@@ -62,7 +63,13 @@ export async function GET(
       subscription: subscriptionRes.data || null,
       paymentOrders: paymentsRes.data || [],
       platformConnections: platformsRes.data || [],
+      profiles: profilesRes.data || [],
+      profileCount: profilesRes.data?.length ?? workspace.profileCount ?? 0,
       totalPosts: postsCountRes.count || 0,
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+      },
     });
   } catch (error) {
     console.error('Failed to get workspace:', error);

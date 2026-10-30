@@ -271,8 +271,66 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
     if (error) throw error;
 
+    const workspaces: WorkspaceAdminView[] = (data || []).map(this.mapWorkspace);
+    const workspaceIds = workspaces.map((w) => w.id);
+
+    if (workspaceIds.length > 0) {
+      try {
+        const monthStart = new Date();
+        monthStart.setDate(1);
+        monthStart.setHours(0, 0, 0, 0);
+
+        const [membersResult, profilesResult, postsResult] = await Promise.all([
+          adminClient
+            .from('workspace_members')
+            .select('workspace_id')
+            .in('workspace_id', workspaceIds),
+          adminClient
+            .from('profiles')
+            .select('workspace_id, deleted_at')
+            .in('workspace_id', workspaceIds),
+          adminClient
+            .from('posts')
+            .select('workspace_id')
+            .in('workspace_id', workspaceIds)
+            .gte('created_at', monthStart.toISOString()),
+        ]);
+
+        const memberCounts = new Map<string, number>();
+        (membersResult.data || []).forEach((row: { workspace_id: string }) => {
+          memberCounts.set(row.workspace_id, (memberCounts.get(row.workspace_id) || 0) + 1);
+        });
+
+        const profileCounts = new Map<string, number>();
+        (profilesResult.data || []).forEach((row: { workspace_id: string; deleted_at?: string | null }) => {
+          if (!row.deleted_at) {
+            profileCounts.set(row.workspace_id, (profileCounts.get(row.workspace_id) || 0) + 1);
+          }
+        });
+
+        const postsCounts = new Map<string, number>();
+        (postsResult.data || []).forEach((row: { workspace_id: string }) => {
+          postsCounts.set(row.workspace_id, (postsCounts.get(row.workspace_id) || 0) + 1);
+        });
+
+        workspaces.forEach((w) => {
+          w.memberCount = memberCounts.get(w.id) || 0;
+          w.profileCount = profileCounts.get(w.id) || 0;
+          w.postsThisMonth = postsCounts.get(w.id) || 0;
+        });
+
+        if (sortBy === 'memberCount') {
+          workspaces.sort((a, b) => sortOrder === 'asc' ? a.memberCount - b.memberCount : b.memberCount - a.memberCount);
+        } else if (sortBy === 'postsThisMonth') {
+          workspaces.sort((a, b) => sortOrder === 'asc' ? a.postsThisMonth - b.postsThisMonth : b.postsThisMonth - a.postsThisMonth);
+        }
+      } catch (countErr) {
+        console.error('Failed to compute live workspace counts:', countErr);
+      }
+    }
+
     return buildPagination(
-      (data || []).map(this.mapWorkspace),
+      workspaces,
       count ?? 0,
       page,
       pageSize
@@ -287,7 +345,28 @@ export class SupabaseAdminRepository implements IAdminRepository {
       .single();
 
     if (error || !data) return null;
-    return this.mapWorkspace(data);
+
+    const ws = this.mapWorkspace(data);
+
+    try {
+      const monthStart = new Date();
+      monthStart.setDate(1);
+      monthStart.setHours(0, 0, 0, 0);
+
+      const [membersRes, profilesRes, postsRes] = await Promise.all([
+        adminClient.from('workspace_members').select('id', { count: 'exact', head: true }).eq('workspace_id', id),
+        adminClient.from('profiles').select('id', { count: 'exact', head: true }).eq('workspace_id', id).is('deleted_at', null),
+        adminClient.from('posts').select('id', { count: 'exact', head: true }).eq('workspace_id', id).gte('created_at', monthStart.toISOString()),
+      ]);
+
+      ws.memberCount = membersRes.count ?? 0;
+      ws.profileCount = profilesRes.count ?? 0;
+      ws.postsThisMonth = postsRes.count ?? 0;
+    } catch (countErr) {
+      console.error('Failed to compute live counts for workspace:', id, countErr);
+    }
+
+    return ws;
   }
 
   async updateWorkspacePlan(workspaceId: string, plan: string, adminUserId: string): Promise<WorkspaceAdminView | null> {
@@ -1744,8 +1823,6 @@ export class SupabaseAdminRepository implements IAdminRepository {
       name: 'name',
       createdAt: 'created_at',
       plan: 'plan',
-      memberCount: 'member_count',
-      postsThisMonth: 'posts_this_month',
     };
     return map[sortBy] || 'created_at';
   }
