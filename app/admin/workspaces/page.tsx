@@ -11,6 +11,7 @@ import {
   Trash2,
   Plus,
   RefreshCw,
+  Clock,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -75,6 +76,7 @@ interface WorkspaceTableProps {
 
 function PlanBadge({ plan }: { plan: string }) {
   const colors: Record<string, string> = {
+    free: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
     spark: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
     creator: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
     pro: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
@@ -242,6 +244,7 @@ export default function AdminWorkspacesPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [loading, setLoading] = useState(!cachedWorkspacesData);
   const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(cachedWorkspacesData ? new Date() : null);
 
   // Create Workspace Dialog
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -273,11 +276,20 @@ export default function AdminWorkspacesPage() {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setLoading(false);
+      setLastUpdated(new Date());
     }
   }, [page, pageSize, searchQuery, planFilter, statusFilter]);
 
   useEffect(() => {
     fetchWorkspaces();
+  }, [fetchWorkspaces]);
+
+  // Auto-refresh every 30 seconds to keep data live
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchWorkspaces(true);
+    }, 30000);
+    return () => clearInterval(interval);
   }, [fetchWorkspaces]);
 
   const handleCreateWorkspace = async () => {
@@ -338,6 +350,7 @@ export default function AdminWorkspacesPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Plans</SelectItem>
+              <SelectItem value="free">Free</SelectItem>
               <SelectItem value="spark">Spark (Free)</SelectItem>
               <SelectItem value="creator">Creator</SelectItem>
               <SelectItem value="pro">Pro</SelectItem>
@@ -358,6 +371,12 @@ export default function AdminWorkspacesPage() {
             </SelectContent>
           </Select>
 
+          {lastUpdated && (
+            <Flex align="center" gap={1} className="text-xs text-muted-foreground">
+              <Clock className="h-3 w-3" />
+              <span>{lastUpdated.toLocaleTimeString()}</span>
+            </Flex>
+          )}
           <Button variant="outline" size="sm" onClick={() => fetchWorkspaces(true)} disabled={loading}>
             <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} /> Refresh
           </Button>
