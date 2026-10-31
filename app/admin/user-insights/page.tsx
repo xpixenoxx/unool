@@ -13,6 +13,17 @@ import {
   Layers,
   Activity,
   Zap,
+  Clock,
+  Hourglass,
+  LayoutGrid,
+  PenTool,
+  CalendarDays,
+  Radio,
+  Lock,
+  Gift,
+  Globe,
+  CreditCard,
+  Settings as SettingsIcon,
 } from 'lucide-react';
 import {
   Box,
@@ -30,15 +41,51 @@ import { InteractiveSignupChart } from '@/components/admin/interactive-signup-ch
 
 // ---- Types ----
 interface PlanDetail { plan: string; count: number; percentage: number; }
+interface RecentUserItem {
+  id: string;
+  email: string;
+  plan: string;
+  createdAt: string;
+  isSuspended: boolean;
+  totalTimeSeconds?: number;
+  formattedTimeSpent?: string;
+  topSection?: string;
+}
+
 interface UserBreakdown {
   total: number;
   newUsersLast30Days: number;
   byPlan: Record<string, number>;
   planDetails: PlanDetail[];
   registrationsLast30Days: Array<{ date: string; count: number }>;
-  recentUsers?: Array<{ id: string; email: string; plan: string; createdAt: string; isSuspended: boolean }>;
+  recentUsers?: RecentUserItem[];
 }
+
 interface PlatformStat { platform: string; users: number; }
+
+interface SectionTimeStat {
+  section: string;
+  name: string;
+  color: string;
+  description: string;
+  totalSeconds: number;
+  formattedTotal: string;
+  percentage: number;
+  activeUsersCount: number;
+  avgSecondsPerUser: number;
+  formattedAvg: string;
+}
+
+interface TimeSpentStats {
+  overallSeconds: number;
+  formattedOverall: string;
+  avgSecondsPerUser: number;
+  formattedAvgPerUser: string;
+  trackedUsersCount: number;
+  mostActiveSection: string;
+  sections: SectionTimeStat[];
+}
+
 interface Insights {
   userBreakdown: UserBreakdown;
   postsByPlatform: Record<string, number>;
@@ -50,6 +97,7 @@ interface Insights {
     platformUserCounts: PlatformStat[];
     exclusivePlatformUsers: PlatformStat[];
   };
+  timeSpentStats?: TimeSpentStats;
   generatedAt: string;
 }
 
@@ -91,6 +139,24 @@ function getPlatformColor(p: string) {
   return PLATFORM_COLORS[p.toLowerCase()] || '#6b7280';
 }
 
+function getSectionIcon(section: string) {
+  const iconProps = { className: 'h-4 w-4 shrink-0' };
+  switch (section) {
+    case 'overview': return <LayoutGrid {...iconProps} />;
+    case 'studio': return <PenTool {...iconProps} />;
+    case 'flightplan': return <CalendarDays {...iconProps} />;
+    case 'signal': return <Radio {...iconProps} />;
+    case 'automation': return <Zap {...iconProps} />;
+    case 'unlock-gates': return <Lock {...iconProps} />;
+    case 'referrals': return <Gift {...iconProps} />;
+    case 'profile': return <Globe {...iconProps} />;
+    case 'billing': return <CreditCard {...iconProps} />;
+    case 'settings': return <SettingsIcon {...iconProps} />;
+    case 'composer': return <BarChart3 {...iconProps} />;
+    default: return <Clock {...iconProps} />;
+  }
+}
+
 // ---- SVG Donut Chart ----
 function DonutChart({ data, total, cx = 80, cy = 80, r = 60, stroke = 14 }: {
   data: Array<{ label: string; value: number; color: string }>;
@@ -105,7 +171,7 @@ function DonutChart({ data, total, cx = 80, cy = 80, r = 60, stroke = 14 }: {
     </svg>
   );
   let offset = -90;
-  const segments = data.filter(d => d.value > 0).map((d, i) => {
+  const segments = data.filter(d => d.value > 0).map((d) => {
     const pct = d.value / total;
     const degrees = pct * 360;
     const startAngle = offset;
@@ -275,7 +341,7 @@ export default function UserInsightsPage() {
 
   if (!data) return null;
 
-  const { userBreakdown, postsByPlatform, platformStats } = data;
+  const { userBreakdown, postsByPlatform, platformStats, timeSpentStats } = data;
 
   // Plan donut data
   const planDonutData = userBreakdown.planDetails.map(d => ({
@@ -289,12 +355,6 @@ export default function UserInsightsPage() {
     .map(([label, value]) => ({ label, value }))
     .sort((a, b) => b.value - a.value);
 
-  // Platform user counts bar data
-  const platformUserBar = platformStats.platformUserCounts.slice(0, 10).map(p => ({
-    label: p.platform,
-    value: p.users,
-  }));
-
   // Channel count donut
   const channelDonutData = [
     { label: 'No channel', value: platformStats.usersWithNoPlatforms, color: '#6b7280' },
@@ -304,6 +364,9 @@ export default function UserInsightsPage() {
 
   // Growth data (30d registrations)
   const regData = userBreakdown.registrationsLast30Days || [];
+
+  // Sections time spent list
+  const sectionsList = timeSpentStats?.sections || [];
 
   return (
     <Box className="space-y-6 pb-10">
@@ -316,7 +379,7 @@ export default function UserInsightsPage() {
             </Button>
             <div>
               <Text size="3xl" weight="bold" color="foreground">User Insights</Text>
-              <Text size="sm" color="muted">Real-time breakdown of your user base, plans, and platform usage.</Text>
+              <Text size="sm" color="muted">Real-time breakdown of user engagement, section time, plans, and platform reach.</Text>
             </div>
           </Flex>
         </Flex>
@@ -332,23 +395,37 @@ export default function UserInsightsPage() {
         </Flex>
       </Flex>
 
-      {/* Top KPI row */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Top KPI row - Includes Overall Time & Most Active Section */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {[
-          { label: 'Total Users', value: userBreakdown.total, icon: <Users className="h-5 w-5" />, color: '#8b5cf6', sub: 'All-time' },
-          { label: 'New (30d)', value: userBreakdown.newUsersLast30Days, icon: <TrendingUp className="h-5 w-5" />, color: '#10b981', sub: `+${((userBreakdown.newUsersLast30Days / Math.max(userBreakdown.total, 1)) * 100).toFixed(1)}% of total` },
-          { label: 'Posts Published', value: Object.values(postsByPlatform).reduce((a, b) => a + b, 0), icon: <Activity className="h-5 w-5" />, color: '#3b82f6', sub: 'All platforms' },
-          { label: 'Multi-Channel Users', value: platformStats.multiChannelUsers, icon: <Share2 className="h-5 w-5" />, color: '#f59e0b', sub: `${platformStats.oneChannelUsers} single-channel` },
+          { label: 'Total Users', value: userBreakdown.total.toLocaleString(), icon: <Users className="h-5 w-5" />, color: '#8b5cf6', sub: 'All-time registered' },
+          { label: 'New (30d)', value: userBreakdown.newUsersLast30Days.toLocaleString(), icon: <TrendingUp className="h-5 w-5" />, color: '#10b981', sub: `+${((userBreakdown.newUsersLast30Days / Math.max(userBreakdown.total, 1)) * 100).toFixed(1)}% of total` },
+          {
+            label: 'Overall Time in Unool',
+            value: timeSpentStats?.formattedOverall || '0s',
+            icon: <Clock className="h-5 w-5" />,
+            color: '#6366f1',
+            sub: `Avg ${timeSpentStats?.formattedAvgPerUser || '0s'} / user`,
+          },
+          {
+            label: 'Top Active Section',
+            value: timeSpentStats?.mostActiveSection || 'Overview',
+            icon: <Hourglass className="h-5 w-5" />,
+            color: '#ec4899',
+            sub: `${timeSpentStats?.trackedUsersCount || 0} active users tracked`,
+          },
+          { label: 'Posts Published', value: Object.values(postsByPlatform).reduce((a, b) => a + b, 0).toLocaleString(), icon: <Activity className="h-5 w-5" />, color: '#3b82f6', sub: 'Across platforms' },
+          { label: 'Multi-Channel Users', value: platformStats.multiChannelUsers.toLocaleString(), icon: <Share2 className="h-5 w-5" />, color: '#f59e0b', sub: `${platformStats.oneChannelUsers} single-channel` },
         ].map((m) => (
           <Card key={m.label} variant="default" padding="lg" className="border-border/60">
             <CardContent className="p-0">
               <Flex between className="items-start">
-                <div>
-                  <Text size="sm" color="muted" weight="medium">{m.label}</Text>
-                  <Text size="3xl" weight="bold" style={{ color: m.color }}>{m.value.toLocaleString()}</Text>
-                  <Text size="xs" color="muted" className="mt-1">{m.sub}</Text>
+                <div className="min-w-0 pr-1">
+                  <Text size="sm" color="muted" weight="medium" className="truncate">{m.label}</Text>
+                  <Text size="2xl" weight="bold" style={{ color: m.color }} className="truncate">{m.value}</Text>
+                  <Text size="xs" color="muted" className="mt-1 truncate">{m.sub}</Text>
                 </div>
-                <div className="p-2 rounded-xl" style={{ background: `${m.color}20` }}>
+                <div className="p-2 rounded-xl shrink-0" style={{ background: `${m.color}20` }}>
                   <div style={{ color: m.color }}>{m.icon}</div>
                 </div>
               </Flex>
@@ -357,7 +434,136 @@ export default function UserInsightsPage() {
         ))}
       </div>
 
-      {/* Row 2: Plan Distribution + 30-day growth sparkline */}
+      {/* Row 2: Section Time Spent Breakdown (Requested Core Feature) */}
+      <Card variant="analytics" padding="lg" className="border-border/60">
+        <CardHeader className="pb-3">
+          <Flex between className="items-center flex-wrap gap-2">
+            <div>
+              <Flex align="center" gap={2}>
+                <Clock className="h-5 w-5 text-indigo-500" />
+                <CardTitle className="text-xl">Time Spent by Dashboard Section</CardTitle>
+              </Flex>
+              <CardDescription>
+                Detailed active time users spend across every section in Unool dashboard (Overview, Flight Plan, Studio, Referrals, Signal, etc.)
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-3">
+              <Badge variant="outline" className="text-xs bg-indigo-500/10 text-indigo-600 border-indigo-500/30 font-medium">
+                Overall: {timeSpentStats?.formattedOverall || '0s'}
+              </Badge>
+              <Badge variant="outline" className="text-xs text-muted-foreground font-normal">
+                {timeSpentStats?.trackedUsersCount || 0} active users tracked
+              </Badge>
+            </div>
+          </Flex>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {sectionsList.length > 0 ? (
+            <div className="grid gap-6 lg:grid-cols-2">
+              {/* Left Column: Progress bars for all sections */}
+              <div className="space-y-4">
+                <Text size="sm" weight="semibold" color="foreground">Section Engagement Breakdown</Text>
+                <div className="space-y-3">
+                  {sectionsList.map((sec) => (
+                    <div key={sec.section} className="p-3 rounded-xl border border-border/50 bg-muted/20 hover:bg-muted/40 transition-colors space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div
+                            className="p-1.5 rounded-lg text-white shrink-0 flex items-center justify-center"
+                            style={{ background: sec.color }}
+                          >
+                            {getSectionIcon(sec.section)}
+                          </div>
+                          <div className="min-w-0">
+                            <span className="text-sm font-bold text-foreground block truncate">{sec.name}</span>
+                            <span className="text-xs text-muted-foreground block truncate">{sec.description}</span>
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <span className="text-sm font-bold" style={{ color: sec.color }}>
+                            {sec.formattedTotal}
+                          </span>
+                          <span className="text-xs text-muted-foreground ml-2 font-mono">
+                            {sec.percentage}%
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Percentage progress bar */}
+                      <div className="h-2 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-700"
+                          style={{
+                            width: `${Math.max(sec.percentage, sec.totalSeconds > 0 ? 1 : 0)}%`,
+                            background: sec.color,
+                          }}
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-0.5">
+                        <span>{sec.activeUsersCount} {sec.activeUsersCount === 1 ? 'user' : 'users'} engaged</span>
+                        <span>Avg: {sec.formattedAvg} / user</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Right Column: Visual distribution summary + Quick stats */}
+              <div className="space-y-4 flex flex-col justify-between">
+                <div>
+                  <Text size="sm" weight="semibold" color="foreground">Relative Time Distribution</Text>
+                  <Text size="xs" color="muted" className="mb-3">Visual comparison of time invested per dashboard area</Text>
+                  <BarChart
+                    data={sectionsList.map(s => ({ label: s.name, value: Math.round(s.totalSeconds / 60) }))}
+                    color="#6366f1"
+                    maxItems={11}
+                  />
+                  <Text size="xs" color="muted" className="text-center mt-1">Values in active minutes</Text>
+                </div>
+
+                {/* Overall insights summary card */}
+                <div className="p-4 rounded-xl border border-border/60 bg-muted/30 space-y-3">
+                  <Text size="sm" weight="bold" color="foreground">Engagement Insights</Text>
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div className="p-2.5 rounded-lg bg-background border border-border/40">
+                      <span className="text-muted-foreground block">Overall Time Spent</span>
+                      <span className="text-base font-bold text-indigo-600 dark:text-indigo-400">
+                        {timeSpentStats?.formattedOverall || '0s'}
+                      </span>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-background border border-border/40">
+                      <span className="text-muted-foreground block">Avg Time per User</span>
+                      <span className="text-base font-bold text-emerald-600 dark:text-emerald-400">
+                        {timeSpentStats?.formattedAvgPerUser || '0s'}
+                      </span>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-background border border-border/40">
+                      <span className="text-muted-foreground block">Top Active Area</span>
+                      <span className="text-base font-bold text-amber-600 dark:text-amber-400">
+                        {timeSpentStats?.mostActiveSection || 'Overview'}
+                      </span>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-background border border-border/40">
+                      <span className="text-muted-foreground block">Tracked Users</span>
+                      <span className="text-base font-bold text-purple-600 dark:text-purple-400">
+                        {timeSpentStats?.trackedUsersCount || 0}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <Flex column align="center" className="py-12" gap={2}>
+              <Clock className="h-10 w-10 text-muted-foreground/40" />
+              <Text color="muted">Tracking initialized — live active user time will appear here automatically.</Text>
+            </Flex>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Row 3: Plan Distribution + 30-day growth sparkline */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Plan Donut */}
         <Card variant="analytics" padding="lg" className="border-border/60">
@@ -403,7 +609,7 @@ export default function UserInsightsPage() {
         />
       </div>
 
-      {/* Row 3: Posts by Platform */}
+      {/* Row 4: Posts by Platform */}
       <Card variant="analytics" padding="lg" className="border-border/60">
         <CardHeader className="pb-2">
           <Flex align="center" gap={2}>
@@ -450,7 +656,7 @@ export default function UserInsightsPage() {
         </CardContent>
       </Card>
 
-      {/* Row 4: Channel usage + Exclusive platform users */}
+      {/* Row 5: Channel usage + Exclusive platform users */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Channel count distribution */}
         <Card variant="analytics" padding="lg" className="border-border/60">
@@ -527,43 +733,15 @@ export default function UserInsightsPage() {
         </Card>
       </div>
 
-      {/* Row 5: Exclusive platform users */}
-      {platformStats.exclusivePlatformUsers.length > 0 && (
-        <Card variant="analytics" padding="lg" className="border-border/60">
-          <CardHeader className="pb-2">
-            <Flex align="center" gap={2}>
-              <Zap className="h-4 w-4 text-amber-500" />
-              <CardTitle>Platform-Exclusive Users</CardTitle>
-            </Flex>
-            <CardDescription>Users who post on only one platform — shows where your audience is focused</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <BarChart
-              data={platformStats.exclusivePlatformUsers.map(p => ({ label: p.platform, value: p.users }))}
-              color="#f59e0b"
-              maxItems={12}
-            />
-            <div className="mt-4 flex flex-wrap gap-2">
-              {platformStats.exclusivePlatformUsers.map(p => (
-                <Badge key={p.platform} variant="outline" className="gap-1.5 capitalize">
-                  <span className="h-2 w-2 rounded-full" style={{ background: getPlatformColor(p.platform) }} />
-                  {p.platform}: {p.users} {p.users === 1 ? 'user' : 'users'}
-                </Badge>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Row 6: Recent users */}
+      {/* Row 6: Recent users with Time in Unool & Top Section */}
       {userBreakdown.recentUsers && userBreakdown.recentUsers.length > 0 && (
         <Card variant="analytics" padding="lg" className="border-border/60">
           <CardHeader className="pb-2">
             <Flex align="center" gap={2}>
               <Users className="h-4 w-4 text-primary" />
-              <CardTitle>Recent Signups</CardTitle>
+              <CardTitle>Recent Users & Engagement</CardTitle>
             </Flex>
-            <CardDescription>Last 20 registered users with their plan</CardDescription>
+            <CardDescription>Last 20 registered users with plan, status, time spent, and most active section</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
@@ -572,6 +750,8 @@ export default function UserInsightsPage() {
                   <tr className="border-b bg-muted/30">
                     <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground uppercase">Email</th>
                     <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground uppercase">Plan</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground uppercase">Time in Unool</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground uppercase">Top Section</th>
                     <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground uppercase">Joined</th>
                     <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground uppercase">Status</th>
                   </tr>
@@ -589,6 +769,17 @@ export default function UserInsightsPage() {
                           style={{ borderColor: PLAN_COLORS[u.plan] + '60', color: PLAN_COLORS[u.plan] }}
                         >
                           {PLAN_LABELS[u.plan] || u.plan}
+                        </Badge>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center gap-1.5 font-mono text-xs font-semibold text-indigo-600 dark:text-indigo-400">
+                          <Clock className="h-3.5 w-3.5" />
+                          <span>{u.formattedTimeSpent || '0s'}</span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <Badge variant="outline" className="text-xs font-normal">
+                          {u.topSection || 'Overview'}
                         </Badge>
                       </td>
                       <td className="px-3 py-2.5">
@@ -613,7 +804,7 @@ export default function UserInsightsPage() {
       )}
 
       <p className="text-xs text-muted-foreground text-center">
-        Auto-refreshing every 15 seconds · Data from live database
+        Auto-refreshing every 15 seconds · Real live user time tracked per dashboard section
       </p>
     </Box>
   );
@@ -629,8 +820,8 @@ function UserInsightsSkeleton() {
           <div className="h-4 w-72 rounded-md bg-muted/50" />
         </div>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {[...Array(4)].map((_, i) => (
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        {[...Array(6)].map((_, i) => (
           <div key={i} className="rounded-xl border border-border/60 bg-card p-6 space-y-3">
             <div className="h-4 w-24 rounded-md bg-muted/60" />
             <div className="h-8 w-20 rounded-md bg-muted/80" />
@@ -638,17 +829,9 @@ function UserInsightsSkeleton() {
           </div>
         ))}
       </div>
-      <div className="grid gap-6 lg:grid-cols-2">
-        {[...Array(2)].map((_, i) => (
-          <div key={i} className="rounded-xl border border-border/60 bg-card p-6 space-y-4">
-            <div className="h-6 w-40 rounded-md bg-muted/70" />
-            <div className="h-40 rounded-lg bg-muted/30" />
-          </div>
-        ))}
-      </div>
       <div className="rounded-xl border border-border/60 bg-card p-6 space-y-4">
         <div className="h-6 w-48 rounded-md bg-muted/70" />
-        <div className="h-32 rounded-lg bg-muted/30" />
+        <div className="h-48 rounded-lg bg-muted/30" />
       </div>
     </div>
   );

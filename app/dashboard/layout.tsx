@@ -12,6 +12,7 @@ import { UserProvider, useUserContext } from '@/lib/hooks/use-user-context';
 import { SignalStrip } from './signal/SignalStrip';
 import { SubdomainClaimPopup } from '@/components/onboarding/SubdomainClaimPopup';
 import { toast } from 'sonner';
+import { DashboardTimeTracker } from '@/components/analytics/DashboardTimeTracker';
 
 /* ─── Biscuit color palette (used by main page background) ── */
 const biscuit = {
@@ -702,6 +703,7 @@ export default function DashboardLayout({
         <SignalStrip />
         {/* Onboarding: subdomain claim popup (30s after first dashboard visit) */}
         <DashboardOnboarding />
+        <DashboardTimeTracker />
       </div>
     </UserProvider>
   );
