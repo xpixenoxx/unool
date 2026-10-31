@@ -48,7 +48,7 @@ describe('Admin User Insights API', () => {
   });
 
   describe('GET /api/admin/user-insights', () => {
-    it('returns time spent breakdown across sections and overall in Unool', async () => {
+    it('returns time spent breakdown across sections and unifies composer under studio', async () => {
       vi.mocked(requireAdmin).mockResolvedValue({
         admin: { userId: 'admin-1', email: 'admin@unool.co' },
       } as any);
@@ -73,6 +73,8 @@ describe('Admin User Insights API', () => {
             select: vi.fn().mockResolvedValue({
               data: [
                 { user_id: 'user-1', section: 'studio', duration_seconds: 300 },
+                // Composer activity is unified under Studio
+                { user_id: 'user-1', section: 'composer', duration_seconds: 120 },
                 { user_id: 'user-1', section: 'flightplan', duration_seconds: 150 },
                 { user_id: 'user-2', section: 'referrals', duration_seconds: 100 },
               ],
@@ -112,9 +114,14 @@ describe('Admin User Insights API', () => {
       expect(data.timeSpentStats.liveNowUsersCount).toBeDefined();
       expect(data.timeSpentStats.sections).toBeDefined();
 
+      // Composer should NOT exist as a standalone section in the breakdown
+      const composerStat = data.timeSpentStats.sections.find((s: any) => s.section === 'composer');
+      expect(composerStat).toBeUndefined();
+
+      // Studio should encompass both direct studio time (300) and composer time (120) = 420
       const studioStat = data.timeSpentStats.sections.find((s: any) => s.section === 'studio');
       expect(studioStat).toBeDefined();
-      expect(studioStat.totalSeconds).toBe(300);
+      expect(studioStat.totalSeconds).toBe(420);
       expect(studioStat.name).toBe('Studio');
 
       const flightplanStat = data.timeSpentStats.sections.find((s: any) => s.section === 'flightplan');
@@ -241,4 +248,3 @@ describe('Admin User Insights API', () => {
     });
   });
 });
-

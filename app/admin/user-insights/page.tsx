@@ -156,7 +156,6 @@ function getSectionIcon(section: string) {
     case 'profile': return <Globe {...iconProps} />;
     case 'billing': return <CreditCard {...iconProps} />;
     case 'settings': return <SettingsIcon {...iconProps} />;
-    case 'composer': return <BarChart3 {...iconProps} />;
     default: return <Clock {...iconProps} />;
   }
 }

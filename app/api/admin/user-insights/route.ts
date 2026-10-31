@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 
 export const SECTION_METADATA: Record<string, { name: string; color: string; description: string }> = {
   overview:     { name: 'Overview',     color: '#3b82f6', description: 'Dashboard home & high-level stats' },
-  studio:       { name: 'Studio',       color: '#8b5cf6', description: 'AI idea generator & content creation' },
+  studio:       { name: 'Studio',       color: '#8b5cf6', description: 'AI idea generator, post editor & content creation' },
   flightplan:   { name: 'Flight Plan',  color: '#f59e0b', description: 'Plan, schedule & calendar view' },
   signal:       { name: 'Signal',       color: '#ec4899', description: 'Publishing & cross-platform stream' },
   automation:   { name: 'Automation',   color: '#10b981', description: 'Instagram comment automation' },
@@ -19,7 +19,6 @@ export const SECTION_METADATA: Record<string, { name: string; color: string; des
   profile:      { name: 'Profile',      color: '#06b6d4', description: 'Public page builder & templates' },
   billing:      { name: 'Billing',      color: '#14b8a6', description: 'Subscriptions, plans & checkout' },
   settings:     { name: 'Settings',     color: '#64748b', description: 'Account & workspace configuration' },
-  composer:     { name: 'Composer',     color: '#f97316', description: 'Post editor & media adapt' },
 };
 
 export function formatSeconds(seconds: number, showSeconds: boolean = false): string {
@@ -151,7 +150,10 @@ export async function GET(request: NextRequest) {
       if (!dbTimeErr && dbTimes && dbTimes.length > 0) {
         dbTimesRows = dbTimes;
         dbTimes.forEach((row: any) => {
-          const sec = (row.section || '').toLowerCase();
+          let sec = (row.section || '').toLowerCase();
+          // Unify any composer time into studio
+          if (sec === 'composer') sec = 'studio';
+
           const duration = Math.max(0, Number(row.duration_seconds) || 0);
           const uid = row.user_id;
 
@@ -177,8 +179,12 @@ export async function GET(request: NextRequest) {
             const uid = u.id;
             if (!userLiveTimes[uid]) userLiveTimes[uid] = {};
 
-            Object.entries(metaTimes).forEach(([sec, val]) => {
-              if (sec === 'total' || sec === 'last_active_at') return;
+            Object.entries(metaTimes).forEach(([rawSec, val]) => {
+              if (rawSec === 'total' || rawSec === 'last_active_at') return;
+              let sec = rawSec.toLowerCase();
+              // Unify any composer time into studio
+              if (sec === 'composer') sec = 'studio';
+
               const duration = Math.max(0, Number(val) || 0);
               if (duration > 0) {
                 // Keep the max between table and metadata to prevent double count
@@ -202,7 +208,7 @@ export async function GET(request: NextRequest) {
     const sectionUsersMap: Record<string, Set<string>> = {};
     const userTotalTimeMap: Record<string, { totalSeconds: number; sections: Record<string, number> }> = {};
 
-    // Initialize all canonical sections
+    // Initialize all canonical sections (composer is unified into studio)
     Object.keys(SECTION_METADATA).forEach((sec) => {
       sectionTotals[sec] = 0;
       sectionUsersMap[sec] = new Set();
@@ -240,9 +246,12 @@ export async function GET(request: NextRequest) {
       if (!userTotalTimeMap[uid]) {
         let uTotal = 0;
         const combinedSecs: Record<string, number> = {};
-        Object.entries(secs).forEach(([sec, dur]) => {
-          if (dur > 0) {
-            combinedSecs[sec] = dur;
+        Object.entries(secs).forEach(([rawSec, dur]) => {
+          let sec = rawSec.toLowerCase();
+          if (sec === 'composer') sec = 'studio';
+
+          if (dur > 0 && SECTION_METADATA[sec]) {
+            combinedSecs[sec] = (combinedSecs[sec] || 0) + dur;
             uTotal += dur;
             sectionTotals[sec] = (sectionTotals[sec] || 0) + dur;
             if (!sectionUsersMap[sec]) sectionUsersMap[sec] = new Set();

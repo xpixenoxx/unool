@@ -80,7 +80,8 @@ describe('Analytics Time-Spent Tracker', () => {
       expect(normalizeSectionName('/dashboard/profile')).toBe('profile');
       expect(normalizeSectionName('/dashboard/billing')).toBe('billing');
       expect(normalizeSectionName('/dashboard/settings')).toBe('settings');
-      expect(normalizeSectionName('/dashboard/composer')).toBe('composer');
+      // Composer is unified under Studio (https://unool.co/dashboard/studio)
+      expect(normalizeSectionName('/dashboard/composer')).toBe('studio');
     });
   });
 

@@ -18,7 +18,6 @@ export const VALID_DASHBOARD_SECTIONS = [
   'profile',
   'billing',
   'settings',
-  'composer',
 ] as const;
 
 export type DashboardSection = (typeof VALID_DASHBOARD_SECTIONS)[number];
@@ -35,7 +34,7 @@ export function normalizeSectionName(raw: string): DashboardSection {
   if (clean.startsWith('profile')) return 'profile';
   if (clean.startsWith('billing')) return 'billing';
   if (clean.startsWith('setting')) return 'settings';
-  if (clean.startsWith('composer')) return 'composer';
+  if (clean.startsWith('composer')) return 'studio';
   return 'overview';
 }
 

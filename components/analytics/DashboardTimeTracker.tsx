@@ -17,7 +17,7 @@ export function normalizeDashboardSection(pathname: string): string {
   if (clean.startsWith('profile')) return 'profile';
   if (clean.startsWith('billing')) return 'billing';
   if (clean.startsWith('setting')) return 'settings';
-  if (clean.startsWith('composer')) return 'composer';
+  if (clean.startsWith('composer')) return 'studio';
   return 'overview';
 }
 
@@ -31,7 +31,7 @@ interface DashboardTimeTrackerProps {
  * Real-time active-time tracker for Unool dashboard sections.
  * Tracks active engagement time and flushes heartbeats:
  * - After first 5 seconds of active interaction (fast initial live sync)
- * - Every 15 seconds of ongoing active engagement
+ * - Every 10 seconds of ongoing active engagement
  * - Immediately on route transition (prevSection time)
  * - On tab hide or page unload
  */
