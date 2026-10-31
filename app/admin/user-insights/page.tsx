@@ -132,6 +132,9 @@ const PLATFORM_COLORS: Record<string, string> = {
   telegram: '#229ed9',
   discord: '#5865f2',
   medium: '#00ab6c',
+  kick: '#53fc18',
+  dribbble: '#ea4c89',
+  whop: '#ff6243',
   manual: '#6b7280',
 };
 
@@ -255,6 +258,204 @@ function BarChart({ data, color = '#8b5cf6', maxItems = 12 }: {
           );
         })}
       </svg>
+    </div>
+  );
+}
+
+// ---- Platform Posts Bar Chart (Expanded & Interactive with Percentages and Hover Counts) ----
+function PlatformPostsBarChart({ data }: { data: Array<{ label: string; value: number }> }) {
+  const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(null);
+
+  const total = React.useMemo(() => data.reduce((acc, d) => acc + d.value, 0), [data]);
+  const maxVal = React.useMemo(() => Math.max(...data.map(d => d.value), 1), [data]);
+
+  const chartH = 260; // Expanded, prominent height
+  const barW = 46;    // Spacious bar width
+  const gap = 16;     // Clean spacing
+  const leftPad = 48; // Room for Y-axis scale
+  const topPad = 48;  // Room for percentage & hover badge
+  const bottomPad = 52; // Room for platform brand dot & label
+
+  const totalW = leftPad + data.length * (barW + gap) + 16;
+  const svgH = chartH + topPad + bottomPad;
+
+  // 5 Y-axis grid divisions (100%, 75%, 50%, 25%, 0%)
+  const yTicks = [1, 0.75, 0.5, 0.25, 0];
+
+  const hoveredItem = hoveredIndex !== null ? data[hoveredIndex] : null;
+  const hoveredPct = hoveredItem && total > 0 ? ((hoveredItem.value / total) * 100).toFixed(1) : null;
+
+  return (
+    <div className="space-y-3">
+      {/* Interactive status / hint header */}
+      <div className="flex items-center justify-between px-1 py-1.5 text-xs border-b border-border/40">
+        <div className="flex items-center gap-2 min-h-[24px]">
+          {hoveredItem ? (
+            <div className="flex items-center gap-2 animate-in fade-in duration-150">
+              <span
+                className="h-2.5 w-2.5 rounded-full inline-block shrink-0"
+                style={{ background: getPlatformColor(hoveredItem.label) }}
+              />
+              <span className="font-bold text-foreground capitalize text-sm">{hoveredItem.label}:</span>
+              <span className="font-bold text-sm text-blue-600 dark:text-blue-400">
+                {hoveredItem.value.toLocaleString()} posts
+              </span>
+              <span className="text-muted-foreground font-mono">({hoveredPct}% of total)</span>
+            </div>
+          ) : (
+            <span className="text-muted-foreground italic flex items-center gap-1.5">
+              <span>💡</span> Hover over any percentage or bar to view the exact post count
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-3 text-muted-foreground font-mono text-[11px]">
+          <span>Total: <strong className="text-foreground">{total.toLocaleString()}</strong></span>
+          <span>Platforms: <strong className="text-foreground">{data.length}</strong></span>
+        </div>
+      </div>
+
+      {/* SVG Canvas */}
+      <div className="overflow-x-auto pb-2">
+        <svg
+          width={Math.max(totalW, 640)}
+          height={svgH}
+          style={{ display: 'block' }}
+          className="w-full min-w-[640px]"
+        >
+          {/* Y-axis gridlines & labels */}
+          {yTicks.map((tick) => {
+            const y = topPad + chartH * (1 - tick);
+            const tickVal = Math.round(maxVal * tick);
+            return (
+              <g key={tick}>
+                <line
+                  x1={leftPad}
+                  y1={y}
+                  x2={totalW - 16}
+                  y2={y}
+                  stroke="currentColor"
+                  strokeDasharray={tick === 0 ? undefined : '3 3'}
+                  strokeWidth={tick === 0 ? 1.5 : 1}
+                  className={tick === 0 ? 'stroke-border' : 'stroke-border/40'}
+                />
+                <text
+                  x={leftPad - 10}
+                  y={y + 3.5}
+                  textAnchor="end"
+                  fontSize="10"
+                  className="fill-muted-foreground font-mono select-none"
+                >
+                  {tickVal}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* Platform bars */}
+          {data.map((d, i) => {
+            const isHov = hoveredIndex === i;
+            const pct = total > 0 ? ((d.value / total) * 100).toFixed(1) : '0';
+            const barHeight = Math.max((d.value / maxVal) * chartH, 4);
+            const x = leftPad + i * (barW + gap);
+            const y = topPad + (chartH - barHeight);
+            const brandColor = getPlatformColor(d.label);
+            const centerX = x + barW / 2;
+
+            return (
+              <g
+                key={d.label}
+                onMouseEnter={() => setHoveredIndex(i)}
+                onMouseLeave={() => setHoveredIndex(null)}
+                style={{ cursor: 'pointer' }}
+              >
+                {/* Background hover highlight column */}
+                <rect
+                  x={x - 4}
+                  y={topPad}
+                  width={barW + 8}
+                  height={chartH + 42}
+                  fill="currentColor"
+                  className={isHov ? 'fill-muted/30' : 'fill-transparent'}
+                  rx={6}
+                />
+
+                {/* Vertical platform bar */}
+                <rect
+                  x={x}
+                  y={y}
+                  width={barW}
+                  height={barHeight}
+                  rx={6}
+                  fill={brandColor}
+                  opacity={isHov ? 1 : 0.88}
+                  style={{
+                    filter: isHov ? 'brightness(1.1) drop-shadow(0 4px 8px rgba(0,0,0,0.2))' : undefined,
+                    transition: 'all 0.15s ease',
+                  }}
+                />
+
+                {/* Percentage / Count label above the bar */}
+                {/* Default: Percentage. On hover (over bar or percentage): Actual number */}
+                {isHov ? (
+                  <g>
+                    <rect
+                      x={centerX - 24}
+                      y={y - 25}
+                      width={48}
+                      height={20}
+                      rx={5}
+                      fill={brandColor}
+                      className="shadow-sm"
+                    />
+                    <text
+                      x={centerX}
+                      y={y - 11}
+                      textAnchor="middle"
+                      fontSize="11"
+                      fontWeight="bold"
+                      fill="#ffffff"
+                      className="font-mono select-none pointer-events-none"
+                    >
+                      {d.value.toLocaleString()}
+                    </text>
+                  </g>
+                ) : (
+                  <text
+                    x={centerX}
+                    y={y - 8}
+                    textAnchor="middle"
+                    fontSize="11"
+                    fontWeight="600"
+                    className="fill-foreground font-mono select-none"
+                  >
+                    {pct}%
+                  </text>
+                )}
+
+                {/* Platform indicator dot */}
+                <circle
+                  cx={centerX}
+                  cy={topPad + chartH + 16}
+                  r={3.5}
+                  fill={brandColor}
+                />
+
+                {/* Platform Label below */}
+                <text
+                  x={centerX}
+                  y={topPad + chartH + 34}
+                  textAnchor="middle"
+                  fontSize="11"
+                  fontWeight={isHov ? 'bold' : '500'}
+                  className={isHov ? 'fill-foreground capitalize select-none' : 'fill-muted-foreground capitalize select-none'}
+                >
+                  {d.label.length > 9 ? d.label.slice(0, 8) + '…' : d.label}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
     </div>
   );
 }
@@ -611,42 +812,38 @@ export default function UserInsightsPage() {
 
       {/* Row 4: Posts by Platform */}
       <Card variant="analytics" padding="lg" className="border-border/60">
-        <CardHeader className="pb-2">
-          <Flex align="center" gap={2}>
-            <BarChart3 className="h-4 w-4 text-blue-500" />
-            <CardTitle>Posts Published by Platform</CardTitle>
+        <CardHeader className="pb-3">
+          <Flex between className="items-center flex-wrap gap-2">
+            <div>
+              <Flex align="center" gap={2}>
+                <BarChart3 className="h-5 w-5 text-blue-500" />
+                <CardTitle className="text-xl">Posts Published by Platform</CardTitle>
+              </Flex>
+              <CardDescription>Number of published posts per social platform (all-time)</CardDescription>
+            </div>
+            {postsBarData.length > 0 && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-600 border-blue-500/30 font-medium">
+                  {postsBarData.reduce((a, b) => a + b.value, 0).toLocaleString()} published posts
+                </Badge>
+                {postsBarData[0] && (
+                  <Badge variant="outline" className="text-xs font-normal border-border/80">
+                    Top: <strong className="ml-1 capitalize">{postsBarData[0].label}</strong>
+                    <span className="text-muted-foreground ml-1">
+                      ({((postsBarData[0].value / Math.max(postsBarData.reduce((a, b) => a + b.value, 0), 1)) * 100).toFixed(1)}%)
+                    </span>
+                  </Badge>
+                )}
+                <Badge variant="outline" className="text-xs text-muted-foreground font-normal">
+                  {postsBarData.length} platforms active
+                </Badge>
+              </div>
+            )}
           </Flex>
-          <CardDescription>Number of published posts per social platform (all-time)</CardDescription>
         </CardHeader>
         <CardContent>
           {postsBarData.length > 0 ? (
-            <div className="space-y-4">
-              <BarChart
-                data={postsBarData.map(d => ({ label: d.label, value: d.value }))}
-                color="#3b82f6"
-                maxItems={15}
-              />
-              <div className="space-y-2">
-                {postsBarData.slice(0, 8).map((d) => {
-                  const total = postsBarData.reduce((a, b) => a + b.value, 0);
-                  const pct = total > 0 ? ((d.value / total) * 100).toFixed(1) : '0';
-                  return (
-                    <div key={d.label} className="flex items-center gap-3">
-                      <div className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: getPlatformColor(d.label) }} />
-                      <span className="text-sm font-medium capitalize w-24 shrink-0">{d.label}</span>
-                      <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all duration-700"
-                          style={{ width: `${pct}%`, background: getPlatformColor(d.label) }}
-                        />
-                      </div>
-                      <span className="text-sm font-bold w-12 text-right">{d.value.toLocaleString()}</span>
-                      <span className="text-xs text-muted-foreground w-10 text-right">{pct}%</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <PlatformPostsBarChart data={postsBarData} />
           ) : (
             <Flex column align="center" className="py-12" gap={2}>
               <BarChart3 className="h-10 w-10 text-muted-foreground/40" />
