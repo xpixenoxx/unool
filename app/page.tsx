@@ -3182,19 +3182,19 @@ export default function HomePage() {
       };
     }
 
-    // 3D Card Tilts
+    // Card hover spotlight tracking (tilt/rotation removed)
     function tilt(el: HTMLElement, m: number, w?: HTMLElement) {
       const targetWrap = w || el;
       targetWrap.addEventListener('mousemove', function(e) {
         const r = targetWrap.getBoundingClientRect();
         const x = (e.clientX - r.left) / r.width - 0.5;
         const y = (e.clientY - r.top) / r.height - 0.5;
-        el.style.transform = 'rotateY(' + x * m + 'deg) rotateX(' + -y * m + 'deg)';
+        // Tilt/rotation removed: keep only spotlight coordinate tracking
         el.style.setProperty('--mx', (x + 0.5) * r.width + 'px');
         el.style.setProperty('--my', (y + 0.5) * r.height + 'px');
       });
       targetWrap.addEventListener('mouseleave', function() {
-        el.style.transform = '';
+        // Transform reset removed
       });
     }
 
