@@ -22,15 +22,19 @@ export const SECTION_METADATA: Record<string, { name: string; color: string; des
   composer:     { name: 'Composer',     color: '#f97316', description: 'Post editor & media adapt' },
 };
 
-export function formatSeconds(seconds: number): string {
+export function formatSeconds(seconds: number, showSeconds: boolean = false): string {
   if (!seconds || seconds <= 0) return '0s';
   const d = Math.floor(seconds / 86400);
   const h = Math.floor((seconds % 86400) / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   const s = Math.floor(seconds % 60);
 
-  if (d > 0) return `${d}d ${h}h ${m}m`;
-  if (h > 0) return `${h}h ${m}m`;
+  if (d > 0) {
+    return showSeconds && s > 0 ? `${d}d ${h}h ${m}m ${s}s` : `${d}d ${h}h ${m}m`;
+  }
+  if (h > 0) {
+    return showSeconds && s > 0 ? `${h}h ${m}m ${s}s` : `${h}h ${m}m`;
+  }
   if (m > 0) return `${m}m ${s}s`;
   return `${s}s`;
 }
@@ -136,14 +140,16 @@ export async function GET(request: NextRequest) {
     // ── 3. Time Spent by Dashboard Section & Overall in Unool ─────────────────
     // User live-tracked accumulator maps: uid -> sections
     const userLiveTimes: Record<string, Record<string, number>> = {};
+    let dbTimesRows: any[] = [];
 
     // 3a. Read from user_section_time table if present
     try {
       const { data: dbTimes, error: dbTimeErr } = await adminClient
         .from('user_section_time')
-        .select('user_id, section, duration_seconds');
+        .select('user_id, section, duration_seconds, last_active_at');
 
       if (!dbTimeErr && dbTimes && dbTimes.length > 0) {
+        dbTimesRows = dbTimes;
         dbTimes.forEach((row: any) => {
           const sec = (row.section || '').toLowerCase();
           const duration = Math.max(0, Number(row.duration_seconds) || 0);
@@ -301,6 +307,23 @@ export async function GET(request: NextRequest) {
     const trackedUsersCount = Math.max(trackedUniqueUsers.size, 1);
     const avgSecondsPerUser = Math.round(overallSeconds / trackedUsersCount);
 
+    // Identify users active live on the dashboard within the last 2 minutes
+    const twoMinutesAgoIso = new Date(Date.now() - 120 * 1000).toISOString();
+    const liveNowUserIds = new Set<string>();
+
+    activeAuthUsers.forEach((u) => {
+      const lastActive = (u as Record<string, any>).user_metadata?.last_dashboard_active_at;
+      if (lastActive && lastActive >= twoMinutesAgoIso) {
+        liveNowUserIds.add(u.id);
+      }
+    });
+
+    dbTimesRows.forEach((row: any) => {
+      if (row.user_id && row.last_active_at && row.last_active_at >= twoMinutesAgoIso) {
+        liveNowUserIds.add(row.user_id);
+      }
+    });
+
     // Section breakdown with percentages and formatted strings
     const sectionBreakdown = Object.entries(SECTION_METADATA).map(([secKey, meta]) => {
       const totalSec = sectionTotals[secKey] || 0;
@@ -314,11 +337,11 @@ export async function GET(request: NextRequest) {
         color: meta.color,
         description: meta.description,
         totalSeconds: totalSec,
-        formattedTotal: formatSeconds(totalSec),
+        formattedTotal: formatSeconds(totalSec, true),
         percentage: parseFloat(pct),
         activeUsersCount: userCount,
         avgSecondsPerUser: avgSec,
-        formattedAvg: formatSeconds(avgSec),
+        formattedAvg: formatSeconds(avgSec, true),
       };
     }).sort((a, b) => b.totalSeconds - a.totalSeconds);
 
@@ -349,7 +372,7 @@ export async function GET(request: NextRequest) {
       return {
         ...u,
         totalTimeSeconds: totalSec,
-        formattedTimeSpent: formatSeconds(totalSec),
+        formattedTimeSpent: formatSeconds(totalSec, true),
         topSection: topSecName,
       };
     });
@@ -377,10 +400,11 @@ export async function GET(request: NextRequest) {
         },
         timeSpentStats: {
           overallSeconds,
-          formattedOverall: formatSeconds(overallSeconds),
+          formattedOverall: formatSeconds(overallSeconds, true),
           avgSecondsPerUser,
-          formattedAvgPerUser: formatSeconds(avgSecondsPerUser),
+          formattedAvgPerUser: formatSeconds(avgSecondsPerUser, true),
           trackedUsersCount: trackedUniqueUsers.size,
+          liveNowUsersCount: liveNowUserIds.size,
           mostActiveSection,
           sections: sectionBreakdown,
         },

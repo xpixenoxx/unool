@@ -82,6 +82,7 @@ interface TimeSpentStats {
   avgSecondsPerUser: number;
   formattedAvgPerUser: string;
   trackedUsersCount: number;
+  liveNowUsersCount?: number;
   mostActiveSection: string;
   sections: SectionTimeStat[];
 }
@@ -525,7 +526,7 @@ export default function UserInsightsPage() {
 
   React.useEffect(() => {
     fetchData(!cached?.data);
-    const id = setInterval(() => fetchData(false), 15000);
+    const id = setInterval(() => fetchData(false), 10000);
     return () => clearInterval(id);
   }, [fetchData]);
 
@@ -587,7 +588,7 @@ export default function UserInsightsPage() {
         <Flex gap={2} align="center">
           <Badge variant="outline" className="gap-1.5 py-1 px-2.5 text-xs font-normal">
             <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-            Live · auto-refresh 15s
+            Live · auto-refresh 10s
           </Badge>
           {lastSync && <span className="text-[11px] text-muted-foreground">Last sync: {lastSync}</span>}
           <Button variant="outline" size="sm" onClick={() => fetchData(true)} className="h-8 gap-1.5">
@@ -606,7 +607,9 @@ export default function UserInsightsPage() {
             value: timeSpentStats?.formattedOverall || '0s',
             icon: <Clock className="h-5 w-5" />,
             color: '#6366f1',
-            sub: `Avg ${timeSpentStats?.formattedAvgPerUser || '0s'} / user`,
+            sub: timeSpentStats?.liveNowUsersCount && timeSpentStats.liveNowUsersCount > 0
+              ? `🟢 ${timeSpentStats.liveNowUsersCount} active now · Avg ${timeSpentStats?.formattedAvgPerUser || '0s'}`
+              : `Avg ${timeSpentStats?.formattedAvgPerUser || '0s'} / user`,
           },
           {
             label: 'Top Active Section',
@@ -648,7 +651,13 @@ export default function UserInsightsPage() {
                 Detailed active time users spend across every section in Unool dashboard (Overview, Flight Plan, Studio, Referrals, Signal, etc.)
               </CardDescription>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+              <Badge variant="outline" className="text-xs bg-emerald-500/10 text-emerald-600 border-emerald-500/30 font-medium gap-1.5 py-1 px-2.5">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                {timeSpentStats?.liveNowUsersCount && timeSpentStats.liveNowUsersCount > 0
+                  ? `${timeSpentStats.liveNowUsersCount} active right now`
+                  : 'Live Sync (10s)'}
+              </Badge>
               <Badge variant="outline" className="text-xs bg-indigo-500/10 text-indigo-600 border-indigo-500/30 font-medium">
                 Overall: {timeSpentStats?.formattedOverall || '0s'}
               </Badge>
@@ -747,9 +756,17 @@ export default function UserInsightsPage() {
                     </div>
                     <div className="p-2.5 rounded-lg bg-background border border-border/40">
                       <span className="text-muted-foreground block">Tracked Users</span>
-                      <span className="text-base font-bold text-purple-600 dark:text-purple-400">
-                        {timeSpentStats?.trackedUsersCount || 0}
-                      </span>
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-base font-bold text-purple-600 dark:text-purple-400">
+                          {timeSpentStats?.trackedUsersCount || 0}
+                        </span>
+                        {timeSpentStats?.liveNowUsersCount && timeSpentStats.liveNowUsersCount > 0 ? (
+                          <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            {timeSpentStats.liveNowUsersCount} live
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
                 </div>

@@ -49,6 +49,14 @@ export function DashboardTimeTracker({ userId: propUserId, workspaceId: propWork
   const effectiveUserId = propUserId || userContext?.user?.id;
   const effectiveWorkspaceId = propWorkspaceId || userContext?.workspace?.id;
 
+  const userIdRef = useRef(effectiveUserId);
+  const workspaceIdRef = useRef(effectiveWorkspaceId);
+
+  useEffect(() => {
+    userIdRef.current = effectiveUserId;
+    workspaceIdRef.current = effectiveWorkspaceId;
+  }, [effectiveUserId, effectiveWorkspaceId]);
+
   const currentSectionRef = useRef<string>(normalizeDashboardSection(pathname));
   const activeSecondsAccumulatorRef = useRef<number>(0);
   const lastActiveTimestampRef = useRef<number>(Date.now());
@@ -59,11 +67,14 @@ export function DashboardTimeTracker({ userId: propUserId, workspaceId: propWork
   const flushTime = async (section: string, seconds: number) => {
     if (seconds <= 0) return;
 
+    const activeUid = userIdRef.current || effectiveUserId;
+    const activeWid = workspaceIdRef.current || effectiveWorkspaceId;
+
     const payload = JSON.stringify({
       section,
       durationSeconds: Math.min(seconds, 300),
-      userId: effectiveUserId,
-      workspaceId: effectiveWorkspaceId,
+      userId: activeUid,
+      workspaceId: activeWid,
     });
 
     try {
@@ -74,8 +85,8 @@ export function DashboardTimeTracker({ userId: propUserId, workspaceId: propWork
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
-      if (effectiveUserId) {
-        headers['x-user-id'] = effectiveUserId;
+      if (activeUid) {
+        headers['x-user-id'] = activeUid;
       }
 
       await fetch('/api/analytics/time-spent', {
@@ -154,8 +165,8 @@ export function DashboardTimeTracker({ userId: propUserId, workspaceId: propWork
       isUserActiveRef.current = true;
       activeSecondsAccumulatorRef.current += 1;
 
-      // Flush early on initial active arrival (5 seconds), then every 15 seconds
-      const threshold = hasFlushedOnceRef.current ? 15 : 5;
+      // Flush early on initial active arrival (5 seconds), then every 10 seconds
+      const threshold = hasFlushedOnceRef.current ? 10 : 5;
       if (activeSecondsAccumulatorRef.current >= threshold) {
         const sec = activeSecondsAccumulatorRef.current;
         activeSecondsAccumulatorRef.current = 0;

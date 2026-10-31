@@ -41,6 +41,9 @@ describe('Admin User Insights API', () => {
       expect(formatSeconds(125)).toBe('2m 5s');
       expect(formatSeconds(3665)).toBe('1h 1m');
       expect(formatSeconds(90000)).toBe('1d 1h 0m');
+      // With live seconds precision enabled
+      expect(formatSeconds(3665, true)).toBe('1h 1m 5s');
+      expect(formatSeconds(90015, true)).toBe('1d 1h 0m 15s');
     });
   });
 
@@ -106,6 +109,7 @@ describe('Admin User Insights API', () => {
       expect(data.timeSpentStats).toBeDefined();
       expect(data.timeSpentStats.overallSeconds).toBeGreaterThan(0);
       expect(data.timeSpentStats.formattedOverall).toBeDefined();
+      expect(data.timeSpentStats.liveNowUsersCount).toBeDefined();
       expect(data.timeSpentStats.sections).toBeDefined();
 
       const studioStat = data.timeSpentStats.sections.find((s: any) => s.section === 'studio');
