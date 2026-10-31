@@ -139,6 +139,12 @@ const ALL_OTHER_BANKS = [
 // ── In-Memory SWR Cache for 0ms Route Switching ──────────────────
 let memoryBillingPlans: PlanData[] | null = null;
 let memoryBillingCurrent: CurrentPlan | null = null;
+interface PlanOverrideDisplay {
+  monthlyInr: number | null;
+  yearlyInr: number | null;
+  annualMonthlyInr: number | null;
+  note: string | null;
+}
 
 // ── Skeleton Loader ─────────────────────────────────────────────
 function BillingSkeleton() {
@@ -227,6 +233,7 @@ function BillingSkeleton() {
 
 export default function BillingClient() {
   const [plans, setPlans] = useState<PlanData[]>(() => memoryBillingPlans || []);
+  const [overrides, setOverrides] = useState<Record<string, PlanOverrideDisplay>>({});
   const [currentPlan, setCurrentPlan] = useState<CurrentPlan | null>(() => memoryBillingCurrent || null);
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
   const [loading, setLoading] = useState(() => !memoryBillingPlans || !memoryBillingCurrent);
@@ -548,9 +555,10 @@ export default function BillingClient() {
   useEffect(() => {
     async function loadData() {
       try {
-        const [plansRes, currentRes] = await Promise.all([
+        const [plansRes, currentRes, overridesRes] = await Promise.all([
           fetch('/api/billing/plans?country=IN', { cache: 'no-store' }),
           fetch(`/api/billing/current?t=${Date.now()}`, { cache: 'no-store' }),
+          fetch('/api/billing/overrides', { cache: 'no-store' }),
         ]);
 
         if (plansRes.ok) {
@@ -563,6 +571,11 @@ export default function BillingClient() {
           const currentData = await currentRes.json();
           memoryBillingCurrent = currentData;
           setCurrentPlan(currentData);
+        }
+
+        if (overridesRes && overridesRes.ok) {
+          const overridesData = await overridesRes.json();
+          if (overridesData?.overrides) setOverrides(overridesData.overrides);
         }
       } catch (err) {
         console.error('Failed to load billing data:', err);
@@ -1306,9 +1319,22 @@ export default function BillingClient() {
         {plans.map(plan => {
           const isCurrentPlan = plan.id === currentPlanId;
           const isUpgrade = plan.sortOrder > (plans.find(p => p.id === currentPlanId)?.sortOrder ?? 0);
-          const price = billingCycle === 'monthly'
-            ? plan.pricing.monthlyDisplay
-            : plan.pricing.annualMonthlyDisplay;
+          const override = overrides[plan.id] as PlanOverrideDisplay | undefined;
+          const hasOverride = !plan.isFreeTier && !!override && (
+            override.monthlyInr != null || override.annualMonthlyInr != null
+          );
+          const rupee = String.fromCharCode(0x20B9);
+          const overrideMonthly = override?.monthlyInr != null
+            ? (rupee + override.monthlyInr.toLocaleString('en-IN')) : null;
+          const overrideAnnualMonthly = override?.annualMonthlyInr != null
+            ? (rupee + override.annualMonthlyInr.toLocaleString('en-IN')) : null;
+          const price = hasOverride
+            ? (billingCycle === 'monthly'
+                ? (overrideMonthly ?? plan.pricing.monthlyDisplay)
+                : (overrideAnnualMonthly ?? plan.pricing.annualMonthlyDisplay))
+            : billingCycle === 'monthly'
+              ? plan.pricing.monthlyDisplay
+              : plan.pricing.annualMonthlyDisplay;
           const isPopular = plan.id === 'pro';
 
           return (
@@ -1346,6 +1372,21 @@ export default function BillingClient() {
                   whiteSpace: 'nowrap',
                 }}>
                   Most Popular
+                </div>
+              )}
+
+              {hasOverride && (
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  background: '#FEF9C3', color: '#854D0E',
+                  fontSize: 11, fontWeight: 700,
+                  padding: '3px 10px', borderRadius: 8, marginBottom: 10,
+                  border: '1px solid #FDE68A', letterSpacing: '0.03em',
+                }}>
+                  Special pricing
+                  {override?.note && (
+                    <span style={{ fontWeight: 400, color: '#92400E' }}> &middot; {override.note}</span>
+                  )}
                 </div>
               )}
 

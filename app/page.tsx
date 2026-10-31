@@ -2510,6 +2510,44 @@ const PROFILE_PREVIEW_TEMPLATES: ProfilePreviewTemplate[] = [
   }
 ];
 
+
+// -- Dynamic pricing (DB-backed) -----------------------------------------------
+interface HomePlanPrice {
+  id: string;
+  name: string;
+  monthlyInr: string;
+  annualMonthlyInr: string;
+}
+
+const HOMEPAGE_PRICE_FALLBACK: HomePlanPrice[] = [
+  { id: 'spark',   name: 'Spark',   monthlyInr: '$0',     annualMonthlyInr: '$0' },
+  { id: 'creator', name: 'Creator', monthlyInr: 'Rs799',  annualMonthlyInr: 'Rs666' },
+  { id: 'pro',     name: 'Pro',     monthlyInr: 'Rs1,999',annualMonthlyInr: 'Rs1,666' },
+  { id: 'studio',  name: 'Studio',  monthlyInr: 'Rs4,166',annualMonthlyInr: 'Rs4,166' },
+];
+
+function useHomepagePricing() {
+  const [prices, setPrices] = React.useState<HomePlanPrice[]>(HOMEPAGE_PRICE_FALLBACK);
+  React.useEffect(() => {
+    fetch('/api/billing/plans?country=IN', { cache: 'no-store' })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (!data?.plans?.length) return;
+        const mapped: HomePlanPrice[] = data.plans.map((p: {
+          id: string; name: string; isFreeTier: boolean;
+          pricing: { monthlyDisplay: string; annualMonthlyDisplay: string };
+        }) => ({
+          id: p.id,
+          name: p.name,
+          monthlyInr: p.isFreeTier ? 'Free' : p.pricing.monthlyDisplay,
+          annualMonthlyInr: p.isFreeTier ? 'Free' : p.pricing.annualMonthlyDisplay,
+        }));
+        setPrices(mapped);
+      })
+      .catch(() => {});
+  }, []);
+  return prices;
+}
 export default function HomePage() {
   const rootRef = useRef<HTMLDivElement>(null);
   const spRef = useRef<HTMLDivElement>(null);
@@ -2521,6 +2559,10 @@ export default function HomePage() {
   const currentTpl = PROFILE_PREVIEW_TEMPLATES[activeProfileTpl] || PROFILE_PREVIEW_TEMPLATES[0];
 
   const [activeSection, setActiveSection] = useState('overview');
+
+  // DB-backed pricing (falls back to hardcoded if API unavailable)
+  const homepagePrices = useHomepagePricing();
+  const getPriceById = (id: string) => homepagePrices.find(p => p.id === id);
 
   const scrollToSection = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
     e.preventDefault();
@@ -3930,7 +3972,7 @@ export default function HomePage() {
             <h3>Spark</h3>
             <div className="for">Perfect for solo creators &amp; founders</div>
             <div className="pr">
-              $0<small>/mo (Free forever)</small>
+              {getPriceById('spark')?.monthlyInr ?? '$0'}<small>/mo (Free forever)</small>
             </div>
             <ul>
               <li>1 profile at yourname.unool.co</li>
@@ -3950,7 +3992,7 @@ export default function HomePage() {
             <h3>Creator</h3>
             <div className="for">For growing creators &amp; personal brands</div>
             <div className="pr">
-              ₹799<small>/mo ($9)</small>
+              {getPriceById('creator')?.monthlyInr ?? '₹799'}<small>/mo</small>
             </div>
             <ul>
               <li>Everything in Spark, plus:</li>
@@ -3971,7 +4013,7 @@ export default function HomePage() {
             <h3>Pro</h3>
             <div className="for">The full engine for serious creators &amp; teams</div>
             <div className="pr">
-              ₹1,999<small>/mo ($24)</small>
+              {getPriceById('pro')?.monthlyInr ?? '₹1,999'}<small>/mo</small>
             </div>
             <ul>
               <li>Everything in Creator, plus:</li>
@@ -3994,7 +4036,7 @@ export default function HomePage() {
             <h3>Studio</h3>
             <div className="for">For agencies &amp; teams</div>
             <div className="pr">
-              ₹4,166<small>/mo ($49)</small>
+              {getPriceById('studio')?.monthlyInr ?? '₹4,166'}<small>/mo</small>
             </div>
             <ul>
               <li>Everything in Pro, plus:</li>

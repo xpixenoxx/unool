@@ -45,7 +45,7 @@ interface PlanData {
   r: string[];
 }
 
-const PLANS: PlanData[] = [
+const PLANS_FALLBACK: PlanData[] = [
   {
     n: 'Spark',
     t: 'Free forever',
@@ -208,7 +208,34 @@ export function PricingPageClient() {
   // ── FAQ Accordion State ──
   const [openFaqs, setOpenFaqs] = useState<Set<number>>(new Set());
 
-  // ── Synchronize Body Background ──
+  // DB-backed plans (falls back to PLANS_FALLBACK)
+  const [plans, setPlans] = useState<PlanData[]>(PLANS_FALLBACK);
+
+  useEffect(() => {
+    fetch('/api/billing/plans?country=IN', { cache: 'no-store' })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (!data?.plans?.length) return;
+        const mapped: PlanData[] = data.plans.map((p: {
+          id: string;
+          isFreeTier: boolean;
+          pricing: { monthly: number; annualMonthly: number };
+        }) => {
+          const fb = PLANS_FALLBACK.find(f => f.n.toLowerCase() === p.id) ?? PLANS_FALLBACK[1];
+          return {
+            ...fb,
+            m: [
+              p.isFreeTier ? 0 : Math.round(p.pricing.monthly / 100),
+              p.isFreeTier ? 0 : Math.round(p.pricing.annualMonthly / 100),
+            ] as [number, number],
+          };
+        });
+        if (mapped.length === 4) setPlans(mapped);
+      })
+      .catch(() => {});
+  }, []);
+
+    // ── Synchronize Body Background ──
   useEffect(() => {
     const origBg = document.body.style.backgroundColor;
     const origColor = document.body.style.color;
@@ -305,7 +332,7 @@ export function PricingPageClient() {
 
   // ── Tween Plan Prices on Cur / Per Change ──
   useEffect(() => {
-    PLANS.forEach((p, i) => {
+    plans.forEach((p, i) => {
       const targetVal =
         cur === 'INR' ? p.m[per === 'a' ? 1 : 0] : p.u[per === 'a' ? 1 : 0];
       const fromVal = planPrices[i] ?? targetVal;
@@ -339,7 +366,7 @@ export function PricingPageClient() {
         if (frame) cancelAnimationFrame(frame);
       });
     };
-  }, [cur, per]);
+  }, [cur, per, plans]);
 
   const fmtCurrency = (val: number) => (cur === 'INR' ? inr(val) : '$' + val);
 
@@ -503,7 +530,7 @@ export function PricingPageClient() {
           </div>
 
           <div className="cols" id="cols">
-            {PLANS.map((p, i) => {
+            {plans.map((p, i) => {
               const isSelected = i === onPlan;
               const isFree = !p.m[0];
               const saving =

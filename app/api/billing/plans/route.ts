@@ -1,18 +1,21 @@
 import { NextResponse } from 'next/server';
-import { getAllPlans, detectCurrency, formatPrice } from '@/lib/billing/plans';
+import { getAllPlansAsync, detectCurrency, formatPrice } from '@/lib/billing/plans';
 import type { Currency } from '@/lib/billing/plans';
 
 /**
  * GET /api/billing/plans?country=IN
- * Returns all available plans with pricing for the detected currency.
- * Public endpoint — no auth required (used on pricing page).
+ * Returns all active plans with pricing for the detected currency.
+ * Public endpoint — no auth required (used on pricing and homepage).
+ * Prices come from DB (admin-editable), with hardcoded fallback.
  */
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const countryCode = url.searchParams.get('country') || undefined;
   const currency: Currency = detectCurrency(countryCode);
 
-  const plans = getAllPlans().map(plan => ({
+  const allPlans = await getAllPlansAsync();
+
+  const plans = allPlans.map(plan => ({
     id: plan.id,
     name: plan.name,
     tagline: plan.tagline,

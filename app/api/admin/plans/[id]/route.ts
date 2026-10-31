@@ -25,6 +25,10 @@ export async function GET(
 }
 
 // PATCH /api/admin/plans/[id] - Update plan
+// Extended to accept INR prices inside the `features` JSONB field.
+// Body may include: name, description, priceMonthlyUsd, priceYearlyUsd,
+//   priceMonthlyInr, priceYearlyInr, priceAnnualMonthlyInr (paise),
+//   features, limits, isActive, sortOrder
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -35,9 +39,56 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, description, priceMonthlyUsd, priceYearlyUsd, features, limits, isActive, sortOrder } = body as UpdatePlanInput;
 
-    const plan = await adminRepository.updatePlan(id, { name, description, priceMonthlyUsd, priceYearlyUsd, features, limits, isActive, sortOrder });
+    const {
+      name,
+      description,
+      priceMonthlyUsd,
+      priceYearlyUsd,
+      // INR prices — stored in features JSONB
+      priceMonthlyInr,
+      priceYearlyInr,
+      priceAnnualMonthlyInr,
+      features: featuresInput,
+      limits,
+      isActive,
+      sortOrder,
+    } = body as UpdatePlanInput & {
+      priceMonthlyInr?: number;
+      priceYearlyInr?: number;
+      priceAnnualMonthlyInr?: number;
+    };
+
+    // Merge INR prices into the features JSONB so no schema change is needed
+    let mergedFeatures = featuresInput;
+    if (
+      typeof priceMonthlyInr === 'number' ||
+      typeof priceYearlyInr === 'number' ||
+      typeof priceAnnualMonthlyInr === 'number'
+    ) {
+      // Fetch existing features first so we don't overwrite other flags
+      const existing = await adminRepository.getPlanById(id);
+      const existingFeatures = (existing?.features as Record<string, unknown>) || {};
+      mergedFeatures = {
+        ...existingFeatures,
+        ...(featuresInput || {}),
+        ...(typeof priceMonthlyInr === 'number' ? { price_monthly_inr: priceMonthlyInr } : {}),
+        ...(typeof priceYearlyInr === 'number' ? { price_yearly_inr: priceYearlyInr } : {}),
+        ...(typeof priceAnnualMonthlyInr === 'number' ? { price_annual_monthly_inr: priceAnnualMonthlyInr } : {}),
+      };
+    }
+
+    const plan = await adminRepository.updatePlan(id, {
+      name,
+      description,
+      priceMonthlyUsd,
+      priceYearlyUsd,
+      features: mergedFeatures,
+      limits,
+      isActive,
+      sortOrder,
+    });
+
     if (!plan) {
       return NextResponse.json({ error: 'Plan not found' }, { status: 404 });
     }
@@ -47,12 +98,17 @@ export async function PATCH(
       'plan_update',
       'plan',
       id,
-      { name, priceMonthlyUsd, priceYearlyUsd, isActive }
+      { name, priceMonthlyUsd, priceYearlyUsd, priceMonthlyInr, isActive }
     );
 
-    // Clear plan cache
-    const { clearPlanCache } = await import('@/lib/plan-enforcement');
-    clearPlanCache(id);
+    // Clear BOTH caches so changes take effect immediately
+    try {
+      const { clearPlanCache: clearEnforcementCache } = await import('@/lib/plan-enforcement');
+      clearEnforcementCache(id);
+    } catch { /* plan-enforcement may not exist in all deployments */ }
+
+    const { clearPlanCache: clearBillingCache } = await import('@/lib/billing/plans');
+    clearBillingCache(id);
 
     return NextResponse.json(plan);
   } catch (error) {
@@ -72,9 +128,9 @@ export async function DELETE(
   try {
     const { id } = await params;
 
-    // Prevent deletion of default plans
-    if (['free', 'pro', 'enterprise'].includes(id)) {
-      return NextResponse.json({ error: 'Cannot delete default plans' }, { status: 400 });
+    // Prevent deletion of the 4 canonical plans
+    if (['spark', 'creator', 'pro', 'studio', 'free', 'enterprise'].includes(id)) {
+      return NextResponse.json({ error: 'Cannot delete a default plan' }, { status: 400 });
     }
 
     const success = await adminRepository.deletePlan(id);
@@ -90,9 +146,13 @@ export async function DELETE(
       {}
     );
 
-    // Clear plan cache
-    const { clearPlanCache } = await import('@/lib/plan-enforcement');
-    clearPlanCache(id);
+    try {
+      const { clearPlanCache: clearEnforcementCache } = await import('@/lib/plan-enforcement');
+      clearEnforcementCache(id);
+    } catch { /* ok */ }
+
+    const { clearPlanCache: clearBillingCache } = await import('@/lib/billing/plans');
+    clearBillingCache(id);
 
     return NextResponse.json({ success: true });
   } catch (error) {
