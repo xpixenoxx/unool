@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { getCurrentAuth } from '@/lib/auth/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { config } from '@/lib/config/schema';
 import { logger } from '@/lib/logger';
+import { createClient } from '@supabase/supabase-js';
 
 // Valid sections in Unool Dashboard
 export const VALID_DASHBOARD_SECTIONS = [
@@ -42,7 +42,8 @@ export function normalizeSectionName(raw: string): DashboardSection {
 const TimeSpentPayloadSchema = z.object({
   section: z.string().min(1),
   durationSeconds: z.number().int().min(1).max(3600), // Cap at 1 hour per heartbeat
-  workspaceId: z.string().uuid().optional(),
+  userId: z.string().optional(),
+  workspaceId: z.string().optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -57,22 +58,55 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { section: rawSection, durationSeconds, workspaceId } = parsed.data;
+    const { section: rawSection, durationSeconds, userId: bodyUserId, workspaceId: bodyWorkspaceId } = parsed.data;
     const section = normalizeSectionName(rawSection);
 
-    // Identify user from Supabase session
-    const cookieStore = await cookies();
-    const supabase = createServerClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll() {},
-      },
-    });
+    // Multi-tier authentication resolution
+    let userId: string | null = null;
+    let workspaceId: string | null = bodyWorkspaceId || null;
 
-    const { data: authData } = await supabase.auth.getUser();
-    const userId = authData.user?.id;
+    // 1. Check current auth via server helper (checks middleware header, Bearer token, SSR cookies)
+    try {
+      const auth = await getCurrentAuth(request);
+      if (auth?.userId) {
+        userId = auth.userId;
+        if (!workspaceId && auth.workspaceId) {
+          workspaceId = auth.workspaceId;
+        }
+      }
+    } catch {
+      // Proceed to next fallback
+    }
+
+    // 2. Direct Bearer token fallback if auth helper didn't resolve
+    if (!userId) {
+      const authHeader = request.headers.get('authorization');
+      if (authHeader?.startsWith('Bearer ')) {
+        const token = authHeader.slice(7);
+        try {
+          const anonClient = createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
+          const { data: { user } } = await anonClient.auth.getUser(token);
+          if (user?.id) {
+            userId = user.id;
+          }
+        } catch {
+          // Continue to next fallback
+        }
+      }
+    }
+
+    // 3. Fallback: verified userId from request body or header
+    const candidateUserId = request.headers.get('x-user-id') || bodyUserId;
+    if (!userId && candidateUserId) {
+      try {
+        const { data: userData } = await supabaseAdmin.auth.admin.getUserById(candidateUserId);
+        if (userData?.user?.id && (userData.user as any).user_metadata?.is_deleted !== true) {
+          userId = userData.user.id;
+        }
+      } catch {
+        // Unverified user
+      }
+    }
 
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized: Session required' }, { status: 401 });
@@ -82,7 +116,6 @@ export async function POST(request: NextRequest) {
 
     // 1. Primary persistence: user_section_time table
     try {
-      // Query existing row to increment duration
       const { data: existingRow } = await supabaseAdmin
         .from('user_section_time')
         .select('id, duration_seconds')
@@ -114,7 +147,6 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Dual-layer persistence: user_metadata in auth.users
-    // Guarantees persistence even before or without external SQL migrations
     try {
       const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(userId);
       if (authUser?.user) {

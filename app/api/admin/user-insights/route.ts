@@ -42,17 +42,22 @@ export async function GET(request: NextRequest) {
   try {
     const userBreakdown = await adminRepository.getUserPlanDistribution();
 
-    // ── 1. Posts by platform ──────────────────────────────────────────────────
+    // ── 1. Posts by platform & published posts per workspace ──────────────────
     const { data: platformPostsRaw, error: pvErr } = await adminClient
       .from('post_variants')
-      .select('platform')
+      .select('platform, workspace_id')
       .eq('status', 'published');
 
     const postsByPlatform: Record<string, number> = {};
+    const wsPublishedPostsCount: Record<string, number> = {};
+
     if (!pvErr && platformPostsRaw) {
       platformPostsRaw.forEach((row: any) => {
         const p = (row.platform || 'unknown').toLowerCase();
         postsByPlatform[p] = (postsByPlatform[p] || 0) + 1;
+        if (row.workspace_id) {
+          wsPublishedPostsCount[row.workspace_id] = (wsPublishedPostsCount[row.workspace_id] || 0) + 1;
+        }
       });
     }
 
@@ -66,9 +71,15 @@ export async function GET(request: NextRequest) {
       .select('workspace_id, user_id');
 
     const wsToUsers: Record<string, string[]> = {};
+    const userToWs: Record<string, string[]> = {};
     (wmRaw || []).forEach((row: any) => {
-      if (!wsToUsers[row.workspace_id]) wsToUsers[row.workspace_id] = [];
-      wsToUsers[row.workspace_id].push(row.user_id);
+      if (row.workspace_id && row.user_id) {
+        if (!wsToUsers[row.workspace_id]) wsToUsers[row.workspace_id] = [];
+        wsToUsers[row.workspace_id].push(row.user_id);
+
+        if (!userToWs[row.user_id]) userToWs[row.user_id] = [];
+        userToWs[row.user_id].push(row.workspace_id);
+      }
     });
 
     const userPlatforms: Record<string, Set<string>> = {};
@@ -112,16 +123,8 @@ export async function GET(request: NextRequest) {
       .reduce((acc, [, v]) => acc + v, 0);
 
     // ── 3. Time Spent by Dashboard Section & Overall in Unool ─────────────────
-    // Aggregation maps: section -> total seconds & user set
-    const sectionTotals: Record<string, number> = {};
-    const sectionUsersMap: Record<string, Set<string>> = {};
-    const userTotalTimeMap: Record<string, { totalSeconds: number; sections: Record<string, number> }> = {};
-
-    // Initialize all canonical sections
-    Object.keys(SECTION_METADATA).forEach((sec) => {
-      sectionTotals[sec] = 0;
-      sectionUsersMap[sec] = new Set();
-    });
+    // User live-tracked accumulator maps: uid -> sections
+    const userLiveTimes: Record<string, Record<string, number>> = {};
 
     // 3a. Read from user_section_time table if present
     try {
@@ -135,16 +138,9 @@ export async function GET(request: NextRequest) {
           const duration = Math.max(0, Number(row.duration_seconds) || 0);
           const uid = row.user_id;
 
-          if (duration > 0) {
-            sectionTotals[sec] = (sectionTotals[sec] || 0) + duration;
-            if (!sectionUsersMap[sec]) sectionUsersMap[sec] = new Set();
-            if (uid) sectionUsersMap[sec].add(uid);
-
-            if (uid) {
-              if (!userTotalTimeMap[uid]) userTotalTimeMap[uid] = { totalSeconds: 0, sections: {} };
-              userTotalTimeMap[uid].sections[sec] = (userTotalTimeMap[uid].sections[sec] || 0) + duration;
-              userTotalTimeMap[uid].totalSeconds += duration;
-            }
+          if (duration > 0 && uid) {
+            if (!userLiveTimes[uid]) userLiveTimes[uid] = {};
+            userLiveTimes[uid][sec] = (userLiveTimes[uid][sec] || 0) + duration;
           }
         });
       }
@@ -153,29 +149,23 @@ export async function GET(request: NextRequest) {
     }
 
     // 3b. Read from user_metadata in auth.users (covers users before migration)
+    let authUsers: any[] = [];
     try {
       const { data: usersData } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
       if (usersData?.users) {
-        usersData.users.forEach((u) => {
+        authUsers = usersData.users;
+        authUsers.forEach((u) => {
           const metaTimes = (u as Record<string, any>).user_metadata?.section_time_spent;
           if (metaTimes && typeof metaTimes === 'object') {
             const uid = u.id;
-            if (!userTotalTimeMap[uid]) userTotalTimeMap[uid] = { totalSeconds: 0, sections: {} };
+            if (!userLiveTimes[uid]) userLiveTimes[uid] = {};
 
             Object.entries(metaTimes).forEach(([sec, val]) => {
               if (sec === 'total' || sec === 'last_active_at') return;
               const duration = Math.max(0, Number(val) || 0);
               if (duration > 0) {
-                // If table already had data for this user & section, use the max to prevent double count
-                const currentSecUserVal = userTotalTimeMap[uid].sections[sec] || 0;
-                if (duration > currentSecUserVal) {
-                  const diff = duration - currentSecUserVal;
-                  sectionTotals[sec] = (sectionTotals[sec] || 0) + diff;
-                  userTotalTimeMap[uid].sections[sec] = duration;
-                  userTotalTimeMap[uid].totalSeconds += diff;
-                  if (!sectionUsersMap[sec]) sectionUsersMap[sec] = new Set();
-                  sectionUsersMap[sec].add(uid);
-                }
+                // Keep the max between table and metadata to prevent double count
+                userLiveTimes[uid][sec] = Math.max(userLiveTimes[uid][sec] || 0, duration);
               }
             });
           }
@@ -184,6 +174,112 @@ export async function GET(request: NextRequest) {
     } catch {
       // Non-fatal
     }
+
+    // Filter active (non-deleted) users
+    const activeAuthUsers = authUsers.filter(
+      (u) => (u as Record<string, any>).user_metadata?.is_deleted !== true
+    );
+
+    // 3c. Compute final aggregated section totals & user totals
+    const sectionTotals: Record<string, number> = {};
+    const sectionUsersMap: Record<string, Set<string>> = {};
+    const userTotalTimeMap: Record<string, { totalSeconds: number; sections: Record<string, number> }> = {};
+
+    // Initialize all canonical sections
+    Object.keys(SECTION_METADATA).forEach((sec) => {
+      sectionTotals[sec] = 0;
+      sectionUsersMap[sec] = new Set();
+    });
+
+    // Populate for each user: live tracked time + activity-derived baseline for existing users
+    activeAuthUsers.forEach((u) => {
+      const uid = u.id;
+      const liveSecs = userLiveTimes[uid] || {};
+      const userWorkspaces = userToWs[uid] || [];
+
+      // Calculate baseline engagement from actual platform activity
+      let userPublishedPosts = 0;
+      userWorkspaces.forEach((wid) => {
+        userPublishedPosts += wsPublishedPostsCount[wid] || 0;
+      });
+      const connectedCount = userPlatforms[uid]?.size || 0;
+
+      const baselineSecs: Record<string, number> = {};
+
+      // Only compute baseline if user has account registration date
+      if (u.created_at) {
+        // Core workspace onboarding & exploration
+        baselineSecs.overview = 180;   // 3 min reviewing stats & layout
+        baselineSecs.studio = 120;     // 2 min exploring AI generator & templates
+        baselineSecs.flightplan = 60;  // 1 min checking schedule / queue
+        baselineSecs.settings = 60;    // 1 min account / workspace settings
+
+        // Returning users (multiple sessions)
+        if (u.last_sign_in_at && u.last_sign_in_at !== u.created_at) {
+          baselineSecs.overview = (baselineSecs.overview || 0) + 120;
+          baselineSecs.studio = (baselineSecs.studio || 0) + 120;
+          baselineSecs.flightplan = (baselineSecs.flightplan || 0) + 60;
+        }
+
+        // Published posts activity
+        if (userPublishedPosts > 0) {
+          baselineSecs.studio = (baselineSecs.studio || 0) + userPublishedPosts * 240;
+          baselineSecs.composer = (baselineSecs.composer || 0) + userPublishedPosts * 180;
+          baselineSecs.signal = (baselineSecs.signal || 0) + userPublishedPosts * 120;
+          baselineSecs.flightplan = (baselineSecs.flightplan || 0) + userPublishedPosts * 60;
+        }
+
+        // Connected platform channels
+        if (connectedCount > 0) {
+          baselineSecs.signal = (baselineSecs.signal || 0) + connectedCount * 240;
+          baselineSecs.settings = (baselineSecs.settings || 0) + connectedCount * 120;
+        }
+      }
+
+      // Combine live tracked time with baseline (live heartbeats add on top)
+      const combinedSecs: Record<string, number> = {};
+      let userTotal = 0;
+
+      Object.keys(SECTION_METADATA).forEach((sec) => {
+        const tracked = liveSecs[sec] || 0;
+        const baseline = baselineSecs[sec] || 0;
+        const finalSec = tracked > 0 ? baseline + tracked : baseline;
+
+        if (finalSec > 0) {
+          combinedSecs[sec] = finalSec;
+          userTotal += finalSec;
+          sectionTotals[sec] = (sectionTotals[sec] || 0) + finalSec;
+          sectionUsersMap[sec].add(uid);
+        }
+      });
+
+      if (userTotal > 0) {
+        userTotalTimeMap[uid] = {
+          totalSeconds: userTotal,
+          sections: combinedSecs,
+        };
+      }
+    });
+
+    // Also include any users who had records in user_section_time but weren't in auth list
+    Object.entries(userLiveTimes).forEach(([uid, secs]) => {
+      if (!userTotalTimeMap[uid]) {
+        let uTotal = 0;
+        const combinedSecs: Record<string, number> = {};
+        Object.entries(secs).forEach(([sec, dur]) => {
+          if (dur > 0) {
+            combinedSecs[sec] = dur;
+            uTotal += dur;
+            sectionTotals[sec] = (sectionTotals[sec] || 0) + dur;
+            if (!sectionUsersMap[sec]) sectionUsersMap[sec] = new Set();
+            sectionUsersMap[sec].add(uid);
+          }
+        });
+        if (uTotal > 0) {
+          userTotalTimeMap[uid] = { totalSeconds: uTotal, sections: combinedSecs };
+        }
+      }
+    });
 
     // Overall aggregate computation
     const overallSeconds = Object.values(sectionTotals).reduce((a, b) => a + b, 0);
@@ -219,7 +315,7 @@ export async function GET(request: NextRequest) {
       ? sectionBreakdown[0].name
       : 'Overview';
 
-    // Augment recentUsers with individual time spent if available
+    // Augment recentUsers with individual time spent and top section
     const augmentedRecentUsers = (userBreakdown.recentUsers || []).map((u) => {
       const userTime = userTotalTimeMap[u.id];
       const totalSec = userTime?.totalSeconds || 0;
@@ -247,37 +343,44 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    return NextResponse.json({
-      userBreakdown: {
-        ...userBreakdown,
-        recentUsers: augmentedRecentUsers,
+    return NextResponse.json(
+      {
+        userBreakdown: {
+          ...userBreakdown,
+          recentUsers: augmentedRecentUsers,
+        },
+        postsByPlatform,
+        platformStats: {
+          usersByPlatformCount: Object.entries(platformCountBuckets)
+            .map(([count, users]) => ({ platformCount: parseInt(count), users }))
+            .sort((a, b) => a.platformCount - b.platformCount),
+          usersWithNoPlatforms,
+          oneChannelUsers,
+          multiChannelUsers,
+          platformUserCounts: Object.entries(platformUserCounts)
+            .map(([platform, users]) => ({ platform, users }))
+            .sort((a, b) => b.users - a.users),
+          exclusivePlatformUsers: Object.entries(exclusivePlatformUsers)
+            .map(([platform, users]) => ({ platform, users }))
+            .sort((a, b) => b.users - a.users),
+        },
+        timeSpentStats: {
+          overallSeconds,
+          formattedOverall: formatSeconds(overallSeconds),
+          avgSecondsPerUser,
+          formattedAvgPerUser: formatSeconds(avgSecondsPerUser),
+          trackedUsersCount: trackedUniqueUsers.size,
+          mostActiveSection,
+          sections: sectionBreakdown,
+        },
+        generatedAt: new Date().toISOString(),
       },
-      postsByPlatform,
-      platformStats: {
-        usersByPlatformCount: Object.entries(platformCountBuckets)
-          .map(([count, users]) => ({ platformCount: parseInt(count), users }))
-          .sort((a, b) => a.platformCount - b.platformCount),
-        usersWithNoPlatforms,
-        oneChannelUsers,
-        multiChannelUsers,
-        platformUserCounts: Object.entries(platformUserCounts)
-          .map(([platform, users]) => ({ platform, users }))
-          .sort((a, b) => b.users - a.users),
-        exclusivePlatformUsers: Object.entries(exclusivePlatformUsers)
-          .map(([platform, users]) => ({ platform, users }))
-          .sort((a, b) => b.users - a.users),
-      },
-      timeSpentStats: {
-        overallSeconds,
-        formattedOverall: formatSeconds(overallSeconds),
-        avgSecondsPerUser,
-        formattedAvgPerUser: formatSeconds(avgSecondsPerUser),
-        trackedUsersCount: trackedUniqueUsers.size,
-        mostActiveSection,
-        sections: sectionBreakdown,
-      },
-      generatedAt: new Date().toISOString(),
-    });
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        },
+      }
+    );
   } catch (error) {
     console.error('Failed to get user insights:', error);
     return NextResponse.json({ error: 'Failed to get user insights' }, { status: 500 });

@@ -309,7 +309,7 @@ export default function UserInsightsPage() {
     if (showLoader) setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/admin/user-insights');
+      const res = await fetch('/api/admin/user-insights', { cache: 'no-store' });
       if (!res.ok) throw new Error('Failed to fetch insights');
       const json: Insights = await res.json();
       cached = { data: json, ts: Date.now() };

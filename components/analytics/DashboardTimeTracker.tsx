@@ -2,6 +2,8 @@
 
 import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
+import { useUserContext } from '@/lib/hooks/use-user-context';
+import { getAccessToken } from '@/lib/supabase/browser';
 
 export function normalizeDashboardSection(pathname: string): string {
   const clean = pathname.replace(/^\/dashboard\/?/, '').toLowerCase().trim();
@@ -19,49 +21,81 @@ export function normalizeDashboardSection(pathname: string): string {
   return 'overview';
 }
 
+interface DashboardTimeTrackerProps {
+  userId?: string;
+  workspaceId?: string;
+}
+
 /**
  * DashboardTimeTracker
- * Lightweight active-time tracker for Unool dashboard sections.
- * Tracks active engagement time and flushes heartbeats every 20s or on route transition.
+ * Real-time active-time tracker for Unool dashboard sections.
+ * Tracks active engagement time and flushes heartbeats:
+ * - After first 5 seconds of active interaction (fast initial live sync)
+ * - Every 15 seconds of ongoing active engagement
+ * - Immediately on route transition (prevSection time)
+ * - On tab hide or page unload
  */
-export function DashboardTimeTracker({ workspaceId }: { workspaceId?: string }) {
+export function DashboardTimeTracker({ userId: propUserId, workspaceId: propWorkspaceId }: DashboardTimeTrackerProps = {}) {
   const pathname = usePathname();
+
+  // Safely retrieve user and workspace context
+  let userContext: any = null;
+  try {
+    userContext = useUserContext();
+  } catch {
+    // Graceful fallback if rendered outside UserProvider
+  }
+
+  const effectiveUserId = propUserId || userContext?.user?.id;
+  const effectiveWorkspaceId = propWorkspaceId || userContext?.workspace?.id;
+
   const currentSectionRef = useRef<string>(normalizeDashboardSection(pathname));
   const activeSecondsAccumulatorRef = useRef<number>(0);
   const lastActiveTimestampRef = useRef<number>(Date.now());
   const isUserActiveRef = useRef<boolean>(true);
+  const hasFlushedOnceRef = useRef<boolean>(false);
 
-  // Send accumulated seconds to the server
-  const flushTime = (section: string, seconds: number) => {
+  // Send accumulated seconds to the server with reliable fetch + credentials + bearer
+  const flushTime = async (section: string, seconds: number) => {
     if (seconds <= 0) return;
-    try {
-      const payload = JSON.stringify({
-        section,
-        durationSeconds: Math.min(seconds, 300),
-        workspaceId,
-      });
 
-      if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
-        const blob = new Blob([payload], { type: 'application/json' });
-        const sent = navigator.sendBeacon('/api/analytics/time-spent', blob);
-        if (!sent) {
-          fetch('/api/analytics/time-spent', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: payload,
-            keepalive: true,
-          }).catch(() => {});
-        }
-      } else {
-        fetch('/api/analytics/time-spent', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: payload,
-          keepalive: true,
-        }).catch(() => {});
+    const payload = JSON.stringify({
+      section,
+      durationSeconds: Math.min(seconds, 300),
+      userId: effectiveUserId,
+      workspaceId: effectiveWorkspaceId,
+    });
+
+    try {
+      const token = await getAccessToken().catch(() => null);
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
+      if (effectiveUserId) {
+        headers['x-user-id'] = effectiveUserId;
+      }
+
+      await fetch('/api/analytics/time-spent', {
+        method: 'POST',
+        headers,
+        body: payload,
+        keepalive: true,
+        credentials: 'include',
+      });
+      hasFlushedOnceRef.current = true;
     } catch {
-      // Non-blocking telemetry
+      // Telemetry fallback via sendBeacon if fetch encounters network error
+      try {
+        if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+          const blob = new Blob([payload], { type: 'application/json' });
+          navigator.sendBeacon('/api/analytics/time-spent', blob);
+        }
+      } catch {
+        // Silently swallow
+      }
     }
   };
 
@@ -87,7 +121,7 @@ export function DashboardTimeTracker({ workspaceId }: { workspaceId?: string }) 
     };
   }, []);
 
-  // Route change: flush previous section time and start new section
+  // Route change: immediately flush previous section time and switch section
   useEffect(() => {
     const nextSection = normalizeDashboardSection(pathname);
     const prevSection = currentSectionRef.current;
@@ -102,9 +136,8 @@ export function DashboardTimeTracker({ workspaceId }: { workspaceId?: string }) 
     }
   }, [pathname]);
 
-  // Periodic ticker and heartbeat flush
+  // Periodic ticker and real-time heartbeat flush
   useEffect(() => {
-    // 1-second interval checks active status and increments accumulator
     const tickInterval = setInterval(() => {
       if (typeof document !== 'undefined' && document.hidden) {
         isUserActiveRef.current = false;
@@ -121,8 +154,9 @@ export function DashboardTimeTracker({ workspaceId }: { workspaceId?: string }) 
       isUserActiveRef.current = true;
       activeSecondsAccumulatorRef.current += 1;
 
-      // Flush every 20 seconds of active engagement
-      if (activeSecondsAccumulatorRef.current >= 20) {
+      // Flush early on initial active arrival (5 seconds), then every 15 seconds
+      const threshold = hasFlushedOnceRef.current ? 15 : 5;
+      if (activeSecondsAccumulatorRef.current >= threshold) {
         const sec = activeSecondsAccumulatorRef.current;
         activeSecondsAccumulatorRef.current = 0;
         flushTime(currentSectionRef.current, sec);
@@ -161,8 +195,7 @@ export function DashboardTimeTracker({ workspaceId }: { workspaceId?: string }) 
         activeSecondsAccumulatorRef.current = 0;
       }
     };
-  }, [workspaceId]);
+  }, [effectiveUserId, effectiveWorkspaceId]);
 
   return null;
 }
-

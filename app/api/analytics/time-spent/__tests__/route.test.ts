@@ -2,13 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
 import { normalizeSectionName } from '../route';
 
-const mockGetUser = vi.fn();
-const mockCreateServerClient = vi.fn();
+const mockGetCurrentAuth = vi.fn();
 const mockGetUserById = vi.fn();
 const mockUpdateUserById = vi.fn();
 
-vi.mock('@supabase/ssr', () => ({
-  createServerClient: (...args: any[]) => mockCreateServerClient(...args),
+vi.mock('@/lib/auth/server', () => ({
+  getCurrentAuth: (...args: any[]) => mockGetCurrentAuth(...args),
 }));
 
 vi.mock('@/lib/supabase/admin', () => ({
@@ -46,21 +45,14 @@ vi.mock('@/lib/logger', () => ({
   },
 }));
 
-vi.mock('next/headers', () => ({
-  cookies: vi.fn(() => Promise.resolve({
-    getAll: vi.fn(() => []),
-  })),
-}));
-
 import { POST } from '../route';
 
 describe('Analytics Time-Spent Tracker', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockCreateServerClient.mockReturnValue({
-      auth: {
-        getUser: mockGetUser,
-      },
+    mockGetCurrentAuth.mockResolvedValue({
+      userId: 'test-user-1',
+      workspaceId: 'ws-1',
     });
     mockGetUserById.mockResolvedValue({
       data: {
@@ -93,8 +85,9 @@ describe('Analytics Time-Spent Tracker', () => {
   });
 
   describe('POST /api/analytics/time-spent', () => {
-    it('returns 401 when no session is present', async () => {
-      mockGetUser.mockResolvedValue({ data: { user: null }, error: null });
+    it('returns 401 when no session or verified user is present', async () => {
+      mockGetCurrentAuth.mockResolvedValue(null);
+      mockGetUserById.mockResolvedValue({ data: { user: null }, error: null });
 
       const req = new NextRequest('http://localhost:3000/api/analytics/time-spent', {
         method: 'POST',
@@ -106,10 +99,10 @@ describe('Analytics Time-Spent Tracker', () => {
       expect(res.status).toBe(401);
     });
 
-    it('successfully records time spent for authenticated user', async () => {
-      mockGetUser.mockResolvedValue({
-        data: { user: { id: 'test-user-1', email: 'user@unool.co' } },
-        error: null,
+    it('successfully records time spent for authenticated user via getCurrentAuth', async () => {
+      mockGetCurrentAuth.mockResolvedValue({
+        userId: 'test-user-1',
+        workspaceId: 'ws-1',
       });
 
       const req = new NextRequest('http://localhost:3000/api/analytics/time-spent', {
@@ -128,11 +121,35 @@ describe('Analytics Time-Spent Tracker', () => {
       expect(mockUpdateUserById).toHaveBeenCalled();
     });
 
-    it('rejects invalid payload duration', async () => {
-      mockGetUser.mockResolvedValue({
-        data: { user: { id: 'test-user-1' } },
+    it('successfully authenticates with fallback candidate userId when verified', async () => {
+      mockGetCurrentAuth.mockResolvedValue(null);
+      mockGetUserById.mockResolvedValue({
+        data: {
+          user: {
+            id: 'verified-user-2',
+            user_metadata: { is_deleted: false, section_time_spent: {} },
+          },
+        },
         error: null,
       });
+
+      const req = new NextRequest('http://localhost:3000/api/analytics/time-spent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ section: 'referrals', durationSeconds: 15, userId: 'verified-user-2' }),
+      });
+
+      const res = await POST(req);
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(data.success).toBe(true);
+      expect(data.section).toBe('referrals');
+      expect(data.durationSeconds).toBe(15);
+    });
+
+    it('rejects invalid payload duration', async () => {
+      mockGetCurrentAuth.mockResolvedValue({ userId: 'test-user-1' });
 
       const req = new NextRequest('http://localhost:3000/api/analytics/time-spent', {
         method: 'POST',

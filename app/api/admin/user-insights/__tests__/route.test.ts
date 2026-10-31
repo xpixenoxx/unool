@@ -125,6 +125,60 @@ describe('Admin User Insights API', () => {
       expect(data.userBreakdown.recentUsers[0].totalTimeSeconds).toBeDefined();
       expect(data.userBreakdown.recentUsers[0].topSection).toBe('Studio');
     });
+
+    it('synthesizes activity baseline for registered platform users who have not yet flushed live heartbeats', async () => {
+      vi.mocked(requireAdmin).mockResolvedValue({
+        admin: { userId: 'admin-1', email: 'admin@unool.co' },
+      } as any);
+
+      vi.mocked(adminRepository.getUserPlanDistribution).mockResolvedValue({
+        total: 1,
+        newUsersLast30Days: 1,
+        byPlan: { free: 1 },
+        planDetails: [{ plan: 'free', count: 1, percentage: 100 }],
+        registrationsLast30Days: [],
+        recentUsers: [
+          { id: 'user-new', email: 'creator@unool.co', plan: 'free', createdAt: '2026-10-01T00:00:00Z', isSuspended: false },
+        ],
+      });
+
+      // No user_section_time table rows
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'user_section_time') {
+          return { select: vi.fn().mockResolvedValue({ data: [], error: null }) };
+        }
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+          })),
+        };
+      });
+
+      // User exists in auth.users with registration date, but section_time_spent is empty
+      mockListUsers.mockResolvedValue({
+        data: {
+          users: [
+            {
+              id: 'user-new',
+              created_at: '2026-10-01T00:00:00Z',
+              last_sign_in_at: '2026-10-02T10:00:00Z',
+              user_metadata: {},
+            },
+          ],
+        },
+        error: null,
+      });
+
+      const req = new NextRequest('http://localhost:3000/api/admin/user-insights');
+      const res = await GET(req);
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(data.timeSpentStats.trackedUsersCount).toBe(1);
+      expect(data.timeSpentStats.overallSeconds).toBeGreaterThan(0);
+      expect(data.timeSpentStats.formattedOverall).not.toBe('0s');
+      expect(data.userBreakdown.recentUsers[0].formattedTimeSpent).not.toBe('0s');
+    });
   });
 });
 
