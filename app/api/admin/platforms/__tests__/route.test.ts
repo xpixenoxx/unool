@@ -204,6 +204,49 @@ describe('Admin Platforms API', () => {
       // BUT global platformStats retains all platforms so top distribution metrics stay intact!
       expect(json.platformStats).toEqual({ pinterest: 1, linkedin: 1 });
     });
+
+    it('filters connections to users who have connected ALL requested platforms when multiple platforms are specified', async () => {
+      vi.mocked(requireAdmin).mockResolvedValue({
+        admin: { userId: 'admin-1', email: 'admin@unool.co' },
+      } as any);
+
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'platform_connections') {
+          return {
+            select: vi.fn(() => ({
+              order: vi.fn().mockResolvedValue({
+                data: [
+                  // User 1 has pinterest, linkedin, instagram
+                  { id: 'c-1', workspace_id: 'ws-1', user_id: 'user-1', platform: 'pinterest', username: 'pin_user', status: 'connected' },
+                  { id: 'c-2', workspace_id: 'ws-1', user_id: 'user-1', platform: 'linkedin', username: 'li_user', status: 'connected' },
+                  { id: 'c-3', workspace_id: 'ws-1', user_id: 'user-1', platform: 'instagram', username: 'ig_user', status: 'connected' },
+                  // User 2 has linkedin only
+                  { id: 'c-4', workspace_id: 'ws-2', user_id: 'user-2', platform: 'linkedin', username: 'li_user2', status: 'connected' },
+                ],
+                error: null,
+              }),
+            })),
+          };
+        }
+        return { select: vi.fn().mockResolvedValue({ data: [], error: null }) };
+      });
+
+      mockListUsers.mockResolvedValue({ data: { users: [] }, error: null });
+
+      const req = new NextRequest('http://localhost:3000/api/admin/platforms?platforms=pinterest,linkedin');
+      const res = await GET(req);
+      const json = await res.json();
+
+      expect(res.status).toBe(200);
+      // User 1 has both pinterest AND linkedin, so User 1 qualifies!
+      // User 2 only has linkedin, so User 2 does not qualify.
+      expect(json.data).toHaveLength(2);
+      const platforms = json.data.map((c: any) => c.platform).sort();
+      expect(platforms).toEqual(['linkedin', 'pinterest']);
+      expect(json.data.every((c: any) => c.userId === 'user-1')).toBe(true);
+      expect(json.total).toBe(4);
+      expect(json.platformStats).toEqual({ pinterest: 1, linkedin: 2, instagram: 1 });
+    });
   });
 
   describe('DELETE /api/admin/platforms', () => {

@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const platform = searchParams.get('platform');
+    const platforms = searchParams.get('platforms');
     const status = searchParams.get('status');
 
     // 1. Fetch platform connections with workspace relations
@@ -151,13 +152,52 @@ export async function GET(request: NextRequest) {
     });
 
     // 5. Apply Filters for Table View
-    let filteredConnections = allConnections;
-    if (platform && platform !== 'all') {
-      const targetPlatform = platform.toLowerCase();
-      filteredConnections = filteredConnections.filter(
-        (c) => (c.platform || '').toLowerCase() === targetPlatform
-      );
+    // Support single or multiple platforms (user must have connected ALL selected platforms)
+    let targetPlatforms: string[] = [];
+    if (platforms && platforms !== 'all') {
+      targetPlatforms = platforms.split(',').map((p) => p.trim().toLowerCase()).filter(Boolean);
+    } else if (platform && platform !== 'all') {
+      targetPlatforms = platform.split(',').map((p) => p.trim().toLowerCase()).filter(Boolean);
     }
+
+    let filteredConnections = allConnections;
+
+    if (targetPlatforms.length === 1) {
+      // Single platform filter (exact match for backward compatibility)
+      const target = targetPlatforms[0];
+      filteredConnections = filteredConnections.filter(
+        (c) => (c.platform || '').toLowerCase() === target
+      );
+    } else if (targetPlatforms.length > 1) {
+      // Multi-platform filter: User must have connected ALL target platforms
+      const userPlatformsMap = new Map<string, Set<string>>();
+      allConnections.forEach((conn) => {
+        const userKey = conn.userId || (conn.userEmail ? conn.userEmail.toLowerCase() : null) || conn.workspaceId;
+        if (!userKey) return;
+        if (!userPlatformsMap.has(userKey)) {
+          userPlatformsMap.set(userKey, new Set<string>());
+        }
+        if (conn.platform) {
+          userPlatformsMap.get(userKey)!.add(conn.platform.toLowerCase());
+        }
+      });
+
+      const qualifyingUserKeys = new Set<string>();
+      userPlatformsMap.forEach((userPlatforms, userKey) => {
+        const hasAll = targetPlatforms.every((tp) => userPlatforms.has(tp));
+        if (hasAll) {
+          qualifyingUserKeys.add(userKey);
+        }
+      });
+
+      // Connections matching the target platforms from qualifying users
+      filteredConnections = allConnections.filter((conn) => {
+        const userKey = conn.userId || (conn.userEmail ? conn.userEmail.toLowerCase() : null) || conn.workspaceId;
+        if (!userKey || !qualifyingUserKeys.has(userKey)) return false;
+        return targetPlatforms.includes((conn.platform || '').toLowerCase());
+      });
+    }
+
     if (status && status !== 'all') {
       const targetStatus = status.toLowerCase();
       filteredConnections = filteredConnections.filter(
