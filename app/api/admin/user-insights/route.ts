@@ -45,20 +45,31 @@ export async function GET(request: NextRequest) {
     // ── 1. Posts by platform & published posts per workspace ──────────────────
     const { data: platformPostsRaw, error: pvErr } = await adminClient
       .from('post_variants')
-      .select('platform, workspace_id')
+      .select('platform')
       .eq('status', 'published');
 
     const postsByPlatform: Record<string, number> = {};
-    const wsPublishedPostsCount: Record<string, number> = {};
-
     if (!pvErr && platformPostsRaw) {
       platformPostsRaw.forEach((row: any) => {
         const p = (row.platform || 'unknown').toLowerCase();
         postsByPlatform[p] = (postsByPlatform[p] || 0) + 1;
+      });
+    }
+
+    const wsPublishedPostsCount: Record<string, number> = {};
+    try {
+      const { data: postsRaw } = await adminClient
+        .from('posts')
+        .select('workspace_id')
+        .eq('status', 'published');
+
+      (postsRaw || []).forEach((row: any) => {
         if (row.workspace_id) {
           wsPublishedPostsCount[row.workspace_id] = (wsPublishedPostsCount[row.workspace_id] || 0) + 1;
         }
       });
+    } catch {
+      // Non-fatal
     }
 
     // ── 2. Platform connections & multi-channel stats ─────────────────────────

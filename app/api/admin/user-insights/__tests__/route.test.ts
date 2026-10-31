@@ -179,6 +179,60 @@ describe('Admin User Insights API', () => {
       expect(data.timeSpentStats.formattedOverall).not.toBe('0s');
       expect(data.userBreakdown.recentUsers[0].formattedTimeSpent).not.toBe('0s');
     });
+
+    it('correctly aggregates published posts by platform without requiring workspace_id on post_variants', async () => {
+      vi.mocked(requireAdmin).mockResolvedValue({
+        admin: { userId: 'admin-1', email: 'admin@unool.co' },
+      } as any);
+
+      vi.mocked(adminRepository.getUserPlanDistribution).mockResolvedValue({
+        total: 1,
+        newUsersLast30Days: 1,
+        byPlan: { free: 1 },
+        planDetails: [],
+        registrationsLast30Days: [],
+        recentUsers: [],
+      });
+
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'post_variants') {
+          return {
+            select: vi.fn((cols: string) => {
+              expect(cols).not.toContain('workspace_id');
+              return {
+                eq: vi.fn().mockResolvedValue({
+                  data: [
+                    { platform: 'linkedin' },
+                    { platform: 'linkedin' },
+                    { platform: 'bluesky' },
+                    { platform: 'instagram' },
+                  ],
+                  error: null,
+                }),
+              };
+            }),
+          };
+        }
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+          })),
+        };
+      });
+
+      mockListUsers.mockResolvedValue({ data: { users: [] }, error: null });
+
+      const req = new NextRequest('http://localhost:3000/api/admin/user-insights');
+      const res = await GET(req);
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(data.postsByPlatform).toEqual({
+        linkedin: 2,
+        bluesky: 1,
+        instagram: 1,
+      });
+    });
   });
 });
 
