@@ -84,6 +84,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: 'Verification data lost. Please sign up again.' }, { status: 500 });
     }
 
+    // If an existing soft-deleted user record exists in Supabase, purge it so the new user can be created
+    const { data: preUserList } = await supabaseAdmin.auth.admin.listUsers();
+    const preExistingUser = preUserList?.users?.find(u => u.email === emailLower);
+    if (preExistingUser) {
+      let isPreDeleted = preExistingUser.user_metadata?.is_deleted === true;
+      if (!isPreDeleted) {
+        try {
+          const { data: delAcc } = await supabaseAdmin
+            .from('deleted_accounts')
+            .select('id')
+            .eq('user_id', preExistingUser.id)
+            .is('recovered_at', null)
+            .limit(1);
+          if (delAcc && delAcc.length > 0) isPreDeleted = true;
+        } catch {}
+      }
+      if (isPreDeleted) {
+        logger.info('Signup verify-otp: purging soft-deleted user before createUser', { email: emailLower, userId: preExistingUser.id });
+        try {
+          await supabaseAdmin.from('users').delete().eq('id', preExistingUser.id);
+          await supabaseAdmin.from('deleted_accounts').delete().eq('user_id', preExistingUser.id);
+        } catch {}
+        await supabaseAdmin.auth.admin.deleteUser(preExistingUser.id);
+      }
+    }
+
     // Create the user with email already confirmed (no email needed from Supabase)
     const { data: userData, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email:         emailLower,

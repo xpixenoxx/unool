@@ -36,8 +36,16 @@ function SignInComponent() {
   const [stage, setStage] = useState<'form' | 'otp'>('form');
   const [busy, setBusy] = useState(false);
   const [emailError, setEmailError] = useState('');
-  const [passwordError, setPasswordError] = useState(
-    searchParams.get('error') ? decodeURIComponent(searchParams.get('error')!) : ''
+  const urlErrorParam = searchParams.get('error') ? decodeURIComponent(searchParams.get('error')!) : '';
+  const initialIsAccountError =
+    urlErrorParam === 'account_deleted' ||
+    urlErrorParam === 'account_suspended' ||
+    urlErrorParam.toLowerCase().includes('contact unool team');
+
+  const [passwordError, setPasswordError] = useState(initialIsAccountError ? '' : urlErrorParam);
+  // 'deleted' | 'suspended' | null — triggers a clickable error link
+  const [accountError, setAccountError] = useState<'deleted' | 'suspended' | null>(
+    initialIsAccountError ? (urlErrorParam === 'account_suspended' ? 'suspended' : 'deleted') : null
   );
 
   // OTP States
@@ -128,7 +136,16 @@ function SignInComponent() {
       const data = await res.json();
 
       if (!res.ok) {
-        setPasswordError(data.message || 'Invalid credentials.');
+        if (data.message === 'account_deleted') {
+          setAccountError('deleted');
+          setPasswordError('');
+        } else if (data.message === 'account_suspended') {
+          setAccountError('suspended');
+          setPasswordError('');
+        } else {
+          setAccountError(null);
+          setPasswordError(data.message || 'Invalid credentials.');
+        }
         setBusy(false);
       } else if (data.session?.access_token) {
         const uid = data.userId || data.session?.user?.id;
@@ -210,7 +227,18 @@ function SignInComponent() {
       const data = await res.json();
 
       if (!res.ok) {
-        setOtpError(data.message || 'Invalid code.');
+        if (
+          data.message === 'account_deleted' ||
+          data.message === 'account_suspended' ||
+          data.contactUrl ||
+          (typeof data.message === 'string' && data.message.toLowerCase().includes('contact unool team'))
+        ) {
+          setAccountError(data.message === 'account_suspended' ? 'suspended' : 'deleted');
+          setOtpError('');
+        } else {
+          setAccountError(null);
+          setOtpError(data.message || 'Invalid code.');
+        }
         setOtp(['', '', '', '', '', '']);
         setBusy(false);
         setTimeout(() => otpRefs.current[0]?.focus(), 50);
@@ -337,6 +365,7 @@ function SignInComponent() {
                       onChange={(e) => {
                         setEmail(e.target.value);
                         setEmailError('');
+                        setAccountError(null);
                       }}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
@@ -376,6 +405,7 @@ function SignInComponent() {
                         onChange={(e) => {
                           setPassword(e.target.value);
                           setPasswordError('');
+                          setAccountError(null);
                         }}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
@@ -394,9 +424,22 @@ function SignInComponent() {
                         {showPassword ? 'Hide' : 'Show'}
                       </button>
                     </div>
-                    <p className="err" id="pwerr" role="alert">
-                      {passwordError}
-                    </p>
+                    {accountError ? (
+                      <p className="err" id="pwerr" role="alert">
+                        <a
+                          href="https://unool.co/contact"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ color: 'inherit', textDecoration: 'underline', cursor: 'pointer' }}
+                        >
+                          Session creation failed. Contact Unool team
+                        </a>
+                      </p>
+                    ) : (
+                      <p className="err" id="pwerr" role="alert">
+                        {passwordError}
+                      </p>
+                    )}
 
                     <label className="ck">
                       <input type="checkbox" defaultChecked />
@@ -455,9 +498,20 @@ function SignInComponent() {
                       ))}
                     </div>
 
-                    <p className="err" role="alert">
-                      {otpError}
-                    </p>
+                    {accountError ? (
+                      <p className="err" role="alert">
+                        <a
+                          href="https://unool.co/contact"
+                          style={{ color: 'inherit', textDecoration: 'underline', cursor: 'pointer' }}
+                        >
+                          Session creation failed. Contact Unool team
+                        </a>
+                      </p>
+                    ) : (
+                      <p className="err" role="alert">
+                        {otpError}
+                      </p>
+                    )}
 
                     <button
                       className="btn"

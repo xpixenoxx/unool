@@ -50,6 +50,51 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: 'Invalid or expired code.' }, { status: 400 });
     }
 
+    // Check if account is deleted or suspended before verifying OTP
+    const userRecord = user as Record<string, any>;
+    let isDeleted    = user.user_metadata?.is_deleted === true;
+    if (!isDeleted) {
+      try {
+        const { data: delAcc } = await supabaseAdmin
+          .from('deleted_accounts')
+          .select('id')
+          .eq('user_id', user.id)
+          .is('recovered_at', null)
+          .limit(1);
+        if (delAcc && delAcc.length > 0) {
+          isDeleted = true;
+        }
+      } catch {}
+    }
+    const bannedUntil = userRecord.banned_until;
+    const isSuspended = !isDeleted && !!(bannedUntil && new Date(bannedUntil) > new Date());
+
+    if (isDeleted) {
+      logger.warn('OTP verify attempt on deleted account', { email: emailLower, userId: user.id });
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'account_deleted',
+          error: 'Session creation failed. Contact Unool team',
+          contactUrl: 'https://unool.co/contact',
+        },
+        { status: 403 }
+      );
+    }
+
+    if (isSuspended) {
+      logger.warn('OTP verify attempt on suspended account', { email: emailLower, userId: user.id });
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'account_suspended',
+          error: 'Session creation failed. Contact Unool team',
+          contactUrl: 'https://unool.co/contact',
+        },
+        { status: 403 }
+      );
+    }
+
     // Verify OTP
     const result = await verifyOtp(user.id, 'signin', otp);
 

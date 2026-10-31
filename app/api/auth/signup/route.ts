@@ -73,7 +73,23 @@ export async function POST(request: NextRequest) {
     // Check if email is already a verified account
     const { data: userList } = await supabaseAdmin.auth.admin.listUsers();
     const existingUser = userList?.users?.find(u => u.email === emailLower);
-    if (existingUser?.email_confirmed_at) {
+    // Allow deleted accounts to re-register (soft-delete via is_deleted flag or deleted_accounts entry)
+    let isExistingDeleted = existingUser?.user_metadata?.is_deleted === true;
+    if (existingUser && !isExistingDeleted) {
+      try {
+        const { data: delAcc } = await supabaseAdmin
+          .from('deleted_accounts')
+          .select('id')
+          .eq('user_id', existingUser.id)
+          .is('recovered_at', null)
+          .limit(1);
+        if (delAcc && delAcc.length > 0) {
+          isExistingDeleted = true;
+        }
+      } catch {}
+    }
+
+    if (existingUser?.email_confirmed_at && !isExistingDeleted) {
       logger.info('Signup attempt for already-verified email', { email: emailLower });
       return NextResponse.json({
         success: false,
@@ -82,12 +98,23 @@ export async function POST(request: NextRequest) {
       }, { status: 409 });
     }
 
+    // If the existing account is soft-deleted, permanently purge it so the
+    // new registration can proceed cleanly.
+    if (existingUser && isExistingDeleted) {
+      logger.info('Clearing soft-deleted account to allow re-registration', { email: emailLower, userId: existingUser.id });
+      try {
+        await supabaseAdmin.from('users').delete().eq('id', existingUser.id);
+        await supabaseAdmin.from('deleted_accounts').delete().eq('user_id', existingUser.id);
+      } catch (cleanErr) {
+        logger.warn('Non-fatal cleanup error before deleting auth user', { cleanErr });
+      }
+      await supabaseAdmin.auth.admin.deleteUser(existingUser.id);
+    }
+
     // If a previous unverified user record exists in Supabase, delete it
     // (they never completed OTP — now we handle pending state in OTP table instead)
-    if (existingUser && !existingUser.email_confirmed_at) {
+    if (existingUser && !existingUser.email_confirmed_at && !isExistingDeleted) {
       await supabaseAdmin.auth.admin.deleteUser(existingUser.id);
-      
-      // Also forcibly cleanup dangling public schema tables in case ON DELETE CASCADE is missing
       await supabaseAdmin.from('users').delete().eq('email', emailLower);
     }
 
