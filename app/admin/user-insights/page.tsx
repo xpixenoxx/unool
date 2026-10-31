@@ -262,6 +262,214 @@ function BarChart({ data, color = '#8b5cf6', maxItems = 12 }: {
   );
 }
 
+// ---- Section Active Users Bar Chart (Real-time live user adoption per section) ----
+function SectionUsersBarChart({
+  sections,
+  totalUsers,
+}: {
+  sections: SectionTimeStat[];
+  totalUsers: number;
+}) {
+  const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(null);
+
+  // Sort sections descending by activeUsersCount, then by totalSeconds
+  const sortedSections = React.useMemo(() => {
+    return [...sections].sort((a, b) => {
+      if (b.activeUsersCount !== a.activeUsersCount) {
+        return b.activeUsersCount - a.activeUsersCount;
+      }
+      return b.totalSeconds - a.totalSeconds;
+    });
+  }, [sections]);
+
+  const maxVal = React.useMemo(() => {
+    return Math.max(...sortedSections.map((s) => s.activeUsersCount), 1);
+  }, [sortedSections]);
+
+  const chartH = 140;   // Height of the chart area
+  const barW = 34;      // Width of each bar
+  const gap = 12;       // Spacing between bars
+  const leftPad = 32;   // Room for Y-axis scale
+  const topPad = 30;    // Room for user counts above bars
+  const bottomPad = 48; // Room for labels and colored indicator dots below bars
+
+  const totalW = leftPad + sortedSections.length * (barW + gap) + 12;
+  const svgH = chartH + topPad + bottomPad;
+
+  const yTicks = [1, 0.5, 0];
+
+  const hoveredItem = hoveredIndex !== null ? sortedSections[hoveredIndex] : null;
+  const hoveredPct = hoveredItem && totalUsers > 0
+    ? ((hoveredItem.activeUsersCount / totalUsers) * 100).toFixed(1)
+    : null;
+
+  return (
+    <div className="p-4 rounded-xl border border-border/60 bg-muted/20 space-y-3">
+      {/* Header with Title and Real-Time status */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <div className="flex items-center gap-2">
+            <Users className="h-4 w-4 text-emerald-500" />
+            <Text size="sm" weight="semibold" color="foreground">Active Users by Section</Text>
+          </div>
+          <Text size="xs" color="muted">Unique users actively using each dashboard section (real-time)</Text>
+        </div>
+        <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30 font-medium gap-1 py-0.5 px-2">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          Live
+        </Badge>
+      </div>
+
+      {/* Interactive Tooltip status row */}
+      <div className="min-h-[22px] flex items-center justify-between text-xs px-1 border-b border-border/40 pb-1.5">
+        {hoveredItem ? (
+          <div className="flex items-center gap-2 animate-in fade-in duration-100 flex-wrap">
+            <span className="h-2 w-2 rounded-full shrink-0" style={{ background: hoveredItem.color }} />
+            <span className="font-semibold text-foreground">{hoveredItem.name}:</span>
+            <span className="font-bold text-emerald-600 dark:text-emerald-400">
+              {hoveredItem.activeUsersCount} {hoveredItem.activeUsersCount === 1 ? 'user' : 'users'}
+            </span>
+            {hoveredPct && (
+              <span className="text-muted-foreground font-mono">
+                ({hoveredPct}% reach)
+              </span>
+            )}
+            <span className="text-muted-foreground text-[11px]">· Avg {hoveredItem.formattedAvg}</span>
+          </div>
+        ) : (
+          <span className="text-muted-foreground text-[11px] italic">
+            Hover over any bar to view exact user count & reach
+          </span>
+        )}
+        <span className="text-muted-foreground font-mono text-[11px] shrink-0">
+          Base: <strong className="text-foreground">{totalUsers}</strong> tracked
+        </span>
+      </div>
+
+      {/* SVG Bar Chart */}
+      <div className="overflow-x-auto pb-1">
+        <svg
+          width={Math.max(totalW, 460)}
+          height={svgH}
+          style={{ display: 'block' }}
+          className="w-full min-w-[460px]"
+        >
+          {/* Y-axis grid lines */}
+          {yTicks.map((tick) => {
+            const y = topPad + chartH * (1 - tick);
+            const val = Math.round(maxVal * tick);
+            return (
+              <g key={tick}>
+                <line
+                  x1={leftPad}
+                  y1={y}
+                  x2={totalW}
+                  y2={y}
+                  stroke="currentColor"
+                  strokeDasharray={tick === 0 ? undefined : '3 3'}
+                  className={tick === 0 ? 'text-border/80' : 'text-border/30'}
+                />
+                <text
+                  x={leftPad - 8}
+                  y={y + 3}
+                  textAnchor="end"
+                  fontSize="10"
+                  className="fill-muted-foreground font-mono"
+                >
+                  {val}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* Section Bars */}
+          {sortedSections.map((sec, i) => {
+            const x = leftPad + i * (barW + gap);
+            const isHovered = hoveredIndex === i;
+            const barHeight = sec.activeUsersCount > 0
+              ? Math.max((sec.activeUsersCount / maxVal) * chartH, 6)
+              : 2;
+            const y = topPad + chartH - barHeight;
+
+            return (
+              <g
+                key={sec.section}
+                onMouseEnter={() => setHoveredIndex(i)}
+                onMouseLeave={() => setHoveredIndex(null)}
+                style={{ cursor: 'pointer' }}
+                className="transition-all duration-150"
+              >
+                {/* Hit area */}
+                <rect
+                  x={x - gap / 4}
+                  y={topPad - 10}
+                  width={barW + gap / 2}
+                  height={chartH + bottomPad + 10}
+                  fill="transparent"
+                />
+
+                {/* Bar */}
+                <rect
+                  x={x}
+                  y={y}
+                  width={barW}
+                  height={barHeight}
+                  rx={4}
+                  fill={sec.color}
+                  opacity={isHovered ? 1 : sec.activeUsersCount > 0 ? 0.85 : 0.25}
+                  style={{
+                    filter: isHovered ? `drop-shadow(0 4px 8px ${sec.color}40)` : undefined,
+                    transition: 'all 0.2s ease',
+                  }}
+                />
+
+                {/* Value on top of bar */}
+                <text
+                  x={x + barW / 2}
+                  y={y - 6}
+                  textAnchor="middle"
+                  fontSize={isHovered ? '11' : '10'}
+                  fontWeight={isHovered ? 'bold' : 'medium'}
+                  fill={sec.activeUsersCount > 0 ? (isHovered ? sec.color : 'currentColor') : '#888'}
+                  className={sec.activeUsersCount > 0 && !isHovered ? 'fill-foreground' : ''}
+                >
+                  {sec.activeUsersCount}
+                </text>
+
+                {/* Section colored indicator dot */}
+                <circle
+                  cx={x + barW / 2}
+                  cy={topPad + chartH + 12}
+                  r={isHovered ? 4 : 3}
+                  fill={sec.color}
+                  style={{ transition: 'r 0.15s ease' }}
+                />
+
+                {/* Section Label */}
+                <text
+                  x={x + barW / 2}
+                  y={topPad + chartH + 28}
+                  textAnchor="middle"
+                  fontSize="9.5"
+                  fontWeight={isHovered ? 'bold' : 'normal'}
+                  fill={isHovered ? sec.color : '#888'}
+                  style={{ transition: 'fill 0.15s ease' }}
+                >
+                  {sec.name.length > 7 ? sec.name.slice(0, 6) + '…' : sec.name}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+
+      <Text size="xs" color="muted" className="text-center text-[11px]">
+        Values show distinct active users tracked in real time across sections
+      </Text>
+    </div>
+  );
+}
+
 // ---- Platform Posts Bar Chart (Expanded & Interactive with Percentages and Hover Counts) ----
 function PlatformPostsBarChart({ data }: { data: Array<{ label: string; value: number }> }) {
   const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(null);
@@ -730,6 +938,12 @@ export default function UserInsightsPage() {
                   />
                   <Text size="xs" color="muted" className="text-center mt-1">Values in active minutes</Text>
                 </div>
+
+                {/* Users by Dashboard Section Graph (Real-time live user adoption) */}
+                <SectionUsersBarChart
+                  sections={sectionsList}
+                  totalUsers={timeSpentStats?.trackedUsersCount || userBreakdown.total || 1}
+                />
 
                 {/* Overall insights summary card */}
                 <div className="p-4 rounded-xl border border-border/60 bg-muted/30 space-y-3">
