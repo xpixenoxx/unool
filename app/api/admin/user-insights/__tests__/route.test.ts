@@ -130,7 +130,7 @@ describe('Admin User Insights API', () => {
       expect(data.userBreakdown.recentUsers[0].topSection).toBe('Studio');
     });
 
-    it('synthesizes activity baseline for registered platform users who have not yet flushed live heartbeats', async () => {
+    it('shows zero time for users who have not yet flushed any live heartbeats (no synthetic baseline)', async () => {
       vi.mocked(requireAdmin).mockResolvedValue({
         admin: { userId: 'admin-1', email: 'admin@unool.co' },
       } as any);
@@ -146,7 +146,7 @@ describe('Admin User Insights API', () => {
         ],
       });
 
-      // No user_section_time table rows
+      // No user_section_time table rows and no metadata heartbeats
       mockFrom.mockImplementation((table: string) => {
         if (table === 'user_section_time') {
           return { select: vi.fn().mockResolvedValue({ data: [], error: null }) };
@@ -158,7 +158,7 @@ describe('Admin User Insights API', () => {
         };
       });
 
-      // User exists in auth.users with registration date, but section_time_spent is empty
+      // User exists in auth.users with registration date, but section_time_spent is empty (no heartbeats yet)
       mockListUsers.mockResolvedValue({
         data: {
           users: [
@@ -178,10 +178,12 @@ describe('Admin User Insights API', () => {
       const data = await res.json();
 
       expect(res.status).toBe(200);
-      expect(data.timeSpentStats.trackedUsersCount).toBe(1);
-      expect(data.timeSpentStats.overallSeconds).toBeGreaterThan(0);
-      expect(data.timeSpentStats.formattedOverall).not.toBe('0s');
-      expect(data.userBreakdown.recentUsers[0].formattedTimeSpent).not.toBe('0s');
+      // No real heartbeats = 0s. Only real measured browsing time counts.
+      expect(data.timeSpentStats.overallSeconds).toBe(0);
+      expect(data.timeSpentStats.trackedUsersCount).toBe(0);
+      // All sections should show 0s for users with no live heartbeats
+      const studioStat = data.timeSpentStats.sections.find((s: any) => s.section === 'studio');
+      expect(studioStat?.totalSeconds).toBe(0);
     });
 
     it('correctly aggregates published posts by platform without requiring workspace_id on post_variants', async () => {

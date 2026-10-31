@@ -208,64 +208,21 @@ export async function GET(request: NextRequest) {
       sectionUsersMap[sec] = new Set();
     });
 
-    // Populate for each user: live tracked time + activity-derived baseline for existing users
+    // Populate for each user: ONLY real live-tracked time from DashboardTimeTracker heartbeats.
+    // No synthetic baselines — numbers must reflect actual measured browsing time only.
     activeAuthUsers.forEach((u) => {
       const uid = u.id;
       const liveSecs = userLiveTimes[uid] || {};
-      const userWorkspaces = userToWs[uid] || [];
 
-      // Calculate baseline engagement from actual platform activity
-      let userPublishedPosts = 0;
-      userWorkspaces.forEach((wid) => {
-        userPublishedPosts += wsPublishedPostsCount[wid] || 0;
-      });
-      const connectedCount = userPlatforms[uid]?.size || 0;
-
-      const baselineSecs: Record<string, number> = {};
-
-      // Only compute baseline if user has account registration date
-      if (u.created_at) {
-        // Core workspace onboarding & exploration
-        baselineSecs.overview = 180;   // 3 min reviewing stats & layout
-        baselineSecs.studio = 120;     // 2 min exploring AI generator & templates
-        baselineSecs.flightplan = 60;  // 1 min checking schedule / queue
-        baselineSecs.settings = 60;    // 1 min account / workspace settings
-
-        // Returning users (multiple sessions)
-        if (u.last_sign_in_at && u.last_sign_in_at !== u.created_at) {
-          baselineSecs.overview = (baselineSecs.overview || 0) + 120;
-          baselineSecs.studio = (baselineSecs.studio || 0) + 120;
-          baselineSecs.flightplan = (baselineSecs.flightplan || 0) + 60;
-        }
-
-        // Published posts activity
-        if (userPublishedPosts > 0) {
-          baselineSecs.studio = (baselineSecs.studio || 0) + userPublishedPosts * 240;
-          baselineSecs.composer = (baselineSecs.composer || 0) + userPublishedPosts * 180;
-          baselineSecs.signal = (baselineSecs.signal || 0) + userPublishedPosts * 120;
-          baselineSecs.flightplan = (baselineSecs.flightplan || 0) + userPublishedPosts * 60;
-        }
-
-        // Connected platform channels
-        if (connectedCount > 0) {
-          baselineSecs.signal = (baselineSecs.signal || 0) + connectedCount * 240;
-          baselineSecs.settings = (baselineSecs.settings || 0) + connectedCount * 120;
-        }
-      }
-
-      // Combine live tracked time with baseline (live heartbeats add on top)
       const combinedSecs: Record<string, number> = {};
       let userTotal = 0;
 
       Object.keys(SECTION_METADATA).forEach((sec) => {
         const tracked = liveSecs[sec] || 0;
-        const baseline = baselineSecs[sec] || 0;
-        const finalSec = tracked > 0 ? baseline + tracked : baseline;
-
-        if (finalSec > 0) {
-          combinedSecs[sec] = finalSec;
-          userTotal += finalSec;
-          sectionTotals[sec] = (sectionTotals[sec] || 0) + finalSec;
+        if (tracked > 0) {
+          combinedSecs[sec] = tracked;
+          userTotal += tracked;
+          sectionTotals[sec] = (sectionTotals[sec] || 0) + tracked;
           sectionUsersMap[sec].add(uid);
         }
       });
