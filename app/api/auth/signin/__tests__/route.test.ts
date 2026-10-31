@@ -121,7 +121,8 @@ describe('POST /api/auth/signin', () => {
 
     expect(res.status).toBe(403);
     expect(data.success).toBe(false);
-    expect(data.message).toBe('account_deleted');
+    expect(data.code).toBe('account_deleted');
+    expect(data.message).toBe('Session creation failed. Contact Unool team');
     expect(data.contactUrl).toBe('https://unool.co/contact');
   });
 
@@ -156,7 +157,8 @@ describe('POST /api/auth/signin', () => {
 
     expect(res.status).toBe(403);
     expect(data.success).toBe(false);
-    expect(data.message).toBe('account_suspended');
+    expect(data.code).toBe('account_suspended');
+    expect(data.message).toBe('Account suspended. Contact Unool team');
     expect(data.contactUrl).toBe('https://unool.co/contact');
   });
 

@@ -74,7 +74,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          message: 'account_deleted',
+          code: 'account_deleted',
+          message: 'Session creation failed. Contact Unool team',
           error: 'Session creation failed. Contact Unool team',
           contactUrl: 'https://unool.co/contact',
         },
@@ -87,8 +88,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          message: 'account_suspended',
-          error: 'Session creation failed. Contact Unool team',
+          code: 'account_suspended',
+          message: 'Account suspended. Contact Unool team',
+          error: 'Account suspended. Contact Unool team',
           contactUrl: 'https://unool.co/contact',
         },
         { status: 403 }
