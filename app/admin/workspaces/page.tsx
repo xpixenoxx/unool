@@ -50,6 +50,9 @@ import { useState, useEffect } from 'react';
 interface Workspace {
   id: string;
   name: string;
+  ownerId?: string | null;
+  ownerName?: string | null;
+  ownerEmail?: string | null;
   plan: string;
   planStatus: string;
   planExpiresAt: string | null;
@@ -156,7 +159,7 @@ function WorkspaceTable({
             <table className="w-full text-sm" role="table">
               <thead>
                 <tr className="border-b bg-muted/50">
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Workspace</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">User / Workspace</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Plan</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Members</th>
@@ -170,9 +173,35 @@ function WorkspaceTable({
                 {workspaces.map((ws) => (
                   <tr key={ws.id} className="hover:bg-muted/50 transition-colors">
                     <td className="px-6 py-4">
-                      <Box>
-                        <Text weight="medium" className="truncate max-w-xs">{ws.name}</Text>
-                        <Text size="xs" color="muted" className="font-mono">{ws.id.substring(0, 8)}...</Text>
+                      <Box className="space-y-1">
+                        <Flex align="center" gap={2} className="min-w-0">
+                          <Text weight="medium" className="truncate max-w-xs text-foreground">
+                            {ws.ownerName || ws.ownerEmail || ws.name}
+                          </Text>
+                          {ws.name && ws.name !== 'My Workspace' && ws.name !== (ws.ownerName || ws.ownerEmail) && (
+                            <Badge variant="outline" size="sm" className="text-xs truncate max-w-[130px]">
+                              {ws.name}
+                            </Badge>
+                          )}
+                        </Flex>
+                        {ws.ownerEmail && ws.ownerName && (
+                          <Text size="xs" color="muted" className="truncate max-w-xs block">
+                            {ws.ownerEmail}
+                          </Text>
+                        )}
+                        <Flex align="center" gap={2} className="text-xs text-muted-foreground font-mono">
+                          {ws.ownerId ? (
+                            <span title={`User ID: ${ws.ownerId}`} className="text-primary/90 font-medium">
+                              User: {ws.ownerId.substring(0, 8)}...
+                            </span>
+                          ) : (
+                            <span>User: Unknown</span>
+                          )}
+                          <span>•</span>
+                          <span title={`Workspace ID: ${ws.id}`} className="text-muted-foreground/60">
+                            WS: {ws.id.substring(0, 8)}...
+                          </span>
+                        </Flex>
                       </Box>
                     </td>
                     <td className="px-6 py-4"><PlanBadge plan={ws.plan} /></td>
@@ -339,7 +368,7 @@ export default function AdminWorkspacesPage() {
         </Box>
         <Flex gap={3} className="items-center flex-wrap">
           <Input
-            placeholder="Search workspaces..."
+            placeholder="Search by name, email, workspace..."
             value={searchQuery}
             onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
             className="w-60"

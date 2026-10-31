@@ -70,6 +70,9 @@ export interface UpdatePlanInput {
 export interface WorkspaceAdminView {
   id: string;
   name: string;
+  ownerId?: string | null;
+  ownerName?: string | null;
+  ownerEmail?: string | null;
   plan: string;
   planStatus: string;
   planExpiresAt: string | null;

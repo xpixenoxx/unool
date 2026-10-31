@@ -775,6 +775,71 @@ describe('SupabaseAdminRepository - Recovery Management', () => {
       expect(ws2.postsThisMonth).toBe(0);
     });
 
+    it('resolves ownerId, ownerName, and ownerEmail in listWorkspaces', async () => {
+      const mockWorkspaces = [
+        {
+          id: 'ws-owner-test',
+          name: 'My Workspace',
+          owner_id: 'user-123',
+          plan: 'free',
+          plan_status: 'active',
+          plan_expires_at: null,
+          stripe_customer_id: null,
+          stripe_subscription_id: null,
+          trial_ends_at: null,
+          created_at: '2026-10-30T00:00:00Z',
+          updated_at: '2026-10-30T00:00:00Z',
+        },
+      ];
+
+      const mockMembers = [
+        { workspace_id: 'ws-owner-test', user_id: 'user-123', role: 'owner' },
+      ];
+
+      const mockUsers = [
+        { id: 'user-123', email: 'owner@example.com', full_name: 'Alice Owner' },
+      ];
+
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'workspaces') {
+          return {
+            select: vi.fn().mockReturnValue({
+              order: vi.fn().mockReturnValue({
+                range: vi.fn().mockResolvedValue({ data: mockWorkspaces, error: null, count: 1 }),
+              }),
+            }),
+          };
+        }
+        if (table === 'workspace_members') {
+          return {
+            select: vi.fn().mockReturnValue({
+              in: vi.fn().mockResolvedValue({ data: mockMembers, error: null }),
+            }),
+          };
+        }
+        if (table === 'users') {
+          return {
+            select: vi.fn().mockReturnValue({
+              in: vi.fn().mockResolvedValue({ data: mockUsers, error: null }),
+            }),
+          };
+        }
+        return {
+          select: vi.fn().mockReturnValue({
+            in: vi.fn().mockReturnValue({
+              gte: vi.fn().mockResolvedValue({ data: [], error: null }),
+            }),
+          }),
+        };
+      });
+
+      const result = await repository.listWorkspaces({ page: 1, pageSize: 20 });
+      expect(result.data).toHaveLength(1);
+      const ws = result.data[0];
+      expect(ws.ownerId).toBe('user-123');
+      expect(ws.ownerName).toBe('Alice Owner');
+      expect(ws.ownerEmail).toBe('owner@example.com');
+    });
     it('computes live counts for getWorkspaceById', async () => {
       const mockWorkspace = {
         id: 'ws-single',

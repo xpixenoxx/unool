@@ -283,11 +283,11 @@ export class SupabaseAdminRepository implements IAdminRepository {
         const [membersResult, profilesResult, postsResult] = await Promise.all([
           adminClient
             .from('workspace_members')
-            .select('workspace_id')
+            .select('workspace_id, user_id, role')
             .in('workspace_id', workspaceIds),
           adminClient
             .from('profiles')
-            .select('workspace_id, deleted_at')
+            .select('workspace_id, user_id, name, deleted_at')
             .in('workspace_id', workspaceIds),
           adminClient
             .from('posts')
@@ -297,14 +297,24 @@ export class SupabaseAdminRepository implements IAdminRepository {
         ]);
 
         const memberCounts = new Map<string, number>();
-        (membersResult.data || []).forEach((row: { workspace_id: string }) => {
+        const ownerByWorkspace = new Map<string, string>();
+        (membersResult.data || []).forEach((row: { workspace_id: string; user_id?: string; role?: string }) => {
           memberCounts.set(row.workspace_id, (memberCounts.get(row.workspace_id) || 0) + 1);
+          if (row.user_id) {
+            if (row.role === 'owner' || !ownerByWorkspace.has(row.workspace_id)) {
+              ownerByWorkspace.set(row.workspace_id, row.user_id);
+            }
+          }
         });
 
         const profileCounts = new Map<string, number>();
-        (profilesResult.data || []).forEach((row: { workspace_id: string; deleted_at?: string | null }) => {
+        const profileNameByWorkspace = new Map<string, string>();
+        (profilesResult.data || []).forEach((row: { workspace_id: string; user_id?: string; name?: string | null; deleted_at?: string | null }) => {
           if (!row.deleted_at) {
             profileCounts.set(row.workspace_id, (profileCounts.get(row.workspace_id) || 0) + 1);
+            if (row.name && !profileNameByWorkspace.has(row.workspace_id)) {
+              profileNameByWorkspace.set(row.workspace_id, row.name);
+            }
           }
         });
 
@@ -314,9 +324,60 @@ export class SupabaseAdminRepository implements IAdminRepository {
         });
 
         workspaces.forEach((w) => {
+          if (!w.ownerId) {
+            w.ownerId = ownerByWorkspace.get(w.id) || null;
+          }
+        });
+
+        const ownerUserIds = Array.from(new Set(
+          workspaces.map((w) => w.ownerId).filter((id): id is string => Boolean(id))
+        ));
+
+        const userMap = new Map();
+
+        if (ownerUserIds.length > 0) {
+          try {
+            const { data: usersData } = await adminClient
+              .from('users')
+              .select('id, email, full_name')
+              .in('id', ownerUserIds);
+
+            (usersData || []).forEach((u) => {
+              userMap.set(u.id, { email: u.email, name: u.full_name });
+            });
+
+            const missingIds = ownerUserIds.filter((id) => !userMap.has(id));
+            if (missingIds.length > 0) {
+              await Promise.all(
+                missingIds.map(async (uid) => {
+                  try {
+                    const { data: authData } = await adminClient.auth.admin.getUserById(uid);
+                    if (authData?.user) {
+                      const meta = authData.user.user_metadata || {};
+                      userMap.set(uid, {
+                        email: authData.user.email || null,
+                        name: meta.full_name || meta.name || null,
+                      });
+                    }
+                  } catch {}
+                })
+              );
+            }
+          } catch (userErr) {
+            console.error('Failed to resolve workspace owners:', userErr);
+          }
+        }
+
+        workspaces.forEach((w) => {
           w.memberCount = memberCounts.get(w.id) || 0;
           w.profileCount = profileCounts.get(w.id) || 0;
           w.postsThisMonth = postsCounts.get(w.id) || 0;
+
+          const user = w.ownerId ? userMap.get(w.ownerId) : null;
+          const profileName = profileNameByWorkspace.get(w.id);
+
+          w.ownerEmail = user?.email || null;
+          w.ownerName = user?.name || profileName || (user?.email ? user.email.split('@')[0] : null);
         });
 
         if (sortBy === 'memberCount') {
@@ -1689,10 +1750,13 @@ export class SupabaseAdminRepository implements IAdminRepository {
     };
   }
 
-  private mapWorkspace(row: { id: string; name: string; plan: string; plan_status: string; plan_expires_at: string | null; stripe_customer_id: string | null; stripe_subscription_id: string | null; trial_ends_at: string | null; member_count: number | null; posts_this_month: number | null; profile_count: number | null; created_at: string; updated_at: string }): WorkspaceAdminView {
+  private mapWorkspace(row: any): WorkspaceAdminView {
     return {
       id: row.id,
       name: row.name,
+      ownerId: row.owner_id || row.ownerId || null,
+      ownerName: row.owner_name || row.ownerName || null,
+      ownerEmail: row.owner_email || row.ownerEmail || null,
       plan: row.plan,
       planStatus: row.plan_status,
       planExpiresAt: row.plan_expires_at,
