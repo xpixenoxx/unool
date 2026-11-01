@@ -1580,63 +1580,246 @@ export class SupabaseAdminRepository implements IAdminRepository {
   async listSubscriptions(params?: ListSubscriptionsParams): Promise<SubscriptionsListResult> {
     const page = params?.page ?? 1;
     const pageSize = params?.pageSize ?? 20;
-    const from = (page - 1) * pageSize;
-    const to = from + pageSize - 1;
 
-    let query = adminClient
+    // 1. Fetch all explicit subscriptions from subscriptions table
+    const { data: dbSubsData, error: dbSubsErr } = await adminClient
       .from('subscriptions')
-      .select('*, workspaces(name)', { count: 'exact' });
+      .select('*, workspaces(name)');
 
-    if (params?.search) {
-      const s = params.search.trim();
-      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
-      if (isUuid) {
-        query = query.or(`id.eq.${s},workspace_id.eq.${s},user_id.eq.${s},cf_subscription_id.ilike.%${s}%,plan_id.ilike.%${s}%`);
+    if (dbSubsErr) throw dbSubsErr;
+
+    // 2. Fetch all workspaces to include all free/spark user accounts
+    let allWorkspaces: any[] = [];
+    try {
+      const { data: wsData } = await adminClient
+        .from('workspaces')
+        .select('id, name, owner_id, plan, plan_status, plan_expires_at, trial_ends_at, created_at, updated_at');
+      if (wsData) {
+        allWorkspaces = wsData;
+      }
+    } catch (wsErr) {
+      console.error('Failed to fetch workspaces for subscriptions:', wsErr);
+    }
+
+    const existingWsIds = new Set((dbSubsData || []).map((s: any) => s.workspace_id).filter(Boolean));
+
+    // Synthesize subscription items for any workspace not in subscriptions table (free/spark accounts)
+    const syntheticSubs: any[] = allWorkspaces
+      .filter((ws) => !existingWsIds.has(ws.id))
+      .map((ws) => {
+        const rawPlan = (ws.plan || 'spark').toLowerCase().trim();
+        const planId = (rawPlan === 'free' || rawPlan === 'spark') ? 'spark' : rawPlan;
+        return {
+          id: `ws_${ws.id}`,
+          workspace_id: ws.id,
+          workspaces: { name: ws.name },
+          user_id: ws.owner_id,
+          cf_subscription_id: null,
+          plan_id: planId,
+          billing_cycle: 'monthly',
+          status: ws.plan_status || 'active',
+          amount_paise: 0,
+          currency: 'INR',
+          current_period_start: ws.created_at,
+          current_period_end: ws.plan_expires_at || null,
+          trial_end: ws.trial_ends_at || null,
+          cancel_at_period_end: false,
+          cancelled_at: null,
+          payment_method: null,
+          metadata: { is_workspace_plan: true },
+          created_at: ws.created_at,
+          updated_at: ws.updated_at || ws.created_at,
+        };
+      });
+
+    const allCombinedSubs = [...(dbSubsData || []), ...syntheticSubs];
+
+    // Compute plan breakdown stats across all real accounts in the database
+    const CANONICAL_PLANS: Array<{ id: string; name: string; aliases: string[] }> = [
+      { id: 'spark', name: 'Spark (Free)', aliases: ['spark', 'free'] },
+      { id: 'creator', name: 'Creator', aliases: ['creator'] },
+      { id: 'pro', name: 'Pro', aliases: ['pro'] },
+      { id: 'studio', name: 'Studio', aliases: ['studio'] },
+    ];
+
+    const planMap = new Map<string, PlanSummaryItem>();
+
+    CANONICAL_PLANS.forEach((p) => {
+      planMap.set(p.id, {
+        planId: p.id,
+        planName: p.name,
+        total: 0,
+        active: 0,
+        cancelled: 0,
+        pastDue: 0,
+        paused: 0,
+        otherStatus: 0,
+        monthly: 0,
+        annual: 0,
+        totalRevenuePaise: 0,
+      });
+    });
+
+    let totalActive = 0;
+    let totalCancelled = 0;
+    let totalPastDue = 0;
+    let totalMonthly = 0;
+    let totalAnnual = 0;
+
+    allCombinedSubs.forEach((row: any) => {
+      const rawPlan = (row.plan_id || 'spark').toLowerCase().trim();
+      const canonical = CANONICAL_PLANS.find((cp) => cp.aliases.includes(rawPlan));
+      const targetPlanId = canonical ? canonical.id : rawPlan;
+      const targetPlanName = canonical
+        ? canonical.name
+        : (rawPlan.charAt(0).toUpperCase() + rawPlan.slice(1));
+
+      if (!planMap.has(targetPlanId)) {
+        planMap.set(targetPlanId, {
+          planId: targetPlanId,
+          planName: targetPlanName,
+          total: 0,
+          active: 0,
+          cancelled: 0,
+          pastDue: 0,
+          paused: 0,
+          otherStatus: 0,
+          monthly: 0,
+          annual: 0,
+          totalRevenuePaise: 0,
+        });
+      }
+
+      const item = planMap.get(targetPlanId)!;
+      item.total += 1;
+
+      const st = (row.status || 'created').toLowerCase().trim();
+      if (st === 'active') {
+        item.active += 1;
+        totalActive += 1;
+        item.totalRevenuePaise += (Number(row.amount_paise) || 0);
+      } else if (st === 'cancelled') {
+        item.cancelled += 1;
+        totalCancelled += 1;
+      } else if (st === 'past_due') {
+        item.pastDue += 1;
+        totalPastDue += 1;
+      } else if (st === 'paused') {
+        item.paused += 1;
       } else {
-        let matchingUserIds: string[] = [];
-        try {
-          const { data: usersData } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
-          if (usersData?.users) {
-            matchingUserIds = usersData.users
-              .filter((u) => {
-                const em = (u.email || '').toLowerCase();
-                const fn = (u.user_metadata?.full_name || u.user_metadata?.name || '').toLowerCase();
-                return em.includes(s.toLowerCase()) || fn.includes(s.toLowerCase());
-              })
-              .map((u) => u.id);
-          }
-        } catch {}
+        item.otherStatus += 1;
+      }
 
-        if (matchingUserIds.length > 0) {
-          query = query.or(`cf_subscription_id.ilike.%${s}%,plan_id.ilike.%${s}%,user_id.in.(${matchingUserIds.join(',')})`);
-        } else {
-          query = query.or(`cf_subscription_id.ilike.%${s}%,plan_id.ilike.%${s}%`);
+      const cycle = (row.billing_cycle || 'monthly').toLowerCase().trim();
+      if (cycle === 'annual' || cycle === 'annually' || cycle === 'yearly') {
+        item.annual += 1;
+        totalAnnual += 1;
+      } else {
+        item.monthly += 1;
+        totalMonthly += 1;
+      }
+    });
+
+    const stats: SubscriptionStats = {
+      totalSubscriptions: allCombinedSubs.length,
+      totalActive,
+      totalCancelled,
+      totalPastDue,
+      totalMonthly,
+      totalAnnual,
+      byPlan: Array.from(planMap.values()),
+    };
+
+    // Apply filtering to combined subscriptions
+    let filtered = allCombinedSubs;
+
+    if (params?.status && params.status !== 'all') {
+      filtered = filtered.filter((row: any) => (row.status || '').toLowerCase() === params.status?.toLowerCase());
+    }
+
+    if (params?.planId && params.planId !== 'all') {
+      const targetPlan = params.planId.toLowerCase().trim();
+      filtered = filtered.filter((row: any) => {
+        const rowPlan = (row.plan_id || 'spark').toLowerCase().trim();
+        if (targetPlan === 'spark' || targetPlan === 'free') {
+          return rowPlan === 'spark' || rowPlan === 'free';
         }
-      }
+        return rowPlan === targetPlan;
+      });
     }
-    if (params?.status) {
-      query = query.eq('status', params.status);
-    }
-    if (params?.planId) {
-      if (params.planId === 'spark' || params.planId === 'free') {
-        query = query.in('plan_id', ['spark', 'free']);
-      } else {
-        query = query.eq('plan_id', params.planId);
-      }
-    }
+
     if (params?.workspaceId) {
-      query = query.eq('workspace_id', params.workspaceId);
+      filtered = filtered.filter((row: any) => row.workspace_id === params.workspaceId);
     }
 
-    const sortColumn = this.mapSubscriptionSortColumn(params?.sortBy ?? 'createdAt');
-    query = applySorting(query, sortColumn, params?.sortOrder ?? 'desc');
-    query = query.range(from, to);
+    if (params?.search && params.search.trim()) {
+      const s = params.search.trim().toLowerCase();
+      let matchingUserIds = new Set<string>();
+      try {
+        const { data: usersData } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
+        if (usersData?.users) {
+          usersData.users.forEach((u) => {
+            const em = (u.email || '').toLowerCase();
+            const fn = (u.user_metadata?.full_name || u.user_metadata?.name || '').toLowerCase();
+            if (em.includes(s) || fn.includes(s)) {
+              matchingUserIds.add(u.id);
+            }
+          });
+        }
+      } catch {}
 
-    const { data, error, count } = await query;
-    if (error) throw error;
+      filtered = filtered.filter((row: any) => {
+        const wsName = (row.workspaces?.name || '').toLowerCase();
+        const plan = (row.plan_id || '').toLowerCase();
+        const cfSub = (row.cf_subscription_id || '').toLowerCase();
+        const subId = (row.id || '').toLowerCase();
+        const wsId = (row.workspace_id || '').toLowerCase();
+        const uid = (row.user_id || '').toLowerCase();
 
+        return (
+          wsName.includes(s) ||
+          plan.includes(s) ||
+          cfSub.includes(s) ||
+          subId.includes(s) ||
+          wsId.includes(s) ||
+          uid.includes(s) ||
+          matchingUserIds.has(row.user_id)
+        );
+      });
+    }
+
+    // Apply sorting
+    const sortBy = params?.sortBy ?? 'createdAt';
+    const sortOrder = params?.sortOrder ?? 'desc';
+    filtered.sort((a: any, b: any) => {
+      let valA: any;
+      let valB: any;
+      if (sortBy === 'amount') {
+        valA = Number(a.amount_paise) || 0;
+        valB = Number(b.amount_paise) || 0;
+      } else if (sortBy === 'status') {
+        valA = (a.status || '').toLowerCase();
+        valB = (b.status || '').toLowerCase();
+      } else if (sortBy === 'currentPeriodEnd') {
+        valA = a.current_period_end ? new Date(a.current_period_end).getTime() : 0;
+        valB = b.current_period_end ? new Date(b.current_period_end).getTime() : 0;
+      } else {
+        // createdAt
+        valA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        valB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      }
+      if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+      if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    const totalCount = filtered.length;
+    const from = (page - 1) * pageSize;
+    const pageRows = filtered.slice(from, from + pageSize);
+
+    // Resolve user details for pageRows
     const userIds = Array.from(
-      new Set((data || []).map((row: any) => row.user_id).filter((id): id is string => Boolean(id)))
+      new Set(pageRows.map((row: any) => row.user_id).filter((id): id is string => Boolean(id)))
     );
 
     const userMap = new Map<string, { email: string; name?: string }>();
@@ -1677,7 +1860,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
         );
       }
 
-      const workspaceIds = Array.from(new Set((data || []).map((r: any) => r.workspace_id).filter(Boolean)));
+      const workspaceIds = Array.from(new Set(pageRows.map((r: any) => r.workspace_id).filter(Boolean)));
       if (workspaceIds.length > 0) {
         try {
           const { data: profData } = await adminClient
@@ -1697,120 +1880,12 @@ export class SupabaseAdminRepository implements IAdminRepository {
       }
     }
 
-    const subs = (data || []).map((row: any) => {
+    const subs = pageRows.map((row: any) => {
       const uInfo = row.user_id ? userMap.get(row.user_id) : null;
       return this.mapSubscription(row, uInfo);
     });
 
-    // Query all subscription records to compute real plan breakdown across the entire database
-    let stats: SubscriptionStats | undefined;
-    try {
-      const { data: allSubsForStats } = await adminClient
-        .from('subscriptions')
-        .select('plan_id, billing_cycle, status, amount_paise');
-
-      if (allSubsForStats) {
-        const CANONICAL_PLANS: Array<{ id: string; name: string; aliases: string[] }> = [
-          { id: 'spark', name: 'Spark (Free)', aliases: ['spark', 'free'] },
-          { id: 'creator', name: 'Creator', aliases: ['creator'] },
-          { id: 'pro', name: 'Pro', aliases: ['pro'] },
-          { id: 'studio', name: 'Studio', aliases: ['studio'] },
-        ];
-
-        const planMap = new Map<string, PlanSummaryItem>();
-
-        // Pre-populate canonical plans so they display in consistent tier order
-        CANONICAL_PLANS.forEach((p) => {
-          planMap.set(p.id, {
-            planId: p.id,
-            planName: p.name,
-            total: 0,
-            active: 0,
-            cancelled: 0,
-            pastDue: 0,
-            paused: 0,
-            otherStatus: 0,
-            monthly: 0,
-            annual: 0,
-            totalRevenuePaise: 0,
-          });
-        });
-
-        let totalActive = 0;
-        let totalCancelled = 0;
-        let totalPastDue = 0;
-        let totalMonthly = 0;
-        let totalAnnual = 0;
-
-        allSubsForStats.forEach((row: any) => {
-          const rawPlan = (row.plan_id || 'spark').toLowerCase().trim();
-          const canonical = CANONICAL_PLANS.find((cp) => cp.aliases.includes(rawPlan));
-          const targetPlanId = canonical ? canonical.id : rawPlan;
-          const targetPlanName = canonical
-            ? canonical.name
-            : (rawPlan.charAt(0).toUpperCase() + rawPlan.slice(1));
-
-          if (!planMap.has(targetPlanId)) {
-            planMap.set(targetPlanId, {
-              planId: targetPlanId,
-              planName: targetPlanName,
-              total: 0,
-              active: 0,
-              cancelled: 0,
-              pastDue: 0,
-              paused: 0,
-              otherStatus: 0,
-              monthly: 0,
-              annual: 0,
-              totalRevenuePaise: 0,
-            });
-          }
-
-          const item = planMap.get(targetPlanId)!;
-          item.total += 1;
-
-          const st = (row.status || 'created').toLowerCase().trim();
-          if (st === 'active') {
-            item.active += 1;
-            totalActive += 1;
-            item.totalRevenuePaise += (Number(row.amount_paise) || 0);
-          } else if (st === 'cancelled') {
-            item.cancelled += 1;
-            totalCancelled += 1;
-          } else if (st === 'past_due') {
-            item.pastDue += 1;
-            totalPastDue += 1;
-          } else if (st === 'paused') {
-            item.paused += 1;
-          } else {
-            item.otherStatus += 1;
-          }
-
-          const cycle = (row.billing_cycle || 'monthly').toLowerCase().trim();
-          if (cycle === 'annual' || cycle === 'annually' || cycle === 'yearly') {
-            item.annual += 1;
-            totalAnnual += 1;
-          } else {
-            item.monthly += 1;
-            totalMonthly += 1;
-          }
-        });
-
-        stats = {
-          totalSubscriptions: allSubsForStats.length,
-          totalActive,
-          totalCancelled,
-          totalPastDue,
-          totalMonthly,
-          totalAnnual,
-          byPlan: Array.from(planMap.values()),
-        };
-      }
-    } catch (statsErr) {
-      console.error('Failed to compute subscription stats:', statsErr);
-    }
-
-    const paginated = buildPagination(subs, count ?? 0, page, pageSize);
+    const paginated = buildPagination(subs, totalCount, page, pageSize);
     return {
       ...paginated,
       stats,
@@ -1818,6 +1893,55 @@ export class SupabaseAdminRepository implements IAdminRepository {
   }
 
   async getSubscriptionById(id: string): Promise<SubscriptionAdminView | null> {
+    if (id.startsWith('ws_')) {
+      const wsId = id.slice(3);
+      const { data: ws, error: wsErr } = await adminClient
+        .from('workspaces')
+        .select('*')
+        .eq('id', wsId)
+        .single();
+
+      if (wsErr || !ws) return null;
+
+      let uInfo: { email: string; name?: string } | null = null;
+      if (ws.owner_id) {
+        try {
+          const { data: authData } = await adminClient.auth.admin.getUserById(ws.owner_id);
+          if (authData?.user) {
+            const meta = authData.user.user_metadata || {};
+            uInfo = {
+              email: authData.user.email || '',
+              name: meta.full_name || meta.name || authData.user.email?.split('@')[0] || undefined,
+            };
+          }
+        } catch {}
+      }
+
+      const rawPlan = (ws.plan || 'spark').toLowerCase();
+      const planId = (rawPlan === 'free' || rawPlan === 'spark') ? 'spark' : rawPlan;
+
+      return this.mapSubscription({
+        id: `ws_${ws.id}`,
+        workspace_id: ws.id,
+        workspaces: { name: ws.name },
+        user_id: ws.owner_id,
+        cf_subscription_id: null,
+        plan_id: planId,
+        billing_cycle: 'monthly',
+        status: ws.plan_status || 'active',
+        amount_paise: 0,
+        currency: 'INR',
+        current_period_start: ws.created_at,
+        current_period_end: ws.plan_expires_at || null,
+        trial_end: ws.trial_ends_at || null,
+        cancel_at_period_end: false,
+        cancelled_at: null,
+        payment_method: null,
+        metadata: { is_workspace_plan: true },
+        created_at: ws.created_at,
+        updated_at: ws.updated_at || ws.created_at,
+      }, uInfo);
+    }
     const { data, error } = await adminClient
       .from('subscriptions')
       .select('*, workspaces(name)')
@@ -1849,6 +1973,18 @@ export class SupabaseAdminRepository implements IAdminRepository {
     reason: string
   ): Promise<SubscriptionAdminView | null> {
     const now = new Date().toISOString();
+
+    if (id.startsWith('ws_')) {
+      const wsId = id.slice(3);
+      await adminClient
+        .from('workspaces')
+        .update({ plan_status: 'cancelled', updated_at: now })
+        .eq('id', wsId);
+
+      await this.logAdminAction(adminUserId, 'subscription_cancel', 'subscription', id, { reason });
+      return this.getSubscriptionById(id);
+    }
+
     const { data, error } = await adminClient
       .from('subscriptions')
       .update({
@@ -1928,6 +2064,45 @@ export class SupabaseAdminRepository implements IAdminRepository {
     // Get current subscription to record old plan
     const current = await this.getSubscriptionById(subscriptionId);
     if (!current) return null;
+
+    if (subscriptionId.startsWith('ws_')) {
+      const wsId = subscriptionId.slice(3);
+      const { data: ws } = await adminClient.from('workspaces').select('*').eq('id', wsId).single();
+      if (!ws) return null;
+
+      const { data: inserted, error: insErr } = await adminClient
+        .from('subscriptions')
+        .insert({
+          workspace_id: ws.id,
+          user_id: ws.owner_id,
+          plan_id: newPlanId,
+          billing_cycle: 'monthly',
+          status: 'active',
+          amount_paise: newAmountPaise,
+          currency: 'INR',
+          created_at: now,
+          updated_at: now,
+        })
+        .select('*, workspaces(name)')
+        .single();
+
+      if (insErr) throw insErr;
+
+      await adminClient.from('workspaces').update({
+        plan: newPlanId,
+        plan_status: 'active',
+        updated_at: now,
+      }).eq('id', ws.id);
+
+      await this.logAdminAction(adminUserId, 'subscription_plan_change', 'subscription', inserted?.id || subscriptionId, {
+        oldPlan: current.planId,
+        newPlanId,
+        newAmountPaise,
+        reason,
+      });
+
+      return inserted ? this.mapSubscription(inserted) : null;
+    }
 
     const { data, error } = await adminClient
       .from('subscriptions')
