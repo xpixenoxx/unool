@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
     search: searchParams.get('search') || undefined,
     status: searchParams.get('status') || undefined,
     planId: searchParams.get('planId') || undefined,
+    billingCycle: searchParams.get('billingCycle') || undefined,
     workspaceId: searchParams.get('workspaceId') || undefined,
     sortBy: (searchParams.get('sortBy') as ListSubscriptionsParams['sortBy']) || 'createdAt',
     sortOrder: (searchParams.get('sortOrder') as 'asc' | 'desc') || 'desc',

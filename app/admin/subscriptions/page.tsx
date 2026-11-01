@@ -111,6 +111,7 @@ export default function SubscriptionsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [planFilter, setPlanFilter] = useState('all');
+  const [cycleFilter, setCycleFilter] = useState('all');
 
   // Action dialogs
   const [actionSub, setActionSub] = useState<Subscription | null>(null);
@@ -133,6 +134,7 @@ export default function SubscriptionsPage() {
       if (search) params.set('search', search);
       if (statusFilter !== 'all') params.set('status', statusFilter);
       if (planFilter !== 'all') params.set('planId', planFilter);
+      if (cycleFilter !== 'all') params.set('billingCycle', cycleFilter);
 
       const res = await fetch(`/api/admin/subscriptions?${params}`);
       const data = await res.json();
@@ -147,7 +149,7 @@ export default function SubscriptionsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, statusFilter, planFilter]);
+  }, [page, search, statusFilter, planFilter, cycleFilter]);
 
   useEffect(() => {
     fetchSubscriptions();
@@ -247,49 +249,148 @@ export default function SubscriptionsPage() {
                 />
               </Flex>
 
-              {planFilter !== 'all' && (
+              {(planFilter !== 'all' || statusFilter !== 'all' || cycleFilter !== 'all') && (
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => { setPlanFilter('all'); setPage(1); }}
+                  onClick={() => {
+                    setPlanFilter('all');
+                    setStatusFilter('all');
+                    setCycleFilter('all');
+                    setPage(1);
+                  }}
                   className="text-xs h-7 px-2.5 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800"
                 >
                   <Filter className="h-3 w-3 mr-1.5" />
-                  Clear Filter (Filtering: {stats?.byPlan.find(p => p.planId === planFilter)?.planName || planFilter})
+                  Clear Filters ({[
+                    planFilter !== 'all' ? (stats?.byPlan.find(p => p.planId === planFilter)?.planName || planFilter) : null,
+                    statusFilter !== 'all' ? statusFilter : null,
+                    cycleFilter !== 'all' ? cycleFilter : null,
+                  ].filter(Boolean).join(' · ')})
                 </Button>
               )}
             </Flex>
           </CardHeader>
 
           <CardContent className="pt-4 space-y-4">
-            {/* Top Aggregate Summary KPI Pills */}
+            {/* Top Aggregate Summary KPI Pills (Interactive Filters) */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-              <div className="rounded-lg border bg-card p-3 shadow-none">
-                <Text size="xs" color="muted" weight="medium">Total Subscriptions</Text>
+              {/* Total Subscriptions (All) */}
+              <div
+                onClick={() => {
+                  setStatusFilter('all');
+                  setCycleFilter('all');
+                  setPage(1);
+                }}
+                className={cn(
+                  'rounded-lg border bg-card p-3 shadow-none cursor-pointer select-none transition-all hover:shadow-md',
+                  statusFilter === 'all' && cycleFilter === 'all'
+                    ? 'ring-2 ring-primary/40 border-primary/50 bg-primary/5'
+                    : 'hover:border-foreground/30'
+                )}
+              >
+                <Flex between className="items-center">
+                  <Text size="xs" color="muted" weight="medium">Total Subscriptions</Text>
+                  <Text size="xs" className="text-[10px] text-muted-foreground/75 font-mono">
+                    {statusFilter === 'all' && cycleFilter === 'all' ? 'All' : 'Show all'}
+                  </Text>
+                </Flex>
                 <Text size="xl" weight="bold" className="mt-0.5 text-foreground">
                   {stats?.totalSubscriptions ?? total}
                 </Text>
               </div>
-              <div className="rounded-lg border bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200/60 dark:border-emerald-900/40 p-3">
-                <Text size="xs" className="text-emerald-700 dark:text-emerald-400" weight="medium">Total Active</Text>
+
+              {/* Total Active */}
+              <div
+                onClick={() => {
+                  setStatusFilter((prev) => (prev === 'active' ? 'all' : 'active'));
+                  setPage(1);
+                }}
+                className={cn(
+                  'rounded-lg border bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200/60 dark:border-emerald-900/40 p-3 cursor-pointer select-none transition-all hover:shadow-md',
+                  statusFilter === 'active'
+                    ? 'ring-2 ring-emerald-500 border-emerald-500 bg-emerald-100/60 dark:bg-emerald-950/60 shadow-sm'
+                    : 'hover:border-emerald-400'
+                )}
+              >
+                <Flex between className="items-center">
+                  <Text size="xs" className="text-emerald-700 dark:text-emerald-400" weight="medium">Total Active</Text>
+                  <Text size="xs" className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono">
+                    {statusFilter === 'active' ? '✓ Filtered' : 'Filter'}
+                  </Text>
+                </Flex>
                 <Text size="xl" weight="bold" className="mt-0.5 text-emerald-700 dark:text-emerald-300">
                   {stats?.totalActive ?? 0}
                 </Text>
               </div>
-              <div className="rounded-lg border bg-rose-50/50 dark:bg-rose-950/20 border-rose-200/60 dark:border-rose-900/40 p-3">
-                <Text size="xs" className="text-rose-700 dark:text-rose-400" weight="medium">Total Cancelled</Text>
+
+              {/* Total Cancelled */}
+              <div
+                onClick={() => {
+                  setStatusFilter((prev) => (prev === 'cancelled' ? 'all' : 'cancelled'));
+                  setPage(1);
+                }}
+                className={cn(
+                  'rounded-lg border bg-rose-50/50 dark:bg-rose-950/20 border-rose-200/60 dark:border-rose-900/40 p-3 cursor-pointer select-none transition-all hover:shadow-md',
+                  statusFilter === 'cancelled'
+                    ? 'ring-2 ring-rose-500 border-rose-500 bg-rose-100/60 dark:bg-rose-950/60 shadow-sm'
+                    : 'hover:border-rose-400'
+                )}
+              >
+                <Flex between className="items-center">
+                  <Text size="xs" className="text-rose-700 dark:text-rose-400" weight="medium">Total Cancelled</Text>
+                  <Text size="xs" className="text-[10px] text-rose-600 dark:text-rose-400 font-mono">
+                    {statusFilter === 'cancelled' ? '✓ Filtered' : 'Filter'}
+                  </Text>
+                </Flex>
                 <Text size="xl" weight="bold" className="mt-0.5 text-rose-700 dark:text-rose-300">
                   {stats?.totalCancelled ?? 0}
                 </Text>
               </div>
-              <div className="rounded-lg border bg-sky-50/50 dark:bg-sky-950/20 border-sky-200/60 dark:border-sky-900/40 p-3">
-                <Text size="xs" className="text-sky-700 dark:text-sky-400" weight="medium">Total Monthly</Text>
+
+              {/* Total Monthly */}
+              <div
+                onClick={() => {
+                  setCycleFilter((prev) => (prev === 'monthly' ? 'all' : 'monthly'));
+                  setPage(1);
+                }}
+                className={cn(
+                  'rounded-lg border bg-sky-50/50 dark:bg-sky-950/20 border-sky-200/60 dark:border-sky-900/40 p-3 cursor-pointer select-none transition-all hover:shadow-md',
+                  cycleFilter === 'monthly'
+                    ? 'ring-2 ring-sky-500 border-sky-500 bg-sky-100/60 dark:bg-sky-950/60 shadow-sm'
+                    : 'hover:border-sky-400'
+                )}
+              >
+                <Flex between className="items-center">
+                  <Text size="xs" className="text-sky-700 dark:text-sky-400" weight="medium">Total Monthly</Text>
+                  <Text size="xs" className="text-[10px] text-sky-600 dark:text-sky-400 font-mono">
+                    {cycleFilter === 'monthly' ? '✓ Filtered' : 'Filter'}
+                  </Text>
+                </Flex>
                 <Text size="xl" weight="bold" className="mt-0.5 text-sky-700 dark:text-sky-300">
                   {stats?.totalMonthly ?? 0}
                 </Text>
               </div>
-              <div className="rounded-lg border bg-purple-50/50 dark:bg-purple-950/20 border-purple-200/60 dark:border-purple-900/40 p-3">
-                <Text size="xs" className="text-purple-700 dark:text-purple-400" weight="medium">Total Annual</Text>
+
+              {/* Total Annual */}
+              <div
+                onClick={() => {
+                  setCycleFilter((prev) => (prev === 'annual' ? 'all' : 'annual'));
+                  setPage(1);
+                }}
+                className={cn(
+                  'rounded-lg border bg-purple-50/50 dark:bg-purple-950/20 border-purple-200/60 dark:border-purple-900/40 p-3 cursor-pointer select-none transition-all hover:shadow-md',
+                  cycleFilter === 'annual'
+                    ? 'ring-2 ring-purple-500 border-purple-500 bg-purple-100/60 dark:bg-purple-950/60 shadow-sm'
+                    : 'hover:border-purple-400'
+                )}
+              >
+                <Flex between className="items-center">
+                  <Text size="xs" className="text-purple-700 dark:text-purple-400" weight="medium">Total Annual</Text>
+                  <Text size="xs" className="text-[10px] text-purple-600 dark:text-purple-400 font-mono">
+                    {cycleFilter === 'annual' ? '✓ Filtered' : 'Filter'}
+                  </Text>
+                </Flex>
                 <Text size="xl" weight="bold" className="mt-0.5 text-purple-700 dark:text-purple-300">
                   {stats?.totalAnnual ?? 0}
                 </Text>
@@ -444,6 +545,17 @@ export default function SubscriptionsPage() {
                     <SelectItem value="expired">Expired</SelectItem>
                   </SelectContent>
                 </Select>
+
+                <Select value={cycleFilter} onValueChange={(v) => { setCycleFilter(v); setPage(1); }}>
+                  <SelectTrigger className="w-[150px]">
+                    <SelectValue placeholder="All Cycles" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Cycles</SelectItem>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="annual">Annual</SelectItem>
+                  </SelectContent>
+                </Select>
                 <SectionGuide
                   title="Subscription Lifecycle"
                   description="ACTIVE: Currently recurring & features unlocked. PAST_DUE: Payment failed, grace period active. PAUSED: Customer voluntarily frozen. CANCELLED: Terminated, falls back to Spark free tier."
@@ -473,8 +585,9 @@ export default function SubscriptionsPage() {
                   {total} total
                   {planFilter !== 'all' ? ` · Plan: ${stats?.byPlan.find(p => p.planId === planFilter)?.planName || planFilter}` : ''}
                   {statusFilter !== 'all' ? ` · Status: ${statusFilter}` : ''}
+                  {cycleFilter !== 'all' ? ` · Cycle: ${cycleFilter}` : ''}
                 </Text>
-                {(planFilter !== 'all' || statusFilter !== 'all' || search) && (
+                {(planFilter !== 'all' || statusFilter !== 'all' || cycleFilter !== 'all' || search) && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -482,6 +595,7 @@ export default function SubscriptionsPage() {
                     onClick={() => {
                       setPlanFilter('all');
                       setStatusFilter('all');
+                      setCycleFilter('all');
                       setSearch('');
                       setPage(1);
                     }}

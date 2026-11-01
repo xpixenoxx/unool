@@ -1748,6 +1748,17 @@ export class SupabaseAdminRepository implements IAdminRepository {
       });
     }
 
+    if (params?.billingCycle && params.billingCycle !== 'all') {
+      const targetCycle = params.billingCycle.toLowerCase().trim();
+      filtered = filtered.filter((row: any) => {
+        const rowCycle = (row.billing_cycle || 'monthly').toLowerCase().trim();
+        if (targetCycle === 'annual' || targetCycle === 'annually' || targetCycle === 'yearly') {
+          return rowCycle === 'annual' || rowCycle === 'annually' || rowCycle === 'yearly';
+        }
+        return rowCycle === 'monthly';
+      });
+    }
+
     if (params?.workspaceId) {
       filtered = filtered.filter((row: any) => row.workspace_id === params.workspaceId);
     }

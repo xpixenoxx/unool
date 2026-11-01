@@ -350,6 +350,7 @@ export interface ListSubscriptionsParams {
   search?: string;
   status?: string;
   planId?: string;
+  billingCycle?: 'monthly' | 'annual' | string;
   workspaceId?: string;
   sortBy?: 'createdAt' | 'amount' | 'status' | 'currentPeriodEnd';
   sortOrder?: 'asc' | 'desc';

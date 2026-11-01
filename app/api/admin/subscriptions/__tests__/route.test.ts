@@ -158,6 +158,31 @@ describe('Admin Subscriptions API', () => {
       expect(studioPlan.annual).toBe(2);
     });
 
+    it('passes billingCycle and status query parameters to adminRepository', async () => {
+      vi.mocked(requireAdmin).mockResolvedValue({
+        admin: { userId: 'admin-1', email: 'admin@unool.co' },
+      } as any);
+
+      vi.mocked(adminRepository.listSubscriptions).mockResolvedValue({
+        data: [],
+        total: 0,
+        page: 1,
+        pageSize: 20,
+        totalPages: 1,
+      } as any);
+
+      const req = new NextRequest('http://localhost:3000/api/admin/subscriptions?status=active&billingCycle=monthly');
+      const res = await GET(req);
+
+      expect(res.status).toBe(200);
+      expect(adminRepository.listSubscriptions).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: 'active',
+          billingCycle: 'monthly',
+        })
+      );
+    });
+
     it('handles repository errors gracefully', async () => {
       vi.mocked(requireAdmin).mockResolvedValue({
         admin: { userId: 'admin-1', email: 'admin@unool.co' },
