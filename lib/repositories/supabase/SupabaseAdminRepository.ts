@@ -1569,10 +1569,34 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
     let query = adminClient
       .from('subscriptions')
-      .select('*, workspaces!inner(name)', { count: 'exact' });
+      .select('*, workspaces(name)', { count: 'exact' });
 
     if (params?.search) {
-      query = query.or(`cf_subscription_id.ilike.%${params.search}%,plan_id.ilike.%${params.search}%`);
+      const s = params.search.trim();
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+      if (isUuid) {
+        query = query.or(`id.eq.${s},workspace_id.eq.${s},user_id.eq.${s},cf_subscription_id.ilike.%${s}%,plan_id.ilike.%${s}%`);
+      } else {
+        let matchingUserIds: string[] = [];
+        try {
+          const { data: usersData } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
+          if (usersData?.users) {
+            matchingUserIds = usersData.users
+              .filter((u) => {
+                const em = (u.email || '').toLowerCase();
+                const fn = (u.user_metadata?.full_name || u.user_metadata?.name || '').toLowerCase();
+                return em.includes(s.toLowerCase()) || fn.includes(s.toLowerCase());
+              })
+              .map((u) => u.id);
+          }
+        } catch {}
+
+        if (matchingUserIds.length > 0) {
+          query = query.or(`cf_subscription_id.ilike.%${s}%,plan_id.ilike.%${s}%,user_id.in.(${matchingUserIds.join(',')})`);
+        } else {
+          query = query.or(`cf_subscription_id.ilike.%${s}%,plan_id.ilike.%${s}%`);
+        }
+      }
     }
     if (params?.status) {
       query = query.eq('status', params.status);
@@ -1591,7 +1615,72 @@ export class SupabaseAdminRepository implements IAdminRepository {
     const { data, error, count } = await query;
     if (error) throw error;
 
-    const subs = (data || []).map((row: any) => this.mapSubscription(row));
+    const userIds = Array.from(
+      new Set((data || []).map((row: any) => row.user_id).filter((id): id is string => Boolean(id)))
+    );
+
+    const userMap = new Map<string, { email: string; name?: string }>();
+
+    if (userIds.length > 0) {
+      try {
+        const { data: usersData } = await adminClient
+          .from('users')
+          .select('id, email, full_name')
+          .in('id', userIds);
+
+        (usersData || []).forEach((u: any) => {
+          if (u.id) {
+            userMap.set(u.id, {
+              email: u.email || '',
+              name: u.full_name || undefined,
+            });
+          }
+        });
+      } catch {}
+
+      const missingIds = userIds.filter((id) => !userMap.has(id) || !userMap.get(id)?.email);
+      if (missingIds.length > 0) {
+        await Promise.all(
+          missingIds.map(async (uid) => {
+            try {
+              const { data: authData } = await adminClient.auth.admin.getUserById(uid);
+              if (authData?.user) {
+                const meta = authData.user.user_metadata || {};
+                const current = userMap.get(uid);
+                userMap.set(uid, {
+                  email: authData.user.email || current?.email || '',
+                  name: meta.full_name || meta.name || current?.name || authData.user.email?.split('@')[0] || undefined,
+                });
+              }
+            } catch {}
+          })
+        );
+      }
+
+      const workspaceIds = Array.from(new Set((data || []).map((r: any) => r.workspace_id).filter(Boolean)));
+      if (workspaceIds.length > 0) {
+        try {
+          const { data: profData } = await adminClient
+            .from('profiles')
+            .select('workspace_id, user_id, name')
+            .in('workspace_id', workspaceIds);
+
+          (profData || []).forEach((p: any) => {
+            if (p.user_id && p.name && userMap.has(p.user_id)) {
+              const existing = userMap.get(p.user_id)!;
+              if (!existing.name) {
+                existing.name = p.name;
+              }
+            }
+          });
+        } catch {}
+      }
+    }
+
+    const subs = (data || []).map((row: any) => {
+      const uInfo = row.user_id ? userMap.get(row.user_id) : null;
+      return this.mapSubscription(row, uInfo);
+    });
 
     return buildPagination(subs, count ?? 0, page, pageSize);
   }
@@ -1604,7 +1693,22 @@ export class SupabaseAdminRepository implements IAdminRepository {
       .single();
 
     if (error || !data) return null;
-    return this.mapSubscription(data);
+
+    let uInfo: { email: string; name?: string } | null = null;
+    if (data.user_id) {
+      try {
+        const { data: authData } = await adminClient.auth.admin.getUserById(data.user_id);
+        if (authData?.user) {
+          const meta = authData.user.user_metadata || {};
+          uInfo = {
+            email: authData.user.email || '',
+            name: meta.full_name || meta.name || authData.user.email?.split('@')[0] || undefined,
+          };
+        }
+      } catch {}
+    }
+
+    return this.mapSubscription(data, uInfo);
   }
 
   async adminCancelSubscription(
@@ -2282,12 +2386,14 @@ export class SupabaseAdminRepository implements IAdminRepository {
     };
   }
 
-  private mapSubscription(row: any): SubscriptionAdminView {
+  private mapSubscription(row: any, userInfo?: { email?: string; name?: string } | null): SubscriptionAdminView {
     return {
       id: row.id,
       workspaceId: row.workspace_id,
       workspaceName: row.workspaces?.name,
       userId: row.user_id,
+      userEmail: userInfo?.email || row.user_email || row.email || undefined,
+      userName: userInfo?.name || row.user_name || row.name || undefined,
       cfSubscriptionId: row.cf_subscription_id,
       planId: row.plan_id,
       billingCycle: row.billing_cycle,

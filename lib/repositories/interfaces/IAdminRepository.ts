@@ -187,6 +187,7 @@ export interface PaymentOrderAdminView {
   workspaceName?: string;
   userId: string;
   userEmail?: string;
+  userName?: string;
   cfOrderId: string;
   planId: string;
   billingCycle: 'monthly' | 'annual';
@@ -208,6 +209,7 @@ export interface SubscriptionAdminView {
   workspaceName?: string;
   userId: string;
   userEmail?: string;
+  userName?: string;
   cfSubscriptionId: string | null;
   planId: string;
   billingCycle: 'monthly' | 'annual';
@@ -239,6 +241,7 @@ export interface ReferralCodeAdminView {
   id: string;
   userId: string;
   userEmail?: string;
+  userName?: string;
   workspaceId: string;
   workspaceName?: string;
   code: string;

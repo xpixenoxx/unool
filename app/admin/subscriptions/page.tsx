@@ -18,6 +18,8 @@ interface Subscription {
   workspaceId: string;
   workspaceName?: string;
   userId: string;
+  userEmail?: string;
+  userName?: string;
   cfSubscriptionId: string | null;
   planId: string;
   billingCycle: 'monthly' | 'annual';
@@ -198,7 +200,7 @@ export default function SubscriptionsPage() {
               <div className="relative flex-1 w-full">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search by subscription ID, workspace, or plan..."
+                  placeholder="Search by user email, name, user ID, subscription ID, or plan..."
                   className="pl-10"
                   value={search}
                   onChange={(e) => { setSearch(e.target.value); setPage(1); }}
@@ -261,7 +263,8 @@ export default function SubscriptionsPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b text-left">
-                      <th className="py-3 px-2 font-medium text-muted-foreground">Workspace</th>
+                      <th className="py-3 px-3 font-medium text-muted-foreground">User / Customer</th>
+                      <th className="py-3 px-3 font-medium text-muted-foreground">Workspace</th>
                       <th className="py-3 px-2 font-medium text-muted-foreground">Plan</th>
                       <th className="py-3 px-2 font-medium text-muted-foreground">Amount</th>
                       <th className="py-3 px-2 font-medium text-muted-foreground">Status</th>
@@ -271,59 +274,94 @@ export default function SubscriptionsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {subscriptions.map((sub) => (
-                      <tr key={sub.id} className="border-b hover:bg-muted/50 transition-colors">
-                        <td className="py-3 px-2">
-                          <Text size="sm" className="truncate max-w-[160px]" title={sub.workspaceName || sub.workspaceId}>
-                            {sub.workspaceName || sub.workspaceId.slice(0, 8)}
-                          </Text>
-                        </td>
-                        <td className="py-3 px-2">
-                          <Badge variant="outline" className={cn('capitalize', planBadgeColors[sub.planId] || '')}>
-                            {sub.planId} · {sub.billingCycle}
-                          </Badge>
-                        </td>
-                        <td className="py-3 px-2">
-                          <Text size="sm" weight="medium">
-                            {formatAmount(sub.amountPaise, sub.currency)}
-                          </Text>
-                        </td>
-                        <td className="py-3 px-2">
-                          <Badge className={cn('text-xs', statusColors[sub.status] || '')}>
-                            {sub.status.replace('_', ' ')}
-                          </Badge>
-                          {sub.cancelAtPeriodEnd && (
-                            <Text size="xs" color="muted" className="mt-1 block">cancels at end</Text>
-                          )}
-                        </td>
-                        <td className="py-3 px-2">
-                          <Text size="xs" color="muted">{formatDate(sub.currentPeriodEnd)}</Text>
-                        </td>
-                        <td className="py-3 px-2">
-                          <Text size="xs" color="muted">{formatDate(sub.createdAt)}</Text>
-                        </td>
-                        <td className="py-3 px-2">
-                          <Flex gap={1}>
-                            <Button variant="ghost" size="icon" onClick={() => openAction(sub, 'view')} title="View details">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            {sub.status === 'active' && (
-                              <>
-                                <Button variant="ghost" size="icon" onClick={() => openAction(sub, 'extend')} title="Extend subscription">
-                                  <CalendarPlus className="h-4 w-4" />
-                                </Button>
-                                <Button variant="ghost" size="icon" onClick={() => openAction(sub, 'change_plan')} title="Change plan">
-                                  <ArrowUpDown className="h-4 w-4" />
-                                </Button>
-                                <Button variant="ghost" size="icon" onClick={() => openAction(sub, 'cancel')} title="Cancel subscription" className="text-destructive hover:text-destructive">
-                                  <XCircle className="h-4 w-4" />
-                                </Button>
-                              </>
+                    {subscriptions.map((sub) => {
+                      const displayName = sub.userName || (sub.userEmail ? sub.userEmail.split('@')[0] : 'User');
+                      const email = sub.userEmail || '';
+                      const initial = (sub.userName || sub.userEmail || 'U').charAt(0).toUpperCase();
+
+                      return (
+                        <tr key={sub.id} className="border-b hover:bg-muted/50 transition-colors">
+                          {/* User / Customer: Real Name, Email, and User ID */}
+                          <td className="py-3 px-3">
+                            <Flex align="center" gap={2.5} className="min-w-0 max-w-[260px]">
+                              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-semibold text-xs flex items-center justify-center shrink-0 shadow-sm">
+                                {initial}
+                              </div>
+                              <div className="min-w-0">
+                                <Text size="sm" weight="semibold" className="truncate text-foreground block">
+                                  {displayName}
+                                </Text>
+                                {email ? (
+                                  <Text size="xs" color="muted" className="truncate block font-mono text-[11px]" title={email}>
+                                    {email}
+                                  </Text>
+                                ) : null}
+                                <Text size="xs" color="muted" className="truncate block font-mono text-[10px] text-muted-foreground/75" title={`User ID: ${sub.userId}`}>
+                                  ID: {sub.userId ? `${sub.userId.slice(0, 8)}...` : '—'}
+                                </Text>
+                              </div>
+                            </Flex>
+                          </td>
+
+                          {/* Workspace: Name & Workspace ID */}
+                          <td className="py-3 px-3">
+                            <div className="min-w-0 max-w-[150px]">
+                              <Text size="sm" weight="medium" className="truncate text-foreground block" title={sub.workspaceName || sub.workspaceId}>
+                                {sub.workspaceName || 'My Workspace'}
+                              </Text>
+                              <Text size="xs" color="muted" className="font-mono text-[10px] text-muted-foreground/75 truncate block" title={`Workspace ID: ${sub.workspaceId}`}>
+                                {sub.workspaceId ? `${sub.workspaceId.slice(0, 8)}...` : '—'}
+                              </Text>
+                            </div>
+                          </td>
+
+                          <td className="py-3 px-2">
+                            <Badge variant="outline" className={cn('capitalize', planBadgeColors[sub.planId] || '')}>
+                              {sub.planId} · {sub.billingCycle}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-2">
+                            <Text size="sm" weight="medium">
+                              {formatAmount(sub.amountPaise, sub.currency)}
+                            </Text>
+                          </td>
+                          <td className="py-3 px-2">
+                            <Badge className={cn('text-xs', statusColors[sub.status] || '')}>
+                              {sub.status.replace('_', ' ')}
+                            </Badge>
+                            {sub.cancelAtPeriodEnd && (
+                              <Text size="xs" color="muted" className="mt-1 block">cancels at end</Text>
                             )}
-                          </Flex>
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td className="py-3 px-2">
+                            <Text size="xs" color="muted">{formatDate(sub.currentPeriodEnd)}</Text>
+                          </td>
+                          <td className="py-3 px-2">
+                            <Text size="xs" color="muted">{formatDate(sub.createdAt)}</Text>
+                          </td>
+                          <td className="py-3 px-2">
+                            <Flex gap={1}>
+                              <Button variant="ghost" size="icon" onClick={() => openAction(sub, 'view')} title="View details">
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              {sub.status === 'active' && (
+                                <>
+                                  <Button variant="ghost" size="icon" onClick={() => openAction(sub, 'extend')} title="Extend subscription">
+                                    <CalendarPlus className="h-4 w-4" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" onClick={() => openAction(sub, 'change_plan')} title="Change plan">
+                                    <ArrowUpDown className="h-4 w-4" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" onClick={() => openAction(sub, 'cancel')} title="Cancel subscription" className="text-destructive hover:text-destructive">
+                                    <XCircle className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              )}
+                            </Flex>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -356,8 +394,20 @@ export default function SubscriptionsPage() {
           {actionSub && (
             <div className="space-y-3 py-2 text-sm">
               <div className="grid grid-cols-2 gap-2">
+                <Text color="muted">Customer Name</Text>
+                <Text weight="medium">{actionSub.userName || '—'}</Text>
+
+                <Text color="muted">Customer Email</Text>
+                <Text className="font-mono text-xs">{actionSub.userEmail || '—'}</Text>
+
+                <Text color="muted">User ID</Text>
+                <Text className="font-mono text-xs break-all">{actionSub.userId}</Text>
+
                 <Text color="muted">Workspace</Text>
-                <Text>{actionSub.workspaceName || actionSub.workspaceId}</Text>
+                <Text>{actionSub.workspaceName || 'My Workspace'}</Text>
+
+                <Text color="muted">Workspace ID</Text>
+                <Text className="font-mono text-xs break-all">{actionSub.workspaceId}</Text>
 
                 <Text color="muted">CF Subscription ID</Text>
                 <Text className="font-mono text-xs break-all">{actionSub.cfSubscriptionId || '—'}</Text>
@@ -412,7 +462,7 @@ export default function SubscriptionsPage() {
           <DialogHeader>
             <DialogTitle>Cancel Subscription</DialogTitle>
             <DialogDescription>
-              Cancel the subscription for {actionSub?.workspaceName || 'this workspace'}. This will immediately set the status to cancelled.
+              Cancel the subscription for {actionSub?.userName || actionSub?.userEmail || actionSub?.workspaceName || 'this customer'}. This will immediately set the status to cancelled.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
