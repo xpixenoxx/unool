@@ -534,10 +534,15 @@ export default function AdminPlansPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isActive: !plan.isActive }),
       });
-      if (!res.ok) throw new Error('Failed to update plan');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to update plan');
+      }
+      setPlans((prev) => prev.map((p) => (p.id === plan.id ? { ...p, isActive: !p.isActive } : p)));
       await fetchPlans();
     } catch (err) {
       console.error('Failed to toggle plan:', err);
+      alert(err instanceof Error ? err.message : 'Failed to toggle plan');
     }
   };
 
@@ -545,10 +550,15 @@ export default function AdminPlansPage() {
     if (!confirm(`Delete "${plan.name}"? This cannot be undone.`)) return;
     try {
       const res = await fetch(`/api/admin/plans/${plan.id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed to delete plan');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to delete plan');
+      }
+      setPlans((prev) => prev.filter((p) => p.id !== plan.id));
       await fetchPlans();
     } catch (err) {
       console.error('Failed to delete plan:', err);
+      alert(err instanceof Error ? err.message : 'Failed to delete plan');
     }
   };
 
@@ -656,7 +666,18 @@ export default function AdminPlansPage() {
           sortOrder: parseInt(editOrder) || 0,
         }),
       });
-      if (!res.ok) throw new Error('Failed to update plan');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || errData.message || 'Failed to update plan');
+      }
+
+      const updatedPlan = await res.json().catch(() => null);
+      if (updatedPlan) {
+        setPlans((prev) =>
+          prev.map((p) => (p.id === updatedPlan.id ? { ...p, ...updatedPlan } : p))
+        );
+      }
+
       setEditOpen(false);
       setEditingPlan(null);
       await fetchPlans();

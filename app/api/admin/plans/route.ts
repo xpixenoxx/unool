@@ -54,13 +54,17 @@ export async function POST(request: NextRequest) {
       sortOrder,
     });
 
-    await adminRepository.logAdminAction(
-      auth.admin.userId,
-      'plan_create',
-      'plan',
-      plan.id,
-      { name, priceMonthlyUsd, priceYearlyUsd }
-    );
+    try {
+      await adminRepository.logAdminAction(
+        auth.admin.userId,
+        'plan_create',
+        'plan',
+        null,
+        { planId: plan.id, name, priceMonthlyUsd, priceYearlyUsd }
+      );
+    } catch (auditErr) {
+      console.warn('[POST /api/admin/plans] Failed to log audit action:', auditErr);
+    }
 
     return NextResponse.json(plan, { status: 201 });
   } catch (error) {

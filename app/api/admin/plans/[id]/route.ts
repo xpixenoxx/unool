@@ -93,13 +93,17 @@ export async function PATCH(
       return NextResponse.json({ error: 'Plan not found' }, { status: 404 });
     }
 
-    await adminRepository.logAdminAction(
-      auth.admin.userId,
-      'plan_update',
-      'plan',
-      id,
-      { name, priceMonthlyUsd, priceYearlyUsd, priceMonthlyInr, isActive }
-    );
+    try {
+      await adminRepository.logAdminAction(
+        auth.admin.userId,
+        'plan_update',
+        'plan',
+        null,
+        { planId: id, name, priceMonthlyUsd, priceYearlyUsd, priceMonthlyInr, isActive }
+      );
+    } catch (auditErr) {
+      console.warn('[PATCH /api/admin/plans/[id]] Failed to log audit action:', auditErr);
+    }
 
     // Clear BOTH caches so changes take effect immediately
     try {
@@ -113,7 +117,8 @@ export async function PATCH(
     return NextResponse.json(plan);
   } catch (error) {
     console.error('Failed to update plan:', error);
-    return NextResponse.json({ error: 'Failed to update plan' }, { status: 500 });
+    const msg = error instanceof Error ? error.message : 'Failed to update plan';
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
@@ -138,13 +143,17 @@ export async function DELETE(
       return NextResponse.json({ error: 'Plan not found' }, { status: 404 });
     }
 
-    await adminRepository.logAdminAction(
-      auth.admin.userId,
-      'plan_delete',
-      'plan',
-      id,
-      {}
-    );
+    try {
+      await adminRepository.logAdminAction(
+        auth.admin.userId,
+        'plan_delete',
+        'plan',
+        null,
+        { planId: id }
+      );
+    } catch (auditErr) {
+      console.warn('[DELETE /api/admin/plans/[id]] Failed to log audit action:', auditErr);
+    }
 
     try {
       const { clearPlanCache: clearEnforcementCache } = await import('@/lib/plan-enforcement');

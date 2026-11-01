@@ -332,12 +332,15 @@ export class SupabaseAdminRepository implements IAdminRepository {
         .select('*')
         .maybeSingle();
 
-      if (data) return this.mapPlan(data);
+      if (!error && data) return this.mapPlan(data);
+      if (error) {
+        console.warn('[updatePlan] Update error from Supabase, attempting upsert:', error.message || error);
+      }
     } catch (err) {
       console.warn('[updatePlan] Update failed, trying upsert', err);
     }
 
-    // Row didn't exist in DB yet â€” pull defaults and upsert
+    // Row didn't exist in DB yet - pull defaults and upsert
     const fallback = getDefaultAdminPlans().find((p) => p.id === id);
     const insertData = {
       id,
@@ -347,7 +350,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
       price_yearly_usd: input.priceYearlyUsd !== undefined ? input.priceYearlyUsd : (fallback?.priceYearlyUsd ?? 0),
       features: input.features || fallback?.features || {},
       limits: input.limits || fallback?.limits || {},
-      is_active: input.isActive !== undefined ? input.isActive : true,
+      is_active: input.isActive !== undefined ? input.isActive : (fallback?.isActive ?? true),
       sort_order: input.sortOrder !== undefined ? input.sortOrder : (fallback?.sortOrder ?? 0),
       updated_at: new Date().toISOString(),
     };
@@ -355,10 +358,13 @@ export class SupabaseAdminRepository implements IAdminRepository {
     try {
       const { data: upserted, error: upsertErr } = await adminClient
         .from('plans')
-        .upsert(insertData)
+        .upsert(insertData, { onConflict: 'id' })
         .select('*')
-        .single();
+        .maybeSingle();
 
+      if (upsertErr) {
+        console.warn('[updatePlan] Upsert warning from Supabase:', upsertErr.message || upsertErr);
+      }
       if (upserted) return this.mapPlan(upserted);
     } catch (err) {
       console.error('[updatePlan] Upsert failed:', err);
@@ -856,19 +862,37 @@ export class SupabaseAdminRepository implements IAdminRepository {
     ipHash?: string,
     userAgent?: string
   ): Promise<void> {
-    const { error } = await adminClient
-      .from('admin_audit_log')
-      .insert({
-        admin_user_id: adminUserId,
-        action,
-        target_type: targetType,
-        target_id: targetId,
-        metadata,
-        ip_hash: ipHash,
-        user_agent: userAgent,
-      });
+    // postgres column target_id is UUID. If targetId is not a valid UUID (e.g. plan slug 'creator'),
+    // do not pass it directly to target_id or Postgres will throw 22P02 invalid input syntax for type uuid.
+    // Instead set target_id to null and record target_id_string in metadata.
+    const isUuid = Boolean(
+      targetId &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetId)
+    );
+    const dbTargetId = isUuid ? targetId : null;
+    const dbMetadata = isUuid || !targetId
+      ? (metadata || {})
+      : { ...(metadata || {}), target_id_string: targetId };
 
-    if (error) throw error;
+    try {
+      const { error } = await adminClient
+        .from('admin_audit_log')
+        .insert({
+          admin_user_id: adminUserId,
+          action,
+          target_type: targetType,
+          target_id: dbTargetId,
+          metadata: dbMetadata,
+          ip_hash: ipHash,
+          user_agent: userAgent,
+        });
+
+      if (error) {
+        console.warn('[logAdminAction] Error writing audit log:', error.message || error);
+      }
+    } catch (err) {
+      console.warn('[logAdminAction] Exception writing audit log:', err);
+    }
   }
 
   // ===== User Management =====
