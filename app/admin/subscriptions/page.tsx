@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Search, ChevronLeft, ChevronRight, Loader2, RefreshCw, Eye, XCircle, CalendarPlus, ArrowUpDown } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Loader2, RefreshCw, Eye, XCircle, CalendarPlus, ArrowUpDown, Layers, Filter } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   Box, Flex, Text, Card, CardHeader, CardTitle, CardContent, Badge,
@@ -12,6 +12,30 @@ import {
 import { MotionBox } from '@/components/ui/motion';
 import { SectionGuide } from '@/components/admin/section-guide';
 import { useState, useEffect, useCallback } from 'react';
+
+interface PlanSummaryItem {
+  planId: string;
+  planName: string;
+  total: number;
+  active: number;
+  cancelled: number;
+  pastDue: number;
+  paused: number;
+  otherStatus: number;
+  monthly: number;
+  annual: number;
+  totalRevenuePaise: number;
+}
+
+interface SubscriptionStats {
+  totalSubscriptions: number;
+  totalActive: number;
+  totalCancelled: number;
+  totalPastDue: number;
+  totalMonthly: number;
+  totalAnnual: number;
+  byPlan: PlanSummaryItem[];
+}
 
 interface Subscription {
   id: string;
@@ -49,6 +73,7 @@ const statusColors: Record<string, string> = {
 
 const planBadgeColors: Record<string, string> = {
   spark: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
+  free: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
   creator: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
   pro: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
   studio: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
@@ -79,11 +104,13 @@ const PLAN_OPTIONS = [
 export default function SubscriptionsPage() {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<SubscriptionStats | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [planFilter, setPlanFilter] = useState('all');
 
   // Action dialogs
   const [actionSub, setActionSub] = useState<Subscription | null>(null);
@@ -105,18 +132,22 @@ export default function SubscriptionsPage() {
       });
       if (search) params.set('search', search);
       if (statusFilter !== 'all') params.set('status', statusFilter);
+      if (planFilter !== 'all') params.set('planId', planFilter);
 
       const res = await fetch(`/api/admin/subscriptions?${params}`);
       const data = await res.json();
       setSubscriptions(data.data || []);
       setTotalPages(data.totalPages || 1);
       setTotal(data.total || 0);
+      if (data.stats) {
+        setStats(data.stats);
+      }
     } catch (err) {
       console.error('Failed to fetch subscriptions:', err);
     } finally {
       setLoading(false);
     }
-  }, [page, search, statusFilter]);
+  }, [page, search, statusFilter, planFilter]);
 
   useEffect(() => {
     fetchSubscriptions();
@@ -192,6 +223,177 @@ export default function SubscriptionsPage() {
         </Flex>
       </MotionBox>
 
+      {/* Subscription Plans Breakdown */}
+      <MotionBox variant="fade" delay={0.03}>
+        <Card className="border shadow-sm">
+          <CardHeader className="pb-3 border-b bg-muted/20">
+            <Flex between className="items-center flex-wrap gap-2">
+              <Flex align="center" gap={2}>
+                <div className="h-8 w-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                  <Layers className="h-4 w-4" />
+                </div>
+                <div>
+                  <CardTitle className="text-base font-semibold">
+                    Subscription Plans Breakdown
+                  </CardTitle>
+                  <Text size="xs" color="muted">
+                    Subscribers, active vs. cancelled status, and monthly vs. annual billing per plan
+                  </Text>
+                </div>
+                <SectionGuide
+                  title="Subscription Plans Breakdown"
+                  description="Real-time aggregation across all workspace subscriptions in database. Click any plan card to filter the table below."
+                  example="Studio: Total: 5 | Active: 5, Cancelled: 0 | Monthly: 3, Annually: 2"
+                />
+              </Flex>
+
+              {planFilter !== 'all' && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { setPlanFilter('all'); setPage(1); }}
+                  className="text-xs h-7 px-2.5 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800"
+                >
+                  <Filter className="h-3 w-3 mr-1.5" />
+                  Clear Filter (Filtering: {stats?.byPlan.find(p => p.planId === planFilter)?.planName || planFilter})
+                </Button>
+              )}
+            </Flex>
+          </CardHeader>
+
+          <CardContent className="pt-4 space-y-4">
+            {/* Top Aggregate Summary KPI Pills */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+              <div className="rounded-lg border bg-card p-3 shadow-none">
+                <Text size="xs" color="muted" weight="medium">Total Subscriptions</Text>
+                <Text size="xl" weight="bold" className="mt-0.5 text-foreground">
+                  {stats?.totalSubscriptions ?? total}
+                </Text>
+              </div>
+              <div className="rounded-lg border bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200/60 dark:border-emerald-900/40 p-3">
+                <Text size="xs" className="text-emerald-700 dark:text-emerald-400" weight="medium">Total Active</Text>
+                <Text size="xl" weight="bold" className="mt-0.5 text-emerald-700 dark:text-emerald-300">
+                  {stats?.totalActive ?? 0}
+                </Text>
+              </div>
+              <div className="rounded-lg border bg-rose-50/50 dark:bg-rose-950/20 border-rose-200/60 dark:border-rose-900/40 p-3">
+                <Text size="xs" className="text-rose-700 dark:text-rose-400" weight="medium">Total Cancelled</Text>
+                <Text size="xl" weight="bold" className="mt-0.5 text-rose-700 dark:text-rose-300">
+                  {stats?.totalCancelled ?? 0}
+                </Text>
+              </div>
+              <div className="rounded-lg border bg-sky-50/50 dark:bg-sky-950/20 border-sky-200/60 dark:border-sky-900/40 p-3">
+                <Text size="xs" className="text-sky-700 dark:text-sky-400" weight="medium">Total Monthly</Text>
+                <Text size="xl" weight="bold" className="mt-0.5 text-sky-700 dark:text-sky-300">
+                  {stats?.totalMonthly ?? 0}
+                </Text>
+              </div>
+              <div className="rounded-lg border bg-purple-50/50 dark:bg-purple-950/20 border-purple-200/60 dark:border-purple-900/40 p-3">
+                <Text size="xs" className="text-purple-700 dark:text-purple-400" weight="medium">Total Annual</Text>
+                <Text size="xl" weight="bold" className="mt-0.5 text-purple-700 dark:text-purple-300">
+                  {stats?.totalAnnual ?? 0}
+                </Text>
+              </div>
+            </div>
+
+            {/* Individual Plan Cards Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {(stats?.byPlan || [
+                { planId: 'spark', planName: 'Spark (Free)', total: 0, active: 0, cancelled: 0, pastDue: 0, paused: 0, otherStatus: 0, monthly: 0, annual: 0, totalRevenuePaise: 0 },
+                { planId: 'creator', planName: 'Creator', total: 0, active: 0, cancelled: 0, pastDue: 0, paused: 0, otherStatus: 0, monthly: 0, annual: 0, totalRevenuePaise: 0 },
+                { planId: 'pro', planName: 'Pro', total: 0, active: 0, cancelled: 0, pastDue: 0, paused: 0, otherStatus: 0, monthly: 0, annual: 0, totalRevenuePaise: 0 },
+                { planId: 'studio', planName: 'Studio', total: 0, active: 0, cancelled: 0, pastDue: 0, paused: 0, otherStatus: 0, monthly: 0, annual: 0, totalRevenuePaise: 0 },
+              ]).map((plan) => {
+                const isSelected = planFilter === plan.planId;
+                const tierBorder =
+                  plan.planId === 'studio'
+                    ? 'border-amber-300/80 dark:border-amber-700/60 hover:border-amber-500'
+                    : plan.planId === 'pro'
+                    ? 'border-purple-300/80 dark:border-purple-700/60 hover:border-purple-500'
+                    : plan.planId === 'creator'
+                    ? 'border-blue-300/80 dark:border-blue-700/60 hover:border-blue-500'
+                    : 'border-slate-200 dark:border-slate-800 hover:border-slate-400';
+
+                return (
+                  <div
+                    key={plan.planId}
+                    onClick={() => {
+                      setPlanFilter((prev) => (prev === plan.planId ? 'all' : plan.planId));
+                      setPage(1);
+                    }}
+                    className={cn(
+                      'group rounded-xl border p-4 cursor-pointer transition-all bg-card hover:shadow-md select-none flex flex-col justify-between',
+                      tierBorder,
+                      isSelected && 'ring-2 ring-indigo-500 border-indigo-500 dark:border-indigo-400 bg-indigo-50/15 dark:bg-indigo-950/20 shadow-sm'
+                    )}
+                  >
+                    <div>
+                      {/* Top row: Plan Name Badge & Total count */}
+                      <Flex between className="items-start mb-3">
+                        <div>
+                          <Badge
+                            variant="outline"
+                            className={cn('text-xs capitalize font-semibold px-2.5 py-0.5', planBadgeColors[plan.planId] || '')}
+                          >
+                            {plan.planName}
+                          </Badge>
+                          <Text size="xs" color="muted" className="mt-1 block text-[11px]">
+                            {isSelected ? '✓ Filter active' : 'Click to filter'}
+                          </Text>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider block">Total</span>
+                          <span className="text-2xl font-bold tracking-tight text-foreground">{plan.total}</span>
+                        </div>
+                      </Flex>
+
+                      {/* Status row: Active / Cancelled */}
+                      <div className="space-y-2 pt-2.5 border-t border-border/70">
+                        <div>
+                          <Text size="xs" color="muted" className="text-[11px] font-medium mb-1 block">
+                            Status:
+                          </Text>
+                          <Flex gap={1.5} wrap className="text-xs">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/40">
+                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                              active: <strong className="font-semibold">{plan.active}</strong>
+                            </span>
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-medium bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 border border-rose-200/60 dark:border-rose-800/40">
+                              <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+                              cancelled: <strong className="font-semibold">{plan.cancelled}</strong>
+                            </span>
+                            {plan.pastDue > 0 && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-medium bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/40">
+                                past due: <strong className="font-semibold">{plan.pastDue}</strong>
+                              </span>
+                            )}
+                          </Flex>
+                        </div>
+
+                        {/* Billing cycle: Monthly / Annually */}
+                        <div>
+                          <Text size="xs" color="muted" className="text-[11px] font-medium mb-1 block">
+                            Billing Cycle:
+                          </Text>
+                          <Flex gap={1.5} wrap className="text-xs">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-medium bg-sky-50 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300 border border-sky-200/60 dark:border-sky-800/40">
+                              monthly: <strong className="font-semibold">{plan.monthly}</strong>
+                            </span>
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-medium bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 border border-purple-200/60 dark:border-purple-800/40">
+                              annually: <strong className="font-semibold">{plan.annual}</strong>
+                            </span>
+                          </Flex>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      </MotionBox>
+
       {/* Filters */}
       <MotionBox variant="fade" delay={0.05}>
         <Card>
@@ -206,9 +408,29 @@ export default function SubscriptionsPage() {
                   onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                 />
               </div>
-              <Flex align="center" gap={2} className="w-full sm:w-auto">
+              <Flex align="center" gap={2} className="w-full sm:w-auto flex-wrap">
+                <Select value={planFilter} onValueChange={(v) => { setPlanFilter(v); setPage(1); }}>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue placeholder="All Plans" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Plans</SelectItem>
+                    <SelectItem value="spark">Spark (Free)</SelectItem>
+                    <SelectItem value="creator">Creator</SelectItem>
+                    <SelectItem value="pro">Pro</SelectItem>
+                    <SelectItem value="studio">Studio</SelectItem>
+                    {stats?.byPlan
+                      .filter(p => !['spark', 'free', 'creator', 'pro', 'studio'].includes(p.planId))
+                      .map(p => (
+                        <SelectItem key={p.planId} value={p.planId}>
+                          {p.planName}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+
                 <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger className="w-[160px]">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -246,7 +468,28 @@ export default function SubscriptionsPage() {
                   example="Click Calendar+ to extend an active subscriber's billing date by 14 days."
                 />
               </Flex>
-              <Text size="sm" color="muted">{total} total</Text>
+              <Flex align="center" gap={2}>
+                <Text size="sm" color="muted">
+                  {total} total
+                  {planFilter !== 'all' ? ` · Plan: ${stats?.byPlan.find(p => p.planId === planFilter)?.planName || planFilter}` : ''}
+                  {statusFilter !== 'all' ? ` · Status: ${statusFilter}` : ''}
+                </Text>
+                {(planFilter !== 'all' || statusFilter !== 'all' || search) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                    onClick={() => {
+                      setPlanFilter('all');
+                      setStatusFilter('all');
+                      setSearch('');
+                      setPage(1);
+                    }}
+                  >
+                    Reset filters
+                  </Button>
+                )}
+              </Flex>
             </Flex>
           </CardHeader>
           <CardContent>

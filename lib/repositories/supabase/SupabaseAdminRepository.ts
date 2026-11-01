@@ -18,6 +18,9 @@ import type {
   AdminAuditLog,
   PaymentOrderAdminView,
   SubscriptionAdminView,
+  SubscriptionsListResult,
+  SubscriptionStats,
+  PlanSummaryItem,
   WebhookEventAdminView,
   ReferralCodeAdminView,
   ReferralAdminView,
@@ -1475,7 +1478,11 @@ export class SupabaseAdminRepository implements IAdminRepository {
       query = query.eq('status', params.status);
     }
     if (params?.planId) {
-      query = query.eq('plan_id', params.planId);
+      if (params.planId === 'spark' || params.planId === 'free') {
+        query = query.in('plan_id', ['spark', 'free']);
+      } else {
+        query = query.eq('plan_id', params.planId);
+      }
     }
     if (params?.workspaceId) {
       query = query.eq('workspace_id', params.workspaceId);
@@ -1561,7 +1568,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
   // ===== Subscriptions =====
 
-  async listSubscriptions(params?: ListSubscriptionsParams): Promise<PaginatedResult<SubscriptionAdminView>> {
+  async listSubscriptions(params?: ListSubscriptionsParams): Promise<SubscriptionsListResult> {
     const page = params?.page ?? 1;
     const pageSize = params?.pageSize ?? 20;
     const from = (page - 1) * pageSize;
@@ -1602,7 +1609,11 @@ export class SupabaseAdminRepository implements IAdminRepository {
       query = query.eq('status', params.status);
     }
     if (params?.planId) {
-      query = query.eq('plan_id', params.planId);
+      if (params.planId === 'spark' || params.planId === 'free') {
+        query = query.in('plan_id', ['spark', 'free']);
+      } else {
+        query = query.eq('plan_id', params.planId);
+      }
     }
     if (params?.workspaceId) {
       query = query.eq('workspace_id', params.workspaceId);
@@ -1682,7 +1693,119 @@ export class SupabaseAdminRepository implements IAdminRepository {
       return this.mapSubscription(row, uInfo);
     });
 
-    return buildPagination(subs, count ?? 0, page, pageSize);
+    // Query all subscription records to compute real plan breakdown across the entire database
+    let stats: SubscriptionStats | undefined;
+    try {
+      const { data: allSubsForStats } = await adminClient
+        .from('subscriptions')
+        .select('plan_id, billing_cycle, status, amount_paise');
+
+      if (allSubsForStats) {
+        const CANONICAL_PLANS: Array<{ id: string; name: string; aliases: string[] }> = [
+          { id: 'spark', name: 'Spark (Free)', aliases: ['spark', 'free'] },
+          { id: 'creator', name: 'Creator', aliases: ['creator'] },
+          { id: 'pro', name: 'Pro', aliases: ['pro'] },
+          { id: 'studio', name: 'Studio', aliases: ['studio'] },
+        ];
+
+        const planMap = new Map<string, PlanSummaryItem>();
+
+        // Pre-populate canonical plans so they display in consistent tier order
+        CANONICAL_PLANS.forEach((p) => {
+          planMap.set(p.id, {
+            planId: p.id,
+            planName: p.name,
+            total: 0,
+            active: 0,
+            cancelled: 0,
+            pastDue: 0,
+            paused: 0,
+            otherStatus: 0,
+            monthly: 0,
+            annual: 0,
+            totalRevenuePaise: 0,
+          });
+        });
+
+        let totalActive = 0;
+        let totalCancelled = 0;
+        let totalPastDue = 0;
+        let totalMonthly = 0;
+        let totalAnnual = 0;
+
+        allSubsForStats.forEach((row: any) => {
+          const rawPlan = (row.plan_id || 'spark').toLowerCase().trim();
+          const canonical = CANONICAL_PLANS.find((cp) => cp.aliases.includes(rawPlan));
+          const targetPlanId = canonical ? canonical.id : rawPlan;
+          const targetPlanName = canonical
+            ? canonical.name
+            : (rawPlan.charAt(0).toUpperCase() + rawPlan.slice(1));
+
+          if (!planMap.has(targetPlanId)) {
+            planMap.set(targetPlanId, {
+              planId: targetPlanId,
+              planName: targetPlanName,
+              total: 0,
+              active: 0,
+              cancelled: 0,
+              pastDue: 0,
+              paused: 0,
+              otherStatus: 0,
+              monthly: 0,
+              annual: 0,
+              totalRevenuePaise: 0,
+            });
+          }
+
+          const item = planMap.get(targetPlanId)!;
+          item.total += 1;
+
+          const st = (row.status || 'created').toLowerCase().trim();
+          if (st === 'active') {
+            item.active += 1;
+            totalActive += 1;
+            item.totalRevenuePaise += (Number(row.amount_paise) || 0);
+          } else if (st === 'cancelled') {
+            item.cancelled += 1;
+            totalCancelled += 1;
+          } else if (st === 'past_due') {
+            item.pastDue += 1;
+            totalPastDue += 1;
+          } else if (st === 'paused') {
+            item.paused += 1;
+          } else {
+            item.otherStatus += 1;
+          }
+
+          const cycle = (row.billing_cycle || 'monthly').toLowerCase().trim();
+          if (cycle === 'annual' || cycle === 'annually' || cycle === 'yearly') {
+            item.annual += 1;
+            totalAnnual += 1;
+          } else {
+            item.monthly += 1;
+            totalMonthly += 1;
+          }
+        });
+
+        stats = {
+          totalSubscriptions: allSubsForStats.length,
+          totalActive,
+          totalCancelled,
+          totalPastDue,
+          totalMonthly,
+          totalAnnual,
+          byPlan: Array.from(planMap.values()),
+        };
+      }
+    } catch (statsErr) {
+      console.error('Failed to compute subscription stats:', statsErr);
+    }
+
+    const paginated = buildPagination(subs, count ?? 0, page, pageSize);
+    return {
+      ...paginated,
+      stats,
+    };
   }
 
   async getSubscriptionById(id: string): Promise<SubscriptionAdminView | null> {

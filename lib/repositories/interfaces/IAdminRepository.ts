@@ -227,6 +227,34 @@ export interface SubscriptionAdminView {
   updatedAt: string;
 }
 
+export interface PlanSummaryItem {
+  planId: string;
+  planName: string;
+  total: number;
+  active: number;
+  cancelled: number;
+  pastDue: number;
+  paused: number;
+  otherStatus: number;
+  monthly: number;
+  annual: number;
+  totalRevenuePaise: number;
+}
+
+export interface SubscriptionStats {
+  totalSubscriptions: number;
+  totalActive: number;
+  totalCancelled: number;
+  totalPastDue: number;
+  totalMonthly: number;
+  totalAnnual: number;
+  byPlan: PlanSummaryItem[];
+}
+
+export interface SubscriptionsListResult extends PaginatedResult<SubscriptionAdminView> {
+  stats?: SubscriptionStats;
+}
+
 export interface WebhookEventAdminView {
   id: string;
   cfPaymentId: string;
@@ -382,7 +410,7 @@ export interface IAdminRepository {
   updatePaymentOrderStatus(id: string, status: string, adminUserId: string, reason: string): Promise<PaymentOrderAdminView | null>;
 
   // Subscriptions
-  listSubscriptions(params?: ListSubscriptionsParams): Promise<PaginatedResult<SubscriptionAdminView>>;
+  listSubscriptions(params?: ListSubscriptionsParams): Promise<SubscriptionsListResult>;
   getSubscriptionById(id: string): Promise<SubscriptionAdminView | null>;
   adminCancelSubscription(id: string, adminUserId: string, reason: string): Promise<SubscriptionAdminView | null>;
   adminExtendSubscription(id: string, newPeriodEnd: string, adminUserId: string, reason: string): Promise<SubscriptionAdminView | null>;

@@ -94,6 +94,70 @@ describe('Admin Subscriptions API', () => {
       expect(sub.workspaceId).toBe('ws-1');
     });
 
+    it('returns subscription stats with plan breakdown (active, cancelled, monthly, annual)', async () => {
+      vi.mocked(requireAdmin).mockResolvedValue({
+        admin: { userId: 'admin-1', email: 'admin@unool.co' },
+      } as any);
+
+      const mockSubscriptionsResult = {
+        data: [],
+        total: 5,
+        page: 1,
+        pageSize: 20,
+        totalPages: 1,
+        stats: {
+          totalSubscriptions: 5,
+          totalActive: 5,
+          totalCancelled: 0,
+          totalPastDue: 0,
+          totalMonthly: 3,
+          totalAnnual: 2,
+          byPlan: [
+            {
+              planId: 'studio',
+              planName: 'Studio',
+              total: 5,
+              active: 5,
+              cancelled: 0,
+              pastDue: 0,
+              paused: 0,
+              otherStatus: 0,
+              monthly: 3,
+              annual: 2,
+              totalRevenuePaise: 2499500,
+            },
+          ],
+        },
+      };
+
+      vi.mocked(adminRepository.listSubscriptions).mockResolvedValue(mockSubscriptionsResult as any);
+
+      const req = new NextRequest('http://localhost:3000/api/admin/subscriptions?planId=studio');
+      const res = await GET(req);
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(adminRepository.listSubscriptions).toHaveBeenCalledWith(
+        expect.objectContaining({
+          planId: 'studio',
+        })
+      );
+      expect(data.stats).toBeDefined();
+      expect(data.stats.totalSubscriptions).toBe(5);
+      expect(data.stats.totalActive).toBe(5);
+      expect(data.stats.totalCancelled).toBe(0);
+      expect(data.stats.totalMonthly).toBe(3);
+      expect(data.stats.totalAnnual).toBe(2);
+
+      const studioPlan = data.stats.byPlan[0];
+      expect(studioPlan.planId).toBe('studio');
+      expect(studioPlan.total).toBe(5);
+      expect(studioPlan.active).toBe(5);
+      expect(studioPlan.cancelled).toBe(0);
+      expect(studioPlan.monthly).toBe(3);
+      expect(studioPlan.annual).toBe(2);
+    });
+
     it('handles repository errors gracefully', async () => {
       vi.mocked(requireAdmin).mockResolvedValue({
         admin: { userId: 'admin-1', email: 'admin@unool.co' },
