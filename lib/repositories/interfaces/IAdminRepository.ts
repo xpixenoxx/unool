@@ -264,6 +264,13 @@ export interface ReferralAdminView {
   createdAt: string;
 }
 
+export interface ReferralMetricsSummary {
+  activeCodes: number;
+  totalSignups: number;
+  paidConversions: number;
+  freeMonthsRewarded: number;
+}
+
 export interface RevenueMetrics {
   totalRevenuePaise: number;
   revenueThisMonthPaise: number;
@@ -387,6 +394,7 @@ export interface IAdminRepository {
   // Referral Codes & Referrals
   listReferralCodes(params?: ListReferralCodesParams): Promise<PaginatedResult<ReferralCodeAdminView>>;
   listReferrals(page?: number, pageSize?: number, referralCode?: string): Promise<PaginatedResult<ReferralAdminView>>;
+  getReferralMetrics(): Promise<ReferralMetricsSummary>;
 }
 
 export interface IAnalyticsRepository {

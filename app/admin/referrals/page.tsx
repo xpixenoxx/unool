@@ -33,6 +33,7 @@ import { SectionGuide } from '@/components/admin/section-guide';
 interface ReferralCodeItem {
   id: string;
   userId: string;
+  userEmail?: string;
   workspaceId: string;
   workspaceName?: string;
   code: string;
@@ -47,12 +48,21 @@ interface ReferralCodeItem {
 interface ReferralItem {
   id: string;
   referrerUserId: string;
+  referrerEmail?: string;
   referredUserId: string;
+  referredEmail?: string;
   referralCode: string;
   status: 'signed_up' | 'converted' | 'rewarded';
   rewardType: string | null;
   rewardAppliedAt: string | null;
   createdAt: string;
+}
+
+interface ReferralSummary {
+  activeCodes: number;
+  totalSignups: number;
+  paidConversions: number;
+  freeMonthsRewarded: number;
 }
 
 const statusColors: Record<string, string> = {
@@ -63,6 +73,14 @@ const statusColors: Record<string, string> = {
 
 export default function ReferralsAdminPage() {
   const [activeTab, setActiveTab] = React.useState('codes');
+
+  // Summary metrics state from server
+  const [summary, setSummary] = React.useState<ReferralSummary>({
+    activeCodes: 0,
+    totalSignups: 0,
+    paidConversions: 0,
+    freeMonthsRewarded: 0,
+  });
 
   // Codes state
   const [codes, setCodes] = React.useState<ReferralCodeItem[]>([]);
@@ -91,6 +109,9 @@ export default function ReferralsAdminPage() {
       const data = await res.json();
       setCodes(data.data || []);
       setCodesTotal(data.total || 0);
+      if (data.summary) {
+        setSummary(data.summary);
+      }
     } catch (err) {
       console.error('Failed to fetch referral codes:', err);
     } finally {
@@ -111,6 +132,9 @@ export default function ReferralsAdminPage() {
       const data = await res.json();
       setLog(data.data || []);
       setLogTotal(data.total || 0);
+      if (data.summary) {
+        setSummary(data.summary);
+      }
     } catch (err) {
       console.error('Failed to fetch referrals log:', err);
     } finally {
@@ -126,10 +150,15 @@ export default function ReferralsAdminPage() {
     fetchLog();
   }, [fetchLog]);
 
-  // Aggregate summary metrics
-  const totalSignups = codes.reduce((acc, c) => acc + (c.signupCount || 0), 0);
-  const totalConversions = codes.reduce((acc, c) => acc + (c.conversionCount || 0), 0);
-  const totalMonthsEarned = codes.reduce((acc, c) => acc + (c.monthsEarned || 0), 0);
+  // Fallback aggregations if summary is not yet loaded
+  const fallbackSignups = codes.reduce((acc, c) => acc + (c.signupCount || 0), 0);
+  const fallbackConversions = codes.reduce((acc, c) => acc + (c.conversionCount || 0), 0);
+  const fallbackMonthsEarned = codes.reduce((acc, c) => acc + (c.monthsEarned || 0), 0);
+
+  const displayActiveCodes = summary.activeCodes || codesTotal;
+  const displaySignups = summary.totalSignups || fallbackSignups || logTotal;
+  const displayConversions = summary.paidConversions || fallbackConversions;
+  const displayMonthsEarned = summary.freeMonthsRewarded || fallbackMonthsEarned;
 
   return (
     <Box className="space-y-6">
@@ -170,7 +199,7 @@ export default function ReferralsAdminPage() {
                   example="42 total referral links generated"
                 />
               </Flex>
-              <Text size="2xl" weight="bold" className="mt-1">{codesTotal}</Text>
+              <Text size="2xl" weight="bold" className="mt-1">{displayActiveCodes}</Text>
             </CardContent>
           </Card>
           <Card>
@@ -183,7 +212,7 @@ export default function ReferralsAdminPage() {
                   example="118 users registered through invite links"
                 />
               </Flex>
-              <Text size="2xl" weight="bold" className="mt-1 text-blue-600 dark:text-blue-400">{totalSignups}</Text>
+              <Text size="2xl" weight="bold" className="mt-1 text-blue-600 dark:text-blue-400">{displaySignups}</Text>
             </CardContent>
           </Card>
           <Card>
@@ -196,7 +225,7 @@ export default function ReferralsAdminPage() {
                   example="24 users upgraded to Creator or Pro"
                 />
               </Flex>
-              <Text size="2xl" weight="bold" className="mt-1 text-green-600 dark:text-green-400">{totalConversions}</Text>
+              <Text size="2xl" weight="bold" className="mt-1 text-green-600 dark:text-green-400">{displayConversions}</Text>
             </CardContent>
           </Card>
           <Card>
@@ -209,7 +238,7 @@ export default function ReferralsAdminPage() {
                   example="24 free months credited to referrers"
                 />
               </Flex>
-              <Text size="2xl" weight="bold" className="mt-1 text-purple-600 dark:text-purple-400">{totalMonthsEarned}</Text>
+              <Text size="2xl" weight="bold" className="mt-1 text-purple-600 dark:text-purple-400">{displayMonthsEarned}</Text>
             </CardContent>
           </Card>
         </div>
@@ -220,7 +249,7 @@ export default function ReferralsAdminPage() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList>
             <TabsTrigger value="codes" className="flex items-center gap-2">
-              <LinkIcon className="h-4 w-4" /> Referral Codes ({codesTotal})
+              <LinkIcon className="h-4 w-4" /> Referral Codes ({codesTotal || displayActiveCodes})
             </TabsTrigger>
             <TabsTrigger value="log" className="flex items-center gap-2">
               <Users className="h-4 w-4" /> Referrals Log ({logTotal})
@@ -269,7 +298,7 @@ export default function ReferralsAdminPage() {
                       <thead>
                         <tr className="border-b text-left">
                           <th className="py-3 px-2 font-medium text-muted-foreground">Code</th>
-                          <th className="py-3 px-2 font-medium text-muted-foreground">Workspace</th>
+                          <th className="py-3 px-2 font-medium text-muted-foreground">User / Workspace</th>
                           <th className="py-3 px-2 font-medium text-muted-foreground">Clicks</th>
                           <th className="py-3 px-2 font-medium text-muted-foreground">Signups</th>
                           <th className="py-3 px-2 font-medium text-muted-foreground">Conversions</th>
@@ -281,7 +310,10 @@ export default function ReferralsAdminPage() {
                         {codes.map((c) => (
                           <tr key={c.id} className="border-b hover:bg-muted/40 transition-colors">
                             <td className="py-3 px-2 font-mono font-bold text-primary">{c.code}</td>
-                            <td className="py-3 px-2">{c.workspaceName || c.workspaceId.slice(0, 8)}</td>
+                            <td className="py-3 px-2">
+                              <div className="font-medium text-foreground">{c.workspaceName || 'Workspace'}</div>
+                              {c.userEmail && <div className="text-xs text-muted-foreground">{c.userEmail}</div>}
+                            </td>
                             <td className="py-3 px-2">{c.clickCount}</td>
                             <td className="py-3 px-2 font-medium">{c.signupCount}</td>
                             <td className="py-3 px-2 font-medium text-green-600 dark:text-green-400">
@@ -327,7 +359,7 @@ export default function ReferralsAdminPage() {
                   <SectionGuide
                     title="Audit Log of Referrals"
                     description="Individual records matching who referred whom, their current lifecycle status, and whether the free month reward has been dispatched."
-                    example="Referrer: 8fa9... | Referred: c012... | Status: rewarded"
+                    example="Referrer: usha@example.com | Referred: client@example.com | Status: rewarded"
                   />
                 </Flex>
               </CardHeader>
@@ -358,8 +390,20 @@ export default function ReferralsAdminPage() {
                         {log.map((item) => (
                           <tr key={item.id} className="border-b hover:bg-muted/40 transition-colors">
                             <td className="py-3 px-2 font-mono font-bold text-primary">{item.referralCode}</td>
-                            <td className="py-3 px-2 font-mono text-xs text-muted-foreground">{item.referrerUserId.slice(0, 8)}...</td>
-                            <td className="py-3 px-2 font-mono text-xs text-muted-foreground">{item.referredUserId.slice(0, 8)}...</td>
+                            <td className="py-3 px-2 font-mono text-xs">
+                              {item.referrerEmail ? (
+                                <span className="text-foreground font-medium">{item.referrerEmail}</span>
+                              ) : (
+                                <span className="text-muted-foreground">{item.referrerUserId ? `${item.referrerUserId.slice(0, 8)}...` : '—'}</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-2 font-mono text-xs">
+                              {item.referredEmail ? (
+                                <span className="text-foreground font-medium">{item.referredEmail}</span>
+                              ) : (
+                                <span className="text-muted-foreground">{item.referredUserId ? `${item.referredUserId.slice(0, 8)}...` : '—'}</span>
+                              )}
+                            </td>
                             <td className="py-3 px-2">
                               <Badge className={cn('text-xs capitalize', statusColors[item.status])}>
                                 {item.status.replace('_', ' ')}

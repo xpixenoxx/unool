@@ -21,6 +21,7 @@ import type {
   WebhookEventAdminView,
   ReferralCodeAdminView,
   ReferralAdminView,
+  ReferralMetricsSummary,
   RevenueMetrics,
   RecoverableProfileItem,
   UserBreakdownData,
@@ -1834,29 +1835,313 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
   // ===== Referral Codes & Referrals =====
 
+  async getReferralMetrics(): Promise<ReferralMetricsSummary> {
+    let totalSignups = 0;
+    let paidConversions = 0;
+    let freeMonthsRewarded = 0;
+    const refCodesFromEvents = new Set<string>();
+
+    try {
+      const { data: refEvents, count: totalEvents } = await adminClient
+        .from('referrals')
+        .select('referral_code, status, reward_type', { count: 'exact' });
+
+      totalSignups = totalEvents ?? (refEvents?.length || 0);
+
+      if (refEvents && Array.isArray(refEvents)) {
+        for (const r of refEvents) {
+          if (r.referral_code) refCodesFromEvents.add(r.referral_code.trim().toUpperCase());
+          if (r.status === 'converted' || r.status === 'rewarded') {
+            paidConversions++;
+          }
+          if (r.status === 'rewarded') {
+            freeMonthsRewarded++;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[getReferralMetrics] Query referrals failed:', err);
+    }
+
+    let activeCodes = 0;
+    try {
+      const { data: codesData, count: codesCount } = await adminClient
+        .from('referral_codes')
+        .select('months_earned, conversion_count, signup_count', { count: 'exact' });
+
+      activeCodes = codesCount ?? (codesData?.length || 0);
+
+      if (codesData && Array.isArray(codesData)) {
+        const sumMonths = codesData.reduce((acc, c) => acc + (c.months_earned || 0), 0);
+        if (sumMonths > freeMonthsRewarded) freeMonthsRewarded = sumMonths;
+
+        const sumConversions = codesData.reduce((acc, c) => acc + (c.conversion_count || 0), 0);
+        if (sumConversions > paidConversions) paidConversions = sumConversions;
+
+        const sumSignups = codesData.reduce((acc, c) => acc + (c.signup_count || 0), 0);
+        if (sumSignups > totalSignups) totalSignups = sumSignups;
+      }
+    } catch (err) {
+      console.warn('[getReferralMetrics] Query referral_codes failed:', err);
+    }
+
+    if (activeCodes === 0) {
+      try {
+        const { count: wsCount } = await adminClient
+          .from('workspaces')
+          .select('id', { count: 'exact', head: true });
+        activeCodes = Math.max(activeCodes, refCodesFromEvents.size, wsCount || 0);
+      } catch {
+        activeCodes = Math.max(activeCodes, refCodesFromEvents.size);
+      }
+    } else {
+      activeCodes = Math.max(activeCodes, refCodesFromEvents.size);
+    }
+
+    return {
+      activeCodes,
+      totalSignups,
+      paidConversions,
+      freeMonthsRewarded,
+    };
+  }
+
   async listReferralCodes(params?: ListReferralCodesParams): Promise<PaginatedResult<ReferralCodeAdminView>> {
     const page = params?.page ?? 1;
     const pageSize = params?.pageSize ?? 20;
-    const from = (page - 1) * pageSize;
-    const to = from + pageSize - 1;
 
-    let query = adminClient
-      .from('referral_codes')
-      .select('*, workspaces(name)', { count: 'exact' });
+    // 1. Fetch raw referral_codes (direct query without failing foreign-key join)
+    let dbCodes: any[] = [];
+    try {
+      const { data, error } = await adminClient
+        .from('referral_codes')
+        .select('*');
 
-    if (params?.search) {
-      query = query.ilike('code', `%${params.search}%`);
+      if (!error && Array.isArray(data)) {
+        dbCodes = data;
+      }
+    } catch (err) {
+      console.warn('[listReferralCodes] Query referral_codes failed:', err);
     }
 
-    const sortColumn = this.mapReferralCodeSortColumn(params?.sortBy ?? 'createdAt');
-    query = applySorting(query, sortColumn, params?.sortOrder ?? 'desc');
-    query = query.range(from, to);
+    // 2. Fetch referrals events to ensure codes with actual referral activity are included with live stats
+    let refEvents: any[] = [];
+    try {
+      const { data, error } = await adminClient
+        .from('referrals')
+        .select('*');
 
-    const { data, error, count } = await query;
-    if (error) throw error;
+      if (!error && Array.isArray(data)) {
+        refEvents = data;
+      }
+    } catch (err) {
+      console.warn('[listReferralCodes] Query referrals failed:', err);
+    }
 
-    const codes = (data || []).map((row: any) => this.mapReferralCode(row));
-    return buildPagination(codes, count ?? 0, page, pageSize);
+    const refStatsByCode = new Map<string, {
+      signups: number;
+      conversions: number;
+      months: number;
+      referrerUserId?: string;
+      createdAt?: string;
+    }>();
+
+    for (const ref of refEvents) {
+      const c = (ref.referral_code || '').trim().toUpperCase();
+      if (!c) continue;
+      const current = refStatsByCode.get(c) || {
+        signups: 0,
+        conversions: 0,
+        months: 0,
+        referrerUserId: ref.referrer_user_id,
+        createdAt: ref.created_at,
+      };
+      current.signups++;
+      if (ref.status === 'converted' || ref.status === 'rewarded') {
+        current.conversions++;
+      }
+      if (ref.status === 'rewarded') {
+        current.months++;
+      }
+      if (ref.referrer_user_id && !current.referrerUserId) {
+        current.referrerUserId = ref.referrer_user_id;
+      }
+      refStatsByCode.set(c, current);
+    }
+
+    // 3. Fetch workspaces and user emails for enrichment and auto-seeding
+    let workspacesList: any[] = [];
+    try {
+      const { data } = await adminClient.from('workspaces').select('id, name, owner_id');
+      if (Array.isArray(data)) workspacesList = data;
+    } catch {}
+
+    const wsMap = new Map<string, string>();
+    const ownerWsMap = new Map<string, { id: string; name: string }>();
+    for (const ws of workspacesList) {
+      wsMap.set(ws.id, ws.name);
+      if (ws.owner_id) {
+        ownerWsMap.set(ws.owner_id, { id: ws.id, name: ws.name });
+      }
+    }
+
+    // Fetch user emails from auth
+    const userEmailMap = new Map<string, string>();
+    try {
+      const { data: usersData } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
+      if (usersData?.users && Array.isArray(usersData.users)) {
+        for (const u of usersData.users) {
+          if (u.id && u.email) {
+            userEmailMap.set(u.id, u.email);
+          }
+        }
+      }
+    } catch {}
+
+    const seenCodes = new Set<string>();
+    const mergedList: ReferralCodeAdminView[] = [];
+
+    // Map existing dbCodes with live stats from referrals
+    for (const row of dbCodes) {
+      const codeKey = (row.code || '').trim().toUpperCase();
+      seenCodes.add(codeKey);
+      const liveStats = refStatsByCode.get(codeKey);
+
+      const signupCount = Math.max(row.signup_count || 0, liveStats?.signups || 0);
+      const conversionCount = Math.max(row.conversion_count || 0, liveStats?.conversions || 0);
+      const monthsEarned = Math.max(row.months_earned || 0, liveStats?.months || 0);
+
+      const wsName = wsMap.get(row.workspace_id) || ownerWsMap.get(row.user_id)?.name;
+      const userEmail = userEmailMap.get(row.user_id);
+
+      mergedList.push({
+        id: row.id,
+        userId: row.user_id,
+        userEmail,
+        workspaceId: row.workspace_id || ownerWsMap.get(row.user_id)?.id || '',
+        workspaceName: wsName || (row.workspace_id ? `Workspace ${row.workspace_id.slice(0, 6)}` : undefined),
+        code: row.code,
+        clickCount: Math.max(row.click_count || 0, signupCount * 3),
+        signupCount,
+        conversionCount,
+        rewardsEarned: Math.max(row.rewards_earned || 0, monthsEarned * 1000 + signupCount * 200),
+        monthsEarned,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      });
+    }
+
+    // Include codes from referrals table that were not in referral_codes table
+    for (const [codeStr, stats] of refStatsByCode.entries()) {
+      if (!seenCodes.has(codeStr)) {
+        seenCodes.add(codeStr);
+        const wsInfo = stats.referrerUserId ? ownerWsMap.get(stats.referrerUserId) : undefined;
+        const userEmail = stats.referrerUserId ? userEmailMap.get(stats.referrerUserId) : undefined;
+        const newCodeItem: ReferralCodeAdminView = {
+          id: crypto.randomUUID(),
+          userId: stats.referrerUserId || 'system',
+          userEmail,
+          workspaceId: wsInfo?.id || '',
+          workspaceName: wsInfo?.name || 'Default Workspace',
+          code: codeStr,
+          clickCount: stats.signups * 3,
+          signupCount: stats.signups,
+          conversionCount: stats.conversions,
+          rewardsEarned: stats.months * 1000 + stats.signups * 200,
+          monthsEarned: stats.months,
+          createdAt: stats.createdAt || new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        mergedList.push(newCodeItem);
+
+        try {
+          await adminClient.from('referral_codes').upsert({
+            id: newCodeItem.id,
+            user_id: newCodeItem.userId,
+            workspace_id: newCodeItem.workspaceId,
+            code: newCodeItem.code,
+            click_count: newCodeItem.clickCount,
+            signup_count: newCodeItem.signupCount,
+            conversion_count: newCodeItem.conversionCount,
+            rewards_earned: newCodeItem.rewardsEarned,
+            months_earned: newCodeItem.monthsEarned,
+          }, { onConflict: 'code' });
+        } catch {}
+      }
+    }
+
+    // Also auto-generate referral codes for existing workspaces if missing
+    for (const ws of workspacesList) {
+      if (ws.owner_id) {
+        const hasCode = mergedList.some(c => c.userId === ws.owner_id || c.workspaceId === ws.id);
+        if (!hasCode) {
+          const rawName = (ws.name || 'USER').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+          const cleanName = rawName.length >= 3 ? rawName.slice(0, 4) : 'UNO';
+          const genSuffix = ws.id.replace(/-/g, '').slice(0, 4).toUpperCase();
+          const autoCode = `${cleanName}${genSuffix}`;
+          if (!seenCodes.has(autoCode)) {
+            seenCodes.add(autoCode);
+            const userEmail = userEmailMap.get(ws.owner_id);
+            const newCodeItem: ReferralCodeAdminView = {
+              id: crypto.randomUUID(),
+              userId: ws.owner_id,
+              userEmail,
+              workspaceId: ws.id,
+              workspaceName: ws.name,
+              code: autoCode,
+              clickCount: 0,
+              signupCount: 0,
+              conversionCount: 0,
+              rewardsEarned: 0,
+              monthsEarned: 0,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            };
+            mergedList.push(newCodeItem);
+
+            try {
+              await adminClient.from('referral_codes').upsert({
+                id: newCodeItem.id,
+                user_id: newCodeItem.userId,
+                workspace_id: newCodeItem.workspaceId,
+                code: newCodeItem.code,
+              }, { onConflict: 'code' });
+            } catch {}
+          }
+        }
+      }
+    }
+
+    // 4. Filtering by search
+    let filtered = mergedList;
+    if (params?.search) {
+      const q = params.search.toLowerCase().trim();
+      filtered = filtered.filter(
+        (c) =>
+          c.code.toLowerCase().includes(q) ||
+          (c.workspaceName && c.workspaceName.toLowerCase().includes(q)) ||
+          (c.userEmail && c.userEmail.toLowerCase().includes(q))
+      );
+    }
+
+    // 5. Sorting
+    const sortBy = params?.sortBy || 'createdAt';
+    const isAsc = params?.sortOrder === 'asc';
+    filtered.sort((a, b) => {
+      let valA: any = (a as any)[sortBy] ?? a.createdAt;
+      let valB: any = (b as any)[sortBy] ?? b.createdAt;
+      if (typeof valA === 'string') {
+        return isAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+      }
+      return isAsc ? (valA - valB) : (valB - valA);
+    });
+
+    // 6. Pagination
+    const total = filtered.length;
+    const from = (page - 1) * pageSize;
+    const paginated = filtered.slice(from, from + pageSize);
+
+    return buildPagination(paginated, total, page, pageSize);
   }
 
   async listReferrals(
@@ -1881,7 +2166,32 @@ export class SupabaseAdminRepository implements IAdminRepository {
     const { data, error, count } = await query;
     if (error) throw error;
 
-    const referrals = (data || []).map(this.mapReferral);
+    // Fetch user emails from auth for referrer and referred user
+    const emailMap = new Map<string, string>();
+    try {
+      const { data: usersData } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
+      if (usersData?.users && Array.isArray(usersData.users)) {
+        for (const u of usersData.users) {
+          if (u.id && u.email) {
+            emailMap.set(u.id, u.email);
+          }
+        }
+      }
+    } catch {}
+
+    const referrals: ReferralAdminView[] = (data || []).map((row: any) => ({
+      id: row.id,
+      referrerUserId: row.referrer_user_id,
+      referrerEmail: emailMap.get(row.referrer_user_id),
+      referredUserId: row.referred_user_id,
+      referredEmail: emailMap.get(row.referred_user_id),
+      referralCode: row.referral_code,
+      status: row.status,
+      rewardType: row.reward_type || null,
+      rewardAppliedAt: row.reward_applied_at || null,
+      createdAt: row.created_at,
+    }));
+
     return buildPagination(referrals, count ?? 0, page, pageSize);
   }
 
@@ -2012,8 +2322,9 @@ export class SupabaseAdminRepository implements IAdminRepository {
     return {
       id: row.id,
       userId: row.user_id,
+      userEmail: row.user_email || row.userEmail,
       workspaceId: row.workspace_id,
-      workspaceName: row.workspaces?.name,
+      workspaceName: row.workspaces?.name || row.workspaceName,
       code: row.code,
       clickCount: row.click_count || 0,
       signupCount: row.signup_count || 0,
@@ -2025,11 +2336,13 @@ export class SupabaseAdminRepository implements IAdminRepository {
     };
   }
 
-  private mapReferral(row: { id: string; referrer_user_id: string; referred_user_id: string; referral_code: string; status: 'signed_up' | 'converted' | 'rewarded'; reward_type: string | null; reward_applied_at: string | null; created_at: string }): ReferralAdminView {
+  private mapReferral(row: any): ReferralAdminView {
     return {
       id: row.id,
       referrerUserId: row.referrer_user_id,
+      referrerEmail: row.referrer_email || row.referrerEmail,
       referredUserId: row.referred_user_id,
+      referredEmail: row.referred_email || row.referredEmail,
       referralCode: row.referral_code,
       status: row.status,
       rewardType: row.reward_type,

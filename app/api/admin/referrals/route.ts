@@ -15,9 +15,15 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || undefined;
     const code = searchParams.get('code') || undefined;
 
+    // Fetch live summary metrics
+    const summary = await adminRepository.getReferralMetrics();
+
     if (view === 'log') {
       const result = await adminRepository.listReferrals(page, pageSize, code);
-      return NextResponse.json(result);
+      return NextResponse.json({
+        ...result,
+        summary,
+      });
     }
 
     // Default: referral codes
@@ -26,10 +32,12 @@ export async function GET(request: NextRequest) {
       pageSize,
       search,
     });
-    return NextResponse.json(result);
+    return NextResponse.json({
+      ...result,
+      summary,
+    });
   } catch (error) {
     console.error('Failed to get referral data:', error);
     return NextResponse.json({ error: 'Failed to get referral data' }, { status: 500 });
   }
 }
-
