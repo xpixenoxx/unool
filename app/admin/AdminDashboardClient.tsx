@@ -955,14 +955,18 @@ function PlanStatusBadge({ status }: { status: string }) {
 function PlanBadge({ plan }: { plan: string }) {
   const planColors: Record<string, string> = {
     spark: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
+    free: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
     creator: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
     pro: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
     studio: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
   };
 
+  const p = (plan || '').toLowerCase();
+  const label = (p === 'free' || p === 'spark') ? 'Spark (Free)' : (plan.charAt(0).toUpperCase() + plan.slice(1));
+
   return (
-    <Badge variant="outline" className={planColors[plan] || 'bg-muted text-muted-foreground'} size="sm">
-      {plan.charAt(0).toUpperCase() + plan.slice(1)}
+    <Badge variant="outline" className={planColors[p] || 'bg-muted text-muted-foreground'} size="sm">
+      {label}
     </Badge>
   );
 }

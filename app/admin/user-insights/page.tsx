@@ -106,7 +106,7 @@ interface Insights {
 
 // ---- Plan colors ----
 const PLAN_COLORS: Record<string, string> = {
-  free: '#71717a',
+  free: '#10b981',
   spark: '#10b981',
   creator: '#3b82f6',
   pro: '#8b5cf6',
@@ -114,7 +114,7 @@ const PLAN_COLORS: Record<string, string> = {
   enterprise: '#ef4444',
 };
 const PLAN_LABELS: Record<string, string> = {
-  free: 'Free', spark: 'Spark (Free)', creator: 'Creator',
+  free: 'Spark (Free)', spark: 'Spark (Free)', creator: 'Creator',
   pro: 'Pro', studio: 'Studio', enterprise: 'Enterprise',
 };
 
@@ -957,8 +957,29 @@ export default function UserInsightsPage() {
 
   const { userBreakdown, postsByPlatform, platformStats, timeSpentStats } = data;
 
+  // Consolidate 'free' and 'spark' into 'spark' (Spark (Free))
+  const mergedPlanDetails = React.useMemo(() => {
+    const map = new Map<string, { plan: string; count: number; percentage: number }>();
+    (userBreakdown.planDetails || []).forEach((d) => {
+      const canonicalKey = (d.plan === 'free' || d.plan === 'spark') ? 'spark' : d.plan;
+      const existing = map.get(canonicalKey);
+      if (existing) {
+        existing.count += d.count;
+      } else {
+        map.set(canonicalKey, { plan: canonicalKey, count: d.count, percentage: d.percentage });
+      }
+    });
+    const totalUsers = userBreakdown.total || 1;
+    return Array.from(map.values())
+      .map((item) => ({
+        ...item,
+        percentage: Math.round((item.count / totalUsers) * 1000) / 10,
+      }))
+      .sort((a, b) => b.count - a.count);
+  }, [userBreakdown.planDetails, userBreakdown.total]);
+
   // Plan donut data
-  const planDonutData = userBreakdown.planDetails.map(d => ({
+  const planDonutData = mergedPlanDetails.map(d => ({
     label: PLAN_LABELS[d.plan] || d.plan,
     value: d.count,
     color: PLAN_COLORS[d.plan] || '#6b7280',
@@ -1220,7 +1241,7 @@ export default function UserInsightsPage() {
                 />
               </div>
               <div className="flex-1 min-w-[180px] space-y-2.5">
-                {userBreakdown.planDetails.map(d => (
+                {mergedPlanDetails.map(d => (
                   <PlanRow
                     key={d.plan}
                     plan={d.plan}
@@ -1230,7 +1251,7 @@ export default function UserInsightsPage() {
                     label={PLAN_LABELS[d.plan] || d.plan}
                   />
                 ))}
-                {userBreakdown.planDetails.length === 0 && (
+                {mergedPlanDetails.length === 0 && (
                   <Text color="muted" size="sm">No plan data yet</Text>
                 )}
               </div>

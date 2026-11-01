@@ -85,9 +85,11 @@ function PlanBadge({ plan }: { plan: string }) {
     pro: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
     studio: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
   };
+  const p = (plan || '').toLowerCase();
+  const label = (p === 'free' || p === 'spark') ? 'Spark (Free)' : (plan.charAt(0).toUpperCase() + plan.slice(1));
   return (
-    <Badge variant="outline" className={colors[plan] || 'bg-muted text-muted-foreground'} size="sm">
-      {plan.charAt(0).toUpperCase() + plan.slice(1)}
+    <Badge variant="outline" className={colors[p] || 'bg-muted text-muted-foreground'} size="sm">
+      {label}
     </Badge>
   );
 }
@@ -379,7 +381,6 @@ export default function AdminWorkspacesPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Plans</SelectItem>
-              <SelectItem value="free">Free</SelectItem>
               <SelectItem value="spark">Spark (Free)</SelectItem>
               <SelectItem value="creator">Creator</SelectItem>
               <SelectItem value="pro">Pro</SelectItem>

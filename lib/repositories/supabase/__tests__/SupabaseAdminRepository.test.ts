@@ -653,10 +653,11 @@ describe('SupabaseAdminRepository - Recovery Management', () => {
       expect(distribution.total).toBe(3);
       expect(distribution.newUsersLast30Days).toBe(2);
       expect(distribution.byPlan['pro']).toBe(1);
+      expect(distribution.byPlan['spark']).toBe(2);
       expect(distribution.byPlan['free']).toBe(2);
       expect(distribution.planDetails).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ plan: 'free', count: 2 }),
+          expect.objectContaining({ plan: 'spark', count: 2 }),
           expect.objectContaining({ plan: 'pro', count: 1 }),
         ])
       );

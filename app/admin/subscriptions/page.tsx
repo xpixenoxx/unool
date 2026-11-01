@@ -560,7 +560,7 @@ export default function SubscriptionsPage() {
 
                           <td className="py-3 px-2">
                             <Badge variant="outline" className={cn('capitalize', planBadgeColors[sub.planId] || '')}>
-                              {sub.planId} · {sub.billingCycle}
+                              {(sub.planId === 'free' || sub.planId === 'spark' ? 'Spark (Free)' : sub.planId)} · {sub.billingCycle}
                             </Badge>
                           </td>
                           <td className="py-3 px-2">

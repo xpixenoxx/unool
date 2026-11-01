@@ -86,6 +86,7 @@ interface UserDetail {
 
 const planBadgeColors: Record<string, string> = {
   spark: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
+  free: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
   creator: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
   pro: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
   studio: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
@@ -350,7 +351,7 @@ export default function UserDetailPage() {
                             <td className="py-3 px-2 capitalize">{ws.role}</td>
                             <td className="py-3 px-2">
                               <Badge variant="outline" className={cn('capitalize', planBadgeColors[ws.plan] || '')}>
-                                {ws.plan || 'spark'}
+                                {(ws.plan === 'free' || ws.plan === 'spark') ? 'Spark (Free)' : (ws.plan || 'Spark (Free)')}
                               </Badge>
                             </td>
                             <td className="py-3 px-2">

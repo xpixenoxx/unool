@@ -49,13 +49,13 @@ const PLAN_META: Record<
   { label: string; color: string; stroke: string; bg: string; border: string; text: string; icon: any; price: string }
 > = {
   free: {
-    label: 'Free',
-    color: '#71717a',
-    stroke: '#52525b',
-    bg: 'bg-zinc-100 dark:bg-zinc-800/60',
-    border: 'border-zinc-300 dark:border-zinc-700',
-    text: 'text-zinc-700 dark:text-zinc-300',
-    icon: Users,
+    label: 'Spark (Free)',
+    color: '#10b981',
+    stroke: '#059669',
+    bg: 'bg-emerald-50 dark:bg-emerald-950/40',
+    border: 'border-emerald-200 dark:border-emerald-800',
+    text: 'text-emerald-700 dark:text-emerald-300',
+    icon: Sparkles,
     price: '$0/mo',
   },
   spark: {
@@ -174,7 +174,28 @@ export function UserPlanDistributionModal({
 
   const total = data?.total || 0;
   const newUsersLast30Days = data?.newUsersLast30Days || 0;
-  const planDetails = data?.planDetails || [];
+  // Consolidate 'free' and 'spark' into 'spark' (Spark (Free))
+  const planDetails = React.useMemo(() => {
+    const raw = data?.planDetails || [];
+    const map = new Map<string, { plan: string; count: number; percentage: number }>();
+    raw.forEach((p) => {
+      const canonical = (p.plan === 'free' || p.plan === 'spark') ? 'spark' : p.plan;
+      const existing = map.get(canonical);
+      if (existing) {
+        existing.count += p.count;
+      } else {
+        map.set(canonical, { plan: canonical, count: p.count, percentage: p.percentage });
+      }
+    });
+    const totalUsers = data?.total || 1;
+    return Array.from(map.values())
+      .map((item) => ({
+        ...item,
+        percentage: Math.round((item.count / totalUsers) * 1000) / 10,
+      }))
+      .sort((a, b) => b.count - a.count);
+  }, [data?.planDetails, data?.total]);
+
   const registrations = data?.registrationsLast30Days || [];
   const recentUsers = data?.recentUsers || [];
 
@@ -187,8 +208,11 @@ export function UserPlanDistributionModal({
   // Filtered users for table
   const filteredUsers = React.useMemo(() => {
     return recentUsers.filter((u) => {
+      const isSparkOrFree = selectedFilterPlan.toLowerCase() === 'spark' || selectedFilterPlan.toLowerCase() === 'free';
+      const userIsSparkOrFree = u.plan.toLowerCase() === 'spark' || u.plan.toLowerCase() === 'free';
       const matchesPlan =
-        selectedFilterPlan === 'all' || u.plan.toLowerCase() === selectedFilterPlan.toLowerCase();
+        selectedFilterPlan === 'all' ||
+        (isSparkOrFree ? userIsSparkOrFree : u.plan.toLowerCase() === selectedFilterPlan.toLowerCase());
       const matchesSearch =
         !searchQuery || u.email.toLowerCase().includes(searchQuery.toLowerCase().trim());
       return matchesPlan && matchesSearch;

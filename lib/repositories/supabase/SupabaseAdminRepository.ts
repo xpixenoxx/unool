@@ -406,7 +406,11 @@ export class SupabaseAdminRepository implements IAdminRepository {
       query = query.ilike('name', `%${params.search}%`);
     }
     if (params?.plan) {
-      query = query.eq('plan', params.plan);
+      if (params.plan === 'spark' || params.plan === 'free') {
+        query = query.in('plan', ['spark', 'free']);
+      } else {
+        query = query.eq('plan', params.plan);
+      }
     }
     if (params?.planStatus) {
       query = query.eq('plan_status', params.planStatus);
@@ -1059,7 +1063,9 @@ export class SupabaseAdminRepository implements IAdminRepository {
         }
 
         const plans = workspacesByUser.get(u.id) || [];
-        const plan = (plans[0] || 'free').toLowerCase();
+        const rawPlan = (plans[0] || 'spark').toLowerCase();
+        // Consolidate 'free' and 'spark' into 'spark' (canonical Spark (Free) tier)
+        const plan = (rawPlan === 'free' || rawPlan === 'spark') ? 'spark' : rawPlan;
         byPlan[plan] = (byPlan[plan] || 0) + 1;
 
         const bannedUntil = (u as Record<string, any>).banned_until;
@@ -1074,8 +1080,11 @@ export class SupabaseAdminRepository implements IAdminRepository {
         });
       });
 
+      // Keep byPlan.free synchronized with byPlan.spark for backwards compatibility
+      byPlan.free = byPlan.spark;
+
       const planDetails = Object.entries(byPlan)
-        .filter(([, count]) => count > 0)
+        .filter(([p, count]) => p !== 'free' && count > 0)
         .map(([plan, count]) => ({
           plan,
           count,
