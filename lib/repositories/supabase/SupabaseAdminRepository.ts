@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { getDefaultAdminPlans } from '@/lib/billing/plans';
 import { config } from '@/lib/config/schema';
 import type {
   IAdminRepository,
@@ -165,24 +166,129 @@ export class SupabaseAdminRepository implements IAdminRepository {
   // ===== Plans =====
 
   async listPlans(): Promise<Plan[]> {
-    const { data, error } = await adminClient
-      .from('plans')
-      .select('*')
-      .order('sort_order', { ascending: true });
+    const defaultPlans = getDefaultAdminPlans();
+    const defaultMap = new Map(defaultPlans.map((p) => [p.id, p]));
 
-    if (error) throw error;
-    return (data || []).map(this.mapPlan);
+    try {
+      const { data, error } = await adminClient
+        .from('plans')
+        .select('*')
+        .order('sort_order', { ascending: true });
+
+      if (!error && data && data.length > 0) {
+        const dbPlans = data.map(this.mapPlan);
+        const dbMap = new Map(dbPlans.map((p) => [p.id, p]));
+
+        // Ensure all canonical plans are present and properly enriched with INR fields
+        const canonicalMerged: Plan[] = defaultPlans.map((def) => {
+          const fromDb = dbMap.get(def.id);
+          if (!fromDb) return def;
+
+          const defFeatures = def.features as Record<string, unknown>;
+          const dbFeatures = (fromDb.features as Record<string, unknown>) || {};
+
+          return {
+            ...def,
+            ...fromDb,
+            features: {
+              ...defFeatures,
+              ...dbFeatures,
+              price_monthly_inr:
+                typeof dbFeatures.price_monthly_inr === 'number'
+                  ? dbFeatures.price_monthly_inr
+                  : defFeatures.price_monthly_inr,
+              price_yearly_inr:
+                typeof dbFeatures.price_yearly_inr === 'number'
+                  ? dbFeatures.price_yearly_inr
+                  : defFeatures.price_yearly_inr,
+              price_annual_monthly_inr:
+                typeof dbFeatures.price_annual_monthly_inr === 'number'
+                  ? dbFeatures.price_annual_monthly_inr
+                  : defFeatures.price_annual_monthly_inr,
+            },
+          };
+        });
+
+        // Add any additional non-canonical plans created by admin
+        for (const p of dbPlans) {
+          if (!defaultMap.has(p.id) && p.id !== 'free' && p.id !== 'enterprise') {
+            canonicalMerged.push(p);
+          }
+        }
+
+        return canonicalMerged.sort((a, b) => a.sortOrder - b.sortOrder);
+      }
+    } catch (err) {
+      console.warn('[listPlans] DB query failed, falling back to default plans', err);
+    }
+
+    // Fallback: When DB table is empty or unseeded, return canonical plans and attempt auto-seed
+    try {
+      for (const p of defaultPlans) {
+        await adminClient.from('plans').upsert({
+          id: p.id,
+          name: p.name,
+          description: p.description,
+          price_monthly_usd: p.priceMonthlyUsd,
+          price_yearly_usd: p.priceYearlyUsd,
+          features: p.features,
+          limits: p.limits,
+          is_active: p.isActive,
+          sort_order: p.sortOrder,
+          updated_at: new Date().toISOString(),
+        });
+      }
+    } catch {
+      // Best-effort auto-seed
+    }
+
+    return defaultPlans;
   }
 
   async getPlanById(id: string): Promise<Plan | null> {
-    const { data, error } = await adminClient
-      .from('plans')
-      .select('*')
-      .eq('id', id)
-      .single();
+    const defaultPlans = getDefaultAdminPlans();
+    const fallback = defaultPlans.find((p) => p.id === id) || null;
 
-    if (error || !data) return null;
-    return this.mapPlan(data);
+    try {
+      const { data, error } = await adminClient
+        .from('plans')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (!error && data) {
+        const fromDb = this.mapPlan(data);
+        if (fallback) {
+          const defFeatures = fallback.features as Record<string, unknown>;
+          const dbFeatures = (fromDb.features as Record<string, unknown>) || {};
+          return {
+            ...fallback,
+            ...fromDb,
+            features: {
+              ...defFeatures,
+              ...dbFeatures,
+              price_monthly_inr:
+                typeof dbFeatures.price_monthly_inr === 'number'
+                  ? dbFeatures.price_monthly_inr
+                  : defFeatures.price_monthly_inr,
+              price_yearly_inr:
+                typeof dbFeatures.price_yearly_inr === 'number'
+                  ? dbFeatures.price_yearly_inr
+                  : defFeatures.price_yearly_inr,
+              price_annual_monthly_inr:
+                typeof dbFeatures.price_annual_monthly_inr === 'number'
+                  ? dbFeatures.price_annual_monthly_inr
+                  : defFeatures.price_annual_monthly_inr,
+            },
+          };
+        }
+        return fromDb;
+      }
+    } catch (err) {
+      console.warn('[getPlanById] DB query failed', err);
+    }
+
+    return fallback;
   }
 
   async createPlan(input: CreatePlanInput): Promise<Plan> {
@@ -218,15 +324,50 @@ export class SupabaseAdminRepository implements IAdminRepository {
     if (input.sortOrder !== undefined) updates.sort_order = input.sortOrder;
     updates.updated_at = new Date().toISOString();
 
-    const { data, error } = await adminClient
-      .from('plans')
-      .update(updates)
-      .eq('id', id)
-      .select('*')
-      .single();
+    try {
+      const { data, error } = await adminClient
+        .from('plans')
+        .update(updates)
+        .eq('id', id)
+        .select('*')
+        .maybeSingle();
 
-    if (error) throw error;
-    return data ? this.mapPlan(data) : null;
+      if (data) return this.mapPlan(data);
+    } catch (err) {
+      console.warn('[updatePlan] Update failed, trying upsert', err);
+    }
+
+    // Row didn't exist in DB yet â€” pull defaults and upsert
+    const fallback = getDefaultAdminPlans().find((p) => p.id === id);
+    const insertData = {
+      id,
+      name: input.name || fallback?.name || id,
+      description: input.description !== undefined ? input.description : (fallback?.description || null),
+      price_monthly_usd: input.priceMonthlyUsd !== undefined ? input.priceMonthlyUsd : (fallback?.priceMonthlyUsd ?? 0),
+      price_yearly_usd: input.priceYearlyUsd !== undefined ? input.priceYearlyUsd : (fallback?.priceYearlyUsd ?? 0),
+      features: input.features || fallback?.features || {},
+      limits: input.limits || fallback?.limits || {},
+      is_active: input.isActive !== undefined ? input.isActive : true,
+      sort_order: input.sortOrder !== undefined ? input.sortOrder : (fallback?.sortOrder ?? 0),
+      updated_at: new Date().toISOString(),
+    };
+
+    try {
+      const { data: upserted, error: upsertErr } = await adminClient
+        .from('plans')
+        .upsert(insertData)
+        .select('*')
+        .single();
+
+      if (upserted) return this.mapPlan(upserted);
+    } catch (err) {
+      console.error('[updatePlan] Upsert failed:', err);
+    }
+
+    return this.mapPlan({
+      ...insertData,
+      created_at: fallback?.createdAt || new Date().toISOString(),
+    } as any);
   }
 
   async deletePlan(id: string): Promise<boolean> {

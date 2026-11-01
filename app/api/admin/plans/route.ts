@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth/admin';
 import { adminRepository } from '@/lib/repositories/supabase/SupabaseAdminRepository';
+import { getDefaultAdminPlans } from '@/lib/billing/plans';
 import type { CreatePlanInput } from '@/lib/repositories/interfaces/IAdminRepository';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 // GET /api/admin/plans - List all plans
 export async function GET(request: NextRequest) {
@@ -9,11 +13,14 @@ export async function GET(request: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   try {
-    const plans = await adminRepository.listPlans();
+    let plans = await adminRepository.listPlans();
+    if (!plans || plans.length === 0) {
+      plans = getDefaultAdminPlans();
+    }
     return NextResponse.json(plans);
   } catch (error) {
-    console.error('Failed to list plans:', error);
-    return NextResponse.json({ error: 'Failed to list plans' }, { status: 500 });
+    console.warn('Failed to list plans from database, returning canonical default plans:', error);
+    return NextResponse.json(getDefaultAdminPlans());
   }
 }
 

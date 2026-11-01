@@ -408,3 +408,46 @@ export const REVERSE_TRIAL = {
   downgradePlanId: 'spark' as PlanId,
   reminderDaysBefore: 4,
 };
+
+/**
+ * Returns canonical default plans mapped to the admin repository's Plan shape.
+ * Used whenever DB table is empty or unseeded, guaranteeing the admin panel
+ * always renders the original 4 plans (Spark, Creator, Pro, Studio).
+ */
+export interface AdminPlanView {
+  id: string;
+  name: string;
+  description: string | null;
+  priceMonthlyUsd: number;
+  priceYearlyUsd: number;
+  features: Record<string, unknown>;
+  limits: Record<string, unknown>;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function getDefaultAdminPlans(): AdminPlanView[] {
+  return (['spark', 'creator', 'pro', 'studio'] as PlanId[]).map((id) => {
+    const p = PLANS_FALLBACK[id];
+    return {
+      id: p.id,
+      name: p.name,
+      description: p.tagline,
+      priceMonthlyUsd: p.pricing.USD.monthly,
+      priceYearlyUsd: p.pricing.USD.annual,
+      features: {
+        ...p.features,
+        price_monthly_inr: p.pricing.INR.monthly,
+        price_yearly_inr: p.pricing.INR.annual,
+        price_annual_monthly_inr: p.pricing.INR.annualMonthly,
+      },
+      limits: { ...p.limits } as Record<string, unknown>,
+      isActive: true,
+      sortOrder: p.sortOrder,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: new Date().toISOString(),
+    };
+  });
+}

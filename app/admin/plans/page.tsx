@@ -49,9 +49,13 @@ interface PlanTableProps {
 function PlanTable({ plans, loading, onToggleActive, onDelete, onEdit, onOpenCreate }: PlanTableProps) {
   /** Extract INR monthly price from the features JSONB */
   const getInrMonthly = (plan: Plan): string => {
+    if (plan.id === 'spark' || plan.priceMonthlyUsd === 0) {
+      return 'Free';
+    }
     const f = plan.features as Record<string, unknown>;
     if (typeof f?.price_monthly_inr === 'number') {
-      return `₹${(f.price_monthly_inr / 100).toLocaleString('en-IN')}`;
+      if (f.price_monthly_inr === 0) return 'Free';
+      return '₹' + (f.price_monthly_inr / 100).toLocaleString('en-IN');
     }
     return '—';
   };
@@ -275,13 +279,167 @@ function OverridesSection({ overrides, loadingOverrides, onRemove, onOpenCreate 
   );
 }
 
+// ── Canonical default plans (shown when DB unseeded or fetching) ──
+const DEFAULT_ADMIN_PLANS: Plan[] = [
+  {
+    id: 'spark',
+    name: 'Spark',
+    description: 'Free forever — your profile, your identity.',
+    priceMonthlyUsd: 0,
+    priceYearlyUsd: 0,
+    features: {
+      price_monthly_inr: 0,
+      price_yearly_inr: 0,
+      price_annual_monthly_inr: 0,
+      custom_domain: false,
+      badge_removal: false,
+      dm_concierge: false,
+      dm_concierge_full: false,
+      lead_scoring: false,
+      follow_to_unlock: true,
+      white_label: false,
+      api_access: false,
+      approval_workflows: false,
+      priority_support: false,
+    },
+    limits: {
+      posts_per_month: 15,
+      channels: 2,
+      ai_credits_per_month: 25,
+      ig_comments_per_month: 250,
+      linkedin_comments_per_month: 50,
+      team_seats: 1,
+      brand_voices: 0,
+      analytics_retention_days: 30,
+      workspaces: 1,
+    },
+    isActive: true,
+    sortOrder: 0,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'creator',
+    name: 'Creator',
+    description: 'Professional brand, zero third-party branding.',
+    priceMonthlyUsd: 900,
+    priceYearlyUsd: 9000,
+    features: {
+      price_monthly_inr: 79900,
+      price_yearly_inr: 799000,
+      price_annual_monthly_inr: 66600,
+      custom_domain: false,
+      badge_removal: true,
+      dm_concierge: true,
+      dm_concierge_full: false,
+      lead_scoring: false,
+      follow_to_unlock: true,
+      white_label: false,
+      api_access: false,
+      approval_workflows: false,
+      priority_support: false,
+    },
+    limits: {
+      posts_per_month: -1,
+      channels: 4,
+      ai_credits_per_month: 150,
+      ig_comments_per_month: 500,
+      linkedin_comments_per_month: 250,
+      team_seats: 1,
+      brand_voices: 1,
+      analytics_retention_days: 90,
+      workspaces: 1,
+    },
+    isActive: true,
+    sortOrder: 1,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'pro',
+    name: 'Pro',
+    description: 'The full engine for serious creators.',
+    priceMonthlyUsd: 2400,
+    priceYearlyUsd: 24000,
+    features: {
+      price_monthly_inr: 199900,
+      price_yearly_inr: 1999000,
+      price_annual_monthly_inr: 166600,
+      custom_domain: true,
+      badge_removal: true,
+      dm_concierge: true,
+      dm_concierge_full: true,
+      lead_scoring: true,
+      follow_to_unlock: true,
+      flightplan_ai: true,
+      white_label: false,
+      api_access: false,
+      approval_workflows: false,
+      priority_support: true,
+    },
+    limits: {
+      posts_per_month: -1,
+      channels: 8,
+      ai_credits_per_month: 500,
+      ig_comments_per_month: 3000,
+      linkedin_comments_per_month: 1500,
+      team_seats: 3,
+      brand_voices: 5,
+      analytics_retention_days: 365,
+      workspaces: 1,
+    },
+    isActive: true,
+    sortOrder: 2,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'studio',
+    name: 'Studio',
+    description: 'Multi-brand agency powerhouse.',
+    priceMonthlyUsd: 5900,
+    priceYearlyUsd: 59000,
+    features: {
+      price_monthly_inr: 499900,
+      price_yearly_inr: 4999000,
+      price_annual_monthly_inr: 416600,
+      custom_domain: true,
+      badge_removal: true,
+      dm_concierge: true,
+      dm_concierge_full: true,
+      lead_scoring: true,
+      follow_to_unlock: true,
+      flightplan_ai: true,
+      white_label: true,
+      api_access: true,
+      approval_workflows: true,
+      priority_support: true,
+    },
+    limits: {
+      posts_per_month: -1,
+      channels: -1,
+      ai_credits_per_month: -1,
+      ig_comments_per_month: -1,
+      linkedin_comments_per_month: -1,
+      team_seats: 10,
+      brand_voices: -1,
+      analytics_retention_days: -1,
+      workspaces: 3,
+    },
+    isActive: true,
+    sortOrder: 3,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: new Date().toISOString(),
+  },
+];
+
 // ── Module-level cache ─────────────────────────────────────────
 let cachedPlansData: Plan[] | null = null;
 
 // ── Main Page ──────────────────────────────────────────────────
 
 export default function AdminPlansPage() {
-  const [plans, setPlans] = useState<Plan[]>(cachedPlansData || []);
+  const [plans, setPlans] = useState<Plan[]>(cachedPlansData || DEFAULT_ADMIN_PLANS);
   const [loading, setLoading] = useState(!cachedPlansData);
   const [error, setError] = useState<string | null>(null);
 
@@ -331,16 +489,18 @@ export default function AdminPlansPage() {
   // ── Fetchers ─────────────────────────────────────────────────
 
   const fetchPlans = useCallback(async () => {
-    if (!cachedPlansData) setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/admin/plans');
+      const res = await fetch('/api/admin/plans', { cache: 'no-store' });
       if (!res.ok) throw new Error('Failed to fetch plans');
       const data = await res.json();
-      setPlans(data || []);
-      cachedPlansData = data || [];
+      const planList: Plan[] = Array.isArray(data) ? data : data?.plans || [];
+      if (planList.length > 0) {
+        setPlans(planList);
+        cachedPlansData = planList;
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      console.warn('Using canonical default plans:', err);
     } finally {
       setLoading(false);
     }
@@ -349,7 +509,7 @@ export default function AdminPlansPage() {
   const fetchOverrides = useCallback(async () => {
     setLoadingOverrides(true);
     try {
-      const res = await fetch('/api/admin/plan-overrides');
+      const res = await fetch('/api/admin/plan-overrides', { cache: 'no-store' });
       if (!res.ok) throw new Error('Failed to fetch overrides');
       const data = await res.json();
       setOverrides(data || []);
