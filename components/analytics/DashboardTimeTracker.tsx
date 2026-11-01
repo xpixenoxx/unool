@@ -9,8 +9,8 @@ export function normalizeDashboardSection(pathname: string): string {
   const clean = pathname.replace(/^\/dashboard\/?/, '').toLowerCase().trim();
   if (!clean) return 'overview';
   if (clean.startsWith('studio')) return 'studio';
-  if (clean.startsWith('flightplan') || clean.startsWith('flight-plan')) return 'flightplan';
-  if (clean.startsWith('signal')) return 'signal';
+  if (clean.startsWith('flightplan') || clean.startsWith('flight-plan') || clean.startsWith('schedule')) return 'flightplan';
+  if (clean.startsWith('signal') || clean.startsWith('publish')) return 'signal';
   if (clean.startsWith('automation')) return 'automation';
   if (clean.startsWith('unlock-gates') || clean.startsWith('follow-gates') || clean.startsWith('gates')) return 'unlock-gates';
   if (clean.startsWith('referral')) return 'referrals';

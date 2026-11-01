@@ -82,6 +82,9 @@ describe('Analytics Time-Spent Tracker', () => {
       expect(normalizeSectionName('/dashboard/settings')).toBe('settings');
       // Composer is unified under Studio (https://unool.co/dashboard/studio)
       expect(normalizeSectionName('/dashboard/composer')).toBe('studio');
+      // Schedule maps to flightplan and publish maps to signal
+      expect(normalizeSectionName('/dashboard/schedule')).toBe('flightplan');
+      expect(normalizeSectionName('/dashboard/publish')).toBe('signal');
     });
   });
 

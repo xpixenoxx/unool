@@ -24,6 +24,7 @@ import {
   Globe,
   CreditCard,
   Settings as SettingsIcon,
+  ListOrdered,
 } from 'lucide-react';
 import {
   Box,
@@ -72,6 +73,7 @@ interface SectionTimeStat {
   formattedTotal: string;
   percentage: number;
   activeUsersCount: number;
+  liveUsersCount?: number;
   avgSecondsPerUser: number;
   formattedAvg: string;
 }
@@ -232,27 +234,93 @@ function BarChart({ data, color = '#8b5cf6', maxItems = 12 }: {
   const [hov, setHov] = React.useState<number | null>(null);
   const items = data.slice(0, maxItems);
   const maxVal = Math.max(...items.map(d => d.value), 1);
-  const barW = 32;
-  const gap = 8;
-  const chartH = 120;
-  const totalW = items.length * (barW + gap);
+
+  const totalW = 560;
+  const chartH = 110;
+  const topPad = 22;
+  const bottomPad = 56;
+  const leftPad = 28;
+  const rightPad = 16;
+  const svgH = chartH + topPad + bottomPad;
+
+  const usableW = totalW - leftPad - rightPad;
+  const slotW = usableW / Math.max(items.length, 1);
+  const barW = Math.min(28, Math.max(16, slotW - 8));
+
   return (
-    <div className="overflow-x-auto">
-      <svg width={Math.max(totalW + 16, 300)} height={chartH + 40} style={{ display: 'block' }}>
+    <div className="w-full">
+      <svg
+        viewBox={`0 0 ${totalW} ${svgH}`}
+        className="w-full h-auto overflow-visible select-none"
+        style={{ display: 'block' }}
+      >
+        {/* Baseline */}
+        <line
+          x1={leftPad}
+          y1={topPad + chartH}
+          x2={totalW - rightPad}
+          y2={topPad + chartH}
+          stroke="currentColor"
+          className="text-border/80"
+        />
+
         {items.map((d, i) => {
-          const h = Math.max((d.value / maxVal) * chartH, 2);
-          const x = i * (barW + gap) + 8;
-          const y = chartH - h;
+          const h = Math.max((d.value / maxVal) * chartH, d.value > 0 ? 4 : 2);
+          const x = leftPad + i * slotW + (slotW - barW) / 2;
+          const y = topPad + chartH - h;
           const isHov = hov === i;
+
           return (
-            <g key={i} onMouseEnter={() => setHov(i)} onMouseLeave={() => setHov(null)} style={{ cursor: 'default' }}>
-              <rect x={x} y={y} width={barW} height={h} rx={4} fill={color} opacity={isHov ? 1 : 0.75} style={{ transition: 'opacity 0.15s' }} />
+            <g
+              key={i}
+              onMouseEnter={() => setHov(i)}
+              onMouseLeave={() => setHov(null)}
+              style={{ cursor: 'pointer' }}
+            >
+              <rect
+                x={leftPad + i * slotW}
+                y={topPad}
+                width={slotW}
+                height={chartH + bottomPad}
+                fill="transparent"
+              />
+              <rect
+                x={x}
+                y={y}
+                width={barW}
+                height={h}
+                rx={4}
+                fill={color}
+                opacity={isHov ? 1 : d.value > 0 ? 0.8 : 0.25}
+                style={{
+                  filter: isHov ? `drop-shadow(0 3px 6px ${color}50)` : undefined,
+                  transition: 'all 0.15s ease',
+                }}
+              />
               {isHov && (
-                <text x={x + barW / 2} y={y - 4} textAnchor="middle" fontSize="10" fill={color} fontWeight="bold">{d.value}</text>
+                <text
+                  x={x + barW / 2}
+                  y={y - 5}
+                  textAnchor="middle"
+                  fontSize="10"
+                  fill={color}
+                  fontWeight="bold"
+                >
+                  {d.value}m
+                </text>
               )}
-              <text x={x + barW / 2} y={chartH + 14} textAnchor="middle" fontSize="9" fill="#888"
-                style={{ whiteSpace: 'nowrap', overflow: 'hidden' }}>
-                {d.label.length > 8 ? d.label.slice(0, 7) + '…' : d.label}
+              <text
+                x={x + barW / 2}
+                y={topPad + chartH + 16}
+                textAnchor="end"
+                transform={`rotate(-36, ${x + barW / 2}, ${topPad + chartH + 16})`}
+                fontSize="9.5"
+                fontWeight={isHov ? 'bold' : 'normal'}
+                fill={isHov ? color : 'currentColor'}
+                className={!isHov ? 'fill-muted-foreground' : ''}
+                style={{ transition: 'fill 0.15s ease' }}
+              >
+                {d.label}
               </text>
             </g>
           );
@@ -271,6 +339,7 @@ function SectionUsersBarChart({
   totalUsers: number;
 }) {
   const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(null);
+  const [viewMode, setViewMode] = React.useState<'chart' | 'ranked'>('chart');
 
   // Sort sections descending by activeUsersCount, then by totalSeconds
   const sortedSections = React.useMemo(() => {
@@ -286,17 +355,29 @@ function SectionUsersBarChart({
     return Math.max(...sortedSections.map((s) => s.activeUsersCount), 1);
   }, [sortedSections]);
 
-  const chartH = 140;   // Height of the chart area
-  const barW = 34;      // Width of each bar
-  const gap = 12;       // Spacing between bars
-  const leftPad = 32;   // Room for Y-axis scale
-  const topPad = 30;    // Room for user counts above bars
-  const bottomPad = 48; // Room for labels and colored indicator dots below bars
+  // Dynamic integer Y-axis scale (clean integer gridlines, never duplicates)
+  const { maxScale, yTicks } = React.useMemo(() => {
+    if (maxVal <= 2) return { maxScale: 2, yTicks: [2, 1, 0] };
+    if (maxVal <= 4) return { maxScale: 4, yTicks: [4, 3, 2, 1, 0] };
+    if (maxVal <= 6) return { maxScale: 6, yTicks: [6, 4, 2, 0] };
+    if (maxVal <= 10) return { maxScale: 10, yTicks: [10, 8, 6, 4, 2, 0] };
+    const step = Math.ceil(maxVal / 4);
+    const top = step * 4;
+    return { maxScale: top, yTicks: [top, step * 3, step * 2, step, 0] };
+  }, [maxVal]);
 
-  const totalW = leftPad + sortedSections.length * (barW + gap) + 12;
+  // Responsive viewBox coordinates
+  const totalW = 560;
+  const chartH = 150;
+  const leftPad = 36;
+  const rightPad = 16;
+  const topPad = 32;
+  const bottomPad = 72; // Ample room for full angled labels & indicator dots
   const svgH = chartH + topPad + bottomPad;
 
-  const yTicks = [1, 0.5, 0];
+  const usableW = totalW - leftPad - rightPad;
+  const slotW = usableW / Math.max(sortedSections.length, 1);
+  const barW = Math.min(34, Math.max(22, slotW - 14));
 
   const hoveredItem = hoveredIndex !== null ? sortedSections[hoveredIndex] : null;
   const hoveredPct = hoveredItem && totalUsers > 0
@@ -304,167 +385,291 @@ function SectionUsersBarChart({
     : null;
 
   return (
-    <div className="p-4 rounded-xl border border-border/60 bg-muted/20 space-y-3">
-      {/* Header with Title and Real-Time status */}
+    <div className="p-4 rounded-xl border border-border/60 bg-muted/20 space-y-3.5">
+      {/* Header with Title, Real-Time status, and View Toggle */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4 text-emerald-500" />
             <Text size="sm" weight="semibold" color="foreground">Active Users by Section</Text>
           </div>
-          <Text size="xs" color="muted">Unique users actively using each dashboard section (real-time)</Text>
+          <Text size="xs" color="muted">Unique users actively using each dashboard section</Text>
         </div>
-        <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30 font-medium gap-1 py-0.5 px-2">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          Live
-        </Badge>
+        <div className="flex items-center gap-2">
+          {/* View Toggle */}
+          <div className="inline-flex items-center rounded-lg border border-border/60 bg-background/80 p-0.5 text-xs">
+            <button
+              type="button"
+              onClick={() => setViewMode('chart')}
+              className={`flex items-center gap-1 px-2 py-1 rounded-md transition-all font-medium ${
+                viewMode === 'chart'
+                  ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-semibold shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <BarChart3 className="h-3.5 w-3.5" />
+              Chart
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('ranked')}
+              className={`flex items-center gap-1 px-2 py-1 rounded-md transition-all font-medium ${
+                viewMode === 'ranked'
+                  ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-semibold shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <ListOrdered className="h-3.5 w-3.5" />
+              Ranked
+            </button>
+          </div>
+
+          <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30 font-medium gap-1 py-0.5 px-2">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            Live
+          </Badge>
+        </div>
       </div>
 
       {/* Interactive Tooltip status row */}
-      <div className="min-h-[22px] flex items-center justify-between text-xs px-1 border-b border-border/40 pb-1.5">
+      <div className="min-h-[26px] flex items-center justify-between text-xs px-2 py-1 rounded-lg bg-background/60 border border-border/40">
         {hoveredItem ? (
-          <div className="flex items-center gap-2 animate-in fade-in duration-100 flex-wrap">
+          <div className="flex items-center gap-2 animate-in fade-in duration-100 flex-wrap min-w-0">
             <span className="h-2 w-2 rounded-full shrink-0" style={{ background: hoveredItem.color }} />
-            <span className="font-semibold text-foreground">{hoveredItem.name}:</span>
-            <span className="font-bold text-emerald-600 dark:text-emerald-400">
+            <span className="font-semibold text-foreground truncate">{hoveredItem.name}:</span>
+            <span className="font-bold text-emerald-600 dark:text-emerald-400 shrink-0">
               {hoveredItem.activeUsersCount} {hoveredItem.activeUsersCount === 1 ? 'user' : 'users'}
             </span>
             {hoveredPct && (
-              <span className="text-muted-foreground font-mono">
-                ({hoveredPct}% reach)
+              <span className="text-muted-foreground font-mono text-[11px] shrink-0">
+                ({hoveredPct}% reach of {totalUsers})
               </span>
             )}
-            <span className="text-muted-foreground text-[11px]">· Avg {hoveredItem.formattedAvg}</span>
+            <span className="text-muted-foreground text-[11px] shrink-0">· Total {hoveredItem.formattedTotal} (Avg {hoveredItem.formattedAvg})</span>
+            {hoveredItem.liveUsersCount && hoveredItem.liveUsersCount > 0 ? (
+              <Badge variant="outline" className="text-[9px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30 font-medium py-0 px-1.5 ml-1">
+                {hoveredItem.liveUsersCount} live now
+              </Badge>
+            ) : null}
           </div>
         ) : (
           <span className="text-muted-foreground text-[11px] italic">
-            Hover over any bar to view exact user count & reach
+            Hover over any section to view user counts, reach & average session time
           </span>
         )}
-        <span className="text-muted-foreground font-mono text-[11px] shrink-0">
-          Base: <strong className="text-foreground">{totalUsers}</strong> tracked
+        <span className="text-muted-foreground font-mono text-[11px] shrink-0 ml-2">
+          Base: <strong className="text-foreground">{totalUsers}</strong> {totalUsers === 1 ? 'user' : 'users'} tracked
         </span>
       </div>
 
-      {/* SVG Bar Chart */}
-      <div className="overflow-x-auto pb-1">
-        <svg
-          width={Math.max(totalW, 460)}
-          height={svgH}
-          style={{ display: 'block' }}
-          className="w-full min-w-[460px]"
-        >
-          {/* Y-axis grid lines */}
-          {yTicks.map((tick) => {
-            const y = topPad + chartH * (1 - tick);
-            const val = Math.round(maxVal * tick);
-            return (
-              <g key={tick}>
-                <line
-                  x1={leftPad}
-                  y1={y}
-                  x2={totalW}
-                  y2={y}
-                  stroke="currentColor"
-                  strokeDasharray={tick === 0 ? undefined : '3 3'}
-                  className={tick === 0 ? 'text-border/80' : 'text-border/30'}
-                />
-                <text
-                  x={leftPad - 8}
-                  y={y + 3}
-                  textAnchor="end"
-                  fontSize="10"
-                  className="fill-muted-foreground font-mono"
+      {viewMode === 'chart' ? (
+        /* SVG Bar Chart with Responsive ViewBox & Angled Full Labels */
+        <div className="w-full">
+          <svg
+            viewBox={`0 0 ${totalW} ${svgH}`}
+            className="w-full h-auto overflow-visible select-none"
+            style={{ display: 'block' }}
+          >
+            <defs>
+              {sortedSections.map((sec) => (
+                <linearGradient key={`grad-${sec.section}`} id={`bar-grad-${sec.section}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={sec.color} stopOpacity="1" />
+                  <stop offset="100%" stopColor={sec.color} stopOpacity="0.75" />
+                </linearGradient>
+              ))}
+            </defs>
+
+            {/* Y-axis grid lines */}
+            {yTicks.map((tick) => {
+              const y = topPad + chartH * (1 - tick / maxScale);
+              return (
+                <g key={tick}>
+                  <line
+                    x1={leftPad}
+                    y1={y}
+                    x2={totalW - rightPad}
+                    y2={y}
+                    stroke="currentColor"
+                    strokeDasharray={tick === 0 ? undefined : '3 3'}
+                    className={tick === 0 ? 'text-border/80' : 'text-border/25'}
+                  />
+                  <text
+                    x={leftPad - 8}
+                    y={y + 3.5}
+                    textAnchor="end"
+                    fontSize="10"
+                    className="fill-muted-foreground font-mono"
+                  >
+                    {tick}
+                  </text>
+                </g>
+              );
+            })}
+
+            {/* Section Bars */}
+            {sortedSections.map((sec, i) => {
+              const x = leftPad + i * slotW + (slotW - barW) / 2;
+              const isHovered = hoveredIndex === i;
+              const hasUsers = sec.activeUsersCount > 0;
+              const barHeight = hasUsers
+                ? Math.max((sec.activeUsersCount / maxScale) * chartH, 8)
+                : 3;
+              const y = topPad + chartH - barHeight;
+
+              return (
+                <g
+                  key={sec.section}
+                  onMouseEnter={() => setHoveredIndex(i)}
+                  onMouseLeave={() => setHoveredIndex(null)}
+                  style={{ cursor: 'pointer' }}
+                  className="transition-all duration-150"
                 >
-                  {val}
-                </text>
-              </g>
-            );
-          })}
+                  {/* Invisible hit area for effortless hover */}
+                  <rect
+                    x={leftPad + i * slotW}
+                    y={topPad - 10}
+                    width={slotW}
+                    height={chartH + bottomPad + 10}
+                    fill="transparent"
+                  />
 
-          {/* Section Bars */}
-          {sortedSections.map((sec, i) => {
-            const x = leftPad + i * (barW + gap);
-            const isHovered = hoveredIndex === i;
-            const barHeight = sec.activeUsersCount > 0
-              ? Math.max((sec.activeUsersCount / maxVal) * chartH, 6)
-              : 2;
-            const y = topPad + chartH - barHeight;
+                  {/* Hover background column indicator */}
+                  {isHovered && (
+                    <rect
+                      x={leftPad + i * slotW + 2}
+                      y={topPad}
+                      width={slotW - 4}
+                      height={chartH}
+                      rx={6}
+                      fill="currentColor"
+                      className="fill-muted/40"
+                    />
+                  )}
+
+                  {/* The Bar */}
+                  <rect
+                    x={x}
+                    y={y}
+                    width={barW}
+                    height={barHeight}
+                    rx={5}
+                    fill={`url(#bar-grad-${sec.section})`}
+                    opacity={isHovered ? 1 : hasUsers ? 0.9 : 0.25}
+                    style={{
+                      filter: isHovered ? `drop-shadow(0 4px 10px ${sec.color}60)` : undefined,
+                      transition: 'all 0.2s ease',
+                    }}
+                  />
+
+                  {/* Value on top of bar */}
+                  <text
+                    x={x + barW / 2}
+                    y={y - 6}
+                    textAnchor="middle"
+                    fontSize={isHovered ? '11.5' : '10.5'}
+                    fontWeight={isHovered ? 'bold' : 'semibold'}
+                    fill={hasUsers ? (isHovered ? sec.color : 'currentColor') : 'var(--muted-foreground)'}
+                    className={hasUsers && !isHovered ? 'fill-foreground' : ''}
+                  >
+                    {sec.activeUsersCount}
+                  </text>
+
+                  {/* Section colored indicator dot */}
+                  <circle
+                    cx={x + barW / 2}
+                    cy={topPad + chartH + 12}
+                    r={isHovered ? 4.5 : 3}
+                    fill={sec.color}
+                    style={{ transition: 'r 0.15s ease' }}
+                  />
+
+                  {/* Section Full Name (Angled so NO truncation occurs) */}
+                  <text
+                    x={x + barW / 2}
+                    y={topPad + chartH + 26}
+                    textAnchor="end"
+                    transform={`rotate(-36, ${x + barW / 2}, ${topPad + chartH + 26})`}
+                    fontSize="10"
+                    fontWeight={isHovered ? '700' : '500'}
+                    fill={isHovered ? sec.color : 'currentColor'}
+                    className={!isHovered ? 'fill-muted-foreground' : ''}
+                    style={{ transition: 'fill 0.15s ease, font-weight 0.15s ease' }}
+                  >
+                    {sec.name}
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+        </div>
+      ) : (
+        /* Ranked Table / Horizontal Adoption Rows */
+        <div className="space-y-2 pt-1">
+          {sortedSections.map((sec, rank) => {
+            const pct = totalUsers > 0 ? ((sec.activeUsersCount / totalUsers) * 100).toFixed(0) : '0';
+            const isHovered = hoveredIndex === rank;
 
             return (
-              <g
+              <div
                 key={sec.section}
-                onMouseEnter={() => setHoveredIndex(i)}
+                onMouseEnter={() => setHoveredIndex(rank)}
                 onMouseLeave={() => setHoveredIndex(null)}
-                style={{ cursor: 'pointer' }}
-                className="transition-all duration-150"
+                className={`p-2.5 rounded-lg border transition-all flex items-center justify-between gap-3 text-xs ${
+                  isHovered
+                    ? 'border-border bg-muted/40 shadow-sm'
+                    : 'border-border/40 bg-background/50 hover:bg-muted/20'
+                }`}
               >
-                {/* Hit area */}
-                <rect
-                  x={x - gap / 4}
-                  y={topPad - 10}
-                  width={barW + gap / 2}
-                  height={chartH + bottomPad + 10}
-                  fill="transparent"
-                />
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="font-mono text-[11px] text-muted-foreground w-4 text-center shrink-0">
+                    #{rank + 1}
+                  </span>
+                  <div
+                    className="p-1 rounded-md text-white shrink-0 flex items-center justify-center"
+                    style={{ background: sec.color }}
+                  >
+                    {getSectionIcon(sec.section)}
+                  </div>
+                  <div className="min-w-0">
+                    <span className="font-semibold text-foreground block truncate">
+                      {sec.name}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground block truncate">
+                      {sec.description}
+                    </span>
+                  </div>
+                </div>
 
-                {/* Bar */}
-                <rect
-                  x={x}
-                  y={y}
-                  width={barW}
-                  height={barHeight}
-                  rx={4}
-                  fill={sec.color}
-                  opacity={isHovered ? 1 : sec.activeUsersCount > 0 ? 0.85 : 0.25}
-                  style={{
-                    filter: isHovered ? `drop-shadow(0 4px 8px ${sec.color}40)` : undefined,
-                    transition: 'all 0.2s ease',
-                  }}
-                />
+                <div className="flex items-center gap-3 shrink-0">
+                  {/* Mini progress bar */}
+                  <div className="w-24 h-2 bg-muted rounded-full overflow-hidden hidden sm:block">
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{
+                        width: `${Math.max(Number(pct), sec.activeUsersCount > 0 ? 5 : 0)}%`,
+                        background: sec.color,
+                      }}
+                    />
+                  </div>
 
-                {/* Value on top of bar */}
-                <text
-                  x={x + barW / 2}
-                  y={y - 6}
-                  textAnchor="middle"
-                  fontSize={isHovered ? '11' : '10'}
-                  fontWeight={isHovered ? 'bold' : 'medium'}
-                  fill={sec.activeUsersCount > 0 ? (isHovered ? sec.color : 'currentColor') : '#888'}
-                  className={sec.activeUsersCount > 0 && !isHovered ? 'fill-foreground' : ''}
-                >
-                  {sec.activeUsersCount}
-                </text>
-
-                {/* Section colored indicator dot */}
-                <circle
-                  cx={x + barW / 2}
-                  cy={topPad + chartH + 12}
-                  r={isHovered ? 4 : 3}
-                  fill={sec.color}
-                  style={{ transition: 'r 0.15s ease' }}
-                />
-
-                {/* Section Label */}
-                <text
-                  x={x + barW / 2}
-                  y={topPad + chartH + 28}
-                  textAnchor="middle"
-                  fontSize="9.5"
-                  fontWeight={isHovered ? 'bold' : 'normal'}
-                  fill={isHovered ? sec.color : '#888'}
-                  style={{ transition: 'fill 0.15s ease' }}
-                >
-                  {sec.name.length > 7 ? sec.name.slice(0, 6) + '…' : sec.name}
-                </text>
-              </g>
+                  <div className="text-right">
+                    <span className="font-bold text-foreground">
+                      {sec.activeUsersCount} <span className="text-muted-foreground font-normal text-[11px]">/ {totalUsers}</span>
+                    </span>
+                    <span className="text-[10px] text-muted-foreground ml-1.5 font-mono">
+                      ({pct}%)
+                    </span>
+                  </div>
+                </div>
+              </div>
             );
           })}
-        </svg>
-      </div>
+        </div>
+      )}
 
+      {/* Clarifying footer note */}
       <Text size="xs" color="muted" className="text-center text-[11px]">
-        Values show distinct active users tracked in real time across sections
+        Values show distinct active users tracked across sections from real browser activity
       </Text>
     </div>
   );

@@ -284,9 +284,19 @@ export async function GET(request: NextRequest) {
       }
     });
 
+    const sectionLiveUsersMap: Record<string, Set<string>> = {};
+    Object.keys(SECTION_METADATA).forEach((sec) => {
+      sectionLiveUsersMap[sec] = new Set();
+    });
+
     dbTimesRows.forEach((row: any) => {
       if (row.user_id && row.last_active_at && row.last_active_at >= twoMinutesAgoIso) {
         liveNowUserIds.add(row.user_id);
+        let sec = (row.section || '').toLowerCase();
+        if (sec === 'composer') sec = 'studio';
+        if (sectionLiveUsersMap[sec]) {
+          sectionLiveUsersMap[sec].add(row.user_id);
+        }
       }
     });
 
@@ -295,6 +305,7 @@ export async function GET(request: NextRequest) {
       const totalSec = sectionTotals[secKey] || 0;
       const pct = overallSeconds > 0 ? ((totalSec / overallSeconds) * 100).toFixed(1) : '0';
       const userCount = sectionUsersMap[secKey]?.size || 0;
+      const liveUserCount = sectionLiveUsersMap[secKey]?.size || 0;
       const avgSec = userCount > 0 ? Math.round(totalSec / userCount) : 0;
 
       return {
@@ -306,6 +317,7 @@ export async function GET(request: NextRequest) {
         formattedTotal: formatSeconds(totalSec, true),
         percentage: parseFloat(pct),
         activeUsersCount: userCount,
+        liveUsersCount: liveUserCount,
         avgSecondsPerUser: avgSec,
         formattedAvg: formatSeconds(avgSec, true),
       };
