@@ -151,15 +151,18 @@ export default function UserDetailPage() {
     }
   };
 
-  const handleDialogConfirm = async (reason: string) => {
+  const handleDialogConfirm = async (reason: string, durationHours?: number | null) => {
     if (!user) return;
     if (actionDialog.actionType === 'suspend') {
       const res = await fetch(`/api/admin/users/${userId}/suspend`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason }),
+        body: JSON.stringify({ reason, durationHours }),
       });
-      if (!res.ok) throw new Error('Failed to suspend user');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to suspend user');
+      }
       await fetchUser();
     } else {
       const res = await fetch(`/api/admin/users/${userId}`, {
@@ -167,7 +170,10 @@ export default function UserDetailPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason }),
       });
-      if (!res.ok) throw new Error('Failed to delete user');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to delete user');
+      }
       router.push('/admin/users');
     }
   };
@@ -256,7 +262,14 @@ export default function UserDetailPage() {
                       {user.email}
                     </Text>
                     {user.isSuspended ? (
-                      <Badge variant="destructive">Suspended</Badge>
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant="destructive">Suspended</Badge>
+                        {user.bannedUntil && new Date(user.bannedUntil).getFullYear() < 2090 && (
+                          <Badge variant="outline" className="text-zinc-600 dark:text-zinc-400 font-normal text-xs">
+                            until {new Date(user.bannedUntil).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </Badge>
+                        )}
+                      </div>
                     ) : (
                       <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
                         Active

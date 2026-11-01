@@ -44,6 +44,7 @@ interface User {
   workspaceCount: number;
   plan: string;
   suspended?: boolean;
+  bannedUntil?: string | null;
 }
 
 const planBadgeColors: Record<string, string> = {
@@ -86,7 +87,7 @@ function UserTable({
     user: null,
   });
 
-  const handleDialogConfirm = async (reason: string) => {
+  const handleDialogConfirm = async (reason: string, durationHours?: number | null) => {
     if (!actionDialog.user) return;
     const userId = actionDialog.user.id;
 
@@ -94,16 +95,22 @@ function UserTable({
       const res = await fetch(`/api/admin/users/${userId}/suspend`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason }),
+        body: JSON.stringify({ reason, durationHours }),
       });
-      if (!res.ok) throw new Error('Failed to suspend user');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to suspend user');
+      }
     } else {
       const res = await fetch(`/api/admin/users/${userId}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason }),
       });
-      if (!res.ok) throw new Error('Failed to delete user');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to delete user');
+      }
     }
     onRefresh();
   };
@@ -172,9 +179,16 @@ function UserTable({
                     </td>
                     <td className="p-4">
                       {user.suspended ? (
-                        <Badge variant="destructive" size="sm">
-                          <Ban className="mr-1 h-3 w-3" /> Suspended
-                        </Badge>
+                        <div className="flex flex-col gap-0.5">
+                          <Badge variant="destructive" size="sm" className="w-fit">
+                            <Ban className="mr-1 h-3 w-3" /> Suspended
+                          </Badge>
+                          {user.bannedUntil && new Date(user.bannedUntil).getFullYear() < 2090 && (
+                            <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium whitespace-nowrap">
+                              until {new Date(user.bannedUntil).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          )}
+                        </div>
                       ) : (
                         <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" size="sm">
                           <UserCheck className="mr-1 h-3 w-3" /> Active

@@ -483,6 +483,123 @@ describe('SupabaseAdminRepository - Recovery Management', () => {
     );
   });
 
+  it('suspends user with duration in hours and logs admin action', async () => {
+    const userId = '00000000-0000-0000-0000-000000000001';
+    mockAuthAdmin.getUserById.mockResolvedValue({
+      data: { user: { id: userId, user_metadata: { role: 'creator' } } },
+      error: null,
+    });
+    mockAuthAdmin.updateUserById.mockResolvedValue({ data: { user: null }, error: null });
+
+    const mockInsert = vi.fn().mockResolvedValue({ error: null });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'admin_audit_log' || table === 'admin_audit_logs') {
+        return { insert: mockInsert };
+      }
+      return {};
+    });
+
+    const result = await repository.suspendUser(userId, 'admin-999', 'Spam activity', 24);
+
+    expect(result).toBe(true);
+    expect(mockAuthAdmin.updateUserById).toHaveBeenCalledWith(
+      userId,
+      expect.objectContaining({
+        ban_duration: '24h',
+        user_metadata: expect.objectContaining({
+          role: 'creator',
+          suspended_reason: 'Spam activity',
+          suspended_duration_hours: 24,
+          suspended_is_permanent: false,
+        }),
+      })
+    );
+    expect(mockInsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'user_suspend',
+        target_id: userId,
+        metadata: expect.objectContaining({
+          durationHours: 24,
+          isPermanent: false,
+        }),
+      })
+    );
+  });
+
+  it('suspends user permanently when duration is null or permanent', async () => {
+    mockAuthAdmin.getUserById.mockResolvedValue({
+      data: { user: { id: 'user-perm-suspend', user_metadata: {} } },
+      error: null,
+    });
+    mockAuthAdmin.updateUserById.mockResolvedValue({ data: { user: null }, error: null });
+
+    const mockInsert = vi.fn().mockResolvedValue({ error: null });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'admin_audit_log' || table === 'admin_audit_logs') {
+        return { insert: mockInsert };
+      }
+      return {};
+    });
+
+    const result = await repository.suspendUser('user-perm-suspend', 'admin-999', 'Severe terms breach', null);
+
+    expect(result).toBe(true);
+    expect(mockAuthAdmin.updateUserById).toHaveBeenCalledWith(
+      'user-perm-suspend',
+      expect.objectContaining({
+        ban_duration: '876000h',
+        user_metadata: expect.objectContaining({
+          suspended_reason: 'Severe terms breach',
+          suspended_duration_hours: null,
+          suspended_is_permanent: true,
+        }),
+      })
+    );
+  });
+
+  it('unsuspends user, clears ban duration and metadata', async () => {
+    mockAuthAdmin.getUserById.mockResolvedValue({
+      data: {
+        user: {
+          id: 'user-to-unsuspend',
+          user_metadata: {
+            suspended_at: '2026-10-30T10:00:00Z',
+            suspended_reason: 'Cooldown',
+            suspended_until: '2026-10-31T10:00:00Z',
+            suspended_duration_hours: 24,
+          },
+        },
+      },
+      error: null,
+    });
+    mockAuthAdmin.updateUserById.mockResolvedValue({ data: { user: null }, error: null });
+
+    const mockInsert = vi.fn().mockResolvedValue({ error: null });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'admin_audit_log' || table === 'admin_audit_logs') {
+        return { insert: mockInsert };
+      }
+      return {};
+    });
+
+    const result = await repository.unsuspendUser('user-to-unsuspend', 'admin-999');
+
+    expect(result).toBe(true);
+    expect(mockAuthAdmin.updateUserById).toHaveBeenCalledWith(
+      'user-to-unsuspend',
+      expect.objectContaining({
+        ban_duration: 'none',
+        user_metadata: expect.objectContaining({
+          suspended_at: null,
+          suspended_reason: null,
+          suspended_until: null,
+          suspended_duration_hours: null,
+          suspended_is_permanent: null,
+        }),
+      })
+    );
+  });
+
   it('lists deleted accounts directly from auth.users when not in profiles or deleted_accounts', async () => {
     mockAuthAdmin.listUsers.mockResolvedValue({
       data: {

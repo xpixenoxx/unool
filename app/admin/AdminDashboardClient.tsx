@@ -126,6 +126,9 @@ interface RecoverableDashboardItem {
   workspaceId: string | null;
   reason: string;
   timestamp: string;
+  bannedUntil?: string | null;
+  durationHours?: number | null;
+  isPermanent?: boolean;
 }
 
 interface InitialData {

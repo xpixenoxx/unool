@@ -45,6 +45,9 @@ interface RecoverableItem {
   workspaceId: string | null;
   reason: string;
   timestamp: string;
+  bannedUntil?: string | null;
+  durationHours?: number | null;
+  isPermanent?: boolean;
 }
 
 let cachedRecoveryItems: RecoverableItem[] | null = null;
@@ -427,13 +430,29 @@ export default function AdminRecoveryPage() {
                               <Trash2 className="h-3 w-3" /> {item.profileId ? 'Deleted Profile' : 'Deleted Account'}
                             </Badge>
                           ) : (
-                            <Badge
-                              variant="outline"
-                              size="sm"
-                              className="border-amber-300 text-amber-700 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800 gap-1"
-                            >
-                              <Ban className="h-3 w-3" /> Suspended Account
-                            </Badge>
+                            <div className="flex flex-col gap-1">
+                              <Badge
+                                variant="outline"
+                                size="sm"
+                                className="border-amber-300 text-amber-700 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800 gap-1 w-fit"
+                              >
+                                <Ban className="h-3 w-3" /> Suspended Account
+                              </Badge>
+                              {item.isPermanent ? (
+                                <span className="text-[11px] text-amber-700 dark:text-amber-400 font-medium">
+                                  Permanent Ban
+                                </span>
+                              ) : item.bannedUntil && new Date(item.bannedUntil).getFullYear() < 2090 ? (
+                                <span className="text-[11px] text-zinc-500 dark:text-zinc-400 font-medium whitespace-nowrap" title={item.bannedUntil}>
+                                  {item.durationHours ? `${item.durationHours}h Ban · ` : ''}until {new Date(item.bannedUntil).toLocaleDateString(undefined, {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })}
+                                </span>
+                              ) : null}
+                            </div>
                           )}
                         </td>
 

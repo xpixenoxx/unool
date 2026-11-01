@@ -329,6 +329,9 @@ export interface RecoverableProfileItem {
   workspaceId: string | null;
   reason: string;
   timestamp: string;
+  bannedUntil?: string | null;
+  durationHours?: number | null;
+  isPermanent?: boolean;
 }
 
 export interface ListPaymentOrdersParams {
@@ -396,9 +399,9 @@ export interface IAdminRepository {
 
   // User Management
   getUserById(userId: string): Promise<{ id: string; email: string; createdAt: string } | null>;
-  listAllUsers(params?: ListUsersParams): Promise<PaginatedResult<{ id: string; email: string; createdAt: string; workspaceCount: number; plan: string; suspended?: boolean }>>;
+  listAllUsers(params?: ListUsersParams): Promise<PaginatedResult<{ id: string; email: string; createdAt: string; workspaceCount: number; plan: string; suspended?: boolean; bannedUntil?: string | null }>>;
   getUserPlanDistribution(): Promise<UserBreakdownData>;
-  suspendUser(userId: string, adminUserId: string, reason: string): Promise<boolean>;
+  suspendUser(userId: string, adminUserId: string, reason: string, durationHours?: number | null): Promise<boolean>;
   unsuspendUser(userId: string, adminUserId: string): Promise<boolean>;
 
   // Profile & Account Recovery

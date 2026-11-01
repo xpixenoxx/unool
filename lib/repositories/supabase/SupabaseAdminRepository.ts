@@ -955,13 +955,16 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
     const data = activeUsers.map((user) => {
       const ws = workspacesByUser.get(user.id) || { count: 0, plans: [] };
+      const bannedUntil = (user as Record<string, any>).banned_until;
+      const isSuspended = !!(bannedUntil && new Date(bannedUntil) > new Date());
       return {
         id: user.id,
         email: user.email || '',
         createdAt: user.created_at,
         workspaceCount: ws.count,
         plan: ws.plans[0] || 'free',
-        suspended: !!((user as Record<string, any>).banned_until && new Date((user as Record<string, any>).banned_until) > new Date()),
+        suspended: isSuspended,
+        bannedUntil: isSuspended ? bannedUntil : null,
       };
     });
 
@@ -1112,22 +1115,41 @@ export class SupabaseAdminRepository implements IAdminRepository {
     }
   }
 
-  async suspendUser(userId: string, adminUserId: string, reason: string): Promise<boolean> {
+  async suspendUser(
+    userId: string,
+    adminUserId: string,
+    reason: string,
+    durationHours?: number | null
+  ): Promise<boolean> {
+    const isPermanent = durationHours === null || durationHours === undefined || durationHours <= 0;
+    const banDuration = isPermanent ? '876000h' : `${Math.round(durationHours)}h`;
+    const bannedUntil = isPermanent
+      ? null
+      : new Date(Date.now() + Math.round(durationHours) * 60 * 60 * 1000).toISOString();
+
     const { data: userData } = await adminClient.auth.admin.getUserById(userId);
     const existingMeta = (userData?.user as Record<string, any>)?.user_metadata || {};
 
     const { error } = await adminClient.auth.admin.updateUserById(userId, {
-      ban_duration: '876000h', // ~100 years
+      ban_duration: banDuration,
       user_metadata: {
         ...existingMeta,
         suspended_at: new Date().toISOString(),
         suspended_reason: reason,
+        suspended_until: bannedUntil,
+        suspended_duration_hours: isPermanent ? null : Math.round(durationHours),
+        suspended_is_permanent: isPermanent,
       },
     });
 
     if (error) throw error;
 
-    await this.logAdminAction(adminUserId, 'user_suspend', 'user', userId, { reason });
+    await this.logAdminAction(adminUserId, 'user_suspend', 'user', userId, {
+      reason,
+      durationHours: isPermanent ? null : Math.round(durationHours),
+      isPermanent,
+      bannedUntil,
+    });
     return true;
   }
 
@@ -1141,6 +1163,9 @@ export class SupabaseAdminRepository implements IAdminRepository {
         ...existingMeta,
         suspended_at: null,
         suspended_reason: null,
+        suspended_until: null,
+        suspended_duration_hours: null,
+        suspended_is_permanent: null,
       },
     });
 
@@ -1348,6 +1373,10 @@ export class SupabaseAdminRepository implements IAdminRepository {
             audit?.reason ||
             'Account suspended by admin';
 
+          const bannedUntil = (u as Record<string, any>).banned_until;
+          const isPermanent = userMeta.suspended_is_permanent ?? (!userMeta.suspended_until && !userMeta.suspended_duration_hours);
+          const durationHours = userMeta.suspended_duration_hours ?? null;
+
           items.push({
             id: `susp-${u.id}`,
             type: 'suspended',
@@ -1360,6 +1389,9 @@ export class SupabaseAdminRepository implements IAdminRepository {
             workspaceId: prof?.workspace_id || null,
             reason: suspensionReason,
             timestamp: originalDate,
+            bannedUntil: bannedUntil || userMeta.suspended_until || null,
+            durationHours,
+            isPermanent,
           });
         }
       }
@@ -1435,6 +1467,9 @@ export class SupabaseAdminRepository implements IAdminRepository {
             deleted_reason: null,
             suspended_at: null,
             suspended_reason: null,
+            suspended_until: null,
+            suspended_duration_hours: null,
+            suspended_is_permanent: null,
             recovered_at: new Date().toISOString(),
           },
         });
