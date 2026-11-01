@@ -30,13 +30,17 @@ export async function DELETE(
       );
     }
 
-    await adminRepository.logAdminAction(
-      auth.admin.userId,
-      'plan_override_remove',
-      'user_plan_override',
-      id,
-      {}
-    );
+    try {
+      await adminRepository.logAdminAction(
+        auth.admin.userId,
+        'plan_override_remove',
+        'user_plan_override',
+        id,
+        {}
+      );
+    } catch (auditErr) {
+      console.warn('[plan-overrides] Failed to log admin action:', auditErr);
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -44,4 +48,3 @@ export async function DELETE(
     return NextResponse.json({ error: 'Failed to remove override' }, { status: 500 });
   }
 }
-

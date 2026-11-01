@@ -155,10 +155,12 @@ CREATE INDEX IF NOT EXISTS idx_user_plan_overrides_workspace
 ALTER TABLE user_plan_overrides ENABLE ROW LEVEL SECURITY;
 
 -- Users can read their own overrides (for billing page display)
+DROP POLICY IF EXISTS "Users can view own overrides" ON user_plan_overrides;
 CREATE POLICY "Users can view own overrides" ON user_plan_overrides
     FOR SELECT USING (user_id = auth.uid());
 
 -- Service role has full access (used by server-side routes)
+DROP POLICY IF EXISTS "Service role full access to overrides" ON user_plan_overrides;
 CREATE POLICY "Service role full access to overrides" ON user_plan_overrides
     FOR ALL USING (auth.role() = 'service_role');
 

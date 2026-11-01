@@ -30,11 +30,11 @@ export async function GET(request: NextRequest) {
  *
  * Body:
  *   userEmail: string          — search by email to find the user
- *   planId: string             — 'creator' | 'pro' | 'studio'
- *   customMonthlyInr?: number  — e.g. 69900 for ₹699 (paise)
+ *   planId: string             — target plan ('creator', 'pro', 'studio', etc.)
+ *   customMonthlyInr?: number  — e.g. 49900 for ₹499 (paise)
  *   customYearlyInr?: number
  *   customAnnualMonthlyInr?: number
- *   customMonthlyUsd?: number  — e.g. 700 for $7.00 (cents)
+ *   customMonthlyUsd?: number  — e.g. 500 for $5.00 (cents)
  *   customYearlyUsd?: number
  *   note?: string              — admin note (reason for override)
  */
@@ -62,9 +62,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!['creator', 'pro', 'studio'].includes(planId)) {
+    if (planId === 'spark' || planId === 'free') {
       return NextResponse.json(
-        { error: 'Override only valid for paid plans: creator, pro, studio' },
+        { error: 'Override is only valid for paid plans' },
         { status: 400 }
       );
     }
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
 
     // ── Look up user by email ────────────────────────────────
     const client = sbAdmin();
-    const { data: { users }, error: listError } = await client.auth.admin.listUsers();
+    const { data: { users }, error: listError } = await client.auth.admin.listUsers({ perPage: 1000 });
     if (listError) throw new Error('Failed to search users');
 
     const targetUser = users.find(
@@ -98,22 +98,37 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Look up their primary workspace ─────────────────────
-    const { data: membership, error: wsError } = await client
+    let workspaceId: string | null = null;
+    const { data: membership } = await client
       .from('workspace_members')
-      .select('workspace_id, role, workspaces(id, name, owner_id)')
+      .select('workspace_id, role')
       .eq('user_id', targetUser.id)
       .order('created_at', { ascending: true })
       .limit(1)
-      .single();
+      .maybeSingle();
 
-    if (wsError || !membership) {
+    if (membership?.workspace_id) {
+      workspaceId = membership.workspace_id as string;
+    } else {
+      const { data: wsDirect } = await client
+        .from('workspaces')
+        .select('id')
+        .eq('owner_id', targetUser.id)
+        .limit(1)
+        .maybeSingle();
+
+      if (wsDirect?.id) {
+        workspaceId = wsDirect.id as string;
+      }
+    }
+
+    if (!workspaceId) {
       return NextResponse.json(
         { error: `User ${userEmail} has no workspace. They need to sign up first.` },
         { status: 404 }
       );
     }
 
-    const workspaceId = membership.workspace_id as string;
     const userName =
       targetUser.user_metadata?.full_name ||
       targetUser.user_metadata?.name ||
@@ -135,13 +150,17 @@ export async function POST(request: NextRequest) {
       createdByAdminId: auth.admin.userId,
     });
 
-    await adminRepository.logAdminAction(
-      auth.admin.userId,
-      'plan_override_create',
-      'user_plan_override',
-      override.id,
-      { userEmail, planId, customMonthlyInr, workspaceId }
-    );
+    try {
+      await adminRepository.logAdminAction(
+        auth.admin.userId,
+        'plan_override_create',
+        'user_plan_override',
+        override.id,
+        { userEmail, planId, customMonthlyInr, workspaceId }
+      );
+    } catch (auditErr) {
+      console.warn('[plan-overrides] Failed to log admin action:', auditErr);
+    }
 
     return NextResponse.json(override, { status: 201 });
   } catch (error) {
@@ -152,4 +171,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
