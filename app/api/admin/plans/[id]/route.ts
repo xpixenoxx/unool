@@ -59,24 +59,22 @@ export async function PATCH(
       priceAnnualMonthlyInr?: number;
     };
 
-    // Merge INR prices into the features JSONB so no schema change is needed
-    let mergedFeatures = featuresInput;
-    if (
-      typeof priceMonthlyInr === 'number' ||
-      typeof priceYearlyInr === 'number' ||
-      typeof priceAnnualMonthlyInr === 'number'
-    ) {
-      // Fetch existing features first so we don't overwrite other flags
-      const existing = await adminRepository.getPlanById(id);
-      const existingFeatures = (existing?.features as Record<string, unknown>) || {};
-      mergedFeatures = {
-        ...existingFeatures,
-        ...(featuresInput || {}),
-        ...(typeof priceMonthlyInr === 'number' ? { price_monthly_inr: priceMonthlyInr } : {}),
-        ...(typeof priceYearlyInr === 'number' ? { price_yearly_inr: priceYearlyInr } : {}),
-        ...(typeof priceAnnualMonthlyInr === 'number' ? { price_annual_monthly_inr: priceAnnualMonthlyInr } : {}),
-      };
-    }
+    // Fetch existing plan data to merge features and limits cleanly
+    const existing = await adminRepository.getPlanById(id);
+    const existingFeatures = (existing?.features as Record<string, unknown>) || {};
+    const existingLimits = (existing?.limits as Record<string, unknown>) || {};
+
+    const mergedFeatures = {
+      ...existingFeatures,
+      ...(featuresInput || {}),
+      ...(typeof priceMonthlyInr === 'number' ? { price_monthly_inr: priceMonthlyInr } : {}),
+      ...(typeof priceYearlyInr === 'number' ? { price_yearly_inr: priceYearlyInr } : {}),
+      ...(typeof priceAnnualMonthlyInr === 'number' ? { price_annual_monthly_inr: priceAnnualMonthlyInr } : {}),
+    };
+
+    const mergedLimits = limits
+      ? { ...existingLimits, ...limits }
+      : existingLimits;
 
     const plan = await adminRepository.updatePlan(id, {
       name,
@@ -84,7 +82,7 @@ export async function PATCH(
       priceMonthlyUsd,
       priceYearlyUsd,
       features: mergedFeatures,
-      limits,
+      limits: mergedLimits,
       isActive,
       sortOrder,
     });

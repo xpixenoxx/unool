@@ -211,8 +211,13 @@ function rowToPlanDefinition(row: Record<string, unknown>): PlanDefinition | nul
   const id = row.id as string;
   if (!id) return null;
 
-  const fallback = PLANS_FALLBACK[id as PlanId];
-  if (!fallback) return null; // Unknown plan id — skip
+  const fallback = PLANS_FALLBACK[id as PlanId] || {
+    ...PLANS_FALLBACK.creator,
+    id: id as PlanId,
+    name: (row.name as string) || id,
+    tagline: (row.description as string) || '',
+    isFreeTier: false,
+  };
 
   const features = (row.features as Record<string, unknown>) || {};
   const limits = (row.limits as Record<string, unknown>) || {};
@@ -266,10 +271,15 @@ function rowToPlanDefinition(row: Record<string, unknown>): PlanDefinition | nul
       },
     },
     limits: mergedLimits,
-    features: fallback.features, // Feature flags stay hardcoded for now
+    features: {
+      ...fallback.features,
+      ...((typeof row.features === 'object' && row.features !== null) ? (row.features as Record<string, unknown>) : {}),
+    } as PlanFeatures,
     sortOrder: typeof row.sort_order === 'number' ? row.sort_order : fallback.sortOrder,
     isFreeTier: fallback.isFreeTier,
-    templateCount: fallback.templateCount,
+    templateCount: typeof (limits as any).template_count === 'number'
+      ? (limits as any).template_count
+      : (typeof (features as any).template_count === 'number' ? (features as any).template_count : fallback.templateCount),
   };
 }
 
@@ -282,7 +292,6 @@ async function loadPlansFromDb(): Promise<Record<PlanId, PlanDefinition>> {
     const { data, error } = await client
       .from('plans')
       .select('*')
-      .in('id', ['spark', 'creator', 'pro', 'studio'])
       .eq('is_active', true)
       .order('sort_order', { ascending: true });
 
@@ -428,6 +437,42 @@ export interface AdminPlanView {
   updatedAt: string;
 }
 
+const CANONICAL_FEATURE_BULLETS: Record<PlanId, string[]> = {
+  spark: [
+    '1 profile at yourname.unool.co',
+    '15 scheduled posts/month',
+    '2 connected platforms',
+    '5 persona templates',
+    'Follow-to-Unlock gates',
+    '250 automated IG comments/mo',
+  ],
+  creator: [
+    'Everything in Spark, plus:',
+    'Unlimited posts/month',
+    '4 connected platforms',
+    'All 16 persona templates',
+    'No "Made with Unool" badge',
+    'Basic DM Concierge & 90-day analytics',
+  ],
+  pro: [
+    'Everything in Creator, plus:',
+    '8 connected platforms',
+    'Custom domain (yourdomain.com)',
+    'Full DM Concierge + Knowledge Base',
+    'FlightPlan AI & Lead Scoring',
+    '3 team seats & priority support',
+  ],
+  studio: [
+    'Everything in Pro, plus:',
+    '3 workspaces (3 brands/clients)',
+    'Full white-label (zero branding)',
+    'Unlimited channels & AI credits',
+    '10 team seats + granular roles',
+    'Webhook API + Zapier triggers',
+    'Priority support + onboarding call',
+  ],
+};
+
 export function getDefaultAdminPlans(): AdminPlanView[] {
   return (['spark', 'creator', 'pro', 'studio'] as PlanId[]).map((id) => {
     const p = PLANS_FALLBACK[id];
@@ -442,8 +487,10 @@ export function getDefaultAdminPlans(): AdminPlanView[] {
         price_monthly_inr: p.pricing.INR.monthly,
         price_yearly_inr: p.pricing.INR.annual,
         price_annual_monthly_inr: p.pricing.INR.annualMonthly,
+        template_count: p.templateCount,
+        feature_bullets: CANONICAL_FEATURE_BULLETS[id],
       },
-      limits: { ...p.limits } as Record<string, unknown>,
+      limits: { ...p.limits, template_count: p.templateCount } as Record<string, unknown>,
       isActive: true,
       sortOrder: p.sortOrder,
       createdAt: '2026-01-01T00:00:00.000Z',
