@@ -124,6 +124,7 @@ interface InitialData {
   workspaces: { data: WorkspaceAdminView[]; total: number; page: number; pageSize: number; totalPages: number };
   users: { data: UserAdminView[]; total: number; page: number; pageSize: number; totalPages: number };
   plans: PlanAdminView[];
+  automationEnabled?: boolean;
 }
 
 interface AdminDashboardClientProps {

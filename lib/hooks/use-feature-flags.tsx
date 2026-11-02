@@ -7,17 +7,12 @@ interface FeatureFlags {
 }
 
 const DEFAULT_FLAGS: FeatureFlags = {
-  automationEnabled: true, // safe default: always show until we know otherwise
+  automationEnabled: true,
 };
 
-// In-memory cache shared across hook instances within the same page
 let memCache: FeatureFlags | null = null;
 let memCacheTime = 0;
-const CACHE_TTL_MS = 30_000;
-
-// ---------------------------------------------------------------------------
-// Context
-// ---------------------------------------------------------------------------
+const CACHE_TTL_MS = 5_000; // 5 seconds cache for responsive toggling
 
 interface FeatureFlagsContextValue {
   flags: FeatureFlags;
@@ -32,27 +27,40 @@ const FeatureFlagsContext = createContext<FeatureFlagsContextValue>({
 });
 
 export function FeatureFlagsProvider({ children }: { children: ReactNode }) {
-  const [flags, setFlags] = useState<FeatureFlags>(memCache ?? DEFAULT_FLAGS);
+  const [flags, setFlags] = useState<FeatureFlags>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('unool_automation_enabled');
+      if (stored === 'false') return { automationEnabled: false };
+      if (stored === 'true') return { automationEnabled: true };
+    }
+    return memCache ?? DEFAULT_FLAGS;
+  });
   const [loading, setLoading] = useState(!memCache);
 
-  const fetchFlags = useCallback(async () => {
+  const fetchFlags = useCallback(async (force = false) => {
     const now = Date.now();
-    if (memCache && now - memCacheTime < CACHE_TTL_MS) {
+    if (!force && memCache && now - memCacheTime < CACHE_TTL_MS) {
       setFlags(memCache);
       setLoading(false);
       return;
     }
 
     try {
-      const res = await fetch('/api/feature-flags', { credentials: 'include' });
+      const res = await fetch('/api/feature-flags', {
+        cache: 'no-store',
+        credentials: 'include',
+      });
       if (res.ok) {
         const raw = await res.json();
         const parsed: FeatureFlags = {
-          automationEnabled: raw['automation_enabled'] !== false, // treat missing as true
+          automationEnabled: raw['automation_enabled'] !== false,
         };
         memCache = parsed;
         memCacheTime = now;
         setFlags(parsed);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('unool_automation_enabled', String(parsed.automationEnabled));
+        }
       }
     } catch (err) {
       console.warn('[useFeatureFlags] Could not fetch flags, using defaults', err);
@@ -63,26 +71,30 @@ export function FeatureFlagsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     fetchFlags();
+
+    const handleUpdate = () => {
+      fetchFlags(true);
+    };
+
+    window.addEventListener('unool-feature-flags-updated', handleUpdate);
+    window.addEventListener('focus', handleUpdate);
+
+    return () => {
+      window.removeEventListener('unool-feature-flags-updated', handleUpdate);
+      window.removeEventListener('focus', handleUpdate);
+    };
   }, [fetchFlags]);
 
   return (
-    <FeatureFlagsContext.Provider value={{ flags, loading, refetch: fetchFlags }}>
+    <FeatureFlagsContext.Provider value={{ flags, loading, refetch: () => fetchFlags(true) }}>
       {children}
     </FeatureFlagsContext.Provider>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Hook
-// ---------------------------------------------------------------------------
-
 export function useFeatureFlags(): FeatureFlagsContextValue {
   return useContext(FeatureFlagsContext);
 }
-
-// ---------------------------------------------------------------------------
-// Standalone fetch (for server components / outside provider)
-// ---------------------------------------------------------------------------
 
 export async function fetchFeatureFlags(): Promise<FeatureFlags> {
   const now = Date.now();
@@ -101,8 +113,7 @@ export async function fetchFeatureFlags(): Promise<FeatureFlags> {
       return parsed;
     }
   } catch {
-    // Fall through to default
+    // fallback
   }
   return DEFAULT_FLAGS;
 }
-
