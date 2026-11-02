@@ -42,23 +42,7 @@ import {
 } from '@/components/ui/motion';
 import { SectionGuide } from '@/components/admin/section-guide';
 import { UserPlanDistributionModal } from '@/components/admin/UserPlanDistributionModal';
-import type { UserBreakdownData } from '@/lib/repositories/interfaces/IAdminRepository';
-
-interface WorkspaceAdminView {
-  id: string;
-  name: string;
-  plan: string;
-  planStatus: string;
-  planExpiresAt: string | null;
-  stripeCustomerId: string | null;
-  stripeSubscriptionId: string | null;
-  trialEndsAt: string | null;
-  memberCount: number;
-  postsThisMonth: number;
-  profileCount: number;
-  createdAt: string;
-  updatedAt: string;
-}
+import type { UserBreakdownData, WorkspaceAdminView } from '@/lib/repositories/interfaces/IAdminRepository';
 
 interface UserAdminView {
   id: string;
@@ -785,27 +769,81 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
             <CardContent>
               {workspaces.data.length > 0 ? (
                 <Box className="space-y-3">
-                  {workspaces.data.map((ws) => (
-                    <Box key={ws.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors">
-                      <Flex align="center" gap={3} className="min-w-0">
-                        <Box className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                          <Building2 className="h-5 w-5 text-muted-foreground" />
-                        </Box>
-                        <Box className="min-w-0">
-                          <Text weight="medium" className="truncate">{ws.name}</Text>
-                          <Flex gap={2} style={{ flexWrap: 'wrap' }}>
-                            <PlanBadge plan={ws.plan} />
-                            <PlanStatusBadge status={ws.planStatus} />
+                  {workspaces.data.map((ws) => {
+                    const hasCustomName = ws.name && ws.name !== 'My Workspace' && ws.name !== ws.ownerName;
+                    const primaryTitle = hasCustomName
+                      ? ws.name
+                      : ws.ownerName
+                      ? `${ws.ownerName}'s Workspace`
+                      : ws.ownerEmail
+                      ? `${ws.ownerEmail.split('@')[0]}'s Workspace`
+                      : ws.name;
+
+                    return (
+                      <Box key={ws.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                        <Flex align="center" gap={3} className="min-w-0 flex-1 mr-4">
+                          {ws.ownerEmail ? (
+                            <Avatar className="h-10 w-10 shrink-0">
+                              <AvatarImage src={`https://api.dicebear.com/7.x/identicon/svg?seed=${ws.ownerEmail}`} alt={ws.ownerEmail} />
+                              <AvatarFallback>
+                                {ws.ownerName ? ws.ownerName.charAt(0).toUpperCase() : <Building2 className="h-5 w-5 text-muted-foreground" />}
+                              </AvatarFallback>
+                            </Avatar>
+                          ) : (
+                            <Box className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted shrink-0">
+                              <Building2 className="h-5 w-5 text-muted-foreground" />
+                            </Box>
+                          )}
+                          <Box className="min-w-0 space-y-1">
+                            <Flex align="center" gap={2} className="min-w-0">
+                              <Link
+                                href={`/admin/workspaces/${ws.id}`}
+                                className="font-medium text-foreground hover:text-primary transition-colors truncate"
+                                title={`Workspace: ${ws.name} (ID: ${ws.id})`}
+                              >
+                                {primaryTitle}
+                              </Link>
+                              {hasCustomName && ws.ownerName && (
+                                <Badge variant="outline" size="sm" className="text-xs truncate max-w-[120px]">
+                                  {ws.ownerName}
+                                </Badge>
+                              )}
+                            </Flex>
+                            <Flex align="center" gap={1.5} className="text-xs text-muted-foreground truncate">
+                              {ws.ownerName && (
+                                <span className="font-medium text-foreground/80 truncate">{ws.ownerName}</span>
+                              )}
+                              {ws.ownerName && ws.ownerEmail && <span className="text-muted-foreground/40">•</span>}
+                              {ws.ownerEmail && (
+                                <span className="truncate text-muted-foreground">{ws.ownerEmail}</span>
+                              )}
+                              {!ws.ownerEmail && !ws.ownerName && (
+                                <span className="text-muted-foreground/60 font-mono text-[11px]">
+                                  {ws.ownerId ? `User: ${ws.ownerId.substring(0, 8)}...` : `WS: ${ws.id.substring(0, 8)}...`}
+                                </span>
+                              )}
+                            </Flex>
+                            <Flex gap={2} style={{ flexWrap: 'wrap' }} className="pt-0.5">
+                              <PlanBadge plan={ws.plan} />
+                              <PlanStatusBadge status={ws.planStatus} />
+                            </Flex>
+                          </Box>
+                        </Flex>
+                        <Flex column align="end" gap={1} className="text-xs text-muted-foreground shrink-0 text-right">
+                          <Flex gap={2} className="text-xs text-muted-foreground">
+                            <span>{ws.memberCount} members</span>
+                            <span>•</span>
+                            <span>{ws.postsThisMonth} posts</span>
+                            <span>•</span>
+                            <span>{ws.profileCount} profiles</span>
                           </Flex>
-                        </Box>
-                      </Flex>
-                      <Flex gap={4} className="text-sm text-muted-foreground shrink-0">
-                        <span>{ws.memberCount} members</span>
-                        <span>{ws.postsThisMonth} posts</span>
-                        <span>{ws.profileCount} profiles</span>
-                      </Flex>
-                    </Box>
-                  ))}
+                          <Text size="xs" color="muted">
+                            {new Date(ws.createdAt).toLocaleDateString()}
+                          </Text>
+                        </Flex>
+                      </Box>
+                    );
+                  })}
                 </Box>
               ) : (
                 <Text color="muted" className="text-center py-8">No workspaces found</Text>

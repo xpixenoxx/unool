@@ -464,11 +464,15 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
         const profileCounts = new Map<string, number>();
         const profileNameByWorkspace = new Map<string, string>();
+        const profileUserByWorkspace = new Map<string, string>();
         (profilesResult.data || []).forEach((row: { workspace_id: string; user_id?: string; name?: string | null; deleted_at?: string | null }) => {
           if (!row.deleted_at) {
             profileCounts.set(row.workspace_id, (profileCounts.get(row.workspace_id) || 0) + 1);
             if (row.name && !profileNameByWorkspace.has(row.workspace_id)) {
               profileNameByWorkspace.set(row.workspace_id, row.name);
+            }
+            if (row.user_id && !profileUserByWorkspace.has(row.workspace_id)) {
+              profileUserByWorkspace.set(row.workspace_id, row.user_id);
             }
           }
         });
@@ -480,7 +484,7 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
         workspaces.forEach((w) => {
           if (!w.ownerId) {
-            w.ownerId = ownerByWorkspace.get(w.id) || null;
+            w.ownerId = ownerByWorkspace.get(w.id) || profileUserByWorkspace.get(w.id) || null;
           }
         });
 
@@ -488,38 +492,51 @@ export class SupabaseAdminRepository implements IAdminRepository {
           workspaces.map((w) => w.ownerId).filter((id): id is string => Boolean(id))
         ));
 
-        const userMap = new Map();
+        const userMap = new Map<string, { email: string | null; name: string | null }>();
 
         if (ownerUserIds.length > 0) {
           try {
-            const { data: usersData } = await adminClient
+            const { data: usersData, error: usersErr } = await adminClient
               .from('users')
               .select('id, email, full_name')
               .in('id', ownerUserIds);
 
-            (usersData || []).forEach((u) => {
-              userMap.set(u.id, { email: u.email, name: u.full_name });
-            });
-
-            const missingIds = ownerUserIds.filter((id) => !userMap.has(id));
-            if (missingIds.length > 0) {
-              await Promise.all(
-                missingIds.map(async (uid) => {
-                  try {
-                    const { data: authData } = await adminClient.auth.admin.getUserById(uid);
-                    if (authData?.user) {
-                      const meta = authData.user.user_metadata || {};
-                      userMap.set(uid, {
-                        email: authData.user.email || null,
-                        name: meta.full_name || meta.name || null,
-                      });
-                    }
-                  } catch {}
-                })
-              );
+            if (!usersErr && usersData) {
+              usersData.forEach((u: any) => {
+                if (u.id) {
+                  userMap.set(u.id, { email: u.email || null, name: u.full_name || null });
+                }
+              });
             }
           } catch (userErr) {
-            console.error('Failed to resolve workspace owners:', userErr);
+            console.warn('Failed to query public.users for workspace owners:', userErr);
+          }
+
+          // Check if any owners are missing either email or name; fallback to auth.admin
+          const missingIds = ownerUserIds.filter((id) => {
+            const existing = userMap.get(id);
+            return !existing || !existing.email || !existing.name;
+          });
+
+          if (missingIds.length > 0) {
+            await Promise.allSettled(
+              missingIds.map(async (uid) => {
+                try {
+                  const { data: authData } = await adminClient.auth.admin.getUserById(uid);
+                  if (authData?.user) {
+                    const meta = (authData.user.user_metadata || {}) as Record<string, any>;
+                    const authName = meta.full_name || meta.name || meta.user_name || meta.display_name || meta.preferred_username || null;
+                    const existing = userMap.get(uid);
+                    userMap.set(uid, {
+                      email: existing?.email || authData.user.email || null,
+                      name: existing?.name || authName || null,
+                    });
+                  }
+                } catch (authErr) {
+                  console.warn(`Failed to fetch auth user ${uid}:`, authErr);
+                }
+              })
+            );
           }
         }
 
@@ -580,6 +597,33 @@ export class SupabaseAdminRepository implements IAdminRepository {
       ws.postsThisMonth = postsRes.count ?? 0;
     } catch (countErr) {
       console.error('Failed to compute live counts for workspace:', id, countErr);
+    }
+
+    if (ws.ownerId && (!ws.ownerEmail || !ws.ownerName)) {
+      try {
+        const { data: userData } = await adminClient
+          .from('users')
+          .select('email, full_name')
+          .eq('id', ws.ownerId)
+          .maybeSingle();
+
+        let email = userData?.email || ws.ownerEmail || null;
+        let name = userData?.full_name || ws.ownerName || null;
+
+        if (!email || !name) {
+          try {
+            const { data: authData } = await adminClient.auth.admin.getUserById(ws.ownerId);
+            if (authData?.user) {
+              const meta = (authData.user.user_metadata || {}) as Record<string, any>;
+              email = email || authData.user.email || null;
+              name = name || meta.full_name || meta.name || meta.user_name || null;
+            }
+          } catch {}
+        }
+
+        ws.ownerEmail = email;
+        ws.ownerName = name || (email ? email.split('@')[0] : null);
+      } catch {}
     }
 
     return ws;

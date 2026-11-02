@@ -186,7 +186,7 @@ function WorkspaceTable({
                             </Badge>
                           )}
                         </Flex>
-                        {ws.ownerEmail && ws.ownerName && (
+                        {ws.ownerEmail && (
                           <Text size="xs" color="muted" className="truncate max-w-xs block">
                             {ws.ownerEmail}
                           </Text>
