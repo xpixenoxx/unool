@@ -2162,20 +2162,22 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
         </AnimatePresence>
 
         {/* ── SignalDM Active Badge ── */}
-        <div className="w-full flex items-center justify-between px-5 py-3.5 rounded-2xl bg-[#FBF9FE] border border-[#E9DEFA] flex-wrap gap-3">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <span className="text-xs sm:text-sm font-bold text-[#7C3AED]">SignalDM Active</span>
-            <span className="text-xs text-[#5D4734]">
-              Instagram comments on this post will be auto-handled by AI
-            </span>
+        {featureFlags.automationEnabled && signalDmEnabled && (
+          <div className="w-full flex items-center justify-between px-5 py-3.5 rounded-2xl bg-[#FBF9FE] border border-[#E9DEFA] flex-wrap gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="text-xs sm:text-sm font-bold text-[#7C3AED]">SignalDM Active</span>
+              <span className="text-xs text-[#5D4734]">
+                Instagram comments on this post will be auto-handled by AI
+              </span>
+            </div>
+            <a
+              href="/dashboard/automation"
+              className="px-4 py-1.5 rounded-full text-xs font-semibold bg-[#EDE7FD] text-[#7C3AED] border border-[#DDD0FA] hover:bg-[#E4DAFC] transition-all whitespace-nowrap"
+            >
+              Configure →
+            </a>
           </div>
-          <a
-            href="/dashboard/automation"
-            className="px-4 py-1.5 rounded-full text-xs font-semibold bg-[#EDE7FD] text-[#7C3AED] border border-[#DDD0FA] hover:bg-[#E4DAFC] transition-all whitespace-nowrap"
-          >
-            Configure →
-          </a>
-        </div>
+        )}
 
         {/* Mode Selector Cards (Side-by-Side Cards, Image 1 & 2) */}
         <div className="space-y-6" style={{ maxWidth: 840 }}>
@@ -2417,22 +2419,24 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
               </div>
 
               {/* Brand Materials Page Card for Quick Broadcast (Image 2) */}
-              <div className="pt-2">
-                <PostBrandMaterialsCard
-                  workspaceId={workspaceId}
-                  subdomain={(profile as any)?.subdomain || (user as any)?.subdomain || 'user'}
-                  postContent={quickContent}
-                  attachedSlug={attachedBrandSlug}
-                  onAttachPage={(slug, url) => {
-                    setAttachedBrandSlug(slug);
-                    setAttachedBrandUrl(url);
-                  }}
-                  onInsertLinkIntoDraft={(url) => {
-                    setQuickContent(prev => prev ? `${prev}\n\n${url}` : url);
-                    toast.success('Brand page link added to post draft!');
-                  }}
-                />
-              </div>
+              {featureFlags.automationEnabled && (
+                <div className="pt-2">
+                  <PostBrandMaterialsCard
+                    workspaceId={workspaceId}
+                    subdomain={(profile as any)?.subdomain || (user as any)?.subdomain || 'user'}
+                    postContent={quickContent}
+                    attachedSlug={attachedBrandSlug}
+                    onAttachPage={(slug, url) => {
+                      setAttachedBrandSlug(slug);
+                      setAttachedBrandUrl(url);
+                    }}
+                    onInsertLinkIntoDraft={(url) => {
+                      setQuickContent(prev => prev ? `${prev}\n\n${url}` : url);
+                      toast.success('Brand page link added to post draft!');
+                    }}
+                  />
+                </div>
+              )}
             </div>
           </MotionBox>
         )}
@@ -2656,22 +2660,24 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
             </MotionBox>
 
             {/* Brand Materials Page for this Post (Image 4) */}
-            <div className="pt-1">
-              <PostBrandMaterialsCard
-                workspaceId={workspaceId}
-                subdomain={(profile as any)?.subdomain || (user as any)?.subdomain || 'user'}
-                postContent={sourceContent}
-                attachedSlug={attachedBrandSlug}
-                onAttachPage={(slug, url) => {
-                  setAttachedBrandSlug(slug);
-                  setAttachedBrandUrl(url);
-                }}
-                onInsertLinkIntoDraft={(url) => {
-                  setSourceContent(prev => prev ? `${prev}\n\n${url}` : url);
-                  toast.success('Brand page link added to post draft!');
-                }}
-              />
-            </div>
+            {featureFlags.automationEnabled && (
+              <div className="pt-1">
+                <PostBrandMaterialsCard
+                  workspaceId={workspaceId}
+                  subdomain={(profile as any)?.subdomain || (user as any)?.subdomain || 'user'}
+                  postContent={sourceContent}
+                  attachedSlug={attachedBrandSlug}
+                  onAttachPage={(slug, url) => {
+                    setAttachedBrandSlug(slug);
+                    setAttachedBrandUrl(url);
+                  }}
+                  onInsertLinkIntoDraft={(url) => {
+                    setSourceContent(prev => prev ? `${prev}\n\n${url}` : url);
+                    toast.success('Brand page link added to post draft!');
+                  }}
+                />
+              </div>
+            )}
 
             {/* Step 2 — Platform Drafts */}
             <div ref={reviewSectionRef} id="review-and-edit-section" className="scroll-mt-24">

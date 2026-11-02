@@ -224,13 +224,15 @@ function DashboardSidebar({
           description: 'Publish & schedule',
           badge: dynamicPendingCount > 0 ? dynamicPendingCount : undefined,
         },
-        {
-          id: 'automation',
-          name: 'Automation',
-          href: '/dashboard/automation',
-          icon: Zap,
-          description: 'Instagram comment automation',
-        },
+        ...(featureFlags.automationEnabled
+          ? [{
+              id: 'automation',
+              name: 'Automation',
+              href: '/dashboard/automation',
+              icon: Zap,
+              description: 'Instagram comment automation',
+            }]
+          : []),
       ],
     },
     {
@@ -668,8 +670,9 @@ export default function DashboardLayout({
   }, []);
 
   return (
-    <UserProvider>
-      <div className="min-h-screen" style={{ backgroundColor: biscuit.bg }}>
+    <FeatureFlagsProvider>
+      <UserProvider>
+        <div className="min-h-screen" style={{ backgroundColor: biscuit.bg }}>
         {/* Mobile sidebar overlay */}
         {sidebarOpen && (
           <div
@@ -699,7 +702,8 @@ export default function DashboardLayout({
         {/* Onboarding: subdomain claim popup (30s after first dashboard visit) */}
         <DashboardOnboarding />
         <DashboardTimeTracker />
-      </div>
-    </UserProvider>
+        </div>
+      </UserProvider>
+    </FeatureFlagsProvider>
   );
 }

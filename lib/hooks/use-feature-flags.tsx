@@ -72,16 +72,27 @@ export function FeatureFlagsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     fetchFlags();
 
-    const handleUpdate = () => {
+    const handleUpdate = (e?: Event) => {
+      if (e instanceof CustomEvent && e.detail && typeof e.detail.automation_enabled === 'boolean') {
+        const directFlag: FeatureFlags = { automationEnabled: e.detail.automation_enabled };
+        memCache = directFlag;
+        memCacheTime = Date.now();
+        setFlags(directFlag);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('unool_automation_enabled', String(directFlag.automationEnabled));
+        }
+      }
       fetchFlags(true);
     };
 
     window.addEventListener('unool-feature-flags-updated', handleUpdate);
     window.addEventListener('focus', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
 
     return () => {
       window.removeEventListener('unool-feature-flags-updated', handleUpdate);
       window.removeEventListener('focus', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
     };
   }, [fetchFlags]);
 

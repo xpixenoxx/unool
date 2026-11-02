@@ -851,7 +851,7 @@ export function SignalClient() {
             className="space-y-4"
           >
             {/* ── SignalDM Automation Metrics Card ── */}
-            {automationStats && (
+            {featureFlags.automationEnabled && automationStats && (
               <motion.div
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}

@@ -147,6 +147,7 @@ export function WeekCanvas({
   isHoldActive = false,
   connectedPlatforms,
 }: WeekCanvasProps) {
+  const { flags: featureFlags } = useFeatureFlags();
   const initialCached = memoryCanvasPostsByWeek.get(initialWeekOffset);
   const [posts, setPosts] = useState<CanvasPost[]>(() => initialCached || []);
   const [isLoading, setIsLoading] = useState(!memoryCanvasPostsByWeek.has(initialWeekOffset));
@@ -1268,7 +1269,7 @@ export function WeekCanvas({
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, alignItems: 'start' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: featureFlags.automationEnabled ? '1fr 1fr' : '1fr', gap: 10, alignItems: 'start' }}>
                 <div className="fp-fld">
                   <span>CARGO / MEDIA</span>
                   <b style={{ fontSize: 12.5 }}>
@@ -1277,10 +1278,12 @@ export function WeekCanvas({
                       : 'None attached'}
                   </b>
                 </div>
-                <div className="fp-fld">
-                  <span>FIRST COMMENT</span>
-                  <b style={{ fontSize: 12.5 }}>{selPost.platforms[0]?.autoFirstComment ? 'Active (CTA)' : 'None'}</b>
-                </div>
+                {featureFlags.automationEnabled && (
+                  <div className="fp-fld">
+                    <span>FIRST COMMENT</span>
+                    <b style={{ fontSize: 12.5 }}>{selPost.platforms[0]?.autoFirstComment ? 'Active (CTA)' : 'None'}</b>
+                  </div>
+                )}
               </div>
 
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>

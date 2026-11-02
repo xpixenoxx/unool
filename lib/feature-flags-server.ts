@@ -43,20 +43,21 @@ export async function getFeatureFlagsServer(): Promise<Record<string, boolean>> 
 
   // 2. Resilient Fallback: Read latest flag states from admin_audit_log
   try {
-    const { data: audits } = await adminClient
+    const { data: audits, error: auditErr } = await adminClient
       .from('admin_audit_log')
       .select('target_id, metadata, created_at')
       .eq('action', 'feature_flag_update')
       .order('created_at', { ascending: false })
-      .limit(30);
+      .limit(50);
 
-    if (Array.isArray(audits) && audits.length > 0) {
+    if (!auditErr && Array.isArray(audits) && audits.length > 0) {
       const seen = new Set<string>();
       for (const row of audits) {
-        const key = row.target_id;
+        const meta = (row.metadata as any) || {};
+        const key = meta.flag_key || (row.target_id && !row.target_id.includes('-') ? row.target_id : null);
         if (key && !seen.has(key)) {
           seen.add(key);
-          const val = (row.metadata as any)?.flag_value;
+          const val = meta.flag_value;
           if (typeof val === 'boolean') {
             flags[key] = val;
           }
@@ -81,7 +82,7 @@ export async function setFeatureFlagServer(
 
   // 1. Try upserting to admin_feature_flags table
   try {
-    await adminClient
+    const { error: upsertErr } = await adminClient
       .from('admin_feature_flags')
       .upsert(
         {
@@ -92,21 +93,55 @@ export async function setFeatureFlagServer(
         },
         { onConflict: 'flag_key' }
       );
+    if (!upsertErr) {
+      console.log(`[feature-flags-server] Saved flag ${flagKey}=${flagValue} to admin_feature_flags`);
+    } else {
+      console.warn('[feature-flags-server] admin_feature_flags upsert note:', upsertErr.message);
+    }
   } catch (tableErr) {
-    console.warn('[feature-flags-server] Note: admin_feature_flags table upsert skipped:', tableErr);
+    console.warn('[feature-flags-server] admin_feature_flags table upsert skipped:', tableErr);
   }
 
-  // 2. Always record in admin_audit_log (permanent table in production Supabase)
+  // 2. Resilient Fallback: Always record in admin_audit_log (permanent table in production Supabase)
   try {
-    await adminClient
-      .from('admin_audit_log')
-      .insert({
-        admin_user_id: null,
-        action: 'feature_flag_update',
-        target_type: 'admin_feature_flags',
-        target_id: flagKey,
-        metadata: { flag_key: flagKey, flag_value: flagValue, updated_by: adminIdentifier },
-      });
+    // admin_audit_log requires admin_user_id (UUID NOT NULL) and target_id (UUID nullable)
+    let adminUserId: string | null = null;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (isUuid.test(adminIdentifier)) {
+      adminUserId = adminIdentifier;
+    } else {
+      const { data: firstAdmin } = await adminClient
+        .from('admin_users')
+        .select('id')
+        .limit(1)
+        .maybeSingle();
+      if (firstAdmin?.id) {
+        adminUserId = firstAdmin.id;
+      }
+    }
+
+    if (adminUserId) {
+      const { error: auditErr } = await adminClient
+        .from('admin_audit_log')
+        .insert({
+          admin_user_id: adminUserId,
+          action: 'feature_flag_update',
+          target_type: 'feature_flag',
+          target_id: null, // PostgreSQL UUID column - must be null, not string
+          metadata: {
+            flag_key: flagKey,
+            flag_value: flagValue,
+            updated_by: adminIdentifier,
+          },
+        });
+      if (!auditErr) {
+        console.log(`[feature-flags-server] Recorded flag ${flagKey}=${flagValue} in admin_audit_log`);
+      } else {
+        console.warn('[feature-flags-server] admin_audit_log insert note:', auditErr.message);
+      }
+    } else {
+      console.warn('[feature-flags-server] Could not resolve admin_user_id for audit log');
+    }
   } catch (logErr) {
     console.error('[feature-flags-server] Failed to write audit log entry:', logErr);
   }

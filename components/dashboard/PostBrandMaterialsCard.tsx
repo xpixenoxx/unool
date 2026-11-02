@@ -70,10 +70,6 @@ export default function PostBrandMaterialsCard({
 }: PostBrandMaterialsCardProps) {
   const { flags: featureFlags } = useFeatureFlags();
   const [loading, setLoading] = useState(false);
-
-  if (!featureFlags.automationEnabled) {
-    return null;
-  }
   const [pages, setPages] = useState<BrandMaterialsPageData[]>([]);
   const [subdomain, setSubdomain] = useState<string>(initialSubdomain || 'user');
   const [activeSlug, setActiveSlug] = useState<string | null>(attachedSlug || null);
@@ -100,7 +96,7 @@ export default function PostBrandMaterialsCard({
 
   // Fetch workspace brand pages
   const loadPages = async () => {
-    if (!workspaceId) return;
+    if (!featureFlags.automationEnabled || !workspaceId) return;
     setLoading(true);
     try {
       const res = await fetch(`/api/brand-materials?workspaceId=${workspaceId}`);
@@ -125,6 +121,10 @@ export default function PostBrandMaterialsCard({
       setActiveSlug(attachedSlug);
     }
   }, [attachedSlug]);
+
+  if (!featureFlags.automationEnabled) {
+    return null;
+  }
 
   // Derived attached page
   const attachedPage = pages.find(p => p.slug === activeSlug) || null;

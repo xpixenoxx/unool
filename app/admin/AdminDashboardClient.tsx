@@ -138,8 +138,10 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
   const [isUserHovered, setIsUserHovered] = React.useState(false);
 
   // -- Automation Feature Flag ----------------------------------------------
-  const [automationEnabled, setAutomationEnabled] = React.useState<boolean | null>(null);
-  const [automationFlagLoading, setAutomationFlagLoading] = React.useState(true);
+  const [automationEnabled, setAutomationEnabled] = React.useState<boolean>(
+    initialData.automationEnabled ?? true
+  );
+  const [automationFlagLoading, setAutomationFlagLoading] = React.useState(false);
   const [automationFlagSaving, setAutomationFlagSaving] = React.useState(false);
   const [automationFlagToast, setAutomationFlagToast] = React.useState<{ type: 'success' | 'error'; msg: string } | null>(null);
 
@@ -163,6 +165,13 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
     setAutomationFlagToast(null);
     const previous = automationEnabled;
     setAutomationEnabled(newValue); // optimistic update
+
+    // Broadcast immediately to window and localStorage
+    try {
+      localStorage.setItem('unool_automation_enabled', String(newValue));
+      window.dispatchEvent(new CustomEvent('unool-feature-flags-updated', { detail: { automation_enabled: newValue } }));
+    } catch {}
+
     try {
       const res = await fetch('/api/admin/feature-flags', {
         method: 'POST',
@@ -178,6 +187,10 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
       });
     } catch {
       setAutomationEnabled(previous); // revert on error
+      try {
+        localStorage.setItem('unool_automation_enabled', String(previous));
+        window.dispatchEvent(new CustomEvent('unool-feature-flags-updated', { detail: { automation_enabled: previous } }));
+      } catch {}
       setAutomationFlagToast({ type: 'error', msg: 'Failed to update flag. Please try again.' });
     } finally {
       setAutomationFlagSaving(false);
@@ -396,24 +409,54 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
                 </Box>
               </Flex>
 
-              {/* Toggle switch */}
-              <button
-                type="button"
-                disabled={automationFlagLoading || automationFlagSaving}
-                onClick={() => {
-                  if (automationEnabled === null) return;
-                  handleAutomationToggle(!automationEnabled);
-                }}
-                className={`relative inline-flex h-8 w-[3.5rem] shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-violet-500 disabled:opacity-50 disabled:cursor-not-allowed ${automationEnabled ? 'bg-violet-600' : 'bg-muted'}`}
-                role="switch"
-                aria-checked={automationEnabled ?? false}
-                aria-label="Toggle Instagram & LinkedIn Automation"
-                title={automationEnabled ? 'Click to disable automation for all users' : 'Click to enable automation for all users'}
-              >
-                <span
-                  className={`pointer-events-none block h-6 w-6 rounded-full bg-white shadow-md ring-0 transition-transform duration-200 ease-in-out ${automationEnabled ? 'translate-x-6' : 'translate-x-0.5'}`}
-                />
-              </button>
+              {/* Toggle switch with explicit text and action button */}
+              <Flex align="center" gap={3}>
+                <button
+                  type="button"
+                  disabled={automationFlagLoading || automationFlagSaving}
+                  onClick={() => handleAutomationToggle(!automationEnabled)}
+                  className={`relative inline-flex h-9 w-16 shrink-0 cursor-pointer items-center rounded-full border-2 transition-all duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 disabled:opacity-50 disabled:cursor-not-allowed ${
+                    automationEnabled
+                      ? 'bg-violet-600 border-violet-600'
+                      : 'bg-slate-300 dark:bg-slate-700 border-slate-400 dark:border-slate-600'
+                  }`}
+                  role="switch"
+                  aria-checked={automationEnabled}
+                  aria-label="Toggle Instagram & LinkedIn Automation"
+                  title={automationEnabled ? 'Click to turn OFF automation for all users' : 'Click to turn ON automation for all users'}
+                >
+                  <span
+                    className={`pointer-events-none flex h-7 w-7 items-center justify-center rounded-full bg-white shadow-md ring-0 transition-transform duration-200 ease-in-out font-bold text-[10px] ${
+                      automationEnabled
+                        ? 'translate-x-7 text-violet-700'
+                        : 'translate-x-1 text-slate-500'
+                    }`}
+                  >
+                    {automationEnabled ? 'ON' : 'OFF'}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  disabled={automationFlagLoading || automationFlagSaving}
+                  onClick={() => handleAutomationToggle(!automationEnabled)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                    automationEnabled
+                      ? 'border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950/40'
+                      : 'border-emerald-200 text-emerald-600 hover:bg-emerald-50 dark:border-emerald-900 dark:text-emerald-400 dark:hover:bg-emerald-950/40'
+                  }`}
+                >
+                  {automationFlagSaving ? (
+                    <span className="flex items-center gap-1.5">
+                      <LucideLoader2 className="h-3 w-3 animate-spin" />
+                      Saving...
+                    </span>
+                  ) : automationEnabled ? (
+                    'Turn Off'
+                  ) : (
+                    'Turn On'
+                  )}
+                </button>
+              </Flex>
             </Flex>
           </CardContent>
         </Card>
