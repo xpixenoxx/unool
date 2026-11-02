@@ -70,6 +70,21 @@ interface ReferralCode {
   months_earned: number;
 }
 
+interface ReferredUser {
+  id: string;
+  referredUserId: string;
+  referredEmail: string | null;
+  referredName: string | null;
+  referralCode: string;
+  status: 'signed_up' | 'converted' | 'rewarded';
+  currentPlan: string;
+  planStatus: string;
+  isPaid: boolean;
+  rewardType: string | null;
+  rewardAppliedAt: string | null;
+  createdAt: string;
+}
+
 interface UserDetail {
   id: string;
   email: string;
@@ -82,6 +97,7 @@ interface UserDetail {
   workspaces: UserWorkspace[];
   paymentOrders: PaymentOrder[];
   referralCode: ReferralCode | null;
+  referrals?: ReferredUser[];
 }
 
 const planBadgeColors: Record<string, string> = {
@@ -323,7 +339,7 @@ export default function UserDetailPage() {
               <CreditCard className="h-4 w-4" /> Payments ({user.paymentOrders.length})
             </TabsTrigger>
             <TabsTrigger value="referral" className="flex items-center gap-2">
-              <Gift className="h-4 w-4" /> Referral
+              <Gift className="h-4 w-4" /> Referral ({user.referrals?.length || 0})
             </TabsTrigger>
           </TabsList>
 
@@ -457,26 +473,112 @@ export default function UserDetailPage() {
                 </Flex>
                 <CardDescription>Referral performance and rewards</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-6">
                 {user.referralCode ? (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <Box className="p-4 rounded-lg bg-muted/50 border">
-                      <Text size="xs" color="muted">Referral Code</Text>
-                      <Text size="lg" weight="bold" className="font-mono mt-1">{user.referralCode.code}</Text>
+                  <>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <Box className="p-4 rounded-lg bg-muted/50 border">
+                        <Text size="xs" color="muted">Referral Code</Text>
+                        <Text size="lg" weight="bold" className="font-mono mt-1 text-primary">{user.referralCode.code}</Text>
+                        <Text size="xs" color="muted" className="mt-1 truncate">/signup?ref={user.referralCode.code}</Text>
+                      </Box>
+                      <Box className="p-4 rounded-lg bg-muted/50 border">
+                        <Text size="xs" color="muted">Total Clicks</Text>
+                        <Text size="lg" weight="bold" className="mt-1">{user.referralCode.click_count}</Text>
+                        <Text size="xs" color="muted" className="mt-1">Link visits (opened link)</Text>
+                      </Box>
+                      <Box className="p-4 rounded-lg bg-muted/50 border">
+                        <Text size="xs" color="muted">Signups</Text>
+                        <Text size="lg" weight="bold" className="mt-1">{user.referralCode.signup_count}</Text>
+                        <Text size="xs" color="muted" className="mt-1">Registered accounts</Text>
+                      </Box>
+                      <Box className="p-4 rounded-lg bg-muted/50 border">
+                        <Text size="xs" color="muted">Conversions</Text>
+                        <Text size="lg" weight="bold" className="mt-1 text-green-600 dark:text-green-400">{user.referralCode.conversion_count}</Text>
+                        <Text size="xs" color="muted" className="mt-1">Paid plans (Creator/Pro/Studio)</Text>
+                      </Box>
+                    </div>
+
+                    {/* Detailed Referred Users Table */}
+                    <Box className="pt-2">
+                      <Flex align="center" between className="mb-3">
+                        <Text weight="semibold" size="sm">Referred Users ({user.referrals?.length || 0})</Text>
+                      </Flex>
+                      {(!user.referrals || user.referrals.length === 0) ? (
+                        <Box className="py-8 text-center border rounded-lg bg-muted/20">
+                          <Gift className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
+                          <Text weight="medium">No referred users yet</Text>
+                          <Text size="xs" color="muted" className="mt-1 max-w-md mx-auto">
+                            When visitors create an account via this user&apos;s referral link (ref: {user.referralCode.code}), their account details, plan tier, and paid conversion status will appear here.
+                          </Text>
+                        </Box>
+                      ) : (
+                        <div className="overflow-x-auto border rounded-lg">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b bg-muted/50 text-left">
+                                <th className="py-3 px-3 font-medium text-muted-foreground">Referred User</th>
+                                <th className="py-3 px-3 font-medium text-muted-foreground">Current Plan</th>
+                                <th className="py-3 px-3 font-medium text-muted-foreground">Conversion Status</th>
+                                <th className="py-3 px-3 font-medium text-muted-foreground">Signed Up</th>
+                                <th className="py-3 px-3 font-medium text-muted-foreground text-right">View Profile</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border">
+                              {user.referrals.map((ref) => (
+                                <tr key={ref.id} className="hover:bg-muted/40 transition-colors">
+                                  <td className="py-3 px-3">
+                                    <Flex align="center" gap={2} className="min-w-0">
+                                      <Avatar className="h-8 w-8 shrink-0">
+                                        <AvatarImage src={`https://api.dicebear.com/7.x/identicon/svg?seed=${ref.referredEmail || ref.referredUserId}`} alt={ref.referredEmail || ''} />
+                                        <AvatarFallback>{(ref.referredName || ref.referredEmail || 'U').charAt(0).toUpperCase()}</AvatarFallback>
+                                      </Avatar>
+                                      <Box className="min-w-0">
+                                        <Text weight="medium" size="sm" className="truncate">
+                                          {ref.referredName || ref.referredEmail?.split('@')[0] || 'User'}
+                                        </Text>
+                                        {ref.referredEmail && (
+                                          <Text size="xs" color="muted" className="truncate block">
+                                            {ref.referredEmail}
+                                          </Text>
+                                        )}
+                                      </Box>
+                                    </Flex>
+                                  </td>
+                                  <td className="py-3 px-3">
+                                    <Badge variant="outline" className={cn('capitalize', planBadgeColors[ref.currentPlan] || '')}>
+                                      {(ref.currentPlan === 'free' || ref.currentPlan === 'spark') ? 'Spark (Free)' : (ref.currentPlan.charAt(0).toUpperCase() + ref.currentPlan.slice(1))}
+                                    </Badge>
+                                  </td>
+                                  <td className="py-3 px-3">
+                                    {ref.isPaid ? (
+                                      <Badge variant="success" className="text-xs">
+                                        Converted ({ref.currentPlan.toUpperCase()})
+                                      </Badge>
+                                    ) : (
+                                      <Badge variant="outline" className="text-xs text-muted-foreground">
+                                        Signed Up (Free)
+                                      </Badge>
+                                    )}
+                                  </td>
+                                  <td className="py-3 px-3 text-xs text-muted-foreground">
+                                    {new Date(ref.createdAt).toLocaleDateString()}
+                                  </td>
+                                  <td className="py-3 px-3 text-right">
+                                    <Button variant="ghost" size="sm" asChild>
+                                      <Link href={`/admin/users/${ref.referredUserId}`} prefetch={true} title="View user details">
+                                        <ExternalLink className="h-4 w-4" />
+                                      </Link>
+                                    </Button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
                     </Box>
-                    <Box className="p-4 rounded-lg bg-muted/50 border">
-                      <Text size="xs" color="muted">Total Clicks</Text>
-                      <Text size="lg" weight="bold" className="mt-1">{user.referralCode.click_count}</Text>
-                    </Box>
-                    <Box className="p-4 rounded-lg bg-muted/50 border">
-                      <Text size="xs" color="muted">Signups</Text>
-                      <Text size="lg" weight="bold" className="mt-1">{user.referralCode.signup_count}</Text>
-                    </Box>
-                    <Box className="p-4 rounded-lg bg-muted/50 border">
-                      <Text size="xs" color="muted">Conversions</Text>
-                      <Text size="lg" weight="bold" className="mt-1">{user.referralCode.conversion_count}</Text>
-                    </Box>
-                  </div>
+                  </>
                 ) : (
                   <Text color="muted" className="py-6 text-center">No referral code generated for this user</Text>
                 )}

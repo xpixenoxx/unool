@@ -2659,6 +2659,24 @@ export class SupabaseAdminRepository implements IAdminRepository {
       createdAt?: string;
     }>();
 
+    // 3. Fetch workspaces and user emails for enrichment and auto-seeding
+    let workspacesList: any[] = [];
+    try {
+      const { data } = await adminClient.from('workspaces').select('id, name, owner_id, plan');
+      if (Array.isArray(data)) workspacesList = data;
+    } catch {}
+
+    const wsMap = new Map<string, string>();
+    const ownerWsMap = new Map<string, { id: string; name: string }>();
+    const userWorkspacePlanMap = new Map<string, string>();
+    for (const ws of workspacesList) {
+      wsMap.set(ws.id, ws.name);
+      if (ws.owner_id) {
+        ownerWsMap.set(ws.owner_id, { id: ws.id, name: ws.name });
+        userWorkspacePlanMap.set(ws.owner_id, (ws.plan || '').toLowerCase());
+      }
+    }
+
     for (const ref of refEvents) {
       const c = (ref.referral_code || '').trim().toUpperCase();
       if (!c) continue;
@@ -2670,7 +2688,9 @@ export class SupabaseAdminRepository implements IAdminRepository {
         createdAt: ref.created_at,
       };
       current.signups++;
-      if (ref.status === 'converted' || ref.status === 'rewarded') {
+      const referredPlan = userWorkspacePlanMap.get(ref.referred_user_id) || '';
+      const isPaid = referredPlan === 'creator' || referredPlan === 'pro' || referredPlan === 'studio' || ref.status === 'converted' || ref.status === 'rewarded';
+      if (isPaid) {
         current.conversions++;
       }
       if (ref.status === 'rewarded') {
@@ -2680,22 +2700,6 @@ export class SupabaseAdminRepository implements IAdminRepository {
         current.referrerUserId = ref.referrer_user_id;
       }
       refStatsByCode.set(c, current);
-    }
-
-    // 3. Fetch workspaces and user emails for enrichment and auto-seeding
-    let workspacesList: any[] = [];
-    try {
-      const { data } = await adminClient.from('workspaces').select('id, name, owner_id');
-      if (Array.isArray(data)) workspacesList = data;
-    } catch {}
-
-    const wsMap = new Map<string, string>();
-    const ownerWsMap = new Map<string, { id: string; name: string }>();
-    for (const ws of workspacesList) {
-      wsMap.set(ws.id, ws.name);
-      if (ws.owner_id) {
-        ownerWsMap.set(ws.owner_id, { id: ws.id, name: ws.name });
-      }
     }
 
     // Fetch user emails from auth

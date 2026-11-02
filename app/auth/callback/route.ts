@@ -108,17 +108,17 @@ export async function GET(request: NextRequest) {
               user_id: user.id,
               role: 'owner',
             });
+          }
+        }
 
-            // Attribute referral if user arrived with unool_ref cookie
-            const refCode = cookieStore.get('unool_ref')?.value;
-            if (refCode) {
-              try {
-                const { recordReferralSignup } = await import('@/lib/referrals/service');
-                await recordReferralSignup(user.id, refCode);
-              } catch (refErr) {
-                console.error('[auth/callback] Referral attribution error:', refErr);
-              }
-            }
+        // Attribute referral if user arrived with unool_ref cookie (regardless of prior workspace trigger)
+        const refCode = cookieStore.get('unool_ref')?.value;
+        if (refCode) {
+          try {
+            const { recordReferralSignup } = await import('@/lib/referrals/service');
+            await recordReferralSignup(user.id, refCode);
+          } catch (refErr) {
+            console.error('[auth/callback] Referral attribution error:', refErr);
           }
         }
       } catch (profileError) {

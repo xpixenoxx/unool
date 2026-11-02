@@ -122,7 +122,7 @@ export async function recordReferralClick(code: string): Promise<ReferralCode | 
   await supabase
     .from('referral_codes')
     .update({
-      click_count: ((data as Record<string, unknown>).click_count as number || 0) + 1,
+      click_count: (Number((data as Record<string, unknown>).click_count) || 0) + 1,
       updated_at: new Date().toISOString(),
     })
     .eq('code', cleanCode);
@@ -172,7 +172,7 @@ export async function recordReferralSignup(
   const { error: insertErr } = await supabase.from('referrals').insert({
     referrer_user_id: referrerUserId,
     referred_user_id: referredUserId,
-    referral_code: referralCode,
+    referral_code: cleanCode,
     status: 'signed_up',
   });
 
@@ -183,11 +183,11 @@ export async function recordReferralSignup(
     return;
   }
 
-  // Increment signup count
+  // Increment signup count safely
   await supabase
     .from('referral_codes')
     .update({
-      signup_count: (code.signup_count as number) + 1,
+      signup_count: (Number(code.signup_count) || 0) + 1,
       updated_at: new Date().toISOString(),
     })
     .eq('code', cleanCode);
@@ -198,7 +198,7 @@ export async function recordReferralSignup(
   logger.info('Referral signup recorded + credits granted', {
     referrerUserId,
     referredUserId,
-    referralCode,
+    referralCode: cleanCode,
     credits: REWARD_FREE_SIGNUP_CREDITS,
   });
 }
@@ -213,7 +213,7 @@ export async function recordReferralConversion(referredUserId: string): Promise<
     .select('*')
     .eq('referred_user_id', referredUserId)
     .eq('status', 'signed_up')
-    .single();
+    .maybeSingle();
 
   if (error || !referral) {
     logger.debug('recordReferralConversion: no pending referral found', { referredUserId });
@@ -222,7 +222,7 @@ export async function recordReferralConversion(referredUserId: string): Promise<
 
   const ref = referral as Record<string, unknown>;
   const referrerUserId = ref.referrer_user_id as string;
-  const referralCode = ref.referral_code as string;
+  const referralCode = ((ref.referral_code as string) || '').trim().toUpperCase();
 
   // Mark referral as converted + rewarded
   await supabase
@@ -243,15 +243,15 @@ export async function recordReferralConversion(referredUserId: string): Promise<
     .from('referral_codes')
     .select('conversion_count, months_earned')
     .eq('code', referralCode)
-    .single();
+    .maybeSingle();
 
   if (codeRow) {
     const cr = codeRow as Record<string, unknown>;
     await supabase
       .from('referral_codes')
       .update({
-        conversion_count: (cr.conversion_count as number) + 1,
-        months_earned: (cr.months_earned as number) + REWARD_PAID_CONVERSION_MONTHS,
+        conversion_count: (Number(cr.conversion_count) || 0) + 1,
+        months_earned: (Number(cr.months_earned) || 0) + REWARD_PAID_CONVERSION_MONTHS,
         updated_at: new Date().toISOString(),
       })
       .eq('code', referralCode);

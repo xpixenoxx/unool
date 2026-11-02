@@ -117,6 +117,7 @@ export async function POST(request: NextRequest) {
       user_metadata: {
         full_name:     name,
         password_hash: password_hash,
+        referral_code: referral_code || undefined,
       },
     });
 

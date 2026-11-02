@@ -53,7 +53,17 @@ function SignUpComponent() {
         const fromSession = sessionStorage.getItem('unool_ref');
         const fromCookie = document.cookie.match(/(?:^|;\s*)unool_ref=([^;]+)/)?.[1];
         const stored = fromSession || (fromCookie ? decodeURIComponent(fromCookie) : null);
-        if (stored) setRefCode(stored);
+        if (stored) {
+          setRefCode(stored);
+          if (!sessionStorage.getItem('unool_ref_click_recorded')) {
+            sessionStorage.setItem('unool_ref_click_recorded', '1');
+            fetch('/api/referrals/click', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ code: stored }),
+            }).catch(() => {});
+          }
+        }
       } catch {}
     }
 
