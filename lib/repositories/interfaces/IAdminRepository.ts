@@ -177,6 +177,8 @@ export interface AdminAuditLog {
   ipHash: string | null;
   userAgent: string | null;
   createdAt: string;
+  targetUserEmail?: string | null;
+  targetUserName?: string | null;
 }
 
 // ===== Payment & Subscription Types =====

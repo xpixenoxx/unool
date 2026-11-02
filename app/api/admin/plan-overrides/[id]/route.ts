@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth/admin';
 import { removeOverride } from '@/lib/billing/overrides';
 import { adminRepository } from '@/lib/repositories/supabase/SupabaseAdminRepository';
+import { createClient } from '@supabase/supabase-js';
+import { config } from '@/lib/config/schema';
 
 /**
  * DELETE /api/admin/plan-overrides/[id]
@@ -21,6 +23,17 @@ export async function DELETE(
       return NextResponse.json({ error: 'Override ID required' }, { status: 400 });
     }
 
+    let overrideInfo: { user_email?: string; user_name?: string | null; plan_id?: string; custom_monthly_inr?: number } | null = null;
+    try {
+      const client = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+      const { data } = await client
+        .from('user_plan_overrides')
+        .select('user_email, user_name, plan_id, custom_monthly_inr')
+        .eq('id', id)
+        .maybeSingle();
+      if (data) overrideInfo = data;
+    } catch {}
+
     const success = await removeOverride(id, auth.admin.userId);
 
     if (!success) {
@@ -36,7 +49,12 @@ export async function DELETE(
         'plan_override_remove',
         'user_plan_override',
         id,
-        {}
+        {
+          userEmail: overrideInfo?.user_email || undefined,
+          userName: overrideInfo?.user_name || undefined,
+          planId: overrideInfo?.plan_id || undefined,
+          customMonthlyInr: overrideInfo?.custom_monthly_inr || undefined,
+        }
       );
     } catch (auditErr) {
       console.warn('[plan-overrides] Failed to log admin action:', auditErr);

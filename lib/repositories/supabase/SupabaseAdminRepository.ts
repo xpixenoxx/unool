@@ -858,7 +858,168 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
     const { data, error } = await query;
     if (error) throw error;
-    return (data || []).map(this.mapAuditLog);
+    const mapped = (data || []).map(this.mapAuditLog);
+    return this.enrichAuditLogs(mapped);
+  }
+
+  private async enrichAuditLogs(logs: AdminAuditLog[]): Promise<AdminAuditLog[]> {
+    if (!logs || logs.length === 0) return [];
+
+    try {
+      const userIdsToLookup = new Set<string>();
+      const subIdsToLookup = new Set<string>();
+      const overrideIdsToLookup = new Set<string>();
+      const wsIdsToLookup = new Set<string>();
+
+      for (const log of logs) {
+        if (!log.targetUserEmail && log.targetId) {
+          if (log.targetType === 'user') {
+            userIdsToLookup.add(log.targetId);
+          } else if (log.targetType === 'subscription') {
+            subIdsToLookup.add(log.targetId);
+          } else if (log.targetType === 'user_plan_override') {
+            overrideIdsToLookup.add(log.targetId);
+          } else if (log.targetType === 'workspace') {
+            wsIdsToLookup.add(log.targetId);
+          }
+        }
+      }
+
+      const overrideInfoMap = new Map<string, { email?: string; name?: string; planId?: string; amount?: number }>();
+      if (overrideIdsToLookup.size > 0) {
+        try {
+          const { data: ovs } = await adminClient
+            .from('user_plan_overrides')
+            .select('id, user_email, user_name, plan_id, custom_monthly_inr')
+            .in('id', Array.from(overrideIdsToLookup));
+          (ovs || []).forEach((o: any) => {
+            overrideInfoMap.set(o.id, {
+              email: o.user_email || undefined,
+              name: o.user_name || undefined,
+              planId: o.plan_id || undefined,
+              amount: o.custom_monthly_inr || undefined,
+            });
+          });
+        } catch {}
+      }
+
+      const subInfoMap = new Map<string, { userId?: string; workspaceName?: string }>();
+      if (subIdsToLookup.size > 0) {
+        try {
+          const { data: subs } = await adminClient
+            .from('subscriptions')
+            .select('id, user_id, workspace_id, workspaces(name, owner_id)')
+            .in('id', Array.from(subIdsToLookup));
+          (subs || []).forEach((s: any) => {
+            const wsName = s.workspaces?.name || undefined;
+            const uId = s.user_id || s.workspaces?.owner_id || undefined;
+            subInfoMap.set(s.id, { userId: uId, workspaceName: wsName });
+            if (uId) userIdsToLookup.add(uId);
+          });
+        } catch {}
+      }
+
+      const wsInfoMap = new Map<string, { name?: string; ownerId?: string }>();
+      if (wsIdsToLookup.size > 0) {
+        try {
+          const { data: wss } = await adminClient
+            .from('workspaces')
+            .select('id, name, owner_id')
+            .in('id', Array.from(wsIdsToLookup));
+          (wss || []).forEach((w: any) => {
+            wsInfoMap.set(w.id, { name: w.name, ownerId: w.owner_id });
+            if (w.owner_id) userIdsToLookup.add(w.owner_id);
+          });
+        } catch {}
+      }
+
+      const userInfoMap = new Map<string, { email?: string; name?: string }>();
+      if (userIdsToLookup.size > 0) {
+        const userIds = Array.from(userIdsToLookup);
+        try {
+          const { data: profs } = await adminClient
+            .from('profiles')
+            .select('user_id, name')
+            .in('user_id', userIds);
+          (profs || []).forEach((p: any) => {
+            if (p.user_id && p.name) {
+              userInfoMap.set(p.user_id, { name: p.name });
+            }
+          });
+        } catch {}
+
+        try {
+          const userPromises = userIds.slice(0, 30).map(async (id) => {
+            try {
+              const res = await adminClient.auth.admin.getUserById(id);
+              return res.data?.user || null;
+            } catch {
+              return null;
+            }
+          });
+          const users = await Promise.all(userPromises);
+          users.forEach((u: any) => {
+            if (u) {
+              const prev = userInfoMap.get(u.id) || {};
+              const meta = (u.user_metadata as Record<string, any>) || {};
+              userInfoMap.set(u.id, {
+                email: u.email || prev.email,
+                name: meta.full_name || meta.name || prev.name,
+              });
+            }
+          });
+        } catch {}
+      }
+
+      return logs.map((log) => {
+        let email = log.targetUserEmail;
+        let name = log.targetUserName;
+        const meta = { ...log.metadata };
+
+        if (!email && log.targetId) {
+          if (log.targetType === 'user') {
+            const u = userInfoMap.get(log.targetId);
+            if (u?.email) email = u.email;
+            if (u?.name && !name) name = u.name;
+          } else if (log.targetType === 'subscription') {
+            const sub = subInfoMap.get(log.targetId);
+            if (sub?.workspaceName && !meta.workspaceName) {
+              meta.workspaceName = sub.workspaceName;
+            }
+            if (sub?.userId) {
+              const u = userInfoMap.get(sub.userId);
+              if (u?.email) email = u.email;
+              if (u?.name && !name) name = u.name;
+            }
+          } else if (log.targetType === 'user_plan_override') {
+            const ovr = overrideInfoMap.get(log.targetId);
+            if (ovr?.email) email = ovr.email;
+            if (ovr?.name && !name) name = ovr.name;
+            if (ovr?.planId && !meta.planId) meta.planId = ovr.planId;
+            if (ovr?.amount !== undefined && meta.customMonthlyInr === undefined) {
+              meta.customMonthlyInr = ovr.amount;
+            }
+          } else if (log.targetType === 'workspace') {
+            const ws = wsInfoMap.get(log.targetId);
+            if (ws?.name && !meta.workspaceName) meta.workspaceName = ws.name;
+            if (ws?.ownerId) {
+              const u = userInfoMap.get(ws.ownerId);
+              if (u?.email) email = u.email;
+              if (u?.name && !name) name = u.name;
+            }
+          }
+        }
+
+        return {
+          ...log,
+          targetUserEmail: email || null,
+          targetUserName: name || null,
+          metadata: meta,
+        };
+      });
+    } catch {
+      return logs;
+    }
   }
 
   async logAdminAction(
@@ -1144,11 +1305,16 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
     if (error) throw error;
 
+    const userEmail = userData?.user?.email || null;
+    const userName = existingMeta.full_name || existingMeta.name || existingMeta.display_name || null;
+
     await this.logAdminAction(adminUserId, 'user_suspend', 'user', userId, {
       reason,
       durationHours: isPermanent ? null : Math.round(durationHours),
       isPermanent,
       bannedUntil,
+      userEmail,
+      userName,
     });
     return true;
   }
@@ -1171,7 +1337,13 @@ export class SupabaseAdminRepository implements IAdminRepository {
 
     if (error) throw error;
 
-    await this.logAdminAction(adminUserId, 'user_unsuspend', 'user', userId, {});
+    const userEmail = userData?.user?.email || null;
+    const userName = existingMeta.full_name || existingMeta.name || existingMeta.display_name || null;
+
+    await this.logAdminAction(adminUserId, 'user_unsuspend', 'user', userId, {
+      userEmail,
+      userName,
+    });
     return true;
   }
 
@@ -2145,6 +2317,9 @@ export class SupabaseAdminRepository implements IAdminRepository {
         newPlanId,
         newAmountPaise,
         reason,
+        userEmail: current.userEmail || null,
+        userName: current.userName || null,
+        workspaceName: current.workspaceName || null,
       });
 
       return inserted ? this.mapSubscription(inserted) : null;
@@ -2169,6 +2344,9 @@ export class SupabaseAdminRepository implements IAdminRepository {
       oldAmountPaise: current.amountPaise,
       newAmountPaise,
       reason,
+      userEmail: current.userEmail || null,
+      userName: current.userName || null,
+      workspaceName: current.workspaceName || null,
     });
 
     // Also update the workspace plan
@@ -2703,19 +2881,42 @@ export class SupabaseAdminRepository implements IAdminRepository {
     };
   }
 
-  private mapAuditLog(row: { id: string; admin_user_id: string; action: string; target_type: string; target_id: string | null; metadata: Record<string, unknown>; ip_hash: string | null; user_agent: string | null; created_at: string }): AdminAuditLog {
+  private mapAuditLog = (row: {
+    id: string;
+    admin_user_id: string;
+    action: string;
+    target_type: string;
+    target_id: string | null;
+    metadata: Record<string, unknown>;
+    ip_hash: string | null;
+    user_agent: string | null;
+    created_at: string;
+  }): AdminAuditLog => {
+    const meta = row.metadata || {};
+    const email =
+      (meta.userEmail as string | undefined) ||
+      (meta.targetEmail as string | undefined) ||
+      (meta.email as string | undefined) ||
+      null;
+    const name =
+      (meta.userName as string | undefined) ||
+      (meta.name as string | undefined) ||
+      null;
+
     return {
       id: row.id,
       adminUserId: row.admin_user_id,
       action: row.action,
       targetType: row.target_type,
       targetId: row.target_id,
-      metadata: row.metadata || {},
+      metadata: meta,
       ipHash: row.ip_hash,
       userAgent: row.user_agent,
       createdAt: row.created_at,
+      targetUserEmail: email,
+      targetUserName: name,
     };
-  }
+  };
 
   private mapPaymentOrder(row: any): PaymentOrderAdminView {
     return {
