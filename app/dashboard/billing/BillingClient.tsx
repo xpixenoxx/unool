@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useFeatureFlags } from '@/lib/hooks/use-feature-flags';
 import type { CashfreeInstance } from '@cashfreepayments/cashfree-js';
 import { sanitizePaymentError } from '@/lib/billing/sanitizeError';
 
@@ -232,6 +233,7 @@ function BillingSkeleton() {
 // ── Component ───────────────────────────────────────────────────
 
 export default function BillingClient() {
+  const { flags: featureFlags } = useFeatureFlags();
   const [plans, setPlans] = useState<PlanData[]>(() => memoryBillingPlans || []);
   const [overrides, setOverrides] = useState<Record<string, PlanOverrideDisplay>>({});
   const [currentPlan, setCurrentPlan] = useState<CurrentPlan | null>(() => memoryBillingCurrent || null);
@@ -2000,7 +2002,7 @@ export default function BillingClient() {
                       {[
                         'Unlimited AI Adapters (LinkedIn, X, Threads, IG)',
                         'Autonomous smart multi-platform schedule sync',
-                        'SignalDM smart high-intent lead conversion concierge',
+                        ...(featureFlags.automationEnabled ? ['SignalDM smart high-intent lead conversion concierge'] : []),
                         'Full 4K Ultra-HD media studio & brand asset kits',
                       ].map((item, idx) => (
                         <li key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 7, fontSize: 11.8, color: '#334155', lineHeight: 1.35 }}>

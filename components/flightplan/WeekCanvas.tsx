@@ -6,6 +6,7 @@ import { Loader2 } from 'lucide-react';
 import { ScheduledPostModal } from './ScheduledPostModal';
 import { ScheduleNewPostModal } from './ScheduleNewPostModal';
 import { BarcodeTicket } from './ui/BarcodeTicket';
+import { useFeatureFlags } from '@/lib/hooks/use-feature-flags';
 import { useFlightPlanActions } from '@/hooks/flightplan';
 import { studioToast } from '@/components/dashboard/StudioToast';
 import type { CanvasPost, PlatformType } from '@/types/flightplan';

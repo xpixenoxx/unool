@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useFeatureFlags } from '@/lib/hooks/use-feature-flags';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { RefreshCw, TrendingUp, Activity, BarChart3, Zap, Globe, Info, ArrowRight, Target, Layers, Award } from 'lucide-react';
@@ -344,6 +345,7 @@ function HookRanking({ hooks, avgInteractions }: { hooks: HookItem[]; avgInterac
 }
 
 function PlatformIntelligence({ posts }: { posts: SignalPost[] }) {
+  const { flags } = useFeatureFlags();
   const igPosts = posts.filter(p => p.variants.some(v => v.platform === 'instagram' && v.status === 'published'));
   const liPosts = posts.filter(p => p.variants.some(v => v.platform === 'linkedin' && v.status === 'published'));
   const igInt = igPosts.reduce((s, p) => s + (p.engagement?.total || 0), 0);
@@ -402,7 +404,7 @@ function PlatformIntelligence({ posts }: { posts: SignalPost[] }) {
               {igPosts.length > 0 && igInt > 0 ? `Live engagement active. ${igPosts.length} posts, ${igInt.toLocaleString()} interactions synced.` : igPosts.length > 0 ? `${igPosts.length} IG posts found. Connect Business account to sync live engagement.` : 'Connect your Instagram Business account to enable real-time comment sync and live analytics.'}
             </p>
           </div>
-          <InfoTip text="Instagram Graph API requires a Business or Creator account. Unool syncs likes, comments, reach, and impressions once connected. Comment automation requires instagram_manage_comments approval from Meta App Review." />
+          <InfoTip text={flags.automationEnabled ? "Instagram Graph API requires a Business or Creator account. Unool syncs likes, comments, reach, and impressions once connected. Comment automation requires instagram_manage_comments approval from Meta App Review." : "Instagram Graph API requires a Business or Creator account. Unool syncs likes, comments, reach, and impressions once connected."} />
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 10 }}>
           {[{ label: 'Comment Sync', val: igInt > 0 ? 'Active' : 'Pending' }, { label: 'IG Posts', val: String(igPosts.length) }, { label: 'LinkedIn Posts', val: String(liPosts.length) }].map(item => (

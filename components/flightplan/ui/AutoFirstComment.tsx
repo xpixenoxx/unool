@@ -2,11 +2,13 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { useFeatureFlags } from '@/lib/hooks/use-feature-flags';
 import type { AutoFirstCommentProps } from '@/types/flightplan';
 import { B, MOTION, SPACING, RADIUS, SHADOW } from '../design-tokens';
 
 export function AutoFirstComment({ content, label = 'Auto first comment (posted 90s after)' }: AutoFirstCommentProps) {
-  if (!content) return null;
+  const { flags } = useFeatureFlags();
+  if (!flags.automationEnabled || !content) return null;
 
   return (
     <div className={cn("rounded-xl p-3 border space-y-1 text-xs")} style={{ backgroundColor: B.accentBg, borderColor: B.accentBorder }}>
@@ -21,7 +23,8 @@ export function AutoFirstComment({ content, label = 'Auto first comment (posted 
 }
 
 export function FirstCommentHint({ content, label = 'Suggested first comment' }: AutoFirstCommentProps) {
-  if (!content) return null;
+  const { flags } = useFeatureFlags();
+  if (!flags.automationEnabled || !content) return null;
 
   return (
     <div className={cn("rounded-xl p-3 border space-y-1 text-xs")} style={{ backgroundColor: B.infoBg, borderColor: B.infoBorder }}>

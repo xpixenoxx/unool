@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config/schema';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { decryptToken } from '@/lib/crypto/encryption';
+import { isAutomationEnabledServer } from '@/lib/feature-flags-server';
 import {
   InstagramCommentAutomation,
   DEFAULT_AUTOMATION_CONFIG,
@@ -115,13 +116,14 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. Fetch automation config
+    const globalAutomationEnabled = await isAutomationEnabledServer();
     const { data: rawConfig } = await supabase
       .from('instagram_automation_config')
       .select('*')
       .eq('workspace_id', workspaceId)
       .single();
 
-    const automationConfig: AutomationConfig = rawConfig
+    const automationConfig: AutomationConfig = (rawConfig && globalAutomationEnabled)
       ? {
           enabled: rawConfig.enabled ?? true,
           autoReplyPositive: rawConfig.auto_reply_positive ?? true,

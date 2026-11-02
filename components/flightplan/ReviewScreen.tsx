@@ -6,6 +6,7 @@ import { BarcodeTicket } from './ui/BarcodeTicket';
 import { HashtagInput } from './ui/HashtagInput';
 import { ImageDropZone } from './ui/ImageDropZone';
 import { PlatformBrandLogo } from '@/components/dashboard/PlatformLogos';
+import { useFeatureFlags } from '@/lib/hooks/use-feature-flags';
 import { studioToast } from '@/components/dashboard/StudioToast';
 import { extractMediaFilename } from '@/hooks/flightplan';
 import { ContentGuard } from '@/lib/ai/ContentGuard';
@@ -41,6 +42,8 @@ function parseLocalDate(dateStr: string): Date {
 }
 
 export function ReviewScreen({
+  // Feature flags
+
   arc: initialArc,
   weekStartDate,
   isPreviewOnly,

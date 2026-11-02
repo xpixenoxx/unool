@@ -4,6 +4,7 @@ import { config } from '@/lib/config/schema';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/logger';
 import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
+import { isAutomationEnabledServer } from '@/lib/feature-flags-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,6 +46,15 @@ export async function GET(request: NextRequest) {
 
     const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
     if (!hasAccess) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+    const globalAutomationEnabled = await isAutomationEnabledServer();
+    if (!globalAutomationEnabled) {
+      return NextResponse.json({
+        ...DEFAULT_LINKEDIN_CONFIG,
+        enabled: false,
+        disabledByAdmin: true,
+      });
+    }
 
     // Try fetching from platform_automations or workspace metadata
     let defaultLinkUrl: string | null = null;

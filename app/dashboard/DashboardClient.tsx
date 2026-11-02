@@ -11,6 +11,7 @@ import { PlatformBrandLogo } from '@/components/dashboard/PlatformLogos';
 import { Dialog, DialogContent, DialogTrigger, DialogTitle } from '@/components/ui/dialog';
 import { ProfileCompletionQuest, getQuestSteps } from '@/components/dashboard/ProfileCompletionQuest';
 import { getHourlyGreetingForDate } from '@/lib/utils/hourlyGreetings';
+import { useFeatureFlags } from '@/lib/hooks/use-feature-flags';
 import './overview.css';
 
 /* ─── Types ────────────────────────────────────────────────── */
@@ -450,6 +451,7 @@ function InteractiveSparkline({
    ═══════════════════════════════════════════════════════════════ */
 
 export default function DashboardClient({ data }: { data: DashboardData }) {
+  const { flags: featureFlags } = useFeatureFlags();
   const { profile, recentPosts, usageStats } = data;
 
   const displayName = profile?.name?.split(' ')[0] || 'there';

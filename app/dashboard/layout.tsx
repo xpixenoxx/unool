@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Globe, PenTool, Settings, LogOut, ChevronLeft, Menu, LayoutDashboard, LayoutGrid, Radio, Network, BarChart3, Bell, CalendarDays, Zap, CreditCard, Lock, Gift, Copy, Check, ExternalLink } from 'lucide-react';
 import { UserProvider, useUserContext } from '@/lib/hooks/use-user-context';
+import { FeatureFlagsProvider, useFeatureFlags } from '@/lib/hooks/use-feature-flags';
 import { SignalStrip } from './signal/SignalStrip';
 import { SubdomainClaimPopup } from '@/components/onboarding/SubdomainClaimPopup';
 import { toast } from 'sonner';
@@ -77,6 +78,7 @@ function DashboardSidebar({
   setSidebarOpen: (v: boolean) => void;
 }) {
   const { user, profile, workspace, pendingPostsCount, loading } = useUserContext();
+  const { flags: featureFlags } = useFeatureFlags();
   const pathname = usePathname();
   const router = useRouter();
   const [copied, setCopied] = useState(false);
@@ -276,7 +278,7 @@ function DashboardSidebar({
         },
       ],
     },
-  ], [dynamicPendingCount]);
+  ], [dynamicPendingCount, featureFlags.automationEnabled]);
 
   const flatNavItems = useMemo(() => navSections.flatMap((s) => s.items), [navSections]);
 

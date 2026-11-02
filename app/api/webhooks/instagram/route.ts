@@ -3,6 +3,7 @@ import { logger } from '@/lib/logger';
 import { verifyMetaSignature } from '@/lib/webhooks/verify';
 import { config } from '@/lib/config/schema';
 import { decryptToken } from '@/lib/crypto/encryption';
+import { isAutomationEnabledServer } from '@/lib/feature-flags-server';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -854,6 +855,26 @@ async function processDmEvent(igUserId: string, messaging: Record<string, unknow
 // ─── Helper: Load automation config ──────────────────────────────────────────
 
 async function loadAutomationConfig(workspaceId: string): Promise<AutomationConfig> {
+  const globalAutomationEnabled = await isAutomationEnabledServer();
+  if (!globalAutomationEnabled) {
+    return {
+      enabled: false,
+      autoReplyPositive: false,
+      autoReplyQuestions: false,
+      autoReplyLinkRequests: false,
+      autoReplyPurchaseIntent: false,
+      flagNegative: false,
+      flagSpam: false,
+      maxRepliesPerHour: 0,
+      jitterMinSeconds: 0,
+      jitterMaxSeconds: 0,
+      threadChainingEnabled: false,
+      autoHideSpam: false,
+      dmAutoReplyEnabled: false,
+      dmEscalationEnabled: false,
+      dmMaxRepliesPerHour: 0,
+    };
+  }
   try {
     const { data } = await supabase
       .from('instagram_automation_config')

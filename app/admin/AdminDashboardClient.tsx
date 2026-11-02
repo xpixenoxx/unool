@@ -32,6 +32,10 @@ import {
   Ban,
   ShieldCheck,
   PieChart,
+  Zap,
+  ToggleLeft,
+  ToggleRight,
+  Loader2 as LucideLoader2,
 } from 'lucide-react';
 import {
   MotionBox,
@@ -131,6 +135,58 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
   const [isRefreshing, setIsRefreshing] = React.useState(false);
   const [isPlanModalOpen, setIsPlanModalOpen] = React.useState(false);
   const [isUserHovered, setIsUserHovered] = React.useState(false);
+
+  // -- Automation Feature Flag ----------------------------------------------
+  const [automationEnabled, setAutomationEnabled] = React.useState<boolean | null>(null);
+  const [automationFlagLoading, setAutomationFlagLoading] = React.useState(true);
+  const [automationFlagSaving, setAutomationFlagSaving] = React.useState(false);
+  const [automationFlagToast, setAutomationFlagToast] = React.useState<{ type: 'success' | 'error'; msg: string } | null>(null);
+
+  const fetchAutomationFlag = React.useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/feature-flags');
+      if (res.ok) {
+        const data = await res.json();
+        const flag = (data.flags ?? []).find((f: any) => f.flag_key === 'automation_enabled');
+        setAutomationEnabled(flag ? flag.flag_value : true);
+      }
+    } catch {
+      setAutomationEnabled(true);
+    } finally {
+      setAutomationFlagLoading(false);
+    }
+  }, []);
+
+  const handleAutomationToggle = async (newValue: boolean) => {
+    setAutomationFlagSaving(true);
+    setAutomationFlagToast(null);
+    const previous = automationEnabled;
+    setAutomationEnabled(newValue); // optimistic update
+    try {
+      const res = await fetch('/api/admin/feature-flags', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ flag_key: 'automation_enabled', flag_value: newValue }),
+      });
+      if (!res.ok) throw new Error('Save failed');
+      setAutomationFlagToast({
+        type: 'success',
+        msg: newValue
+          ? 'Instagram & LinkedIn Automation is now ENABLED for all users.'
+          : 'Instagram & LinkedIn Automation is now DISABLED for all users.',
+      });
+    } catch {
+      setAutomationEnabled(previous); // revert on error
+      setAutomationFlagToast({ type: 'error', msg: 'Failed to update flag. Please try again.' });
+    } finally {
+      setAutomationFlagSaving(false);
+      setTimeout(() => setAutomationFlagToast(null), 4000);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchAutomationFlag();
+  }, [fetchAutomationFlag]);
   const { workspaces, users, plans } = initialData;
 
   const refreshAnalytics = React.useCallback(async (showIndicator = false) => {
@@ -297,6 +353,70 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
           </Button>
         </Flex>
       </Flex>
+
+      {/* -- Automation Feature Flag Toggle ----------------------------------- */}
+      <MotionBox variant="fade">
+        <Card className="border-2 border-dashed border-violet-200 dark:border-violet-800 bg-gradient-to-r from-violet-50/60 to-pink-50/40 dark:from-violet-950/30 dark:to-pink-950/20">
+          <CardContent className="py-5 px-6">
+            <Flex between align="center" className="flex-wrap gap-4">
+              {/* Label */}
+              <Flex align="center" gap={3}>
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-pink-500 shadow-sm">
+                  <Zap className="h-5 w-5 text-white" />
+                </div>
+                <Box>
+                  <Flex align="center" gap={2}>
+                    <Text weight="semibold" size="sm" color="foreground">
+                      Instagram &amp; LinkedIn Automation
+                    </Text>
+                    {automationFlagLoading ? (
+                      <LucideLoader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                    ) : (
+                      <Badge
+                        variant={automationEnabled ? 'success' : 'secondary'}
+                        className="text-[10px] py-0 px-2"
+                      >
+                        {automationEnabled ? 'Enabled' : 'Disabled'}
+                      </Badge>
+                    )}
+                  </Flex>
+                  <Text size="xs" color="muted" className="mt-0.5 max-w-md">
+                    Controls global visibility of comment/DM automation, SignalDM, and brand page creation.
+                    When off, all traces are hidden from every user.
+                  </Text>
+                  {automationFlagToast && (
+                    <Text
+                      size="xs"
+                      className={`mt-1.5 font-medium ${automationFlagToast.type === 'success' ? 'text-emerald-600' : 'text-destructive'}`}
+                    >
+                      {automationFlagToast.msg}
+                    </Text>
+                  )}
+                </Box>
+              </Flex>
+
+              {/* Toggle switch */}
+              <button
+                type="button"
+                disabled={automationFlagLoading || automationFlagSaving}
+                onClick={() => {
+                  if (automationEnabled === null) return;
+                  handleAutomationToggle(!automationEnabled);
+                }}
+                className={`relative inline-flex h-8 w-[3.5rem] shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-violet-500 disabled:opacity-50 disabled:cursor-not-allowed ${automationEnabled ? 'bg-violet-600' : 'bg-muted'}`}
+                role="switch"
+                aria-checked={automationEnabled ?? false}
+                aria-label="Toggle Instagram & LinkedIn Automation"
+                title={automationEnabled ? 'Click to disable automation for all users' : 'Click to enable automation for all users'}
+              >
+                <span
+                  className={`pointer-events-none block h-6 w-6 rounded-full bg-white shadow-md ring-0 transition-transform duration-200 ease-in-out ${automationEnabled ? 'translate-x-6' : 'translate-x-0.5'}`}
+                />
+              </button>
+            </Flex>
+          </CardContent>
+        </Card>
+      </MotionBox>
 
       {/* Metrics Grid */}
       <div>

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useFeatureFlags } from '@/lib/hooks/use-feature-flags';
 import {
   Layers,
   ExternalLink,
@@ -67,7 +68,12 @@ export default function PostBrandMaterialsCard({
   onAttachPage,
   onInsertLinkIntoDraft,
 }: PostBrandMaterialsCardProps) {
+  const { flags: featureFlags } = useFeatureFlags();
   const [loading, setLoading] = useState(false);
+
+  if (!featureFlags.automationEnabled) {
+    return null;
+  }
   const [pages, setPages] = useState<BrandMaterialsPageData[]>([]);
   const [subdomain, setSubdomain] = useState<string>(initialSubdomain || 'user');
   const [activeSlug, setActiveSlug] = useState<string | null>(attachedSlug || null);

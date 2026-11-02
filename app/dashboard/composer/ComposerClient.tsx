@@ -113,6 +113,7 @@ import { PlatformSVGs } from '@/components/dashboard/PlatformLogos';
 import { HashtagEditor } from '@/components/dashboard/HashtagEditor';
 import { StudioIdeaGenerator } from '@/components/dashboard/StudioIdeaGenerator';
 import PostBrandMaterialsCard from '@/components/dashboard/PostBrandMaterialsCard';
+import { useFeatureFlags } from '@/lib/hooks/use-feature-flags';
 
 type PlatformType = SupportedPlatformType;
 
@@ -796,6 +797,7 @@ let memoryComposerProfile: Profile | null = null;
 let memoryComposerConnections: PlatformType[] | null = null;
 
 export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
+  const { flags: featureFlags } = useFeatureFlags();
   const router = useRouter();
   const searchParams = useSearchParams();
   const urlMode = searchParams?.get('mode') || null;
@@ -862,7 +864,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
     calculateFit();
     window.addEventListener('resize', calculateFit);
     return () => window.removeEventListener('resize', calculateFit);
-  }, []);
+  }, [featureFlags.automationEnabled]);
   // ── SignalDM automation badge state ─────────────────────────────────────────
   const [signalDmEnabled, setSignalDmEnabled] = useState(false);
   // ── Hook Scorer + Humanizer state ───────────────────────────────────────────
@@ -1178,7 +1180,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
     } catch {
       // Ignore
     }
-  }, []);
+  }, [featureFlags.automationEnabled]);
 
   const togglePlatform = (platform: PlatformType) => {
     setSelectedPlatforms(prev => 
@@ -1339,7 +1341,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
     } finally {
       setProfileLoading(false);
     }
-  }, []);
+  }, [featureFlags.automationEnabled]);
 
   useEffect(() => {
     loadProfile();
@@ -1378,6 +1380,10 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
 
   // ── Fetch SignalDM automation status (non-blocking, best-effort) ─────────────
   useEffect(() => {
+    if (!featureFlags.automationEnabled) {
+      setSignalDmEnabled(false);
+      return;
+    }
     const checkSignalDm = async () => {
       try {
         const res = await fetch(`/api/instagram/automation?workspaceId=${workspaceId}`, { credentials: 'include' });
@@ -1389,7 +1395,7 @@ export function ComposerClient({ userId, workspaceId }: ComposerClientProps) {
       }
     };
     checkSignalDm();
-  }, []);
+  }, [featureFlags.automationEnabled]);
 
   const getValidPlatformsForMedia = (platforms: PlatformType[]) => {
     return platforms.filter(platform => {
