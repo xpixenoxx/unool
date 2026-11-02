@@ -681,10 +681,10 @@ export class SupabaseAdminRepository implements IAdminRepository {
       }
     });
 
-    // Extract top 10 profiles by view count
+    // Extract top 20 profiles by view count
     const sortedProfileEntries = Object.entries(profileViews)
       .sort(([, a], [, b]) => b - a)
-      .slice(0, 10);
+      .slice(0, 20);
     const topProfileIds = sortedProfileEntries.map(([id]) => id);
 
     // Extract top 10 links by click count
@@ -698,11 +698,11 @@ export class SupabaseAdminRepository implements IAdminRepository {
     // Combine all profile IDs needed for both Top Profiles and Top Links
     const allProfileIdsToFetch = Array.from(new Set([...topProfileIds, ...linkProfileIds]));
 
-    // Fetch profile details for real names, subdomains, avatars, and custom links in parallel
+    // Fetch profile details for real names, subdomains, avatars, user_id and custom links in parallel
     const fetchProfilesPromise = allProfileIdsToFetch.length > 0
       ? adminClient
           .from('profiles')
-          .select('id, name, subdomain, avatar_url, links')
+          .select('id, user_id, name, subdomain, avatar_url, links')
           .in('id', allProfileIdsToFetch)
       : Promise.resolve({ data: [] as any[], error: null });
 
@@ -722,7 +722,35 @@ export class SupabaseAdminRepository implements IAdminRepository {
       fetchProfilesPromise,
     ]);
 
+    // Resolve user emails for profile owners
+    const userIdsToLookup = new Set<string>();
+    if (profilesRes && 'data' in profilesRes && Array.isArray(profilesRes.data)) {
+      profilesRes.data.forEach((p: any) => {
+        if (p.user_id) userIdsToLookup.add(p.user_id);
+      });
+    }
+
+    const userEmailMap = new Map<string, string>();
+    if (userIdsToLookup.size > 0) {
+      try {
+        const userPromises = Array.from(userIdsToLookup).map(async (uid) => {
+          try {
+            const res = await adminClient.auth.admin.getUserById(uid);
+            return res.data?.user ? { id: uid, email: res.data.user.email || '' } : null;
+          } catch {
+            return null;
+          }
+        });
+        const users = await Promise.all(userPromises);
+        users.forEach((u) => {
+          if (u && u.email) userEmailMap.set(u.id, u.email);
+        });
+      } catch {}
+    }
+
     const profileMap = new Map<string, {
+      userId?: string | null;
+      userEmail?: string | null;
       name: string;
       subdomain?: string | null;
       avatarUrl?: string | null;
@@ -735,7 +763,11 @@ export class SupabaseAdminRepository implements IAdminRepository {
       profilesRes.data.forEach((p: any) => {
         foundProfileIds.add(p.id);
         const resolvedName = p.name?.trim() || (p.subdomain ? `@${p.subdomain}` : '');
+        const uId = p.user_id || null;
+        const uEmail = uId ? userEmailMap.get(uId) || null : null;
         profileMap.set(p.id, {
+          userId: uId,
+          userEmail: uEmail,
           name: resolvedName || `Profile (${p.id.slice(0, 8)})`,
           subdomain: p.subdomain || null,
           avatarUrl: p.avatar_url || null,
@@ -816,6 +848,8 @@ export class SupabaseAdminRepository implements IAdminRepository {
         const details = profileMap.get(profileId);
         return {
           profileId,
+          userId: details?.userId || null,
+          userEmail: details?.userEmail || null,
           name: details?.name || `Profile (${profileId.slice(0, 8)})`,
           subdomain: details?.subdomain || null,
           avatarUrl: details?.avatarUrl || null,

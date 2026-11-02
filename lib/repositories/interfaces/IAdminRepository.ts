@@ -159,6 +159,8 @@ export interface AnalyticsSummary {
   }>;
   topProfiles: Array<{
     profileId: string;
+    userId?: string | null;
+    userEmail?: string | null;
     name: string;
     views: number;
     subdomain?: string | null;

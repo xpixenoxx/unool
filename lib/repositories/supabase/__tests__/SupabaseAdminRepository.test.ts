@@ -118,6 +118,8 @@ describe('SupabaseAdminRepository - getAnalyticsSummary', () => {
     // Profile 1: Most viewed (2 views)
     expect(summary.topProfiles[0]).toEqual({
       profileId: 'prof-1111-2222-3333-4444',
+      userId: null,
+      userEmail: null,
       name: 'Priya Sharma',
       subdomain: 'priya',
       avatarUrl: 'https://example.com/priya.png',
@@ -128,6 +130,8 @@ describe('SupabaseAdminRepository - getAnalyticsSummary', () => {
     // Profile 2: 1 view, name is null so falls back to @subdomain
     expect(summary.topProfiles[1]).toEqual({
       profileId: 'prof-5555-6666-7777-8888',
+      userId: null,
+      userEmail: null,
       name: '@creatorpro',
       subdomain: 'creatorpro',
       avatarUrl: null,
