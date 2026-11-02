@@ -913,48 +913,15 @@ function PlanRow({ plan, count, percentage, color, label }: { plan: string; coun
 // ---- Main Page ----
 let cached: { data: Insights; ts: number } | null = null;
 
-export default function UserInsightsPage() {
-  const [data, setData] = React.useState<Insights | null>(cached?.data || null);
-  const [loading, setLoading] = React.useState(!cached?.data);
-  const [error, setError] = React.useState<string | null>(null);
-  const [lastSync, setLastSync] = React.useState<string>('');
-
-  const fetchData = React.useCallback(async (showLoader = false) => {
-    if (showLoader) setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch('/api/admin/user-insights', { cache: 'no-store' });
-      if (!res.ok) throw new Error('Failed to fetch insights');
-      const json: Insights = await res.json();
-      cached = { data: json, ts: Date.now() };
-      setData(json);
-      setLastSync(new Date().toLocaleTimeString());
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unknown error');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  React.useEffect(() => {
-    fetchData(!cached?.data);
-    const id = setInterval(() => fetchData(false), 10000);
-    return () => clearInterval(id);
-  }, [fetchData]);
-
-  if (loading) return <UserInsightsSkeleton />;
-
-  if (error) return (
-    <Box className="flex flex-col items-center justify-center py-24 gap-4">
-      <Text color="muted" size="lg">Failed to load insights</Text>
-      <Button onClick={() => fetchData(true)} variant="outline">
-        <RefreshCw className="mr-2 h-4 w-4" /> Retry
-      </Button>
-    </Box>
-  );
-
-  if (!data) return null;
-
+function UserInsightsDashboard({
+  data,
+  lastSync,
+  onRefresh,
+}: {
+  data: Insights;
+  lastSync: string;
+  onRefresh: () => void;
+}) {
   const { userBreakdown, postsByPlatform, platformStats, timeSpentStats } = data;
 
   // Consolidate 'free' and 'spark' into 'spark' (Spark (Free))
@@ -1024,7 +991,7 @@ export default function UserInsightsPage() {
             Live · auto-refresh 10s
           </Badge>
           {lastSync && <span className="text-[11px] text-muted-foreground">Last sync: {lastSync}</span>}
-          <Button variant="outline" size="sm" onClick={() => fetchData(true)} className="h-8 gap-1.5">
+          <Button variant="outline" size="sm" onClick={onRefresh} className="h-8 gap-1.5">
             <RefreshCw className="h-3.5 w-3.5" /> Refresh
           </Button>
         </Flex>
@@ -1460,6 +1427,59 @@ export default function UserInsightsPage() {
         Auto-refreshing every 15 seconds · Real live user time tracked per dashboard section
       </p>
     </Box>
+  );
+}
+
+export default function UserInsightsPage() {
+  const [data, setData] = React.useState<Insights | null>(cached?.data || null);
+  const [loading, setLoading] = React.useState(!cached?.data);
+  const [error, setError] = React.useState<string | null>(null);
+  const [lastSync, setLastSync] = React.useState<string>('');
+
+  const fetchData = React.useCallback(async (showLoader = false) => {
+    if (showLoader) setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/admin/user-insights', { cache: 'no-store' });
+      if (!res.ok) throw new Error('Failed to fetch insights');
+      const json: Insights = await res.json();
+      cached = { data: json, ts: Date.now() };
+      setData(json);
+      setLastSync(new Date().toLocaleTimeString());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unknown error');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    fetchData(!cached?.data);
+    const id = setInterval(() => fetchData(false), 10000);
+    return () => clearInterval(id);
+  }, [fetchData]);
+
+  if (loading) return <UserInsightsSkeleton />;
+
+  if (error) {
+    return (
+      <Box className="flex flex-col items-center justify-center py-24 gap-4">
+        <Text color="muted" size="lg">Failed to load insights</Text>
+        <Button onClick={() => fetchData(true)} variant="outline">
+          <RefreshCw className="mr-2 h-4 w-4" /> Retry
+        </Button>
+      </Box>
+    );
+  }
+
+  if (!data) return null;
+
+  return (
+    <UserInsightsDashboard
+      data={data}
+      lastSync={lastSync}
+      onRefresh={() => fetchData(true)}
+    />
   );
 }
 
