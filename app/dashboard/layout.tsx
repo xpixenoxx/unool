@@ -587,13 +587,6 @@ function DashboardSidebar({
                 <ExternalLink className="w-3.5 h-3.5 text-[#C8613D]" />
                 <span>View live page</span>
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => router.push('/dashboard/settings')}
-                className="flex items-center gap-2.5 px-2.5 py-2 text-xs font-medium text-[#231C16] hover:bg-[#F3EAD9] rounded-lg cursor-pointer transition-colors"
-              >
-                <Settings className="w-3.5 h-3.5 text-[#C8613D]" />
-                <span>Account settings</span>
-              </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-[#E8DFD5]" />
               <DropdownMenuItem
                 onClick={handleSignOut}
