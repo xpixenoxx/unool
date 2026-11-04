@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useUserContext } from '@/lib/hooks/use-user-context';
+import { useFeatureFlags } from '@/lib/hooks/use-feature-flags';
 import LinkedInAutomationClient from './LinkedInAutomationClient';
 import BrandMaterialsSection from './BrandMaterialsSection';
 import './automation.css';
@@ -62,6 +64,14 @@ export default function AutomationClient({
   const userCtx = useUserContext();
   const workspaceId = initialWorkspaceId || userCtx?.workspace?.id || null;
   const userId = initialUserId || userCtx?.user?.id || '';
+  const { flags: featureFlags } = useFeatureFlags();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!featureFlags.automationEnabled) {
+      router.replace('/dashboard');
+    }
+  }, [featureFlags.automationEnabled, router]);
 
   const [platform, setPlatform] = useState<'instagram' | 'linkedin'>('instagram');
 
@@ -416,6 +426,10 @@ export default function AutomationClient({
       <path d="M8 1v14M1 8h14M3 3l10 10M3 13L13 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
     </svg>
   );
+
+  if (!featureFlags.automationEnabled) {
+    return null;
+  }
 
   if (!workspaceId && userCtx?.loading) {
     return (

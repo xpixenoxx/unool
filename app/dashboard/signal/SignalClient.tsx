@@ -17,6 +17,7 @@ import { formatDistanceToNow, format } from 'date-fns';
 import { toast } from 'sonner';
 
 import { PlatformLogos, getPlatformConfig } from '@/components/dashboard/PlatformLogos';
+import { useFeatureFlags } from '@/lib/hooks/use-feature-flags';
 import { AnalyticsDNA } from '@/components/analytics/AnalyticsDNA';
 import { formatPlatformError } from '@/lib/utils';
 
@@ -74,6 +75,7 @@ let memoryAutomationStats: {
 
 /* ── Main Signal Client ─────────────────────────────────────────────────────── */
 export function SignalClient() {
+  const { flags: featureFlags } = useFeatureFlags();
   const [posts, setPosts] = useState<SignalPost[]>(() => memorySignalPosts || []);
   const [resonance, setResonance] = useState<ResonanceData | null>(() => memoryResonance);
   const [loading, setLoading] = useState(() => !memorySignalPosts);
@@ -384,6 +386,10 @@ export function SignalClient() {
 
   // ── Fetch automation stats for the metrics card (best-effort) ─────────────────
   useEffect(() => {
+    if (!featureFlags.automationEnabled) {
+      setAutomationStats(null);
+      return;
+    }
     const fetchAutomationStats = async () => {
       try {
         const ctxRes = await fetch('/api/user/context', { credentials: 'include' });
@@ -438,7 +444,7 @@ export function SignalClient() {
       }
     };
     fetchAutomationStats();
-  }, [workspaceId]);
+  }, [workspaceId, featureFlags.automationEnabled]);
 
   // Filtered posts for feed
   const filteredPosts = useMemo(() => {
@@ -645,7 +651,7 @@ export function SignalClient() {
             className="space-y-4"
           >
             {/* ── SignalDM Automation Metrics Card ── */}
-            {automationStats && (
+            {featureFlags.automationEnabled && automationStats && (
               <motion.div
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}

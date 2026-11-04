@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { ShieldCheck, Lock, Check, Zap, Sparkles, AlertCircle } from 'lucide-react';
+import { useFeatureFlags } from '@/lib/hooks/use-feature-flags';
 import type { CashfreeInstance } from '@cashfreepayments/cashfree-js';
 import './checkout.css';
 
@@ -79,6 +80,7 @@ export function UnoolCheckoutModal({
   onPaymentSuccess,
   onPaymentFailed,
 }: UnoolCheckoutModalProps) {
+  const { flags: featureFlags } = useFeatureFlags();
   const mountRef = useRef<HTMLDivElement>(null);
   const [loadingGateway, setLoadingGateway] = useState(true);
   const [initError, setInitError] = useState<string | null>(null);
@@ -314,7 +316,7 @@ export function UnoolCheckoutModal({
                   <span>Custom domain support (yourbrand.com)</span>
                 </li>
               )}
-              {plan.features.dm_concierge_full && (
+              {featureFlags.automationEnabled && plan.features.dm_concierge_full && (
                 <li className="unool-feature-item">
                   <span className="unool-feature-check">
                     <Check className="w-3 h-3" />

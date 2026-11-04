@@ -11,6 +11,7 @@ import { PlatformBrandLogo } from '@/components/dashboard/PlatformLogos';
 import { Dialog, DialogContent, DialogTrigger, DialogTitle } from '@/components/ui/dialog';
 import { ProfileCompletionQuest, getQuestSteps } from '@/components/dashboard/ProfileCompletionQuest';
 import { getHourlyGreetingForDate } from '@/lib/utils/hourlyGreetings';
+import { useFeatureFlags } from '@/lib/hooks/use-feature-flags';
 import './overview.css';
 
 /* ─── Types ────────────────────────────────────────────────── */
@@ -450,6 +451,7 @@ function InteractiveSparkline({
    ═══════════════════════════════════════════════════════════════ */
 
 export default function DashboardClient({ data }: { data: DashboardData }) {
+  const { flags: featureFlags } = useFeatureFlags();
   const { profile, recentPosts, usageStats } = data;
 
   const displayName = profile?.name?.split(' ')[0] || 'there';
@@ -1185,26 +1187,28 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           </section>
 
           {/* Card 4: Automation */}
-          <section className="card tool">
-            <span className="tag">Always On</span>
-            <div className="vis">
-              <div className="chat">
-                <span>Love this! How do I start?</span>
-                <span className="b">Sent you the link ✓</span>
+          {featureFlags.automationEnabled && (
+            <section className="card tool">
+              <span className="tag">Always On</span>
+              <div className="vis">
+                <div className="chat">
+                  <span>Love this! How do I start?</span>
+                  <span className="b">Sent you the link ✓</span>
+                </div>
               </div>
-            </div>
-            <h3>Automated Replies</h3>
-            <div className="t2">Never miss a comment or message.</div>
-            <p>
-              Reply to comments and DMs on Instagram and LinkedIn automatically, and turn people who engage into real leads while you focus on creating.
-            </p>
-            <Link href="/dashboard/automation" className="btn d">
-              <span>Set Up Replies</span>
-              <svg viewBox="0 0 24 24">
-                <path d="M5 12h14M13 6l6 6-6 6" />
-              </svg>
-            </Link>
-          </section>
+              <h3>Automated Replies</h3>
+              <div className="t2">Never miss a comment or message.</div>
+              <p>
+                Reply to comments and DMs on Instagram and LinkedIn automatically, and turn people who engage into real leads while you focus on creating.
+              </p>
+              <Link href="/dashboard/automation" className="btn d">
+                <span>Set Up Replies</span>
+                <svg viewBox="0 0 24 24">
+                  <path d="M5 12h14M13 6l6 6-6 6" />
+                </svg>
+              </Link>
+            </section>
+          )}
         </div>
 
         {/* ═══ SECTION 4: Recent Broadcasts ═══ */}

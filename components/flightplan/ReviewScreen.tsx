@@ -6,6 +6,7 @@ import { BarcodeTicket } from './ui/BarcodeTicket';
 import { HashtagInput } from './ui/HashtagInput';
 import { ImageDropZone } from './ui/ImageDropZone';
 import { PlatformBrandLogo } from '@/components/dashboard/PlatformLogos';
+import { useFeatureFlags } from '@/lib/hooks/use-feature-flags';
 import { studioToast } from '@/components/dashboard/StudioToast';
 import { extractMediaFilename } from '@/hooks/flightplan';
 import { ContentGuard } from '@/lib/ai/ContentGuard';
@@ -41,6 +42,8 @@ function parseLocalDate(dateStr: string): Date {
 }
 
 export function ReviewScreen({
+  // Feature flags
+
   arc: initialArc,
   weekStartDate,
   isPreviewOnly,
@@ -48,6 +51,7 @@ export function ReviewScreen({
   onBack,
   isScheduling,
 }: ReviewScreenProps) {
+  const { flags: featureFlags } = useFeatureFlags();
   const baseDate = useMemo(() => {
     const parsed = parseLocalDate(weekStartDate);
     const today = startOfDay(new Date());
@@ -958,35 +962,37 @@ export function ReviewScreen({
                 </div>
 
                 {/* Auto First Comment Switch & Editable CTA Input */}
-                <div className="fp-fld">
-                  <div
-                    className={`fp-sw ${hasAutoComment ? 'on' : ''}`}
-                    role="switch"
-                    tabIndex={0}
-                    onClick={() => !isDeleted && handleToggleFirstComment(i)}
-                    style={{ cursor: isDeleted ? 'not-allowed' : 'pointer' }}
-                  >
-                    <i />
-                    <span>AUTO FIRST COMMENT</span>
-                  </div>
-                  <em>Dispatches CTA link 90s after takeoff (bypasses link penalties).</em>
-                  {hasAutoComment && (
-                    <div style={{ marginTop: 8 }}>
-                      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx2)', display: 'block', marginBottom: 4 }}>
-                        CTA Link / Comment text:
-                      </span>
-                      <input
-                        type="text"
-                        className="fp-first-comment-input"
-                        value={currentCommentText}
-                        disabled={isDeleted}
-                        onChange={e => handleFirstCommentTextChange(i, e.target.value)}
-                        placeholder="e.g. Read full story & links here: https://yourbrand.com"
-                        title="Call to action link posted in first comment 90 seconds after takeoff"
-                      />
+                {featureFlags.automationEnabled && (
+                  <div className="fp-fld">
+                    <div
+                      className={`fp-sw ${hasAutoComment ? 'on' : ''}`}
+                      role="switch"
+                      tabIndex={0}
+                      onClick={() => !isDeleted && handleToggleFirstComment(i)}
+                      style={{ cursor: isDeleted ? 'not-allowed' : 'pointer' }}
+                    >
+                      <i />
+                      <span>AUTO FIRST COMMENT</span>
                     </div>
-                  )}
-                </div>
+                    <em>Dispatches CTA link 90s after takeoff (bypasses link penalties).</em>
+                    {hasAutoComment && (
+                      <div style={{ marginTop: 8 }}>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx2)', display: 'block', marginBottom: 4 }}>
+                          CTA Link / Comment text:
+                        </span>
+                        <input
+                          type="text"
+                          className="fp-first-comment-input"
+                          value={currentCommentText}
+                          disabled={isDeleted}
+                          onChange={e => handleFirstCommentTextChange(i, e.target.value)}
+                          placeholder="e.g. Read full story & links here: https://yourbrand.com"
+                          title="Call to action link posted in first comment 90 seconds after takeoff"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <BarcodeTicket code={ticketId} note={isDeleted ? 'Deleted flight' : 'Updates with time'} />
               </div>

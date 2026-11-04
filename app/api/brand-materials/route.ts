@@ -4,7 +4,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/logger';
 import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-
+import { isAutomationEnabledServer } from '@/lib/feature-flags-server';
 
 
 function maskCloudflareUrl(url: string): string {
@@ -110,6 +110,19 @@ export async function GET(request: NextRequest) {
 
     const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
     if (!hasAccess) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+    const globalAutomationEnabled = await isAutomationEnabledServer();
+    if (!globalAutomationEnabled) {
+      return NextResponse.json({
+        success: true,
+        page: null,
+        pages: [],
+        subdomain: 'user',
+        pageUrl: '',
+        liveTemplate: 'the-voice',
+        disabledByAdmin: true,
+      });
+    }
 
     // Fetch user profile to get subdomain & live page template theme
     const { data: profile } = await supabaseAdmin
@@ -230,6 +243,11 @@ export async function PUT(request: NextRequest) {
 
     const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
     if (!hasAccess) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+    const globalAutomationEnabled = await isAutomationEnabledServer();
+    if (!globalAutomationEnabled) {
+      return NextResponse.json({ error: 'Brand page creation is disabled by administrator' }, { status: 403 });
+    }
 
     // Sanitize slug: lowercase alphanumeric and hyphens only
     const sanitizedSlug = (slug || 'page').toLowerCase().replace(/[^a-z0-9-_]/g, '').trim() || 'page';
@@ -362,6 +380,11 @@ export async function DELETE(request: NextRequest) {
 
     const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
     if (!hasAccess) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+    const globalAutomationEnabled = await isAutomationEnabledServer();
+    if (!globalAutomationEnabled) {
+      return NextResponse.json({ error: 'Brand page creation is disabled by administrator' }, { status: 403 });
+    }
 
     let deleteQuery = supabaseAdmin
       .from('brand_materials_pages')

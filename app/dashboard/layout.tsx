@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Globe, PenTool, Settings, LogOut, ChevronLeft, Menu, LayoutDashboard, LayoutGrid, Radio, Network, BarChart3, Bell, CalendarDays, Zap, CreditCard, Lock, Gift, Copy, Check, ExternalLink } from 'lucide-react';
 import { UserProvider, useUserContext } from '@/lib/hooks/use-user-context';
+import { FeatureFlagsProvider, useFeatureFlags } from '@/lib/hooks/use-feature-flags';
 import { SignalStrip } from './signal/SignalStrip';
 import { SubdomainClaimPopup } from '@/components/onboarding/SubdomainClaimPopup';
 import { toast } from 'sonner';
@@ -77,6 +78,7 @@ function DashboardSidebar({
   setSidebarOpen: (v: boolean) => void;
 }) {
   const { user, profile, workspace, pendingPostsCount, loading } = useUserContext();
+  const { flags: featureFlags } = useFeatureFlags();
   const pathname = usePathname();
   const router = useRouter();
   const [copied, setCopied] = useState(false);
@@ -222,13 +224,15 @@ function DashboardSidebar({
           description: 'Publish & schedule',
           badge: dynamicPendingCount > 0 ? dynamicPendingCount : undefined,
         },
-        {
-          id: 'automation',
-          name: 'Automation',
-          href: '/dashboard/automation',
-          icon: Zap,
-          description: 'Instagram comment automation',
-        },
+        ...(featureFlags.automationEnabled
+          ? [{
+              id: 'automation',
+              name: 'Automation',
+              href: '/dashboard/automation',
+              icon: Zap,
+              description: 'Instagram comment automation',
+            }]
+          : []),
       ],
     },
     {
@@ -276,7 +280,7 @@ function DashboardSidebar({
         },
       ],
     },
-  ], [dynamicPendingCount]);
+  ], [dynamicPendingCount, featureFlags.automationEnabled]);
 
   const flatNavItems = useMemo(() => navSections.flatMap((s) => s.items), [navSections]);
 
@@ -666,8 +670,9 @@ export default function DashboardLayout({
   }, []);
 
   return (
-    <UserProvider>
-      <div className="min-h-screen" style={{ backgroundColor: biscuit.bg }}>
+    <FeatureFlagsProvider>
+      <UserProvider>
+        <div className="min-h-screen" style={{ backgroundColor: biscuit.bg }}>
         {/* Mobile sidebar overlay */}
         {sidebarOpen && (
           <div
@@ -697,7 +702,8 @@ export default function DashboardLayout({
         {/* Onboarding: subdomain claim popup (30s after first dashboard visit) */}
         <DashboardOnboarding />
         <DashboardTimeTracker />
-      </div>
-    </UserProvider>
+        </div>
+      </UserProvider>
+    </FeatureFlagsProvider>
   );
 }

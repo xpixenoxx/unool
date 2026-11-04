@@ -3,9 +3,12 @@ import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import AutomationClient from './AutomationClient';
 import { Loader2 } from 'lucide-react';
+import { isAutomationEnabledServer } from '@/lib/feature-flags-server';
+
+export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'Automation — Instagram & LinkedIn | UNOOL',
+  title: 'Automation – Instagram & LinkedIn | UNOOL',
   description: 'AI-powered comment and DM automation for Instagram and LinkedIn. Classify intent, auto-reply, and convert audience to leads.',
 };
 
@@ -14,6 +17,11 @@ export default async function AutomationPage() {
 
   if (!auth) {
     redirect('/signin');
+  }
+
+  const automationEnabled = await isAutomationEnabledServer();
+  if (!automationEnabled) {
+    redirect('/dashboard');
   }
 
   return (

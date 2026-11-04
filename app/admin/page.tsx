@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { verifyAdminJwt } from '@/lib/auth/admin-jwt';
 import { adminRepository } from '@/lib/repositories/supabase/SupabaseAdminRepository';
+import { isAutomationEnabledServer } from '@/lib/feature-flags-server';
 import AdminDashboardClient from './AdminDashboardClient';
 
 export const dynamic = 'force-dynamic';
@@ -33,17 +34,19 @@ const ADMIN_DATA_CACHE_TTL = 15000; // 15 seconds cache matching live polling in
 async function getAdminData() {
   const now = Date.now();
   if (cachedAdminData && now - lastAdminDataFetch < ADMIN_DATA_CACHE_TTL) {
-    return cachedAdminData;
+    const freshAutomation = await isAutomationEnabledServer();
+    return { ...cachedAdminData, automationEnabled: freshAutomation };
   }
 
-  const [analytics, workspaces, users, plans] = await Promise.all([
+  const [analytics, workspaces, users, plans, automationEnabled] = await Promise.all([
     adminRepository.getAnalyticsSummary(),
     adminRepository.listWorkspaces({ page: 1, pageSize: 5, sortBy: 'createdAt', sortOrder: 'desc' }),
     adminRepository.listAllUsers({ page: 1, pageSize: 5, sortBy: 'createdAt', sortOrder: 'desc' }),
     adminRepository.listPlans(),
+    isAutomationEnabledServer(),
   ]);
 
-  cachedAdminData = { analytics, workspaces, users, plans };
+  cachedAdminData = { analytics, workspaces, users, plans, automationEnabled };
   lastAdminDataFetch = now;
   return cachedAdminData;
 }

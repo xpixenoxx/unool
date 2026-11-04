@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useFeatureFlags } from '@/lib/hooks/use-feature-flags';
 import {
   Layers,
   ExternalLink,
@@ -67,6 +68,7 @@ export default function PostBrandMaterialsCard({
   onAttachPage,
   onInsertLinkIntoDraft,
 }: PostBrandMaterialsCardProps) {
+  const { flags: featureFlags } = useFeatureFlags();
   const [loading, setLoading] = useState(false);
   const [pages, setPages] = useState<BrandMaterialsPageData[]>([]);
   const [subdomain, setSubdomain] = useState<string>(initialSubdomain || 'user');
@@ -94,7 +96,7 @@ export default function PostBrandMaterialsCard({
 
   // Fetch workspace brand pages
   const loadPages = async () => {
-    if (!workspaceId) return;
+    if (!featureFlags.automationEnabled || !workspaceId) return;
     setLoading(true);
     try {
       const res = await fetch(`/api/brand-materials?workspaceId=${workspaceId}`);
@@ -119,6 +121,10 @@ export default function PostBrandMaterialsCard({
       setActiveSlug(attachedSlug);
     }
   }, [attachedSlug]);
+
+  if (!featureFlags.automationEnabled) {
+    return null;
+  }
 
   // Derived attached page
   const attachedPage = pages.find(p => p.slug === activeSlug) || null;

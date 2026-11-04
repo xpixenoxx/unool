@@ -1,10 +1,10 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { config } from '@/lib/config/schema';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/logger';
 import { verifyWorkspaceAccess } from '@/lib/auth/workspaceAccess';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-
+import { isAutomationEnabledServer } from '@/lib/feature-flags-server';
 
 
 // GET /api/instagram/automation?workspaceId=xxx
@@ -20,6 +20,34 @@ export async function GET(request: NextRequest) {
     // Verify user has access to this workspace
     const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
     if (!hasAccess) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+    const globalAutomationEnabled = await isAutomationEnabledServer();
+    if (!globalAutomationEnabled) {
+      return NextResponse.json({
+        enabled: false,
+        disabledByAdmin: true,
+        autoReplyPositive: false,
+        autoReplyQuestions: false,
+        autoReplyLinkRequests: false,
+        autoReplyPurchaseIntent: false,
+        linkUrl: null,
+        customInstructions: null,
+        brandPersona: null,
+        flagNegative: false,
+        flagSpam: false,
+        maxRepliesPerHour: 0,
+        jitterMinSeconds: 0,
+        jitterMaxSeconds: 0,
+        threadChainingEnabled: false,
+        dmTemplate: null,
+        autoHideSpam: false,
+        dmAutoReplyEnabled: false,
+        dmWelcomeMessage: null,
+        dmKnowledgeBase: null,
+        dmEscalationEnabled: false,
+        dmMaxRepliesPerHour: 0,
+      });
+    }
 
     const { data } = await supabaseAdmin
       .from('instagram_automation_config')
@@ -37,6 +65,7 @@ export async function GET(request: NextRequest) {
         .select('subdomain')
         .eq('user_id', user.id)
         .single();
+
       if (profile?.subdomain) {
         const appUrl = config.NEXT_PUBLIC_APP_URL || 'https://unool.com';
         defaultLinkUrl = `${appUrl}/u/${profile.subdomain}`;
@@ -118,6 +147,34 @@ export async function PUT(request: NextRequest) {
     // Verify user has access to this workspace
     const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
     if (!hasAccess) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+    const globalAutomationEnabled = await isAutomationEnabledServer();
+    if (!globalAutomationEnabled) {
+      return NextResponse.json({
+        enabled: false,
+        disabledByAdmin: true,
+        autoReplyPositive: false,
+        autoReplyQuestions: false,
+        autoReplyLinkRequests: false,
+        autoReplyPurchaseIntent: false,
+        linkUrl: null,
+        customInstructions: null,
+        brandPersona: null,
+        flagNegative: false,
+        flagSpam: false,
+        maxRepliesPerHour: 0,
+        jitterMinSeconds: 0,
+        jitterMaxSeconds: 0,
+        threadChainingEnabled: false,
+        dmTemplate: null,
+        autoHideSpam: false,
+        dmAutoReplyEnabled: false,
+        dmWelcomeMessage: null,
+        dmKnowledgeBase: null,
+        dmEscalationEnabled: false,
+        dmMaxRepliesPerHour: 0,
+      });
+    }
 
     const upsertData = {
       workspace_id: workspaceId,

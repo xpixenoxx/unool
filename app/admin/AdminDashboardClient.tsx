@@ -32,6 +32,10 @@ import {
   Ban,
   ShieldCheck,
   PieChart,
+  Zap,
+  ToggleLeft,
+  ToggleRight,
+  Loader2 as LucideLoader2,
 } from 'lucide-react';
 import {
   MotionBox,
@@ -120,6 +124,7 @@ interface InitialData {
   workspaces: { data: WorkspaceAdminView[]; total: number; page: number; pageSize: number; totalPages: number };
   users: { data: UserAdminView[]; total: number; page: number; pageSize: number; totalPages: number };
   plans: PlanAdminView[];
+  automationEnabled?: boolean;
 }
 
 interface AdminDashboardClientProps {
@@ -131,6 +136,71 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
   const [isRefreshing, setIsRefreshing] = React.useState(false);
   const [isPlanModalOpen, setIsPlanModalOpen] = React.useState(false);
   const [isUserHovered, setIsUserHovered] = React.useState(false);
+
+  // -- Automation Feature Flag ----------------------------------------------
+  const [automationEnabled, setAutomationEnabled] = React.useState<boolean>(
+    initialData.automationEnabled ?? true
+  );
+  const [automationFlagLoading, setAutomationFlagLoading] = React.useState(false);
+  const [automationFlagSaving, setAutomationFlagSaving] = React.useState(false);
+  const [automationFlagToast, setAutomationFlagToast] = React.useState<{ type: 'success' | 'error'; msg: string } | null>(null);
+
+  const fetchAutomationFlag = React.useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/feature-flags');
+      if (res.ok) {
+        const data = await res.json();
+        const flag = (data.flags ?? []).find((f: any) => f.flag_key === 'automation_enabled');
+        setAutomationEnabled(flag ? flag.flag_value : true);
+      }
+    } catch {
+      setAutomationEnabled(true);
+    } finally {
+      setAutomationFlagLoading(false);
+    }
+  }, []);
+
+  const handleAutomationToggle = async (newValue: boolean) => {
+    setAutomationFlagSaving(true);
+    setAutomationFlagToast(null);
+    const previous = automationEnabled;
+    setAutomationEnabled(newValue); // optimistic update
+
+    // Broadcast immediately to window and localStorage
+    try {
+      localStorage.setItem('unool_automation_enabled', String(newValue));
+      window.dispatchEvent(new CustomEvent('unool-feature-flags-updated', { detail: { automation_enabled: newValue } }));
+    } catch {}
+
+    try {
+      const res = await fetch('/api/admin/feature-flags', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ flag_key: 'automation_enabled', flag_value: newValue }),
+      });
+      if (!res.ok) throw new Error('Save failed');
+      setAutomationFlagToast({
+        type: 'success',
+        msg: newValue
+          ? 'Instagram & LinkedIn Automation is now ENABLED for all users.'
+          : 'Instagram & LinkedIn Automation is now DISABLED for all users.',
+      });
+    } catch {
+      setAutomationEnabled(previous); // revert on error
+      try {
+        localStorage.setItem('unool_automation_enabled', String(previous));
+        window.dispatchEvent(new CustomEvent('unool-feature-flags-updated', { detail: { automation_enabled: previous } }));
+      } catch {}
+      setAutomationFlagToast({ type: 'error', msg: 'Failed to update flag. Please try again.' });
+    } finally {
+      setAutomationFlagSaving(false);
+      setTimeout(() => setAutomationFlagToast(null), 4000);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchAutomationFlag();
+  }, [fetchAutomationFlag]);
   const { workspaces, users, plans } = initialData;
 
   const refreshAnalytics = React.useCallback(async (showIndicator = false) => {
@@ -297,6 +367,100 @@ export default function AdminDashboardClient({ initialData }: AdminDashboardClie
           </Button>
         </Flex>
       </Flex>
+
+      {/* -- Automation Feature Flag Toggle ----------------------------------- */}
+      <MotionBox variant="fade">
+        <Card className="border-2 border-dashed border-violet-200 dark:border-violet-800 bg-gradient-to-r from-violet-50/60 to-pink-50/40 dark:from-violet-950/30 dark:to-pink-950/20">
+          <CardContent className="py-5 px-6">
+            <Flex between align="center" className="flex-wrap gap-4">
+              {/* Label */}
+              <Flex align="center" gap={3}>
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-pink-500 shadow-sm">
+                  <Zap className="h-5 w-5 text-white" />
+                </div>
+                <Box>
+                  <Flex align="center" gap={2}>
+                    <Text weight="semibold" size="sm" color="foreground">
+                      Instagram &amp; LinkedIn Automation
+                    </Text>
+                    {automationFlagLoading ? (
+                      <LucideLoader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                    ) : (
+                      <Badge
+                        variant={automationEnabled ? 'success' : 'secondary'}
+                        className="text-[10px] py-0 px-2"
+                      >
+                        {automationEnabled ? 'Enabled' : 'Disabled'}
+                      </Badge>
+                    )}
+                  </Flex>
+                  <Text size="xs" color="muted" className="mt-0.5 max-w-md">
+                    Controls global visibility of comment/DM automation, SignalDM, and brand page creation.
+                    When off, all traces are hidden from every user.
+                  </Text>
+                  {automationFlagToast && (
+                    <Text
+                      size="xs"
+                      className={`mt-1.5 font-medium ${automationFlagToast.type === 'success' ? 'text-emerald-600' : 'text-destructive'}`}
+                    >
+                      {automationFlagToast.msg}
+                    </Text>
+                  )}
+                </Box>
+              </Flex>
+
+              {/* Toggle switch with explicit text and action button */}
+              <Flex align="center" gap={3}>
+                <button
+                  type="button"
+                  disabled={automationFlagLoading || automationFlagSaving}
+                  onClick={() => handleAutomationToggle(!automationEnabled)}
+                  className={`relative inline-flex h-9 w-16 shrink-0 cursor-pointer items-center rounded-full border-2 transition-all duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 disabled:opacity-50 disabled:cursor-not-allowed ${
+                    automationEnabled
+                      ? 'bg-violet-600 border-violet-600'
+                      : 'bg-slate-300 dark:bg-slate-700 border-slate-400 dark:border-slate-600'
+                  }`}
+                  role="switch"
+                  aria-checked={automationEnabled}
+                  aria-label="Toggle Instagram & LinkedIn Automation"
+                  title={automationEnabled ? 'Click to turn OFF automation for all users' : 'Click to turn ON automation for all users'}
+                >
+                  <span
+                    className={`pointer-events-none flex h-7 w-7 items-center justify-center rounded-full bg-white shadow-md ring-0 transition-transform duration-200 ease-in-out font-bold text-[10px] ${
+                      automationEnabled
+                        ? 'translate-x-7 text-violet-700'
+                        : 'translate-x-1 text-slate-500'
+                    }`}
+                  >
+                    {automationEnabled ? 'ON' : 'OFF'}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  disabled={automationFlagLoading || automationFlagSaving}
+                  onClick={() => handleAutomationToggle(!automationEnabled)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                    automationEnabled
+                      ? 'border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950/40'
+                      : 'border-emerald-200 text-emerald-600 hover:bg-emerald-50 dark:border-emerald-900 dark:text-emerald-400 dark:hover:bg-emerald-950/40'
+                  }`}
+                >
+                  {automationFlagSaving ? (
+                    <span className="flex items-center gap-1.5">
+                      <LucideLoader2 className="h-3 w-3 animate-spin" />
+                      Saving...
+                    </span>
+                  ) : automationEnabled ? (
+                    'Turn Off'
+                  ) : (
+                    'Turn On'
+                  )}
+                </button>
+              </Flex>
+            </Flex>
+          </CardContent>
+        </Card>
+      </MotionBox>
 
       {/* Metrics Grid */}
       <div>
